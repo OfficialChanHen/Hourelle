@@ -1,26 +1,65 @@
 @import "tailwindcss";
 
+/* ───────────────────────── Themes — the only place hex lives ───────────────────────── */
+/* Light — warm paper (default) */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg:#F4F1EA; --s0:#FBF8F1; --s1:#FFFFFF; --s2:#F0ECE1; --s3:#E5DFD2;
+  --border:#E6E0D4; --border2:#D6CFBF;
+  --text:#1B1815; --dim:#6E6557; --faint:#A39A89;
+  --accent:#2E4A3C; --accent-text:#2A4537; --accent-bg:#E7EEE8; --accent-border:#CBDCCE; --on-accent:#F8F5EC;
+  --teal:#3E6B54; --teal-text:#2F5141; --teal-bg:#E7EFE8; --teal-border:#C7DBCB;
+  --ochre:#9A6B2E; --ochre-text:#7A531F; --ochre-bg:#F4EBD9; --ochre-border:#E6D4B8;
+  --brick:#A14A45; --brick-text:#883D38; --brick-bg:#F3E3E0; --brick-border:#E6C9C5;
+  --shadow:0 1px 2px rgba(60,45,20,.04), 0 10px 30px rgba(60,45,20,.06);
+
+  /* availability heat ramp */
+  --heat-low:#EBF1EB; --heat-mid:#CFE0D2; --heat-high:#9DBBA4; --heat-full:#2E4A3C;
+  --you-only:#F3EAD9; --you-some:#EAD9BE; --you-many:#DCC8A2; --you-text:#6E5523;
 }
 
+/* Dark — warm charcoal */
+[data-theme="dark"] {
+  --bg:#15130E; --s0:#1A1712; --s1:#201C15; --s2:#272219; --s3:#322C20;
+  --border:rgba(244,236,214,.10); --border2:rgba(244,236,214,.19);
+  --text:#F1ECE0; --dim:#B1A893; --faint:#7D7563;
+  --accent:#46815F; --accent-text:#9FD3BB; --accent-bg:rgba(127,183,154,.15); --accent-border:rgba(127,183,154,.38); --on-accent:#F8F5EC;
+  --teal:#5B9A7C; --teal-text:#9BD2B7; --teal-bg:rgba(111,181,151,.14); --teal-border:rgba(111,181,151,.36);
+  --ochre:#C49A52; --ochre-text:#E4C188; --ochre-bg:rgba(203,161,90,.15); --ochre-border:rgba(203,161,90,.38);
+  --brick:#C97F77; --brick-text:#E7ADA6; --brick-bg:rgba(208,138,130,.14); --brick-border:rgba(208,138,130,.36);
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
+
+  --heat-low:rgba(127,183,154,.14); --heat-mid:rgba(127,183,154,.30); --heat-high:rgba(127,183,154,.55); --heat-full:#5B9A7C;
+  --you-only:rgba(203,161,90,.18); --you-some:rgba(203,161,90,.34); --you-many:rgba(203,161,90,.5); --you-text:#E4C188;
+}
+
+/* ───────────────── Map semantic tokens → Tailwind utilities (switch per theme) ───────────────── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg:var(--bg); --color-s0:var(--s0); --color-s1:var(--s1); --color-s2:var(--s2); --color-s3:var(--s3);
+  --color-border:var(--border); --color-border2:var(--border2);
+  --color-text:var(--text); --color-dim:var(--dim); --color-faint:var(--faint);
+  --color-accent:var(--accent); --color-accent-text:var(--accent-text); --color-accent-bg:var(--accent-bg); --color-accent-border:var(--accent-border); --color-on-accent:var(--on-accent);
+  --color-teal:var(--teal); --color-teal-text:var(--teal-text); --color-teal-bg:var(--teal-bg); --color-teal-border:var(--teal-border);
+  --color-ochre:var(--ochre); --color-ochre-text:var(--ochre-text); --color-ochre-bg:var(--ochre-bg); --color-ochre-border:var(--ochre-border);
+  --color-brick:var(--brick); --color-brick-text:var(--brick-text); --color-brick-bg:var(--brick-bg); --color-brick-border:var(--brick-border);
+
+  --font-serif:var(--font-instrument-serif), serif;
+  --font-sans:var(--font-instrument-sans), system-ui, sans-serif;
+
+  --shadow-soft:var(--shadow);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+* { border-color: var(--border); }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-instrument-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
+
+::selection { background: var(--accent-bg); color: var(--accent-text); }
+
+/* thin, theme-aware scrollbars for the grid + chat */
+.scroll-slim::-webkit-scrollbar { width: 9px; height: 9px; }
+.scroll-slim::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 9px; border: 2px solid transparent; background-clip: padding-box; }
+.scroll-slim::-webkit-scrollbar-track { background: transparent; }
