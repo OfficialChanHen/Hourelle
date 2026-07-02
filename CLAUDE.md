@@ -112,10 +112,10 @@ You only:    #F3EAD9     You + some: #EAD9BE     You + many: #DCC8A2   (count te
 
 ### Typography — serif display + grotesk body
 - **Display / headlines:** `Instrument Serif`, weight 400 (its only weight), tracking `-0.01em`. Page titles, event names, big stat values, the RSVP donut figure. Sizes 24–52px by context — be generous; this carries the editorial feel. Maps to Tailwind `font-serif`.
-- **Body / UI:** `Hanken Grotesk` (300–700), base 13–14px; card titles & buttons 13–15px / 600. Maps to `font-sans`. (Geist / Inter / Roboto are retired.)
+- **Body / UI:** `Instrument Sans` (300–700), base 13–14px; card titles & buttons 13–15px / 600. Maps to `font-sans`. (Geist / Inter / Roboto are retired.)
 - **Eyebrow labels:** `text-[10px]`–`text-[11px] font-semibold tracking-[.13em] uppercase text-[--faint]` — above stat values and section starts.
 - **Mono:** only raw data (hex, IDs), sparingly.
-- Load `Instrument Serif:ital@0;1` + `Hanken Grotesk:wght@300;400;500;600;700` from Google Fonts; wire into `tailwind.config.ts` as `font-serif` / `font-sans`. **Min rendered text 11px** (12px mobile).
+- Load `Instrument Serif:ital@0;1` + `Instrument Sans:wght@300;400;500;600;700` from Google Fonts; wire into `tailwind.config.ts` as `font-serif` / `font-sans`. **Min rendered text 11px** (12px mobile).
 
 ### Spacing — generous (breathing room is a feature)
 The redesign deliberately loosened the old dense layout.

@@ -1,3 +1,5 @@
+import type { LucideIcon } from 'lucide-react'
+
 type Variant = 'teal' | 'ochre' | 'brick' | 'accent' | 'neutral'
 
 const variants: Record<Variant, string> = {
@@ -11,17 +13,17 @@ const variants: Record<Variant, string> = {
 export function Badge({
   children,
   variant = 'neutral',
-  dot = false,
+  icon: Icon,
 }: {
   children: React.ReactNode
   variant?: Variant
-  dot?: boolean
+  icon?: LucideIcon
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold leading-none ${variants[variant]}`}
+      className={`inline-flex h-[21px] items-center gap-1 rounded-md border px-2 text-[10.5px] font-semibold leading-none ${variants[variant]}`}
     >
-      {dot && <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />}
+      {Icon && <Icon size={11} />}
       {children}
     </span>
   )

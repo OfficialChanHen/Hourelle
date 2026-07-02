@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Hanken+Grotesk:wght@300;400;500;600;700&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+:root{
+--bg:#15130E;--s0:#1A1712;--s1:#201C15;--s2:#272219;--s3:#322C20;
+--border:rgba(244,236,214,.10);--border2:rgba(244,236,214,.19);
+--text:#F1ECE0;--dim:#B1A893;--faint:#7D7563;
+--shadow:0 1px 2px rgba(0,0,0,.5),0 14px 36px rgba(0,0,0,.45);
+--blue:#46815F;--blue-t:#9FD3BB;--blue-bg:rgba(127,183,154,.15);--blue-bd:rgba(127,183,154,.38);
+--teal:#5B9A7C;--teal-t:#9BD2B7;--teal-bg:rgba(111,181,151,.14);--teal-bd:rgba(111,181,151,.36);
+--sienna:#C49A52;--sienna-t:#E4C188;--sienna-bg:rgba(203,161,90,.15);--sienna-bd:rgba(203,161,90,.38);
+--rose:#C97F77;--rose-t:#E7ADA6;--rose-bg:rgba(208,138,130,.14);--rose-bd:rgba(208,138,130,.36);
+}
+[data-theme="light"]{
+--bg:#F4F1EA;--s0:#FBF8F1;--s1:#FFFFFF;--s2:#F0ECE1;--s3:#E5DFD2;
+--border:#E6E0D4;--border2:#D6CFBF;
+--text:#1B1815;--dim:#6E6557;--faint:#A39A89;
+--shadow:0 1px 2px rgba(60,45,20,.04),0 10px 30px rgba(60,45,20,.06);
+--blue:#2E4A3C;--blue-t:#2A4537;--blue-bg:#E7EEE8;--blue-bd:#CBDCCE;
+--teal:#3E6B54;--teal-t:#2F5141;--teal-bg:#E7EFE8;--teal-bd:#C7DBCB;
+--sienna:#9A6B2E;--sienna-t:#7A531F;--sienna-bg:#F4EBD9;--sienna-bd:#E6D4B8;
+--rose:#A14A45;--rose-t:#883D38;--rose-bg:#F3E3E0;--rose-bd:#E6C9C5;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+svg.lucide{width:1em;height:1em;stroke-width:1.75;flex:none;display:inline-block;vertical-align:middle}
+.gly ::-webkit-scrollbar{width:10px;height:10px}
+.gly ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+.gly ::-webkit-scrollbar-track{background:transparent}
+@keyframes glyfade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes glydrawer{from{transform:translateX(16px);opacity:0}to{transform:none;opacity:1}}
+</style>
+</helmet>
+<div style="display:none"><x-import component-from-global-scope="image-slot" from="./image-slot.js" id="__loader" hint-size="0,0"></x-import></div>
+<div class="gly" data-theme="{{ theme }}" style="min-height:100vh;background:var(--bg);color:var(--text);font-family:'Hanken Grotesk',system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;letter-spacing:0">
+
+<header style="position:sticky;top:0;z-index:40;background:var(--s0);border-bottom:1px solid var(--border);backdrop-filter:blur(8px)">
+<div style="max-width:1240px;margin:0 auto;height:54px;padding:0 22px;display:flex;align-items:center;gap:22px">
+<div style="display:flex;align-items:center;gap:9px;cursor:pointer" onClick="{{ goHome }}">
+<span style="width:26px;height:26px;border-radius:7px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px"><i data-lucide="calendar-days"></i></span>
+<span style="font-family:'Instrument Serif',serif;font-size:22px;letter-spacing:.01em">Gatherly</span>
+</div>
+<nav style="display:flex;align-items:center;gap:3px;font-size:12.5px">
+<span onClick="{{ goHome }}" style="padding:8px 13px;border-radius:9px;cursor:pointer;font-weight:{{ nav.homeW }};color:{{ nav.homeC }};background:{{ nav.homeBg }}">Home</span>
+<span onClick="{{ goEvents }}" style="padding:8px 13px;border-radius:9px;cursor:pointer;font-weight:{{ nav.eventsW }};color:{{ nav.eventsC }};background:{{ nav.eventsBg }}">Events</span>
+<span onClick="{{ goTemplates }}" style="padding:8px 13px;border-radius:9px;cursor:pointer;font-weight:{{ nav.tplW }};color:{{ nav.tplC }};background:{{ nav.tplBg }}">Templates</span>
+</nav>
+<div style="flex:1"></div>
+<button onClick="{{ goCreate }}" style="display:flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:9px;border:none;background:var(--blue);color:#fff;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:0 1px 0 rgba(255,255,255,.12) inset"><i data-lucide="plus" style="font-size:15px"></i>New event</button>
+<sc-if value="{{ authed }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;align-items:center;gap:8px">
+<span style="width:30px;height:30px;border-radius:50%;background:#F3EAD9;color:#5A431C;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;cursor:pointer">JM</span>
+<button style="width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px"><i data-lucide="more-horizontal"></i></button>
+</div>
+</sc-if>
+<sc-if value="{{ guest }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;align-items:center;gap:8px">
+<button onClick="{{ onSignedIn }}" style="height:34px;padding:0 13px;border-radius:9px;border:1px solid var(--border2);background:transparent;color:var(--text);font-family:inherit;font-size:12.5px;font-weight:500;cursor:pointer">Log in</button>
+<button onClick="{{ onSignedIn }}" style="height:34px;padding:0 14px;border-radius:9px;border:none;background:var(--text);color:var(--bg);font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer">Sign up</button>
+<button style="width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px"><i data-lucide="more-horizontal"></i></button>
+</div>
+</sc-if>
+</div>
+</header>
+
+<main style="max-width:1240px;margin:0 auto;padding:34px 26px 104px">
+
+<sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+<div>
+<div style="margin-bottom:20px">
+<h1 style="margin:0 0 9px;font-family:'Instrument Serif',serif;font-weight:400;font-size:33px;line-height:1.02;letter-spacing:-.01em">{{ greeting }}</h1>
+<div style="display:flex;align-items:center;gap:14px;color:var(--dim);font-size:12px">
+<span style="display:flex;align-items:center;gap:6px"><i data-lucide="calendar" style="font-size:13px"></i>3 events this week</span>
+<span style="display:flex;align-items:center;gap:6px;color:var(--sienna-t)"><i data-lucide="clock" style="font-size:13px"></i>1 happening today</span>
+</div>
+</div>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 11px">
+<div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600"><i data-lucide="zap" style="font-size:14px;color:var(--blue-t)"></i>Current event</div>
+<div style="display:flex;align-items:center;gap:8px;color:var(--dim);font-size:11.5px"><span>Sort</span><span style="display:flex;align-items:center;gap:5px;height:28px;padding:0 9px;border-radius:8px;border:1px solid var(--border);background:var(--s1);color:var(--text);cursor:pointer">Closest date<i data-lucide="chevron-down" style="font-size:13px;color:var(--dim)"></i></span></div>
+</div>
+
+<div style="border:1.5px solid var(--blue-bd);border-radius:14px;background:var(--s1);box-shadow:var(--shadow);overflow:hidden">
+<div style="padding:16px 18px;display:flex;gap:18px">
+<div style="width:150px;flex:none;position:relative;border-radius:11px;overflow:hidden;background:var(--s2)"><image-slot id="cov-launch" src="{{ hero.cover }}" shape="rect" placeholder="Drop a photo" style="position:absolute;inset:0;width:100%;height:100%;display:block"></image-slot></div>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+<span style="display:flex;align-items:center;gap:5px;height:23px;padding:0 9px;border-radius:7px;background:var(--sienna-bg);border:1px solid var(--sienna-bd);color:var(--sienna-t);font-size:11px;font-weight:600"><i data-lucide="clock" style="font-size:12px"></i>Today · 2:00 PM <span style="opacity:.7;font-family:Geist Mono,monospace;font-size:10px">PDT</span></span>
+<span style="display:flex;align-items:center;gap:5px;color:var(--teal-t);font-size:11.5px;font-weight:600"><i data-lucide="check-circle-2" style="font-size:13px"></i>Confirmed</span>
+</div>
+<h2 style="margin:0 0 10px;font-family:'Instrument Serif',serif;font-weight:400;font-size:27px;line-height:1.05;letter-spacing:-.01em">Product Launch Kickoff</h2>
+<div style="display:flex;align-items:center;gap:9px;color:var(--dim);font-size:12px;margin-bottom:13px;flex-wrap:wrap">
+<span style="display:flex;align-items:center;gap:5px"><i data-lucide="map-pin" style="font-size:13px"></i>Salesforce Tower, SF</span>
+<span style="font-family:Geist Mono,monospace;font-size:9.5px;padding:1px 5px;border-radius:5px;background:var(--s2);color:var(--dim)">PDT</span>
+<span style="opacity:.4">·</span>
+<span style="display:flex;align-items:center;gap:5px"><i data-lucide="user" style="font-size:13px"></i>Hosted by you</span>
+</div>
+<div style="display:flex;align-items:center;gap:9px">
+<div style="display:flex">
+<sc-for list="{{ hero.avatars }}" as="a" hint-placeholder-count="6">
+<span title="{{ a.name }}" style="width:25px;height:25px;border-radius:50%;border:2px solid var(--s1);margin-right:-7px;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.initials }}</span>
+</sc-for>
+<span style="width:25px;height:25px;border-radius:50%;border:2px solid var(--s1);display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:600;background:var(--s3);color:var(--dim)">+6</span>
+</div>
+<span style="color:var(--dim);font-size:11.5px;margin-left:6px">12 attending</span>
+</div>
+</div>
+<div style="width:198px;flex:none;display:flex;flex-direction:column;gap:7px">
+<sc-for list="{{ hero.stats }}" as="st" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;justify-content:space-between;height:34px;padding:0 11px;border-radius:9px;background:var(--s2);border:1px solid var(--border)">
+<span style="display:flex;align-items:center;gap:7px;color:var(--dim);font-size:11.5px"><i data-lucide="{{ st.icon }}" style="font-size:13px"></i>{{ st.label }}</span>
+<span style="font-size:12.5px;font-weight:600;color:{{ st.vc }}">{{ st.value }}</span>
+</div>
+</sc-for>
+<button onClick="{{ openEvent }}" style="display:flex;align-items:center;justify-content:center;gap:7px;height:36px;border-radius:9px;border:1px solid var(--border2);background:transparent;color:var(--text);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;margin-top:1px"><i data-lucide="external-link" style="font-size:13px"></i>View event</button>
+</div>
+</div>
+<div style="padding:14px 18px;border-top:1px solid var(--border);background:var(--s0)">
+<div style="position:relative;display:flex;justify-content:space-between;padding:2px 4px 0">
+<div style="position:absolute;left:14px;right:14px;top:7px;height:2px;background:var(--border)"></div>
+<div style="position:absolute;left:14px;top:7px;height:2px;width:{{ hero.lifeProgress }};background:var(--teal);transition:width .5s ease"></div>
+<sc-for list="{{ hero.life }}" as="s" hint-placeholder-count="5">
+<div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:7px">
+<span style="width:11px;height:11px;border-radius:50%;background:{{ s.dot }};box-shadow:{{ s.ring }}"></span>
+<span style="font-size:11px;font-weight:{{ s.w }};color:{{ s.lc }}">{{ s.label }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin:26px 0 11px">
+<div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600"><i data-lucide="calendar-check" style="font-size:14px;color:var(--dim)"></i>Your events <span style="font-size:10.5px;color:var(--dim);background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:1px 7px">3</span></div>
+<div style="display:flex;align-items:center;gap:8px;color:var(--dim);font-size:11.5px"><span>Sort</span><span style="display:flex;align-items:center;gap:5px;height:28px;padding:0 9px;border-radius:8px;border:1px solid var(--border);background:var(--s1);color:var(--text);cursor:pointer">Closest date<i data-lucide="chevron-down" style="font-size:13px;color:var(--dim)"></i></span></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:13px">
+<sc-for list="{{ yourEvents }}" as="e" hint-placeholder-count="3">
+<div onClick="{{ e.onOpen }}" style="border:1px solid var(--border);border-radius:13px;background:var(--s1);padding:14px;cursor:pointer;overflow:hidden;transition:border-color .15s,transform .15s" style-hover="border-color:var(--border2);transform:translateY(-2px)">
+<div style="margin:-14px -14px 12px;height:92px;position:relative;background:var(--s2)"><image-slot id="{{ e.slotId }}" src="{{ e.cover }}" shape="rect" placeholder="Drop a cover photo" style="position:absolute;inset:0;width:100%;height:100%;display:block"></image-slot></div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px">
+<span style="height:21px;padding:0 8px;display:inline-flex;align-items:center;border-radius:6px;font-size:10.5px;font-weight:600;background:{{ e.badge.bg }};color:{{ e.badge.fg }};border:1px solid {{ e.badge.bd }}">{{ e.badge.text }}</span>
+<span style="height:21px;padding:0 8px;display:inline-flex;align-items:center;border-radius:6px;font-size:10.5px;font-weight:600;background:{{ e.days.bg }};color:{{ e.days.fg }};border:1px solid {{ e.days.bd }}">{{ e.days.text }}</span>
+</div>
+<h3 style="margin:0 0 9px;font-size:13.5px;font-weight:600;letter-spacing:-.01em">{{ e.title }}</h3>
+<div style="display:flex;align-items:center;gap:7px;color:var(--dim);font-size:11.5px;margin-bottom:11px">
+<i data-lucide="calendar" style="font-size:13px"></i><span>{{ e.date }}</span>
+<span style="font-family:Geist Mono,monospace;font-size:9px;padding:1px 5px;border-radius:5px;background:var(--s2);color:var(--dim)">{{ e.tz }}</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+<div style="display:flex">
+<sc-for list="{{ e.avatars }}" as="a" hint-placeholder-count="3">
+<span title="{{ a.name }}" style="width:21px;height:21px;border-radius:50%;border:2px solid var(--s1);margin-right:-6px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.initials }}</span>
+</sc-for>
+<span style="width:21px;height:21px;border-radius:50%;border:2px solid var(--s1);display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:600;background:var(--s3);color:var(--dim)">{{ e.more }}</span>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:11px;color:var(--dim);font-size:11px;padding-top:11px;border-top:1px solid var(--border)">
+<sc-for list="{{ e.meta }}" as="m" hint-placeholder-count="3">
+<span style="display:flex;align-items:center;gap:5px"><i data-lucide="{{ m.icon }}" style="font-size:12px"></i>{{ m.text }}</span>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin:26px 0 11px">
+<div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600"><i data-lucide="calendar-clock" style="font-size:14px;color:var(--dim)"></i>Upcoming events <span style="font-size:10.5px;color:var(--dim);background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:1px 7px">3</span></div>
+<div style="display:flex;align-items:center;gap:8px;color:var(--dim);font-size:11.5px"><span>Sort</span><span style="display:flex;align-items:center;gap:5px;height:28px;padding:0 9px;border-radius:8px;border:1px solid var(--border);background:var(--s1);color:var(--text);cursor:pointer">Closest date<i data-lucide="chevron-down" style="font-size:13px;color:var(--dim)"></i></span></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:13px">
+<sc-for list="{{ upcomingEvents }}" as="e" hint-placeholder-count="3">
+<div onClick="{{ e.onOpen }}" style="border:1px solid var(--border);border-radius:13px;background:var(--s1);padding:14px;cursor:pointer;overflow:hidden;transition:border-color .15s,transform .15s" style-hover="border-color:var(--border2);transform:translateY(-2px)">
+<div style="margin:-14px -14px 12px;height:92px;position:relative;background:var(--s2)"><image-slot id="{{ e.slotId }}" src="{{ e.cover }}" shape="rect" placeholder="Drop a cover photo" style="position:absolute;inset:0;width:100%;height:100%;display:block"></image-slot></div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px">
+<span style="height:21px;padding:0 8px;display:inline-flex;align-items:center;border-radius:6px;font-size:10.5px;font-weight:600;background:{{ e.badge.bg }};color:{{ e.badge.fg }};border:1px solid {{ e.badge.bd }}">{{ e.badge.text }}</span>
+<span style="height:21px;padding:0 8px;display:inline-flex;align-items:center;border-radius:6px;font-size:10.5px;font-weight:600;background:{{ e.days.bg }};color:{{ e.days.fg }};border:1px solid {{ e.days.bd }}">{{ e.days.text }}</span>
+</div>
+<h3 style="margin:0 0 9px;font-size:13.5px;font-weight:600;letter-spacing:-.01em">{{ e.title }}</h3>
+<div style="display:flex;align-items:center;gap:7px;color:var(--dim);font-size:11.5px;margin-bottom:10px">
+<i data-lucide="calendar" style="font-size:13px"></i><span>{{ e.date }}</span>
+<span style="font-family:Geist Mono,monospace;font-size:9px;padding:1px 5px;border-radius:5px;background:var(--s2);color:var(--dim)">{{ e.tz }}</span>
+</div>
+<div style="display:flex;align-items:center;gap:7px;color:var(--dim);font-size:11.5px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+<span title="{{ e.hostAvatar.name }}" style="width:19px;height:19px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:600;background:{{ e.hostAvatar.bg }};color:{{ e.hostAvatar.fg }}">{{ e.hostAvatar.initials }}</span>
+<span>{{ e.host }}</span>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between">
+<div style="display:flex;align-items:center">
+<sc-for list="{{ e.avatars }}" as="a" hint-placeholder-count="3">
+<span title="{{ a.name }}" style="width:21px;height:21px;border-radius:50%;border:2px solid var(--s1);margin-right:-6px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.initials }}</span>
+</sc-for>
+<span style="width:21px;height:21px;border-radius:50%;border:2px solid var(--s1);display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:600;background:var(--s3);color:var(--dim)">{{ e.more }}</span>
+</div>
+<span style="color:var(--dim);font-size:11px">{{ e.going }}</span>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isEvent }}" hint-placeholder-val="{{ false }}">
+<div>
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px">
+<div>
+<h1 style="margin:0 0 8px;font-family:'Instrument Serif',serif;font-weight:400;font-size:31px;line-height:1.04;letter-spacing:-.01em">Q3 Team Offsite Planning</h1>
+<div style="display:flex;align-items:center;gap:6px;color:var(--dim);font-size:12px"><i data-lucide="building-2" style="font-size:13px"></i>Hosted by Acme Engineering Org</div>
+</div>
+<button style="display:flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:9px;border:1px solid var(--border2);background:var(--s1);color:var(--text);font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer"><i data-lucide="link" style="font-size:14px"></i>Share link</button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:32px;margin-bottom:26px;padding-bottom:28px;border-bottom:1px solid var(--border)">
+<div style="padding:2px 0">
+<div style="display:flex;align-items:center;gap:7px;color:var(--faint);font-size:10px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;margin-bottom:12px"><i data-lucide="clock" style="font-size:13px"></i>Time until event</div>
+<div style="font-family:'Instrument Serif',serif;font-weight:400;font-size:31px;line-height:1;margin-bottom:6px">14 days</div>
+<div style="display:flex;align-items:center;gap:6px;color:var(--dim);font-size:11px">Jul 13, 2026 · 9:00 AM <span style="font-family:Geist Mono,monospace;font-size:9px;padding:1px 5px;border-radius:5px;background:var(--s2);color:var(--dim)">PDT</span></div>
+</div>
+<sc-if value="{{ authed }}" hint-placeholder-val="{{ true }}">
+<div style="padding:2px 0">
+<div style="display:flex;align-items:center;gap:7px;color:var(--faint);font-size:10px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;margin-bottom:12px"><i data-lucide="wallet" style="font-size:13px"></i>Budget</div>
+<div style="font-family:'Instrument Serif',serif;font-weight:400;font-size:31px;line-height:1;margin-bottom:6px">$4,200</div>
+<div style="color:var(--dim);font-size:11px">$420 / person (est.)</div>
+</div>
+</sc-if>
+<sc-if value="{{ guest }}" hint-placeholder-val="{{ false }}">
+<div style="padding:2px 0">
+<div style="display:flex;align-items:center;gap:7px;color:var(--faint);font-size:10px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;margin-bottom:12px"><i data-lucide="wallet" style="font-size:13px"></i>Budget</div>
+<div style="display:flex;align-items:center;gap:7px;color:var(--faint);font-size:13px;font-weight:600;margin:6px 0 5px"><i data-lucide="lock" style="font-size:14px"></i>Hidden</div>
+<div style="color:var(--faint);font-size:11px">Only the host can view budget</div>
+</div>
+</sc-if>
+<div style="padding:2px 0">
+<div style="display:flex;align-items:center;gap:7px;color:var(--faint);font-size:10px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;margin-bottom:11px"><i data-lucide="users" style="font-size:13px"></i>Attendance</div>
+<div style="display:flex;flex-wrap:wrap;gap:5px 9px;margin-bottom:9px">
+<sc-for list="{{ attInitials }}" as="p" hint-placeholder-count="8">
+<span style="font-size:11.5px;font-weight:600;color:{{ p.color }}">{{ p.id }}</span>
+</sc-for>
+</div>
+<div style="color:var(--dim);font-size:11px"><span style="color:var(--teal-t)">7 going</span> · <span style="color:var(--rose-t)">1 not going</span></div>
+</div>
+<div style="padding:2px 0">
+<div style="display:flex;align-items:center;gap:7px;color:var(--faint);font-size:10px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;margin-bottom:12px"><i data-lucide="{{ ctx.icon }}" style="font-size:13px;color:{{ ctx.fg }}"></i>{{ ctx.label }}</div>
+<div style="font-family:'Instrument Serif',serif;font-weight:400;font-size:25px;line-height:1.05;margin-bottom:5px">{{ ctx.value }}</div>
+<div style="color:var(--dim);font-size:11px">{{ ctx.sub }}</div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:5px;margin-bottom:24px;overflow-x:auto">
+<sc-for list="{{ eventTabs }}" as="t" hint-placeholder-count="4">
+<span onClick="{{ t.onClick }}" style="display:flex;align-items:center;gap:7px;padding:9px 15px;border-radius:10px;cursor:pointer;font-size:12.5px;white-space:nowrap;font-weight:{{ t.weight }};color:{{ t.fg }};background:{{ t.bg }}"><i data-lucide="{{ t.icon }}" style="font-size:14px"></i>{{ t.label }}</span>
+</sc-for>
+</div>
+<sc-if value="{{ isAvail }}" hint-placeholder-val="{{ true }}">
+<div style="border:1px solid var(--border);border-radius:14px;background:var(--s1);overflow:hidden;display:flex;min-height:540px">
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;padding:14px 16px">
+<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding-bottom:13px;border-bottom:1px solid var(--border)">
+<div style="display:flex;background:var(--s2);border-radius:9px;padding:2px">
+<span onClick="{{ setView }}" style="height:28px;padding:0 12px;display:flex;align-items:center;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;background:{{ viewSegBg }};color:{{ viewSegFg }}">View</span>
+<span onClick="{{ setEdit }}" style="height:28px;padding:0 12px;display:flex;align-items:center;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;background:{{ editSegBg }};color:{{ editSegFg }}">Edit mine</span>
+</div>
+<span style="width:1px;height:20px;background:var(--border)"></span>
+<div style="display:flex;align-items:center;gap:3px">
+<button style="width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--s1);color:var(--dim);cursor:pointer;display:flex;align-items:center;justify-content:center"><i data-lucide="chevron-left" style="font-size:15px"></i></button>
+<span style="font-size:12px;font-weight:600;padding:0 4px">Jun 30 – Jul 4</span>
+<button style="width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--s1);color:var(--dim);cursor:pointer;display:flex;align-items:center;justify-content:center"><i data-lucide="chevron-right" style="font-size:15px"></i></button>
+</div>
+<button style="display:flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:8px;border:1px solid var(--border);background:var(--s1);color:var(--text);font-family:inherit;font-size:11.5px;font-weight:500;cursor:pointer"><i data-lucide="calendar-plus" style="font-size:13px"></i>Google Calendar</button>
+<div style="flex:1"></div>
+<div style="display:flex;background:var(--s2);border-radius:9px;padding:2px">
+<span onClick="{{ setGran15 }}" style="height:28px;padding:0 10px;display:flex;align-items:center;border-radius:7px;cursor:pointer;font-size:11px;font-weight:600;background:{{ g15Bg }};color:{{ g15Fg }}">15 min</span>
+<span onClick="{{ setGran30 }}" style="height:28px;padding:0 10px;display:flex;align-items:center;border-radius:7px;cursor:pointer;font-size:11px;font-weight:600;background:{{ g30Bg }};color:{{ g30Fg }}">30 min</span>
+<span onClick="{{ setGran60 }}" style="height:28px;padding:0 10px;display:flex;align-items:center;border-radius:7px;cursor:pointer;font-size:11px;font-weight:600;background:{{ g60Bg }};color:{{ g60Fg }}">1 hr</span>
+</div>
+<sc-if value="{{ chatClosed }}" hint-placeholder-val="{{ false }}">
+<button onClick="{{ toggleChat }}" style="display:flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:8px;border:1px solid var(--border);background:var(--s1);color:var(--text);font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer"><i data-lucide="message-circle" style="font-size:13px"></i>Discussion<span style="background:var(--blue);color:#fff;font-size:9px;border-radius:10px;padding:0 5px;height:15px;display:flex;align-items:center">4</span></button>
+</sc-if>
+</div>
+<div style="display:flex;align-items:center;gap:10px;padding:11px 0 12px">
+<span style="font-size:11px;color:var(--dim)">Participants</span>
+<div style="display:flex">
+<sc-for list="{{ participants }}" as="a" hint-placeholder-count="8">
+<span title="{{ a.name }}" style="width:22px;height:22px;border-radius:50%;border:2px solid var(--s1);margin-right:-5px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.initials }}</span>
+</sc-for>
+</div>
+<span style="font-size:11px;color:var(--dim);margin-left:9px">8 of 8 responded</span>
+</div>
+<div style="flex:1;overflow:auto;border-radius:10px;border:1px solid var(--border)">
+<div style="display:grid;grid-template-columns:54px repeat(5,1fr);min-width:520px">
+<div style="background:var(--s0);border-right:1px solid var(--border);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2"></div>
+<sc-for list="{{ days }}" as="d" hint-placeholder-count="5">
+<div style="position:sticky;top:0;z-index:2;padding:7px 6px 8px;text-align:center;background:{{ d.hbg2 }};border-right:1px solid var(--border);border-bottom:1px solid {{ d.hbd }}">
+<div style="font-size:10px;color:var(--dim);margin-bottom:1px">{{ d.dow }}</div>
+<div style="font-size:12.5px;font-weight:600;color:{{ d.dc }}">{{ d.date }}</div>
+<sc-if value="{{ d.best }}" hint-placeholder-val="{{ false }}"><span style="display:inline-block;margin-top:3px;font-size:8.5px;font-weight:600;color:var(--teal-t);background:var(--teal-bg);border:1px solid var(--teal-bd);border-radius:5px;padding:1px 5px">Best day</span></sc-if>
+</div>
+</sc-for>
+<sc-for list="{{ gridRows }}" as="row" hint-placeholder-count="5">
+<div style="display:contents">
+<div style="padding:6px;font-size:10.5px;font-weight:500;color:var(--dim);text-align:right;background:var(--s0);border-right:1px solid var(--border);border-bottom:1px solid var(--border)">{{ row.time }}</div>
+<sc-for list="{{ row.cells }}" as="c" hint-placeholder-count="5">
+<div style="position:relative;min-height:50px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:{{ c.bg }};box-shadow:{{ c.ring }};padding:4px 5px;display:flex;flex-wrap:wrap;gap:2px;align-content:flex-start;cursor:pointer">
+<sc-for list="{{ c.avatars }}" as="a" hint-placeholder-count="3">
+<span title="{{ a.name }}" style="width:15px;height:15px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.initials }}</span>
+</sc-for>
+<span style="position:absolute;right:4px;bottom:3px;font-size:8.5px;font-weight:700;color:{{ c.countColor }}">{{ c.count }}</span>
+</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:10px;padding:12px 2px 2px;border-top:1px solid var(--border);margin-top:2px;flex-wrap:wrap">
+<span style="font-size:11px;color:var(--dim)">Selected</span>
+<span style="font-size:12.5px;font-weight:600">Wed, Jul 2 · 9:00 AM</span>
+<span style="font-family:Geist Mono,monospace;font-size:9px;padding:1px 5px;border-radius:5px;background:var(--s2);color:var(--dim)">PDT</span>
+<span style="color:var(--teal-t);font-size:11px;font-weight:600">8 of 8 free</span>
+<div style="display:flex;margin-left:auto">
+<sc-for list="{{ selectedAvatars }}" as="a" hint-placeholder-count="8">
+<span title="{{ a.name }}" style="width:20px;height:20px;border-radius:50%;border:2px solid var(--s1);margin-right:-5px;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.initials }}</span>
+</sc-for>
+</div>
+</div>
+</div>
+<sc-if value="{{ chatOpen }}" hint-placeholder-val="{{ true }}">
+<div style="width:300px;flex:none;border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--s0)">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:13px 14px;border-bottom:1px solid var(--border)">
+<div style="display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600"><i data-lucide="message-circle" style="font-size:14px;color:var(--blue-t)"></i>Event discussion <span style="font-size:9.5px;font-weight:600;color:var(--blue-t);background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:10px;padding:1px 6px">8 members</span></div>
+<button onClick="{{ toggleChat }}" style="width:26px;height:26px;border-radius:7px;border:none;background:transparent;color:var(--dim);cursor:pointer;display:flex;align-items:center;justify-content:center"><i data-lucide="x" style="font-size:15px"></i></button>
+</div>
+<div style="flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:14px">
+<sc-for list="{{ messages }}" as="m" hint-placeholder-count="4">
+<div style="display:flex;flex-direction:column;align-items:{{ m.align }};gap:5px">
+<div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--dim)">
+<sc-if value="{{ m.showAvatar }}" hint-placeholder-val="{{ true }}"><span style="width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:600;background:{{ m.av.bg }};color:{{ m.av.fg }}">{{ m.av.initials }}</span></sc-if>
+<span style="font-weight:600;color:var(--text)">{{ m.name }}</span><span>{{ m.time }}</span>
+</div>
+<div style="max-width:86%;padding:8px 11px;border-radius:13px;font-size:11.5px;line-height:1.45;background:{{ m.bg }};color:{{ m.fg }};border:1px solid {{ m.bd }}">{{ m.text }}</div>
+</div>
+</sc-for>
+</div>
+<div style="padding:11px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px">
+<input placeholder="Add a comment…" style="flex:1;height:34px;border-radius:9px;border:1px solid var(--border);background:var(--s1);color:var(--text);padding:0 11px;font-family:inherit;font-size:12px;outline:none"/>
+<button style="width:34px;height:34px;border-radius:9px;border:none;background:var(--blue);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center"><i data-lucide="send" style="font-size:14px"></i></button>
+</div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+<sc-if value="{{ isLoc }}" hint-placeholder-val="{{ false }}"><div>
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+<span style="font-size:11.5px;color:var(--dim)">Location</span>
+<div style="display:flex;background:var(--s2);border-radius:9px;padding:2px;border:1px solid var(--border)">
+<span onClick="{{ setVkInperson }}" style="display:flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;background:{{ vInpersonBg }};color:{{ vInpersonFg }}"><i data-lucide="map-pin" style="font-size:13px"></i>In person</span>
+<span onClick="{{ setVkRemote }}" style="display:flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;background:{{ vRemoteBg }};color:{{ vRemoteFg }}"><i data-lucide="video" style="font-size:13px"></i>Remote</span>
+<span onClick="{{ setVkNone }}" style="display:flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;background:{{ vNoneBg }};color:{{ vNoneFg }}"><i data-lucide="circle-dashed" style="font-size:13px"></i>Not set yet</span>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:9px;height:42px;padding:0 14px;border:1px solid var(--border);border-radius:11px;background:var(--s1);margin-bottom:14px">
+<i data-lucide="search" style="font-size:16px;color:var(--dim)"></i>
+<span style="color:var(--faint);font-size:13px">{{ searchPlaceholder }}</span>
+</div>
+<div style="display:flex;gap:14px;align-items:stretch">
+<div style="flex:1;min-width:0;position:relative;display:flex">
+<div style="flex:1;min-width:0;position:relative;filter:{{ mapBlur }};transition:filter .25s;min-height:452px;border-radius:13px;overflow:hidden;border:1px solid var(--border);background:repeating-linear-gradient(0deg,transparent 0 43px,rgba(120,118,104,.13) 43px 45px),repeating-linear-gradient(90deg,transparent 0 52px,rgba(120,118,104,.13) 52px 54px),#E7E6DF">
+<div style="position:absolute;left:-8%;top:-12%;width:26%;height:128%;background:#AEC9E3;transform:rotate(9deg);border-radius:50px"></div>
+<div style="position:absolute;left:2%;top:55%;width:15%;height:48%;background:#AEC9E3;transform:rotate(-6deg);border-radius:40px"></div>
+<div style="position:absolute;left:39%;top:17%;width:92px;height:66px;background:#C2D9A7;border-radius:12px"></div>
+<div style="position:absolute;left:58%;top:62%;width:80px;height:58px;background:#C2D9A7;border-radius:12px"></div>
+<div style="position:absolute;left:8%;top:38%;width:78%;height:6px;background:#FAFAF6;transform:rotate(-14deg);border-radius:6px"></div>
+<div style="position:absolute;left:30%;top:-5%;width:6px;height:110%;background:#FAFAF6;transform:rotate(7deg);border-radius:6px"></div>
+<sc-if value="{{ isItin }}" hint-placeholder-val="{{ false }}">
+<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;z-index:2"><polyline points="72,84 60,70 48,58 40,46 28,34 21,26" fill="none" stroke="#3E6B54" stroke-width="0.9" stroke-dasharray="2.2 1.7" stroke-linecap="round"></polyline></svg>
+</sc-if>
+<sc-if value="{{ isVote }}" hint-placeholder-val="{{ true }}">
+<sc-for list="{{ votePins }}" as="p" hint-placeholder-count="4">
+<div style="position:absolute;left:{{ p.left }};top:{{ p.top }};transform:translate(-50%,-100%);z-index:3">
+<div style="width:27px;height:27px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:{{ p.color }};box-shadow:0 3px 9px rgba(0,0,0,.38);display:flex;align-items:center;justify-content:center;border:2px solid #fff"><span style="transform:rotate(45deg);color:#fff;font-size:11px;font-weight:700">{{ p.label }}</span></div>
+</div>
+</sc-for>
+<div style="position:absolute;left:27%;top:60%;transform:translate(-50%,calc(-100% - 32px));z-index:5;background:#fff;border-radius:11px;box-shadow:0 10px 28px rgba(0,0,0,.28);padding:9px 12px;min-width:158px">
+<div style="font-size:12px;font-weight:600;color:#1b1b19">Cavallo Point Lodge</div>
+<div style="font-size:10.5px;color:#6b7280;margin:2px 0 7px">Sausalito, CA · 26 mi</div>
+<div style="display:flex;align-items:center;gap:7px"><span style="font-size:10.5px;font-weight:700;color:#0F766E">5 votes</span><div style="display:flex"><sc-for list="{{ locations.0.voters }}" as="a" hint-placeholder-count="5"><span style="width:17px;height:17px;border-radius:50%;border:1.5px solid #fff;margin-right:-5px;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.initials }}</span></sc-for></div></div>
+<div style="position:absolute;left:50%;bottom:-6px;transform:translateX(-50%) rotate(45deg);width:12px;height:12px;background:#fff"></div>
+</div>
+</sc-if>
+<sc-if value="{{ isItin }}" hint-placeholder-val="{{ false }}">
+<sc-for list="{{ itinPins }}" as="p" hint-placeholder-count="3">
+<div style="position:absolute;left:{{ p.left }};top:{{ p.top }};transform:translate(-50%,-100%);z-index:3">
+<div style="width:27px;height:27px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:{{ p.color }};box-shadow:0 3px 9px rgba(0,0,0,.38);display:flex;align-items:center;justify-content:center;border:2px solid #fff"><span style="transform:rotate(45deg);color:#fff;font-size:11px;font-weight:700">{{ p.label }}</span></div>
+</div>
+</sc-for>
+<div style="position:absolute;left:48%;top:57%;transform:translate(-50%,calc(-100% - 32px));z-index:5;background:#fff;border-radius:11px;box-shadow:0 10px 28px rgba(0,0,0,.28);padding:9px 12px;min-width:160px">
+<div style="font-size:12px;font-weight:600;color:#1b1b19">Fort Mason Center</div>
+<div style="font-size:10.5px;color:#6b7280;margin:2px 0 6px">Stop 3 · 11:45 AM – 2:30 PM</div>
+<div style="display:flex;align-items:center;gap:7px"><span style="font-size:9.5px;font-weight:700;color:#fff;background:#2E4A3C;border-radius:5px;padding:1px 6px">2h45</span><span style="font-size:10.5px;color:#6b7280">Workshop & lunch</span></div>
+<div style="position:absolute;left:50%;bottom:-6px;transform:translateX(-50%) rotate(45deg);width:12px;height:12px;background:#fff"></div>
+</div>
+</sc-if>
+<div style="position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:1px solid rgba(0,0,0,.12);z-index:6"><span style="width:30px;height:30px;background:#fff;color:#1b1b19;display:flex;align-items:center;justify-content:center;font-size:16px;border-bottom:1px solid rgba(0,0,0,.1);cursor:pointer">+</span><span style="width:30px;height:30px;background:#fff;color:#1b1b19;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer">−</span></div>
+</div>
+<sc-if value="{{ showOverlay }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;padding:20px;background:color-mix(in srgb,var(--bg) 38%,transparent)">
+<div style="text-align:center;max-width:330px;width:100%;padding:24px 22px;border-radius:16px;background:var(--s1);border:1px solid var(--border2);box-shadow:var(--shadow)">
+<sc-if value="{{ vkRemote }}" hint-placeholder-val="{{ false }}">
+<span style="width:46px;height:46px;border-radius:12px;background:var(--blue-bg);border:1px solid var(--blue-bd);color:var(--blue-t);display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 12px"><i data-lucide="video"></i></span>
+<div style="font-size:14px;font-weight:600;margin-bottom:5px">This event is remote</div>
+<div style="font-size:11.5px;color:var(--dim);line-height:1.55;margin-bottom:14px">Everyone joins online — no map needed. The link is on the event page and in every reminder.</div>
+<div style="display:flex;align-items:center;gap:8px;height:38px;padding:0 8px 0 12px;border-radius:10px;border:1px solid var(--border);background:var(--s2);margin-bottom:11px"><i data-lucide="link" style="font-size:14px;color:var(--blue-t)"></i><span style="flex:1;text-align:left;font-size:11.5px;font-family:Geist Mono,monospace;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">meet.google.com/q3-offsite</span><button style="height:28px;padding:0 11px;border-radius:7px;border:none;background:var(--blue);color:#fff;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer">Copy</button></div>
+<div style="display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:11px"><div style="display:flex"><sc-for list="{{ remoteJoining }}" as="a" hint-placeholder-count="6"><span style="width:20px;height:20px;border-radius:50%;border:2px solid var(--s1);margin-right:-5px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.initials }}</span></sc-for></div><span style="margin-left:9px">6 joining</span></div>
+</sc-if>
+<sc-if value="{{ vkNone }}" hint-placeholder-val="{{ false }}">
+<span style="width:46px;height:46px;border-radius:12px;background:var(--sienna-bg);border:1px solid var(--sienna-bd);color:var(--sienna-t);display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 12px"><i data-lucide="map-pin-off"></i></span>
+<div style="font-size:14px;font-weight:600;margin-bottom:5px">No location yet</div>
+<div style="font-size:11.5px;color:var(--dim);line-height:1.55;margin-bottom:14px">Add or suggest a place and guests can start voting. The map fills in as locations come in.</div>
+<button onClick="{{ setVkInperson }}" style="display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 15px;border-radius:10px;border:none;background:var(--blue);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer"><i data-lucide="plus" style="font-size:14px"></i>Add a location</button>
+</sc-if>
+</div>
+</div>
+</sc-if>
+</div>
+<sc-if value="{{ vkInperson }}" hint-placeholder-val="{{ true }}">
+<div style="width:330px;flex:none;display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+<div style="display:flex;background:var(--s2);border-radius:9px;padding:2px;flex:1">
+<span onClick="{{ setVote }}" style="flex:1;justify-content:center;height:30px;display:flex;align-items:center;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;background:{{ voteSegBg }};color:{{ voteSegFg }}">Venue vote</span>
+<span onClick="{{ setItin }}" style="flex:1;justify-content:center;height:30px;display:flex;align-items:center;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;background:{{ itinSegBg }};color:{{ itinSegFg }}">Itinerary</span>
+</div>
+<button style="display:flex;align-items:center;gap:5px;height:34px;padding:0 12px;border-radius:9px;border:1px solid var(--border2);background:var(--s1);color:var(--text);font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap"><i data-lucide="plus" style="font-size:14px"></i>{{ actionLabel }}</button>
+</div>
+<sc-if value="{{ isVote }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:9px">
+<sc-for list="{{ locations }}" as="l" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:11px;padding:11px;border-radius:12px;border:1px solid {{ l.cardBd }};background:{{ l.cardBg }}">
+<span style="width:30px;height:30px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:{{ l.rankBg }};color:{{ l.rankFg }}">{{ l.rank }}</span>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:center;gap:7px;margin-bottom:2px"><span style="font-size:12.5px;font-weight:600">{{ l.name }}</span><sc-if value="{{ l.lead }}" hint-placeholder-val="{{ false }}"><span style="font-size:9px;font-weight:600;color:var(--blue-t);background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:5px;padding:1px 5px">Leading</span></sc-if></div>
+<div style="font-size:10.5px;color:var(--dim);margin-bottom:7px">{{ l.addr }}</div>
+<div style="display:flex"><sc-for list="{{ l.voters }}" as="a" hint-placeholder-count="3"><span title="{{ a.name }}" style="width:18px;height:18px;border-radius:50%;border:2px solid {{ l.cardBg }};margin-right:-5px;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.initials }}</span></sc-for></div>
+</div>
+<button style="width:34px;height:34px;flex:none;border-radius:9px;border:1px solid var(--border2);background:var(--s1);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center"><i data-lucide="arrow-up" style="font-size:16px"></i></button>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ isItin }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column">
+<sc-for list="{{ stops }}" as="st" hint-placeholder-count="3">
+<div style="display:flex;gap:10px;padding:11px;border-radius:12px;border:1px solid {{ st.cardBd }};background:{{ st.cardBg }}">
+<span style="width:24px;height:24px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;background:{{ st.color }}">{{ st.n }}</span>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px"><span style="font-size:12.5px;font-weight:600">{{ st.name }}</span><button style="width:24px;height:24px;flex:none;border-radius:7px;border:1px solid var(--border);background:var(--s1);color:var(--dim);cursor:pointer;display:flex;align-items:center;justify-content:center"><i data-lucide="pencil" style="font-size:12px"></i></button></div>
+<div style="display:flex;align-items:center;gap:7px;margin-bottom:8px"><span style="font-size:11px;color:var(--dim)">{{ st.time }}</span></div>
+<div style="display:flex;align-items:center;gap:8px"><span style="font-size:9.5px;font-weight:700;color:#fff;background:{{ st.color }};border-radius:5px;padding:1px 6px">{{ st.dur }}</span><span style="font-size:10.5px;color:var(--dim);flex:1">{{ st.note }}</span><div style="display:flex"><sc-for list="{{ st.att }}" as="a" hint-placeholder-count="3"><span title="{{ a.name }}" style="width:17px;height:17px;border-radius:50%;border:2px solid {{ st.cardBg }};margin-right:-5px;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.initials }}</span></sc-for></div></div>
+</div>
+</div>
+<sc-if value="{{ st.drive }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:6px;padding:5px 0 5px 13px;color:var(--faint);font-size:10.5px"><i data-lucide="car" style="font-size:13px"></i>{{ st.drive }}</div></sc-if>
+</sc-for>
+<div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:11px;border-top:1px solid var(--border);color:var(--dim);font-size:11px"><i data-lucide="route" style="font-size:13px"></i>6 stops · 8.5h · ~50 min driving<span style="flex:1"></span><span style="display:flex;align-items:center;gap:4px;color:var(--faint)"><i data-lucide="grip-vertical" style="font-size:12px"></i>Drag to reorder</span></div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+</div>
+</div></sc-if>
+<sc-if value="{{ isAtt }}" hint-placeholder-val="{{ false }}"><div>
+<div style="display:flex;align-items:center;gap:11px;margin-bottom:18px;flex-wrap:wrap">
+<span style="font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.13em;text-transform:uppercase">Attendance model</span>
+<div style="display:flex;background:var(--s2);border-radius:10px;padding:2px;border:1px solid var(--border)">
+<span onClick="{{ setItinAtt }}" style="display:flex;align-items:center;gap:7px;height:32px;padding:0 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;background:{{ itinSegBg }};color:{{ itinSegFg }}"><i data-lucide="route" style="font-size:14px"></i>Multi-stop itinerary</span>
+<span onClick="{{ setSingleAtt }}" style="display:flex;align-items:center;gap:7px;height:32px;padding:0 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;background:{{ singleSegBg }};color:{{ singleSegFg }}"><i data-lucide="map-pin" style="font-size:14px"></i>Single venue</span>
+</div>
+</div>
+<sc-if value="{{ isItinAtt }}" hint-placeholder-val="{{ true }}"><div>
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+<div style="display:flex;align-items:center;gap:11px">
+<span style="width:34px;height:34px;border-radius:9px;background:var(--s2);border:1px solid var(--border);color:var(--blue-t);display:flex;align-items:center;justify-content:center;font-size:16px"><i data-lucide="route"></i></span>
+<div>
+<div style="font-size:14px;font-weight:600;letter-spacing:-.01em">Itinerary attendance</div>
+<div style="font-size:11px;color:var(--dim)">Q3 Team Offsite · Jul 13 · 6 stops · 16 going</div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:13px;flex-wrap:wrap">
+<span style="display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--dim)"><span style="width:10px;height:10px;border-radius:3px;background:#3E6B54"></span>Full</span>
+<span style="display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--dim)"><span style="width:10px;height:10px;border-radius:3px;background:#9A6B2E"></span>Partial</span>
+<span style="display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--dim)"><span style="width:10px;height:10px;border-radius:3px;background:var(--s3);border:1px solid var(--border2)"></span>Out</span>
+</div>
+</div>
+<div style="border:1px solid var(--border);border-radius:13px;background:var(--s1);padding:15px 18px 13px;margin-bottom:14px">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:13px">
+<i data-lucide="activity" style="font-size:15px;color:var(--dim)"></i>
+<span style="font-size:13px;font-weight:600">Headcount across the itinerary</span>
+<span style="flex:1"></span>
+<span style="font-size:11px;color:var(--dim)">peak <span style="color:var(--teal-t);font-weight:600">15</span> · low <span style="color:var(--sienna-t);font-weight:600">13</span> at Dinner</span>
+</div>
+<div style="display:flex;align-items:flex-end;gap:10px;overflow-x:auto;padding-bottom:2px">
+<sc-for list="{{ strip }}" as="s" hint-placeholder-count="6">
+<div style="flex:1;min-width:62px;display:flex;flex-direction:column;align-items:center;gap:7px">
+<span style="font-size:12.5px;font-weight:700;color:{{ s.numColor }}">{{ s.here }}</span>
+<div style="width:100%;max-width:50px;height:74px;border-radius:7px;background:var(--s3);display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden">
+<div style="height:{{ s.partialPx }};background:#9A6B2E"></div>
+<div style="height:{{ s.fullPx }};background:#3E6B54"></div>
+</div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+<span style="width:18px;height:18px;border-radius:50%;background:{{ s.color }};color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center">{{ s.n }}</span>
+<span style="font-size:9px;color:var(--faint);white-space:nowrap">{{ s.short }}</span>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:13px;margin-bottom:14px">
+<sc-for list="{{ stopCards }}" as="st" hint-placeholder-count="6">
+<div style="border:1px solid var(--border);border-radius:13px;background:var(--s1);padding:14px">
+<div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">
+<span style="width:24px;height:24px;flex:none;border-radius:50%;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;background:{{ st.color }}">{{ st.n }}</span>
+<span style="font-size:12.5px;font-weight:600;line-height:1.2;flex:1;min-width:0">{{ st.name }}</span>
+<sc-if value="{{ st.hasFlag }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:5px;font-size:9px;font-weight:600;white-space:nowrap;background:{{ st.flagBg }};color:{{ st.flagFg }};border:1px solid {{ st.flagBd }}">{{ st.flag.text }}</span></sc-if>
+</div>
+<div style="font-size:10.5px;color:var(--dim);margin:0 0 12px 33px">{{ st.time }} · {{ st.dur }} · {{ st.label }}</div>
+<div style="display:flex;height:8px;border-radius:5px;overflow:hidden;background:var(--s3);margin-bottom:10px">
+<div style="width:{{ st.fullW }};background:#3E6B54"></div>
+<div style="width:{{ st.partialW }};background:#9A6B2E"></div>
+</div>
+<div style="display:flex;align-items:baseline;gap:7px;margin-bottom:11px">
+<span style="font-size:18px;font-weight:600;letter-spacing:-.02em;color:{{ st.dipColor }}">{{ st.here }}</span>
+<span style="font-size:11px;color:var(--dim)">of 16 here</span>
+<span style="flex:1"></span>
+<span style="font-size:10.5px;color:var(--faint)"><span style="color:var(--teal-t);font-weight:700">{{ st.fullN }}</span> · <span style="color:var(--sienna-t);font-weight:700">{{ st.partialN }}</span> · <span style="color:var(--rose-t);font-weight:700">{{ st.absentN }}</span></span>
+</div>
+<div style="display:flex;align-items:center">
+<sc-for list="{{ st.pile }}" as="a" hint-placeholder-count="6"><span title="{{ a.name }}" style="width:22px;height:22px;border-radius:50%;border:2px solid var(--s1);margin-right:-6px;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.initials }}</span></sc-for>
+<sc-if value="{{ st.moreShow }}" hint-placeholder-val="{{ true }}"><span style="width:22px;height:22px;border-radius:50%;border:2px solid var(--s1);background:var(--s3);color:var(--dim);display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:600">{{ st.moreText }}</span></sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="display:flex;align-items:flex-start;gap:11px;margin-bottom:14px;padding:13px 15px;border-radius:12px;background:var(--sienna-bg);border:1px solid var(--sienna-bd)">
+<i data-lucide="triangle-alert" style="font-size:17px;color:var(--sienna-t);margin-top:1px;flex:none"></i>
+<div style="flex:1">
+<div style="font-size:12.5px;font-weight:600;color:var(--sienna-t);margin-bottom:3px">Attendance dips at Dinner (Stop 6) — 13 of 16, 3 out</div>
+<div style="font-size:11.5px;color:var(--dim);line-height:1.5">Kyle L has a 4:30–9 PM conflict and misses Stops 5–6. Moving dinner to 5:30 PM brings him back. <span style="color:var(--blue-t);font-weight:600;cursor:pointer;text-decoration:underline">Adjust itinerary →</span></div>
+</div>
+</div>
+<div style="border:1px solid var(--border);border-radius:13px;background:var(--s1);padding:16px 18px">
+<div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:2px"><i data-lucide="user-round-search" style="font-size:15px;color:var(--dim)"></i>Who isn&rsquo;t attending every stop<span style="flex:1"></span><span style="font-size:10.5px;color:var(--dim);background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:1px 8px">6 with gaps</span></div>
+<div style="display:flex;align-items:center;gap:11px;padding:13px 0;border-bottom:1px solid var(--border)">
+<span style="width:30px;height:30px;flex:none;border-radius:8px;background:var(--teal-bg);border:1px solid var(--teal-bd);color:var(--teal-t);display:flex;align-items:center;justify-content:center"><i data-lucide="check" style="font-size:16px"></i></span>
+<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600">10 of 16 attend all 6 stops</div><div style="font-size:10.5px;color:var(--dim)">Present the full duration, end to end — no gaps</div></div>
+<div style="display:flex">
+<sc-for list="{{ attAllPile }}" as="a" hint-placeholder-count="7"><span title="{{ a.name }}" style="width:22px;height:22px;border-radius:50%;border:2px solid var(--s1);margin-right:-6px;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.initials }}</span></sc-for>
+<span style="width:22px;height:22px;border-radius:50%;border:2px solid var(--s1);background:var(--s3);color:var(--dim);display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:600">{{ attAllMore }}</span>
+</div>
+</div>
+<sc-for list="{{ exceptions }}" as="e" hint-placeholder-count="5">
+<div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
+<span title="{{ e.av.name }}" style="width:26px;height:26px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;background:{{ e.av.bg }};color:{{ e.av.fg }}">{{ e.av.initials }}</span>
+<span style="font-size:12px;font-weight:500">{{ e.name }}</span>
+<sc-if value="{{ e.conflict }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 7px;border-radius:5px;font-size:9px;font-weight:600;background:var(--rose-bg);color:var(--rose-t);border:1px solid var(--rose-bd)"><i data-lucide="triangle-alert" style="font-size:11px"></i>conflict</span></sc-if>
+<span style="flex:1;min-width:16px"></span>
+<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+<sc-for list="{{ e.items }}" as="it" hint-placeholder-count="2"><span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:6px;font-size:9.5px;font-weight:600;white-space:nowrap;background:{{ it.bg }};color:{{ it.fg }};border:1px solid {{ it.bd }}">{{ it.text }}</span></sc-for>
+</div>
+</div>
+</sc-for>
+<div style="display:flex;align-items:center;gap:10px;padding:11px 0">
+<span title="{{ declined.av.name }}" style="width:26px;height:26px;flex:none;border-radius:50%;opacity:.5;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;background:{{ declined.av.bg }};color:{{ declined.av.fg }}">{{ declined.av.initials }}</span>
+<span style="font-size:12px;font-weight:500;color:var(--faint)">{{ declined.name }}</span>
+<span style="flex:1"></span>
+<span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:6px;font-size:9.5px;font-weight:600;background:var(--rose-bg);color:var(--rose-t);border:1px solid var(--rose-bd)">Not attending</span>
+</div>
+<div style="display:flex;align-items:flex-start;gap:8px;margin-top:13px;padding-top:13px;border-top:1px solid var(--border);font-size:10.5px;color:var(--dim);line-height:1.5"><i data-lucide="info" style="font-size:13px;flex:none;color:var(--faint);margin-top:1px"></i>Only people with gaps get a row — chips mark the stops they miss. The list stays short no matter how many guests or stops you add.</div>
+</div>
+</div></sc-if>
+<sc-if value="{{ isSingleAtt }}" hint-placeholder-val="{{ false }}"><div>
+<div style="border:1px solid var(--border);border-radius:14px;background:var(--s1);padding:16px 18px;margin-bottom:14px">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+<div style="display:flex;align-items:center;gap:11px">
+<span style="width:34px;height:34px;border-radius:9px;background:var(--s2);border:1px solid var(--border);color:var(--teal);display:flex;align-items:center;justify-content:center;font-size:16px"><i data-lucide="users-round"></i></span>
+<div>
+<div style="font-size:14px;font-weight:600;letter-spacing:-.01em">Who&rsquo;s coming</div>
+<div style="font-size:11px;color:var(--dim)">Cavallo Point Lodge · one venue · 12 of 16 going</div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">
+<sc-if value="{{ showPeak }}" hint-placeholder-val="{{ true }}"><span style="display:flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:7px;background:var(--teal-bg);border:1px solid var(--teal-bd);color:var(--teal-t);font-size:10.5px;font-weight:600;white-space:nowrap"><i data-lucide="activity" style="font-size:12px"></i>Peak 12 · 12–3 PM</span></sc-if>
+<div style="display:flex;background:var(--s2);border-radius:9px;padding:2px;border:1px solid var(--border)">
+<span onClick="{{ setRoster }}" style="display:flex;align-items:center;gap:6px;height:28px;padding:0 13px;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;background:{{ rSegBg }};color:{{ rSegFg }}"><i data-lucide="layout-list" style="font-size:13px"></i>Roster</span>
+<span onClick="{{ setTimeline }}" style="display:flex;align-items:center;gap:6px;height:28px;padding:0 13px;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;background:{{ tSegBg }};color:{{ tSegFg }}"><i data-lucide="chart-gantt" style="font-size:13px"></i>Timeline</span>
+</div>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+<span style="font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.09em;font-weight:700">Headcount through the day</span>
+<span style="flex:1;height:1px;background:var(--border)"></span>
+<span style="display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--dim)"><span style="width:10px;height:10px;border-radius:3px;background:var(--teal)"></span>Here</span>
+<span style="display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--dim)"><span style="width:10px;height:10px;border-radius:3px;background:var(--sienna)"></span>Late / early</span>
+</div>
+<div style="display:grid;grid-template-columns:130px 1fr;align-items:end">
+<div style="font-size:10px;color:var(--faint);padding-bottom:7px">In the room</div>
+<div style="position:relative;height:50px;display:flex;align-items:flex-end;padding:0 1px">
+<sc-for list="{{ headcount }}" as="h" hint-placeholder-count="7">
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%">
+<span style="font-size:9px;font-weight:700;color:{{ h.labelColor }};margin-bottom:3px">{{ h.v }}</span>
+<div style="width:58%;height:{{ h.h }};border-radius:4px 4px 0 0;background:{{ h.color }}"></div>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:130px 1fr;margin-top:7px">
+<div></div>
+<div style="position:relative;height:14px">
+<sc-for list="{{ ticks }}" as="t" hint-placeholder-count="8">
+<span style="position:absolute;left:{{ t.left }};transform:translateX(-50%);font-size:9.5px;color:var(--faint);white-space:nowrap">{{ t.label }}</span>
+</sc-for>
+</div>
+</div>
+</div>
+<sc-if value="{{ isRoster }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+<div style="width:316px;flex:none;border:1px solid var(--border);border-radius:14px;background:var(--s1);padding:18px 19px">
+<div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:4px"><i data-lucide="pie-chart" style="font-size:15px;color:var(--dim)"></i>RSVP breakdown</div>
+<div style="display:flex;justify-content:center;margin:12px 0 16px">
+<div style="width:150px;height:150px;border-radius:50%;background:conic-gradient(var(--teal) 0 75%, var(--sienna) 75% 81.25%, var(--rose) 81.25% 87.5%, var(--s3) 87.5% 100%);display:flex;align-items:center;justify-content:center">
+<div style="width:104px;height:104px;border-radius:50%;background:var(--s1);display:flex;flex-direction:column;align-items:center;justify-content:center">
+<span style="font-family:'Instrument Serif',serif;font-weight:400;font-size:34px;line-height:1">12</span>
+<span style="font-size:10.5px;color:var(--dim);margin-top:3px">going · of 16</span>
+</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:9px">
+<sc-for list="{{ legend }}" as="l" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:9px"><span style="width:10px;height:10px;border-radius:3px;flex:none;background:{{ l.color }}"></span><span style="flex:1;font-size:11.5px;color:var(--dim)">{{ l.label }}</span><span style="font-size:12px;font-weight:600">{{ l.count }}</span></div>
+</sc-for>
+</div>
+<div style="display:flex;align-items:flex-start;gap:7px;margin-top:13px;font-size:11px;color:var(--dim);line-height:1.5"><i data-lucide="info" style="font-size:13px;margin-top:1px;flex:none"></i>3 of the 12 attending arrive late or leave early — see the Timeline view.</div>
+<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px"><span style="font-size:11px;color:var(--dim)">Responded</span><span style="font-size:11px;font-weight:600">14 of 16</span></div>
+<div style="height:7px;border-radius:4px;background:var(--s3);overflow:hidden;display:flex"><div style="width:75%;background:var(--teal)"></div><div style="width:6.25%;background:var(--sienna)"></div><div style="width:6.25%;background:var(--rose)"></div></div>
+</div>
+</div>
+<div style="flex:1;min-width:320px;border:1px solid var(--border);border-radius:14px;background:var(--s1);padding:4px 19px 12px">
+<sc-for list="{{ groups }}" as="g" hint-placeholder-count="4">
+<div style="padding:14px 0;border-bottom:1px solid var(--border)">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+<span style="width:9px;height:9px;border-radius:50%;background:{{ g.dot }}"></span>
+<span style="font-size:12px;font-weight:600">{{ g.title }}</span>
+<span style="font-size:10px;color:var(--dim);background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:1px 8px">{{ g.count }}</span>
+</div>
+<div style="display:flex;flex-direction:column">
+<sc-for list="{{ g.people }}" as="p" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:10px;padding:6px 0">
+<span title="{{ p.av.name }}" style="width:26px;height:26px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:600;background:{{ p.av.bg }};color:{{ p.av.fg }}">{{ p.av.initials }}</span>
+<span style="font-size:12px;font-weight:500">{{ p.name }}</span>
+<sc-if value="{{ p.host }}" hint-placeholder-val="{{ false }}"><span style="font-size:8.5px;font-weight:600;color:var(--blue-t);background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:5px;padding:1px 6px">Host</span></sc-if>
+<span style="flex:1"></span>
+<sc-if value="{{ p.remind }}" hint-placeholder-val="{{ false }}"><button style="display:flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:7px;border:1px solid var(--border2);background:var(--s1);color:var(--text);font-family:inherit;font-size:10.5px;font-weight:600;cursor:pointer"><i data-lucide="bell" style="font-size:12px"></i>Remind</button></sc-if>
+<span style="font-size:9.5px;font-weight:600;border-radius:6px;padding:2px 8px;white-space:nowrap;background:{{ p.chip.bg }};color:{{ p.chip.fg }};border:1px solid {{ p.chip.bd }}">{{ p.chip.text }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ isTimeline }}" hint-placeholder-val="{{ false }}">
+<div style="border:1px solid var(--border);border-radius:14px;background:var(--s1);padding:14px 18px 16px">
+<div style="display:grid;grid-template-columns:158px 1fr;align-items:center;border-bottom:1px solid var(--border)">
+<div style="display:flex;align-items:center;gap:8px;padding:8px 12px 8px 0;min-width:0">
+<span style="width:9px;height:9px;border-radius:50%;flex:none;background:var(--teal)"></span>
+<span style="font-size:11.5px;font-weight:600">Here all day</span>
+<span style="font-size:9.5px;color:var(--teal-t);background:var(--teal-bg);border:1px solid var(--teal-bd);border-radius:20px;padding:1px 7px">9</span>
+</div>
+<div style="position:relative;height:38px;border-left:1px solid var(--border);background-image:repeating-linear-gradient(90deg,var(--border) 0 1px,transparent 1px calc(100%/7))">
+<div style="position:absolute;left:0;right:0;top:7px;bottom:7px;background:var(--teal);border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 9px;box-shadow:0 1px 2px rgba(0,0,0,.22)">
+<div style="display:flex">
+<sc-for list="{{ fullAvatars }}" as="a" hint-placeholder-count="9">
+<span title="{{ a.name }}" style="width:20px;height:20px;border-radius:50%;border:2px solid var(--teal);margin-right:-6px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.initials }}</span>
+</sc-for>
+</div>
+<span style="font-size:9px;font-weight:700;color:#fff;white-space:nowrap">10:00 AM – 5:00 PM</span>
+</div>
+</div>
+</div>
+<sc-for list="{{ partialRows }}" as="r" hint-placeholder-count="3">
+<div style="display:grid;grid-template-columns:158px 1fr;align-items:center;border-bottom:1px solid var(--border)">
+<div style="display:flex;align-items:center;gap:8px;padding:7px 12px 7px 0;min-width:0">
+<span title="{{ r.av.name }}" style="width:24px;height:24px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;background:{{ r.av.bg }};color:{{ r.av.fg }}">{{ r.av.initials }}</span>
+<span style="font-size:11.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</span>
+</div>
+<div style="position:relative;height:33px;border-left:1px solid var(--border);background-image:repeating-linear-gradient(90deg,var(--border) 0 1px,transparent 1px calc(100%/7))">
+<div style="position:absolute;left:{{ r.barLeft }};width:{{ r.barWidth }};top:6px;bottom:6px;background:var(--sienna);border-radius:6px;display:flex;align-items:center;padding:0 9px;box-shadow:0 1px 2px rgba(0,0,0,.22)">
+<span style="font-size:8.5px;font-weight:700;color:#fff;white-space:nowrap">{{ r.barLabel }}</span>
+</div>
+</div>
+</div>
+</sc-for>
+<div style="display:grid;grid-template-columns:158px 1fr;align-items:center;margin-top:3px">
+<div style="display:flex;align-items:center;gap:8px;padding:9px 12px 9px 0;min-width:0">
+<span style="width:9px;height:9px;border-radius:50%;flex:none;background:var(--s3);border:1px solid var(--border2)"></span>
+<span style="font-size:11.5px;font-weight:500;color:var(--faint)">Not in the room</span>
+</div>
+<div style="display:flex;align-items:center;gap:11px;padding-left:11px">
+<div style="display:flex">
+<sc-for list="{{ pending }}" as="p" hint-placeholder-count="4">
+<span title="{{ p.name }}" style="width:22px;height:22px;border-radius:50%;border:2px solid var(--s1);margin-right:-6px;opacity:.5;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:600;background:{{ p.bg }};color:{{ p.fg }}">{{ p.initials }}</span>
+</sc-for>
+</div>
+<span style="font-size:10.5px;color:var(--dim)"><span style="color:var(--rose-t);font-weight:600">1</span> not going · <span style="color:var(--sienna-t);font-weight:600">1</span> maybe · <span style="font-weight:600">2</span> no reply</span>
+</div>
+</div>
+<div style="display:flex;align-items:flex-start;gap:8px;margin-top:13px;padding-top:13px;border-top:1px solid var(--border);font-size:11px;color:var(--dim);line-height:1.5">
+<i data-lucide="info" style="font-size:13px;margin-top:1px;flex:none;color:var(--faint)"></i>
+Only people whose timing differs from the full day get a row, so the timeline stays compact as the guest list grows — everyone else is summed into the top bar.
+</div>
+</div>
+</sc-if>
+</div></sc-if>
+</div></sc-if>
+<sc-if value="{{ isDet }}" hint-placeholder-val="{{ false }}"><div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+<div style="flex:1.5;min-width:320px;border:1px solid var(--border);border-radius:14px;background:var(--s1);padding:18px 20px">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+<div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600"><i data-lucide="info" style="font-size:15px;color:var(--dim)"></i>Details</div>
+<sc-if value="{{ authed }}" hint-placeholder-val="{{ true }}"><button style="display:flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:8px;border:1px solid var(--border2);background:var(--s1);color:var(--text);font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer"><i data-lucide="pencil" style="font-size:13px"></i>Edit details</button></sc-if>
+</div>
+<div style="display:flex;gap:14px;padding:13px 0;border-bottom:1px solid var(--border)"><span style="width:100px;flex:none;font-size:11px;color:var(--dim);padding-top:1px">Description</span><div style="flex:1;font-size:12px;line-height:1.55;color:var(--text)">Two days of strategy, workshops, and a team dinner to align on Q3 goals. Travel is reimbursed for out-of-town folks.</div></div>
+<div style="display:flex;gap:14px;padding:13px 0;border-bottom:1px solid var(--border)"><span style="width:100px;flex:none;font-size:11px;color:var(--dim)">When</span><div style="flex:1;font-size:12px;display:flex;align-items:center;gap:7px;flex-wrap:wrap">Jul 13, 2026 · 9:00 AM – 5:00 PM <span style="font-family:Geist Mono,monospace;font-size:9px;padding:1px 5px;border-radius:5px;background:var(--s2);color:var(--dim)">PDT</span></div></div>
+<div style="display:flex;gap:14px;padding:13px 0;border-bottom:1px solid var(--border)"><span style="width:100px;flex:none;font-size:11px;color:var(--dim)">Where</span><div style="flex:1;font-size:12px;display:flex;align-items:center;gap:7px;flex-wrap:wrap"><i data-lucide="map-pin" style="font-size:13px;color:var(--dim)"></i>Cavallo Point Lodge, Sausalito CA <span style="font-size:9.5px;font-weight:600;color:var(--blue-t);background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:5px;padding:1px 6px">Leading vote</span></div></div>
+<sc-if value="{{ authed }}" hint-placeholder-val="{{ true }}"><div style="display:flex;gap:14px;padding:13px 0;border-bottom:1px solid var(--border)"><span style="width:100px;flex:none;font-size:11px;color:var(--dim)">Budget</span><div style="flex:1;font-size:12px">$4,200 total · <span style="color:var(--dim)">$420 / person (est.)</span></div></div></sc-if>
+<sc-if value="{{ guest }}" hint-placeholder-val="{{ false }}"><div style="display:flex;gap:14px;padding:13px 0;border-bottom:1px solid var(--border)"><span style="width:100px;flex:none;font-size:11px;color:var(--dim)">Budget</span><div style="flex:1;font-size:12px;color:var(--faint);display:flex;align-items:center;gap:6px"><i data-lucide="lock" style="font-size:13px"></i>Hidden — only the host can view budget</div></div></sc-if>
+<div style="display:flex;gap:14px;padding:13px 0;border-bottom:1px solid var(--border)"><span style="width:100px;flex:none;font-size:11px;color:var(--dim)">Time zone</span><div style="flex:1;font-size:12px">Pacific Time · PDT (UTC−7)</div></div>
+<div style="display:flex;gap:14px;padding:13px 0 4px"><span style="width:100px;flex:none;font-size:11px;color:var(--dim)">Visibility</span><div style="flex:1;font-size:12px;display:flex;align-items:center;gap:7px"><i data-lucide="link" style="font-size:13px;color:var(--dim)"></i>Anyone with the link can view & RSVP</div></div>
+</div>
+<div style="flex:1;min-width:280px;border:1px solid var(--border);border-radius:14px;background:var(--s1);padding:18px 20px">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px">
+<div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600"><i data-lucide="users" style="font-size:15px;color:var(--dim)"></i>Participants <span style="font-size:10.5px;color:var(--dim);background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:1px 7px">8</span></div>
+<button style="display:flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:8px;border:none;background:var(--blue);color:#fff;font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer"><i data-lucide="user-plus" style="font-size:13px"></i>Invite</button>
+</div>
+<div style="display:flex;flex-direction:column">
+<sc-for list="{{ participantsRsvp }}" as="p" hint-placeholder-count="8">
+<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+<span title="{{ p.name }}" style="width:26px;height:26px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:600;background:{{ p.av.bg }};color:{{ p.av.fg }}">{{ p.av.initials }}</span>
+<span style="flex:1;font-size:12px;font-weight:500">{{ p.name }}</span>
+<sc-if value="{{ p.host }}" hint-placeholder-val="{{ false }}"><span style="font-size:9.5px;font-weight:600;color:var(--blue-t);background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:6px;padding:2px 7px">Host</span></sc-if>
+<span style="font-size:9.5px;font-weight:600;border-radius:6px;padding:2px 8px;background:{{ p.bg }};color:{{ p.fg }};border:1px solid {{ p.bd }}">{{ p.text }}</span>
+</div>
+</sc-for>
+</div>
+<div style="display:flex;align-items:center;gap:8px;margin-top:14px">
+<div style="flex:1;display:flex;align-items:center;gap:8px;height:34px;padding:0 11px;border-radius:9px;border:1px solid var(--border);background:var(--s2)"><i data-lucide="link" style="font-size:13px;color:var(--dim)"></i><span style="font-size:11px;color:var(--dim);font-family:Geist Mono,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">gatherly.app/e/q3-offsite</span></div>
+<button style="display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:9px;border:1px solid var(--border2);background:var(--s1);color:var(--text);font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer"><i data-lucide="copy" style="font-size:13px"></i>Copy</button>
+</div>
+</div>
+</div></sc-if>
+</div>
+</sc-if>
+<sc-if value="{{ isEvents }}" hint-placeholder-val="{{ false }}">
+<div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;flex-wrap:wrap">
+<div>
+<h1 style="margin:0 0 6px;font-family:'Instrument Serif',serif;font-weight:400;font-size:32px;line-height:1.02;letter-spacing:-.01em">Events</h1>
+<div style="color:var(--dim);font-size:12px">6 upcoming · 3 past · hosting 3</div>
+</div>
+<div style="display:flex;align-items:center;gap:9px">
+<div style="display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:9px;border:1px solid var(--border);background:var(--s1);width:220px"><i data-lucide="search" style="font-size:14px;color:var(--dim)"></i><span style="font-size:12px;color:var(--faint)">Search events…</span></div>
+<span style="display:flex;align-items:center;gap:6px;height:34px;padding:0 11px;border-radius:9px;border:1px solid var(--border);background:var(--s1);color:var(--text);font-size:11.5px;cursor:pointer">Closest date<i data-lucide="chevron-down" style="font-size:13px;color:var(--dim)"></i></span>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+<span style="height:30px;padding:0 13px;display:flex;align-items:center;border-radius:20px;font-size:11.5px;font-weight:600;background:var(--blue);color:#fff;cursor:pointer">All</span>
+<span style="height:30px;padding:0 13px;display:flex;align-items:center;border-radius:20px;font-size:11.5px;font-weight:500;background:var(--s1);border:1px solid var(--border);color:var(--dim);cursor:pointer">Hosting</span>
+<span style="height:30px;padding:0 13px;display:flex;align-items:center;border-radius:20px;font-size:11.5px;font-weight:500;background:var(--s1);border:1px solid var(--border);color:var(--dim);cursor:pointer">Attending</span>
+<span style="height:30px;padding:0 13px;display:flex;align-items:center;border-radius:20px;font-size:11.5px;font-weight:500;background:var(--s1);border:1px solid var(--border);color:var(--dim);cursor:pointer">Planning</span>
+<span style="height:30px;padding:0 13px;display:flex;align-items:center;border-radius:20px;font-size:11.5px;font-weight:500;background:var(--s1);border:1px solid var(--border);color:var(--dim);cursor:pointer">Confirmed</span>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:13px">
+<sc-for list="{{ allEvents }}" as="e" hint-placeholder-count="6">
+<div onClick="{{ e.onOpen }}" style="border:1px solid var(--border);border-radius:13px;background:var(--s1);padding:14px;cursor:pointer;overflow:hidden;transition:border-color .15s,transform .15s" style-hover="border-color:var(--border2);transform:translateY(-2px)">
+<div style="margin:-14px -14px 12px;height:92px;position:relative;background:var(--s2)"><image-slot id="{{ e.slotId }}" src="{{ e.cover }}" shape="rect" placeholder="Drop a cover photo" style="position:absolute;inset:0;width:100%;height:100%;display:block"></image-slot></div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px">
+<span style="height:21px;padding:0 8px;display:inline-flex;align-items:center;border-radius:6px;font-size:10.5px;font-weight:600;background:{{ e.badge.bg }};color:{{ e.badge.fg }};border:1px solid {{ e.badge.bd }}">{{ e.badge.text }}</span>
+<span style="height:21px;padding:0 8px;display:inline-flex;align-items:center;border-radius:6px;font-size:10.5px;font-weight:600;background:{{ e.days.bg }};color:{{ e.days.fg }};border:1px solid {{ e.days.bd }}">{{ e.days.text }}</span>
+</div>
+<h3 style="margin:0 0 9px;font-size:13.5px;font-weight:600;letter-spacing:-.01em">{{ e.title }}</h3>
+<div style="display:flex;align-items:center;gap:7px;color:var(--dim);font-size:11.5px;margin-bottom:11px">
+<i data-lucide="calendar" style="font-size:13px"></i><span>{{ e.date }}</span>
+<span style="font-family:Geist Mono,monospace;font-size:9px;padding:1px 5px;border-radius:5px;background:var(--s2);color:var(--dim)">{{ e.tz }}</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+<div style="display:flex">
+<sc-for list="{{ e.avatars }}" as="a" hint-placeholder-count="3">
+<span title="{{ a.name }}" style="width:21px;height:21px;border-radius:50%;border:2px solid var(--s1);margin-right:-6px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.initials }}</span>
+</sc-for>
+<span style="width:21px;height:21px;border-radius:50%;border:2px solid var(--s1);display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:600;background:var(--s3);color:var(--dim)">{{ e.more }}</span>
+</div>
+</div>
+<div style="color:var(--dim);font-size:11px;padding-top:11px;border-top:1px solid var(--border)">{{ e.footer }}</div>
+</div>
+</sc-for>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin:28px 0 12px">
+<div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600"><i data-lucide="history" style="font-size:14px;color:var(--dim)"></i>Past events <span style="font-size:10.5px;color:var(--dim);background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:1px 7px">3</span></div>
+<span style="font-size:11.5px;color:var(--blue-t);font-weight:600;cursor:pointer">View all →</span>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:13px">
+<sc-for list="{{ pastEvents }}" as="e" hint-placeholder-count="3">
+<div onClick="{{ e.onOpen }}" style="border:1px solid var(--border);border-radius:13px;background:var(--s1);padding:14px;cursor:pointer;overflow:hidden;opacity:.74;transition:opacity .15s,border-color .15s" style-hover="opacity:1;border-color:var(--border2)">
+<div style="margin:-14px -14px 12px;height:78px;position:relative;background:var(--s2);filter:grayscale(.5)"><image-slot id="{{ e.slotId }}" src="{{ e.cover }}" shape="rect" placeholder="Drop a cover photo" style="position:absolute;inset:0;width:100%;height:100%;display:block"></image-slot></div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+<span style="height:21px;padding:0 8px;display:inline-flex;align-items:center;gap:4px;border-radius:6px;font-size:10.5px;font-weight:600;background:{{ e.badge.bg }};color:{{ e.badge.fg }};border:1px solid {{ e.badge.bd }}"><i data-lucide="check" style="font-size:11px"></i>{{ e.badge.text }}</span>
+<span style="font-size:10.5px;color:var(--faint)">{{ e.ago }}</span>
+</div>
+<h3 style="margin:0 0 9px;font-size:13.5px;font-weight:600;letter-spacing:-.01em">{{ e.title }}</h3>
+<div style="display:flex;align-items:center;gap:7px;color:var(--dim);font-size:11.5px;margin-bottom:11px">
+<i data-lucide="calendar" style="font-size:13px"></i><span>{{ e.when }}</span>
+<span style="font-family:Geist Mono,monospace;font-size:9px;padding:1px 5px;border-radius:5px;background:var(--s2);color:var(--dim)">{{ e.tz }}</span>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between">
+<div style="display:flex">
+<sc-for list="{{ e.avatars }}" as="a" hint-placeholder-count="3"><span title="{{ a.name }}" style="width:21px;height:21px;border-radius:50%;border:2px solid var(--s1);margin-right:-6px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.initials }}</span></sc-for>
+<span style="width:21px;height:21px;border-radius:50%;border:2px solid var(--s1);display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:600;background:var(--s3);color:var(--dim)">{{ e.more }}</span>
+</div>
+<span style="color:var(--faint);font-size:11px">{{ e.footer }}</span>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ isCreate }}" hint-placeholder-val="{{ false }}">
+<div style="max-width:760px;margin:0 auto">
+<div style="text-align:center;margin-bottom:22px">
+<h1 style="margin:0 0 7px;font-family:'Instrument Serif',serif;font-weight:400;font-size:30px;line-height:1.04;letter-spacing:-.01em">Create event</h1>
+<div style="color:var(--dim);font-size:12px">Set the basics, invite people, and share a link — guests can join without an account.</div>
+</div>
+<div style="display:flex;align-items:center;justify-content:center;margin-bottom:24px">
+<div style="display:flex;align-items:center;gap:9px"><span style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:{{ cs1.bg }};color:{{ cs1.fg }};box-shadow:{{ cs1.ring }}"><sc-if value="{{ cs1.done }}" hint-placeholder-val="{{ false }}"><i data-lucide="check" style="font-size:15px"></i></sc-if><sc-if value="{{ isStep0 }}" hint-placeholder-val="{{ true }}">1</sc-if></span><span style="font-size:12px;font-weight:600;color:{{ cs1.lc }}">Basics</span></div>
+<span style="width:46px;height:2px;margin:0 12px;background:{{ conn12 }}"></span>
+<div style="display:flex;align-items:center;gap:9px"><span style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:{{ cs2.bg }};color:{{ cs2.fg }};box-shadow:{{ cs2.ring }}"><sc-if value="{{ cs2.done }}" hint-placeholder-val="{{ false }}"><i data-lucide="check" style="font-size:15px"></i></sc-if><sc-if value="{{ cs2.numShow }}" hint-placeholder-val="{{ true }}">2</sc-if></span><span style="font-size:12px;font-weight:600;color:{{ cs2.lc }}">Invite</span></div>
+<span style="width:46px;height:2px;margin:0 12px;background:{{ conn23 }}"></span>
+<div style="display:flex;align-items:center;gap:9px"><span style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:{{ cs3.bg }};color:{{ cs3.fg }};box-shadow:{{ cs3.ring }}"><sc-if value="{{ cs3.done }}" hint-placeholder-val="{{ false }}"><i data-lucide="check" style="font-size:15px"></i></sc-if><sc-if value="{{ cs3.numShow }}" hint-placeholder-val="{{ true }}">3</sc-if></span><span style="font-size:12px;font-weight:600;color:{{ cs3.lc }}">Location</span></div>
+<span style="width:46px;height:2px;margin:0 12px;background:{{ conn34 }}"></span>
+<div style="display:flex;align-items:center;gap:9px"><span style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:{{ cs4.bg }};color:{{ cs4.fg }};box-shadow:{{ cs4.ring }}">4</span><span style="font-size:12px;font-weight:600;color:{{ cs4.lc }}">Share</span></div>
+</div>
+<div style="border:1px solid var(--border);border-radius:14px;background:var(--s1);padding:22px 24px">
+<sc-if value="{{ isStep0 }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:16px">
+<div><label style="display:block;font-size:11.5px;font-weight:600;color:var(--dim);margin-bottom:7px">Event title</label><input value="Q3 Team Offsite Planning" style="width:100%;height:40px;border-radius:10px;border:1px solid var(--border);background:var(--s2);color:var(--text);padding:0 13px;font-family:inherit;font-size:13px;outline:none"/></div>
+<div style="display:flex;gap:14px;flex-wrap:wrap">
+<div style="flex:1;min-width:200px"><label style="display:block;font-size:11.5px;font-weight:600;color:var(--dim);margin-bottom:7px">Hosted by</label><div style="display:flex;background:var(--s2);border-radius:10px;padding:3px;border:1px solid var(--border)"><span style="flex:1;text-align:center;height:32px;display:flex;align-items:center;justify-content:center;border-radius:7px;font-size:12px;font-weight:600;background:transparent;color:var(--dim);cursor:pointer">You</span><span style="flex:1;text-align:center;height:32px;display:flex;align-items:center;justify-content:center;border-radius:7px;font-size:12px;font-weight:600;background:var(--s0);color:var(--text);cursor:pointer">Organization</span></div></div>
+<div style="flex:1;min-width:200px"><label style="display:block;font-size:11.5px;font-weight:600;color:var(--dim);margin-bottom:7px">Organization name</label><input value="Acme Engineering Org" style="width:100%;height:40px;border-radius:10px;border:1px solid var(--border);background:var(--s2);color:var(--text);padding:0 13px;font-family:inherit;font-size:13px;outline:none"/></div>
+</div>
+<div><label style="display:block;font-size:11.5px;font-weight:600;color:var(--dim);margin-bottom:7px">Description</label><textarea style="width:100%;height:72px;border-radius:10px;border:1px solid var(--border);background:var(--s2);color:var(--text);padding:11px 13px;font-family:inherit;font-size:13px;outline:none;resize:none;line-height:1.5">Two days of strategy, workshops, and a team dinner to align on Q3 goals.</textarea></div>
+<div style="display:flex;gap:14px;flex-wrap:wrap">
+<div style="flex:1;min-width:140px"><label style="display:block;font-size:11.5px;font-weight:600;color:var(--dim);margin-bottom:7px">Date window</label><div style="display:flex;align-items:center;gap:8px;height:40px;border-radius:10px;border:1px solid var(--border);background:var(--s2);padding:0 13px;font-size:13px"><i data-lucide="calendar" style="font-size:14px;color:var(--dim)"></i>Jun 30 – Jul 4</div></div>
+<div style="flex:1;min-width:140px"><label style="display:block;font-size:11.5px;font-weight:600;color:var(--dim);margin-bottom:7px">Time zone</label><div style="display:flex;align-items:center;justify-content:space-between;height:40px;border-radius:10px;border:1px solid var(--border);background:var(--s2);padding:0 13px;font-size:13px">Pacific Time (PDT)<i data-lucide="chevron-down" style="font-size:15px;color:var(--dim)"></i></div></div>
+<div style="flex:1;min-width:140px"><label style="display:block;font-size:11.5px;font-weight:600;color:var(--dim);margin-bottom:7px">Budget (optional)</label><div style="display:flex;align-items:center;gap:8px;height:40px;border-radius:10px;border:1px solid var(--border);background:var(--s2);padding:0 13px;font-size:13px"><span style="color:var(--dim)">$</span>4,200<span style="color:var(--faint);font-size:11px;margin-left:auto">total</span></div></div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ isStep1 }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:16px">
+<div><label style="display:block;font-size:11.5px;font-weight:600;color:var(--dim);margin-bottom:7px">Invite by email</label><div style="display:flex;gap:8px"><input placeholder="name@company.com" style="flex:1;height:40px;border-radius:10px;border:1px solid var(--border);background:var(--s2);color:var(--text);padding:0 13px;font-family:inherit;font-size:13px;outline:none"/><button style="height:40px;padding:0 16px;border-radius:10px;border:none;background:var(--blue);color:#fff;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer">Add</button></div></div>
+<div style="display:flex;flex-wrap:wrap;gap:8px"><sc-for list="{{ participants }}" as="a" hint-placeholder-count="6"><span style="display:flex;align-items:center;gap:7px;height:30px;padding:0 10px 0 4px;border-radius:20px;background:var(--s2);border:1px solid var(--border);font-size:12px"><span style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.initials }}</span>{{ a.name }}<i data-lucide="x" style="font-size:13px;color:var(--faint);cursor:pointer"></i></span></sc-for></div>
+<div style="display:flex;align-items:center;gap:12px;color:var(--faint);font-size:11px"><span style="flex:1;height:1px;background:var(--border)"></span>or share a link<span style="flex:1;height:1px;background:var(--border)"></span></div>
+<div style="display:flex;align-items:center;gap:8px;height:42px;padding:0 8px 0 13px;border-radius:10px;border:1px solid var(--border);background:var(--s2)"><i data-lucide="link" style="font-size:14px;color:var(--dim)"></i><span style="flex:1;font-size:12px;color:var(--dim);font-family:Geist Mono,monospace">gatherly.app/e/q3-offsite</span><button style="height:30px;padding:0 12px;border-radius:8px;border:1px solid var(--border2);background:var(--s1);color:var(--text);font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer">Copy</button></div>
+<div><label style="display:block;font-size:11.5px;font-weight:600;color:var(--dim);margin-bottom:9px">Pull availability from a calendar</label><div style="display:flex;gap:10px;flex-wrap:wrap"><button style="flex:1;min-width:180px;display:flex;align-items:center;justify-content:center;gap:8px;height:42px;border-radius:10px;border:1px solid var(--border2);background:var(--s1);color:var(--text);font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer"><i data-lucide="calendar-plus" style="font-size:15px;color:var(--teal-t)"></i>Connect Google Calendar</button><button style="flex:1;min-width:180px;display:flex;align-items:center;justify-content:center;gap:8px;height:42px;border-radius:10px;border:1px solid var(--border2);background:var(--s1);color:var(--text);font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer"><i data-lucide="calendar-plus" style="font-size:15px;color:var(--blue-t)"></i>Connect Outlook</button></div></div>
+</div>
+</sc-if>
+<sc-if value="{{ isStep2 }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:16px">
+<div>
+<label style="display:block;font-size:11.5px;font-weight:600;color:var(--dim);margin-bottom:7px">Where will you meet?</label>
+<div style="display:flex;background:var(--s2);border-radius:10px;padding:3px;border:1px solid var(--border)">
+<span onClick="{{ setLocVote }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:34px;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;background:{{ clVoteSegBg }};color:{{ clVoteSegFg }}"><i data-lucide="map-pin" style="font-size:14px"></i>In person</span>
+<span onClick="{{ setLocRemote }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:34px;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;background:{{ clRemoteSegBg }};color:{{ clRemoteSegFg }}"><i data-lucide="video" style="font-size:14px"></i>Remote</span>
+<span onClick="{{ setLocLater }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:34px;border-radius:7px;cursor:pointer;font-size:11.5px;font-weight:600;background:{{ clLaterSegBg }};color:{{ clLaterSegFg }}"><i data-lucide="clock" style="font-size:14px"></i>Decide later</span>
+</div>
+</div>
+<sc-if value="{{ clVote }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:9px">
+<div style="font-size:11.5px;color:var(--dim);display:flex;align-items:center;gap:6px"><i data-lucide="vote" style="font-size:14px"></i>Add candidate places — guests vote, and the top pick becomes the venue.</div>
+<div style="display:flex;align-items:center;gap:10px;height:44px;padding:0 8px 0 13px;border-radius:10px;border:1px solid var(--border);background:var(--s2)"><i data-lucide="map-pin" style="font-size:15px;color:#3E6B54"></i><span style="flex:1;font-size:12.5px;font-weight:500">Cavallo Point Lodge <span style="color:var(--faint);font-weight:400">· Sausalito, CA</span></span><button style="width:28px;height:28px;border-radius:7px;border:none;background:transparent;color:var(--faint);cursor:pointer;display:flex;align-items:center;justify-content:center"><i data-lucide="x" style="font-size:15px"></i></button></div>
+<div style="display:flex;align-items:center;gap:10px;height:44px;padding:0 8px 0 13px;border-radius:10px;border:1px solid var(--border);background:var(--s2)"><i data-lucide="map-pin" style="font-size:15px;color:#2E4A3C"></i><span style="flex:1;font-size:12.5px;font-weight:500">Terrapin Crossroads <span style="color:var(--faint);font-weight:400">· San Rafael, CA</span></span><button style="width:28px;height:28px;border-radius:7px;border:none;background:transparent;color:var(--faint);cursor:pointer;display:flex;align-items:center;justify-content:center"><i data-lucide="x" style="font-size:15px"></i></button></div>
+<div style="display:flex;gap:8px"><div style="flex:1;display:flex;align-items:center;gap:8px;height:42px;padding:0 13px;border-radius:10px;border:1px dashed var(--border2);background:transparent"><i data-lucide="search" style="font-size:14px;color:var(--faint)"></i><span style="font-size:12.5px;color:var(--faint)">Search to add another place…</span></div><button style="height:42px;padding:0 15px;border-radius:10px;border:none;background:var(--blue);color:#fff;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px"><i data-lucide="plus" style="font-size:15px"></i>Add</button></div>
+</div>
+</sc-if>
+<sc-if value="{{ clRemote }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:13px">
+<div><label style="display:block;font-size:11.5px;font-weight:600;color:var(--dim);margin-bottom:7px">Meeting link</label><div style="display:flex;align-items:center;gap:8px;height:42px;padding:0 13px;border-radius:10px;border:1px solid var(--border);background:var(--s2)"><i data-lucide="video" style="font-size:15px;color:var(--blue-t)"></i><span style="flex:1;font-size:12.5px;font-family:Geist Mono,monospace;color:var(--text)">meet.google.com/q3-offsite</span></div></div>
+<div><label style="display:block;font-size:11.5px;font-weight:600;color:var(--dim);margin-bottom:7px">Platform</label><div style="display:flex;gap:8px;flex-wrap:wrap"><span style="display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:9px;border:1.5px solid var(--blue-bd);background:var(--blue-bg);color:var(--blue-t);font-size:12px;font-weight:600;cursor:pointer"><i data-lucide="video" style="font-size:14px"></i>Google Meet</span><span style="display:flex;align-items:center;height:34px;padding:0 12px;border-radius:9px;border:1px solid var(--border);background:var(--s2);color:var(--dim);font-size:12px;font-weight:600;cursor:pointer">Zoom</span><span style="display:flex;align-items:center;height:34px;padding:0 12px;border-radius:9px;border:1px solid var(--border);background:var(--s2);color:var(--dim);font-size:12px;font-weight:600;cursor:pointer">Teams</span></div></div>
+<div style="display:flex;align-items:flex-start;gap:8px;padding:11px 13px;border-radius:10px;background:var(--s2);border:1px solid var(--border)"><i data-lucide="info" style="font-size:14px;color:var(--blue-t);margin-top:1px"></i><span style="font-size:11.5px;color:var(--dim);line-height:1.5">Guests get the link on the event page and in every reminder. The location map stays off for remote events.</span></div>
+</div>
+</sc-if>
+<sc-if value="{{ clLater }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;align-items:flex-start;gap:11px;padding:16px;border-radius:12px;background:var(--s2);border:1px solid var(--border)"><span style="width:34px;height:34px;flex:none;border-radius:9px;background:var(--sienna-bg);border:1px solid var(--sienna-bd);color:var(--sienna-t);display:flex;align-items:center;justify-content:center;font-size:16px"><i data-lucide="clock"></i></span><div><div style="font-size:12.5px;font-weight:600;margin-bottom:3px">Decide the location later</div><div style="font-size:11.5px;color:var(--dim);line-height:1.5">Invites still go out now and people can mark availability. The location map stays empty until you or a guest adds the first place to vote on.</div></div></div>
+</sc-if>
+</div>
+</sc-if>
+<sc-if value="{{ isStep3 }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center;padding:6px 0 4px">
+<span style="width:48px;height:48px;border-radius:50%;background:var(--teal-bg);border:1px solid var(--teal-bd);color:var(--teal-t);display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:4px"><i data-lucide="check"></i></span>
+<div style="font-size:15px;font-weight:600">Your event is ready</div>
+<div style="color:var(--dim);font-size:12px;max-width:420px;line-height:1.5">Share the link below. Anyone can mark availability, vote on a location, and chat — no account needed.</div>
+<div style="display:flex;align-items:center;gap:8px;width:100%;max-width:440px;margin-top:14px;height:44px;padding:0 8px 0 14px;border-radius:11px;border:1px solid var(--border2);background:var(--s2)"><i data-lucide="link" style="font-size:15px;color:var(--blue-t)"></i><span style="flex:1;text-align:left;font-size:12.5px;font-family:Geist Mono,monospace;color:var(--text)">gatherly.app/e/q3-offsite</span><button style="height:32px;padding:0 14px;border-radius:9px;border:none;background:var(--blue);color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">Copy link</button></div>
+<div style="display:flex;align-items:center;gap:20px;margin-top:18px">
+<div style="width:104px;height:104px;border-radius:12px;background:#fff;padding:9px;display:flex;align-items:center;justify-content:center"><div style="width:100%;height:100%;background-image:repeating-conic-gradient(#1b1b19 0 25%,#fff 0 50%);background-size:13px 13px;border-radius:4px"></div></div>
+<div style="text-align:left;display:flex;flex-direction:column;gap:9px"><div style="font-size:12px;font-weight:600">Scan to join</div><button style="display:flex;align-items:center;gap:7px;height:34px;padding:0 13px;border-radius:9px;border:1px solid var(--border2);background:var(--s1);color:var(--text);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer"><i data-lucide="mail" style="font-size:14px"></i>Email invites to 6 people</button></div>
+</div>
+</div>
+</sc-if>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px">
+<button onClick="{{ backStep }}" style="display:flex;align-items:center;gap:7px;height:40px;padding:0 16px;border-radius:10px;border:1px solid var(--border2);background:transparent;color:var(--text);font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer"><i data-lucide="arrow-left" style="font-size:15px"></i>Back</button>
+<sc-if value="{{ isStep3 }}" hint-placeholder-val="{{ false }}"><button onClick="{{ gotoEvent }}" style="display:flex;align-items:center;gap:7px;height:40px;padding:0 18px;border-radius:10px;border:none;background:var(--blue);color:#fff;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer">Go to event<i data-lucide="arrow-right" style="font-size:15px"></i></button></sc-if>
+<sc-if value="{{ notStep3 }}" hint-placeholder-val="{{ true }}"><button onClick="{{ nextStep }}" style="display:flex;align-items:center;gap:7px;height:40px;padding:0 18px;border-radius:10px;border:none;background:var(--blue);color:#fff;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer">Continue<i data-lucide="arrow-right" style="font-size:15px"></i></button></sc-if>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ isTemplates }}" hint-placeholder-val="{{ false }}">
+<div>
+<div style="margin-bottom:18px">
+<h1 style="margin:0 0 6px;font-family:'Instrument Serif',serif;font-weight:400;font-size:32px;line-height:1.02;letter-spacing:-.01em">Templates</h1>
+<div style="color:var(--dim);font-size:12px">Start from a pre-built flow — pick one and customize the details, invites, and dates.</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:13px">
+<div onClick="{{ goCreate }}" style="border:1px solid var(--border);border-radius:13px;background:var(--s1);padding:16px;cursor:pointer;transition:border-color .15s,transform .15s" style-hover="border-color:var(--border2);transform:translateY(-2px)"><span style="width:38px;height:38px;border-radius:10px;background:var(--teal-bg);border:1px solid var(--teal-bd);color:var(--teal-t);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px"><i data-lucide="route"></i></span><div style="font-size:13.5px;font-weight:600;margin-bottom:4px">Team offsite</div><div style="font-size:11.5px;color:var(--dim);line-height:1.5;margin-bottom:12px">Multi-day with availability grid, location vote, and a multi-stop itinerary.</div><span style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--blue-t)">Use template<i data-lucide="arrow-right" style="font-size:13px"></i></span></div>
+<div onClick="{{ goCreate }}" style="border:1px solid var(--border);border-radius:13px;background:var(--s1);padding:16px;cursor:pointer;transition:border-color .15s,transform .15s" style-hover="border-color:var(--border2);transform:translateY(-2px)"><span style="width:38px;height:38px;border-radius:10px;background:var(--blue-bg);border:1px solid var(--blue-bd);color:var(--blue-t);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px"><i data-lucide="map"></i></span><div style="font-size:13.5px;font-weight:600;margin-bottom:4px">Weekend trip</div><div style="font-size:11.5px;color:var(--dim);line-height:1.5;margin-bottom:12px">Pick dates together, vote on a destination, and split a shared budget.</div><span style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--blue-t)">Use template<i data-lucide="arrow-right" style="font-size:13px"></i></span></div>
+<div onClick="{{ goCreate }}" style="border:1px solid var(--border);border-radius:13px;background:var(--s1);padding:16px;cursor:pointer;transition:border-color .15s,transform .15s" style-hover="border-color:var(--border2);transform:translateY(-2px)"><span style="width:38px;height:38px;border-radius:10px;background:var(--sienna-bg);border:1px solid var(--sienna-bd);color:var(--sienna-t);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px"><i data-lucide="party-popper"></i></span><div style="font-size:13.5px;font-weight:600;margin-bottom:4px">Birthday party</div><div style="font-size:11.5px;color:var(--dim);line-height:1.5;margin-bottom:12px">One evening, one place. Collect RSVPs and a head-count fast.</div><span style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--blue-t)">Use template<i data-lucide="arrow-right" style="font-size:13px"></i></span></div>
+<div onClick="{{ goCreate }}" style="border:1px solid var(--border);border-radius:13px;background:var(--s1);padding:16px;cursor:pointer;transition:border-color .15s,transform .15s" style-hover="border-color:var(--border2);transform:translateY(-2px)"><span style="width:38px;height:38px;border-radius:10px;background:var(--blue-bg);border:1px solid var(--blue-bd);color:var(--blue-t);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px"><i data-lucide="presentation"></i></span><div style="font-size:13.5px;font-weight:600;margin-bottom:4px">Conference / summit</div><div style="font-size:11.5px;color:var(--dim);line-height:1.5;margin-bottom:12px">Many attendees, sessions, and a venue. Track attendance per session.</div><span style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--blue-t)">Use template<i data-lucide="arrow-right" style="font-size:13px"></i></span></div>
+<div onClick="{{ goCreate }}" style="border:1px solid var(--border);border-radius:13px;background:var(--s1);padding:16px;cursor:pointer;transition:border-color .15s,transform .15s" style-hover="border-color:var(--border2);transform:translateY(-2px)"><span style="width:38px;height:38px;border-radius:10px;background:var(--teal-bg);border:1px solid var(--teal-bd);color:var(--teal-t);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px"><i data-lucide="repeat"></i></span><div style="font-size:13.5px;font-weight:600;margin-bottom:4px">Recurring 1:1</div><div style="font-size:11.5px;color:var(--dim);line-height:1.5;margin-bottom:12px">A standing slot between two people, synced to both calendars.</div><span style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--blue-t)">Use template<i data-lucide="arrow-right" style="font-size:13px"></i></span></div>
+<div onClick="{{ goCreate }}" style="border:1px solid var(--border);border-radius:13px;background:var(--s1);padding:16px;cursor:pointer;transition:border-color .15s,transform .15s" style-hover="border-color:var(--border2);transform:translateY(-2px)"><span style="width:38px;height:38px;border-radius:10px;background:var(--sienna-bg);border:1px solid var(--sienna-bd);color:var(--sienna-t);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px"><i data-lucide="utensils"></i></span><div style="font-size:13.5px;font-weight:600;margin-bottom:4px">Dinner & drinks</div><div style="font-size:11.5px;color:var(--dim);line-height:1.5;margin-bottom:12px">Casual meetup — find a night, pick a spot, see who's in.</div><span style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--blue-t)">Use template<i data-lucide="arrow-right" style="font-size:13px"></i></span></div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ isDocs }}" hint-placeholder-val="{{ false }}">
+<div style="max-width:1000px;margin:0 auto">
+<div style="margin-bottom:18px">
+<div style="display:flex;align-items:center;gap:8px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:6px"><i data-lucide="book-open" style="font-size:13px"></i>Design docs</div>
+<h1 style="margin:0 0 6px;font-family:'Instrument Serif',serif;font-weight:400;font-size:30px;line-height:1.04;letter-spacing:-.01em">System decisions</h1>
+<div style="color:var(--dim);font-size:12px">The rationale behind Gatherly's palette, availability grid, and attendance model.</div>
+</div>
+<div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+<sc-for list="{{ docTabs }}" as="t" hint-placeholder-count="3">
+<span onClick="{{ t.onClick }}" style="display:flex;align-items:center;gap:7px;height:34px;padding:0 13px;border-radius:9px;cursor:pointer;font-size:12px;font-weight:600;color:{{ t.fg }};background:{{ t.bg }};border:1px solid {{ t.bd }}"><i data-lucide="{{ t.icon }}" style="font-size:14px"></i>{{ t.label }}</span>
+</sc-for>
+</div>
+<sc-if value="{{ isColors }}" hint-placeholder-val="{{ true }}">
+<div style="border:1px solid var(--border);border-radius:14px;background:var(--s1);padding:20px 22px;margin-bottom:14px"><div style="font-size:12.5px;color:var(--dim);line-height:1.6">The original ramp jumped <strong style="color:var(--text)">cool → neutral → warm → warm</strong>, so confirmed (green) and planning (gold) sat too close. The refined ramp flows evenly and keeps each status legible. <strong style="color:var(--text)">Blue is unchanged</strong> — it stays the single interactive color.</div></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+<div style="border:1px solid var(--border);border-radius:14px;background:var(--s1);padding:18px 20px">
+<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:13px">Current</div>
+<sc-for list="{{ curColors }}" as="c" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:10px;background:{{ c.bg }};border:1px solid {{ c.bd }};margin-bottom:8px"><span style="width:11px;height:11px;border-radius:50%;flex:none;background:{{ c.sw }}"></span><span style="font-size:12.5px;font-weight:600;color:{{ c.sw }}">{{ c.name }}</span><span style="margin-left:auto;font-size:11px;color:var(--dim)">{{ c.role }}</span><span style="font-family:Geist Mono,monospace;font-size:10px;color:var(--faint);min-width:64px;text-align:right">{{ c.right }}</span></div>
+</sc-for>
+<div style="height:10px;border-radius:6px;margin:14px 0 7px;background:linear-gradient(90deg,#2E4A3C,#16A34A,#D97706,#DC2626)"></div>
+<div style="font-size:10.5px;color:var(--faint)">Temperature jumps: cool → neutral → warm → warm</div>
+<div style="height:1px;background:var(--border);margin:18px 0"></div>
+<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-bottom:10px">Badges — current</div>
+<div style="display:flex;flex-wrap:wrap;gap:7px">
+<span style="display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 9px;border-radius:7px;font-size:10.5px;font-weight:600;background:#2E4A3C22;color:#2E4A3C;border:1px solid #2E4A3C55"><i data-lucide="check" style="font-size:11px"></i>Attending</span>
+<span style="display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 9px;border-radius:7px;font-size:10.5px;font-weight:600;background:#16A34A22;color:#16A34A;border:1px solid #16A34A55"><i data-lucide="check" style="font-size:11px"></i>Confirmed</span>
+<span style="display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 9px;border-radius:7px;font-size:10.5px;font-weight:600;background:#D9770622;color:#D97706;border:1px solid #D9770655"><i data-lucide="clock" style="font-size:11px"></i>Planning</span>
+<span style="display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 9px;border-radius:7px;font-size:10.5px;font-weight:600;background:#DC262622;color:#DC2626;border:1px solid #DC262655"><i data-lucide="x" style="font-size:11px"></i>Absent</span>
+</div>
+<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin:18px 0 10px">Heat map — current</div>
+<div style="display:flex;align-items:center;gap:6px"><span style="width:30px;height:30px;border-radius:7px;background:var(--s2);border:1px solid var(--border)"></span><span style="width:30px;height:30px;border-radius:7px;background:#EFF7EF"></span><span style="width:30px;height:30px;border-radius:7px;background:#CDE9CD"></span><span style="width:30px;height:30px;border-radius:7px;background:#86C786"></span><span style="width:30px;height:30px;border-radius:7px;background:#16A34A"></span><span style="font-size:10.5px;color:var(--faint);margin-left:5px">None → all free</span></div>
+<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin:18px 0 10px">Attendance matrix — current</div>
+<div style="display:flex;align-items:center;gap:8px"><span style="width:14px;height:14px;border-radius:50%;background:#16A34A"></span><span style="width:14px;height:14px;border-radius:50%;background:#D97706"></span><span style="width:14px;height:14px;border-radius:50%;background:#DC2626"></span><span style="font-size:10.5px;color:var(--faint);margin-left:5px">Full · Partial · Absent</span></div>
+</div>
+<div style="border:1.5px solid var(--blue-bd);border-radius:14px;background:var(--s1);padding:18px 20px">
+<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--blue-t);margin-bottom:13px">Refined</div>
+<sc-for list="{{ refColors }}" as="c" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:10px;background:{{ c.bg }};border:1px solid {{ c.bd }};margin-bottom:8px"><span style="width:11px;height:11px;border-radius:50%;flex:none;background:{{ c.sw }}"></span><span style="font-size:12.5px;font-weight:600;color:{{ c.sw }}">{{ c.name }}</span><span style="margin-left:auto;font-size:11px;color:var(--dim)">{{ c.role }}</span><span style="font-family:Geist Mono,monospace;font-size:10px;color:var(--faint);min-width:64px;text-align:right">{{ c.right }}</span></div>
+</sc-for>
+<div style="height:10px;border-radius:6px;margin:14px 0 7px;background:linear-gradient(90deg,#2E4A3C,#3E6B54,#9A6B2E,#A14A45)"></div>
+<div style="font-size:10.5px;color:var(--faint)">Temperature flows: cool → cool-mid → warm-mid → warm</div>
+<div style="height:1px;background:var(--border);margin:18px 0"></div>
+<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-bottom:10px">Badges — refined</div>
+<div style="display:flex;flex-wrap:wrap;gap:7px">
+<span style="display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 9px;border-radius:7px;font-size:10.5px;font-weight:600;background:var(--blue-bg);color:var(--blue-t);border:1px solid var(--blue-bd)"><i data-lucide="check" style="font-size:11px"></i>Attending</span>
+<span style="display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 9px;border-radius:7px;font-size:10.5px;font-weight:600;background:var(--teal-bg);color:var(--teal-t);border:1px solid var(--teal-bd)"><i data-lucide="check" style="font-size:11px"></i>Confirmed</span>
+<span style="display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 9px;border-radius:7px;font-size:10.5px;font-weight:600;background:var(--sienna-bg);color:var(--sienna-t);border:1px solid var(--sienna-bd)"><i data-lucide="clock" style="font-size:11px"></i>Planning</span>
+<span style="display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 9px;border-radius:7px;font-size:10.5px;font-weight:600;background:var(--rose-bg);color:var(--rose-t);border:1px solid var(--rose-bd)"><i data-lucide="x" style="font-size:11px"></i>Absent</span>
+</div>
+<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin:18px 0 10px">Heat map — refined</div>
+<div style="display:flex;align-items:center;gap:6px"><span style="width:30px;height:30px;border-radius:7px;background:var(--s2);border:1px solid var(--border)"></span><span style="width:30px;height:30px;border-radius:7px;background:#EBF1EB"></span><span style="width:30px;height:30px;border-radius:7px;background:#CFE0D2"></span><span style="width:30px;height:30px;border-radius:7px;background:#9DBBA4"></span><span style="width:30px;height:30px;border-radius:7px;background:#3E6B54"></span><span style="font-size:10.5px;color:var(--faint);margin-left:5px">None → all free</span></div>
+<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin:18px 0 10px">Attendance matrix — refined</div>
+<div style="display:flex;align-items:center;gap:8px"><span style="width:14px;height:14px;border-radius:50%;background:#3E6B54"></span><span style="width:14px;height:14px;border-radius:50%;background:#9A6B2E"></span><span style="width:14px;height:14px;border-radius:50%;background:#A14A45"></span><span style="font-size:10.5px;color:var(--faint);margin-left:5px">Full · Partial · Absent</span></div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ isGrid }}" hint-placeholder-val="{{ false }}"><div>
+<div style="border:1px solid var(--border);border-radius:14px;background:var(--s1);padding:20px 22px;margin-bottom:16px"><div style="font-size:12.5px;color:var(--dim);line-height:1.6">The grid is the fastest way to find overlap. Time labels are sticky-left, day headers sticky-top, and the body scrolls <strong style="color:var(--text)">6 AM – 11 PM</strong>. Cells tint with a 5-step teal heat ramp; <strong style="color:var(--text)">your</strong> availability overlays in purple so it never gets lost in the crowd.</div></div>
+<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin:0 0 12px">Slot granularity — 30 min vs 15 min</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px">
+<div style="border:1px solid var(--border);border-radius:14px;background:var(--s1);padding:18px 20px">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px"><span style="font-size:13px;font-weight:600">30-min slots</span><span style="font-size:9.5px;font-weight:600;color:var(--blue-t);background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:5px;padding:1px 6px">Default</span></div>
+<div style="font-size:11px;color:var(--dim);margin-bottom:13px">Handles :00 and :30 start/end times precisely.</div>
+<div style="width:210px;border:1px solid var(--border);border-radius:9px;overflow:hidden">
+<div style="display:grid;grid-template-columns:50px 1fr;border-bottom:1px solid var(--border)"><div style="padding:7px 8px;font-size:10.5px;font-weight:600;color:var(--dim);background:var(--s0)">9 AM</div><div style="min-height:32px;border-left:1px solid var(--border)"></div></div>
+<div style="display:grid;grid-template-columns:50px 1fr;border-bottom:1px solid var(--border)"><div style="padding:7px 8px;font-size:10.5px;color:var(--dim);background:var(--s0)">9:30</div><div style="min-height:32px;border-left:1px solid var(--border);background:#EAD9BE;display:flex;align-items:center;justify-content:center"><span style="width:16px;height:16px;border-radius:50%;background:#F3EAD9;color:#5A431C;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:600">JM</span></div></div>
+<div style="display:grid;grid-template-columns:50px 1fr;border-bottom:1px solid var(--border)"><div style="padding:7px 8px;font-size:10.5px;font-weight:600;color:var(--dim);background:var(--s0)">10 AM</div><div style="min-height:32px;border-left:1px solid var(--border);background:#EAD9BE;display:flex;align-items:center;justify-content:center"><span style="width:16px;height:16px;border-radius:50%;background:#F3EAD9;color:#5A431C;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:600">JM</span></div></div>
+<div style="display:grid;grid-template-columns:50px 1fr;border-bottom:1px solid var(--border)"><div style="padding:7px 8px;font-size:10.5px;color:var(--dim);background:var(--s0)">10:30</div><div style="min-height:32px;border-left:1px solid var(--border);background:#EAD9BE;display:flex;align-items:center;justify-content:center"><span style="width:16px;height:16px;border-radius:50%;background:#F3EAD9;color:#5A431C;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:600">JM</span></div></div>
+<div style="display:grid;grid-template-columns:50px 1fr"><div style="padding:7px 8px;font-size:10.5px;font-weight:600;color:var(--dim);background:var(--s0)">11 AM</div><div style="min-height:32px;border-left:1px solid var(--border)"></div></div>
+</div>
+<div style="display:flex;align-items:center;gap:6px;margin-top:12px;font-size:11px;color:var(--teal-t)"><i data-lucide="check" style="font-size:13px"></i>Free 9:30 – 11:00 AM marked precisely</div>
+<div style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:11px;color:var(--rose-t)"><i data-lucide="x" style="font-size:13px"></i>Can't mark 9:45 or 10:45 — not on a boundary</div>
+</div>
+<div style="border:1px solid var(--border);border-radius:14px;background:var(--s1);padding:18px 20px">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px"><span style="font-size:13px;font-weight:600">15-min slots</span><span style="font-size:9.5px;font-weight:600;color:var(--sienna-t);background:var(--sienna-bg);border:1px solid var(--sienna-bd);border-radius:5px;padding:1px 6px">Precision</span></div>
+<div style="font-size:11px;color:var(--dim);margin-bottom:13px">Adds :15 and :45 boundaries for finer control.</div>
+<div style="width:210px;border:1px solid var(--border);border-radius:9px;overflow:hidden">
+<div style="display:grid;grid-template-columns:50px 1fr;border-bottom:1px solid var(--border)"><div style="padding:6px 8px;font-size:10.5px;font-weight:600;color:var(--dim);background:var(--s0)">9:30</div><div style="min-height:26px;border-left:1px solid var(--border)"></div></div>
+<div style="display:grid;grid-template-columns:50px 1fr;border-bottom:1px solid var(--border)"><div style="padding:6px 8px;font-size:9.5px;color:var(--faint);background:var(--s0)">9:45</div><div style="min-height:26px;border-left:1px solid var(--border);background:#EAD9BE;display:flex;align-items:center;justify-content:center"><span style="width:15px;height:15px;border-radius:50%;background:#F3EAD9;color:#5A431C;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:600">JM</span></div></div>
+<div style="display:grid;grid-template-columns:50px 1fr;border-bottom:1px solid var(--border)"><div style="padding:6px 8px;font-size:10.5px;font-weight:600;color:var(--dim);background:var(--s0)">10 AM</div><div style="min-height:26px;border-left:1px solid var(--border);background:#EAD9BE;display:flex;align-items:center;justify-content:center"><span style="width:15px;height:15px;border-radius:50%;background:#F3EAD9;color:#5A431C;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:600">JM</span></div></div>
+<div style="display:grid;grid-template-columns:50px 1fr;border-bottom:1px solid var(--border)"><div style="padding:6px 8px;font-size:9.5px;color:var(--faint);background:var(--s0)">10:15</div><div style="min-height:26px;border-left:1px solid var(--border);background:#EAD9BE;display:flex;align-items:center;justify-content:center"><span style="width:15px;height:15px;border-radius:50%;background:#F3EAD9;color:#5A431C;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:600">JM</span></div></div>
+<div style="display:grid;grid-template-columns:50px 1fr;border-bottom:1px solid var(--border)"><div style="padding:6px 8px;font-size:10.5px;font-weight:600;color:var(--dim);background:var(--s0)">10:30</div><div style="min-height:26px;border-left:1px solid var(--border);background:#EAD9BE;display:flex;align-items:center;justify-content:center"><span style="width:15px;height:15px;border-radius:50%;background:#F3EAD9;color:#5A431C;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:600">JM</span></div></div>
+<div style="display:grid;grid-template-columns:50px 1fr;border-bottom:1px solid var(--border)"><div style="padding:6px 8px;font-size:9.5px;color:var(--faint);background:var(--s0)">10:45</div><div style="min-height:26px;border-left:1px solid var(--border)"></div></div>
+<div style="display:grid;grid-template-columns:50px 1fr"><div style="padding:6px 8px;font-size:10.5px;font-weight:600;color:var(--dim);background:var(--s0)">11 AM</div><div style="min-height:26px;border-left:1px solid var(--border)"></div></div>
+</div>
+<div style="display:flex;align-items:center;gap:6px;margin-top:12px;font-size:11px;color:var(--teal-t)"><i data-lucide="check" style="font-size:13px"></i>Free 9:45 – 10:45 AM — now expressible</div>
+<div style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:11px;color:var(--dim)"><i data-lucide="info" style="font-size:13px"></i>:15 and :45 shown at lower visual weight</div>
+</div>
+</div>
+<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin:0 0 12px">Sub-slot precision via time handles</div>
+<div style="display:grid;grid-template-columns:240px 1fr;gap:20px;align-items:start;border:1px solid var(--border);border-radius:14px;background:var(--s1);padding:20px 22px">
+<div style="position:relative;width:200px;border:1px solid var(--border);border-radius:9px;overflow:visible">
+<div style="border-radius:9px;overflow:hidden">
+<div style="display:grid;grid-template-columns:50px 1fr;border-bottom:1px solid var(--border)"><div style="padding:7px 8px;font-size:10.5px;color:var(--dim);background:var(--s0)">9:30</div><div style="min-height:30px;border-left:1px solid var(--border)"></div></div>
+<div style="display:grid;grid-template-columns:50px 1fr;border-bottom:1px solid var(--border)"><div style="padding:7px 8px;font-size:10.5px;font-weight:600;color:var(--dim);background:var(--s0)">10 AM</div><div style="min-height:30px;border-left:1px solid var(--border);background:#EAD9BE"></div></div>
+<div style="display:grid;grid-template-columns:50px 1fr;border-bottom:1px solid var(--border)"><div style="padding:7px 8px;font-size:10.5px;font-weight:600;color:var(--dim);background:var(--s0)">10:30</div><div style="min-height:30px;border-left:1px solid var(--border);background:#EAD9BE"></div></div>
+<div style="display:grid;grid-template-columns:50px 1fr;border-bottom:1px solid var(--border)"><div style="padding:7px 8px;font-size:10.5px;font-weight:600;color:var(--dim);background:var(--s0)">11 AM</div><div style="min-height:30px;border-left:1px solid var(--border);background:#EAD9BE"></div></div>
+<div style="display:grid;grid-template-columns:50px 1fr"><div style="padding:7px 8px;font-size:10.5px;color:var(--dim);background:var(--s0)">11:30</div><div style="min-height:30px;border-left:1px solid var(--border);background:linear-gradient(#EAD9BE 50%,transparent 50%);border-bottom:2px dashed #C2A468"></div></div>
+</div>
+<span style="position:absolute;left:80px;top:25px;transform:translateX(-50%);width:34px;height:15px;background:#fff;border:1px solid #C2A468;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#8A6A2E;box-shadow:0 2px 6px rgba(0,0,0,.2)"><i data-lucide="grip-horizontal" style="font-size:12px"></i></span>
+<span style="position:absolute;left:80px;bottom:14px;transform:translateX(-50%);width:34px;height:15px;background:#fff;border:1px solid #C2A468;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#8A6A2E;box-shadow:0 2px 6px rgba(0,0,0,.2)"><i data-lucide="grip-horizontal" style="font-size:12px"></i></span>
+</div>
+<div style="display:flex;flex-direction:column;gap:13px">
+<div style="display:flex;gap:11px"><span style="width:22px;height:22px;flex:none;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">1</span><div style="font-size:12px;line-height:1.55"><strong style="font-weight:600">Top handle — drag to set exact start.</strong> <span style="color:var(--dim)">Snaps to the slot grid but can be released between snaps for a minute-precise time (e.g. 9:50 AM).</span></div></div>
+<div style="display:flex;gap:11px"><span style="width:22px;height:22px;flex:none;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">2</span><div style="font-size:12px;line-height:1.55"><strong style="font-weight:600">Partial cell at the bottom.</strong> <span style="color:var(--dim)">The block ends at 11:45 — a dashed line cuts the 11:30–12:00 slot exactly in half, and the bottom handle sits on it.</span></div></div>
+<div style="display:flex;gap:11px"><span style="width:22px;height:22px;flex:none;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">3</span><div style="font-size:12px;line-height:1.55"><strong style="font-weight:600">Handles only appear in Edit mode</strong> <span style="color:var(--dim)">after a drag selection. Tapping a handle opens a time picker — a mobile-friendly fallback.</span></div></div>
+<div style="display:flex;align-items:flex-start;gap:8px;margin-top:2px;padding:11px 13px;border-radius:10px;background:var(--s2);border:1px solid var(--border)"><i data-lucide="lightbulb" style="font-size:14px;color:var(--sienna-t);margin-top:1px"></i><div style="font-size:11.5px;color:var(--dim);line-height:1.5"><strong style="color:var(--text);font-weight:600">Recommended:</strong> 30-min slots for most events; switch to 15-min when the organizer sets a non-standard window (e.g. 9:45 AM start). Handles give sub-slot precision without changing the displayed granularity.</div></div>
+</div>
+</div>
+</div></sc-if>
+<sc-if value="{{ isEntry }}" hint-placeholder-val="{{ false }}"><div>
+<div style="border:1px solid var(--border);border-radius:14px;background:var(--s1);padding:20px 22px;margin-bottom:16px"><div style="font-size:12.5px;color:var(--dim);line-height:1.6">Attendance is reachable from <strong style="color:var(--text)">four places</strong> at increasing levels of commitment — a glance on each stop card, a conflict flag, a summary link, and a dedicated tab. Same data, surfaced where you already are.</div></div>
+<div style="display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:start">
+<div>
+<div style="font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin-bottom:11px">Entry points in the panel</div>
+<div style="border:1px solid var(--border);border-radius:14px;background:var(--s1);padding:14px">
+<div style="display:flex;gap:7px;margin-bottom:12px"><span style="height:30px;padding:0 11px;display:flex;align-items:center;border-radius:8px;font-size:11px;font-weight:600;background:var(--s2);color:var(--dim);border:1px solid var(--border)">Venue vote</span><span style="height:30px;padding:0 11px;display:flex;align-items:center;border-radius:8px;font-size:11px;font-weight:600;background:var(--s0);color:var(--text);border:1px solid var(--border2)">Itinerary</span><span style="height:30px;padding:0 11px;display:flex;align-items:center;gap:5px;border-radius:8px;font-size:11px;font-weight:600;background:var(--s2);color:var(--dim);border:1px solid var(--border)"><i data-lucide="plus" style="font-size:13px"></i>Add stop</span></div>
+<div style="border:1px solid var(--border);border-radius:11px;background:var(--s2);padding:11px;margin-bottom:9px">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><span style="width:20px;height:20px;border-radius:50%;background:#3E6B54;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">1</span><span style="font-size:12px;font-weight:600">Ferry Building</span></div>
+<div style="display:flex;align-items:center;gap:8px"><span style="display:flex;gap:2px"><span style="width:9px;height:9px;border-radius:50%;background:#3E6B54"></span><span style="width:9px;height:9px;border-radius:50%;background:#3E6B54"></span><span style="width:9px;height:9px;border-radius:50%;background:#3E6B54"></span><span style="width:9px;height:9px;border-radius:50%;background:#3E6B54"></span><span style="width:9px;height:9px;border-radius:50%;background:#3E6B54"></span><span style="width:9px;height:9px;border-radius:50%;background:#3E6B54"></span><span style="width:9px;height:9px;border-radius:50%;background:#9A6B2E"></span><span style="width:9px;height:9px;border-radius:50%;background:#A14A45"></span></span><span style="font-size:10px;color:var(--dim);flex:1"><span style="color:var(--teal-t);font-weight:600">6 full</span> · 1 partial · 1 absent</span><i data-lucide="chevron-right" style="font-size:14px;color:var(--faint)"></i></div>
+</div>
+<div style="border:1px solid var(--border);border-radius:11px;background:var(--s2);padding:11px;margin-bottom:9px">
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><span style="width:20px;height:20px;border-radius:50%;background:#2E4A3C;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">2</span><span style="font-size:12px;font-weight:600">Fort Mason Center</span></div>
+<div style="display:flex;align-items:center;gap:8px"><span style="display:flex;gap:2px"><span style="width:9px;height:9px;border-radius:50%;background:#3E6B54"></span><span style="width:9px;height:9px;border-radius:50%;background:#3E6B54"></span><span style="width:9px;height:9px;border-radius:50%;background:#3E6B54"></span><span style="width:9px;height:9px;border-radius:50%;background:#3E6B54"></span><span style="width:9px;height:9px;border-radius:50%;background:#3E6B54"></span><span style="width:9px;height:9px;border-radius:50%;background:#9A6B2E"></span><span style="width:9px;height:9px;border-radius:50%;background:#9A6B2E"></span><span style="width:9px;height:9px;border-radius:50%;background:#A14A45"></span></span><span style="font-size:10px;color:var(--dim);flex:1"><span style="color:var(--teal-t);font-weight:600">5 full</span> · 2 partial · 1 absent</span><i data-lucide="chevron-right" style="font-size:14px;color:var(--faint)"></i></div>
+</div>
+<div style="border:1px solid var(--sienna-bd);border-radius:11px;background:var(--sienna-bg);padding:11px;margin-bottom:11px">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px"><div style="display:flex;align-items:center;gap:8px"><span style="width:20px;height:20px;border-radius:50%;background:#9A6B2E;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center">3</span><span style="font-size:12px;font-weight:600">Cavallo Point Lodge</span></div><span style="display:flex;align-items:center;gap:4px;font-size:9.5px;font-weight:600;color:var(--sienna-t);background:var(--s1);border:1px solid var(--sienna-bd);border-radius:6px;padding:2px 6px"><i data-lucide="triangle-alert" style="font-size:11px"></i>2 conflicts</span></div>
+<div style="display:flex;align-items:center;gap:8px"><span style="display:flex;gap:2px"><span style="width:9px;height:9px;border-radius:50%;background:#3E6B54"></span><span style="width:9px;height:9px;border-radius:50%;background:#3E6B54"></span><span style="width:9px;height:9px;border-radius:50%;background:#3E6B54"></span><span style="width:9px;height:9px;border-radius:50%;background:#3E6B54"></span><span style="width:9px;height:9px;border-radius:50%;background:#3E6B54"></span><span style="width:9px;height:9px;border-radius:50%;background:#9A6B2E"></span><span style="width:9px;height:9px;border-radius:50%;background:#A14A45"></span><span style="width:9px;height:9px;border-radius:50%;background:#A14A45"></span></span><span style="font-size:10px;color:var(--dim);flex:1"><span style="color:var(--teal-t);font-weight:600">5 full</span> · 1 partial · <span style="color:var(--rose-t);font-weight:600">2 absent</span></span><i data-lucide="chevron-right" style="font-size:14px;color:var(--faint)"></i></div>
+</div>
+<div style="display:flex;align-items:center;gap:7px;padding-top:11px;border-top:1px solid var(--border);font-size:10.5px;color:var(--dim)"><i data-lucide="route" style="font-size:13px"></i>3 stops · 8.5h<span style="flex:1"></span><span style="display:flex;align-items:center;gap:4px;color:var(--blue-t);font-weight:600">View overview<i data-lucide="arrow-up-right" style="font-size:12px"></i></span></div>
+</div>
+</div>
+<div>
+<div style="font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin-bottom:11px">How each entry point behaves</div>
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;gap:11px"><span style="width:22px;height:22px;flex:none;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">1</span><div style="font-size:12px;line-height:1.55"><strong style="font-weight:600">Attendance row on each stop card</strong> <span style="color:var(--dim)">— always visible, shows the colored full/partial/absent count. Clicking opens the overview pre-scrolled to that stop. Fastest way to check one stop mid-planning.</span></div></div>
+<div style="display:flex;gap:11px"><span style="width:22px;height:22px;flex:none;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">2</span><div style="font-size:12px;line-height:1.55"><strong style="font-weight:600">Conflict badge on the card header</strong> <span style="color:var(--dim)">— only appears at 2+ conflicts. The sienna color draws the eye; clicking jumps to that stop's conflict callout with the suggested fix.</span></div></div>
+<div style="display:flex;gap:11px"><span style="width:22px;height:22px;flex:none;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">3</span><div style="font-size:12px;line-height:1.55"><strong style="font-weight:600">"View overview" in the summary bar</strong> <span style="color:var(--dim)">— always at the bottom of the panel. Opens the full matrix for all stops at once — for reviewing the whole picture before finalizing.</span></div></div>
+<div style="display:flex;gap:11px"><span style="width:22px;height:22px;flex:none;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">4</span><div style="font-size:12px;line-height:1.55"><strong style="font-weight:600">Dedicated tab</strong> <span style="color:var(--dim)">— the most permanent home, sitting next to Availability, Location, and Details. Accessible from anywhere, not just inside the itinerary.</span></div></div>
+</div>
+<div style="display:flex;align-items:center;gap:2px;border:1px solid var(--border);border-radius:11px;background:var(--s1);padding:6px;margin-top:16px;overflow-x:auto">
+<span style="display:flex;align-items:center;gap:6px;padding:7px 11px;font-size:11.5px;font-weight:500;color:var(--dim);white-space:nowrap"><i data-lucide="calendar-range" style="font-size:13px"></i>Availability</span>
+<span style="display:flex;align-items:center;gap:6px;padding:7px 11px;font-size:11.5px;font-weight:500;color:var(--dim);white-space:nowrap"><i data-lucide="map-pin" style="font-size:13px"></i>Location vote</span>
+<span style="display:flex;align-items:center;gap:6px;padding:7px 11px;border-radius:8px;font-size:11.5px;font-weight:600;color:var(--blue-t);background:var(--blue-bg);border:1px solid var(--blue-bd);white-space:nowrap"><i data-lucide="users-round" style="font-size:13px"></i>Attendance</span>
+<span style="display:flex;align-items:center;gap:6px;padding:7px 11px;font-size:11.5px;font-weight:500;color:var(--dim);white-space:nowrap"><i data-lucide="settings" style="font-size:13px"></i>Event details</span>
+</div>
+</div>
+</div>
+</div></sc-if>
+</div>
+</sc-if>
+
+</main>
+
+<div style="position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:60;white-space:nowrap;display:flex;align-items:center;gap:10px;height:42px;padding:0 8px 0 13px;border-radius:13px;background:var(--s1);border:1px solid var(--border2);box-shadow:var(--shadow);font-size:11px">
+<span style="display:flex;align-items:center;gap:6px;color:var(--faint);font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-size:9.5px"><i data-lucide="sliders-horizontal" style="font-size:12px"></i>Preview</span>
+<span style="width:1px;height:18px;background:var(--border)"></span>
+<div style="display:flex;align-items:center;gap:0;background:var(--s2);border-radius:8px;padding:2px">
+<span onClick="{{ onDark }}" style="display:flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:6px;cursor:pointer;font-weight:600;background:{{ seg.darkBg }};color:{{ seg.darkFg }}"><i data-lucide="moon" style="font-size:12px"></i>Dark</span>
+<span onClick="{{ onLight }}" style="display:flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:6px;cursor:pointer;font-weight:600;background:{{ seg.lightBg }};color:{{ seg.lightFg }}"><i data-lucide="sun" style="font-size:12px"></i>Light</span>
+</div>
+<span style="width:1px;height:18px;background:var(--border)"></span>
+<div style="display:flex;align-items:center;gap:0;background:var(--s2);border-radius:8px;padding:2px">
+<span onClick="{{ onSignedIn }}" style="display:flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:6px;cursor:pointer;font-weight:600;background:{{ seg.inBg }};color:{{ seg.inFg }}"><i data-lucide="user-check" style="font-size:12px"></i>Signed in</span>
+<span onClick="{{ onGuest }}" style="display:flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:6px;cursor:pointer;font-weight:600;background:{{ seg.guestBg }};color:{{ seg.guestFg }}"><i data-lucide="user" style="font-size:12px"></i>Guest</span>
+</div>
+<span style="width:1px;height:18px;background:var(--border)"></span>
+<span onClick="{{ goDocs }}" style="display:flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:9px;cursor:pointer;font-weight:600;background:{{ seg.docsBg }};color:{{ seg.docsFg }};border:1px solid {{ seg.docsBd }}"><i data-lucide="book-open" style="font-size:13px"></i>Design docs</span>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1240,&quot;height&quot;:880},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'dark'|'light'&quot;,&quot;section&quot;:&quot;Preview&quot;},&quot;view&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;signed-in&quot;,&quot;guest&quot;],&quot;default&quot;:&quot;signed-in&quot;,&quot;tsType&quot;:&quot;'signed-in'|'guest'&quot;,&quot;section&quot;:&quot;Preview&quot;},&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;home&quot;,&quot;event&quot;,&quot;create&quot;,&quot;docs&quot;],&quot;default&quot;:&quot;home&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Preview&quot;}}">
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    this.pc = {
+      purple:{bg:'#E1D8E4',fg:'#4A2F52'}, teal:{bg:'#D6E4D6',fg:'#2E4A3C'},
+      coral:{bg:'#ECD9CE',fg:'#6B3F2A'}, blue:{bg:'#D6E1EA',fg:'#2C4A5C'},
+      amber:{bg:'#EFE4C9',fg:'#6E5523'}, pink:{bg:'#EAD6D3',fg:'#6E3B38'},
+      green:{bg:'#DCE6D2',fg:'#3A5223'}, gray:{bg:'#E2DED3',fg:'#4A463C'},
+    };
+    this.people = {
+      JM:{n:'Jordan M',c:'purple'}, SR:{n:'Sarah R',c:'teal'}, AT:{n:'Alex T',c:'coral'},
+      KL:{n:'Kyle L',c:'blue'}, PR:{n:'Priya R',c:'pink'}, DW:{n:'Dana W',c:'gray'},
+      MN:{n:'Mia N',c:'amber'}, CL:{n:'Chris L',c:'green'},
+      RW:{n:'Riley W',c:'blue'}, TC:{n:'Tom C',c:'amber'}, NK:{n:'Nina K',c:'pink'},
+      BH:{n:'Ben H',c:'teal'}, DV:{n:'Dana V',c:'coral'}, EM:{n:'Ellen M',c:'purple'},
+      GH:{n:'Grace H',c:'green'}, OB:{n:'Omar B',c:'gray'},
+    };
+    this.state = {
+      theme: props.theme === 'light' ? 'light' : 'dark',
+      authed: props.view !== 'guest',
+      screen: props.startScreen || 'home',
+      eventTab: 'availability', locationMode: 'vote', availMode: 'view',
+      granularity: '30', chatOpen: true, docPage: 'colors',
+      createStep: 0, selectedStop: 1, attView:'itinerary', singleView:'roster',
+    };
+  }
+  componentDidMount(){ this.icons(); }
+  componentDidUpdate(prev){
+    this.icons();
+    if(prev.theme!==this.props.theme && this.props.theme){ this.setState({theme:this.props.theme}); }
+    if(prev.view!==this.props.view && this.props.view){ this.setState({authed:this.props.view!=='guest'}); }
+  }
+  icons(){ const go=()=>{ try{ window.lucide && window.lucide.createIcons(); }catch(e){} }; go(); setTimeout(go,120); setTimeout(go,400); }
+
+  av(id, sz){ const p=this.people[id]||{n:id,c:'gray'}; const c=this.pc[p.c]; return {initials:id, name:p.n, bg:c.bg, fg:c.fg}; }
+  avs(ids){ return ids.map(id=>this.av(id)); }
+  cover(c1,c2){ const svg="<svg xmlns='http://www.w3.org/2000/svg' width='420' height='200'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#EAE3D5'/><stop offset='1' stop-color='#D7CFBD'/></linearGradient></defs><rect width='420' height='200' fill='url(#g)'/><circle cx='338' cy='40' r='95' fill='rgba(255,255,255,.22)'/><circle cx='74' cy='184' r='66' fill='rgba(46,74,60,.07)'/></svg>"; return 'data:image/svg+xml,'+encodeURIComponent(svg); }
+  tone(t){
+    if(t==='neutral') return {bg:'var(--s2)', fg:'var(--dim)', bd:'var(--border)'};
+    return {bg:`var(--${t}-bg)`, fg:`var(--${t}-t)`, bd:`var(--${t}-bd)`};
+  }
+  badge(text,t){ return {text, ...this.tone(t)}; }
+
+  go(screen){ this.setState({screen}); }
+
+  navItem(name){
+    const a = this.state.screen===name;
+    return { w: a?'600':'500', c: a?'#F8F5EC':'var(--dim)', bg: a?'var(--blue)':'transparent' };
+  }
+
+  homeVals(){
+    const h = new Date().getHours();
+    const greeting = (h<12?'Good morning':h<18?'Good afternoon':'Good evening')+', JM';
+    const lifeStages = ['Invites','Availability','Location','Confirmed','Reminders','Complete'];
+    const curIdx = 3;
+    const life = lifeStages.map((label,i)=>{
+      const st = i<curIdx?'done':i===curIdx?'active':'todo';
+      return {
+        label,
+        dot: st==='done'?'var(--teal)':st==='active'?'var(--blue)':'var(--border2)',
+        ring: st==='active'?'0 0 0 4px var(--blue-bg)':'none',
+        lc: st==='todo'?'var(--faint)':'var(--text)',
+        w: st==='active'?'600':'400',
+      };
+    });
+    const hero = {
+      avatars: this.avs(['JM','SR','AT','KL','PR','DW']),
+      slotId:'cov-launch', cover:this.cover('#1D4ED8','#7C3AED'),
+      stats: [
+        {icon:'users', label:'Attending', value:'12 / 14', vc:'var(--text)'},
+        {icon:'clock', label:'Starts in', value:'2h', vc:'var(--sienna-t)'},
+        {icon:'wallet', label:'Budget', value:'$8,500', vc:'var(--text)'},
+      ],
+      life, lifeProgress: (curIdx/(lifeStages.length-1)*100)+'%',
+    };
+    const ev = (o)=>({...o, badge:this.badge(o.badgeText,o.badgeTone), days:this.badge(o.daysText,o.daysTone), onOpen:()=>this.go('event')});
+    const yourEvents = [
+      ev({title:'Q3 Team Offsite', slotId:'cov-q3',cover:this.cover('#0EA5A0','#2E4A3C'), badgeText:'Planning',badgeTone:'sienna', daysText:'14 days',daysTone:'blue', date:'Jul 13 · 9:00 AM', tz:'PDT', avatars:this.avs(['JM','SR','AT']), more:'+5', meta:[{icon:'wallet',text:'$4,200'},{icon:'users',text:'7 going'},{icon:'route',text:'6 stops'}]}),
+      ev({title:'Design Sprint Workshop', slotId:'cov-sprint',cover:this.cover('#6366F1','#A855F7'), badgeText:'Confirmed',badgeTone:'teal', daysText:'29 days',daysTone:'neutral', date:'Jul 28 · 10:00 AM', tz:'PDT', avatars:this.avs(['JM','SR','KL']), more:'+3', meta:[{icon:'wallet',text:'$1,200'},{icon:'users',text:'6 going'},{icon:'map-pin',text:'1 venue'}]}),
+      ev({title:'End of Year Party', slotId:'cov-eoy',cover:this.cover('#A14A45','#F472B6'), badgeText:'Planning',badgeTone:'sienna', daysText:'172 days',daysTone:'neutral', date:'Dec 18 · 6:00 PM', tz:'PST', avatars:this.avs(['JM','SR','AT']), more:'+19', meta:[{icon:'wallet',text:'$15,000'},{icon:'users',text:'22 invited'}]}),
+    ];
+    const up = (o)=>({...o, badge:this.badge(o.badgeText,o.badgeTone), days:this.badge(o.daysText,o.daysTone), hostAvatar:this.av(o.hostId), onOpen:()=>this.go('event')});
+    const upcomingEvents = [
+      up({title:'All-Hands Meeting', slotId:'cov-allhands',cover:this.cover('#2E4A3C','#22D3EE'), badgeText:'Attending',badgeTone:'blue', daysText:'8 days',daysTone:'blue', date:'Jul 17 · 10:00 AM', tz:'PDT', hostId:'SR', host:'Hosted by Sarah R', avatars:this.avs(['SR','JM','AT']), more:'+21', going:'24 going'}),
+      up({title:'Customer Advisory Board', slotId:'cov-advisory',cover:this.cover('#9A6B2E','#F59E0B'), badgeText:'Maybe',badgeTone:'sienna', daysText:'22 days',daysTone:'neutral', date:'Jul 21 · 1:00 PM', tz:'EDT', hostId:'KL', host:'Hosted by Kyle L', avatars:this.avs(['KL','SR','PR']), more:'+5', going:'8 going'}),
+      up({title:'Team Retrospective', slotId:'cov-retro',cover:this.cover('#3E6B54','#65A30D'), badgeText:'Attending',badgeTone:'blue', daysText:'31 days',daysTone:'neutral', date:'Jul 30 · 3:00 PM', tz:'PDT', hostId:'AT', host:'Hosted by Alex T', avatars:this.avs(['AT','JM','MN']), more:'+9', going:'12 going'}),
+    ];
+    const allEvents=[
+      ...yourEvents.map(e=>({badge:e.badge,days:e.days,title:e.title,date:e.date,tz:e.tz,avatars:e.avatars,more:e.more,slotId:e.slotId,cover:e.cover,footer:e.meta.map(m=>m.text).join('  ·  '),onOpen:e.onOpen})),
+      ...upcomingEvents.map(e=>({badge:e.badge,days:e.days,title:e.title,date:e.date,tz:e.tz,avatars:e.avatars,more:e.more,slotId:e.slotId,cover:e.cover,footer:e.host+'  ·  '+e.going,onOpen:e.onOpen})),
+    ];
+    const past=(o)=>({...o, badge:this.badge('Complete','teal'), onOpen:()=>this.go('event')});
+    const pastEvents=[
+      past({title:'Summer Team BBQ', when:'Jun 14 · 12:00 PM', tz:'PDT', ago:'2 weeks ago', avatars:this.avs(['JM','SR','AT']), more:'+15', footer:'18 went · Dolores Park', slotId:'cov-bbq', cover:this.cover('#566070','#8b94a1')}),
+      past({title:'Onboarding Week', when:'May 2 · 9:00 AM', tz:'PDT', ago:'8 weeks ago', avatars:this.avs(['SR','KL','MN']), more:'+9', footer:'12 went · HQ', slotId:'cov-onb', cover:this.cover('#566070','#8b94a1')}),
+      past({title:'Q2 Planning Review', when:'Apr 18 · 2:00 PM', tz:'EDT', ago:'10 weeks ago', avatars:this.avs(['JM','AT','PR']), more:'+6', footer:'9 went · Remote', slotId:'cov-q2', cover:this.cover('#566070','#8b94a1')}),
+    ];
+    return { greeting, hero, yourEvents, upcomingEvents, allEvents, pastEvents };
+  }
+  _initEvent(){
+    this.avail={
+      mon:[['JM','SR','KL'],['JM','AT'],[],['SR','PR','CL'],['JM','SR','AT','KL']],
+      tue:[['JM','SR','AT','KL','PR'],['JM','SR','KL'],['AT','PR'],[],['SR','KL','MN','CL']],
+      wed:[['JM','SR','AT','KL','PR','DW','MN','CL'],['JM','SR','AT','KL','PR'],['JM','SR','KL','PR','MN'],['SR','AT','MN'],['JM','SR','AT']],
+      thu:[['JM','AT'],['JM','AT','KL','PR'],[],['AT','MN'],['SR','KL']],
+      fri:[[],[],[],['KL'],[]],
+    };
+    this.gridTimes=['9 AM','10 AM','11 AM','12 PM','1 PM'];
+    this.gridDays=[{key:'mon',dow:'Mon',date:'Jun 30',best:false},{key:'tue',dow:'Tue',date:'Jul 1',best:false},{key:'wed',dow:'Wed',date:'Jul 2',best:true},{key:'thu',dow:'Thu',date:'Jul 3',best:false},{key:'fri',dow:'Fri',date:'Jul 4',best:false}];
+    this.messages=[
+      {id:'SR',name:'Sarah R',time:'2h ago',text:'Can we avoid Thu Jul 3? Long weekend travel might be tricky',you:false},
+      {id:'KL',name:'Kyle L',time:'1h ago',text:'+1. Wed Jul 2 looks strongest on the grid',you:false},
+      {id:'JM',name:'You',time:'45m ago',text:"Good call \u2014 lock Jul 2? Budget's at $4.2k",you:true},
+      {id:'PR',name:'Priya R',time:'30m ago',text:'Works! Morning slot so people can travel same day?',you:false},
+    ];
+  }
+  cellFor(d,ti){
+    const s=this.state;
+    const ids=(this.avail[d.key]&&this.avail[d.key][ti])||[];
+    const n=ids.length;
+    let bg,count=n?(n+'/8'):'',countColor,avatars;
+    if(s.availMode==='edit'){
+      if(ids.includes('JM')){ bg=n<=2?'#F3EAD9':n<=4?'#EAD9BE':'#DCC8A2'; avatars=[this.av('JM')]; countColor='#6E5523'; }
+      else { bg=n===0?'var(--s2)':n<=2?'#EBF1EB':n<=4?'#CFE0D2':n<=6?'#9DBBA4':'#2E4A3C'; avatars=[]; countColor=n>=7?'#F4F1EA':'#46604F'; }
+    } else {
+      bg=n===0?'var(--s2)':n<=2?'#EBF1EB':n<=4?'#CFE0D2':n<=6?'#9DBBA4':'#2E4A3C';
+      avatars=this.avs(ids); countColor=n===0?'var(--faint)':n>=7?'#F4F1EA':'#46604F';
+    }
+    return {bg,count,countColor,avatars,ring:d.best?'inset 1px 0 0 0 var(--teal-bd),inset -1px 0 0 0 var(--teal-bd)':'none'};
+  }
+  eventVals(){
+    const s=this.state; const tab=s.eventTab;
+    if(!this.avail) this._initEvent();
+    const seg=(on)=>({bg:on?'var(--s0)':'transparent',fg:on?'var(--text)':'var(--dim)'});
+    const vS=seg(s.availMode==='view'),eS=seg(s.availMode==='edit');
+    const g=(v)=>seg(s.granularity===v); const g15=g('15'),g30=g('30'),g60=g('60');
+    const ctxMap={
+      availability:{icon:'bar-chart-3',label:'Best availability',value:'Wed, Jul 2',sub:'8 of 8 free \u00b7 9:00 AM',tone:'teal'},
+      locationVote:{icon:'map-pin',label:'Top location',value:'Cavallo Point',sub:'5 votes \u00b7 Sausalito, CA',tone:'blue'},
+      locationItin:{icon:'route',label:'Itinerary',value:'6 stops',sub:'8.5h \u00b7 ~50 min driving',tone:'blue'},
+      attendance:{icon:'triangle-alert',label:'Lowest stop',value:'13 of 16',sub:'Dinner \u00b7 Stop 6 \u00b7 3 out',tone:'sienna'},
+      details:{icon:'info',label:'Status',value:'Planning',sub:'Collecting availability',tone:'sienna'},
+    };
+    let ck=tab; if(tab==='location') ck=s.locationMode==='itinerary'?'locationItin':'locationVote';
+    const c=ctxMap[ck]||ctxMap.availability;
+    const ctx={icon:c.icon,label:c.label,value:c.value,sub:c.sub,fg:'var(--'+c.tone+'-t)'};
+    const tabsDef=[{key:'availability',label:'Availability',icon:'calendar-range'},{key:'location',label:'Location vote',icon:'map-pin'},{key:'attendance',label:'Attendance',icon:'users-round'},{key:'details',label:'Event details',icon:'settings'}];
+    const eventTabs=tabsDef.map(t=>{const a=t.key===tab;return{label:t.label,icon:t.icon,weight:a?'600':'500',fg:a?'#F8F5EC':'var(--dim)',bg:a?'var(--blue)':'transparent',onClick:()=>this.setState({eventTab:t.key})};});
+    const notGoing=['DW'];
+    const attInitials=['JM','SR','AT','KL','PR','DW','MN','CL'].map(id=>({id,color:notGoing.includes(id)?'var(--rose-t)':'var(--teal-t)'}));
+    const days=this.gridDays.map(d=>({...d,hbg2:d.best?'var(--teal-bg)':'var(--s0)',hbd:d.best?'var(--teal-bd)':'var(--border)',dc:d.best?'var(--teal-t)':'var(--text)'}));
+    const gridRows=this.gridTimes.map((t,ti)=>({time:t,cells:this.gridDays.map(d=>this.cellFor(d,ti))}));
+    const participants=['JM','SR','AT','KL','PR','DW','MN','CL'].map(id=>this.av(id));
+    const selectedAvatars=this.avs(this.avail.wed[0]);
+    const messages=this.messages.map(m=>({name:m.name,time:m.time,text:m.text,align:m.you?'flex-end':'flex-start',bg:m.you?'var(--blue)':'var(--s2)',fg:m.you?'#fff':'var(--text)',bd:m.you?'var(--blue)':'var(--border)',showAvatar:!m.you,av:this.av(m.id)}));
+    return {
+      isAvail:tab==='availability',isLoc:tab==='location',isAtt:tab==='attendance',isDet:tab==='details',
+      ctx,eventTabs,attInitials,days,gridRows,participants,selectedAvatars,messages,
+      chatOpen:s.chatOpen,chatClosed:!s.chatOpen,
+      viewSegBg:vS.bg,viewSegFg:vS.fg,editSegBg:eS.bg,editSegFg:eS.fg,
+      g15Bg:g15.bg,g15Fg:g15.fg,g30Bg:g30.bg,g30Fg:g30.fg,g60Bg:g60.bg,g60Fg:g60.fg,
+      setView:()=>this.setState({availMode:'view'}),setEdit:()=>this.setState({availMode:'edit'}),
+      setGran15:()=>this.setState({granularity:'15'}),setGran30:()=>this.setState({granularity:'30'}),setGran60:()=>this.setState({granularity:'60'}),
+      toggleChat:()=>this.setState({chatOpen:!this.state.chatOpen}),
+    };
+  }
+  locationVals(){
+    const s=this.state;
+    const isVote=s.locationMode!=='itinerary', isItin=s.locationMode==='itinerary';
+    const vk=s.venueKind||'inperson';
+    const vkInperson=vk==='inperson', vkRemote=vk==='remote', vkNone=vk==='none';
+    const vseg=(on)=>({bg:on?'var(--s0)':'transparent',fg:on?'var(--text)':'var(--dim)'});
+    const vIn=vseg(vkInperson),vRe=vseg(vkRemote),vNo=vseg(vkNone);
+    const seg=(on)=>({bg:on?'var(--s0)':'transparent',fg:on?'var(--text)':'var(--dim)'});
+    const vS=seg(isVote), iS=seg(isItin);
+    const C={teal:'#3E6B54',blue:'#2E4A3C',sienna:'#9A6B2E',gray:'#6b7280'};
+    const votePins=[
+      {label:'5',left:'27%',top:'60%',color:C.teal},
+      {label:'2',left:'45%',top:'80%',color:C.sienna},
+      {label:'3',left:'69%',top:'37%',color:C.blue},
+      {label:'1',left:'83%',top:'88%',color:C.gray},
+    ];
+    const itinPins=[
+      {label:'1',left:'72%',top:'84%',color:C.teal},
+      {label:'2',left:'60%',top:'70%',color:C.blue},
+      {label:'3',left:'48%',top:'58%',color:C.blue},
+      {label:'4',left:'40%',top:'46%',color:C.teal},
+      {label:'5',left:'28%',top:'34%',color:C.sienna},
+      {label:'6',left:'21%',top:'26%',color:C.sienna},
+    ];
+    const mkVote=(o)=>({...o,voters:this.avs(o.voterIds),rankBg:o.lead?'var(--blue)':'var(--s3)',rankFg:o.lead?'#fff':'var(--dim)',cardBg:o.lead?'var(--blue-bg)':'var(--s2)',cardBd:o.lead?'var(--blue-bd)':'var(--border)'});
+    const locations=[
+      mkVote({rank:'5',name:'Cavallo Point Lodge',addr:'Sausalito, CA · 26 mi away',voterIds:['JM','SR','AT','KL','PR'],lead:true}),
+      mkVote({rank:'3',name:'Terrapin Crossroads',addr:'San Rafael, CA · 18 mi away',voterIds:['DW','MN','CL'],lead:false}),
+      mkVote({rank:'2',name:'Odeum at the Presidio',addr:'San Francisco, CA · 5 mi away',voterIds:['SR','KL'],lead:false}),
+      mkVote({rank:'1',name:'Half Moon Bay Golf Links',addr:'Half Moon Bay, CA · 30 mi away',voterIds:['MN'],lead:false}),
+    ];
+    const mkStop=(o)=>({...o,att:this.avs(o.attIds),cardBg:o.sel?'var(--blue-bg)':'var(--s2)',cardBd:o.sel?'var(--blue-bd)':'var(--border)'});
+    const stops=[
+      mkStop({n:'1',color:C.teal,name:'Ferry Building Marketplace',time:'8:30 – 9:30 AM',dur:'1h',note:'Team breakfast',attIds:['JM','SR','AT'],sel:false,drive:'~10 min walk'}),
+      mkStop({n:'2',color:C.blue,name:'Exploratorium',time:'9:45 – 11:30 AM',dur:'1h45',note:'Morning keynote',attIds:['JM','SR','PR'],sel:false,drive:'~8 min drive'}),
+      mkStop({n:'3',color:C.blue,name:'Fort Mason Center',time:'11:45 AM – 2:30 PM',dur:'2h45',note:'Workshop & lunch',attIds:['JM','KL','MN','CL'],sel:true,drive:'~12 min drive'}),
+      mkStop({n:'4',color:C.teal,name:'Crissy Field',time:'2:45 – 4:00 PM',dur:'1h15',note:'Walk & break',attIds:['JM','SR','PR'],sel:false,drive:'~6 min drive'}),
+      mkStop({n:'5',color:C.sienna,name:'Cavallo Point · Sessions',time:'4:30 – 6:00 PM',dur:'1h30',note:'Breakout sessions',attIds:['JM','AT','MN'],sel:false,drive:'~20 min · GG Bridge'}),
+      mkStop({n:'6',color:C.sienna,name:'Cavallo Point · Dinner',time:'6:30 – 9:00 PM',dur:'2h30',note:'Dinner & closing',attIds:['JM','PR','CL'],sel:false,drive:''}),
+    ];
+    return {
+      isVote,isItin,
+      vkInperson,vkRemote,vkNone,showOverlay:!vkInperson,mapBlur:vkInperson?'none':'blur(9px) saturate(.8)',
+      vInpersonBg:vIn.bg,vInpersonFg:vIn.fg,vRemoteBg:vRe.bg,vRemoteFg:vRe.fg,vNoneBg:vNo.bg,vNoneFg:vNo.fg,
+      setVkInperson:()=>this.setState({venueKind:'inperson'}),setVkRemote:()=>this.setState({venueKind:'remote'}),setVkNone:()=>this.setState({venueKind:'none'}),
+      remoteJoining:this.avs(['JM','SR','AT','KL','PR','MN']),
+      voteSegBg:vS.bg,voteSegFg:vS.fg,itinSegBg:iS.bg,itinSegFg:iS.fg,
+      setVote:()=>this.setState({locationMode:'vote'}),setItin:()=>this.setState({locationMode:'itinerary'}),
+      votePins,itinPins,locations,stops,
+      searchPlaceholder:isItin?'Search to add a stop to the route…':'Search or suggest a location…',
+      actionLabel:isItin?'Add stop':'Suggest',
+    };
+  }
+  docsVals(){
+    const p=this.state.docPage;
+    const row=(name,role,hex,note)=>({name,role,hex,sw:hex,bg:hex+'22',bd:hex+'44',right:note||hex});
+    const curColors=[row('Blue','Interactive','#2E4A3C'),row('Green','Confirmed','#16A34A'),row('Gold','Planning','#D97706'),row('Red','Absent','#DC2626')];
+    const refColors=[row('Blue','Interactive','#2E4A3C','unchanged'),row('Teal','Confirmed','#3E6B54'),row('Sienna','Planning','#9A6B2E'),row('Rose','Absent','#A14A45')];
+    const docTabs=[{key:'colors',label:'Color system',icon:'palette'},{key:'grid',label:'Availability grid',icon:'calendar-range'},{key:'entry',label:'Attendance entry points',icon:'route'}].map(t=>({label:t.label,icon:t.icon,fg:t.key===p?'var(--text)':'var(--dim)',bg:t.key===p?'var(--s1)':'transparent',bd:t.key===p?'var(--border2)':'var(--border)',onClick:()=>this.setState({docPage:t.key})}));
+    return {isColors:p==='colors',isGrid:p==='grid',isEntry:p==='entry',docTabs,curColors,refColors};
+  }
+  attendanceVals(){
+    const N=16;
+    const fullAll=['JM','CL','RW','NK','BH','DV','EM','GH','OB','TC'];
+    const TEAL='#3E6B54',BLUE='#2E4A3C',SIENNA='#9A6B2E';
+    const flag=(tone,text)=>({tone,text,bg:'var(--'+tone+'-bg)',fg:'var(--'+tone+'-t)',bd:'var(--'+tone+'-bd)'});
+    const SD=[
+      {n:'1',color:TEAL,  name:'Ferry Building Marketplace',time:'8:30–9:30 AM',  dur:'1h',  label:'Breakfast',short:'Breakfast',full:13,partial:1,absent:2,pile:['JM','SR','AT','KL','CL','RW']},
+      {n:'2',color:BLUE,  name:'Exploratorium',            time:'9:45–11:30 AM', dur:'1h45',label:'Keynote',  short:'Keynote',  full:15,partial:0,absent:1,pile:['JM','SR','AT','KL','PR','MN']},
+      {n:'3',color:BLUE,  name:'Fort Mason Center',        time:'11:45 AM–2:30 PM',dur:'2h45',label:'Workshop',short:'Workshop',full:13,partial:2,absent:1,pile:['JM','SR','KL','MN','CL','RW'],flag:flag('sienna','2 partial')},
+      {n:'4',color:TEAL,  name:'Crissy Field',             time:'2:45–4:00 PM',  dur:'1h15',label:'Break',    short:'Break',    full:15,partial:0,absent:1,pile:['JM','SR','AT','KL','PR','MN']},
+      {n:'5',color:SIENNA,name:'Cavallo Pt · Sessions',    time:'4:30–6:00 PM',  dur:'1h30',label:'Sessions', short:'Sessions', full:14,partial:0,absent:2,pile:['JM','SR','AT','PR','MN','CL'],flag:flag('rose','1 conflict')},
+      {n:'6',color:SIENNA,name:'Cavallo Pt · Dinner',      time:'6:30–9:00 PM',  dur:'2h30',label:'Dinner',   short:'Dinner',   full:12,partial:1,absent:3,pile:['JM','PR','MN','CL','RW','NK'],flag:flag('rose','3 out')},
+    ];
+    const heres=SD.map(s=>s.full+s.partial);
+    const maxHere=Math.max.apply(null,heres), minHere=Math.min.apply(null,heres), H=74;
+    const pf=(c)=>(Math.round(c/N*1000)/10)+'%';
+    const stopCards=SD.map(s=>{
+      const here=s.full+s.partial;
+      return {n:s.n,color:s.color,name:s.name,time:s.time,dur:s.dur,label:s.label,
+        here,fullN:s.full,partialN:s.partial,absentN:s.absent,
+        fullW:pf(s.full),partialW:pf(s.partial),
+        pile:this.avs(s.pile.slice(0,6)),moreShow:here>6,moreText:'+'+(here-6),
+        hasFlag:!!s.flag,flag:s.flag||{text:''},flagBg:s.flag?s.flag.bg:'',flagFg:s.flag?s.flag.fg:'',flagBd:s.flag?s.flag.bd:'',
+        dipColor:here<=13?'var(--sienna-t)':'var(--text)'};
+    });
+    const strip=SD.map(s=>{const here=s.full+s.partial;return {n:s.n,here,short:s.short,color:s.color,
+      fullPx:Math.round(s.full/N*H)+'px',partialPx:Math.round(s.partial/N*H)+'px',
+      numColor:here===minHere?'var(--sienna-t)':(here===maxHere?'var(--teal-t)':'var(--text)')};});
+    const ex=(id,conflict,items)=>({av:this.av(id),name:this.av(id).name,conflict,
+      items:items.map(it=>{const tone=it.kind==='partial'?'sienna':'rose';return {text:'S'+it.s+(it.note?' · '+it.note:' · out'),bg:'var(--'+tone+'-bg)',fg:'var(--'+tone+'-t)',bd:'var(--'+tone+'-bd)'};})});
+    const exceptions=[
+      ex('KL',true,[{s:'5',kind:'absent'},{s:'6',kind:'absent'}]),
+      ex('AT',false,[{s:'3',kind:'partial',note:'leaves 1:30'},{s:'6',kind:'absent'}]),
+      ex('PR',false,[{s:'1',kind:'absent'},{s:'3',kind:'partial',note:'joins 12:30'}]),
+      ex('MN',false,[{s:'1',kind:'partial',note:'arrives 9:15'}]),
+      ex('SR',false,[{s:'6',kind:'partial',note:'leaves 7:30'}]),
+    ];
+    const declined={av:this.av('DW'),name:this.av('DW').name};
+    return {stopCards,strip,exceptions,declined,attAllPile:this.avs(fullAll.slice(0,7)),attAllMore:'+'+(fullAll.length-7)};
+  }
+  singleAttVals(){
+    const s=this.state;
+    const av=(id)=>this.av(id);
+    const view=s.singleView||'roster';
+    const att=s.attView||'itinerary';
+    const sg=(on)=>({bg:on?'var(--s0)':'transparent',fg:on?'var(--text)':'var(--dim)'});
+    const rS=sg(view==='roster'), tS=sg(view==='timeline');
+    const iS=sg(att==='itinerary'), nS=sg(att==='single');
+    const vals=[10,11,12,12,12,11,10];
+    const headcount=vals.map(v=>({v,h:Math.round(v/12*46)+'px',color:v===12?'var(--teal)':'color-mix(in srgb, var(--teal) 30%, transparent)',labelColor:v===12?'var(--teal-t)':'var(--faint)'}));
+    const ticks=['10 AM','11','12 PM','1','2','3','4','5 PM'].map((label,i)=>({label,left:(i/7*100)+'%'}));
+    const pending=['EM','DW','GH','OB'].map(av);
+    const legend=[{label:'Going',count:12,color:'var(--teal)'},{label:'Maybe',count:1,color:'var(--sienna)'},{label:'Not going',count:1,color:'var(--rose)'},{label:'No reply',count:2,color:'var(--s3)'}];
+    const chip=(text,t)=> t==='neutral'?{text,bg:'var(--s2)',fg:'var(--dim)',bd:'var(--border)'}:{text,bg:'var(--'+t+'-bg)',fg:'var(--'+t+'-t)',bd:'var(--'+t+'-bd)'};
+    const r=(id,ct,tone,o)=>{o=o||{};return {av:av(id),name:this.av(id).name,host:!!o.host,chip:chip(ct,tone),remind:!!o.remind};};
+    const grp=(title,dot,people)=>({title,dot,count:people.length,people});
+    const groups=[
+      grp('Here the whole time','var(--teal)',[r('JM','10 AM – 5 PM','neutral',{host:true}),r('SR','10 AM – 5 PM','neutral'),r('KL','10 AM – 5 PM','neutral'),r('MN','10 AM – 5 PM','neutral'),r('CL','10 AM – 5 PM','neutral'),r('RW','10 AM – 5 PM','neutral'),r('NK','10 AM – 5 PM','neutral'),r('BH','10 AM – 5 PM','neutral'),r('DV','10 AM – 5 PM','neutral')]),
+      grp('Arriving late · leaving early','var(--sienna)',[r('PR','Arrives 11:30 AM','sienna'),r('TC','Here 12:00 – 4:00 PM','sienna'),r('AT','Leaves 3:00 PM','sienna')]),
+      grp('Can’t make it','var(--rose)',[r('DW','Declined','rose')]),
+      grp('Awaiting reply','var(--faint)',[r('EM','Maybe','sienna'),r('GH','No reply','neutral',{remind:true}),r('OB','No reply','neutral',{remind:true})]),
+    ];
+    const pct=(m)=>Math.round(m/420*10000)/100;
+    const prow=(id,l,rt,label)=>({av:av(id),name:this.av(id).name,barLeft:pct(l)+'%',barWidth:(pct(rt)-pct(l))+'%',barLabel:label});
+    const fullAvatars=['JM','SR','KL','MN','CL','RW','NK','BH','DV'].map(av);
+    const partialRows=[prow('PR',90,420,'Arrives 11:30 AM'),prow('TC',120,360,'In 12:00 – 4:00 PM'),prow('AT',0,300,'Leaves 3:00 PM')];
+    return {
+      isItinAtt:att==='itinerary', isSingleAtt:att==='single',
+      itinSegBg:iS.bg,itinSegFg:iS.fg,singleSegBg:nS.bg,singleSegFg:nS.fg,
+      setItinAtt:()=>this.setState({attView:'itinerary'}), setSingleAtt:()=>this.setState({attView:'single'}),
+      showPeak:true, isRoster:view==='roster', isTimeline:view==='timeline',
+      rSegBg:rS.bg,rSegFg:rS.fg,tSegBg:tS.bg,tSegFg:tS.fg,
+      setRoster:()=>this.setState({singleView:'roster'}), setTimeline:()=>this.setState({singleView:'timeline'}),
+      headcount,ticks,pending,legend,groups,fullAvatars,partialRows,
+    };
+  }
+  detailsVals(){
+    const rsvp=(t)=>t==='going'?{text:'Going',bg:'var(--teal-bg)',fg:'var(--teal-t)',bd:'var(--teal-bd)'}:t==='maybe'?{text:'Maybe',bg:'var(--sienna-bg)',fg:'var(--sienna-t)',bd:'var(--sienna-bd)'}:{text:'Not going',bg:'var(--rose-bg)',fg:'var(--rose-t)',bd:'var(--rose-bd)'};
+    const P=[['JM','Jordan M','going',true],['SR','Sarah R','going',false],['AT','Alex T','going',false],['KL','Kyle L','going',false],['PR','Priya R','going',false],['MN','Mia N','going',false],['CL','Chris L','going',false],['DW','Dana W','notgoing',false]];
+    const participantsRsvp=P.map(p=>({av:this.av(p[0]),name:p[1],host:p[3],...rsvp(p[2])}));
+    return {participantsRsvp};
+  }
+  createVals(){
+    const s=this.state.createStep;
+    const mk=(i,label)=>{const st=i<s?'done':i===s?'active':'todo';return{label,num:String(i+1),done:st==='done',bg:st==='done'?'var(--teal)':st==='active'?'var(--blue)':'var(--s2)',fg:st==='todo'?'var(--faint)':'#fff',ring:st==='active'?'0 0 0 4px var(--blue-bg)':'none',lc:st==='todo'?'var(--faint)':'var(--text)',numShow:st!=='done'};};
+    const lm=this.state.createLoc||'vote';
+    const lseg=(on)=>({bg:on?'var(--s0)':'transparent',fg:on?'var(--text)':'var(--dim)'});
+    return {
+      createStep:s,isStep0:s===0,isStep1:s===1,isStep2:s===2,isStep3:s===3,notStep3:s!==3,
+      cs1:mk(0,'Basics'),cs2:mk(1,'Invite'),cs3:mk(2,'Location'),cs4:mk(3,'Share'),
+      conn12:s>=1?'var(--teal)':'var(--border)',conn23:s>=2?'var(--teal)':'var(--border)',conn34:s>=3?'var(--teal)':'var(--border)',
+      clVote:lm==='vote',clRemote:lm==='remote',clLater:lm==='later',
+      clVoteSegBg:lseg(lm==='vote').bg,clVoteSegFg:lseg(lm==='vote').fg,clRemoteSegBg:lseg(lm==='remote').bg,clRemoteSegFg:lseg(lm==='remote').fg,clLaterSegBg:lseg(lm==='later').bg,clLaterSegFg:lseg(lm==='later').fg,
+      setLocVote:()=>this.setState({createLoc:'vote'}),setLocRemote:()=>this.setState({createLoc:'remote'}),setLocLater:()=>this.setState({createLoc:'later'}),
+      nextStep:()=>this.setState({createStep:Math.min(3,this.state.createStep+1)}),
+      backStep:()=>{this.state.createStep===0?this.setState({screen:'home'}):this.setState({createStep:this.state.createStep-1});},
+      gotoEvent:()=>this.setState({screen:'event',createStep:0}),
+    };
+  }
+
+  renderVals(){
+    const s = this.state;
+    const dark = s.theme==='dark';
+    const segOn = {bg:'var(--s0)', fg:'var(--text)'};
+    const segOff = {bg:'transparent', fg:'var(--dim)'};
+    return {
+      theme: s.theme, authed: s.authed, guest: !s.authed,
+      isHome: s.screen==='home', isEvent: s.screen==='event', isEvents: s.screen==='events',
+      isCreate: s.screen==='create', isTemplates: s.screen==='templates', isDocs: s.screen==='docs',
+      nav: { homeW:this.navItem('home').w, homeC:this.navItem('home').c, homeBg:this.navItem('home').bg,
+        eventsW:this.navItem('events').w, eventsC:this.navItem('events').c, eventsBg:this.navItem('events').bg,
+        tplW:this.navItem('templates').w, tplC:this.navItem('templates').c, tplBg:this.navItem('templates').bg },
+      goHome:()=>this.go('home'), goEvents:()=>this.go('events'), goTemplates:()=>this.go('templates'),
+      goCreate:()=>this.go('create'), goDocs:()=>this.go('docs'), openEvent:()=>this.go('event'),
+      onDark:()=>this.setState({theme:'dark'}), onLight:()=>this.setState({theme:'light'}),
+      onSignedIn:()=>this.setState({authed:true}), onGuest:()=>this.setState({authed:false}),
+      seg: {
+        darkBg: dark?segOn.bg:segOff.bg, darkFg: dark?segOn.fg:segOff.fg,
+        lightBg: !dark?segOn.bg:segOff.bg, lightFg: !dark?segOn.fg:segOff.fg,
+        inBg: s.authed?segOn.bg:segOff.bg, inFg: s.authed?segOn.fg:segOff.fg,
+        guestBg: !s.authed?segOn.bg:segOff.bg, guestFg: !s.authed?segOn.fg:segOff.fg,
+        docsBg: s.screen==='docs'?'var(--blue-bg)':'transparent', docsFg: s.screen==='docs'?'var(--blue-t)':'var(--dim)', docsBd: s.screen==='docs'?'var(--blue-bd)':'var(--border)',
+      },
+      ...this.homeVals(), ...this.eventVals(), ...this.locationVals(), ...this.attendanceVals(), ...this.singleAttVals(), ...this.detailsVals(), ...this.docsVals(), ...this.createVals(),
+    };
+  }
+}
+</script>
+</body>
+</html>

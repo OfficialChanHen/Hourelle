@@ -12,7 +12,7 @@ const abbr: Record<string, string> = {
 export function TimezonePill({ tz }: { tz: string }) {
   const label = abbr[tz] ?? tz.split('/').pop()?.slice(0, 3).toUpperCase() ?? 'UTC'
   return (
-    <span className="inline-flex items-center rounded-md border border-border bg-s2 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-faint">
+    <span className="inline-flex items-center rounded-[5px] bg-s2 px-[5px] py-px font-mono text-[9px] leading-normal text-dim">
       {label}
     </span>
   )

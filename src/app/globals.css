@@ -54,6 +54,9 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-instrument-sans), system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0;
   -webkit-font-smoothing: antialiased;
 }
 

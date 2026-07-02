@@ -1,32 +1,37 @@
 import { Avatar } from './Avatar'
-import type { PersonColor } from '@/lib/colors'
+import type { Avatar as Person } from '@/lib/people'
 
-export type Person = { initials: string; color: PersonColor; name?: string }
-
+// Overlapping avatar pile — matches the reference (2px surface ring, -Npx overlap, +N chip)
 export function AvatarRow({
   people,
-  size = 'sm',
+  size = 21,
   max = 6,
+  overlap = 6,
+  more,
+  ringColor = 'var(--s1)',
 }: {
   people: Person[]
-  size?: 'sm' | 'md' | 'lg'
+  size?: number
   max?: number
+  overlap?: number
+  more?: string
+  ringColor?: string
 }) {
   const shown = people.slice(0, max)
-  const extra = people.length - shown.length
-  const overlap = size === 'lg' ? '-ml-2.5' : '-ml-2'
+  const extra = more ?? (people.length > max ? `+${people.length - max}` : '')
   return (
     <div className="flex items-center">
       {shown.map((p, i) => (
-        <span key={i} className={i === 0 ? '' : overlap}>
-          <Avatar initials={p.initials} color={p.color} size={size} ring title={p.name} />
+        <span key={i} style={{ marginRight: i === shown.length - 1 && !extra ? 0 : -overlap }}>
+          <Avatar initials={p.initials} color={p.color} size={size} ring ringColor={ringColor} title={p.name} />
         </span>
       ))}
-      {extra > 0 && (
+      {extra && (
         <span
-          className={`${overlap} inline-flex h-[22px] items-center justify-center rounded-full border border-border bg-s2 px-1.5 text-[10px] font-semibold text-dim ring-2 ring-[--color-s1]`}
+          style={{ width: size, height: size, fontSize: Math.round(size * 0.4 * 10) / 10, border: `2px solid ${ringColor}` }}
+          className="inline-flex items-center justify-center rounded-full bg-s3 font-semibold text-dim"
         >
-          +{extra}
+          {extra}
         </span>
       )}
     </div>
