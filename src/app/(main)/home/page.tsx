@@ -1,99 +1,119 @@
 import Link from 'next/link'
-import { LifecycleProgress } from '@/components/ui/LifecycleProgress'
+import {
+  Calendar, Clock, Zap, ChevronDown, MapPin, User, CheckCircle2,
+  Users, Wallet, ExternalLink, CalendarCheck, CalendarClock, type LucideIcon,
+} from 'lucide-react'
 import { AvatarRow } from '@/components/ui/AvatarRow'
-import { Badge } from '@/components/ui/Badge'
 import { TimezonePill } from '@/components/ui/TimezonePill'
-import { event, participants } from '@/lib/sample'
+import { Cover } from '@/components/ui/Cover'
+import { EventCard } from '@/components/ui/EventCard'
+import { HeroLifecycle } from './HeroLifecycle'
+import { hero, yourEvents, upcomingEvents } from '@/lib/home'
+
+const statIcons: Record<string, LucideIcon> = { users: Users, clock: Clock, wallet: Wallet }
 
 export default function HomePage() {
-  const going = participants.filter((p) => p.rsvp === 'attending')
-
   return (
-    <div className="mx-auto max-w-[1240px] px-6 pb-20 pt-8 lg:px-8">
-      <p className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Your current event</p>
-      <h1 className="mt-1 font-serif text-[40px] leading-[1.05] tracking-[-0.01em] text-text">
-        Good afternoon, Jordan
-      </h1>
+    <div className="mx-auto max-w-[1240px] px-[26px] pb-[104px] pt-[34px]">
+      {/* greeting */}
+      <div className="mb-5">
+        <h1 className="mb-[9px] font-serif text-[33px] leading-[1.02] tracking-[-0.01em]">Good afternoon, Jordan</h1>
+        <div className="flex items-center gap-3.5 text-[12px] text-dim">
+          <span className="flex items-center gap-1.5"><Calendar size={13} /> 3 events this week</span>
+          <span className="flex items-center gap-1.5 text-ochre-text"><Clock size={13} /> 1 happening today</span>
+        </div>
+      </div>
 
-      {/* hero / current event */}
-      <section className="mt-7 overflow-hidden rounded-2xl border border-border bg-s1 shadow-soft">
-        <div className="grid gap-8 p-6 md:grid-cols-[1.4fr_1fr] md:p-8">
-          <div>
+      {/* Current event */}
+      <SectionHeader icon={Zap} iconColor="var(--accent-text)" title="Current event" />
+      <div className="overflow-hidden rounded-[14px] border-[1.5px] border-accent-border bg-s1 shadow-soft">
+        <div className="flex gap-[18px] p-[18px]">
+          <Cover from={hero.cover[0]} to={hero.cover[1]} rounded="rounded-[11px]" className="h-auto w-[150px] flex-none self-stretch" />
+          <div className="min-w-0 flex-1">
+            <div className="mb-2.5 flex items-center gap-2.5">
+              <span className="flex h-[23px] items-center gap-1.5 rounded-md border border-ochre-border bg-ochre-bg px-2.5 text-[11px] font-semibold text-ochre-text">
+                <Clock size={12} /> {hero.badges.time}
+                <span className="font-mono text-[10px] opacity-70">PDT</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-[11.5px] font-semibold text-teal-text">
+                <CheckCircle2 size={13} /> {hero.badges.confirmed}
+              </span>
+            </div>
+            <h2 className="mb-2.5 font-serif text-[27px] leading-[1.05] tracking-[-0.01em]">{hero.title}</h2>
+            <div className="mb-3 flex flex-wrap items-center gap-2.5 text-[12px] text-dim">
+              <span className="flex items-center gap-1.5"><MapPin size={13} /> {hero.location}</span>
+              <TimezonePill tz={hero.tz} />
+              <span className="opacity-40">·</span>
+              <span className="flex items-center gap-1.5"><User size={13} /> Hosted by you</span>
+            </div>
             <div className="flex items-center gap-2.5">
-              <Badge variant="ochre" dot>Collecting availability</Badge>
-              <Badge variant="accent">{event.daysAway} days away</Badge>
-            </div>
-            <h2 className="mt-4 font-serif text-[34px] leading-tight tracking-[-0.01em]">{event.title}</h2>
-            <p className="mt-2 max-w-md text-[14px] leading-relaxed text-dim">{event.description}</p>
-
-            <div className="mt-6 flex flex-wrap items-center gap-x-8 gap-y-4">
-              <Stat label="When" value={event.dateRange} tz={event.timezone} />
-              <Stat label="Hosted by" value={event.host_name} />
-              <Stat label="Going" value={`${going.length} of ${participants.length}`} />
-            </div>
-
-            <div className="mt-6 flex items-center gap-3">
-              <Link
-                href={`/events/${event.id}?tab=availability`}
-                className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-[13.5px] font-semibold text-on-accent shadow-soft transition-transform hover:-translate-y-px"
-              >
-                Open event
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
-              </Link>
-              <AvatarRow people={going.map((p) => ({ initials: p.initials, color: p.color, name: p.name }))} size="md" />
+              <AvatarRow people={hero.avatars} size={25} max={6} more={hero.more} />
+              <span className="ml-1.5 text-[11.5px] text-dim">{hero.attending}</span>
             </div>
           </div>
-
-          <div className="flex flex-col justify-between gap-6 rounded-xl border border-border bg-s0 p-6">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Lifecycle</p>
-              <p className="mt-1.5 text-[13px] text-dim">Step 2 of 5 — waiting on {participants.length - going.length} replies.</p>
-            </div>
-            <LifecycleProgress currentStage={event.status} />
+          {/* right column */}
+          <div className="flex w-[198px] flex-none flex-col gap-[7px]">
+            {hero.stats.map((s) => {
+              const Icon = statIcons[s.icon]
+              return (
+                <div key={s.label} className="flex h-[34px] items-center justify-between rounded-[9px] border border-border bg-s2 px-[11px]">
+                  <span className="flex items-center gap-1.5 text-[11.5px] text-dim"><Icon size={13} /> {s.label}</span>
+                  <span className="text-[12.5px] font-semibold" style={s.accent ? { color: 'var(--ochre-text)' } : undefined}>{s.value}</span>
+                </div>
+              )
+            })}
+            <Link href="/events/q3-offsite?tab=availability" className="mt-px flex h-9 items-center justify-center gap-1.5 rounded-[9px] border border-border2 bg-transparent text-[12px] font-semibold hover:bg-s2">
+              <ExternalLink size={13} /> View event
+            </Link>
           </div>
         </div>
-      </section>
+        <div className="border-t border-border bg-s0 px-[18px] py-3.5">
+          <HeroLifecycle />
+        </div>
+      </div>
 
-      {/* quick entries */}
-      <div className="mt-9 grid gap-4 sm:grid-cols-2">
-        <Link
-          href="/create"
-          className="group rounded-2xl border border-dashed border-border2 bg-s1 p-6 transition-colors hover:border-accent-border hover:bg-accent-bg/40"
-        >
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Start something</p>
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-on-accent">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-            </span>
-          </div>
-          <h3 className="mt-4 font-serif text-[24px] tracking-[-0.01em]">Create a new event</h3>
-          <p className="mt-1.5 text-[13px] text-dim">Basics, invites, and a share link in three quick steps.</p>
-        </Link>
+      {/* Your events */}
+      <SectionHeader icon={CalendarCheck} title="Your events" count={yourEvents.length} sort className="mt-[26px]" />
+      <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
+        {yourEvents.map((e) => <EventCard key={e.title} e={e} />)}
+      </div>
 
-        <Link
-          href={`/events/${event.id}?tab=availability`}
-          className="group rounded-2xl border border-border bg-s1 p-6 transition-colors hover:border-border2"
-        >
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Jump back in</p>
-            <AvatarRow people={participants.slice(0, 4).map((p) => ({ initials: p.initials, color: p.color }))} size="sm" max={4} />
-          </div>
-          <h3 className="mt-4 font-serif text-[24px] tracking-[-0.01em]">{event.title}</h3>
-          <p className="mt-1.5 text-[13px] text-dim">Mark your availability and chat with the group.</p>
-        </Link>
+      {/* Upcoming events */}
+      <SectionHeader icon={CalendarClock} title="Upcoming events" count={upcomingEvents.length} sort className="mt-[26px]" />
+      <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
+        {upcomingEvents.map((e) => <EventCard key={e.title} e={e} />)}
       </div>
     </div>
   )
 }
 
-function Stat({ label, value, tz }: { label: string; value: string; tz?: string }) {
+function SectionHeader({
+  icon: Icon, title, count, sort, iconColor, className = '',
+}: {
+  icon: LucideIcon
+  title: string
+  count?: number
+  sort?: boolean
+  iconColor?: string
+  className?: string
+}) {
   return (
-    <div>
-      <p className="text-[10px] font-semibold uppercase tracking-[.13em] text-faint">{label}</p>
-      <p className="mt-1 flex items-center gap-1.5 font-serif text-[22px] leading-none tracking-[-0.01em]">
-        {value}
-        {tz && <TimezonePill tz={tz} />}
-      </p>
+    <div className={`flex items-center justify-between ${className} mb-[11px]`}>
+      <div className="flex items-center gap-2 text-[13px] font-semibold">
+        <Icon size={14} style={{ color: iconColor ?? 'var(--dim)' }} />
+        {title}
+        {count != null && (
+          <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[10.5px] text-dim">{count}</span>
+        )}
+      </div>
+      {sort && (
+        <div className="flex items-center gap-2 text-[11.5px] text-dim">
+          <span>Sort</span>
+          <span className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-2.5 text-text">
+            Closest date <ChevronDown size={13} className="text-dim" />
+          </span>
+        </div>
+      )}
     </div>
   )
 }
