@@ -34,7 +34,7 @@ export function Header() {
                 key={t.href}
                 href={t.href}
                 className={`rounded-[9px] px-[13px] py-2 transition-colors ${
-                  active ? 'bg-dim font-medium text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'
+                  active ? 'bg-accent font-medium text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'
                 }`}
               >
                 {t.label}
