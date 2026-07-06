@@ -119,9 +119,9 @@ function Stat({
 
 function Placeholder({ tab }: { tab: string }) {
   const copy: Record<string, { title: string; body: string }> = {
-    location: { title: 'Location vote', body: 'A Leaflet map with vote pins and an itinerary builder lives here.' },
-    attendance: { title: 'Attendance', body: 'Multi-stop and single-venue headcounts, exceptions, and rosters live here.' },
-    details: { title: 'Event details', body: 'Description, budget (host only), timezone, and the participant roster live here.' },
+    location: { title: 'Location vote', body: 'A map for suggesting spots, voting on them, and planning the route goes here.' },
+    attendance: { title: 'Attendance', body: 'See who’s coming, who’s running late, and who can’t make it goes here.' },
+    details: { title: 'Event details', body: 'The description, budget, time zone, and guest list all live here.' },
   }
   const c = copy[tab] ?? copy.location
   return (

@@ -9,12 +9,12 @@ const toneCls: Record<Tone, string> = {
 }
 
 const TEMPLATES: { icon: LucideIcon; tone: Tone; title: string; body: string }[] = [
-  { icon: Route, tone: 'teal', title: 'Team offsite', body: 'Multi-day with availability grid, location vote, and a multi-stop itinerary.' },
-  { icon: Map, tone: 'accent', title: 'Weekend trip', body: 'Pick dates together, vote on a destination, and split a shared budget.' },
-  { icon: PartyPopper, tone: 'ochre', title: 'Birthday party', body: 'One evening, one place. Collect RSVPs and a head-count fast.' },
-  { icon: Presentation, tone: 'accent', title: 'Conference / summit', body: 'Many attendees, sessions, and a venue. Track attendance per session.' },
-  { icon: Repeat, tone: 'teal', title: 'Recurring 1:1', body: 'A standing slot between two people, synced to both calendars.' },
-  { icon: Utensils, tone: 'ochre', title: 'Dinner & drinks', body: "Casual meetup — find a night, pick a spot, see who's in." },
+  { icon: Route, tone: 'teal', title: 'Team offsite', body: 'A few days away. Find the dates, vote on where to go, and plan each stop.' },
+  { icon: Map, tone: 'accent', title: 'Weekend trip', body: 'Pick the dates together, vote on where to go, and share the costs.' },
+  { icon: PartyPopper, tone: 'ochre', title: 'Birthday party', body: 'One night, one spot. See who can come in a couple of taps.' },
+  { icon: Presentation, tone: 'accent', title: 'Conference or summit', body: 'Lots of people and a full agenda. Keep track of who shows up to what.' },
+  { icon: Repeat, tone: 'teal', title: 'Recurring 1:1', body: 'A regular time for two people that stays in sync with both calendars.' },
+  { icon: Utensils, tone: 'ochre', title: 'Dinner & drinks', body: 'A casual night out. Find a day, pick a place, see who’s in.' },
 ]
 
 export default function TemplatesPage() {
@@ -23,7 +23,7 @@ export default function TemplatesPage() {
       <div className="mb-[18px]">
         <h1 className="mb-1.5 font-serif text-[32px] leading-[1.02] tracking-[-0.01em]">Templates</h1>
         <div className="text-[12px] text-dim">
-          Start from a pre-built flow — pick one and customize the details, invites, and dates.
+          Pick one to get a head start, then change the details, invites, and dates to fit.
         </div>
       </div>
       <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">

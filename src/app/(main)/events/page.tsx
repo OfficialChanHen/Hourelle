@@ -39,7 +39,7 @@ export default function EventsPage() {
       <EmptyState
         icon={CalendarX2}
         title="No events yet"
-        body="You're not hosting or attending anything right now. Create your first event and it'll show up here."
+        body="You're not hosting or going to anything right now. Make your first event and it'll show up here."
         action={{ label: 'Create an event', href: '/create' }}
       />
 
@@ -50,7 +50,7 @@ export default function EventsPage() {
           <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[10.5px] text-dim">0</span>
         </div>
       </div>
-      <EmptyState icon={History} title="No past events" body="Once an event wraps up, it moves here so you can look back on it." compact />
+      <EmptyState icon={History} title="No past events" body="After an event is over, it'll move down here." compact />
     </div>
   )
 }

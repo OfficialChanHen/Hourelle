@@ -19,8 +19,8 @@ export default function HomePage() {
       <SectionHeader icon={Zap} iconColor="var(--accent-text)" title="Current event" />
       <EmptyState
         icon={CalendarPlus}
-        title="No current event"
-        body="When you create or join an event, it shows up here with its date, location, and planning progress."
+        title="Nothing going on yet"
+        body="Once you create or join an event, you'll see it here with the date, place, and how planning is going."
         action={{ label: 'Create an event', href: '/create' }}
       />
 
@@ -28,8 +28,8 @@ export default function HomePage() {
       <SectionHeader icon={CalendarCheck} title="Your events" count={0} sort className="mt-[26px]" />
       <EmptyState
         icon={CalendarX2}
-        title="You haven't created any events"
-        body="Start from scratch or pick a template — availability, location voting, and attendance come built in."
+        title="You haven't made any events"
+        body="Start one from scratch or begin with a template. Picking a time, voting on a spot, and tracking who's coming are all built in."
         action={{ label: 'Create an event', href: '/create' }}
         compact
       />
@@ -38,8 +38,8 @@ export default function HomePage() {
       <SectionHeader icon={CalendarClock} title="Upcoming events" count={0} sort className="mt-[26px]" />
       <EmptyState
         icon={Compass}
-        title="Nothing on the horizon"
-        body="Events you're invited to will appear here. Share a link or invite people to get the ball rolling."
+        title="Nothing coming up"
+        body="Events other people invite you to will show up here."
         compact
       />
     </div>

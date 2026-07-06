@@ -1,56 +1,134 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Check, ChevronDown, ChevronUp, Link2, Search, Plus, X, MapPin, Video, Clock,
-  CalendarPlus, Info, Vote, ArrowLeft, ArrowRight, Mail, CalendarRange,
-  Route, MessagesSquare, MoreHorizontal, GripVertical,
+  Check, ChevronDown, ChevronUp, Search, Plus, X, MapPin, Video, Clock,
+  Info, Vote, ArrowLeft, ArrowRight, Mail, CalendarRange, Route, GripVertical,
+  Loader2, Link2, Copy, Pencil, UserPlus, Users, PartyPopper,
 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
 import { av } from '@/lib/people'
 
-const STEPS = ['Basics', 'Location', 'Invite', 'Share'] as const
-type LocMode = 'vote' | 'remote' | 'later'
-
-// the signed-in user (host when "Hosted by You")
+const STEPS = ['Basics', 'Location', 'Invite', 'Review'] as const
 const USER_NAME = 'Jordan Miller'
+
+// people with existing accounts you've invited before (hard-coded for now)
+const RECENT_ACCOUNTS: { id: string; email: string }[] = [
+  { id: 'SR', email: 'sarah.reyes@acme.co' },
+  { id: 'AT', email: 'alex.tan@acme.co' },
+  { id: 'KL', email: 'kyle.lee@acme.co' },
+  { id: 'PR', email: 'priya.rao@acme.co' },
+  { id: 'MN', email: 'mia.nakamura@acme.co' },
+  { id: 'CL', email: 'chris.lopez@acme.co' },
+]
+
+const TZ = [
+  { v: 'America/Los_Angeles', l: 'Pacific Time (PT)' },
+  { v: 'America/Denver', l: 'Mountain Time (MT)' },
+  { v: 'America/Chicago', l: 'Central Time (CT)' },
+  { v: 'America/New_York', l: 'Eastern Time (ET)' },
+  { v: 'Europe/London', l: 'London (GMT/BST)' },
+  { v: 'UTC', l: 'UTC' },
+]
+const tzLabel = (v: string) => TZ.find((t) => t.v === v)?.l ?? v
+
+type Loc = { id: string; name: string; place: string }
+type Stop = Loc & { uid: string }
+type LocMode = 'vote' | 'remote' | 'later'
+type PlanMode = 'vote' | 'itinerary'
+
+type Form = {
+  title: string
+  hostMode: 'you' | 'org'
+  orgName: string
+  description: string
+  startDate: string
+  endDate: string
+  granularity: string
+  timezone: string
+  budget: string
+  locMode: LocMode
+  planMode: PlanMode
+  picked: Stop[]
+  platform: string
+  meetingLink: string
+  emails: string[]
+  accounts: string[]
+}
+
+const initialForm: Form = {
+  title: '', hostMode: 'you', orgName: '', description: '',
+  startDate: '', endDate: '', granularity: '30', timezone: 'America/Los_Angeles', budget: '',
+  locMode: 'vote', planMode: 'vote', picked: [], platform: 'Google Meet', meetingLink: '',
+  emails: [], accounts: [],
+}
+
+type Update = (patch: Partial<Form> | ((f: Form) => Partial<Form>)) => void
+type BasicsErrs = { title: string; org: string; start: string; end: string }
 
 export default function CreatePage() {
   const router = useRouter()
   const [step, setStep] = useState(0)
-  const [hostMode, setHostMode] = useState<'you' | 'org'>('you')
-  const [locMode, setLocMode] = useState<LocMode>('vote')
-  const [invitees, setInvitees] = useState<string[]>([])
+  const [submitted, setSubmitted] = useState(false)
+  const [form, setForm] = useState<Form>(initialForm)
+  const [attempted, setAttempted] = useState(false)
+  const [today, setToday] = useState('')
+  const stopUid = useRef(0)
   const panel = useRef<HTMLDivElement>(null)
 
+  const update: Update = (patch) =>
+    setForm((f) => ({ ...f, ...(typeof patch === 'function' ? patch(f) : patch) }))
+
+  useEffect(() => {
+    const d = new Date()
+    setToday(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
+  }, [])
+  useEffect(() => { setAttempted(false) }, [step]) // clear errors when moving between steps
+
   useGSAP(
-    () => {
-      gsap.fromTo(panel.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out' })
-    },
+    () => { gsap.fromTo(panel.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out' }) },
     { dependencies: [step] },
   )
 
-  function next() { setStep((s) => Math.min(3, s + 1)) }
+  if (submitted) return <Created form={form} />
+
+  // ── required-field validation ──
+  const basicsErr: BasicsErrs = {
+    title: form.title.trim() ? '' : 'Add an event title.',
+    org: form.hostMode === 'org' && !form.orgName.trim() ? 'Add the organization name.' : '',
+    start: !form.startDate ? 'Pick the earliest day.' : today && form.startDate < today ? 'The earliest day can’t be before today.' : '',
+    end: !form.endDate ? 'Pick the latest day.' : form.startDate && form.endDate < form.startDate ? 'The latest day can’t be before the earliest day.' : '',
+  }
+  const placesError = form.locMode === 'vote' && form.picked.length === 0 ? 'Add at least one place, or switch to “Decide later”.' : ''
+  function stepValid(s: number) {
+    if (s === 0) return !basicsErr.title && !basicsErr.org && !basicsErr.start && !basicsErr.end
+    if (s === 1) return !placesError
+    return true
+  }
+
+  function next() {
+    if (!stepValid(step)) { setAttempted(true); return }
+    setStep((s) => Math.min(3, s + 1))
+  }
   function back() { step === 0 ? router.push('/home') : setStep((s) => s - 1) }
+  const canCreate = form.title.trim().length > 0
 
   return (
     <div className="mx-auto max-w-[760px] px-[26px] pb-[104px] pt-[34px]">
       <div className="mb-[22px] text-center">
         <h1 className="font-serif text-[30px] leading-[1.04] tracking-[-0.01em]">Create event</h1>
-        <p className="mt-1.5 text-[12px] text-dim">
-          Set the basics, invite people, and share a link — guests can join without an account.
-        </p>
+        <p className="mt-1.5 text-[12px] text-dim">Fill in a few details, invite people, then review and create it.</p>
       </div>
 
       {/* step indicator */}
       <div className="mb-6 flex items-center justify-center">
         {STEPS.map((label, i) => (
           <div key={label} className="flex items-center">
-            <div className="flex items-center gap-[9px]">
+            <button type="button" onClick={() => i < step && setStep(i)} className="flex items-center gap-[9px]">
               <span
                 className="grid h-7 w-7 place-items-center rounded-full text-[12px] font-bold"
                 style={{
@@ -61,10 +139,8 @@ export default function CreatePage() {
               >
                 {i < step ? <Check size={15} /> : i + 1}
               </span>
-              <span className="text-[12px] font-semibold" style={{ color: i > step ? 'var(--faint)' : 'var(--text)' }}>
-                {label}
-              </span>
-            </div>
+              <span className="text-[12px] font-semibold" style={{ color: i > step ? 'var(--faint)' : 'var(--text)' }}>{label}</span>
+            </button>
             {i < STEPS.length - 1 && (
               <span className="mx-3 h-0.5 w-[46px]" style={{ background: i < step ? 'var(--teal)' : 'var(--border)' }} />
             )}
@@ -72,15 +148,13 @@ export default function CreatePage() {
         ))}
       </div>
 
-      {/* card */}
       <div ref={panel} className="rounded-2xl border border-border bg-s1 px-6 py-[22px]">
-        {step === 0 && <StepBasics hostMode={hostMode} setHostMode={setHostMode} />}
-        {step === 1 && <StepLocation locMode={locMode} setLocMode={setLocMode} />}
-        {step === 2 && <StepInvite invitees={invitees} setInvitees={setInvitees} />}
-        {step === 3 && <StepShare invitees={invitees} />}
+        {step === 0 && <StepBasics form={form} update={update} today={today} attempted={attempted} errs={basicsErr} />}
+        {step === 1 && <StepLocation form={form} update={update} stopUid={stopUid} attempted={attempted} placesError={placesError} />}
+        {step === 2 && <StepInvite form={form} update={update} />}
+        {step === 3 && <StepReview form={form} goStep={setStep} />}
       </div>
 
-      {/* footer nav */}
       <div className="mt-4 flex items-center justify-between">
         <button onClick={back} className="flex h-10 items-center gap-1.5 rounded-[10px] border border-border2 bg-transparent px-4 text-[12.5px] font-semibold hover:bg-s2">
           <ArrowLeft size={15} /> Back
@@ -90,61 +164,53 @@ export default function CreatePage() {
             Continue <ArrowRight size={15} />
           </button>
         ) : (
-          <Link href="/events/q3-offsite?tab=availability" className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-[18px] text-[12.5px] font-semibold text-on-accent">
-            Go to event <ArrowRight size={15} />
-          </Link>
+          <button
+            onClick={() => setSubmitted(true)}
+            disabled={!canCreate}
+            className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-[18px] text-[12.5px] font-semibold text-on-accent disabled:opacity-40"
+          >
+            <Check size={15} /> Create event
+          </button>
         )}
       </div>
+      {step === 3 && !canCreate && (
+        <p className="mt-2 text-right text-[11px] text-brick-text">Add an event title in Basics before creating.</p>
+      )}
     </div>
   )
 }
 
 /* ── Step 1: Basics ── */
-function StepBasics({ hostMode, setHostMode }: { hostMode: 'you' | 'org'; setHostMode: (m: 'you' | 'org') => void }) {
-  const [gran, setGran] = useState('30')
-  const [tz, setTz] = useState('America/Los_Angeles')
-  const [start, setStart] = useState('')
-  const [end, setEnd] = useState('')
-  const [budget, setBudget] = useState('')
-  // today's local date (computed after mount to avoid SSR/client hydration drift)
-  const [today, setToday] = useState('')
-  useEffect(() => {
-    const d = new Date()
-    setToday(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
-  }, [])
-
-  function onStartChange(v: string) {
+function StepBasics({ form, update, today, attempted, errs }: { form: Form; update: Update; today: string; attempted: boolean; errs: BasicsErrs }) {
+  function onStart(v: string) {
     const clamped = today && v && v < today ? today : v
-    setStart(clamped)
-    // keep the window valid: latest can't precede earliest (same day is allowed)
-    if (end && clamped && end < clamped) setEnd(clamped)
+    update((f) => ({ startDate: clamped, endDate: f.endDate && clamped && f.endDate < clamped ? clamped : f.endDate }))
   }
-  function onEndChange(v: string) {
-    const floor = start || today
-    setEnd(floor && v && v < floor ? floor : v)
+  function onEnd(v: string) {
+    const floor = form.startDate || today
+    update({ endDate: floor && v && v < floor ? floor : v })
   }
-  const dateError =
-    (today && start && start < today && 'The earliest day can’t be before today.') ||
-    (start && end && end < start && 'The latest day can’t be before the earliest day.') ||
-    ''
+  const show = (e: string) => attempted && !!e
 
   return (
     <div className="flex flex-col gap-4">
-      <Field label="Event title">
-        <input placeholder="e.g. Team Meeting" className={inputCls} />
-      </Field>
+      <div>
+        <Label>Event title <Req /></Label>
+        <input value={form.title} onChange={(e) => update({ title: e.target.value })} placeholder="e.g. Team Meeting" className={inputCls(show(errs.title))} />
+        {show(errs.title) && <FieldError>{errs.title}</FieldError>}
+      </div>
 
       <div className="flex flex-wrap gap-3.5">
         <div className="min-w-[200px] flex-1">
-          <Label>Hosted by</Label>
+          <Label>Hosted by <Req /></Label>
           <div className="flex rounded-[10px] border border-border bg-s2 p-[3px]">
             {(['you', 'org'] as const).map((m) => (
               <button
                 key={m}
                 type="button"
-                onClick={() => setHostMode(m)}
+                onClick={() => update({ hostMode: m })}
                 className="flex h-8 flex-1 items-center justify-center rounded-[7px] text-[12px] font-semibold transition-colors"
-                style={hostMode === m ? { background: 'var(--s0)', color: 'var(--text)' } : { color: 'var(--dim)' }}
+                style={form.hostMode === m ? { background: 'var(--s0)', color: 'var(--text)' } : { color: 'var(--dim)' }}
               >
                 {m === 'you' ? 'You' : 'Organization'}
               </button>
@@ -152,65 +218,43 @@ function StepBasics({ hostMode, setHostMode }: { hostMode: 'you' | 'org'; setHos
           </div>
         </div>
         <div className="min-w-[200px] flex-1">
-          <Label>{hostMode === 'you' ? 'Host' : 'Organization name'}</Label>
-          {hostMode === 'you' ? (
-            <input key="host-you" value={USER_NAME} readOnly disabled className={`${inputCls} cursor-not-allowed opacity-60`} />
+          <Label>{form.hostMode === 'you' ? 'Host' : <>Organization name <Req /></>}</Label>
+          {form.hostMode === 'you' ? (
+            <input key="host-you" value={USER_NAME} readOnly disabled className={`${inputCls(false)} cursor-not-allowed opacity-60`} />
           ) : (
-            <input key="host-org" placeholder="e.g. Acme Engineering Org" className={inputCls} />
+            <input key="host-org" value={form.orgName} onChange={(e) => update({ orgName: e.target.value })} placeholder="e.g. Acme Engineering Org" className={inputCls(show(errs.org))} />
           )}
+          {form.hostMode === 'org' && show(errs.org) && <FieldError>{errs.org}</FieldError>}
         </div>
       </div>
 
       <Field label="Description">
         <textarea
+          value={form.description}
+          onChange={(e) => update({ description: e.target.value })}
           placeholder="What's this event about? (optional)"
-          className={`${inputCls} h-[72px] resize-none py-[11px] leading-[1.5]`}
+          className={`${inputCls(false)} h-[72px] resize-none py-[11px] leading-[1.5]`}
         />
       </Field>
 
-      {/* date window + granularity */}
       <div>
-        <Label>Date window</Label>
+        <Label>Date window <Req /></Label>
         <div className="rounded-[12px] border border-border bg-s2 p-3.5">
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-[150px] flex-1">
-              <span className="mb-1.5 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[.1em] text-faint">
-                <CalendarRange size={12} /> Earliest day
-              </span>
-              <input
-                type="date"
-                value={start}
-                min={today || undefined}
-                onChange={(e) => onStartChange(e.target.value)}
-                className={`${inputCls} cursor-pointer bg-s1`}
-              />
+              <span className="mb-1.5 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={12} /> Earliest day</span>
+              <input type="date" value={form.startDate} min={today || undefined} onChange={(e) => onStart(e.target.value)} className={`${inputCls(show(errs.start))} cursor-pointer !bg-s1`} />
             </div>
             <span className="pb-[11px] text-faint">→</span>
             <div className="min-w-[150px] flex-1">
-              <span className="mb-1.5 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[.1em] text-faint">
-                <CalendarRange size={12} /> Latest day
-              </span>
-              <input
-                type="date"
-                value={end}
-                min={start || today || undefined}
-                onChange={(e) => onEndChange(e.target.value)}
-                className={`${inputCls} cursor-pointer bg-s1`}
-              />
+              <span className="mb-1.5 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={12} /> Latest day</span>
+              <input type="date" value={form.endDate} min={form.startDate || today || undefined} onChange={(e) => onEnd(e.target.value)} className={`${inputCls(show(errs.end))} cursor-pointer !bg-s1`} />
             </div>
           </div>
-          {dateError && (
-            <p className="mt-2.5 flex items-center gap-1.5 text-[11px] font-medium text-brick-text">
-              <Info size={12} /> {dateError}
-            </p>
-          )}
+          {(show(errs.start) || show(errs.end)) && <FieldError>{errs.start || errs.end}</FieldError>}
           <div className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
-            <span className="flex items-center gap-1.5 text-[11.5px] text-dim"><Clock size={13} /> Time granularity</span>
-            <Segmented
-              value={gran}
-              onChange={setGran}
-              options={[{ v: '15', l: '15 min' }, { v: '30', l: '30 min' }, { v: '60', l: '1 hour' }]}
-            />
+            <span className="flex items-center gap-1.5 text-[11.5px] text-dim"><Clock size={13} /> Time slot size</span>
+            <Segmented value={form.granularity} onChange={(v) => update({ granularity: v })} options={[{ v: '15', l: '15 min' }, { v: '30', l: '30 min' }, { v: '60', l: '1 hour' }]} />
           </div>
         </div>
       </div>
@@ -219,17 +263,8 @@ function StepBasics({ hostMode, setHostMode }: { hostMode: 'you' | 'org'; setHos
         <div className="min-w-[200px] flex-1">
           <Label>Time zone</Label>
           <div className="relative">
-            <select
-              value={tz}
-              onChange={(e) => setTz(e.target.value)}
-              className={`${inputCls} cursor-pointer appearance-none pr-9`}
-            >
-              <option value="America/Los_Angeles">Pacific Time (PT)</option>
-              <option value="America/Denver">Mountain Time (MT)</option>
-              <option value="America/Chicago">Central Time (CT)</option>
-              <option value="America/New_York">Eastern Time (ET)</option>
-              <option value="Europe/London">London (GMT/BST)</option>
-              <option value="UTC">UTC</option>
+            <select value={form.timezone} onChange={(e) => update({ timezone: e.target.value })} className={`${inputCls(false)} cursor-pointer appearance-none pr-9`}>
+              {TZ.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
             </select>
             <ChevronDown size={15} className="pointer-events-none absolute right-[13px] top-1/2 -translate-y-1/2 text-dim" />
           </div>
@@ -238,13 +273,7 @@ function StepBasics({ hostMode, setHostMode }: { hostMode: 'you' | 'org'; setHos
           <Label>Budget (optional)</Label>
           <div className="relative">
             <span className="pointer-events-none absolute left-[13px] top-1/2 -translate-y-1/2 text-dim">$</span>
-            <input
-              inputMode="numeric"
-              placeholder="0"
-              value={budget}
-              onChange={(e) => setBudget(e.target.value.replace(/[^\d]/g, ''))}
-              className={`${inputCls} pl-7`}
-            />
+            <input inputMode="numeric" placeholder="0" value={form.budget} onChange={(e) => update({ budget: e.target.value.replace(/[^\d]/g, '') })} className={`${inputCls(false)} pl-7`} />
             <span className="pointer-events-none absolute right-[13px] top-1/2 -translate-y-1/2 text-[11px] text-faint">total</span>
           </div>
         </div>
@@ -254,63 +283,51 @@ function StepBasics({ hostMode, setHostMode }: { hostMode: 'you' | 'org'; setHos
 }
 
 /* ── Step 2: Location ── */
-type Loc = { id: string; name: string; place: string }
-type PlanMode = 'vote' | 'itinerary'
-
-// mock place database the search filters over (stands in for geosearch)
-const PLACES: Loc[] = [
-  { id: 'cavallo', name: 'Cavallo Point Lodge', place: 'Sausalito, CA' },
-  { id: 'terrapin', name: 'Terrapin Crossroads', place: 'San Rafael, CA' },
-  { id: 'ferry', name: 'Ferry Building Marketplace', place: 'San Francisco, CA' },
-  { id: 'exploratorium', name: 'Exploratorium', place: 'San Francisco, CA' },
-  { id: 'fortmason', name: 'Fort Mason Center', place: 'San Francisco, CA' },
-  { id: 'crissy', name: 'Crissy Field', place: 'San Francisco, CA' },
-  { id: 'presidio', name: 'Presidio Tunnel Tops', place: 'San Francisco, CA' },
-  { id: 'hmb', name: 'Half Moon Bay Golf Links', place: 'Half Moon Bay, CA' },
-]
-
-const PLATFORMS: { name: string; icon: typeof Video }[] = [
-  { name: 'Google Meet', icon: Video },
-  { name: 'Zoom', icon: Video },
-  { name: 'Teams', icon: Video },
-  { name: 'Discord', icon: MessagesSquare },
-  { name: 'Other', icon: MoreHorizontal },
-]
-
-function StepLocation({ locMode, setLocMode }: { locMode: LocMode; setLocMode: (m: LocMode) => void }) {
+function StepLocation({ form, update, stopUid, attempted, placesError }: { form: Form; update: Update; stopUid: RefObject<number>; attempted: boolean; placesError: string }) {
   const modes: { v: LocMode; l: string; icon: typeof MapPin }[] = [
     { v: 'vote', l: 'In person', icon: MapPin },
     { v: 'remote', l: 'Remote', icon: Video },
     { v: 'later', l: 'Decide later', icon: Clock },
   ]
-
-  const [planMode, setPlanMode] = useState<PlanMode>('vote')
   const [query, setQuery] = useState('')
-  const [picked, setPicked] = useState<Loc[]>([])
-  const [platform, setPlatform] = useState('Google Meet')
-  const [link, setLink] = useState('')
+  const [results, setResults] = useState<Loc[]>([])
+  const [searching, setSearching] = useState(false)
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
 
-  const q = query.trim().toLowerCase()
-  const results = q
-    ? PLACES.filter((l) => !picked.some((p) => p.id === l.id) && (l.name.toLowerCase().includes(q) || l.place.toLowerCase().includes(q)))
-    : []
-  const exact = PLACES.some((l) => l.name.toLowerCase() === q) || picked.some((l) => l.name.toLowerCase() === q)
+  const term = query.trim()
+  const timesInRoute = (id: string) => form.picked.filter((p) => p.id === id).length
+  const shown = form.planMode === 'itinerary' ? results : results.filter((r) => !form.picked.some((p) => p.id === r.id))
+  const allPicked = form.planMode === 'vote' && results.length > 0 && shown.length === 0
 
-  function add(l: Loc) { setPicked((p) => [...p, l]); setQuery('') }
-  function addCustom() {
-    const name = query.trim()
-    if (!name) return
-    add({ id: `custom:${name.toLowerCase()}`, name, place: 'Custom place' })
-  }
-  function remove(id: string) { setPicked((p) => p.filter((x) => x.id !== id)) }
+  useEffect(() => {
+    if (term.length < 3) { setResults([]); setSearching(false); return }
+    setSearching(true)
+    const ctrl = new AbortController()
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q=${encodeURIComponent(term)}`, { signal: ctrl.signal, headers: { Accept: 'application/json' } })
+        const data: { place_id: number; name?: string; display_name: string }[] = await res.json()
+        setResults(data.map((d) => {
+          const parts = d.display_name.split(', ')
+          return { id: String(d.place_id), name: d.name && d.name.trim() ? d.name : parts[0], place: (d.name ? parts : parts.slice(1)).slice(0, 3).join(', ') }
+        }))
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') setResults([])
+      } finally { setSearching(false) }
+    }, 350)
+    return () => { ctrl.abort(); clearTimeout(t) }
+  }, [term])
+
+  function add(l: Loc) { update((f) => ({ picked: [...f.picked, { ...l, uid: `s${stopUid.current++}` }] })); setQuery('') }
+  function addCustom() { const name = term; if (name) add({ id: `custom:${name.toLowerCase()}`, name, place: 'Custom place' }) }
+  function remove(uid: string) { update((f) => ({ picked: f.picked.filter((x) => x.uid !== uid) })) }
   function move(i: number, dir: -1 | 1) {
-    setPicked((p) => {
-      const j = i + dir
-      if (j < 0 || j >= p.length) return p
-      const a = [...p]
-      ;[a[i], a[j]] = [a[j], a[i]]
-      return a
-    })
+    update((f) => { const j = i + dir; if (j < 0 || j >= f.picked.length) return {}; const a = [...f.picked]; ;[a[i], a[j]] = [a[j], a[i]]; return { picked: a } })
+  }
+  function onDragEnterRow(i: number) {
+    if (dragIndex === null || dragIndex === i) return
+    update((f) => { const a = [...f.picked]; const [m] = a.splice(dragIndex, 1); a.splice(i, 0, m); return { picked: a } })
+    setDragIndex(i)
   }
 
   return (
@@ -319,16 +336,10 @@ function StepLocation({ locMode, setLocMode }: { locMode: LocMode; setLocMode: (
         <Label>Where will you meet?</Label>
         <div className="flex rounded-[10px] border border-border bg-s2 p-[3px]">
           {modes.map((m) => {
-            const on = locMode === m.v
+            const on = form.locMode === m.v
             const Icon = m.icon
             return (
-              <button
-                key={m.v}
-                type="button"
-                onClick={() => setLocMode(m.v)}
-                className="flex h-[34px] flex-1 items-center justify-center gap-1.5 rounded-[7px] text-[11.5px] font-semibold"
-                style={on ? { background: 'var(--s0)', color: 'var(--text)' } : { color: 'var(--dim)' }}
-              >
+              <button key={m.v} type="button" onClick={() => update({ locMode: m.v })} className="flex h-[34px] flex-1 items-center justify-center gap-1.5 rounded-[7px] text-[11.5px] font-semibold" style={on ? { background: 'var(--s0)', color: 'var(--text)' } : { color: 'var(--dim)' }}>
                 <Icon size={14} /> {m.l}
               </button>
             )
@@ -336,26 +347,16 @@ function StepLocation({ locMode, setLocMode }: { locMode: LocMode; setLocMode: (
         </div>
       </div>
 
-      {locMode === 'vote' && (
+      {form.locMode === 'vote' && (
         <div className="flex flex-col gap-3">
-          {/* decide how the location gets chosen */}
           <div>
             <Label>How is the location decided?</Label>
             <div className="flex rounded-[10px] border border-border bg-s2 p-[3px]">
-              {([
-                { v: 'vote', l: 'Guests vote', icon: Vote },
-                { v: 'itinerary', l: 'Plan a route', icon: Route },
-              ] as const).map((m) => {
-                const on = planMode === m.v
+              {([{ v: 'vote', l: 'Guests vote', icon: Vote }, { v: 'itinerary', l: 'Plan a route', icon: Route }] as const).map((m) => {
+                const on = form.planMode === m.v
                 const Icon = m.icon
                 return (
-                  <button
-                    key={m.v}
-                    type="button"
-                    onClick={() => setPlanMode(m.v)}
-                    className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-[7px] text-[11.5px] font-semibold"
-                    style={on ? { background: 'var(--s0)', color: 'var(--text)' } : { color: 'var(--dim)' }}
-                  >
+                  <button key={m.v} type="button" onClick={() => update({ planMode: m.v })} className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-[7px] text-[11.5px] font-semibold" style={on ? { background: 'var(--s0)', color: 'var(--text)' } : { color: 'var(--dim)' }}>
                     <Icon size={13} /> {m.l}
                   </button>
                 )
@@ -364,115 +365,111 @@ function StepLocation({ locMode, setLocMode }: { locMode: LocMode; setLocMode: (
           </div>
 
           <p className="flex items-center gap-1.5 text-[11.5px] text-dim">
-            {planMode === 'vote' ? (
-              <><Vote size={14} /> Guests vote on the places you add — the top pick becomes the venue.</>
-            ) : (
-              <><Route size={14} /> Order the places you add into a route — stops run 1 → 2 → 3 on the day.</>
-            )}
+            {form.planMode === 'vote'
+              ? <><Vote size={14} /> Add a few places and let everyone vote. The one with the most votes wins.</>
+              : <><Route size={14} /> Add the places you&apos;ll visit and put them in the order you&apos;ll go.</>}
           </p>
 
-          {/* location search */}
+          {/* search */}
           <div className="relative">
             <div className="flex h-[42px] items-center gap-2 rounded-[10px] border border-border bg-s2 px-[13px] focus-within:border-accent-border">
               <Search size={15} className="text-faint" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search for a place to add…"
-                className="flex-1 bg-transparent text-[12.5px] outline-none placeholder:text-faint"
-              />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search any place, address, or city…" className="flex-1 bg-transparent text-[12.5px] outline-none placeholder:text-faint" />
             </div>
-            {q && (
-              <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
-                {results.map((l) => (
-                  <button
-                    key={l.id}
-                    type="button"
-                    onClick={() => add(l)}
-                    className="flex w-full items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-left hover:bg-s2"
-                  >
-                    <MapPin size={14} className="text-dim" />
-                    <span className="flex-1 text-[12.5px] font-medium">
-                      {l.name} <span className="font-normal text-faint">· {l.place}</span>
-                    </span>
-                    <Plus size={14} className="text-accent-text" />
-                  </button>
-                ))}
-                {!exact && (
-                  <button
-                    type="button"
-                    onClick={addCustom}
-                    className="flex w-full items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-left hover:bg-s2"
-                  >
-                    <Plus size={14} className="text-accent-text" />
-                    <span className="text-[12.5px]">Add “<span className="font-semibold">{query.trim()}</span>” as a place</span>
-                  </button>
-                )}
-                {results.length === 0 && exact && (
-                  <div className="px-2.5 py-2 text-[11.5px] text-faint">Already added.</div>
+            {term && (
+              <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[300px] overflow-auto rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
+                {term.length < 3 ? (
+                  <div className="px-2.5 py-2 text-[11.5px] text-faint">Keep typing to search for a place…</div>
+                ) : (
+                  <>
+                    {searching && <div className="flex items-center gap-2 px-2.5 py-2 text-[11.5px] text-faint"><Loader2 size={13} className="animate-spin" /> Searching…</div>}
+                    {!searching && shown.map((l) => {
+                      const count = timesInRoute(l.id)
+                      return (
+                        <button key={l.id} type="button" onClick={() => add(l)} className="flex w-full items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-left hover:bg-s2">
+                          <MapPin size={14} className="flex-none text-dim" />
+                          <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{l.name} <span className="font-normal text-faint">· {l.place}</span></span>
+                          {count > 0 && <span className="flex-none text-[10.5px] text-faint">{count === 1 ? 'already a stop' : `${count} stops`}</span>}
+                          <span className="flex flex-none items-center gap-1 text-[11px] font-semibold text-accent-text"><Plus size={14} /> {count > 0 ? 'Again' : ''}</span>
+                        </button>
+                      )
+                    })}
+                    {!searching && allPicked && <div className="px-2.5 py-1.5 text-[11.5px] text-faint">Already on your list.</div>}
+                    {!searching && shown.length === 0 && !allPicked && <div className="px-2.5 py-1.5 text-[11.5px] text-faint">No matches. Add it as a custom place below.</div>}
+                    {!searching && (
+                      <button type="button" onClick={addCustom} className="mt-0.5 flex w-full items-center gap-2.5 rounded-[7px] border-t border-border px-2.5 py-2 text-left hover:bg-s2">
+                        <Plus size={14} className="flex-none text-accent-text" />
+                        <span className="min-w-0 truncate text-[12.5px]">Add “<span className="font-semibold">{term}</span>” as a custom place</span>
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             )}
           </div>
 
-          {/* picked places */}
-          {picked.length === 0 ? (
-            <div className="flex items-start gap-2 rounded-[10px] border border-border bg-s2 px-[13px] py-[11px]">
-              <Info size={14} className="mt-0.5 text-accent-text" />
-              <span className="text-[11.5px] leading-[1.5] text-dim">No places yet — search above to add your first one.</span>
+          {/* picked */}
+          {form.picked.length === 0 ? (
+            <div className={`flex items-start gap-2 rounded-[10px] border px-[13px] py-[11px] ${attempted && placesError ? 'border-brick-border bg-brick-bg' : 'border-border bg-s2'}`}>
+              <Info size={14} className={`mt-0.5 ${attempted && placesError ? 'text-brick-text' : 'text-accent-text'}`} />
+              <span className={`text-[11.5px] leading-[1.5] ${attempted && placesError ? 'text-brick-text' : 'text-dim'}`}>
+                {attempted && placesError ? placesError : 'No places yet. Search above to add your first one.'}
+              </span>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <span className="text-[10.5px] font-semibold uppercase tracking-[.1em] text-faint">
-                  {planMode === 'vote' ? `${picked.length} on the ballot` : `${picked.length} ${picked.length === 1 ? 'stop' : 'stops'}`}
-                </span>
-                {planMode === 'itinerary' && (
-                  <span className="flex items-center gap-1 text-[10.5px] text-faint"><GripVertical size={12} /> Reorder with the arrows</span>
-                )}
+                <span className="text-[10.5px] font-semibold uppercase tracking-[.1em] text-faint">{form.planMode === 'vote' ? `${form.picked.length} on the ballot` : `${form.picked.length} ${form.picked.length === 1 ? 'stop' : 'stops'}`}</span>
+                {form.planMode === 'itinerary' && <span className="flex items-center gap-1 text-[10.5px] text-faint"><GripVertical size={12} /> Drag the rows or use the arrows to reorder</span>}
               </div>
-              {picked.map((l, i) => (
-                <div key={l.id} className="flex h-11 items-center gap-2.5 rounded-[10px] border border-border bg-s2 pl-2.5 pr-2">
-                  {planMode === 'itinerary' ? (
-                    <span className="grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[11px] font-bold text-on-accent">{i + 1}</span>
-                  ) : (
-                    <MapPin size={15} className="text-accent-text" />
-                  )}
-                  <span className="flex-1 truncate text-[12.5px] font-medium">
-                    {l.name} <span className="font-normal text-faint">· {l.place}</span>
-                  </span>
-                  {planMode === 'itinerary' && (
-                    <div className="flex flex-none items-center">
-                      <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move up"><ChevronUp size={15} /></button>
-                      <button type="button" onClick={() => move(i, 1)} disabled={i === picked.length - 1} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move down"><ChevronDown size={15} /></button>
-                    </div>
-                  )}
-                  <button type="button" onClick={() => remove(l.id)} className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:text-brick-text" aria-label="Remove"><X size={15} /></button>
-                </div>
-              ))}
+              {form.picked.map((l, i) => {
+                const itin = form.planMode === 'itinerary'
+                return (
+                  <div
+                    key={l.uid}
+                    draggable={itin}
+                    onDragStart={itin ? () => setDragIndex(i) : undefined}
+                    onDragEnter={itin ? () => onDragEnterRow(i) : undefined}
+                    onDragOver={itin ? (e) => e.preventDefault() : undefined}
+                    onDragEnd={itin ? () => setDragIndex(null) : undefined}
+                    className={`flex h-11 items-center gap-2 rounded-[10px] border bg-s2 pl-2 pr-2 ${itin ? 'cursor-grab active:cursor-grabbing' : ''} ${dragIndex === i ? 'border-accent-border opacity-50' : 'border-border'}`}
+                  >
+                    {itin && <GripVertical size={15} className="flex-none text-faint" />}
+                    {itin ? (
+                      <span className="grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[11px] font-bold text-on-accent">{i + 1}</span>
+                    ) : (
+                      <MapPin size={15} className="text-accent-text" />
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{l.name} <span className="font-normal text-faint">· {l.place}</span></span>
+                    {itin && (
+                      <div className="flex flex-none items-center">
+                        <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move up"><ChevronUp size={15} /></button>
+                        <button type="button" onClick={() => move(i, 1)} disabled={i === form.picked.length - 1} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move down"><ChevronDown size={15} /></button>
+                      </div>
+                    )}
+                    <button type="button" onClick={() => remove(l.uid)} className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:text-brick-text" aria-label="Remove"><X size={15} /></button>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
       )}
 
-      {locMode === 'remote' && (
+      {form.locMode === 'remote' && (
         <div className="flex flex-col gap-3">
           <div>
             <Label>Platform</Label>
             <div className="flex flex-wrap gap-2">
               {PLATFORMS.map((p) => {
-                const on = platform === p.name
-                const Icon = p.icon
+                const on = form.platform === p.name
                 return (
-                  <button
-                    key={p.name}
-                    type="button"
-                    onClick={() => setPlatform(p.name)}
-                    className={`flex h-[34px] items-center gap-1.5 rounded-[9px] px-3 text-[12px] font-semibold ${
-                      on ? 'border-[1.5px] border-accent-border bg-accent-bg text-accent-text' : 'border border-border bg-s2 text-dim'
-                    }`}
-                  >
-                    <Icon size={14} /> {p.name}
+                  <button key={p.name} type="button" onClick={() => update({ platform: p.name })} className={`flex h-[34px] items-center gap-1.5 rounded-[9px] px-3 text-[12px] font-semibold ${on ? 'border-[1.5px] border-accent-border bg-accent-bg text-accent-text' : 'border border-border bg-s2 text-dim'}`}>
+                    {p.img && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.img} alt="" width={16} height={16} className="rounded-[3px]" />
+                    )}
+                    {p.name}
                   </button>
                 )
               })}
@@ -481,27 +478,22 @@ function StepLocation({ locMode, setLocMode }: { locMode: LocMode; setLocMode: (
           <Field label="Meeting link (optional)">
             <div className="flex h-10 items-center gap-2 rounded-[10px] border border-border bg-s2 px-[13px] focus-within:border-accent-border">
               <Link2 size={15} className="text-accent-text" />
-              <input
-                value={link}
-                onChange={(e) => setLink(e.target.value)}
-                placeholder={`Paste a ${platform} link — or add it later`}
-                className="flex-1 bg-transparent font-mono text-[12.5px] outline-none placeholder:text-faint"
-              />
+              <input value={form.meetingLink} onChange={(e) => update({ meetingLink: e.target.value })} placeholder={`Paste a ${form.platform} link, or add it later`} className="flex-1 bg-transparent font-mono text-[12.5px] outline-none placeholder:text-faint" />
             </div>
           </Field>
           <div className="flex items-start gap-2 rounded-[10px] border border-border bg-s2 px-[13px] py-[11px]">
             <Info size={14} className="mt-0.5 text-accent-text" />
-            <span className="text-[11.5px] leading-[1.5] text-dim">The link is optional — you can share it now or drop it in later. Guests get it on the event page and in every reminder. The location map stays off for remote events.</span>
+            <span className="text-[11.5px] leading-[1.5] text-dim">You don&apos;t need the link right away. Add it whenever you have it and everyone will see it on the event page and in their reminders. There&apos;s no map for online events.</span>
           </div>
         </div>
       )}
 
-      {locMode === 'later' && (
+      {form.locMode === 'later' && (
         <div className="flex items-start gap-2.5 rounded-xl border border-border bg-s2 p-4">
           <span className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] border border-ochre-border bg-ochre-bg text-ochre-text"><Clock size={16} /></span>
           <div>
             <div className="mb-0.5 text-[12.5px] font-semibold">Decide the location later</div>
-            <div className="text-[11.5px] leading-[1.5] text-dim">Invites still go out now and people can mark availability. The location map stays empty until you or a guest adds the first place to vote on.</div>
+            <div className="text-[11.5px] leading-[1.5] text-dim">Invites still go out and people can say when they&apos;re free. You can add a place to vote on whenever you&apos;re ready.</div>
           </div>
         </div>
       )}
@@ -509,76 +501,211 @@ function StepLocation({ locMode, setLocMode }: { locMode: LocMode; setLocMode: (
   )
 }
 
+const PLATFORMS: { name: string; img?: string }[] = [
+  { name: 'Google Meet', img: '/logos/meet.png' },
+  { name: 'Zoom', img: '/logos/zoom.png' },
+  { name: 'Teams', img: '/logos/teams.png' },
+  { name: 'Discord', img: '/logos/discord.png' },
+  { name: 'Other' },
+]
+
 /* ── Step 3: Invite ── */
-function StepInvite({ invitees, setInvitees }: { invitees: string[]; setInvitees: (v: string[]) => void }) {
+function StepInvite({ form, update }: { form: Form; update: Update }) {
+  const [draft, setDraft] = useState('')
+  function addEmail() {
+    const e = draft.trim()
+    if (!e) return
+    update((f) => ({ emails: f.emails.includes(e) ? f.emails : [...f.emails, e] }))
+    setDraft('')
+  }
+  function toggleAccount(id: string) {
+    update((f) => ({ accounts: f.accounts.includes(id) ? f.accounts.filter((x) => x !== id) : [...f.accounts, id] }))
+  }
+  const total = form.emails.length + form.accounts.length
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <Field label="Invite by email">
         <div className="flex gap-2">
-          <input placeholder="name@company.com" className={inputCls} />
-          <button className="h-10 rounded-[10px] bg-accent px-4 text-[12.5px] font-semibold text-on-accent">Add</button>
+          <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addEmail())} placeholder="name@company.com" className={inputCls()} />
+          <button type="button" onClick={addEmail} className="h-10 rounded-[10px] bg-accent px-4 text-[12.5px] font-semibold text-on-accent">Add</button>
         </div>
+        {form.emails.length > 0 && (
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            {form.emails.map((e) => (
+              <span key={e} className="flex h-[30px] items-center gap-1.5 rounded-full border border-border bg-s2 py-0 pl-2.5 pr-2 text-[12px]">
+                <Mail size={12} className="text-dim" /> {e}
+                <button type="button" onClick={() => update((f) => ({ emails: f.emails.filter((x) => x !== e) }))} aria-label="Remove"><X size={13} className="text-faint hover:text-brick-text" /></button>
+              </span>
+            ))}
+          </div>
+        )}
       </Field>
-      {invitees.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {invitees.map((id) => (
-            <span key={id} className="flex h-[30px] items-center gap-1.5 rounded-full border border-border bg-s2 py-0 pl-1 pr-2.5 text-[12px]">
-              <Avatar initials={id} color={av(id).color} size={22} font={8.5} />
-              {av(id).name}
-              <button onClick={() => setInvitees(invitees.filter((x) => x !== id))} aria-label="Remove">
-                <X size={13} className="text-faint hover:text-brick-text" />
+
+      {/* recently-invited accounts */}
+      <div>
+        <div className="mb-2 flex items-center gap-2">
+          <UserPlus size={14} className="text-dim" />
+          <span className="text-[11.5px] font-semibold text-dim">Add people you&apos;ve invited before</span>
+          <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[10px] text-faint">has an account</span>
+        </div>
+        <div className="overflow-hidden rounded-xl border border-border">
+          {RECENT_ACCOUNTS.map((a, i) => {
+            const p = av(a.id)
+            const on = form.accounts.includes(a.id)
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => toggleAccount(a.id)}
+                className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-s2 ${i > 0 ? 'border-t border-border' : ''} ${on ? 'bg-accent-bg/50' : 'bg-s1'}`}
+              >
+                <Avatar initials={a.id} color={p.color} size={30} font={11} />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[12.5px] font-semibold">{p.name}</div>
+                  <div className="truncate text-[11px] text-faint">{a.email}</div>
+                </div>
+                <span className={`flex h-[26px] items-center gap-1.5 rounded-lg px-2.5 text-[11.5px] font-semibold ${on ? 'bg-accent text-on-accent' : 'border border-border2 text-dim'}`}>
+                  {on ? <><Check size={13} /> Added</> : <><Plus size={13} /> Add</>}
+                </span>
               </button>
-            </span>
-          ))}
+            )
+          })}
         </div>
-      ) : (
-        <p className="text-[11.5px] text-faint">No one invited yet — add emails above or just share the link below.</p>
-      )}
-      <div className="flex items-center gap-3 text-[11px] text-faint">
-        <span className="h-px flex-1 bg-border" /> or share a link <span className="h-px flex-1 bg-border" />
       </div>
-      <div className="flex items-center gap-2 rounded-[10px] border border-border bg-s2 py-0 pl-[13px] pr-2">
-        <Link2 size={14} className="text-dim" />
-        <span className="flex-1 py-3 font-mono text-[12px] text-dim">aline.app/e/your-event</span>
-        <button className="h-[30px] rounded-lg border border-border2 bg-s1 px-3 text-[11.5px] font-semibold">Copy</button>
+
+      <div className="flex items-center gap-1.5 text-[11.5px] text-dim">
+        <Users size={13} />
+        {total === 0 ? 'No one added yet. You can also invite people after the event is created.' : `${total} ${total === 1 ? 'person' : 'people'} will be invited when you create the event.`}
       </div>
-      <Field label="Pull availability from a calendar">
-        <div className="flex flex-wrap gap-2.5">
-          <button className="flex h-[42px] min-w-[180px] flex-1 items-center justify-center gap-2 rounded-[10px] border border-border2 bg-s1 text-[12.5px] font-semibold hover:border-border2">
-            <CalendarPlus size={15} className="text-teal-text" /> Connect Google Calendar
-          </button>
-          <button className="flex h-[42px] min-w-[180px] flex-1 items-center justify-center gap-2 rounded-[10px] border border-border2 bg-s1 text-[12.5px] font-semibold hover:border-border2">
-            <CalendarPlus size={15} className="text-accent-text" /> Connect Outlook
-          </button>
-        </div>
-      </Field>
     </div>
   )
 }
 
-/* ── Step 4: Share ── */
-function StepShare({ invitees }: { invitees: string[] }) {
+/* ── Step 4: Review ── */
+function StepReview({ form, goStep }: { form: Form; goStep: (n: number) => void }) {
+  const total = form.emails.length + form.accounts.length
+  const dateText = form.startDate ? (form.endDate && form.endDate !== form.startDate ? `${form.startDate} → ${form.endDate}` : form.startDate) : 'Not set'
+  const granLabel = { '15': '15 min', '30': '30 min', '60': '1 hour' }[form.granularity] ?? form.granularity
+
   return (
-    <div className="flex flex-col items-center gap-1.5 px-0 py-1 text-center">
-      <span className="mb-1 grid h-12 w-12 place-items-center rounded-full border border-teal-border bg-teal-bg text-teal-text"><Check size={24} /></span>
-      <div className="text-[15px] font-semibold">Your event is ready</div>
-      <div className="max-w-[420px] text-[12px] leading-[1.5] text-dim">
-        Share the link below. Anyone can mark availability, vote on a location, and chat — no account needed.
-      </div>
-      <div className="mt-3.5 flex h-11 w-full max-w-[440px] items-center gap-2 rounded-[11px] border border-border2 bg-s2 py-0 pl-3.5 pr-2">
-        <Link2 size={15} className="text-accent-text" />
-        <span className="flex-1 text-left font-mono text-[12.5px]">aline.app/e/your-event</span>
-        <button className="h-8 rounded-[9px] bg-accent px-3.5 text-[12px] font-semibold text-on-accent">Copy link</button>
-      </div>
-      <div className="mt-[18px] flex items-center gap-5">
-        <div className="grid h-[104px] w-[104px] place-items-center rounded-xl bg-white p-[9px]">
-          <div className="h-full w-full rounded" style={{ backgroundImage: 'repeating-conic-gradient(#1b1b19 0 25%, #fff 0 50%)', backgroundSize: '13px 13px' }} />
+    <div className="flex flex-col gap-3">
+      <p className="text-[12px] text-dim">Give everything a last look. When you create the event, invites go out and you&apos;ll get a link to share.</p>
+
+      {/* Basics */}
+      <ReviewCard title="Basics" onEdit={() => goStep(0)}>
+        <Row k="Title" v={form.title || <span className="text-faint">Untitled event</span>} />
+        <Row k="Hosted by" v={form.hostMode === 'you' ? USER_NAME : form.orgName || <span className="text-faint">Organization</span>} />
+        {form.description && <Row k="Description" v={form.description} />}
+        <Row k="Date window" v={dateText} />
+        <Row k="Time slots" v={granLabel} />
+        <Row k="Time zone" v={tzLabel(form.timezone)} />
+        <Row k="Budget" v={form.budget ? `$${form.budget} total` : <span className="text-faint">None</span>} />
+      </ReviewCard>
+
+      {/* Location */}
+      <ReviewCard title="Location" onEdit={() => goStep(1)}>
+        {form.locMode === 'later' && <Row k="Where" v="Decide later" />}
+        {form.locMode === 'remote' && (
+          <>
+            <Row k="Where" v={`Remote · ${form.platform}`} />
+            <Row k="Link" v={form.meetingLink || <span className="text-faint">Add later</span>} />
+          </>
+        )}
+        {form.locMode === 'vote' && (
+          <>
+            <Row k="Where" v={`In person · ${form.planMode === 'vote' ? 'guests vote' : 'planned route'}`} />
+            <Row
+              k={form.planMode === 'vote' ? 'Candidates' : 'Stops'}
+              v={form.picked.length === 0 ? <span className="text-faint">None added yet</span> : (
+                <div className="flex flex-col gap-1">
+                  {form.picked.map((l, i) => (
+                    <span key={l.uid} className="flex items-center gap-1.5">
+                      {form.planMode === 'itinerary' && <span className="grid h-4 w-4 flex-none place-items-center rounded-full bg-accent text-[9px] font-bold text-on-accent">{i + 1}</span>}
+                      <span className="font-medium">{l.name}</span> <span className="text-faint">· {l.place}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            />
+          </>
+        )}
+      </ReviewCard>
+
+      {/* Invites */}
+      <ReviewCard title="Invites" onEdit={() => goStep(2)}>
+        {total === 0 ? (
+          <Row k="People" v={<span className="text-faint">No one yet</span>} />
+        ) : (
+          <>
+            {form.accounts.length > 0 && (
+              <Row k="Accounts" v={
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {form.accounts.map((id) => <span key={id} className="flex items-center gap-1 rounded-full border border-border bg-s2 py-0.5 pl-0.5 pr-2 text-[11px]"><Avatar initials={id} color={av(id).color} size={18} font={8} /> {av(id).name}</span>)}
+                </div>
+              } />
+            )}
+            {form.emails.length > 0 && <Row k="Emails" v={form.emails.join(', ')} />}
+          </>
+        )}
+      </ReviewCard>
+    </div>
+  )
+}
+
+/* ── Confirmation (after submit) ── */
+function Created({ form }: { form: Form }) {
+  const total = form.emails.length + form.accounts.length
+  const slug = (form.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'your-event')
+  const link = `aline.app/e/${slug}`
+  const toast = useRef<HTMLDivElement>(null)
+  const card = useRef<HTMLDivElement>(null)
+  const [copied, setCopied] = useState(false)
+
+  useGSAP(() => {
+    gsap.fromTo(card.current, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power3.out' })
+    gsap.fromTo('.created-check', { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(2)', delay: 0.15 })
+    const tl = gsap.timeline({ delay: 0.5 })
+    tl.fromTo(toast.current, { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power3.out' })
+      .to(toast.current, { y: 24, opacity: 0, duration: 0.4, ease: 'power3.in', delay: 4 })
+  }, [])
+
+  function copy() {
+    navigator.clipboard?.writeText(`https://${link}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800) }).catch(() => {})
+  }
+
+  return (
+    <div className="relative min-h-[calc(100vh-54px)]">
+      <div className="mx-auto max-w-[560px] px-[26px] pb-[104px] pt-[64px]">
+        <div ref={card} className="rounded-2xl border border-border bg-s1 px-7 py-9 text-center shadow-soft">
+          <span className="created-check mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full border border-teal-border bg-teal-bg text-teal-text"><Check size={30} /></span>
+          <h1 className="font-serif text-[30px] leading-[1.05] tracking-[-0.01em]">Your event is live</h1>
+          <p className="mx-auto mt-2 max-w-[380px] text-[13px] leading-[1.55] text-dim">
+            <span className="font-semibold text-text">{form.title || 'Your event'}</span> has been created{total > 0 ? ` and ${total} ${total === 1 ? 'invite is' : 'invites are'} on the way` : ''}. Share the link below so anyone can join, say when they&apos;re free, and chat.
+          </p>
+
+          <div className="mx-auto mt-6 flex h-11 w-full max-w-[420px] items-center gap-2 rounded-[11px] border border-border2 bg-s2 py-0 pl-3.5 pr-2">
+            <Link2 size={15} className="flex-none text-accent-text" />
+            <span className="flex-1 truncate text-left font-mono text-[12.5px]">{link}</span>
+            <button type="button" onClick={copy} className="flex h-8 flex-none items-center gap-1.5 rounded-[9px] bg-accent px-3 text-[12px] font-semibold text-on-accent">
+              {copied ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Copy</>}
+            </button>
+          </div>
+
+          <div className="mt-6 flex items-center justify-center gap-2.5">
+            <Link href={`/events/${slug}?tab=availability`} className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-5 text-[12.5px] font-semibold text-on-accent">
+              Go to event <ArrowRight size={15} />
+            </Link>
+            <Link href="/home" className="flex h-10 items-center rounded-[10px] border border-border2 px-4 text-[12.5px] font-semibold hover:bg-s2">Back home</Link>
+          </div>
         </div>
-        <div className="flex flex-col gap-2.5 text-left">
-          <div className="text-[12px] font-semibold">Scan to join</div>
-          <button className="flex h-[34px] items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-[13px] text-[12px] font-semibold">
-            <Mail size={14} /> {invitees.length > 0 ? `Email invites to ${invitees.length} people` : 'Email an invite'}
-          </button>
+      </div>
+
+      {/* toast notification */}
+      <div ref={toast} className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 opacity-0">
+        <div className="flex items-center gap-2.5 rounded-xl border border-border2 bg-s1 px-4 py-3 shadow-soft">
+          <span className="grid h-7 w-7 place-items-center rounded-full bg-accent-bg text-accent-text"><PartyPopper size={15} /></span>
+          <span className="text-[12.5px] font-semibold">Event created{total > 0 ? ` · ${total} ${total === 1 ? 'invite' : 'invites'} sent` : ''}</span>
         </div>
       </div>
     </div>
@@ -586,8 +713,15 @@ function StepShare({ invitees }: { invitees: string[] }) {
 }
 
 /* ── shared bits ── */
-const inputCls =
-  'w-full h-10 rounded-[10px] border border-border bg-s2 px-[13px] text-[13px] outline-none placeholder:text-faint focus:border-accent-border'
+function inputCls(err = false) {
+  return `w-full h-10 rounded-[10px] border ${err ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[13px] outline-none placeholder:text-faint focus:border-accent-border`
+}
+function Req() {
+  return <span className="font-bold text-brick-text">*</span>
+}
+function FieldError({ children }: { children: React.ReactNode }) {
+  return <p className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-brick-text"><Info size={11} /> {children}</p>
+}
 
 function Label({ children }: { children: React.ReactNode }) {
   return <label className="mb-[7px] block text-[11.5px] font-semibold text-dim">{children}</label>
@@ -595,26 +729,33 @@ function Label({ children }: { children: React.ReactNode }) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div><Label>{label}</Label>{children}</div>
 }
-function Segmented({
-  value, onChange, options,
-}: {
-  value: string
-  onChange: (v: string) => void
-  options: { v: string; l: string }[]
-}) {
+function Segmented({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { v: string; l: string }[] }) {
   return (
     <div className="flex rounded-[9px] border border-border bg-s1 p-0.5">
       {options.map((o) => (
-        <button
-          key={o.v}
-          type="button"
-          onClick={() => onChange(o.v)}
-          className="flex h-7 items-center rounded-[7px] px-3 text-[11.5px] font-semibold transition-colors"
-          style={value === o.v ? { background: 'var(--accent)', color: 'var(--on-accent)' } : { color: 'var(--dim)' }}
-        >
+        <button key={o.v} type="button" onClick={() => onChange(o.v)} className="flex h-7 items-center rounded-[7px] px-3 text-[11.5px] font-semibold transition-colors" style={value === o.v ? { background: 'var(--accent)', color: 'var(--on-accent)' } : { color: 'var(--dim)' }}>
           {o.l}
         </button>
       ))}
+    </div>
+  )
+}
+function ReviewCard({ title, onEdit, children }: { title: string; onEdit: () => void; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-border bg-s0 p-4">
+      <div className="mb-2.5 flex items-center justify-between border-b border-border pb-2">
+        <span className="text-[10.5px] font-semibold uppercase tracking-[.13em] text-faint">{title}</span>
+        <button type="button" onClick={onEdit} className="flex items-center gap-1 text-[11.5px] font-semibold text-accent-text hover:underline"><Pencil size={12} /> Edit</button>
+      </div>
+      <div className="flex flex-col gap-1.5">{children}</div>
+    </div>
+  )
+}
+function Row({ k, v }: { k: string; v: React.ReactNode }) {
+  return (
+    <div className="flex gap-3 text-[12.5px]">
+      <span className="w-[92px] flex-none text-dim">{k}</span>
+      <span className="min-w-0 flex-1 font-medium text-text">{v}</span>
     </div>
   )
 }
