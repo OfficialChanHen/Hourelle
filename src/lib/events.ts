@@ -346,6 +346,11 @@ export function createEvent(input: CreateInput): AppEvent {
   const avail: Record<string, string[][]> = {}
   for (const d of days) avail[d.key] = times.map(() => [])
 
+  // itinerary picks are an ordered stop list (a venue may repeat); the candidate list is the unique set
+  const isItin = input.planMode === 'itinerary'
+  const pickedPlaces = input.picked.map((p) => ({ id: p.id, name: p.name, place: p.place }))
+  const uniquePlaces = pickedPlaces.filter((p, i) => pickedPlaces.findIndex((x) => x.id === p.id) === i)
+
   const ev: AppEvent = {
     id,
     title: input.title.trim() || 'Untitled event',
@@ -361,7 +366,7 @@ export function createEvent(input: CreateInput): AppEvent {
     location: {
       mode: input.locMode,
       planMode: input.planMode,
-      places: input.picked.map((p) => ({ id: p.id, name: p.name, place: p.place })),
+      places: isItin ? uniquePlaces : pickedPlaces,
       platform: input.platform,
       meetingLink: input.meetingLink,
       guestsCanSuggest: false,
@@ -373,10 +378,11 @@ export function createEvent(input: CreateInput): AppEvent {
     availIv: Object.fromEntries(days.map((d) => [d.key, {}])),
     votes: {},
     maxVotes: 1,
-    itinStops: [],
+    // seed the itinerary from the wizard's ordered stops so it shows up on the Location tab
+    itinStops: isItin ? input.picked.map((p) => p.id) : [],
     itinRank: [],
-    itinDwell: [],
-    itinStartMin: 9 * 60,
+    itinDwell: isItin ? input.picked.map(() => 60) : [],
+    itinStartMin: hasWin ? (winS as number) : 9 * 60,
     durationMin: 60,
     messages: [],
     createdAt: Date.now(),

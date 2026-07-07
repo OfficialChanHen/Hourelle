@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarPlus, MessageCircle, X, Send, GripHorizontal, Check, Eraser, TriangleAlert, Bell, Clock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarPlus, MessageCircle, X, Send, GripHorizontal, Check, Eraser, TriangleAlert, Bell, SlidersHorizontal } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { Popover } from '@/components/ui/Popover'
 import {
   patchEvent, availIvOf, intervalsToGrid, normalizeIv, bestWindow, fmtMinute, gridStartMinOf, stepOf,
   type AppEvent, type Participant, type ChatMessage, type Iv, type AvailIntervals,
@@ -244,6 +245,9 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
   function onCellDown(e: React.PointerEvent, day: string, ti: number) {
     if (mode !== 'edit') return
     e.preventDefault()
+    // grid editing is driven by a window key listener, not element focus — drop any lingering
+    // focus on a toolbar button so arrow-key nudging doesn't paint a stray focus ring on it
+    if (document.activeElement instanceof HTMLElement && document.activeElement.tagName === 'BUTTON') document.activeElement.blur()
     const r = e.currentTarget.getBoundingClientRect()
     const gridMin = Math.max(0, Math.min(gridMax, ti * step + ((e.clientY - r.top) / r.height) * step))
     const hit = (mine[day] ?? []).find((iv) => gridMin >= iv.s && gridMin <= iv.e)
@@ -254,6 +258,7 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
   }
   function onHandleDown(e: React.PointerEvent, edge: Edge) {
     e.preventDefault(); e.stopPropagation()
+    if (document.activeElement instanceof HTMLElement && document.activeElement.tagName === 'BUTTON') document.activeElement.blur()
     const s = selRef.current; if (!s) return
     const d: Drag = {
       kind: 'resize', day: s.day, edge,
@@ -491,8 +496,42 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
           <ImportFromCalendar onPick={startImport} />
           {youAny && <ClearTimes onClear={clearAllMine} />}
           <div className="flex-1" />
-          <DurationPicker value={durationMin} onChange={changeDuration} />
-          <Segment value={h24 ? '24' : '12'} onChange={(v) => setH24(v === '24')} options={[{ v: '12', l: '12h' }, { v: '24', l: '24h' }]} compact />
+          <Popover
+            align="end"
+            width={224}
+            trigger={(open) => (
+              <span className={`flex h-7 items-center gap-1.5 rounded-lg border px-[10px] text-[11px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
+                <SlidersHorizontal size={12} /> Settings
+              </span>
+            )}
+          >
+            {() => (
+              <div className="flex flex-col gap-3">
+                <div>
+                  <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[.12em] text-faint">Event length</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[30, 60, 90, 120, 180, 240].map((m) => (
+                      <button key={m} onClick={() => changeDuration(m)} className={`rounded-[7px] border px-2 py-1 text-[11px] font-medium ${m === durationMin ? 'border-accent bg-accent text-on-accent' : 'border-border2 bg-s1 hover:bg-s2'}`}>{fmtDur(m)}</button>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <span className="text-[10.5px] text-faint">Custom</span>
+                    <input
+                      type="number" min={15} max={720} step={15} value={durationMin}
+                      onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) changeDuration(Math.min(720, Math.max(15, n))) }}
+                      className="h-7 w-16 rounded-[7px] border border-border bg-s1 px-2 text-[11.5px] tabular-nums outline-none focus:border-accent-border"
+                      aria-label="Custom event length in minutes"
+                    />
+                    <span className="text-[10.5px] text-faint">min</span>
+                  </div>
+                </div>
+                <div className="border-t border-border pt-2.5">
+                  <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[.12em] text-faint">Time format</div>
+                  <Segment value={h24 ? '24' : '12'} onChange={(v) => setH24(v === '24')} options={[{ v: '12', l: '12-hour' }, { v: '24', l: '24-hour' }]} />
+                </div>
+              </div>
+            )}
+          </Popover>
           {!chatOpen && (
             // side-panel reopen — on stacked layouts the bottom bar below takes over
             <button onClick={() => setChatOpen(true)} className="hidden h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[11.5px] font-semibold hover:border-border2 lg:flex">
@@ -519,8 +558,15 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
             )}
           </div>
           {mode === 'edit' && <PresetFills onFill={fillPreset} />}
-          {mode === 'edit' && (
-            <span className="text-[11px] text-faint">· Drag to block out time, or arrow keys to nudge a selected block by the minute.</span>
+          {mode === 'edit' && !sel && (
+            <span className="text-[11px] text-faint">Drag to block time</span>
+          )}
+          {mode === 'edit' && sel && (
+            <span className="flex items-center gap-1 text-[11px] text-accent-text">
+              <kbd className="grid h-[15px] min-w-[15px] place-items-center rounded border border-border2 bg-s1 px-1 text-[9px] font-semibold leading-none">↑</kbd>
+              <kbd className="grid h-[15px] min-w-[15px] place-items-center rounded border border-border2 bg-s1 px-1 text-[9px] font-semibold leading-none">↓</kbd>
+              nudge the edge by the minute
+            </span>
           )}
           {/* heat legend — quiet, reads left to right like the ramp */}
           <span className="ml-auto flex items-center gap-1 text-[10px] text-faint">
@@ -1046,58 +1092,8 @@ function EdgeHandle({ pct, label, active, side, onDown }: { pct: number; label: 
   )
 }
 
-/* ── how long the event needs — drives the best-window search ── */
+/* ── how long the event needs — drives the best-window search (set in the Settings popover) ── */
 function fmtDur(m: number) { return m < 60 ? `${m}m` : m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h` }
-function DurationPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const [open, setOpen] = useState(false)
-  const wrap = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false) }
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
-    window.addEventListener('pointerdown', onDown); window.addEventListener('keydown', onKey)
-    return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
-  }, [open])
-  const OPTS = [30, 60, 90, 120, 180, 240]
-  const isCommon = OPTS.includes(value)
-  function applyCustom(raw: string) {
-    const n = Math.round(Number(raw))
-    if (Number.isFinite(n) && n >= 15) { onChange(Math.min(720, n)); setOpen(false) }
-  }
-  return (
-    <div ref={wrap} className="relative">
-      <button onClick={() => setOpen((o) => !o)} title="How long the event needs" className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[10px] text-[11px] hover:border-border2">
-        <Clock size={12} className="text-dim" /> Need {fmtDur(value)} <ChevronDown size={12} className={`text-faint ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-[136px] rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
-          <div className="px-2 pb-1 pt-1.5 text-[9.5px] font-semibold uppercase tracking-[.1em] text-faint">Event length</div>
-          {OPTS.map((m) => (
-            <button key={m} onClick={() => { onChange(m); setOpen(false) }} className={`flex w-full items-center justify-between rounded-[7px] px-2 py-1.5 text-[11.5px] ${m === value ? 'bg-accent font-semibold text-on-accent' : 'hover:bg-s2'}`}>
-              {fmtDur(m)} {m === value && <Check size={12} />}
-            </button>
-          ))}
-          <div className="mt-1 border-t border-border px-1.5 pb-1 pt-2">
-            <div className="mb-1 flex items-center justify-between text-[9.5px] font-semibold uppercase tracking-[.1em] text-faint">
-              Custom {!isCommon && <span className="rounded-[4px] bg-accent px-1 py-px text-[8.5px] normal-case tracking-normal text-on-accent">{fmtDur(value)}</span>}
-            </div>
-            <div className="flex items-center gap-1">
-              <input
-                type="number" min={15} max={720} step={15}
-                defaultValue={isCommon ? '' : value}
-                placeholder="mins"
-                onKeyDown={(e) => { if (e.key === 'Enter') applyCustom((e.target as HTMLInputElement).value) }}
-                onBlur={(e) => e.target.value && applyCustom(e.target.value)}
-                className="h-7 w-full rounded-[7px] border border-border bg-s2 px-2 text-[11.5px] outline-none focus:border-accent-border"
-              />
-              <span className="text-[10px] text-faint">min</span>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 /* ── quick-fill presets (edit mode): fill a standard block across every visible day ── */
 function PresetFills({ onFill }: { onFill: (startClock: number, endClock: number) => void }) {
@@ -1257,7 +1253,7 @@ function ChatPanel({ members, messages, onSend, onClose, avatarOf }: { members: 
 /* ── small controls ── */
 function Segment({ value, onChange, options, compact }: { value: string; onChange: (v: string) => void; options: { v: string; l: string }[]; compact?: boolean }) {
   return (
-    <div className="flex rounded-[9px] bg-s2 p-0.5">
+    <div className="inline-flex w-fit rounded-[9px] bg-s2 p-0.5">
       {options.map((o) => (
         <button key={o.v} onClick={() => onChange(o.v)} className={`flex h-7 items-center rounded-[7px] font-semibold transition-colors ${compact ? 'px-2.5 text-[11px]' : 'px-3 text-[11.5px]'} ${value === o.v ? 'bg-s0 text-text shadow-soft' : 'text-dim hover:text-text'}`}>
           {o.l}

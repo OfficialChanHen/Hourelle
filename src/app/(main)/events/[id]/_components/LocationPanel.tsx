@@ -1,31 +1,35 @@
 'use client'
 
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus } from 'lucide-react'
+import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, SlidersHorizontal } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
-import { patchEvent, parseHM, fmtMinute, type AppEvent, type EventPlace, type Participant } from '@/lib/events'
-import { estimateModes, fastestMode, fmtDuration, MODE_LABEL, ALL_MODES, type TravelMode, type ModeEstimate } from '@/lib/travel'
+import { patchEvent, fmtMinute, bestWindow, availIvOf, gridStartMinOf, type AppEvent, type EventPlace, type Participant } from '@/lib/events'
+import { fmtDuration, MODE_LABEL, ALL_MODES, type TravelMode, type ModeEstimate } from '@/lib/travel'
+import { computeItinerary, slotFor as slotForOf } from '@/lib/itinerary'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { TimeSelect } from '@/components/ui/TimeSelect'
+import { Popover } from '@/components/ui/Popover'
 
-// ~0.6 km per map-percent — puts a metro-area offsite in walk/drive/transit range
-const KM_PER_PCT = 0.6
 const MODE_ICON: Record<TravelMode, typeof Car> = { walk: Footprints, bus: Bus, drive: Car, train: TrainFront, flight: Plane }
 
 const YOU = 'JM'
 // a stop references a place but has its own id (so a venue can repeat) and a dwell time
 type ItinStop = { uid: string; placeId: string; dwell: number }
-const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
-// deterministic pin spots on the fake map, by place index (stable regardless of ranking)
-const PIN_SLOTS = [
-  { left: '27%', top: '60%' }, { left: '55%', top: '38%' }, { left: '70%', top: '72%' },
-  { left: '38%', top: '22%' }, { left: '16%', top: '34%' }, { left: '82%', top: '28%' },
-  { left: '48%', top: '80%' }, { left: '64%', top: '14%' },
-]
 
 export function LocationPanel({ event }: { event: AppEvent }) {
   const loc = event.location
+  // the itinerary lives inside the event: it can't start before people are actually free,
+  // and it shouldn't run longer than the time the owner set aside for the event.
+  const eventDuration = event.durationMin ?? 60
+  const gridStart = gridStartMinOf(event)
+  const bw = bestWindow(availIvOf(event), event.days, eventDuration)
+  const winStart = bw ? gridStart + bw.s : null           // best free window, clock minutes
+  const winEnd = bw ? gridStart + bw.e : null
+  // start is bounded to the free window, leaving room for at least the planned duration
+  const minStart = winStart ?? 6 * 60
+  const maxStart = winEnd != null ? Math.max(minStart, winEnd - eventDuration) : 22 * 60
   // places are editable on this tab (host, or guests once the host allows it)
   const [places, setPlaces] = useState<EventPlace[]>(loc.places)
   const [guestsCanSuggest, setGuestsCanSuggest] = useState(!!loc.guestsCanSuggest)
@@ -38,13 +42,15 @@ export function LocationPanel({ event }: { event: AppEvent }) {
 
   const [votes, setVotes] = useState<Record<string, string[]>>(() => event.votes ?? {})
   const [maxVotes, setMaxVotes] = useState(event.maxVotes ?? 1)
+  // custom mode: host sets an arbitrary votes-per-person beyond the 1/2/3 presets
+  const [customVotes, setCustomVotes] = useState(() => (event.maxVotes ?? 1) > 3)
   const stopUid = useRef(0)
   const [stops, setStops] = useState<ItinStop[]>(() => {
     const ids = (event.itinStops ?? []).filter((id) => loc.places.some((p) => p.id === id))
     const dwell = event.itinDwell ?? []
     return ids.map((placeId, i) => ({ uid: `s${stopUid.current++}`, placeId, dwell: dwell[i] ?? 60 }))
   })
-  const [itinStartMin, setItinStartMin] = useState(event.itinStartMin ?? 9 * 60)
+  const [itinStartMin, setItinStartMin] = useState(event.itinStartMin ?? minStart)
   const [travelModes, setTravelModes] = useState<TravelMode[]>(() => (event.travelModes as TravelMode[] | undefined)?.filter((m) => ALL_MODES.includes(m)) ?? [...ALL_MODES])
   const [builtRank, setBuiltRank] = useState<string[]>(() => event.itinRank ?? [])
   const [sub, setSub] = useState<'vote' | 'itin'>(loc.planMode === 'itinerary' ? 'itin' : 'vote')
@@ -98,13 +104,15 @@ export function LocationPanel({ event }: { event: AppEvent }) {
       return next
     })
   }
-  function changeMaxVotes(n: number) { setMaxVotes(n); persist({ maxVotes: n }) }
+  // can't hand out more votes than there are places to vote on
+  const voteCap = Math.max(1, places.length)
+  function changeMaxVotes(n: number) { const v = Math.min(voteCap, Math.max(1, n)); setMaxVotes(v); persist({ maxVotes: v }) }
   function toggleMode(m: TravelMode) {
     const next = travelModes.includes(m) ? travelModes.filter((x) => x !== m) : [...travelModes, m]
     if (!next.length) return // keep at least one mode enabled
     setTravelModes(next); persist({ travelModes: next })
   }
-  function changeStart(min: number) { setItinStartMin(min); persist({ itinStartMin: min }) }
+  function changeStart(min: number) { const v = Math.min(maxStart, Math.max(minStart, min)); setItinStartMin(v); persist({ itinStartMin: v }) }
   function changeDwell(i: number, d: number) { persistStops(stops.map((s, k) => (k === i ? { ...s, dwell: Math.max(15, d) } : s))) }
   // owner removes a candidate — confirm first if it already has votes (they'd be lost)
   function attemptRemovePlace(placeId: string) {
@@ -199,32 +207,13 @@ export function LocationPanel({ event }: { event: AppEvent }) {
   const rankChanged = stops.length > 0 && builtRank.length > 0 && JSON.stringify(builtRank) !== JSON.stringify(rankIds)
 
   const placeAt = (id: string) => places.find((p) => p.id === id)
-  const slotFor = (id: string) => PIN_SLOTS[Math.max(0, places.findIndex((p) => p.id === id)) % PIN_SLOTS.length]
-  const legKm = (a: string, b: string) => {
-    const pa = slotFor(a), pb = slotFor(b)
-    return Math.hypot(parseFloat(pa.left) - parseFloat(pb.left), parseFloat(pa.top) - parseFloat(pb.top)) * KM_PER_PCT
-  }
-  // per-leg mode estimates (limited to allowed modes) + the fastest pick; fast is null if no
-  // allowed mode can make the leg
-  const legs = stops.slice(0, -1).map((s, i) => {
-    const est = estimateModes(legKm(s.placeId, stops[i + 1].placeId), travelModes)
-    return { est, fast: fastestMode(est) }
-  })
-  const routeMinutes = legs.reduce((s, l) => s + (l.fast?.minutes ?? 0), 0)
-  const modesUsed = [...new Set(legs.map((l) => l.fast?.mode).filter(Boolean))] as TravelMode[]
-  const anyUnreachable = legs.some((l) => !l.fast)
-  // arrive/depart clock times per stop, flowing dwell + travel through the day
-  const schedule = (() => {
-    const out: { arrive: number; depart: number }[] = []
-    let t = itinStartMin
-    for (let i = 0; i < stops.length; i++) {
-      const arrive = t, depart = arrive + stops[i].dwell
-      out.push({ arrive, depart })
-      t = depart + (i < legs.length ? (legs[i].fast?.minutes ?? 0) : 0)
-    }
-    return out
-  })()
-  const endMin = schedule.length ? schedule[schedule.length - 1].depart : itinStartMin
+  const slotFor = (id: string) => slotForOf(places, id)
+  // schedule + per-leg travel, shared with the Attendance tab so both clocks agree
+  const { schedule, legs, routeMinutes, modesUsed, anyUnreachable, endMin } = computeItinerary(places, stops, itinStartMin, travelModes)
+  // how long the built itinerary actually runs vs. the time set aside for the event
+  const itinDuration = endMin - itinStartMin
+  const overDuration = stops.length > 0 && itinDuration > eventDuration
+  const overWindow = winEnd != null && stops.length > 0 && endMin > winEnd
   const blurred = loc.mode !== 'vote' || places.length === 0
   const focusPlace = focusPin ? placeAt(focusPin) : (leadingId ? placeAt(leadingId) : null)
 
@@ -247,7 +236,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
       {/* map */}
       <div className="relative flex min-w-0 flex-1">
         <div
-          className="relative min-h-[320px] flex-1 overflow-hidden rounded-[13px] border border-border transition-[filter] duration-300 lg:min-h-[452px]"
+          className="relative min-h-[320px] flex-1 overflow-hidden rounded-[13px] border border-border transition-[filter] duration-300 lg:min-h-[580px]"
           style={{
             filter: blurred ? 'blur(4px) saturate(.85)' : 'none',
             background: 'repeating-linear-gradient(0deg,transparent 0 43px,rgba(120,118,104,.13) 43px 45px),repeating-linear-gradient(90deg,transparent 0 52px,rgba(120,118,104,.13) 52px 54px),#E7E6DF',
@@ -345,7 +334,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
 
       {/* side panel — only for in-person events */}
       {loc.mode === 'vote' && (
-        <div className="flex w-full flex-none flex-col lg:h-[452px] lg:w-[330px]">
+        <div className="flex w-full flex-none flex-col lg:h-[580px] lg:w-[330px]">
           <div className="mb-3 flex flex-none items-center gap-2">
             <SegmentedControl
               size="sm"
@@ -360,6 +349,53 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                 <Plus size={14} /> Add stop
               </button>
             )}
+            {sub === 'vote' && event.hostedByYou && places.length > 0 && (
+              <Popover
+                align="end"
+                width={236}
+                trigger={(open) => (
+                  <span className={`flex h-8 flex-none items-center gap-1 rounded-[9px] border px-2.5 text-[11.5px] font-semibold ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`} aria-label="Voting settings">
+                    <SlidersHorizontal size={13} />
+                  </span>
+                )}
+              >
+                {() => (
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[.12em] text-faint">Votes per person</div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <SegmentedControl
+                          size="sm"
+                          value={customVotes ? 'custom' : String(maxVotes)}
+                          onChange={(v) => {
+                            if (v === 'custom') { setCustomVotes(true); changeMaxVotes(Math.max(4, maxVotes)) }
+                            else { setCustomVotes(false); changeMaxVotes(Number(v)) }
+                          }}
+                          options={[{ v: '1', l: '1' }, { v: '2', l: '2' }, { v: '3', l: '3' }, { v: 'custom', l: 'Custom' }]}
+                        />
+                        {customVotes && (
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => changeMaxVotes(maxVotes - 1)} disabled={maxVotes <= 1} className="grid h-7 w-7 place-items-center rounded-[7px] border border-border2 bg-s1 enabled:hover:bg-s2 disabled:opacity-30" aria-label="Fewer votes"><Minus size={12} /></button>
+                            <input
+                              type="number" min={1} max={voteCap} value={maxVotes}
+                              onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) changeMaxVotes(n) }}
+                              className="h-7 w-11 rounded-[7px] border border-border bg-s1 px-1.5 text-center text-[12px] font-semibold text-text tabular-nums outline-none focus:border-accent-border"
+                              aria-label="Votes per person"
+                            />
+                            <button onClick={() => changeMaxVotes(maxVotes + 1)} disabled={maxVotes >= voteCap} className="grid h-7 w-7 place-items-center rounded-[7px] border border-border2 bg-s1 enabled:hover:bg-s2 disabled:opacity-30" aria-label="More votes"><Plus size={12} /></button>
+                            <span className="text-[10.5px] text-faint">of {voteCap}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <label className="flex cursor-pointer items-center gap-2 border-t border-border pt-2.5 text-[11.5px]">
+                      <input type="checkbox" checked={guestsCanSuggest} onChange={toggleGuestsCanSuggest} className="h-3.5 w-3.5" style={{ accentColor: 'var(--accent)' }} />
+                      Guests can add places
+                    </label>
+                  </div>
+                )}
+              </Popover>
+            )}
           </div>
 
           {sub === 'vote' && (
@@ -367,14 +403,12 @@ export function LocationPanel({ event }: { event: AppEvent }) {
               {canAddPlaces && <AddPlaceSearch onAdd={addPlace} taken={new Set(places.map((p) => p.id))} />}
               {places.length === 0 ? (
                 <EmptyNote icon={Vote} text={canAddPlaces ? 'No places on the ballot yet. Search above to add the first one.' : 'No places to vote on yet. The host can add some, or allow guests to.'} />
-              ) : (
+              ) : maxVotes > 1 ? (
                 <div className="flex items-center gap-1.5 px-0.5 text-[11px] text-dim">
                   <Vote size={13} className="text-accent-text" />
-                  {maxVotes === 1
-                    ? 'Pick your top choice — voting another moves it.'
-                    : <>You have {maxVotes} votes · <span className={`font-semibold ${votesLeft ? 'text-accent-text' : 'text-brick-text'}`}>{votesLeft} left</span></>}
+                  {maxVotes} votes · <span className={`font-semibold ${votesLeft ? 'text-accent-text' : 'text-brick-text'}`}>{votesLeft} left</span>
                 </div>
-              )}
+              ) : null}
               <div ref={voteFlip.scope} className="scroll-slim flex max-h-[55vh] min-h-0 flex-1 flex-col gap-2 overflow-auto py-0.5 pr-0.5 lg:max-h-none">
                 {ranked.map((p, i) => {
                   const ids = votesOf(p.id)
@@ -422,18 +456,6 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                   )
                 })}
               </div>
-              {event.hostedByYou && places.length > 0 && (
-                <div className="mt-1 flex flex-none flex-col gap-2 border-t border-border pt-2">
-                  <label className="flex cursor-pointer items-center gap-2 px-0.5 text-[11px] text-dim">
-                    <input type="checkbox" checked={guestsCanSuggest} onChange={toggleGuestsCanSuggest} className="h-3.5 w-3.5" style={{ accentColor: 'var(--accent)' }} />
-                    Guests can add places to the ballot
-                  </label>
-                  <div className="flex items-center gap-2 px-0.5 text-[11px] text-dim">
-                    Votes per person
-                    <SegmentedControl size="sm" value={String(maxVotes)} onChange={(v) => changeMaxVotes(Number(v))} options={[{ v: '1', l: '1' }, { v: '2', l: '2' }, { v: '3', l: '3' }]} />
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -452,13 +474,13 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                 </div>
               )}
               {adding && (
-                <div className="rounded-xl border border-border bg-s0 p-2.5">
-                  <div className="mb-1.5 flex items-center justify-between">
+                <div className="flex max-h-[184px] flex-none flex-col rounded-xl border border-border bg-s0 p-2.5">
+                  <div className="mb-1.5 flex flex-none items-center justify-between">
                     <span className="text-[10.5px] font-semibold uppercase tracking-[.1em] text-faint">Add a stop</span>
                     <button onClick={() => setAdding(false)} className="text-faint hover:text-text" aria-label="Done adding"><X size={13} /></button>
                   </div>
                   {places.length > 0 && (
-                    <div className="mb-2 flex flex-col gap-1">
+                    <div className="scroll-slim mb-2 flex min-h-0 flex-1 flex-col gap-1 overflow-auto pr-0.5">
                       {places.map((p) => {
                         const count = stops.filter((s) => s.placeId === p.id).length
                         return (
@@ -501,11 +523,11 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                 <>
                   {/* schedule + how-you-get-around controls */}
                   <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-s0 p-2.5">
-                    <label className="flex items-center gap-1.5 text-[11px] font-medium text-dim">
+                    <span className="flex items-center gap-1.5 text-[11px] font-medium text-dim">
                       <Clock size={12} /> Starts
-                      <input type="time" value={hhmm(itinStartMin)} onChange={(e) => { const m = parseHM(e.target.value); if (m != null) changeStart(m) }} className="rounded-[7px] border border-border bg-s1 px-1.5 py-0.5 text-[11px]" />
-                    </label>
-                    <span className="text-[11px] text-dim">Ends ~{fmtMinute(endMin)}</span>
+                      <TimeSelect value={itinStartMin} onChange={changeStart} min={minStart} max={maxStart} title="When the itinerary begins — within the best free window" />
+                    </span>
+                    <span className="text-[11px] text-dim">Ends ~{fmtMinute(endMin)} · <span className={overDuration ? 'font-semibold text-ochre-text' : ''}>{fmtDuration(itinDuration)}</span></span>
                     <div className="flex flex-wrap items-center gap-1">
                       <span className="text-[10.5px] text-faint">Getting around:</span>
                       {ALL_MODES.map((m) => { const on = travelModes.includes(m); const Icon = MODE_ICON[m]; return (
@@ -514,6 +536,21 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                         </button>
                       ) })}
                     </div>
+                    {bw ? (
+                      <div className="flex w-full items-center gap-1.5 border-t border-border pt-1.5 text-[10.5px] text-faint">
+                        <span>Best free window {fmtMinute(winStart!)}–{fmtMinute(winEnd!)} · {bw.count} of {event.participants.length} free</span>
+                      </div>
+                    ) : null}
+                    {(overDuration || overWindow) && (
+                      <div className="flex w-full items-start gap-1.5 text-[10.5px] leading-[1.4] text-ochre-text">
+                        <TriangleAlert size={11} className="mt-px flex-none" />
+                        <span>
+                          {overDuration
+                            ? `This runs ${fmtDuration(itinDuration)}, longer than the ${fmtDuration(eventDuration)} set aside for the event. Trim a stop or shorten time at a venue.`
+                            : `This runs past the best free window (ends ~${fmtMinute(endMin)}, window closes ${fmtMinute(winEnd!)}).`}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div ref={setStopsScope} className="scroll-slim flex max-h-[50vh] min-h-0 flex-1 flex-col gap-2 overflow-auto py-0.5 pr-0.5 lg:max-h-none">

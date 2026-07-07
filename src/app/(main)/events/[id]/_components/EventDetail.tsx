@@ -14,6 +14,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { getEvent, deleteEvent, bestWindow, availIvOf, fmtMinute, gridStartMinOf, daysUntil, dateRangeText, type AppEvent, type Rsvp } from '@/lib/events'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
+import { AttendancePanel } from './AttendancePanel'
 
 const TABS = [
   { key: 'availability', label: 'Availability', icon: CalendarRange },
@@ -160,7 +161,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       {/* body */}
       {tab === 'availability' && <AvailabilityPanel event={event} />}
       {tab === 'location' && <LocationPanel event={event} />}
-      {tab === 'attendance' && <Placeholder title="Attendance" body="Once people RSVP and mark availability, a headcount breakdown shows up here." />}
+      {tab === 'attendance' && <AttendancePanel event={event} />}
       {tab === 'details' && <DetailsTab event={event} shareLink={shareLink} onCopy={copy} copied={copied} onDelete={handleDelete} />}
     </div>
   )
@@ -280,13 +281,3 @@ function DetailRow({ k, v, last }: { k: string; v: React.ReactNode; last?: boole
   )
 }
 
-function Placeholder({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="grid min-h-[300px] place-items-center rounded-2xl border border-dashed border-border2 bg-s1 px-6 text-center">
-      <div>
-        <p className="font-serif text-[26px] tracking-[-0.01em]">{title}</p>
-        <p className="mx-auto mt-2 max-w-sm text-[12.5px] text-dim">{body}</p>
-      </div>
-    </div>
-  )
-}
