@@ -47,10 +47,10 @@ export function Header() {
 
         <Link
           href="/create"
-          className="flex h-[34px] items-center gap-[7px] rounded-[9px] bg-accent px-[14px] text-[12.5px] font-semibold text-on-accent"
+          className="flex h-[34px] items-center gap-[7px] rounded-[9px] bg-accent px-[11px] text-[12.5px] font-semibold text-on-accent sm:px-[14px]"
         >
           <Plus size={15} />
-          New event
+          <span className="hidden sm:inline">New event</span>
         </Link>
 
         <div className="flex items-center gap-2">
@@ -67,6 +67,24 @@ export function Header() {
           </button>
         </div>
       </div>
+
+      {/* mobile nav — second row until the bottom tab bar exists, so pages stay reachable */}
+      <nav className="flex items-center justify-center gap-1 border-t border-border px-3 py-1.5 text-[12.5px] md:hidden">
+        {TABS.map((t) => {
+          const active = pathname === t.href || pathname.startsWith(t.href + '/')
+          return (
+            <Link
+              key={t.href}
+              href={t.href}
+              className={`rounded-[9px] px-[13px] py-[7px] transition-colors ${
+                active ? 'bg-accent font-medium text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'
+              }`}
+            >
+              {t.label}
+            </Link>
+          )
+        })}
+      </nav>
     </header>
   )
 }

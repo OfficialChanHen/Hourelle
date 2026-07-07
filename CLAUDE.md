@@ -517,6 +517,24 @@ Avatar piles overlap with a `2px solid --s1` ring and cap at 6–7 with a `+N` c
 **Section headers:** `flex items-center justify-between` with an **eyebrow** label (`text-[11px] font-semibold tracking-[.13em] uppercase text-[--faint]`) on the left; generous `mb-4` before content.
 **Open stat strip (event header):** stats are **borderless** — eyebrow label → big **Instrument Serif** value → muted caption — in a row separated by whitespace (`gap-8`) with a hairline divider beneath. No per-stat boxes.
 
+### Scalability — design for dozens to hundreds
+Assume the busy case, not the demo case: an event can have dozens to hundreds of participants and many places/stops. Every feature must stay correct and responsive at that scale.
+- **Bounded render work:** never make per-frame cost scale with `cells × people`. Compute per-entity aggregates once per render (hoist/`useMemo`), not once per cell. The availability grid builds each day's combined intervals once, then reads them per cell.
+- **Bounded DOM:** cap what a single container draws — avatar piles collapse to `+N` (≤6–7 shown), long lists paginate/virtualize, wide grids page (the week pager) rather than rendering 21 days × 96 rows at once.
+- **No O(people × stops) matrices** — use the exceptions-list / single-venue roster (see Attendance) and O(1) per-venue cards.
+- **Summarize, don't enumerate:** headcounts, heat bands, "+N", and roster groupings scale; a row-per-person does not. List length should track exceptions or groups, not raw headcount.
+- **Data shape scales too:** prefer interval/aggregate math over per-slot-per-person scans; query overlaps in the DB (`GROUP BY`), not by loading every row into the client.
+- Sanity-check interactions (drag, vote, filter) with ~100 participants and ~20 places in mind — if a handler is O(n²) per event, fix the shape before shipping.
+
+### Responsive design — required on every screen
+The app must be fully usable from a ~360px phone to a large desktop. This is a hard requirement on every new component, not a later polish pass.
+- Build mobile-first with Tailwind breakpoints (`sm` 640 / `md` 768 / `lg` 1024); no fixed pixel widths on layout containers — use `flex-wrap`, `minmax()`, `max-w-*`, and `min-w-0` on flex children
+- Side-by-side panels (availability grid + chat, map + voting panel) stack vertically below `lg`; the side panel becomes a full-width block with its own bounded height
+- Wide content (grids, tables) scrolls horizontally inside its own `overflow-x-auto` container — the page body never scrolls sideways
+- Toolbars and filter rows `flex-wrap` instead of overflowing; sticky headers stay compact on mobile
+- Mobile end state is the bottom tab bar from `Gatherly Mobile.dc.html`; until it exists, primary nav must still be reachable on small screens
+- Hit targets ≥ 44px and min font 12px on mobile; sanity-check layouts at 360, 412, 768, 1024, and 1280px
+
 ---
 
 ## What to avoid
@@ -528,6 +546,7 @@ Avatar piles overlap with a `2px solid --s1` ring and cap at 6–7 with a `+N` c
 - **Never** set headlines in the body grotesk — display type is **Instrument Serif**; never use Geist/Inter
 - **Never** hardcode hex in components — read the theme CSS variables so light + dark both work
 - **Never** render an O(people × stops) attendance matrix — use the exceptions list / single-venue roster
+- **Never** let per-render work scale with `cells × people` or draw an unbounded avatar pile / list — hoist aggregates, cap with `+N`, page or virtualize (see Scalability)
 - **Never** use decorative gradients, glows, emoji, or left-accent-border cards — keep it restrained and editorial
 - **Never** put "Create event" as a nav tab — it is a button (desktop) / center FAB (mobile)
 - **Never** use CSS `transition` for complex animations — use GSAP

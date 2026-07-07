@@ -31,18 +31,23 @@ export type AppEvent = {
   endDate: string
   granularity: '15' | '30' | '60'
   budget: string
+  budgetMode?: 'total' | 'person'
   location: {
     mode: 'vote' | 'remote' | 'later'
     planMode: 'vote' | 'itinerary'
     places: EventPlace[]
     platform: string
     meetingLink: string
+    guestsCanSuggest?: boolean // host-granted: lets non-hosts add places to the ballot
   }
   participants: Participant[]
   days: GridDay[]
   times: string[]
   avail: Record<string, string[][]>   // per-cell view, derived from availIv — kept for lists/stats
   availIv?: AvailIntervals            // source of truth once anyone edits with minute precision
+  votes?: Record<string, string[]>    // placeId → participant ids who voted for it
+  itinStops?: string[]                // ordered place ids once an itinerary exists
+  itinRank?: string[]                 // vote ranking snapshot when the itinerary was built from votes
   messages: ChatMessage[]
   createdAt: number
   demo?: boolean
@@ -61,6 +66,7 @@ export type CreateInput = {
   budget: string
   windowStart?: string // 'HH:MM' — optional daily time window; empty = the whole day
   windowEnd?: string
+  budgetMode?: 'total' | 'person'
   locMode: 'vote' | 'remote' | 'later'
   planMode: 'vote' | 'itinerary'
   picked: { id: string; name: string; place: string }[]
@@ -90,7 +96,10 @@ function writeAll(list: AppEvent[]) {
 }
 
 export function listEvents(): AppEvent[] {
-  return readAll().sort((a, b) => b.createdAt - a.createdAt)
+  // include the built-in demo (createdAt 0 sorts it last) so new users have something to explore
+  const stored = readAll()
+  const all = stored.some((e) => e.id === DEMO.id) ? stored : [...stored, DEMO]
+  return all.sort((a, b) => b.createdAt - a.createdAt)
 }
 export function getEvent(id: string): AppEvent | null {
   const found = readAll().find((e) => e.id === id)
@@ -317,23 +326,28 @@ export function createEvent(input: CreateInput): AppEvent {
     hostName,
     hostedByYou,
     description: input.description.trim(),
-    timezone: input.timezone,
+    timezone: input.timezone || 'UTC', // wizard validation requires one; fallback for safety
     startDate: input.startDate,
     endDate: input.endDate,
     granularity: (input.granularity === '15' || input.granularity === '60' ? input.granularity : '30'),
     budget: input.budget,
+    budgetMode: input.budgetMode ?? 'total',
     location: {
       mode: input.locMode,
       planMode: input.planMode,
       places: input.picked.map((p) => ({ id: p.id, name: p.name, place: p.place })),
       platform: input.platform,
       meetingLink: input.meetingLink,
+      guestsCanSuggest: false,
     },
     participants,
     days,
     times,
     avail,
     availIv: Object.fromEntries(days.map((d) => [d.key, {}])),
+    votes: {},
+    itinStops: [],
+    itinRank: [],
     messages: [],
     createdAt: Date.now(),
   }
@@ -348,8 +362,8 @@ export function createEvent(input: CreateInput): AppEvent {
 const DEMO: AppEvent = {
   id: 'q3-offsite',
   title: 'Q3 Team Offsite Planning',
-  hostName: 'Acme Engineering Org',
-  hostedByYou: false,
+  hostName: 'Jordan Miller',
+  hostedByYou: true,
   description: 'Two days of strategy, workshops, and a team dinner to align on Q3 goals. Travel is reimbursed for out-of-town folks.',
   timezone: 'America/Los_Angeles',
   startDate: '2026-06-30',
@@ -366,6 +380,12 @@ const DEMO: AppEvent = {
     ],
     platform: 'Google Meet',
     meetingLink: '',
+    guestsCanSuggest: true, // the demo host opened suggestions up
+  },
+  votes: {
+    cavallo: ['SR', 'KL', 'PR', 'MN', 'CL'],
+    terrapin: ['AT', 'JM'],
+    presidio: ['DW'],
   },
   participants: demoIds.map((id) => ({
     id,
@@ -374,6 +394,7 @@ const DEMO: AppEvent = {
     color: av(id).color,
     rsvp: (demoNotGoing.includes(id) ? 'not_going' : 'attending') as Rsvp,
     you: id === 'JM',
+    host: id === 'JM',
   })),
   days: demoDays.map((d) => ({ key: d.key, dow: d.dow, date: d.date, best: d.best })),
   times: [...demoTimes],

@@ -13,6 +13,8 @@ import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
 import { av } from '@/lib/people'
 import { createEvent, parseHM, fmtMinute, type AppEvent } from '@/lib/events'
+import { useFlipReorder } from '@/hooks/useFlipReorder'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
 
 const STEPS = ['Basics', 'Location', 'Invite', 'Review'] as const
 const USER_NAME = 'Jordan Miller'
@@ -65,6 +67,7 @@ type Form = {
   windowEnd: string
   timezone: string
   budget: string
+  budgetMode: 'total' | 'person'
   locMode: LocMode
   planMode: PlanMode
   picked: Stop[]
@@ -77,13 +80,13 @@ type Form = {
 const initialForm: Form = {
   title: '', hostMode: 'you', orgName: '', description: '',
   startDate: '', endDate: '', granularity: '30', windowPreset: 'any', windowStart: '', windowEnd: '',
-  timezone: 'America/Los_Angeles', budget: '',
+  timezone: '', budget: '', budgetMode: 'total', // timezone deliberately unset: picking it is a required, conscious step
   locMode: 'vote', planMode: 'vote', picked: [], platform: 'Google Meet', meetingLink: '',
   emails: [], accounts: [],
 }
 
 type Update = (patch: Partial<Form> | ((f: Form) => Partial<Form>)) => void
-type BasicsErrs = { title: string; org: string; start: string; end: string; win: string }
+type BasicsErrs = { title: string; org: string; start: string; end: string; win: string; tz: string }
 
 export default function CreatePage() {
   const router = useRouter()
@@ -123,10 +126,11 @@ export default function CreatePage() {
         : form.windowPreset === 'custom' && (parseHM(form.windowEnd) ?? 0) <= (parseHM(form.windowStart) ?? 0)
           ? 'The window has to end after it starts.'
           : '',
+    tz: form.timezone ? '' : 'Pick the time zone this event runs in.',
   }
   const placesError = form.locMode === 'vote' && form.picked.length === 0 ? 'Add at least one place, or switch to “Decide later”.' : ''
   function stepValid(s: number) {
-    if (s === 0) return !basicsErr.title && !basicsErr.org && !basicsErr.start && !basicsErr.end && !basicsErr.win
+    if (s === 0) return !basicsErr.title && !basicsErr.org && !basicsErr.start && !basicsErr.end && !basicsErr.win && !basicsErr.tz
     if (s === 1) return !placesError
     return true
   }
@@ -237,19 +241,13 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
       <div className="flex flex-wrap gap-3.5">
         <div className="min-w-[200px] flex-1">
           <Label>Hosted by <Req /></Label>
-          <div className="flex rounded-[10px] border border-border bg-s2 p-[3px]">
-            {(['you', 'org'] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => update({ hostMode: m })}
-                className="flex h-8 flex-1 items-center justify-center rounded-[7px] text-[12px] font-semibold transition-colors"
-                style={form.hostMode === m ? { background: 'var(--s0)', color: 'var(--text)' } : { color: 'var(--dim)' }}
-              >
-                {m === 'you' ? 'You' : 'Organization'}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            stretch
+            className="w-full"
+            value={form.hostMode}
+            onChange={(v) => update({ hostMode: v as 'you' | 'org' })}
+            options={[{ v: 'you', l: 'You' }, { v: 'org', l: 'Organization' }]}
+          />
         </div>
         <div className="min-w-[200px] flex-1">
           <Label>{form.hostMode === 'you' ? 'Host' : <>Organization name <Req /></>}</Label>
@@ -315,20 +313,31 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
 
       <div className="flex flex-wrap gap-3.5">
         <div className="min-w-[200px] flex-1">
-          <Label>Time zone</Label>
+          <Label>Time zone <Req /></Label>
           <div className="relative">
-            <select value={form.timezone} onChange={(e) => update({ timezone: e.target.value })} className={`${inputCls(false)} cursor-pointer appearance-none pr-9`}>
+            <select
+              value={form.timezone}
+              onChange={(e) => update({ timezone: e.target.value })}
+              className={`${inputCls(show(errs.tz))} cursor-pointer appearance-none pr-9`}
+              style={form.timezone ? undefined : { color: 'var(--faint)' }}
+            >
+              <option value="" disabled>Choose a time zone…</option>
               {TZ.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
             </select>
             <ChevronDown size={15} className="pointer-events-none absolute right-[13px] top-1/2 -translate-y-1/2 text-dim" />
           </div>
+          {show(errs.tz)
+            ? <FieldError>{errs.tz}</FieldError>
+            : <p className="mt-1.5 text-[11px] leading-[1.5] text-faint">Every time on this event uses this zone. Double-check it if people join from elsewhere.</p>}
         </div>
         <div className="min-w-[200px] flex-1">
           <Label>Budget (optional)</Label>
-          <div className="relative">
-            <span className="pointer-events-none absolute left-[13px] top-1/2 -translate-y-1/2 text-dim">$</span>
-            <input inputMode="numeric" placeholder="0" value={form.budget} onChange={(e) => update({ budget: e.target.value.replace(/[^\d]/g, '') })} className={`${inputCls(false)} pl-7`} />
-            <span className="pointer-events-none absolute right-[13px] top-1/2 -translate-y-1/2 text-[11px] text-faint">total</span>
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <span className="pointer-events-none absolute left-[13px] top-1/2 -translate-y-1/2 text-dim">$</span>
+              <input inputMode="numeric" placeholder="0" value={form.budget} onChange={(e) => update({ budget: e.target.value.replace(/[^\d]/g, '') })} className={`${inputCls(false)} pl-7`} />
+            </div>
+            <Segmented value={form.budgetMode} onChange={(v) => update({ budgetMode: v as 'total' | 'person' })} options={[{ v: 'total', l: 'Total' }, { v: 'person', l: 'Per person' }]} />
           </div>
         </div>
       </div>
@@ -347,6 +356,7 @@ function StepLocation({ form, update, stopUid, attempted, placesError }: { form:
   const [results, setResults] = useState<Loc[]>([])
   const [searching, setSearching] = useState(false)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const pickFlip = useFlipReorder(form.picked.map((p) => p.uid).join('|'))
 
   const term = query.trim()
   const timesInRoute = (id: string) => form.picked.filter((p) => p.id === id).length
@@ -372,14 +382,16 @@ function StepLocation({ form, update, stopUid, attempted, placesError }: { form:
     return () => { ctrl.abort(); clearTimeout(t) }
   }, [term])
 
-  function add(l: Loc) { update((f) => ({ picked: [...f.picked, { ...l, uid: `s${stopUid.current++}` }] })); setQuery('') }
+  function add(l: Loc) { pickFlip.capture(); update((f) => ({ picked: [...f.picked, { ...l, uid: `s${stopUid.current++}` }] })); setQuery('') }
   function addCustom() { const name = term; if (name) add({ id: `custom:${name.toLowerCase()}`, name, place: 'Custom place' }) }
-  function remove(uid: string) { update((f) => ({ picked: f.picked.filter((x) => x.uid !== uid) })) }
+  function remove(uid: string) { pickFlip.capture(); update((f) => ({ picked: f.picked.filter((x) => x.uid !== uid) })) }
   function move(i: number, dir: -1 | 1) {
+    pickFlip.capture()
     update((f) => { const j = i + dir; if (j < 0 || j >= f.picked.length) return {}; const a = [...f.picked]; ;[a[i], a[j]] = [a[j], a[i]]; return { picked: a } })
   }
   function onDragEnterRow(i: number) {
     if (dragIndex === null || dragIndex === i) return
+    pickFlip.capture()
     update((f) => { const a = [...f.picked]; const [m] = a.splice(dragIndex, 1); a.splice(i, 0, m); return { picked: a } })
     setDragIndex(i)
   }
@@ -388,34 +400,26 @@ function StepLocation({ form, update, stopUid, attempted, placesError }: { form:
     <div className="flex flex-col gap-4">
       <div>
         <Label>Where will you meet?</Label>
-        <div className="flex rounded-[10px] border border-border bg-s2 p-[3px]">
-          {modes.map((m) => {
-            const on = form.locMode === m.v
-            const Icon = m.icon
-            return (
-              <button key={m.v} type="button" onClick={() => update({ locMode: m.v })} className="flex h-[34px] flex-1 items-center justify-center gap-1.5 rounded-[7px] text-[11.5px] font-semibold" style={on ? { background: 'var(--s0)', color: 'var(--text)' } : { color: 'var(--dim)' }}>
-                <Icon size={14} /> {m.l}
-              </button>
-            )
-          })}
-        </div>
+        <SegmentedControl
+          stretch
+          className="w-full"
+          value={form.locMode}
+          onChange={(v) => update({ locMode: v as LocMode })}
+          options={modes.map((m) => ({ v: m.v, l: m.l, icon: m.icon }))}
+        />
       </div>
 
       {form.locMode === 'vote' && (
         <div className="flex flex-col gap-3">
           <div>
             <Label>How is the location decided?</Label>
-            <div className="flex rounded-[10px] border border-border bg-s2 p-[3px]">
-              {([{ v: 'vote', l: 'Guests vote', icon: Vote }, { v: 'itinerary', l: 'Plan a route', icon: Route }] as const).map((m) => {
-                const on = form.planMode === m.v
-                const Icon = m.icon
-                return (
-                  <button key={m.v} type="button" onClick={() => update({ planMode: m.v })} className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-[7px] text-[11.5px] font-semibold" style={on ? { background: 'var(--s0)', color: 'var(--text)' } : { color: 'var(--dim)' }}>
-                    <Icon size={13} /> {m.l}
-                  </button>
-                )
-              })}
-            </div>
+            <SegmentedControl
+              stretch
+              className="w-full"
+              value={form.planMode}
+              onChange={(v) => update({ planMode: v as PlanMode })}
+              options={[{ v: 'vote', l: 'Guests vote', icon: Vote }, { v: 'itinerary', l: 'Plan a route', icon: Route }]}
+            />
           </div>
 
           <p className="flex items-center gap-1.5 text-[11.5px] text-dim">
@@ -471,7 +475,7 @@ function StepLocation({ form, update, stopUid, attempted, placesError }: { form:
               </span>
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div ref={pickFlip.scope} className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10.5px] font-semibold uppercase tracking-[.1em] text-faint">{form.planMode === 'vote' ? `${form.picked.length} on the ballot` : `${form.picked.length} ${form.picked.length === 1 ? 'stop' : 'stops'}`}</span>
                 {form.planMode === 'itinerary' && <span className="flex items-center gap-1 text-[10.5px] text-faint"><GripVertical size={12} /> Drag the rows or use the arrows to reorder</span>}
@@ -481,6 +485,7 @@ function StepLocation({ form, update, stopUid, attempted, placesError }: { form:
                 return (
                   <div
                     key={l.uid}
+                    data-flip-id={l.uid}
                     draggable={itin}
                     onDragStart={itin ? () => setDragIndex(i) : undefined}
                     onDragEnter={itin ? () => onDragEnterRow(i) : undefined}
@@ -658,8 +663,8 @@ function StepReview({ form, goStep }: { form: Form; goStep: (n: number) => void 
         <Row k="Date window" v={dateText} />
         <Row k="Time window" v={winLabel} />
         <Row k="Time slots" v={granLabel} />
-        <Row k="Time zone" v={tzLabel(form.timezone)} />
-        <Row k="Budget" v={form.budget ? `$${form.budget} total` : <span className="text-faint">None</span>} />
+        <Row k="Time zone" v={form.timezone ? tzLabel(form.timezone) : <span className="text-brick-text">Not set — pick one in Basics</span>} />
+        <Row k="Budget" v={form.budget ? `$${form.budget} ${form.budgetMode === 'person' ? 'per person' : 'total'}` : <span className="text-faint">None</span>} />
       </ReviewCard>
 
       {/* Location */}
@@ -859,7 +864,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 function Segmented({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { v: string; l: string }[] }) {
   return (
-    <div className="flex rounded-[9px] border border-border bg-s1 p-0.5">
+    <div className="flex flex-wrap rounded-[9px] border border-border bg-s1 p-0.5">
       {options.map((o) => (
         <button key={o.v} type="button" onClick={() => onChange(o.v)} className="flex h-7 items-center rounded-[7px] px-3 text-[11.5px] font-semibold transition-colors" style={value === o.v ? { background: 'var(--accent)', color: 'var(--on-accent)' } : { color: 'var(--dim)' }}>
           {o.l}

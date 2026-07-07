@@ -1,33 +1,36 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, CalendarPlus, MessageCircle, X, Send, GripHorizontal, Check } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarPlus, MessageCircle, X, Send, GripHorizontal, Check, Eraser, TriangleAlert } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { TimezonePill } from '@/components/ui/TimezonePill'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import {
   patchEvent, availIvOf, intervalsToGrid, normalizeIv, bestWindow, fmtMinute, gridStartMinOf, stepOf,
   type AppEvent, type Participant, type ChatMessage, type Iv, type AvailIntervals,
 } from '@/lib/events'
+import { buildImportPreview, mockBusyUtc, ISO_DAY, type DayImport } from '@/lib/calendar-import'
 
 type Mode = 'view' | 'edit'
-type Gran = '15' | '30' | '60'
 type Edge = 'top' | 'bottom'
 type Sel = { day: string; s: number; e: number; edge: Edge }
 type Band = { s: number; e: number; ids: string[] } // constant-crowd segment inside one cell
 
 type Drag =
-  | { kind: 'paint'; day: string; anchorClientY: number; anchorMin: number; block: Iv | null }
+  | { kind: 'paint'; day: string; anchorClientY: number; anchorScrollTop: number; anchorMin: number; block: Iv | null }
   | {
       kind: 'resize'; day: string; edge: Edge; fixedMin: number
-      anchorClientY: number; anchorMin: number; origS: number; origE: number
+      anchorClientY: number; anchorScrollTop: number; anchorMin: number; origS: number; origE: number
       block: Iv | null; del: boolean
     }
 
 const CELL = 50 // px per grid row — must match the h-[50px] cell height below
 const MIN_LEN = 5 // smallest block, in minutes
+const AVATAR_CAP = 6 // most avatars drawn in one grid cell before collapsing to "+N"
+const OVERSCAN = 6 // rows rendered beyond the viewport each side, so scrolling doesn't flash blank
 
 function heat(n: number, total: number) {
   if (n === 0) return 'var(--s2)'
@@ -111,12 +114,17 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
   const responded = otherIds.size + (youAny ? 1 : 0)
 
   const [mode, setMode] = useState<Mode>(responded === 0 ? 'edit' : 'view')
-  const [gran, setGran] = useState<Gran>(event.granularity)
   const [h24, setH24] = useState(false)
   const [chatOpen, setChatOpen] = useState(true)
   const [sel, setSel] = useState<Sel | null>(null)
   const [drag, setDrag] = useState<Drag | null>(null)
   const [page, setPage] = useState(0)
+  // row virtualization: only the visible slice of time rows is mounted.
+  // starts at 0 to match the un-scrolled DOM; the mount effect jumps to ~8 AM
+  const [scrollTop, setScrollTop] = useState(0)
+  const [viewportH, setViewportH] = useState(460)
+  // provider picked → preview of what would be imported (null data = unavailable for this event)
+  const [importing, setImporting] = useState<{ provider: string; data: Record<string, DayImport> | null } | null>(null)
 
   const WEEK = 7
   const pageCount = Math.max(1, Math.ceil(event.days.length / WEEK))
@@ -129,14 +137,32 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
   const selRef = useRef(sel); useEffect(() => { selRef.current = sel }, [sel])
   const dragRef = useRef<Drag | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
+  const lastYRef = useRef(0) // latest pointer Y, for the auto-scroll loop
+  const rafRef = useRef(0)
+  const scrollRaf = useRef(0)
 
-  // all-day grids open scrolled to ~8 AM — the whole day stays reachable, mornings-first
+  // all-day grids open scrolled to ~8 AM — the whole day stays reachable, mornings-first.
+  // Also track the viewport height so virtualization knows how many rows to draw.
   useEffect(() => {
     const el = scroller.current
     if (!el) return
     const target = (8 * 60 - gridStartMin) * pxPerMin
-    if (target > 0) el.scrollTop = target
+    if (target > 0) { el.scrollTop = target; setScrollTop(target) }
+    setViewportH(el.clientHeight)
+    const ro = new ResizeObserver(() => setViewportH(el.clientHeight))
+    ro.observe(el)
+    return () => ro.disconnect()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // scroll → recompute the visible row window (rAF-throttled; also fires during drag auto-scroll)
+  function onGridScroll() {
+    if (scrollRaf.current) return
+    scrollRaf.current = requestAnimationFrame(() => {
+      scrollRaf.current = 0
+      if (scroller.current) setScrollTop(scroller.current.scrollTop)
+    })
+  }
+  useEffect(() => () => { if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current) }, [])
 
   function persist(m: Record<string, Iv[]>) {
     if (event.demo) return
@@ -166,8 +192,6 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
   }
 
   // ── coordinate + snapping helpers ──
-  const clientYToMin = (anchorMin: number, anchorClientY: number, clientY: number) =>
-    Math.max(0, Math.min(gridMax, anchorMin + (clientY - anchorClientY) / pxPerMin))
   const snap5 = (m: number) => Math.max(0, Math.min(gridMax, Math.round(m / 5) * 5))
   const rowStart = (m: number) => Math.max(0, Math.min(gridMax - step, Math.floor(m / step) * step))
 
@@ -179,7 +203,7 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
     const hit = (mine[day] ?? []).find((iv) => gridMin >= iv.s && gridMin <= iv.e)
     if (hit) { setSel({ day, s: hit.s, e: hit.e, edge: 'bottom' }); return } // click a block → select, never toggle off
     const a = rowStart(gridMin)
-    const d: Drag = { kind: 'paint', day, anchorClientY: e.clientY, anchorMin: gridMin, block: { s: a, e: a + step } }
+    const d: Drag = { kind: 'paint', day, anchorClientY: e.clientY, anchorScrollTop: scroller.current?.scrollTop ?? 0, anchorMin: gridMin, block: { s: a, e: a + step } }
     dragRef.current = d; setDrag(d); setSel(null)
   }
   function onHandleDown(e: React.PointerEvent, edge: Edge) {
@@ -188,17 +212,20 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
     const d: Drag = {
       kind: 'resize', day: s.day, edge,
       fixedMin: edge === 'top' ? s.e : s.s,
-      anchorClientY: e.clientY, anchorMin: edge === 'top' ? s.s : s.e,
+      anchorClientY: e.clientY, anchorScrollTop: scroller.current?.scrollTop ?? 0, anchorMin: edge === 'top' ? s.s : s.e,
       origS: s.s, origE: s.e, block: { s: s.s, e: s.e }, del: false,
     }
     dragRef.current = d; setDrag(d)
   }
 
-  // window-level drag tracking (raw pointer Y → grid minutes, so handles cross cells cleanly)
+  // window-level drag tracking (raw pointer Y → grid minutes, so handles cross cells cleanly).
+  // Scroll offset joins the pointer delta so the mapping stays correct while the grid
+  // auto-scrolls under a stationary pointer near the container's edge.
   useEffect(() => {
-    function move(ev: PointerEvent) {
+    function updateDrag(clientY: number) {
       const d = dragRef.current; if (!d) return
-      const cur = clientYToMin(d.anchorMin, d.anchorClientY, ev.clientY)
+      const scrollDelta = (scroller.current?.scrollTop ?? 0) - d.anchorScrollTop
+      const cur = Math.max(0, Math.min(gridMax, d.anchorMin + (clientY - d.anchorClientY + scrollDelta) / pxPerMin))
       if (d.kind === 'paint') {
         const a = rowStart(d.anchorMin), c = rowStart(cur)
         const nd: Drag = { ...d, block: { s: Math.min(a, c), e: Math.max(a, c) + step } }
@@ -213,7 +240,33 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
         if (block) setSel({ day: d.day, s: block.s, e: block.e, edge: d.edge })
       }
     }
+    // edge auto-scroll: dragging near/past the top or bottom scrolls the grid,
+    // clamped by the scroller itself at the first and last time slots
+    function tick() {
+      const d = dragRef.current, el = scroller.current
+      if (!d || !el) { rafRef.current = 0; return }
+      const r = el.getBoundingClientRect()
+      const headerH = (el.querySelector('.sticky') as HTMLElement | null)?.offsetHeight ?? 56
+      const EDGE = 30, MAX_SPEED = 16
+      const y = lastYRef.current
+      let dy = 0
+      if (y < r.top + headerH + EDGE) dy = -Math.min(MAX_SPEED, (r.top + headerH + EDGE - y) / 3)
+      else if (y > r.bottom - EDGE) dy = Math.min(MAX_SPEED, (y - (r.bottom - EDGE)) / 3)
+      if (dy) {
+        const before = el.scrollTop
+        el.scrollTop = before + dy
+        if (el.scrollTop !== before) updateDrag(y) // grid moved under the pointer — remap
+      }
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    function move(ev: PointerEvent) {
+      if (!dragRef.current) return
+      lastYRef.current = ev.clientY
+      updateDrag(ev.clientY)
+      if (!rafRef.current) rafRef.current = requestAnimationFrame(tick)
+    }
     function up() {
+      if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = 0 }
       const d = dragRef.current; if (!d) return
       dragRef.current = null
       if (d.kind === 'paint') {
@@ -233,7 +286,11 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
-    return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
+    return () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = 0 }
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // keyboard: arrow-nudge the active edge by the minute, Esc to deselect, Del to remove
@@ -296,14 +353,56 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
     return mine[day] ?? []
   }
 
+  function clearAllMine() {
+    const next = Object.fromEntries(event.days.map((d) => [d.key, [] as Iv[]]))
+    setMine(next); persist(next)
+    setSel(null)
+  }
+
+  // calendar import: fetch busy as UTC instants, convert to event-tz grid minutes, preview, apply
+  function startImport(provider: string) {
+    if (!event.days.every((d) => ISO_DAY.test(d.key))) { setImporting({ provider, data: null }); return }
+    setImporting({ provider, data: buildImportPreview(mockBusyUtc(event.days), event.days, gridStartMin, gridMax, event.timezone) })
+  }
+  function applyImport() {
+    if (!importing?.data) return
+    const next = { ...mineRef.current }
+    // merge, never remove: imported free times join whatever is already marked
+    for (const [day, di] of Object.entries(importing.data)) next[day] = normalizeIv([...(next[day] ?? []), ...di.free])
+    setMine(next); persist(next)
+    setSel(null); setImporting(null); setMode('edit')
+  }
+
   function sendMessage(text: string) {
     setMessages((prev) => { const next = [...prev, { id: 'JM', name: 'You', time: 'now', text, you: true }]; if (!event.demo) patchEvent(event.id, { messages: next }); return next })
   }
 
+  // Scalability: cell rendering must not be O(cells × people). Build each day's combined
+  // intervals ONCE per render (not once per cell), so the grid scales with days, not
+  // days × rows × participants — the difference between fine and janky at 100+ people.
+  const combinedByDay = useMemo<AvailIntervals>(
+    () => Object.fromEntries(event.days.map((d) => [d.key, combinedFor(d.key)])),
+    [mine, others], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  // live per-day intervals while editing (folds in the current drag); only the dragged day changes
+  const editIvsByDay = useMemo<Record<string, Iv[]>>(
+    () => (mode === 'edit' ? Object.fromEntries(weekDays.map((d) => [d.key, renderIvsFor(d.key)])) : {}),
+    [mode, mine, drag, page], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  const editCombinedByDay = useMemo<Record<string, Record<string, Iv[]>>>(
+    () => (mode === 'edit' ? Object.fromEntries(weekDays.map((d) => [d.key, combinedFor(d.key, editIvsByDay[d.key])])) : {}),
+    [mode, editIvsByDay, others, page], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+
   // best window (live interval sweep — most people simultaneously free, longest such stretch)
-  const combinedIv: AvailIntervals = Object.fromEntries(event.days.map((d) => [d.key, combinedFor(d.key)]))
-  const bw = bestWindow(combinedIv, event.days)
+  const bw = useMemo(() => bestWindow(combinedByDay, event.days), [combinedByDay]) // eslint-disable-line react-hooks/exhaustive-deps
   const rangeLabel = weekDays.length ? (weekDays.length > 1 ? `${weekDays[0].date} – ${weekDays[weekDays.length - 1].date}` : weekDays[0].date) : ''
+
+  // virtualization window: mount only the visible rows (+ overscan), pad the rest with spacers
+  const firstRow = Math.max(0, Math.floor(scrollTop / CELL) - OVERSCAN)
+  const lastRow = Math.min(rows, Math.ceil((scrollTop + viewportH) / CELL) + OVERSCAN)
+  const topPad = firstRow * CELL
+  const botPad = Math.max(0, (rows - lastRow) * CELL)
 
   // handle placement for the current selection
   const dragDel = drag?.kind === 'resize' && drag.del
@@ -318,11 +417,11 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
   const minBandDur = 7 / pxPerMin // paint bands thinner than ~7px get absorbed
 
   return (
-    <div className="flex h-[calc(100dvh-300px)] max-h-[820px] min-h-[480px] overflow-hidden rounded-2xl border border-border bg-s1">
+    <div className="relative flex flex-col overflow-hidden rounded-2xl border border-border bg-s1 lg:h-[calc(100dvh-300px)] lg:max-h-[820px] lg:min-h-[480px] lg:flex-row">
       <div className="flex min-w-0 flex-1 flex-col p-4">
         {/* toolbar */}
         <div className="flex flex-wrap items-center gap-[9px] border-b border-border pb-[13px]">
-          <Segment value={mode} onChange={(v) => { setMode(v as Mode); setSel(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
+          <SegmentedControl size="sm" value={mode} onChange={(v) => { setMode(v as Mode); setSel(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
           <span className="h-5 w-px bg-border" />
           <div className="flex items-center gap-[3px]">
             <IconBtn onClick={() => goWeek(-1)} disabled={page === 0}><ChevronLeft size={15} /></IconBtn>
@@ -332,14 +431,14 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
             </span>
             <IconBtn onClick={() => goWeek(1)} disabled={page >= pageCount - 1}><ChevronRight size={15} /></IconBtn>
           </div>
-          <button className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[11.5px] font-medium hover:border-border2">
-            <CalendarPlus size={13} /> Google Calendar
-          </button>
+          <span className="flex items-center gap-1.5 text-[11px] text-dim">Times in <TimezonePill tz={event.timezone} /></span>
+          <ImportFromCalendar onPick={startImport} />
+          {youAny && <ClearTimes onClear={clearAllMine} />}
           <div className="flex-1" />
           <Segment value={h24 ? '24' : '12'} onChange={(v) => setH24(v === '24')} options={[{ v: '12', l: '12h' }, { v: '24', l: '24h' }]} compact />
-          <Segment value={gran} onChange={(v) => setGran(v as Gran)} options={[{ v: '15', l: '15 min' }, { v: '30', l: '30 min' }, { v: '60', l: '1 hr' }]} compact />
           {!chatOpen && (
-            <button onClick={() => setChatOpen(true)} className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[11.5px] font-semibold hover:border-border2">
+            // side-panel reopen — on stacked layouts the bottom bar below takes over
+            <button onClick={() => setChatOpen(true)} className="hidden h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[11.5px] font-semibold hover:border-border2 lg:flex">
               <MessageCircle size={13} /> Discussion
               {messages.length > 0 && <span className="flex h-[15px] items-center rounded-[10px] bg-accent px-[5px] text-[9px] text-on-accent">{messages.length}</span>}
             </button>
@@ -354,13 +453,27 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
           {mode === 'edit' && (
             <span className="text-[11px] text-faint">· Drag to block out time. Click a block to fine-tune with the handles, or arrow keys to nudge by the minute.</span>
           )}
+          {/* heat legend — quiet, reads left to right like the ramp */}
+          <span className="ml-auto flex items-center gap-1 text-[10px] text-faint">
+            {mode === 'edit' && (
+              <>
+                <span className="h-[11px] w-[11px] rounded-[3px]" style={{ background: '#EAD9BE', border: '1px solid #C2A468' }} />
+                <span className="mr-1.5">You</span>
+              </>
+            )}
+            <span>No one</span>
+            {['var(--s2)', '#EBF1EB', '#CFE0D2', '#9DBBA4', '#2E4A3C'].map((c) => (
+              <span key={c} className="h-[11px] w-[11px] rounded-[3px] border border-border" style={{ background: c }} />
+            ))}
+            <span>Everyone</span>
+          </span>
         </div>
 
         {/* grid */}
-        <div ref={scroller} className="scroll-slim flex-1 overflow-auto rounded-[10px] border border-border">
+        <div ref={scroller} onScroll={onGridScroll} className="scroll-slim max-h-[58dvh] flex-1 overflow-auto rounded-[10px] border border-border lg:max-h-none">
           <div className="grid min-w-[520px]" style={{ gridTemplateColumns: `54px repeat(${weekDays.length}, minmax(72px, 1fr))` }}>
             {/* header row */}
-            <div className="sticky top-0 z-20 border-b border-r border-border bg-s0" />
+            <div className="sticky top-0 z-[25] border-b border-r border-border bg-s0" />
             {weekDays.map((d) => {
               const dayFull = mode === 'edit' && mine[d.key]?.length === 1 && mine[d.key][0].s === 0 && mine[d.key][0].e === gridMax
               return (
@@ -368,7 +481,7 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
                   key={d.key}
                   type="button"
                   onClick={() => toggleDay(d.key)}
-                  className="sticky top-0 z-10 border-b border-r border-border px-1.5 py-2 text-center"
+                  className="sticky top-0 z-20 border-b border-r border-border px-1.5 py-2 text-center"
                   style={{ background: d.best ? 'var(--teal-bg)' : 'var(--s0)', borderBottomColor: d.best ? 'var(--teal-border)' : 'var(--border)', cursor: mode === 'edit' ? 'pointer' : 'default' }}
                   title={mode === 'edit' ? 'Click to fill the whole day' : undefined}
                 >
@@ -384,8 +497,10 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
               )
             })}
 
-            {/* body rows */}
-            {event.times.map((_, ti) => {
+            {/* body rows — only the visible slice is mounted; spacers hold the scroll height */}
+            {topPad > 0 && <div style={{ gridColumn: '1 / -1', height: topPad }} />}
+            {event.times.slice(firstRow, lastRow).map((_, k) => {
+              const ti = firstRow + k
               const rowMin = gridStartMin + ti * step
               const rowH = Math.floor(rowMin / 60) % 24
               const rowMm = String(rowMin % 60).padStart(2, '0')
@@ -414,7 +529,7 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
                 </button>
                 {weekDays.map((d) => {
                   if (mode === 'view') {
-                    const bands = cellBands(combinedFor(d.key), w0, w1)
+                    const bands = cellBands(combinedByDay[d.key] ?? {}, w0, w1)
                     const peak = peakOf(bands)
                     const n = peak.ids.length
                     const paint = mergeSlivers(bands, minBandDur)
@@ -435,8 +550,10 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
                             }}
                           />
                         ))}
+                        {/* cap the pile so a 100-person cell renders ~6 avatars + "+N", not 100 nodes */}
                         <div className="relative z-[1] flex flex-wrap content-start gap-0.5 p-[5px]">
-                          {peak.ids.map((id) => { const a = avatarOf(id); return <Avatar key={id} initials={a.initials} color={a.color} size={15} font={7.5} title={a.name} /> })}
+                          {peak.ids.slice(0, AVATAR_CAP).map((id) => { const a = avatarOf(id); return <Avatar key={id} initials={a.initials} color={a.color} size={15} font={7.5} title={a.name} /> })}
+                          {n > AVATAR_CAP && <span className="grid h-[15px] min-w-[15px] place-items-center rounded-full bg-s3 px-[3px] text-[7.5px] font-bold text-dim" title={`${n} free`}>+{n - AVATAR_CAP}</span>}
                         </div>
                         {n > 0 && <span className="pointer-events-none absolute bottom-[3px] right-1 z-[1] text-[8.5px] font-bold" style={{ color: n >= total ? '#F4F1EA' : '#46604F' }}>{n}/{total}</span>}
                       </div>
@@ -446,8 +563,8 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
                   const oBands = cellBands(others[d.key] ?? {}, w0, w1)
                   const oCount = peakOf(oBands).ids.length
                   const clay = clayFor(oCount)
-                  const ivs = renderIvsFor(d.key)
-                  const cnt = peakOf(cellBands(combinedFor(d.key, ivs), w0, w1)).ids.length
+                  const ivs = editIvsByDay[d.key] ?? []
+                  const cnt = peakOf(cellBands(editCombinedByDay[d.key] ?? {}, w0, w1)).ids.length
                   const isTopEdge = !!sel && !dragDel && sel.day === d.key && topCell === ti
                   const isBotEdge = !!sel && !dragDel && sel.day === d.key && botCell === ti
                   return (
@@ -480,8 +597,9 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
                             type="button"
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={deleteSel}
-                            className="pointer-events-auto absolute right-0.5 z-[10] grid h-[15px] w-[15px] -translate-y-1/2 place-items-center rounded-full border bg-s1 text-brick shadow-soft"
-                            style={{ top: `${topPct}%`, borderColor: 'var(--border2)' }}
+                            className="pointer-events-auto absolute right-0.5 z-[10] grid h-[15px] w-[15px] place-items-center rounded-full border bg-s1 text-brick shadow-soft"
+                            // like the time chip, tuck fully inside the block when the edge hugs the grid top
+                            style={{ top: `${topPct}%`, transform: topSide === 'below' ? 'translateY(3px)' : 'translateY(-50%)', borderColor: 'var(--border2)' }}
                             aria-label="Remove this block"
                           >
                             <X size={10} />
@@ -497,6 +615,7 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
               </div>
               )
             })}
+            {botPad > 0 && <div style={{ gridColumn: '1 / -1', height: botPad }} />}
           </div>
         </div>
 
@@ -517,6 +636,282 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
       </div>
 
       {chatOpen && <ChatPanel members={total} messages={messages} onSend={sendMessage} onClose={() => setChatOpen(false)} avatarOf={avatarOf} />}
+      {!chatOpen && (
+        // stacked layout: reopen the chat right where it appears, at the bottom
+        <button
+          onClick={() => setChatOpen(true)}
+          className="flex items-center justify-center gap-1.5 border-t border-border bg-s0 py-3 text-[12px] font-semibold hover:bg-s2 lg:hidden"
+        >
+          <MessageCircle size={14} className="text-accent-text" /> Open discussion
+          {messages.length > 0 && <span className="flex h-[16px] items-center rounded-[10px] bg-accent px-[6px] text-[9.5px] text-on-accent">{messages.length}</span>}
+        </button>
+      )}
+
+      {importing && (
+        <ImportPreview
+          provider={importing.provider}
+          data={importing.data}
+          mine={mine}
+          days={event.days}
+          tz={event.timezone}
+          fmt={fmt}
+          gridStartMin={gridStartMin}
+          onApply={applyImport}
+          onClose={() => setImporting(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+/* ── import preview: confirm what the calendar import will mark before it lands ── */
+function ImportPreview({ provider, data, mine, days, tz, fmt, gridStartMin, onApply, onClose }: {
+  provider: string
+  data: Record<string, DayImport> | null
+  mine: Record<string, Iv[]>
+  days: AppEvent['days']
+  tz: string
+  fmt: (min: number) => string
+  gridStartMin: number
+  onApply: () => void
+  onClose: () => void
+}) {
+  const card = useRef<HTMLDivElement>(null)
+  useGSAP(() => { gsap.fromTo(card.current, { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: 'power3.out' }) }, { scope: card })
+  const totalBusy = data ? Object.values(data).reduce((n, d) => n + d.busy.length, 0) : 0
+
+  // only what the import would ADD — everything already marked stays untouched
+  const addedFor = (dayKey: string): Iv[] => {
+    let added = data?.[dayKey]?.free ?? []
+    for (const iv of mine[dayKey] ?? []) added = added.flatMap((a) => subtract(a, iv.s, iv.e))
+    return added.filter((a) => a.e > a.s)
+  }
+  const anyAdded = !!data && days.some((d) => addedFor(d.key).length > 0)
+
+  return (
+    <div className="absolute inset-0 z-40 grid place-items-center bg-[rgba(0,0,0,.25)] p-4" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div ref={card} className="flex max-h-full w-full max-w-[460px] flex-col rounded-2xl border border-border bg-s1 shadow-soft">
+        <div className="border-b border-border px-5 py-4">
+          <div className="text-[10.5px] font-semibold uppercase tracking-[.13em] text-faint">Import preview</div>
+          <div className="mt-1 flex items-center gap-2 text-[14px] font-semibold">{provider} <TimezonePill tz={tz} /></div>
+        </div>
+
+        {data ? (
+          <>
+            <div className="scroll-slim min-h-0 flex-1 overflow-auto px-5 py-3">
+              <p className="mb-2.5 text-[11.5px] leading-[1.5] text-dim">
+                We found {totalBusy} busy {totalBusy === 1 ? 'block' : 'blocks'} on your calendar. They came in as exact moments and are shown here in event time, so they line up even if your calendar uses a different timezone. Applying only adds the times below — nothing you&apos;ve already marked is changed or removed.
+              </p>
+              {days.filter((d) => data[d.key]).map((d) => {
+                const di = data[d.key]
+                const added = addedFor(d.key)
+                return (
+                  <div key={d.key} className="flex gap-3 border-t border-border py-2 text-[11.5px] first:border-t-0">
+                    <span className="w-[76px] flex-none font-semibold text-dim">{d.dow} {d.date}</span>
+                    <span className="min-w-0 flex-1 leading-[1.55]">
+                      {di.free.length === 0
+                        ? <span className="font-semibold text-brick-text">Busy the whole day</span>
+                        : added.length === 0
+                          ? <span className="text-faint">Already covered by your times</span>
+                          : added.map((iv, i) => (
+                              <span key={i} className="mr-1.5 inline-block whitespace-nowrap rounded-[6px] border border-teal-border bg-teal-bg px-1.5 py-px text-[10.5px] font-semibold text-teal-text">
+                                {fmt(gridStartMin + iv.s)} – {fmt(gridStartMin + iv.e)}
+                              </span>
+                            ))}
+                      {di.busy.length > 0 && <span className="text-[10.5px] text-faint">· {di.busy.length} busy</span>}
+                    </span>
+                  </div>
+                )
+              })}
+              <p className="mt-2.5 text-[10.5px] leading-[1.5] text-faint">Simulated calendar for now. Provider sign-in arrives with calendar sync.</p>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3.5">
+              {!anyAdded && <span className="mr-auto text-[11px] text-faint">Nothing new to add — you&apos;ve already covered these times.</span>}
+              <button onClick={onClose} className="flex h-9 items-center rounded-[9px] border border-border2 bg-s1 px-3.5 text-[12px] font-semibold hover:bg-s2">{anyAdded ? 'Cancel' : 'Close'}</button>
+              {anyAdded && <button onClick={onApply} className="flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[12px] font-semibold text-on-accent"><Check size={13} /> Add these times</button>}
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="px-5 py-4 text-[12px] leading-[1.55] text-dim">Calendar import isn&apos;t available for this sample event. Create an event of your own to try it.</p>
+            <div className="flex items-center justify-end border-t border-border px-5 py-3.5">
+              <button onClick={onClose} className="flex h-9 items-center rounded-[9px] border border-border2 bg-s1 px-3.5 text-[12px] font-semibold hover:bg-s2">Close</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ── import from calendar (availability stage): connect a provider and auto-fill busy times ── */
+function ImportFromCalendar({ onPick }: { onPick: (provider: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const wrap = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('pointerdown', onDown)
+    window.addEventListener('keydown', onKey)
+    return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
+  }, [open])
+
+  return (
+    <div ref={wrap} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className={`flex h-7 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[11.5px] font-medium hover:border-border2 ${open ? 'border-border2' : 'border-border'}`}
+      >
+        <CalendarPlus size={13} /> Import from calendar <ChevronDown size={12} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-1 w-[248px] rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
+          <p className="px-2.5 pb-1.5 pt-2 text-[10.5px] leading-[1.45] text-faint">
+            Connect a calendar and your free times fill in automatically. Busy times import as exact moments, so they stay correct even if your calendar uses a different timezone than this event. You review everything before it&apos;s saved.
+          </p>
+          {(['Google Calendar', 'Outlook'] as const).map((name) => (
+            <button key={name} type="button" onClick={() => { setOpen(false); onPick(name) }} className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left text-[12px] font-medium hover:bg-s2">
+              <CalendarPlus size={13} className="text-accent-text" /> {name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── clear all my times, with a warning before anything is committed ── */
+function ClearTimes({ onClear }: { onClear: () => void }) {
+  const [open, setOpen] = useState(false)
+  const wrap = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('pointerdown', onDown)
+    window.addEventListener('keydown', onKey)
+    return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
+  }, [open])
+
+  return (
+    <div ref={wrap} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className={`flex h-7 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[11.5px] font-medium text-dim hover:border-border2 hover:text-brick-text ${open ? 'border-border2' : 'border-border'}`}
+      >
+        <Eraser size={13} /> Clear my times
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-1 w-[236px] rounded-[10px] border border-brick-border bg-s1 p-3 shadow-soft">
+          <div className="flex items-start gap-2">
+            <TriangleAlert size={14} className="mt-px flex-none text-brick-text" />
+            <p className="text-[11.5px] leading-[1.5] text-text">
+              Clear everything you&apos;ve marked on this event? There is no undo.
+            </p>
+          </div>
+          <div className="mt-2.5 flex items-center justify-end gap-2">
+            <button type="button" onClick={() => setOpen(false)} className="flex h-8 items-center rounded-[8px] border border-border2 bg-s1 px-3 text-[11.5px] font-semibold hover:bg-s2">
+              Cancel
+            </button>
+            <button type="button" onClick={() => { setOpen(false); onClear() }} className="flex h-8 items-center gap-1.5 rounded-[8px] px-3 text-[11.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
+              <Eraser size={12} /> Yes, clear it
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── add-to-calendar export (Google / Outlook compose links) ──
+   Not rendered right now on purpose: this returns at the confirmation stage,
+   once a time is locked, as the "add the confirmed event to your calendar" action. */
+function plusDay(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const dt = new Date(y, m - 1, d + 1)
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
+
+function AddToCalendar({ event, bw, gridStartMin }: { event: AppEvent; bw: ReturnType<typeof bestWindow>; gridStartMin: number }) {
+  const [open, setOpen] = useState(false)
+  const wrap = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('pointerdown', onDown)
+    window.addEventListener('keydown', onKey)
+    return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
+  }, [open])
+
+  // a timed entry needs a real date + a best window; otherwise export the full date range as all-day
+  const timed = bw && /^\d{4}-\d{2}-\d{2}$/.test(bw.dayKey) ? bw : null
+  const canExport = !!timed || /^\d{4}-\d{2}-\d{2}$/.test(event.startDate)
+  const location = event.location.mode === 'remote'
+    ? (event.location.meetingLink || event.location.platform)
+    : event.location.places.map((p) => p.name).join(', ')
+
+  function links(): { google: string; outlook: string } {
+    const g = new URLSearchParams({ action: 'TEMPLATE', text: event.title, details: event.description, location, ctz: event.timezone })
+    const o = new URLSearchParams({ path: '/calendar/action/compose', rru: 'addevent', subject: event.title, body: event.description, location })
+    if (timed) {
+      const hm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}${String(min % 60).padStart(2, '0')}00`
+      const hmc = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}:00`
+      const d = timed.dayKey.replace(/-/g, '')
+      g.set('dates', `${d}T${hm(gridStartMin + timed.s)}/${d}T${hm(gridStartMin + timed.e)}`)
+      o.set('startdt', `${timed.dayKey}T${hmc(gridStartMin + timed.s)}`)
+      o.set('enddt', `${timed.dayKey}T${hmc(gridStartMin + timed.e)}`)
+    } else {
+      const end = plusDay(event.endDate || event.startDate) // end date is exclusive for all-day entries
+      g.set('dates', `${event.startDate.replace(/-/g, '')}/${end.replace(/-/g, '')}`)
+      o.set('startdt', event.startDate)
+      o.set('enddt', end)
+      o.set('allday', 'true')
+    }
+    return {
+      google: `https://calendar.google.com/calendar/render?${g}`,
+      outlook: `https://outlook.live.com/calendar/0/deeplink/compose?${o}`,
+    }
+  }
+  function exportTo(kind: 'google' | 'outlook') {
+    window.open(links()[kind], '_blank', 'noopener')
+    setOpen(false)
+  }
+
+  if (!canExport) return null
+  return (
+    <div ref={wrap} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className={`flex h-7 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[11.5px] font-medium hover:border-border2 ${open ? 'border-border2' : 'border-border'}`}
+      >
+        <CalendarPlus size={13} /> Add to calendar <ChevronDown size={12} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-1 w-[228px] rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
+          <p className="px-2.5 pb-1.5 pt-2 text-[10.5px] leading-[1.45] text-faint">
+            {timed
+              ? <>Adds the best time so far: {bw!.dayLabel}, {fmtMinute(gridStartMin + timed.s)} – {fmtMinute(gridStartMin + timed.e)} ({event.timezone.split('/').pop()?.replace(/_/g, ' ')} time).</>
+              : <>No best time yet, so this adds the whole date window as an all-day entry.</>}
+          </p>
+          <button type="button" onClick={() => exportTo('google')} className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left text-[12px] font-medium hover:bg-s2">
+            <CalendarPlus size={13} className="text-accent-text" /> Google Calendar
+          </button>
+          <button type="button" onClick={() => exportTo('outlook')} className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left text-[12px] font-medium hover:bg-s2">
+            <CalendarPlus size={13} className="text-accent-text" /> Outlook
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -565,7 +960,7 @@ function ChatPanel({ members, messages, onSend, onClose, avatarOf }: { members: 
   }
 
   return (
-    <div ref={panel} className="flex w-[300px] flex-none flex-col border-l border-border bg-s0">
+    <div ref={panel} className="flex h-[340px] w-full flex-none flex-col border-t border-border bg-s0 lg:h-auto lg:w-[300px] lg:border-l lg:border-t-0">
       <div className="flex items-center justify-between border-b border-border px-3.5 py-[13px]">
         <div className="flex items-center gap-1.5 text-[12.5px] font-semibold">
           <MessageCircle size={14} className="text-accent-text" />

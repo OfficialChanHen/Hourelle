@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Building2, Link2, CalendarDays, Wallet, Users, BarChart3,
-  CalendarRange, MapPin, UsersRound, Settings, Video, Clock, Route, Copy, Check, Trash2, TriangleAlert,
+  CalendarRange, MapPin, UsersRound, Settings, Copy, Check, Trash2, TriangleAlert,
 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -13,6 +13,7 @@ import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Avatar } from '@/components/ui/Avatar'
 import { getEvent, deleteEvent, bestWindow, availIvOf, fmtMinute, gridStartMinOf, daysUntil, dateRangeText, type AppEvent, type Rsvp } from '@/lib/events'
 import { AvailabilityPanel } from './AvailabilityPanel'
+import { LocationPanel } from './LocationPanel'
 
 const TABS = [
   { key: 'availability', label: 'Availability', icon: CalendarRange },
@@ -35,7 +36,9 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
   const [event, setEvent] = useState<AppEvent | null | undefined>(undefined)
   const [copied, setCopied] = useState(false)
 
-  useEffect(() => { setEvent(getEvent(id)) }, [id])
+  // re-read on tab change too: panels persist edits to storage as they happen, and
+  // remounting them from a page-load-time snapshot would drop those edits until reload
+  useEffect(() => { setEvent(getEvent(id)) }, [id, tab])
 
   function handleDelete() {
     deleteEvent(id)
@@ -99,7 +102,11 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
           {event.budget ? (
             <>
               <div className="font-serif text-[31px] leading-none">${Number(event.budget).toLocaleString()}</div>
-              <div className="mt-1.5 text-[11px] text-dim">{going > 0 ? `~$${Math.round(Number(event.budget) / going).toLocaleString()} / person` : 'total'}</div>
+              <div className="mt-1.5 text-[11px] text-dim">
+                {event.budgetMode === 'person'
+                  ? (going > 0 ? `per person · ~$${(Number(event.budget) * going).toLocaleString()} for ${going} going` : 'per person')
+                  : (going > 0 ? `total · ~$${Math.round(Number(event.budget) / going).toLocaleString()} / person` : 'total')}
+              </div>
             </>
           ) : (
             <>
@@ -152,7 +159,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
 
       {/* body */}
       {tab === 'availability' && <AvailabilityPanel event={event} />}
-      {tab === 'location' && <LocationTab event={event} />}
+      {tab === 'location' && <LocationPanel event={event} />}
       {tab === 'attendance' && <Placeholder title="Attendance" body="Once people RSVP and mark availability, a headcount breakdown shows up here." />}
       {tab === 'details' && <DetailsTab event={event} shareLink={shareLink} onCopy={copy} copied={copied} onDelete={handleDelete} />}
     </div>
@@ -172,53 +179,6 @@ function Stat({ icon: Icon, label, iconColor, children }: { icon: typeof Wallet;
 }
 
 /* ── Location tab ── */
-function LocationTab({ event }: { event: AppEvent }) {
-  const { location: loc } = event
-  return (
-    <div className="rounded-2xl border border-border bg-s1 p-6">
-      {loc.mode === 'remote' ? (
-        <div>
-          <div className="flex items-center gap-2 text-[13px] font-semibold"><Video size={16} className="text-accent-text" /> Online event · {loc.platform}</div>
-          <div className="mt-3 flex h-11 max-w-[440px] items-center gap-2 rounded-[11px] border border-border bg-s2 px-3.5">
-            <Link2 size={15} className="text-accent-text" />
-            <span className="flex-1 truncate font-mono text-[12.5px]">{loc.meetingLink || 'No link yet — the host can add it any time'}</span>
-          </div>
-        </div>
-      ) : loc.mode === 'later' ? (
-        <div className="flex items-start gap-2.5">
-          <span className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] border border-ochre-border bg-ochre-bg text-ochre-text"><Clock size={16} /></span>
-          <div>
-            <div className="text-[13px] font-semibold">Location not set yet</div>
-            <div className="mt-0.5 text-[12px] leading-[1.5] text-dim">The host will add a place, or open it up for the group to vote on.</div>
-          </div>
-        </div>
-      ) : (
-        <div>
-          <div className="mb-3 flex items-center gap-2 text-[13px] font-semibold">
-            {loc.planMode === 'itinerary' ? <><Route size={16} className="text-accent-text" /> Planned route · {loc.places.length} stop{loc.places.length === 1 ? '' : 's'}</> : <><MapPin size={16} className="text-accent-text" /> Vote on a place · {loc.places.length} candidate{loc.places.length === 1 ? '' : 's'}</>}
-          </div>
-          {loc.places.length === 0 ? (
-            <p className="text-[12.5px] text-dim">No places added yet.</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {loc.places.map((p, i) => (
-                <div key={p.id + i} className="flex items-center gap-2.5 rounded-[10px] border border-border bg-s0 px-3 py-2.5">
-                  {loc.planMode === 'itinerary' ? (
-                    <span className="grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[11px] font-bold text-on-accent">{i + 1}</span>
-                  ) : (
-                    <MapPin size={15} className="text-accent-text" />
-                  )}
-                  <span className="flex-1 text-[12.5px] font-medium">{p.name} <span className="font-normal text-faint">· {p.place}</span></span>
-                  {loc.planMode === 'vote' && <span className="text-[11px] text-faint">0 votes</span>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
 
 /* ── Details tab ── */
 function DetailsTab({ event, shareLink, onCopy, copied, onDelete }: { event: AppEvent; shareLink: string; onCopy: () => void; copied: boolean; onDelete: () => void }) {
@@ -231,7 +191,7 @@ function DetailsTab({ event, shareLink, onCopy, copied, onDelete }: { event: App
         <DetailRow k="When" v={<span className="flex items-center gap-1.5">{dateRangeText(event)} <TimezonePill tz={event.timezone} /></span>} />
         <DetailRow k="Where" v={whereText} />
         <DetailRow k="Time zone" v={event.timezone.split('/').pop()?.replace(/_/g, ' ') ?? event.timezone} />
-        <DetailRow k="Budget" v={event.budget ? `$${Number(event.budget).toLocaleString()} total` : <span className="text-faint">None</span>} last />
+        <DetailRow k="Budget" v={event.budget ? `$${Number(event.budget).toLocaleString()} ${event.budgetMode === 'person' ? 'per person' : 'total'}` : <span className="text-faint">None</span>} last />
       </div>
 
       <div className="min-w-[280px] flex-1 rounded-2xl border border-border bg-s1 p-5">
