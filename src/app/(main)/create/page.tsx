@@ -12,6 +12,7 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
 import { av } from '@/lib/people'
+import { createEvent, parseHM, fmtMinute, type AppEvent } from '@/lib/events'
 
 const STEPS = ['Basics', 'Location', 'Invite', 'Review'] as const
 const USER_NAME = 'Jordan Miller'
@@ -40,6 +41,16 @@ type Loc = { id: string; name: string; place: string }
 type Stop = Loc & { uid: string }
 type LocMode = 'vote' | 'remote' | 'later'
 type PlanMode = 'vote' | 'itinerary'
+type WinPreset = 'any' | 'morning' | 'afternoon' | 'evening' | 'custom'
+
+// daily time-window presets — 'any' means the grid covers the whole day
+const WIN_PRESETS: { v: WinPreset; l: string; s: string; e: string }[] = [
+  { v: 'any', l: 'All day', s: '', e: '' },
+  { v: 'morning', l: 'Mornings', s: '08:00', e: '12:00' },
+  { v: 'afternoon', l: 'Afternoons', s: '12:00', e: '17:00' },
+  { v: 'evening', l: 'Evenings', s: '17:00', e: '21:00' },
+  { v: 'custom', l: 'Custom', s: '10:00', e: '14:00' },
+]
 
 type Form = {
   title: string
@@ -49,6 +60,9 @@ type Form = {
   startDate: string
   endDate: string
   granularity: string
+  windowPreset: WinPreset
+  windowStart: string
+  windowEnd: string
   timezone: string
   budget: string
   locMode: LocMode
@@ -62,18 +76,19 @@ type Form = {
 
 const initialForm: Form = {
   title: '', hostMode: 'you', orgName: '', description: '',
-  startDate: '', endDate: '', granularity: '30', timezone: 'America/Los_Angeles', budget: '',
+  startDate: '', endDate: '', granularity: '30', windowPreset: 'any', windowStart: '', windowEnd: '',
+  timezone: 'America/Los_Angeles', budget: '',
   locMode: 'vote', planMode: 'vote', picked: [], platform: 'Google Meet', meetingLink: '',
   emails: [], accounts: [],
 }
 
 type Update = (patch: Partial<Form> | ((f: Form) => Partial<Form>)) => void
-type BasicsErrs = { title: string; org: string; start: string; end: string }
+type BasicsErrs = { title: string; org: string; start: string; end: string; win: string }
 
 export default function CreatePage() {
   const router = useRouter()
   const [step, setStep] = useState(0)
-  const [submitted, setSubmitted] = useState(false)
+  const [created, setCreated] = useState<AppEvent | null>(null)
   const [form, setForm] = useState<Form>(initialForm)
   const [attempted, setAttempted] = useState(false)
   const [today, setToday] = useState('')
@@ -94,7 +109,7 @@ export default function CreatePage() {
     { dependencies: [step] },
   )
 
-  if (submitted) return <Created form={form} />
+  if (created) return <Created event={created} />
 
   // ── required-field validation ──
   const basicsErr: BasicsErrs = {
@@ -102,10 +117,16 @@ export default function CreatePage() {
     org: form.hostMode === 'org' && !form.orgName.trim() ? 'Add the organization name.' : '',
     start: !form.startDate ? 'Pick the earliest day.' : today && form.startDate < today ? 'The earliest day can’t be before today.' : '',
     end: !form.endDate ? 'Pick the latest day.' : form.startDate && form.endDate < form.startDate ? 'The latest day can’t be before the earliest day.' : '',
+    win:
+      form.windowPreset === 'custom' && (parseHM(form.windowStart) === null || parseHM(form.windowEnd) === null)
+        ? 'Pick both times for the custom window.'
+        : form.windowPreset === 'custom' && (parseHM(form.windowEnd) ?? 0) <= (parseHM(form.windowStart) ?? 0)
+          ? 'The window has to end after it starts.'
+          : '',
   }
   const placesError = form.locMode === 'vote' && form.picked.length === 0 ? 'Add at least one place, or switch to “Decide later”.' : ''
   function stepValid(s: number) {
-    if (s === 0) return !basicsErr.title && !basicsErr.org && !basicsErr.start && !basicsErr.end
+    if (s === 0) return !basicsErr.title && !basicsErr.org && !basicsErr.start && !basicsErr.end && !basicsErr.win
     if (s === 1) return !placesError
     return true
   }
@@ -165,7 +186,7 @@ export default function CreatePage() {
           </button>
         ) : (
           <button
-            onClick={() => setSubmitted(true)}
+            onClick={() => { if (canCreate) setCreated(createEvent(form)) }}
             disabled={!canCreate}
             className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-[18px] text-[12.5px] font-semibold text-on-accent disabled:opacity-40"
           >
@@ -190,7 +211,20 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
     const floor = form.startDate || today
     update({ endDate: floor && v && v < floor ? floor : v })
   }
+  function pickWin(v: string) {
+    const p = WIN_PRESETS.find((x) => x.v === v)!
+    update((f) => ({
+      windowPreset: p.v,
+      // returning to Custom keeps whatever times were already picked
+      windowStart: p.v === 'custom' && f.windowStart ? f.windowStart : p.s,
+      windowEnd: p.v === 'custom' && f.windowEnd ? f.windowEnd : p.e,
+    }))
+  }
   const show = (e: string) => attempted && !!e
+  const winS = parseHM(form.windowStart), winE = parseHM(form.windowEnd)
+  const winText = form.windowPreset !== 'any' && winS !== null && winE !== null && winE > winS
+    ? `${fmtMinute(winS)} and ${fmtMinute(winE)}`
+    : ''
 
   return (
     <div className="flex flex-col gap-4">
@@ -252,6 +286,26 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
             </div>
           </div>
           {(show(errs.start) || show(errs.end)) && <FieldError>{errs.start || errs.end}</FieldError>}
+
+          {/* optional daily time window */}
+          <div className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
+            <span className="flex items-center gap-1.5 text-[11.5px] text-dim"><Clock size={13} /> Daily time window <span className="text-faint">(optional)</span></span>
+            <Segmented value={form.windowPreset} onChange={pickWin} options={WIN_PRESETS.map((p) => ({ v: p.v, l: p.l }))} />
+          </div>
+          {form.windowPreset === 'custom' && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
+              <span className="text-[11px] text-dim">From</span>
+              <TimeField value={form.windowStart} onChange={(v) => update({ windowStart: v })} err={show(errs.win)} label="Window start" />
+              <span className="text-faint">→</span>
+              <span className="text-[11px] text-dim">to</span>
+              <TimeField value={form.windowEnd} onChange={(v) => update({ windowEnd: v })} err={show(errs.win)} label="Window end" />
+            </div>
+          )}
+          {show(errs.win) && <FieldError>{errs.win}</FieldError>}
+          {winText && (
+            <p className="mt-2 text-[11px] leading-[1.5] text-faint">People will only be asked when they&apos;re free between {winText} on each day.</p>
+          )}
+
           <div className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
             <span className="flex items-center gap-1.5 text-[11.5px] text-dim"><Clock size={13} /> Time slot size</span>
             <Segmented value={form.granularity} onChange={(v) => update({ granularity: v })} options={[{ v: '15', l: '15 min' }, { v: '30', l: '30 min' }, { v: '60', l: '1 hour' }]} />
@@ -587,6 +641,10 @@ function StepReview({ form, goStep }: { form: Form; goStep: (n: number) => void 
   const total = form.emails.length + form.accounts.length
   const dateText = form.startDate ? (form.endDate && form.endDate !== form.startDate ? `${form.startDate} → ${form.endDate}` : form.startDate) : 'Not set'
   const granLabel = { '15': '15 min', '30': '30 min', '60': '1 hour' }[form.granularity] ?? form.granularity
+  const ws = parseHM(form.windowStart), we = parseHM(form.windowEnd)
+  const winLabel = form.windowPreset === 'any' || ws === null || we === null || we <= ws
+    ? 'All day'
+    : `${form.windowPreset === 'custom' ? '' : `${WIN_PRESETS.find((p) => p.v === form.windowPreset)?.l} · `}${fmtMinute(ws)} – ${fmtMinute(we)}`
 
   return (
     <div className="flex flex-col gap-3">
@@ -598,6 +656,7 @@ function StepReview({ form, goStep }: { form: Form; goStep: (n: number) => void 
         <Row k="Hosted by" v={form.hostMode === 'you' ? USER_NAME : form.orgName || <span className="text-faint">Organization</span>} />
         {form.description && <Row k="Description" v={form.description} />}
         <Row k="Date window" v={dateText} />
+        <Row k="Time window" v={winLabel} />
         <Row k="Time slots" v={granLabel} />
         <Row k="Time zone" v={tzLabel(form.timezone)} />
         <Row k="Budget" v={form.budget ? `$${form.budget} total` : <span className="text-faint">None</span>} />
@@ -654,9 +713,9 @@ function StepReview({ form, goStep }: { form: Form; goStep: (n: number) => void 
 }
 
 /* ── Confirmation (after submit) ── */
-function Created({ form }: { form: Form }) {
-  const total = form.emails.length + form.accounts.length
-  const slug = (form.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'your-event')
+function Created({ event }: { event: AppEvent }) {
+  const total = event.participants.filter((p) => !p.you).length
+  const slug = event.id
   const link = `aline.app/e/${slug}`
   const toast = useRef<HTMLDivElement>(null)
   const card = useRef<HTMLDivElement>(null)
@@ -681,7 +740,7 @@ function Created({ form }: { form: Form }) {
           <span className="created-check mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full border border-teal-border bg-teal-bg text-teal-text"><Check size={30} /></span>
           <h1 className="font-serif text-[30px] leading-[1.05] tracking-[-0.01em]">Your event is live</h1>
           <p className="mx-auto mt-2 max-w-[380px] text-[13px] leading-[1.55] text-dim">
-            <span className="font-semibold text-text">{form.title || 'Your event'}</span> has been created{total > 0 ? ` and ${total} ${total === 1 ? 'invite is' : 'invites are'} on the way` : ''}. Share the link below so anyone can join, say when they&apos;re free, and chat.
+            <span className="font-semibold text-text">{event.title}</span> has been created{total > 0 ? ` and ${total} ${total === 1 ? 'invite is' : 'invites are'} on the way` : ''}. Share the link below so anyone can join, say when they&apos;re free, and chat.
           </p>
 
           <div className="mx-auto mt-6 flex h-11 w-full max-w-[420px] items-center gap-2 rounded-[11px] border border-border2 bg-s2 py-0 pl-3.5 pr-2">
@@ -715,6 +774,75 @@ function Created({ form }: { form: Form }) {
 /* ── shared bits ── */
 function inputCls(err = false) {
   return `w-full h-10 rounded-[10px] border ${err ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[13px] outline-none placeholder:text-faint focus:border-accent-border`
+}
+/* custom time picker: the whole field opens the popover (native inputs only open on the
+   clock icon), and the columns clip mid-row with a visible scrollbar so scrolling is obvious */
+const HOURS = Array.from({ length: 12 }, (_, i) => i) // 0 = 12 o'clock
+const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5)
+
+function TimeField({ value, onChange, err, label }: { value: string; onChange: (v: string) => void; err?: boolean; label: string }) {
+  const [open, setOpen] = useState(false)
+  const wrap = useRef<HTMLDivElement>(null)
+  const hourCol = useRef<HTMLDivElement>(null)
+  const minCol = useRef<HTMLDivElement>(null)
+  const min = parseHM(value) ?? 10 * 60
+  const hr12 = Math.floor(min / 60) % 12 // 0 = 12 o'clock
+  const mm = min % 60
+  const pm = min >= 12 * 60
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('pointerdown', onDown)
+    window.addEventListener('keydown', onKey)
+    return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
+  }, [open])
+
+  // center the current values when the popover opens
+  useEffect(() => {
+    if (!open) return
+    const center = (col: HTMLDivElement | null, idx: number) => { if (col) col.scrollTop = idx * 30 - col.clientHeight / 2 + 15 }
+    center(hourCol.current, hr12)
+    center(minCol.current, Math.round(mm / 5))
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const set = (h: number, m: number, isPm: boolean) => onChange(`${String((h % 12) + (isPm ? 12 : 0)).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
+  const colCls = 'scroll-slim max-h-[164px] w-[52px] overflow-y-auto pr-0.5'
+  const itemCls = (on: boolean) => `flex h-[30px] w-full items-center justify-center rounded-[7px] text-[12px] font-medium ${on ? 'bg-accent text-on-accent' : 'text-dim hover:bg-s2 hover:text-text'}`
+
+  return (
+    <div ref={wrap} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label={label}
+        aria-expanded={open}
+        className={`flex h-9 items-center gap-1.5 rounded-[10px] border ${err ? 'border-brick-border' : open ? 'border-accent-border' : 'border-border'} bg-s1 px-2.5 text-[12.5px] font-medium hover:border-border2`}
+      >
+        <Clock size={13} className="text-dim" /> {fmtMinute(min)} <ChevronDown size={13} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-20 mt-1 flex gap-1 rounded-[10px] border border-border bg-s1 p-1.5 shadow-soft">
+          <div ref={hourCol} className={colCls}>
+            {HOURS.map((h) => (
+              <button key={h} type="button" onClick={() => set(h, mm, pm)} className={itemCls(h === hr12)}>{h === 0 ? 12 : h}</button>
+            ))}
+          </div>
+          <div ref={minCol} className={colCls}>
+            {MINUTES.map((m) => (
+              <button key={m} type="button" onClick={() => set(hr12, m, pm)} className={itemCls(m === mm)}>{String(m).padStart(2, '0')}</button>
+            ))}
+          </div>
+          <div className="flex flex-col gap-1">
+            {(['AM', 'PM'] as const).map((ap) => (
+              <button key={ap} type="button" onClick={() => set(hr12, mm, ap === 'PM')} className={`${itemCls((ap === 'PM') === pm)} !w-[42px]`}>{ap}</button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 function Req() {
   return <span className="font-bold text-brick-text">*</span>
