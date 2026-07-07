@@ -26,10 +26,12 @@ export function SegmentedControl({ value, onChange, options, size = 'md', stretc
   const activeIndex = Math.max(0, options.findIndex((o) => o.v === value))
 
   function position(animate: boolean) {
-    const el = btns.current[activeIndex], p = pill.current
-    if (!el || !p) return
+    const el = btns.current[activeIndex], p = pill.current, w = wrap.current
+    if (!el || !p || !w) return
+    // fractional rects (not integer offsetLeft) so the pill sits pixel-exact over the button
+    const er = el.getBoundingClientRect(), wr = w.getBoundingClientRect()
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    const to = { x: el.offsetLeft, width: el.offsetWidth }
+    const to = { x: er.left - wr.left, y: er.top - wr.top, width: er.width, height: er.height }
     if (animate && !reduce) gsap.to(p, { ...to, duration: 0.34, ease: 'power3.out' })
     else gsap.set(p, to)
   }
@@ -53,7 +55,7 @@ export function SegmentedControl({ value, onChange, options, size = 'md', stretc
 
   return (
     <div ref={wrap} className={`relative flex rounded-[9px] bg-s2 p-0.5 ${className ?? ''}`}>
-      <span ref={pill} className="pointer-events-none absolute bottom-0.5 left-0 top-0.5 rounded-[7px] bg-s0 shadow-soft" style={{ width: 0 }} />
+      <span ref={pill} className="pointer-events-none absolute left-0 top-0 rounded-[7px] bg-s0 shadow-soft" style={{ width: 0, height: 0 }} />
       {options.map((o, i) => {
         const on = o.v === value
         const Icon = o.icon

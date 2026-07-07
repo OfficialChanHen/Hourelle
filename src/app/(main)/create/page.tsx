@@ -14,6 +14,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { av } from '@/lib/people'
 import { createEvent, parseHM, fmtMinute, type AppEvent } from '@/lib/events'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
+import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 
 const STEPS = ['Basics', 'Location', 'Invite', 'Review'] as const
@@ -355,8 +356,11 @@ function StepLocation({ form, update, stopUid, attempted, placesError }: { form:
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Loc[]>([])
   const [searching, setSearching] = useState(false)
-  const [dragIndex, setDragIndex] = useState<number | null>(null)
   const pickFlip = useFlipReorder(form.picked.map((p) => p.uid).join('|'))
+  const pickReorder = usePointerReorder((fromI, toI) => {
+    pickFlip.capture()
+    update((f) => { const a = [...f.picked]; const [m] = a.splice(fromI, 1); a.splice(toI, 0, m); return { picked: a } })
+  })
 
   const term = query.trim()
   const timesInRoute = (id: string) => form.picked.filter((p) => p.id === id).length
@@ -388,12 +392,6 @@ function StepLocation({ form, update, stopUid, attempted, placesError }: { form:
   function move(i: number, dir: -1 | 1) {
     pickFlip.capture()
     update((f) => { const j = i + dir; if (j < 0 || j >= f.picked.length) return {}; const a = [...f.picked]; ;[a[i], a[j]] = [a[j], a[i]]; return { picked: a } })
-  }
-  function onDragEnterRow(i: number) {
-    if (dragIndex === null || dragIndex === i) return
-    pickFlip.capture()
-    update((f) => { const a = [...f.picked]; const [m] = a.splice(dragIndex, 1); a.splice(i, 0, m); return { picked: a } })
-    setDragIndex(i)
   }
 
   return (
@@ -478,38 +476,36 @@ function StepLocation({ form, update, stopUid, attempted, placesError }: { form:
             <div ref={pickFlip.scope} className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10.5px] font-semibold uppercase tracking-[.1em] text-faint">{form.planMode === 'vote' ? `${form.picked.length} on the ballot` : `${form.picked.length} ${form.picked.length === 1 ? 'stop' : 'stops'}`}</span>
-                {form.planMode === 'itinerary' && <span className="flex items-center gap-1 text-[10.5px] text-faint"><GripVertical size={12} /> Drag the rows or use the arrows to reorder</span>}
+                {form.planMode === 'itinerary' && <span className="flex items-center gap-1 text-[10.5px] text-faint"><GripVertical size={12} /> Drag or use the arrows to reorder</span>}
               </div>
-              {form.picked.map((l, i) => {
-                const itin = form.planMode === 'itinerary'
-                return (
-                  <div
-                    key={l.uid}
-                    data-flip-id={l.uid}
-                    draggable={itin}
-                    onDragStart={itin ? () => setDragIndex(i) : undefined}
-                    onDragEnter={itin ? () => onDragEnterRow(i) : undefined}
-                    onDragOver={itin ? (e) => e.preventDefault() : undefined}
-                    onDragEnd={itin ? () => setDragIndex(null) : undefined}
-                    className={`flex h-11 items-center gap-2 rounded-[10px] border bg-s2 pl-2 pr-2 ${itin ? 'cursor-grab active:cursor-grabbing' : ''} ${dragIndex === i ? 'border-accent-border opacity-50' : 'border-border'}`}
-                  >
-                    {itin && <GripVertical size={15} className="flex-none text-faint" />}
-                    {itin ? (
-                      <span className="grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[11px] font-bold text-on-accent">{i + 1}</span>
-                    ) : (
-                      <MapPin size={15} className="text-accent-text" />
-                    )}
-                    <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{l.name} <span className="font-normal text-faint">· {l.place}</span></span>
-                    {itin && (
-                      <div className="flex flex-none items-center">
-                        <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move up"><ChevronUp size={15} /></button>
-                        <button type="button" onClick={() => move(i, 1)} disabled={i === form.picked.length - 1} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move down"><ChevronDown size={15} /></button>
-                      </div>
-                    )}
-                    <button type="button" onClick={() => remove(l.uid)} className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:text-brick-text" aria-label="Remove"><X size={15} /></button>
-                  </div>
-                )
-              })}
+              <div ref={pickReorder.scope} className="flex flex-col gap-2">
+                {form.picked.map((l, i) => {
+                  const itin = form.planMode === 'itinerary'
+                  return (
+                    <div
+                      key={l.uid}
+                      data-flip-id={l.uid}
+                      data-reorder-item
+                      className={`flex h-11 items-center gap-2 rounded-[10px] border bg-s2 pl-2 pr-2 ${itin && pickReorder.dragIndex === i ? 'border-accent-border opacity-60 shadow-soft' : 'border-border'}`}
+                    >
+                      {itin ? (
+                        <button type="button" {...pickReorder.handleProps(i)} aria-label="Drag to reorder" className="flex-none text-faint hover:text-dim"><GripVertical size={15} /></button>
+                      ) : (
+                        <MapPin size={15} className="text-accent-text" />
+                      )}
+                      {itin && <span className="grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[11px] font-bold text-on-accent">{i + 1}</span>}
+                      <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium">{l.name} <span className="font-normal text-faint">· {l.place}</span></span>
+                      {itin && (
+                        <div className="flex flex-none items-center">
+                          <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move up"><ChevronUp size={15} /></button>
+                          <button type="button" onClick={() => move(i, 1)} disabled={i === form.picked.length - 1} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move down"><ChevronDown size={15} /></button>
+                        </div>
+                      )}
+                      <button type="button" onClick={() => remove(l.uid)} className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:text-brick-text" aria-label="Remove"><X size={15} /></button>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
         </div>

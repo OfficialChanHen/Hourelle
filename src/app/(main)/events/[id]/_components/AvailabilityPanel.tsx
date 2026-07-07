@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarPlus, MessageCircle, X, Send, GripHorizontal, Check, Eraser, TriangleAlert } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarPlus, MessageCircle, X, Send, GripHorizontal, Check, Eraser, TriangleAlert, Bell, Clock } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
@@ -12,7 +12,7 @@ import {
   patchEvent, availIvOf, intervalsToGrid, normalizeIv, bestWindow, fmtMinute, gridStartMinOf, stepOf,
   type AppEvent, type Participant, type ChatMessage, type Iv, type AvailIntervals,
 } from '@/lib/events'
-import { buildImportPreview, mockBusyUtc, ISO_DAY, type DayImport } from '@/lib/calendar-import'
+import { buildImportPreview, mockBusyUtc, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport } from '@/lib/calendar-import'
 
 type Mode = 'view' | 'edit'
 type Edge = 'top' | 'bottom'
@@ -115,6 +115,11 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
 
   const [mode, setMode] = useState<Mode>(responded === 0 ? 'edit' : 'view')
   const [h24, setH24] = useState(false)
+  const [myTime, setMyTime] = useState(false) // show times in the viewer's local zone
+  const [durationMin, setDurationMin] = useState(event.durationMin ?? 60)
+  const [detail, setDetail] = useState<{ day: string; ti: number; cx: number; cyTop: number; cyBottom: number; below: boolean } | null>(null) // view-mode cell breakdown
+  const [showMissing, setShowMissing] = useState(false)
+  const [nudged, setNudged] = useState<Set<string>>(new Set())
   const [chatOpen, setChatOpen] = useState(true)
   const [sel, setSel] = useState<Sel | null>(null)
   const [drag, setDrag] = useState<Drag | null>(null)
@@ -131,12 +136,19 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
   const weekDays = event.days.slice(page * WEEK, page * WEEK + WEEK)
   const goWeek = (dir: -1 | 1) => { setPage((p) => Math.max(0, Math.min(pageCount - 1, p + dir))); setSel(null) }
 
-  const fmt = (min: number) => fmtMinute(min, h24)
+  // timezone conversion: shift is 0 unless "my time" is on and the local zone differs
+  const day0 = event.days[0]?.key ?? ''
+  const rawShift = (() => { try { return ISO_DAY.test(day0) ? localZoneShiftMin(event.timezone, day0, gridStartMin) : 0 } catch { return 0 } })()
+  const canConvert = rawShift !== 0
+  const shift = myTime && canConvert ? rawShift : 0
+  const localTz = localTimeZone()
+  const fmt = (min: number) => fmtMinute(min + shift, h24)
 
   const mineRef = useRef(mine); useEffect(() => { mineRef.current = mine }, [mine])
   const selRef = useRef(sel); useEffect(() => { selRef.current = sel }, [sel])
   const dragRef = useRef<Drag | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
+  const colRef = useRef<HTMLDivElement>(null) // left column — cell popover anchors here, outside the scroller
   const lastYRef = useRef(0) // latest pointer Y, for the auto-scroll loop
   const rafRef = useRef(0)
   const scrollRaf = useRef(0)
@@ -156,6 +168,7 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
 
   // scroll → recompute the visible row window (rAF-throttled; also fires during drag auto-scroll)
   function onGridScroll() {
+    setDetail(null) // a cell popover would detach from its cell on scroll
     if (scrollRaf.current) return
     scrollRaf.current = requestAnimationFrame(() => {
       scrollRaf.current = 0
@@ -174,6 +187,39 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
     }
     patchEvent(event.id, { availIv, avail: intervalsToGrid(availIv, event.days, rows, step) })
   }
+  function changeDuration(v: number) {
+    setDurationMin(v)
+    if (!event.demo) patchEvent(event.id, { durationMin: v })
+  }
+  // quick-fill: add a clock-time block to every visible day at once
+  function fillPreset(startClock: number, endClock: number) {
+    const s = Math.max(0, Math.min(gridMax, startClock - gridStartMin))
+    const e = Math.max(0, Math.min(gridMax, endClock - gridStartMin))
+    if (e <= s) return
+    setMine((pm) => {
+      const next = { ...pm }
+      for (const d of weekDays) next[d.key] = normalizeIv([...(pm[d.key] ?? []), { s, e }])
+      persist(next)
+      return next
+    })
+    setSel(null)
+  }
+  function nudge(id: string) {
+    setNudged((prev) => new Set(prev).add(id)) // stub: real build sends a reminder email
+  }
+  function nudgeAll() { setNudged(new Set(missing.map((p) => p.id))) }
+
+  // open the view-mode breakdown, anchored to the clicked cell but rendered outside the
+  // scroller so overflow can't clip it
+  function openDetail(e: React.MouseEvent, day: string, ti: number) {
+    const col = colRef.current, sc = scroller.current
+    if (!col) return
+    const cr = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const pr = col.getBoundingClientRect()
+    const below = sc ? cr.top - sc.getBoundingClientRect().top < sc.clientHeight * 0.5 : true
+    setDetail({ day, ti, cx: cr.left - pr.left + cr.width / 2, cyTop: cr.top - pr.top, cyBottom: cr.bottom - pr.top, below })
+  }
+
   // set a day's intervals, normalized + persisted; returns the merged result for re-selection
   function commitDay(day: string, ivs: Iv[]): Iv[] {
     const norm = normalizeIv(ivs)
@@ -395,7 +441,11 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
   )
 
   // best window (live interval sweep — most people simultaneously free, longest such stretch)
-  const bw = useMemo(() => bestWindow(combinedByDay, event.days), [combinedByDay]) // eslint-disable-line react-hooks/exhaustive-deps
+  const bw = useMemo(() => bestWindow(combinedByDay, event.days, durationMin), [combinedByDay, durationMin]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // who still hasn't marked any availability (to nudge)
+  const respondedIds = new Set(otherIds); if (youAny) respondedIds.add('JM')
+  const missing = event.participants.filter((p) => !respondedIds.has(p.id) && p.rsvp !== 'not_going')
   const rangeLabel = weekDays.length ? (weekDays.length > 1 ? `${weekDays[0].date} – ${weekDays[weekDays.length - 1].date}` : weekDays[0].date) : ''
 
   // virtualization window: mount only the visible rows (+ overscan), pad the rest with spacers
@@ -417,11 +467,11 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
   const minBandDur = 7 / pxPerMin // paint bands thinner than ~7px get absorbed
 
   return (
-    <div className="relative flex flex-col overflow-hidden rounded-2xl border border-border bg-s1 lg:h-[calc(100dvh-300px)] lg:max-h-[820px] lg:min-h-[480px] lg:flex-row">
-      <div className="flex min-w-0 flex-1 flex-col p-4">
+    <div className="relative flex flex-col rounded-2xl border border-border bg-s1 lg:h-[calc(100dvh-300px)] lg:max-h-[820px] lg:min-h-[480px] lg:flex-row">
+      <div ref={colRef} className="relative flex min-w-0 flex-1 flex-col p-4">
         {/* toolbar */}
         <div className="flex flex-wrap items-center gap-[9px] border-b border-border pb-[13px]">
-          <SegmentedControl size="sm" value={mode} onChange={(v) => { setMode(v as Mode); setSel(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
+          <SegmentedControl size="sm" value={mode} onChange={(v) => { setMode(v as Mode); setSel(null); setDetail(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
           <span className="h-5 w-px bg-border" />
           <div className="flex items-center gap-[3px]">
             <IconBtn onClick={() => goWeek(-1)} disabled={page === 0}><ChevronLeft size={15} /></IconBtn>
@@ -431,10 +481,17 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
             </span>
             <IconBtn onClick={() => goWeek(1)} disabled={page >= pageCount - 1}><ChevronRight size={15} /></IconBtn>
           </div>
-          <span className="flex items-center gap-1.5 text-[11px] text-dim">Times in <TimezonePill tz={event.timezone} /></span>
+          {canConvert ? (
+            <button onClick={() => setMyTime((m) => !m)} title="Toggle timezone" className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[10px] text-[11px] hover:border-border2">
+              Times in <TimezonePill tz={myTime ? localTz : event.timezone} /> {myTime && <span className="text-faint">(yours)</span>}
+            </button>
+          ) : (
+            <span className="flex items-center gap-1.5 text-[11px] text-dim">Times in <TimezonePill tz={event.timezone} /></span>
+          )}
           <ImportFromCalendar onPick={startImport} />
           {youAny && <ClearTimes onClear={clearAllMine} />}
           <div className="flex-1" />
+          <DurationPicker value={durationMin} onChange={changeDuration} />
           <Segment value={h24 ? '24' : '12'} onChange={(v) => setH24(v === '24')} options={[{ v: '12', l: '12h' }, { v: '24', l: '24h' }]} compact />
           {!chatOpen && (
             // side-panel reopen — on stacked layouts the bottom bar below takes over
@@ -449,9 +506,21 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
         <div className="flex flex-wrap items-center gap-2.5 py-[11px]">
           <span className="text-[11px] text-dim">Participants</span>
           <AvatarRow people={event.participants.map((p) => ({ initials: p.initials, name: p.name, color: p.color }))} size={22} max={8} overlap={5} />
-          <span className="ml-1.5 text-[11px] text-dim">{responded} of {total} responded</span>
+          {/* responded count opens the who's-missing / nudge popover */}
+          <div className="relative">
+            <button
+              onClick={() => missing.length && setShowMissing((s) => !s)}
+              className={`ml-1.5 flex items-center gap-1 text-[11px] ${missing.length ? 'text-accent-text hover:underline' : 'text-dim'}`}
+            >
+              {responded} of {total} responded{missing.length > 0 && <ChevronDown size={12} className={showMissing ? 'rotate-180' : ''} />}
+            </button>
+            {showMissing && missing.length > 0 && (
+              <MissingPopover missing={missing} nudged={nudged} onNudge={nudge} onNudgeAll={nudgeAll} onClose={() => setShowMissing(false)} />
+            )}
+          </div>
+          {mode === 'edit' && <PresetFills onFill={fillPreset} />}
           {mode === 'edit' && (
-            <span className="text-[11px] text-faint">· Drag to block out time. Click a block to fine-tune with the handles, or arrow keys to nudge by the minute.</span>
+            <span className="text-[11px] text-faint">· Drag to block out time, or arrow keys to nudge a selected block by the minute.</span>
           )}
           {/* heat legend — quiet, reads left to right like the ramp */}
           <span className="ml-auto flex items-center gap-1 text-[10px] text-faint">
@@ -501,9 +570,9 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
             {topPad > 0 && <div style={{ gridColumn: '1 / -1', height: topPad }} />}
             {event.times.slice(firstRow, lastRow).map((_, k) => {
               const ti = firstRow + k
-              const rowMin = gridStartMin + ti * step
-              const rowH = Math.floor(rowMin / 60) % 24
-              const rowMm = String(rowMin % 60).padStart(2, '0')
+              const rowMin = gridStartMin + ti * step + shift
+              const rowH = ((Math.floor(rowMin / 60) % 24) + 24) % 24
+              const rowMm = String(((rowMin % 60) + 60) % 60).padStart(2, '0')
               const labelMain = h24 ? `${String(rowH).padStart(2, '0')}:${rowMm}` : `${rowH % 12 === 0 ? 12 : rowH % 12}:${rowMm}`
               const labelSub = h24 ? null : rowH < 12 ? 'AM' : 'PM'
               const w0 = ti * step, w1 = (ti + 1) * step
@@ -536,8 +605,15 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
                     const title = bands.length === 1
                       ? (n ? `${n} of ${total} free` : 'No one free')
                       : bands.map((b) => `${fmt(gridStartMin + b.s)} – ${fmt(gridStartMin + b.e)}: ${b.ids.length} free`).join('\n')
+                    const open = detail?.day === d.key && detail?.ti === ti
                     return (
-                      <div key={d.key} className="relative min-h-[50px] border-b border-r border-border" style={{ boxShadow: d.best ? 'inset 1px 0 0 0 var(--teal-border), inset -1px 0 0 0 var(--teal-border)' : undefined }} title={title}>
+                      <div
+                        key={d.key}
+                        onClick={(e) => openDetail(e, d.key, ti)}
+                        className="relative min-h-[50px] cursor-pointer border-b border-r border-border"
+                        style={{ boxShadow: (open ? true : d.best) ? `inset 0 0 0 ${open ? 1.5 : 1}px ${open ? 'var(--accent)' : 'var(--teal-border)'}` : undefined }}
+                        title={title}
+                      >
                         {paint.map((b, k) => (
                           <div
                             key={k}
@@ -619,16 +695,37 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
           </div>
         </div>
 
+        {/* view-mode cell breakdown — anchored to the cell but outside the scroller so nothing clips it */}
+        {detail && (() => {
+          const bands = cellBands(combinedByDay[detail.day] ?? {}, detail.ti * step, (detail.ti + 1) * step)
+          const W = 222, half = W / 2 + 6
+          const colW = colRef.current?.clientWidth ?? 400
+          const left = Math.max(half, Math.min(colW - half, detail.cx))
+          return (
+            <CellDetail
+              bands={bands}
+              total={total}
+              fmt={fmt}
+              gridStartMin={gridStartMin}
+              avatarOf={avatarOf}
+              style={{ left, top: detail.below ? detail.cyBottom + 6 : detail.cyTop - 6, transform: detail.below ? 'translateX(-50%)' : 'translate(-50%, -100%)' }}
+              onClose={() => setDetail(null)}
+            />
+          )
+        })()}
+
         {/* best-window footer */}
         <div className="mt-0.5 flex flex-wrap items-center gap-2.5 border-t border-border px-0.5 pt-3">
           {bw ? (
             <>
-              <span className="text-[11px] text-dim">Best so far</span>
+              <span className="text-[11px] text-dim">Best {fmtDur(durationMin)} slot</span>
               <span className="text-[12.5px] font-semibold">{bw.dayLabel} · {fmt(gridStartMin + bw.s)} – {fmt(gridStartMin + bw.e)}</span>
-              <TimezonePill tz={event.timezone} />
+              <TimezonePill tz={myTime && canConvert ? localTz : event.timezone} />
               <span className="text-[11px] font-semibold text-teal-text">{bw.count} of {total} free</span>
               <div className="ml-auto"><AvatarRow people={bw.ids.map(avatarOf)} size={20} max={8} overlap={5} /></div>
             </>
+          ) : responded > 0 ? (
+            <span className="text-[11px] text-dim">No block long enough for a <span className="font-semibold text-text">{fmtDur(durationMin)}</span> event yet. Try a shorter length, or wait for more responses.</span>
           ) : (
             <span className="text-[11px] text-dim">No availability yet. Add yours in <span className="font-semibold text-text">Edit mine</span> to start finding the best time.</span>
           )}
@@ -640,7 +737,7 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
         // stacked layout: reopen the chat right where it appears, at the bottom
         <button
           onClick={() => setChatOpen(true)}
-          className="flex items-center justify-center gap-1.5 border-t border-border bg-s0 py-3 text-[12px] font-semibold hover:bg-s2 lg:hidden"
+          className="flex items-center justify-center gap-1.5 rounded-b-2xl border-t border-border bg-s0 py-3 text-[12px] font-semibold hover:bg-s2 lg:hidden"
         >
           <MessageCircle size={14} className="text-accent-text" /> Open discussion
           {messages.length > 0 && <span className="flex h-[16px] items-center rounded-[10px] bg-accent px-[6px] text-[9.5px] text-on-accent">{messages.length}</span>}
@@ -943,6 +1040,153 @@ function EdgeHandle({ pct, label, active, side, onDown }: { pct: number; label: 
   )
 }
 
+/* ── how long the event needs — drives the best-window search ── */
+function fmtDur(m: number) { return m < 60 ? `${m}m` : m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h` }
+function DurationPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [open, setOpen] = useState(false)
+  const wrap = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('pointerdown', onDown); window.addEventListener('keydown', onKey)
+    return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
+  }, [open])
+  const OPTS = [30, 60, 90, 120, 180, 240]
+  const isCommon = OPTS.includes(value)
+  function applyCustom(raw: string) {
+    const n = Math.round(Number(raw))
+    if (Number.isFinite(n) && n >= 15) { onChange(Math.min(720, n)); setOpen(false) }
+  }
+  return (
+    <div ref={wrap} className="relative">
+      <button onClick={() => setOpen((o) => !o)} title="How long the event needs" className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[10px] text-[11px] hover:border-border2">
+        <Clock size={12} className="text-dim" /> Need {fmtDur(value)} <ChevronDown size={12} className={`text-faint ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-30 mt-1 w-[136px] rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
+          <div className="px-2 pb-1 pt-1.5 text-[9.5px] font-semibold uppercase tracking-[.1em] text-faint">Event length</div>
+          {OPTS.map((m) => (
+            <button key={m} onClick={() => { onChange(m); setOpen(false) }} className={`flex w-full items-center justify-between rounded-[7px] px-2 py-1.5 text-[11.5px] ${m === value ? 'bg-accent font-semibold text-on-accent' : 'hover:bg-s2'}`}>
+              {fmtDur(m)} {m === value && <Check size={12} />}
+            </button>
+          ))}
+          <div className="mt-1 border-t border-border px-1.5 pb-1 pt-2">
+            <div className="mb-1 flex items-center justify-between text-[9.5px] font-semibold uppercase tracking-[.1em] text-faint">
+              Custom {!isCommon && <span className="rounded-[4px] bg-accent px-1 py-px text-[8.5px] normal-case tracking-normal text-on-accent">{fmtDur(value)}</span>}
+            </div>
+            <div className="flex items-center gap-1">
+              <input
+                type="number" min={15} max={720} step={15}
+                defaultValue={isCommon ? '' : value}
+                placeholder="mins"
+                onKeyDown={(e) => { if (e.key === 'Enter') applyCustom((e.target as HTMLInputElement).value) }}
+                onBlur={(e) => e.target.value && applyCustom(e.target.value)}
+                className="h-7 w-full rounded-[7px] border border-border bg-s2 px-2 text-[11.5px] outline-none focus:border-accent-border"
+              />
+              <span className="text-[10px] text-faint">min</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── quick-fill presets (edit mode): fill a standard block across every visible day ── */
+function PresetFills({ onFill }: { onFill: (startClock: number, endClock: number) => void }) {
+  const P = [{ l: 'Morning', s: 8 * 60, e: 12 * 60 }, { l: 'Afternoon', s: 12 * 60, e: 17 * 60 }, { l: 'Evening', s: 17 * 60, e: 21 * 60 }]
+  return (
+    <span className="flex items-center gap-1 text-[10.5px] text-faint">
+      Quick fill:
+      {P.map((p) => (
+        <button key={p.l} onClick={() => onFill(p.s, p.e)} className="rounded-full border border-border bg-s1 px-2 py-0.5 text-[10.5px] font-medium text-dim hover:border-border2 hover:text-text">{p.l}</button>
+      ))}
+    </span>
+  )
+}
+
+/* ── who hasn't responded, with a (stub) nudge ── */
+function MissingPopover({ missing, nudged, onNudge, onNudgeAll, onClose }: { missing: Participant[]; nudged: Set<string>; onNudge: (id: string) => void; onNudgeAll: () => void; onClose: () => void }) {
+  const wrap = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) onClose() }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('pointerdown', onDown); window.addEventListener('keydown', onKey)
+    return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
+  }, [onClose])
+  const allNudged = missing.every((p) => nudged.has(p.id))
+  return (
+    <div ref={wrap} className="absolute left-0 top-full z-30 mt-1 w-[244px] rounded-[10px] border border-border bg-s1 p-2 shadow-soft">
+      <div className="flex items-center justify-between px-1 pb-1.5">
+        <span className="text-[10.5px] font-semibold uppercase tracking-[.1em] text-faint">Waiting on {missing.length}</span>
+        <button onClick={onNudgeAll} disabled={allNudged} className="flex items-center gap-1 text-[10.5px] font-semibold text-accent-text disabled:text-faint"><Bell size={11} /> Nudge all</button>
+      </div>
+      <div className="scroll-slim flex max-h-[220px] flex-col gap-0.5 overflow-auto">
+        {missing.map((p) => {
+          const done = nudged.has(p.id)
+          return (
+            <div key={p.id} className="flex items-center gap-2 rounded-[7px] px-1 py-1">
+              <Avatar initials={p.initials} color={p.color} size={22} font={9} />
+              <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{p.name}</span>
+              <button onClick={() => onNudge(p.id)} disabled={done} className={`flex h-6 items-center gap-1 rounded-[6px] px-2 text-[10.5px] font-semibold ${done ? 'text-teal-text' : 'border border-border2 hover:bg-s2'}`}>
+                {done ? <><Check size={11} /> Nudged</> : <><Bell size={11} /> Nudge</>}
+              </button>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/* ── view-mode cell breakdown: who's free in each subsection of the block ── */
+function CellDetail({ bands, total, fmt, gridStartMin, avatarOf, style, onClose }: {
+  bands: Band[]; total: number; fmt: (m: number) => string; gridStartMin: number
+  avatarOf: (id: string) => { initials: string; name: string; color: Participant['color'] }; style: React.CSSProperties; onClose: () => void
+}) {
+  const wrap = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const onDown = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) onClose() }
+    window.addEventListener('keydown', onKey); window.addEventListener('pointerdown', onDown)
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('pointerdown', onDown) }
+  }, [onClose])
+  return (
+    <div
+      ref={wrap}
+      onClick={(e) => e.stopPropagation()}
+      style={style}
+      className="absolute z-40 w-[222px] rounded-[11px] border border-border2 bg-s1 p-2.5 shadow-soft"
+    >
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-faint">Who&apos;s free</span>
+        <button onClick={onClose} aria-label="Close" className="text-faint hover:text-text"><X size={12} /></button>
+      </div>
+      <div className="flex max-h-[240px] flex-col gap-2 overflow-auto scroll-slim">
+        {bands.map((b, i) => (
+          <div key={i} className="border-t border-border pt-1.5 first:border-t-0 first:pt-0">
+            <div className="mb-1 flex items-center justify-between text-[10.5px]">
+              <span className="font-semibold">{fmt(gridStartMin + b.s)} – {fmt(gridStartMin + b.e)}</span>
+              <span className="text-dim">{b.ids.length}/{total}</span>
+            </div>
+            {b.ids.length === 0 ? (
+              <span className="text-[10.5px] text-faint">No one free</span>
+            ) : (
+              <div className="flex flex-wrap gap-1">
+                {b.ids.slice(0, 12).map((id) => { const a = avatarOf(id); return (
+                  <span key={id} className="flex items-center gap-1 rounded-full bg-s2 py-0.5 pl-0.5 pr-1.5"><Avatar initials={a.initials} color={a.color} size={16} font={7.5} /><span className="text-[10px]">{a.name}</span></span>
+                ) })}
+                {b.ids.length > 12 && <span className="self-center text-[10px] text-faint">+{b.ids.length - 12}</span>}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /* ── inline chat side panel (controlled by parent) ── */
 function ChatPanel({ members, messages, onSend, onClose, avatarOf }: { members: number; messages: ChatMessage[]; onSend: (t: string) => void; onClose: () => void; avatarOf: (id: string) => { initials: string; name: string; color: Participant['color'] } }) {
   const panel = useRef<HTMLDivElement>(null)
@@ -960,7 +1204,7 @@ function ChatPanel({ members, messages, onSend, onClose, avatarOf }: { members: 
   }
 
   return (
-    <div ref={panel} className="flex h-[340px] w-full flex-none flex-col border-t border-border bg-s0 lg:h-auto lg:w-[300px] lg:border-l lg:border-t-0">
+    <div ref={panel} className="flex h-[340px] w-full flex-none flex-col overflow-hidden rounded-b-2xl border-t border-border bg-s0 lg:h-auto lg:w-[300px] lg:rounded-b-none lg:rounded-r-2xl lg:border-l lg:border-t-0">
       <div className="flex items-center justify-between border-b border-border px-3.5 py-[13px]">
         <div className="flex items-center gap-1.5 text-[12.5px] font-semibold">
           <MessageCircle size={14} className="text-accent-text" />

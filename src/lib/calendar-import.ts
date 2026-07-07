@@ -8,7 +8,7 @@ import { normalizeIv, type Iv, type GridDay } from './events'
 export const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
 
 // minutes a zone is ahead of UTC at a given instant (IANA, DST-correct)
-function tzOffsetMin(tz: string, utcMs: number): number {
+export function tzOffsetMin(tz: string, utcMs: number): number {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: tz, hour12: false,
     year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
@@ -24,6 +24,16 @@ export function zonedToUtc(dayIso: string, clockMin: number, tz: string): number
   const naive = Date.UTC(y, m - 1, d, 0, clockMin)
   const utc = naive - tzOffsetMin(tz, naive) * 60000
   return naive - tzOffsetMin(tz, utc) * 60000
+}
+
+export function localTimeZone(): string {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' } catch { return 'UTC' }
+}
+// minutes to add to an event-timezone clock time to read it in the viewer's local zone,
+// measured at the given day/time instant (so DST is handled for that date)
+export function localZoneShiftMin(eventTz: string, dayIso: string, clockMin: number): number {
+  const utc = zonedToUtc(dayIso, clockMin, eventTz)
+  return tzOffsetMin(localTimeZone(), utc) - tzOffsetMin(eventTz, utc)
 }
 
 export type UtcBusy = { s: number; e: number } // epoch ms

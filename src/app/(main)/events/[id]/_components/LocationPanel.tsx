@@ -1,11 +1,12 @@
 'use client'
 
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert } from 'lucide-react'
+import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
-import { patchEvent, type AppEvent, type EventPlace, type Participant } from '@/lib/events'
-import { estimateModes, fastestMode, fmtDuration, MODE_LABEL, type TravelMode, type ModeEstimate } from '@/lib/travel'
+import { patchEvent, parseHM, fmtMinute, type AppEvent, type EventPlace, type Participant } from '@/lib/events'
+import { estimateModes, fastestMode, fmtDuration, MODE_LABEL, ALL_MODES, type TravelMode, type ModeEstimate } from '@/lib/travel'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
+import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 
 // ~0.6 km per map-percent — puts a metro-area offsite in walk/drive/transit range
@@ -13,8 +14,9 @@ const KM_PER_PCT = 0.6
 const MODE_ICON: Record<TravelMode, typeof Car> = { walk: Footprints, bus: Bus, drive: Car, train: TrainFront, flight: Plane }
 
 const YOU = 'JM'
-// a stop references a place but has its own id, so the same venue can appear more than once
-type ItinStop = { uid: string; placeId: string }
+// a stop references a place but has its own id (so a venue can repeat) and a dwell time
+type ItinStop = { uid: string; placeId: string; dwell: number }
+const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
 // deterministic pin spots on the fake map, by place index (stable regardless of ranking)
 const PIN_SLOTS = [
   { left: '27%', top: '60%' }, { left: '55%', top: '38%' }, { left: '70%', top: '72%' },
@@ -35,19 +37,23 @@ export function LocationPanel({ event }: { event: AppEvent }) {
   }
 
   const [votes, setVotes] = useState<Record<string, string[]>>(() => event.votes ?? {})
+  const [maxVotes, setMaxVotes] = useState(event.maxVotes ?? 1)
   const stopUid = useRef(0)
-  const [stops, setStops] = useState<ItinStop[]>(() =>
-    (event.itinStops ?? []).filter((id) => loc.places.some((p) => p.id === id)).map((placeId) => ({ uid: `s${stopUid.current++}`, placeId })),
-  )
+  const [stops, setStops] = useState<ItinStop[]>(() => {
+    const ids = (event.itinStops ?? []).filter((id) => loc.places.some((p) => p.id === id))
+    const dwell = event.itinDwell ?? []
+    return ids.map((placeId, i) => ({ uid: `s${stopUid.current++}`, placeId, dwell: dwell[i] ?? 60 }))
+  })
+  const [itinStartMin, setItinStartMin] = useState(event.itinStartMin ?? 9 * 60)
+  const [travelModes, setTravelModes] = useState<TravelMode[]>(() => (event.travelModes as TravelMode[] | undefined)?.filter((m) => ALL_MODES.includes(m)) ?? [...ALL_MODES])
   const [builtRank, setBuiltRank] = useState<string[]>(() => event.itinRank ?? [])
   const [sub, setSub] = useState<'vote' | 'itin'>(loc.planMode === 'itinerary' ? 'itin' : 'vote')
   const [focusPin, setFocusPin] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [adding, setAdding] = useState(false) // itinerary "add a stop" picker open
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null) // placeId pending delete confirm
 
-  function persist(patch: { votes?: Record<string, string[]>; itinStops?: string[]; itinRank?: string[] }) {
+  function persist(patch: Partial<AppEvent>) {
     if (!event.demo) patchEvent(event.id, patch)
   }
   function persistLocation(nextPlaces: EventPlace[], nextSuggest: boolean) {
@@ -69,16 +75,37 @@ export function LocationPanel({ event }: { event: AppEvent }) {
   const ranked = [...places].sort((a, b) => votesOf(b.id).length - votesOf(a.id).length)
   const rankIds = ranked.map((p) => p.id)
   const leadingId = ranked.length && votesOf(ranked[0].id).length > 0 ? ranked[0].id : null
+  const myVoteCount = places.filter((p) => votesOf(p.id).includes(YOU)).length
+  const votesLeft = Math.max(0, maxVotes - myVoteCount)
 
+  // vote budget: everyone gets `maxVotes`. With 1, voting moves your single pick (radio);
+  // with more, extra votes are blocked once you're out.
   function toggleVote(placeId: string) {
-    voteFlip.capture() // re-rank slides instead of snapping
+    const has = votesOf(placeId).includes(YOU)
+    if (!has && maxVotes > 1 && votesLeft === 0) return // out of votes
+    voteFlip.capture()
     setVotes((v) => {
-      const cur = v[placeId] ?? []
-      const next = { ...v, [placeId]: cur.includes(YOU) ? cur.filter((x) => x !== YOU) : [...cur, YOU] }
+      const next: Record<string, string[]> = { ...v }
+      if (has) {
+        next[placeId] = (v[placeId] ?? []).filter((x) => x !== YOU)
+      } else if (maxVotes === 1) {
+        for (const p of places) if ((v[p.id] ?? []).includes(YOU)) next[p.id] = v[p.id].filter((x) => x !== YOU)
+        next[placeId] = [...(v[placeId] ?? []), YOU]
+      } else {
+        next[placeId] = [...(v[placeId] ?? []), YOU]
+      }
       persist({ votes: next })
       return next
     })
   }
+  function changeMaxVotes(n: number) { setMaxVotes(n); persist({ maxVotes: n }) }
+  function toggleMode(m: TravelMode) {
+    const next = travelModes.includes(m) ? travelModes.filter((x) => x !== m) : [...travelModes, m]
+    if (!next.length) return // keep at least one mode enabled
+    setTravelModes(next); persist({ travelModes: next })
+  }
+  function changeStart(min: number) { setItinStartMin(min); persist({ itinStartMin: min }) }
+  function changeDwell(i: number, d: number) { persistStops(stops.map((s, k) => (k === i ? { ...s, dwell: Math.max(15, d) } : s))) }
   // owner removes a candidate — confirm first if it already has votes (they'd be lost)
   function attemptRemovePlace(placeId: string) {
     if (votesOf(placeId).length > 0) setConfirmRemove(placeId)
@@ -95,6 +122,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
         location: { ...loc, places: nextPlaces, guestsCanSuggest },
         votes: nextVotes,
         itinStops: nextStops.map((s) => s.placeId),
+        itinDwell: nextStops.map((s) => s.dwell),
       })
     }
   }
@@ -120,9 +148,9 @@ export function LocationPanel({ event }: { event: AppEvent }) {
     return route
   }
   function persistStops(a: ItinStop[]) {
-    setStops(a); persist({ itinStops: a.map((s) => s.placeId) })
+    setStops(a); persist({ itinStops: a.map((s) => s.placeId), itinDwell: a.map((s) => s.dwell) })
   }
-  const asStops = (ids: string[]): ItinStop[] => ids.map((placeId) => ({ uid: `s${stopUid.current++}`, placeId }))
+  const asStops = (ids: string[]): ItinStop[] => ids.map((placeId) => ({ uid: `s${stopUid.current++}`, placeId, dwell: 60 }))
 
   function buildFromVotes() {
     itinFlip.capture()
@@ -152,15 +180,13 @@ export function LocationPanel({ event }: { event: AppEvent }) {
     const a = [...stops]; ;[a[i], a[j]] = [a[j], a[i]]
     persistStops(a)
   }
-  // drag-to-reorder, mirroring the create wizard: reorder live as you drag over a row
-  function onStopDragEnter(i: number) {
-    if (dragIndex === null || dragIndex === i) return
+  // pointer reorder (works on touch + mouse): move item `from` to index `to`
+  function reorderStop(from: number, to: number) {
     itinFlip.capture()
     const a = [...stops]
-    const [m] = a.splice(dragIndex, 1)
-    a.splice(i, 0, m)
+    const [m] = a.splice(from, 1)
+    a.splice(to, 0, m)
     persistStops(a)
-    setDragIndex(i)
   }
   function removeStop(i: number) {
     itinFlip.capture()
@@ -178,19 +204,34 @@ export function LocationPanel({ event }: { event: AppEvent }) {
     const pa = slotFor(a), pb = slotFor(b)
     return Math.hypot(parseFloat(pa.left) - parseFloat(pb.left), parseFloat(pa.top) - parseFloat(pb.top)) * KM_PER_PCT
   }
-  // per-leg mode estimates + the fastest pick; the route total sums the fastest per leg
+  // per-leg mode estimates (limited to allowed modes) + the fastest pick; fast is null if no
+  // allowed mode can make the leg
   const legs = stops.slice(0, -1).map((s, i) => {
-    const est = estimateModes(legKm(s.placeId, stops[i + 1].placeId))
-    return { est, fast: fastestMode(est)! }
+    const est = estimateModes(legKm(s.placeId, stops[i + 1].placeId), travelModes)
+    return { est, fast: fastestMode(est) }
   })
-  const routeMinutes = legs.reduce((s, l) => s + l.fast.minutes, 0)
-  const modesUsed = [...new Set(legs.map((l) => l.fast.mode))] as TravelMode[]
+  const routeMinutes = legs.reduce((s, l) => s + (l.fast?.minutes ?? 0), 0)
+  const modesUsed = [...new Set(legs.map((l) => l.fast?.mode).filter(Boolean))] as TravelMode[]
+  const anyUnreachable = legs.some((l) => !l.fast)
+  // arrive/depart clock times per stop, flowing dwell + travel through the day
+  const schedule = (() => {
+    const out: { arrive: number; depart: number }[] = []
+    let t = itinStartMin
+    for (let i = 0; i < stops.length; i++) {
+      const arrive = t, depart = arrive + stops[i].dwell
+      out.push({ arrive, depart })
+      t = depart + (i < legs.length ? (legs[i].fast?.minutes ?? 0) : 0)
+    }
+    return out
+  })()
+  const endMin = schedule.length ? schedule[schedule.length - 1].depart : itinStartMin
   const blurred = loc.mode !== 'vote' || places.length === 0
   const focusPlace = focusPin ? placeAt(focusPin) : (leadingId ? placeAt(leadingId) : null)
 
   // Flip animations: vote list re-ranks smoothly on each vote; itinerary rows slide on reorder
   const voteFlip = useFlipReorder(rankIds.join('|'))
   const itinFlip = useFlipReorder(stops.map((s) => s.uid).join('|'))
+  const stopReorder = usePointerReorder(reorderStop)
 
   function copyLink() {
     navigator.clipboard?.writeText(loc.meetingLink || '').then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800) }).catch(() => {})
@@ -321,7 +362,14 @@ export function LocationPanel({ event }: { event: AppEvent }) {
               {canAddPlaces && <AddPlaceSearch onAdd={addPlace} taken={new Set(places.map((p) => p.id))} />}
               {places.length === 0 ? (
                 <EmptyNote icon={Vote} text={canAddPlaces ? 'No places on the ballot yet. Search above to add the first one.' : 'No places to vote on yet. The host can add some, or allow guests to.'} />
-              ) : null}
+              ) : (
+                <div className="flex items-center gap-1.5 px-0.5 text-[11px] text-dim">
+                  <Vote size={13} className="text-accent-text" />
+                  {maxVotes === 1
+                    ? 'Pick your top choice — voting another moves it.'
+                    : <>You have {maxVotes} votes · <span className={`font-semibold ${votesLeft ? 'text-accent-text' : 'text-brick-text'}`}>{votesLeft} left</span></>}
+                </div>
+              )}
                 {ranked.map((p, i) => {
                   const ids = votesOf(p.id)
                   const you = ids.includes(YOU)
@@ -344,8 +392,9 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                         <button
                           onClick={() => toggleVote(p.id)}
                           aria-pressed={you}
-                          title={you ? 'Remove your vote' : 'Vote for this place'}
-                          className={`grid h-[34px] w-[34px] place-items-center rounded-[9px] border ${you ? 'border-accent bg-accent text-on-accent' : 'border-border2 bg-s1 text-text hover:bg-s2'}`}
+                          disabled={!you && maxVotes > 1 && votesLeft === 0}
+                          title={you ? 'Remove your vote' : votesLeft === 0 && maxVotes > 1 ? 'No votes left' : 'Vote for this place'}
+                          className={`grid h-[34px] w-[34px] place-items-center rounded-[9px] border ${you ? 'border-accent bg-accent text-on-accent' : 'border-border2 bg-s1 text-text enabled:hover:bg-s2 disabled:opacity-40'}`}
                         >
                           <ArrowUp size={16} />
                         </button>
@@ -366,11 +415,17 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                     </div>
                   )
                 })}
-              {event.hostedByYou && (
-                <label className="mt-1 flex cursor-pointer items-center gap-2 px-0.5 text-[11px] text-dim">
-                  <input type="checkbox" checked={guestsCanSuggest} onChange={toggleGuestsCanSuggest} className="h-3.5 w-3.5" style={{ accentColor: 'var(--accent)' }} />
-                  Guests can add places to the ballot
-                </label>
+              {event.hostedByYou && places.length > 0 && (
+                <div className="mt-1 flex flex-col gap-2 border-t border-border pt-2">
+                  <label className="flex cursor-pointer items-center gap-2 px-0.5 text-[11px] text-dim">
+                    <input type="checkbox" checked={guestsCanSuggest} onChange={toggleGuestsCanSuggest} className="h-3.5 w-3.5" style={{ accentColor: 'var(--accent)' }} />
+                    Guests can add places to the ballot
+                  </label>
+                  <div className="flex items-center gap-2 px-0.5 text-[11px] text-dim">
+                    Votes per person
+                    <SegmentedControl size="sm" value={String(maxVotes)} onChange={(v) => changeMaxVotes(Number(v))} options={[{ v: '1', l: '1' }, { v: '2', l: '2' }, { v: '3', l: '3' }]} />
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -437,52 +492,76 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                 </div>
               ) : (
                 <>
-                  {stops.map((s, i) => {
-                    const p = placeAt(s.placeId)
-                    if (!p) return null
-                    const leg = i < legs.length ? legs[i] : null
-                    return (
-                      <Fragment key={s.uid}>
-                        <div
-                          data-flip-id={s.uid}
-                          draggable
-                          onDragStart={() => setDragIndex(i)}
-                          onDragEnter={() => onStopDragEnter(i)}
-                          onDragOver={(e) => e.preventDefault()}
-                          onDragEnd={() => setDragIndex(null)}
-                          className={`flex items-start gap-2 rounded-xl border bg-s0 p-2.5 ${dragIndex === i ? 'border-accent-border opacity-50' : 'border-border'}`}
-                        >
-                          <GripVertical size={15} className="mt-0.5 flex-none cursor-grab text-faint active:cursor-grabbing" />
-                          <span className="mt-px grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[11px] font-bold text-on-accent">{i + 1}</span>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="text-[12.5px] font-semibold">{p.name}</span>
-                              {stops.filter((x) => x.placeId === s.placeId).length > 1 && <span className="flex-none rounded-[5px] border border-border2 bg-s2 px-[5px] py-px text-[8.5px] font-semibold text-dim">revisit</span>}
+                  {/* schedule + how-you-get-around controls */}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-s0 p-2.5">
+                    <label className="flex items-center gap-1.5 text-[11px] font-medium text-dim">
+                      <Clock size={12} /> Starts
+                      <input type="time" value={hhmm(itinStartMin)} onChange={(e) => { const m = parseHM(e.target.value); if (m != null) changeStart(m) }} className="rounded-[7px] border border-border bg-s1 px-1.5 py-0.5 text-[11px]" />
+                    </label>
+                    <span className="text-[11px] text-dim">Ends ~{fmtMinute(endMin)}</span>
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="text-[10.5px] text-faint">Getting around:</span>
+                      {ALL_MODES.map((m) => { const on = travelModes.includes(m); const Icon = MODE_ICON[m]; return (
+                        <button key={m} onClick={() => toggleMode(m)} title={MODE_LABEL[m]} className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${on ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-faint'}`}>
+                          <Icon size={10} /> {MODE_LABEL[m]}
+                        </button>
+                      ) })}
+                    </div>
+                  </div>
+
+                  <div ref={stopReorder.scope} className="flex flex-col gap-2">
+                    {stops.map((s, i) => {
+                      const p = placeAt(s.placeId)
+                      if (!p) return null
+                      const leg = i < legs.length ? legs[i] : null
+                      return (
+                        <Fragment key={s.uid}>
+                          <div
+                            data-flip-id={s.uid}
+                            data-reorder-item
+                            className={`flex items-start gap-2 rounded-xl border bg-s0 p-2.5 ${stopReorder.dragIndex === i ? 'border-accent-border opacity-60 shadow-soft' : 'border-border'}`}
+                          >
+                            <button {...stopReorder.handleProps(i)} aria-label="Drag to reorder" className="mt-0.5 flex-none text-faint hover:text-dim"><GripVertical size={15} /></button>
+                            <span className="mt-px grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[11px] font-bold text-on-accent">{i + 1}</span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-[12.5px] font-semibold">{p.name}</span>
+                                {stops.filter((x) => x.placeId === s.placeId).length > 1 && <span className="flex-none rounded-[5px] border border-border2 bg-s2 px-[5px] py-px text-[8.5px] font-semibold text-dim">revisit</span>}
+                              </div>
+                              <div className="text-[10.5px] leading-[1.45] text-dim">{p.place} · {votesOf(s.placeId).length} vote{votesOf(s.placeId).length === 1 ? '' : 's'}</div>
+                              {/* scheduled arrive–depart + dwell stepper */}
+                              <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                                <span className="flex items-center gap-1 text-[10.5px] font-semibold text-accent-text"><Clock size={11} /> {fmtMinute(schedule[i].arrive)} – {fmtMinute(schedule[i].depart)}</span>
+                                <span className="flex items-center gap-1 text-[10.5px] text-dim">
+                                  <button onClick={() => changeDwell(i, s.dwell - 15)} disabled={s.dwell <= 15} className="grid h-[15px] w-[15px] place-items-center rounded border border-border enabled:hover:bg-s2 disabled:opacity-30" aria-label="Less time"><Minus size={9} /></button>
+                                  {fmtDuration(s.dwell)} here
+                                  <button onClick={() => changeDwell(i, s.dwell + 15)} className="grid h-[15px] w-[15px] place-items-center rounded border border-border hover:bg-s2" aria-label="More time"><Plus size={9} /></button>
+                                </span>
+                              </div>
                             </div>
-                            {/* address wraps in full */}
-                            <div className="text-[10.5px] leading-[1.45] text-dim">{p.place} · {votesOf(s.placeId).length} vote{votesOf(s.placeId).length === 1 ? '' : 's'}</div>
+                            <div className="flex flex-none items-center">
+                              <button onClick={() => moveStop(i, -1)} disabled={i === 0} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move up"><ChevronUp size={15} /></button>
+                              <button onClick={() => moveStop(i, 1)} disabled={i === stops.length - 1} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move down"><ChevronDown size={15} /></button>
+                              <button onClick={() => removeStop(i)} className="grid h-6 w-6 place-items-center rounded-[6px] text-faint hover:text-brick-text" aria-label="Remove stop"><X size={14} /></button>
+                            </div>
                           </div>
-                          <div className="flex flex-none items-center">
-                            <button onClick={() => moveStop(i, -1)} disabled={i === 0} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move up"><ChevronUp size={15} /></button>
-                            <button onClick={() => moveStop(i, 1)} disabled={i === stops.length - 1} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move down"><ChevronDown size={15} /></button>
-                            <button onClick={() => removeStop(i)} className="grid h-6 w-6 place-items-center rounded-[6px] text-faint hover:text-brick-text" aria-label="Remove stop"><X size={14} /></button>
-                          </div>
-                        </div>
-                        {leg && <TravelLeg est={leg.est} fastest={leg.fast} />}
-                      </Fragment>
-                    )
-                  })}
+                          {leg && <TravelLeg est={leg.est} fastest={leg.fast} />}
+                        </Fragment>
+                      )
+                    })}
+                  </div>
+
                   {legs.length > 0 && (
                     <div className="mt-1 rounded-xl border border-teal-border bg-teal-bg/50 p-3">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-semibold text-teal-text">
-                        <span className="flex items-center gap-1.5"><Route size={14} /> Fastest route · {fmtDuration(routeMinutes)} total travel</span>
-                        <span className="flex items-center gap-1 text-[10.5px] font-medium text-faint"><GripVertical size={11} /> Drag stops to reorder</span>
+                      <div className="flex items-center gap-1.5 text-[12px] font-semibold text-teal-text">
+                        <Route size={14} /> Fastest route · {fmtDuration(routeMinutes)} travel · ends ~{fmtMinute(endMin)}
                       </div>
+                      {anyUnreachable && <div className="mt-1 flex items-center gap-1 text-[10.5px] font-medium text-brick-text"><TriangleAlert size={11} /> Some legs have no route with the modes you allow.</div>}
                       <div className="mt-1.5 flex flex-wrap items-center gap-1">
                         {modesUsed.map((m) => { const Icon = MODE_ICON[m]; return (
                           <span key={m} className="flex items-center gap-1 rounded-full border border-teal-border bg-s1 px-2 py-0.5 text-[10.5px] font-medium text-teal-text"><Icon size={11} /> {MODE_LABEL[m]}</span>
                         ) })}
-                        <span className="text-[10.5px] text-dim">· quickest mode picked per leg</span>
+                        <span className="text-[10.5px] text-dim">· quickest allowed mode per leg · drag or use arrows to reorder</span>
                       </div>
                     </div>
                   )}
@@ -496,17 +575,19 @@ export function LocationPanel({ event }: { event: AppEvent }) {
   )
 }
 
-// travel connector between two stops — every feasible mode with its time, fastest highlighted
-function TravelLeg({ est, fastest }: { est: ModeEstimate[]; fastest: ModeEstimate }) {
+// travel connector between two stops — every allowed mode with its time, fastest highlighted
+function TravelLeg({ est, fastest }: { est: ModeEstimate[]; fastest: ModeEstimate | null }) {
   return (
     <div className="flex items-stretch gap-2 pl-3">
       <div className="flex w-6 flex-none justify-center">
         <span className="my-0.5 w-px" style={{ background: 'repeating-linear-gradient(var(--border2) 0 3px, transparent 3px 6px)' }} />
       </div>
       <div className="flex flex-wrap items-center gap-1 py-1.5">
-        {est.map((e) => {
+        {est.length === 0 ? (
+          <span className="flex items-center gap-1 rounded-full border border-brick-border bg-brick-bg px-2 py-0.5 text-[10.5px] text-brick-text"><TriangleAlert size={10} /> No allowed route</span>
+        ) : est.map((e) => {
           const Icon = MODE_ICON[e.mode]
-          const best = e.mode === fastest.mode
+          const best = !!fastest && e.mode === fastest.mode
           return (
             <span
               key={e.mode}

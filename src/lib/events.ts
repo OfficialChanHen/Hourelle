@@ -46,8 +46,13 @@ export type AppEvent = {
   avail: Record<string, string[][]>   // per-cell view, derived from availIv — kept for lists/stats
   availIv?: AvailIntervals            // source of truth once anyone edits with minute precision
   votes?: Record<string, string[]>    // placeId → participant ids who voted for it
+  maxVotes?: number                   // votes each person gets (default 1)
   itinStops?: string[]                // ordered place ids once an itinerary exists
   itinRank?: string[]                 // vote ranking snapshot when the itinerary was built from votes
+  itinDwell?: number[]                // minutes spent at each stop (aligned to itinStops order)
+  itinStartMin?: number               // clock minutes the itinerary begins
+  travelModes?: string[]              // allowed transport modes for route timing (default all)
+  durationMin?: number                // how long the event needs — drives the best-window search
   messages: ChatMessage[]
   createdAt: number
   demo?: boolean
@@ -238,22 +243,43 @@ export function fmtMinute(min: number, h24 = false): string {
   return `${hr}:${String(mm).padStart(2, '0')} ${ap}`
 }
 
-// interval sweep: the window where the most people are simultaneously free,
-// tie-broken by duration — replaces the old per-cell bestSlot
-export function bestWindow(availIv: AvailIntervals, days: GridDay[]) {
+// interval sweep for the best window. With minLen <= 0 it returns the peak instantaneous
+// overlap (a single segment). With minLen > 0 it finds the window of AT LEAST that length
+// that the most people are free for the whole time, extended to its natural bounds.
+export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0) {
   let best: { dayKey: string; s: number; e: number; count: number; ids: string[] } | null = null
+  const better = (count: number, s: number, e: number) =>
+    !best || count > best.count || (count === best.count && e - s > best.e - best.s) || (count === best.count && e - s === best.e - best.s && s < best.s)
+
   for (const d of days) {
     const byPid = availIv[d.key] ?? {}
-    const cuts = new Set<number>()
-    for (const ivs of Object.values(byPid)) for (const iv of ivs) { cuts.add(iv.s); cuts.add(iv.e) }
-    const xs = [...cuts].sort((a, b) => a - b)
-    for (let i = 0; i < xs.length - 1; i++) {
-      const s = xs[i], e = xs[i + 1]
-      const ids = Object.keys(byPid).filter((id) => byPid[id].some((iv) => iv.s <= s && iv.e >= e))
-      const count = ids.length
-      if (count === 0) continue
-      if (!best || count > best.count || (count === best.count && e - s > best.e - best.s)) {
-        best = { dayKey: d.key, s, e, count, ids }
+    const ids = Object.keys(byPid)
+    if (!ids.length) continue
+    const coverers = (s: number, e: number) => ids.filter((id) => byPid[id].some((iv) => iv.s <= s && iv.e >= e))
+
+    if (minLen <= 0) {
+      const cuts = new Set<number>()
+      for (const ivs of Object.values(byPid)) for (const iv of ivs) { cuts.add(iv.s); cuts.add(iv.e) }
+      const xs = [...cuts].sort((a, b) => a - b)
+      for (let i = 0; i < xs.length - 1; i++) {
+        const s = xs[i], e = xs[i + 1]
+        const who = coverers(s, e)
+        if (who.length && better(who.length, s, e)) best = { dayKey: d.key, s, e, count: who.length, ids: who }
+      }
+    } else {
+      // candidate window starts: interval starts, and interval-ends shifted back by minLen
+      const starts = new Set<number>()
+      for (const ivs of Object.values(byPid)) for (const iv of ivs) { starts.add(iv.s); if (iv.e - minLen >= iv.s) starts.add(iv.e - minLen) }
+      for (const s of starts) {
+        if (s < 0) continue
+        const e = s + minLen
+        const who = coverers(s, e)
+        if (!who.length) continue
+        // extend the window while the same people are all still free (min of their covering-interval ends)
+        let ext = Infinity
+        for (const id of who) { const iv = byPid[id].find((v) => v.s <= s && v.e >= e); if (iv) ext = Math.min(ext, iv.e) }
+        const eEnd = ext === Infinity ? e : ext
+        if (better(who.length, s, eEnd)) best = { dayKey: d.key, s, e: eEnd, count: who.length, ids: who }
       }
     }
   }
@@ -346,8 +372,12 @@ export function createEvent(input: CreateInput): AppEvent {
     avail,
     availIv: Object.fromEntries(days.map((d) => [d.key, {}])),
     votes: {},
+    maxVotes: 1,
     itinStops: [],
     itinRank: [],
+    itinDwell: [],
+    itinStartMin: 9 * 60,
+    durationMin: 60,
     messages: [],
     createdAt: Date.now(),
   }
@@ -387,6 +417,10 @@ const DEMO: AppEvent = {
     terrapin: ['AT', 'JM'],
     presidio: ['DW'],
   },
+  maxVotes: 2,
+  durationMin: 120,
+  itinStartMin: 9 * 60,
+  itinDwell: [],
   participants: demoIds.map((id) => ({
     id,
     initials: id,

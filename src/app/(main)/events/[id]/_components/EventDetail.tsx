@@ -66,7 +66,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
   const going = event.participants.filter((p) => p.rsvp === 'attending').length
   const pending = event.participants.filter((p) => p.rsvp === 'pending').length
   const notGoing = event.participants.filter((p) => p.rsvp === 'not_going').length
-  const best = bestWindow(availIvOf(event), event.days)
+  const best = bestWindow(availIvOf(event), event.days, event.durationMin ?? 60)
   const gridStart = gridStartMinOf(event)
   const du = daysUntil(event.startDate)
   const untilBig = du === null ? 'TBD' : du < 0 ? 'Past' : du === 0 ? 'Today' : `${du} day${du === 1 ? '' : 's'}`
@@ -150,7 +150,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
           const active = tab === t.key
           const Icon = t.icon
           return (
-            <button key={t.key} onClick={() => setTab(t.key)} className={`flex items-center gap-1.5 whitespace-nowrap rounded-[10px] px-[15px] py-[9px] text-[12.5px] transition-colors ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s2 hover:text-text'}`}>
+            <button key={t.key} onClick={() => setTab(t.key)} className={`flex items-center gap-1.5 whitespace-nowrap rounded-[10px] px-[15px] py-[9px] text-[12.5px] transition-colors ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
               <Icon size={14} /> {t.label}
             </button>
           )

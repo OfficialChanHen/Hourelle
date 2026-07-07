@@ -20,8 +20,12 @@ export const MODE_LABEL: Record<TravelMode, string> = {
   walk: 'Walk', bus: 'Bus', drive: 'Drive', train: 'Train', flight: 'Flight',
 }
 
-export function estimateModes(distanceKm: number): ModeEstimate[] {
+export const ALL_MODES: TravelMode[] = MODEL.map((m) => m.mode)
+
+// `allowed` limits which modes may be used (e.g. no flights, transit only). Omit for all.
+export function estimateModes(distanceKm: number, allowed?: TravelMode[]): ModeEstimate[] {
   return MODEL
+    .filter((m) => !allowed || allowed.includes(m.mode))
     .filter((m) => (m.min === undefined || distanceKm >= m.min) && (m.max === undefined || distanceKm <= m.max))
     .map((m) => ({ mode: m.mode, minutes: Math.max(1, Math.round(m.overhead + (distanceKm / m.speed) * 60)) }))
     .sort((a, b) => a.minutes - b.minutes)
