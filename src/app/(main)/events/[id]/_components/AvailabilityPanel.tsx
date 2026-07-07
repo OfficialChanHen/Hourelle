@@ -526,7 +526,7 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
           <span className="ml-auto flex items-center gap-1 text-[10px] text-faint">
             {mode === 'edit' && (
               <>
-                <span className="h-[11px] w-[11px] rounded-[3px]" style={{ background: '#EAD9BE', border: '1px solid #C2A468' }} />
+                <span className="h-[11px] w-[11px] rounded-[3px]" style={{ background: '#EAD9BE', border: '1.5px solid #7A531F' }} />
                 <span className="mr-1.5">You</span>
               </>
             )}
@@ -648,6 +648,9 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
                       {ivs.map((iv, k) => {
                         const cs = Math.max(iv.s, w0), ce = Math.min(iv.e, w1)
                         if (ce <= cs) return null
+                        // solid outline only at the block's true start/end + both sides, so a
+                        // multi-cell block reads as one crisp shape over the green heat
+                        const line = '1.5px solid #7A531F'
                         return (
                           <div
                             key={k}
@@ -656,8 +659,11 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
                               top: `${((cs - w0) / step) * 100}%`,
                               height: `${((ce - cs) / step) * 100}%`,
                               background: clay,
-                              borderTop: cs > w0 ? '1px dashed #C2A468' : undefined,
-                              borderBottom: ce < w1 ? '1px dashed #C2A468' : undefined,
+                              boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.35)',
+                              borderLeft: line,
+                              borderRight: line,
+                              borderTop: cs === iv.s ? line : undefined,
+                              borderBottom: ce === iv.e ? line : undefined,
                             }}
                           />
                         )

@@ -232,6 +232,11 @@ export function LocationPanel({ event }: { event: AppEvent }) {
   const voteFlip = useFlipReorder(rankIds.join('|'))
   const itinFlip = useFlipReorder(stops.map((s) => s.uid).join('|'))
   const stopReorder = usePointerReorder(reorderStop)
+  // the scrollable stops list is both the Flip scope and the drag/auto-scroll scope
+  const setStopsScope = (el: HTMLDivElement | null) => {
+    ;(itinFlip.scope as React.MutableRefObject<HTMLDivElement | null>).current = el
+    ;(stopReorder.scope as React.MutableRefObject<HTMLDivElement | null>).current = el
+  }
 
   function copyLink() {
     navigator.clipboard?.writeText(loc.meetingLink || '').then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800) }).catch(() => {})
@@ -340,8 +345,8 @@ export function LocationPanel({ event }: { event: AppEvent }) {
 
       {/* side panel — only for in-person events */}
       {loc.mode === 'vote' && (
-        <div className="flex w-full flex-none flex-col lg:w-[330px]">
-          <div className="mb-3 flex items-center gap-2">
+        <div className="flex w-full flex-none flex-col lg:h-[452px] lg:w-[330px]">
+          <div className="mb-3 flex flex-none items-center gap-2">
             <SegmentedControl
               size="sm"
               stretch
@@ -358,7 +363,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
           </div>
 
           {sub === 'vote' && (
-            <div ref={voteFlip.scope} className="flex flex-col gap-2">
+            <div className="flex min-h-0 flex-1 flex-col gap-2">
               {canAddPlaces && <AddPlaceSearch onAdd={addPlace} taken={new Set(places.map((p) => p.id))} />}
               {places.length === 0 ? (
                 <EmptyNote icon={Vote} text={canAddPlaces ? 'No places on the ballot yet. Search above to add the first one.' : 'No places to vote on yet. The host can add some, or allow guests to.'} />
@@ -370,6 +375,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                     : <>You have {maxVotes} votes · <span className={`font-semibold ${votesLeft ? 'text-accent-text' : 'text-brick-text'}`}>{votesLeft} left</span></>}
                 </div>
               )}
+              <div ref={voteFlip.scope} className="scroll-slim flex max-h-[55vh] min-h-0 flex-1 flex-col gap-2 overflow-auto py-0.5 pr-0.5 lg:max-h-none">
                 {ranked.map((p, i) => {
                   const ids = votesOf(p.id)
                   const you = ids.includes(YOU)
@@ -415,8 +421,9 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                     </div>
                   )
                 })}
+              </div>
               {event.hostedByYou && places.length > 0 && (
-                <div className="mt-1 flex flex-col gap-2 border-t border-border pt-2">
+                <div className="mt-1 flex flex-none flex-col gap-2 border-t border-border pt-2">
                   <label className="flex cursor-pointer items-center gap-2 px-0.5 text-[11px] text-dim">
                     <input type="checkbox" checked={guestsCanSuggest} onChange={toggleGuestsCanSuggest} className="h-3.5 w-3.5" style={{ accentColor: 'var(--accent)' }} />
                     Guests can add places to the ballot
@@ -431,7 +438,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
           )}
 
           {sub === 'itin' && (
-            <div ref={itinFlip.scope} className="flex flex-col gap-2">
+            <div className="flex min-h-0 flex-1 flex-col gap-2">
               {rankChanged && (
                 <div className="rounded-[10px] border border-ochre-border bg-ochre-bg p-3">
                   <div className="flex items-start gap-2">
@@ -493,7 +500,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
               ) : (
                 <>
                   {/* schedule + how-you-get-around controls */}
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-s0 p-2.5">
+                  <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-s0 p-2.5">
                     <label className="flex items-center gap-1.5 text-[11px] font-medium text-dim">
                       <Clock size={12} /> Starts
                       <input type="time" value={hhmm(itinStartMin)} onChange={(e) => { const m = parseHM(e.target.value); if (m != null) changeStart(m) }} className="rounded-[7px] border border-border bg-s1 px-1.5 py-0.5 text-[11px]" />
@@ -509,7 +516,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                     </div>
                   </div>
 
-                  <div ref={stopReorder.scope} className="flex flex-col gap-2">
+                  <div ref={setStopsScope} className="scroll-slim flex max-h-[50vh] min-h-0 flex-1 flex-col gap-2 overflow-auto py-0.5 pr-0.5 lg:max-h-none">
                     {stops.map((s, i) => {
                       const p = placeAt(s.placeId)
                       if (!p) return null
@@ -552,7 +559,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                   </div>
 
                   {legs.length > 0 && (
-                    <div className="mt-1 rounded-xl border border-teal-border bg-teal-bg/50 p-3">
+                    <div className="mt-1 flex-none rounded-xl border border-teal-border bg-teal-bg/50 p-3">
                       <div className="flex items-center gap-1.5 text-[12px] font-semibold text-teal-text">
                         <Route size={14} /> Fastest route · {fmtDuration(routeMinutes)} travel · ends ~{fmtMinute(endMin)}
                       </div>
