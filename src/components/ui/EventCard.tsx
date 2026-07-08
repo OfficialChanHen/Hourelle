@@ -21,14 +21,14 @@ export function EventCard({ e, href = '/events/q3-offsite?tab=availability' }: {
         <Badge variant={e.badge.tone}>{e.badge.text}</Badge>
         <Badge variant={e.days.tone}>{e.days.text}</Badge>
       </div>
-      <h3 className="mb-[9px] text-[13.5px] font-semibold tracking-[-0.01em]">{e.title}</h3>
-      <div className="mb-[11px] flex items-center gap-1.5 text-[11.5px] text-dim">
-        <Calendar size={13} /> <span>{e.date}</span> <TimezonePill tz={e.tz === 'PDT' ? 'America/Los_Angeles' : e.tz === 'EDT' ? 'America/New_York' : 'America/Los_Angeles'} />
+      <h3 className="mb-[9px] text-[15px] font-semibold tracking-[-0.01em]">{e.title}</h3>
+      <div className="mb-[11px] flex items-center gap-1.5 text-[13px] text-dim">
+        <Calendar size={15} /> <span>{e.date}</span> <TimezonePill tz={e.tz === 'PDT' ? 'America/Los_Angeles' : e.tz === 'EDT' ? 'America/New_York' : 'America/Los_Angeles'} />
       </div>
 
       {e.host && (
-        <div className="mb-3 flex items-center gap-1.5 border-b border-border pb-3 text-[11.5px] text-dim">
-          {e.hostId && <Avatar initials={e.hostId} color={av(e.hostId).color} size={19} font={8.5} />}
+        <div className="mb-3 flex items-center gap-1.5 border-b border-border pb-3 text-[13px] text-dim">
+          {e.hostId && <Avatar initials={e.hostId} color={av(e.hostId).color} size={21} font={9.5} />}
           <span>{e.host}</span>
         </div>
       )}
@@ -36,14 +36,14 @@ export function EventCard({ e, href = '/events/q3-offsite?tab=availability' }: {
       {e.meta ? (
         <>
           <div className="mb-3">
-            <AvatarRow people={e.avatars} size={21} max={3} more={e.more} />
+            <AvatarRow people={e.avatars} size={24} max={3} more={e.more} />
           </div>
-          <div className="flex items-center gap-[11px] border-t border-border pt-[11px] text-[11px] text-dim">
+          <div className="flex items-center gap-[11px] border-t border-border pt-[11px] text-[12.5px] text-dim">
             {e.meta.map((m, i) => {
               const Icon = metaIcons[m.icon] ?? Wallet
               return (
                 <span key={i} className="flex items-center gap-1.5">
-                  <Icon size={12} /> {m.text}
+                  <Icon size={13} /> {m.text}
                 </span>
               )
             })}
@@ -51,8 +51,8 @@ export function EventCard({ e, href = '/events/q3-offsite?tab=availability' }: {
         </>
       ) : (
         <div className="flex items-center justify-between">
-          <AvatarRow people={e.avatars} size={21} max={3} more={e.more} />
-          <span className="text-[11px] text-dim">{e.going}</span>
+          <AvatarRow people={e.avatars} size={24} max={3} more={e.more} />
+          <span className="text-[12.5px] text-dim">{e.going}</span>
         </div>
       )}
     </Link>

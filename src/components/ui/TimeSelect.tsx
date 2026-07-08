@@ -52,10 +52,10 @@ export function TimeSelect({
         type="button"
         onClick={() => setOpen((o) => !o)}
         title={title}
-        className="flex h-7 items-center gap-1.5 rounded-[7px] border border-border bg-s1 px-2 text-[11px] font-medium tabular-nums hover:border-border2"
+        className="flex h-7 items-center gap-1.5 rounded-[7px] border border-border bg-s1 px-2 text-[12.5px] font-medium tabular-nums hover:border-border2"
       >
-        <Clock size={12} className="text-dim" /> {fmtMinute(value)}
-        <ChevronDown size={12} className={`text-faint ${open ? 'rotate-180' : ''}`} />
+        <Clock size={13} className="text-dim" /> {fmtMinute(value)}
+        <ChevronDown size={13} className={`text-faint ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div ref={list} className="scroll-slim absolute left-0 top-full z-30 mt-1 max-h-[212px] w-[120px] overflow-auto rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
@@ -67,9 +67,9 @@ export function TimeSelect({
                 type="button"
                 data-active={on}
                 onClick={() => { onChange(m); setOpen(false) }}
-                className={`flex w-full items-center justify-between rounded-[7px] px-2 py-1.5 text-[11.5px] tabular-nums ${on ? 'bg-accent font-semibold text-on-accent' : 'hover:bg-s2'}`}
+                className={`flex w-full items-center justify-between rounded-[7px] px-2 py-1.5 text-[13px] tabular-nums ${on ? 'bg-accent font-semibold text-on-accent' : 'hover:bg-s2'}`}
               >
-                {fmtMinute(m)} {on && <Check size={12} />}
+                {fmtMinute(m)} {on && <Check size={13} />}
               </button>
             )
           })}

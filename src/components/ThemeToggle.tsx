@@ -18,7 +18,7 @@ export function ThemeToggle() {
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
       className="grid h-[30px] w-[30px] place-items-center rounded-lg border border-border text-dim hover:text-text"
     >
-      {mounted && isDark ? <Sun size={15} /> : <Moon size={15} />}
+      {mounted && isDark ? <Sun size={17} /> : <Moon size={17} />}
     </button>
   )
 }

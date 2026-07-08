@@ -34,7 +34,7 @@ export function HeroLifecycle() {
               }}
             />
             <span
-              className="text-[11px]"
+              className="text-[12.5px]"
               style={{
                 fontWeight: active ? 600 : 400,
                 color: i <= heroCurrentIdx ? 'var(--text)' : 'var(--faint)',

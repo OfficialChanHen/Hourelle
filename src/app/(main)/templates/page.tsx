@@ -21,8 +21,8 @@ export default function TemplatesPage() {
   return (
     <div className="mx-auto max-w-[1240px] px-[26px] pb-[104px] pt-[34px]">
       <div className="mb-[18px]">
-        <h1 className="mb-1.5 font-serif text-[32px] leading-[1.02] tracking-[-0.01em]">Templates</h1>
-        <div className="text-[12px] text-dim">
+        <h1 className="mb-1.5 font-serif text-[36px] leading-[1.02] tracking-[-0.01em]">Templates</h1>
+        <div className="text-[13.5px] text-dim">
           Pick one to get a head start, then change the details, invites, and dates to fit.
         </div>
       </div>
@@ -36,12 +36,12 @@ export default function TemplatesPage() {
               className="group rounded-[13px] border border-border bg-s1 p-4 transition-all hover:-translate-y-0.5 hover:border-border2"
             >
               <span className={`mb-3 grid h-[38px] w-[38px] place-items-center rounded-[10px] border ${toneCls[t.tone]}`}>
-                <Icon size={18} />
+                <Icon size={20} />
               </span>
-              <div className="mb-1 text-[13.5px] font-semibold">{t.title}</div>
-              <div className="mb-3 text-[11.5px] leading-[1.5] text-dim">{t.body}</div>
-              <span className="flex items-center gap-1.5 text-[11.5px] font-semibold text-accent-text">
-                Use template <ArrowRight size={13} />
+              <div className="mb-1 text-[15px] font-semibold">{t.title}</div>
+              <div className="mb-3 text-[13px] leading-[1.5] text-dim">{t.body}</div>
+              <span className="flex items-center gap-1.5 text-[13px] font-semibold text-accent-text">
+                Use template <ArrowRight size={15} />
               </span>
             </Link>
           )

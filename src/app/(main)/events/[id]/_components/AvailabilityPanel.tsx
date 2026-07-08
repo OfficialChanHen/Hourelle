@@ -479,19 +479,19 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
           <SegmentedControl size="sm" value={mode} onChange={(v) => { setMode(v as Mode); setSel(null); setDetail(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
           <span className="h-5 w-px bg-border" />
           <div className="flex items-center gap-[3px]">
-            <IconBtn onClick={() => goWeek(-1)} disabled={page === 0}><ChevronLeft size={15} /></IconBtn>
-            <span className="px-1 text-center text-[12px] font-semibold leading-tight">
+            <IconBtn onClick={() => goWeek(-1)} disabled={page === 0}><ChevronLeft size={17} /></IconBtn>
+            <span className="px-1 text-center text-[13.5px] font-semibold leading-tight">
               {rangeLabel}
               {pageCount > 1 && <span className="ml-1 font-medium text-faint">· Week {page + 1}/{pageCount}</span>}
             </span>
-            <IconBtn onClick={() => goWeek(1)} disabled={page >= pageCount - 1}><ChevronRight size={15} /></IconBtn>
+            <IconBtn onClick={() => goWeek(1)} disabled={page >= pageCount - 1}><ChevronRight size={17} /></IconBtn>
           </div>
           {canConvert ? (
-            <button onClick={() => setMyTime((m) => !m)} title="Toggle timezone" className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[10px] text-[11px] hover:border-border2">
+            <button onClick={() => setMyTime((m) => !m)} title="Toggle timezone" className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[10px] text-[12.5px] hover:border-border2">
               Times in <TimezonePill tz={myTime ? localTz : event.timezone} /> {myTime && <span className="text-faint">(yours)</span>}
             </button>
           ) : (
-            <span className="flex items-center gap-1.5 text-[11px] text-dim">Times in <TimezonePill tz={event.timezone} /></span>
+            <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={event.timezone} /></span>
           )}
           <ImportFromCalendar onPick={startImport} />
           {youAny && <ClearTimes onClear={clearAllMine} />}
@@ -500,33 +500,33 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
             align="end"
             width={224}
             trigger={(open) => (
-              <span className={`flex h-7 items-center gap-1.5 rounded-lg border px-[10px] text-[11px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
-                <SlidersHorizontal size={12} /> Settings
+              <span className={`flex h-7 items-center gap-1.5 rounded-lg border px-[10px] text-[12.5px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
+                <SlidersHorizontal size={13} /> Settings
               </span>
             )}
           >
             {() => (
               <div className="flex flex-col gap-3">
                 <div>
-                  <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[.12em] text-faint">Event length</div>
+                  <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Event length</div>
                   <div className="flex flex-wrap gap-1.5">
                     {[30, 60, 90, 120, 180, 240].map((m) => (
-                      <button key={m} onClick={() => changeDuration(m)} className={`rounded-[7px] border px-2 py-1 text-[11px] font-medium ${m === durationMin ? 'border-accent bg-accent text-on-accent' : 'border-border2 bg-s1 hover:bg-s2'}`}>{fmtDur(m)}</button>
+                      <button key={m} onClick={() => changeDuration(m)} className={`rounded-[7px] border px-2 py-1 text-[12.5px] font-medium ${m === durationMin ? 'border-accent bg-accent text-on-accent' : 'border-border2 bg-s1 hover:bg-s2'}`}>{fmtDur(m)}</button>
                     ))}
                   </div>
                   <div className="mt-2 flex items-center gap-1.5">
-                    <span className="text-[10.5px] text-faint">Custom</span>
+                    <span className="text-[12px] text-faint">Custom</span>
                     <input
                       type="number" min={15} max={720} step={15} value={durationMin}
                       onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) changeDuration(Math.min(720, Math.max(15, n))) }}
-                      className="h-7 w-16 rounded-[7px] border border-border bg-s1 px-2 text-[11.5px] tabular-nums outline-none focus:border-accent-border"
+                      className="h-7 w-16 rounded-[7px] border border-border bg-s1 px-2 text-[13px] tabular-nums outline-none focus:border-accent-border"
                       aria-label="Custom event length in minutes"
                     />
-                    <span className="text-[10.5px] text-faint">min</span>
+                    <span className="text-[12px] text-faint">min</span>
                   </div>
                 </div>
                 <div className="border-t border-border pt-2.5">
-                  <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[.12em] text-faint">Time format</div>
+                  <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Time format</div>
                   <Segment value={h24 ? '24' : '12'} onChange={(v) => setH24(v === '24')} options={[{ v: '12', l: '12-hour' }, { v: '24', l: '24-hour' }]} />
                 </div>
               </div>
@@ -534,24 +534,24 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
           </Popover>
           {!chatOpen && (
             // side-panel reopen — on stacked layouts the bottom bar below takes over
-            <button onClick={() => setChatOpen(true)} className="hidden h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[11.5px] font-semibold hover:border-border2 lg:flex">
-              <MessageCircle size={13} /> Discussion
-              {messages.length > 0 && <span className="flex h-[15px] items-center rounded-[10px] bg-accent px-[5px] text-[9px] text-on-accent">{messages.length}</span>}
+            <button onClick={() => setChatOpen(true)} className="hidden h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[13px] font-semibold hover:border-border2 lg:flex">
+              <MessageCircle size={15} /> Discussion
+              {messages.length > 0 && <span className="flex h-[15px] items-center rounded-[10px] bg-accent px-[5px] text-[10px] text-on-accent">{messages.length}</span>}
             </button>
           )}
         </div>
 
         {/* participants + edit hint */}
         <div className="flex flex-wrap items-center gap-2.5 py-[11px]">
-          <span className="text-[11px] text-dim">Participants</span>
-          <AvatarRow people={event.participants.map((p) => ({ initials: p.initials, name: p.name, color: p.color }))} size={22} max={8} overlap={5} />
+          <span className="text-[12.5px] text-dim">Participants</span>
+          <AvatarRow people={event.participants.map((p) => ({ initials: p.initials, name: p.name, color: p.color }))} size={25} max={8} overlap={5} />
           {/* responded count opens the who's-missing / nudge popover */}
           <div className="relative">
             <button
               onClick={() => missing.length && setShowMissing((s) => !s)}
-              className={`ml-1.5 flex items-center gap-1 text-[11px] ${missing.length ? 'text-accent-text hover:underline' : 'text-dim'}`}
+              className={`ml-1.5 flex items-center gap-1 text-[12.5px] ${missing.length ? 'text-accent-text hover:underline' : 'text-dim'}`}
             >
-              {responded} of {total} responded{missing.length > 0 && <ChevronDown size={12} className={showMissing ? 'rotate-180' : ''} />}
+              {responded} of {total} responded{missing.length > 0 && <ChevronDown size={13} className={showMissing ? 'rotate-180' : ''} />}
             </button>
             {showMissing && missing.length > 0 && (
               <MissingPopover missing={missing} nudged={nudged} onNudge={nudge} onNudgeAll={nudgeAll} onClose={() => setShowMissing(false)} />
@@ -559,17 +559,17 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
           </div>
           {mode === 'edit' && <PresetFills onFill={fillPreset} />}
           {mode === 'edit' && !sel && (
-            <span className="text-[11px] text-faint">Drag to block time</span>
+            <span className="text-[12.5px] text-faint">Drag to block time</span>
           )}
           {mode === 'edit' && sel && (
-            <span className="flex items-center gap-1 text-[11px] text-accent-text">
-              <kbd className="grid h-[15px] min-w-[15px] place-items-center rounded border border-border2 bg-s1 px-1 text-[9px] font-semibold leading-none">↑</kbd>
-              <kbd className="grid h-[15px] min-w-[15px] place-items-center rounded border border-border2 bg-s1 px-1 text-[9px] font-semibold leading-none">↓</kbd>
+            <span className="flex items-center gap-1 text-[12.5px] text-accent-text">
+              <kbd className="grid h-[15px] min-w-[15px] place-items-center rounded border border-border2 bg-s1 px-1 text-[10px] font-semibold leading-none">↑</kbd>
+              <kbd className="grid h-[15px] min-w-[15px] place-items-center rounded border border-border2 bg-s1 px-1 text-[10px] font-semibold leading-none">↓</kbd>
               nudge the edge by the minute
             </span>
           )}
           {/* heat legend — quiet, reads left to right like the ramp */}
-          <span className="ml-auto flex items-center gap-1 text-[10px] text-faint">
+          <span className="ml-auto flex items-center gap-1 text-[11px] text-faint">
             {mode === 'edit' && (
               <>
                 <span className="h-[11px] w-[11px] rounded-[3px]" style={{ background: '#EAD9BE', border: '1.5px solid #7A531F' }} />
@@ -600,14 +600,14 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
                   style={{ background: d.best ? 'var(--teal-bg)' : 'var(--s0)', borderBottomColor: d.best ? 'var(--teal-border)' : 'var(--border)', cursor: mode === 'edit' ? 'pointer' : 'default' }}
                   title={mode === 'edit' ? 'Click to fill the whole day' : undefined}
                 >
-                  <div className="text-[10px] text-dim">{d.dow}</div>
-                  <div className="text-[12.5px] font-semibold" style={{ color: d.best ? 'var(--teal-text)' : 'var(--text)' }}>{d.date}</div>
+                  <div className="text-[11px] text-dim">{d.dow}</div>
+                  <div className="text-[14px] font-semibold" style={{ color: d.best ? 'var(--teal-text)' : 'var(--text)' }}>{d.date}</div>
                   {mode === 'edit' && (
                     <span className={`mx-auto mt-[3px] grid h-4 w-4 place-items-center rounded-[5px] border ${dayFull ? 'border-accent bg-accent text-on-accent' : 'border-border2 text-transparent'}`}>
-                      <Check size={10} />
+                      <Check size={11} />
                     </span>
                   )}
-                  {d.best && mode === 'view' && <span className="mt-[3px] inline-block rounded-[5px] border border-teal-border bg-teal-bg px-[5px] py-px text-[8.5px] font-semibold text-teal-text">Best day</span>}
+                  {d.best && mode === 'view' && <span className="mt-[3px] inline-block rounded-[5px] border border-teal-border bg-teal-bg px-[5px] py-px text-[9.5px] font-semibold text-teal-text">Best day</span>}
                 </button>
               )
             })}
@@ -628,18 +628,18 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
                 <button
                   type="button"
                   onClick={() => toggleTime(ti)}
-                  className="flex items-center justify-center gap-1 border-b border-r border-border bg-s0 p-1 text-[10.5px] font-medium text-dim"
+                  className="flex items-center justify-center gap-1 border-b border-r border-border bg-s0 p-1 text-[12px] font-medium text-dim"
                   style={{ cursor: mode === 'edit' ? 'pointer' : 'default' }}
                   title={mode === 'edit' ? 'Click to fill this time across the week' : undefined}
                 >
                   {mode === 'edit' && (
                     <span className={`grid h-3.5 w-3.5 flex-none place-items-center rounded-[4px] border ${rowFull ? 'border-accent bg-accent text-on-accent' : 'border-border2 text-transparent'}`}>
-                      <Check size={9} />
+                      <Check size={10} />
                     </span>
                   )}
                   <span className="flex flex-col items-center leading-[1.15]">
                     <span>{labelMain}</span>
-                    {labelSub && <span className="text-[8.5px] font-semibold tracking-[.04em] text-faint">{labelSub}</span>}
+                    {labelSub && <span className="text-[9.5px] font-semibold tracking-[.04em] text-faint">{labelSub}</span>}
                   </span>
                 </button>
                 {weekDays.map((d) => {
@@ -674,10 +674,10 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
                         ))}
                         {/* cap the pile so a 100-person cell renders ~6 avatars + "+N", not 100 nodes */}
                         <div className="relative z-[1] flex flex-wrap content-start gap-0.5 p-[5px]">
-                          {peak.ids.slice(0, AVATAR_CAP).map((id) => { const a = avatarOf(id); return <Avatar key={id} initials={a.initials} color={a.color} size={15} font={7.5} title={a.name} /> })}
-                          {n > AVATAR_CAP && <span className="grid h-[15px] min-w-[15px] place-items-center rounded-full bg-s3 px-[3px] text-[7.5px] font-bold text-dim" title={`${n} free`}>+{n - AVATAR_CAP}</span>}
+                          {peak.ids.slice(0, AVATAR_CAP).map((id) => { const a = avatarOf(id); return <Avatar key={id} initials={a.initials} color={a.color} size={17} font={8.5} title={a.name} /> })}
+                          {n > AVATAR_CAP && <span className="grid h-[15px] min-w-[15px] place-items-center rounded-full bg-s3 px-[3px] text-[8.5px] font-bold text-dim" title={`${n} free`}>+{n - AVATAR_CAP}</span>}
                         </div>
-                        {n > 0 && <span className="pointer-events-none absolute bottom-[3px] right-1 z-[1] text-[8.5px] font-bold" style={{ color: n >= total ? '#F4F1EA' : '#46604F' }}>{n}/{total}</span>}
+                        {n > 0 && <span className="pointer-events-none absolute bottom-[3px] right-1 z-[1] text-[9.5px] font-bold" style={{ color: n >= total ? '#F4F1EA' : '#46604F' }}>{n}/{total}</span>}
                       </div>
                     )
                   }
@@ -714,7 +714,7 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
                           />
                         )
                       })}
-                      {cnt > 0 && <span className="pointer-events-none absolute bottom-[2px] right-1 z-[2] text-[8px] font-bold" style={{ color: cnt >= total ? '#F4F1EA' : '#6E5523' }}>{cnt}/{total}</span>}
+                      {cnt > 0 && <span className="pointer-events-none absolute bottom-[2px] right-1 z-[2] text-[9px] font-bold" style={{ color: cnt >= total ? '#F4F1EA' : '#6E5523' }}>{cnt}/{total}</span>}
                       {/* full-cell hit zone: empty → paint, over a block → select */}
                       <div className="absolute inset-0 z-[5] touch-none" onPointerDown={(e) => onCellDown(e, d.key, ti)} />
                       {/* time handles + delete for the selected block */}
@@ -730,7 +730,7 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
                             style={{ top: `${topPct}%`, transform: topSide === 'below' ? 'translateY(3px)' : 'translateY(-50%)', borderColor: 'var(--border2)' }}
                             aria-label="Remove this block"
                           >
-                            <X size={10} />
+                            <X size={11} />
                           </button>
                         </>
                       )}
@@ -770,16 +770,16 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
         <div className="mt-0.5 flex flex-wrap items-center gap-2.5 border-t border-border px-0.5 pt-3">
           {bw ? (
             <>
-              <span className="text-[11px] text-dim">Best {fmtDur(durationMin)} slot</span>
-              <span className="text-[12.5px] font-semibold">{bw.dayLabel} · {fmt(gridStartMin + bw.s)} – {fmt(gridStartMin + bw.e)}</span>
+              <span className="text-[12.5px] text-dim">Best {fmtDur(durationMin)} slot</span>
+              <span className="text-[14px] font-semibold">{bw.dayLabel} · {fmt(gridStartMin + bw.s)} – {fmt(gridStartMin + bw.e)}</span>
               <TimezonePill tz={myTime && canConvert ? localTz : event.timezone} />
-              <span className="text-[11px] font-semibold text-teal-text">{bw.count} of {total} free</span>
-              <div className="ml-auto"><AvatarRow people={bw.ids.map(avatarOf)} size={20} max={8} overlap={5} /></div>
+              <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {total} free</span>
+              <div className="ml-auto"><AvatarRow people={bw.ids.map(avatarOf)} size={22} max={8} overlap={5} /></div>
             </>
           ) : responded > 0 ? (
-            <span className="text-[11px] text-dim">No block long enough for a <span className="font-semibold text-text">{fmtDur(durationMin)}</span> event yet. Try a shorter length, or wait for more responses.</span>
+            <span className="text-[12.5px] text-dim">No block long enough for a <span className="font-semibold text-text">{fmtDur(durationMin)}</span> event yet. Try a shorter length, or wait for more responses.</span>
           ) : (
-            <span className="text-[11px] text-dim">No availability yet. Add yours in <span className="font-semibold text-text">Edit mine</span> to start finding the best time.</span>
+            <span className="text-[12.5px] text-dim">No availability yet. Add yours in <span className="font-semibold text-text">Edit mine</span> to start finding the best time.</span>
           )}
         </div>
       </div>
@@ -789,10 +789,10 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
         // stacked layout: reopen the chat right where it appears, at the bottom
         <button
           onClick={() => setChatOpen(true)}
-          className="flex items-center justify-center gap-1.5 rounded-b-2xl border-t border-border bg-s0 py-3 text-[12px] font-semibold hover:bg-s2 lg:hidden"
+          className="flex items-center justify-center gap-1.5 rounded-b-2xl border-t border-border bg-s0 py-3 text-[13.5px] font-semibold hover:bg-s2 lg:hidden"
         >
-          <MessageCircle size={14} className="text-accent-text" /> Open discussion
-          {messages.length > 0 && <span className="flex h-[16px] items-center rounded-[10px] bg-accent px-[6px] text-[9.5px] text-on-accent">{messages.length}</span>}
+          <MessageCircle size={16} className="text-accent-text" /> Open discussion
+          {messages.length > 0 && <span className="flex h-[16px] items-center rounded-[10px] bg-accent px-[6px] text-[10.5px] text-on-accent">{messages.length}</span>}
         </button>
       )}
 
@@ -841,21 +841,21 @@ function ImportPreview({ provider, data, mine, days, tz, fmt, gridStartMin, onAp
     <div className="absolute inset-0 z-40 grid place-items-center bg-[rgba(0,0,0,.25)] p-4" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div ref={card} className="flex max-h-full w-full max-w-[460px] flex-col rounded-2xl border border-border bg-s1 shadow-soft">
         <div className="border-b border-border px-5 py-4">
-          <div className="text-[10.5px] font-semibold uppercase tracking-[.13em] text-faint">Import preview</div>
-          <div className="mt-1 flex items-center gap-2 text-[14px] font-semibold">{provider} <TimezonePill tz={tz} /></div>
+          <div className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint">Import preview</div>
+          <div className="mt-1 flex items-center gap-2 text-[15.5px] font-semibold">{provider} <TimezonePill tz={tz} /></div>
         </div>
 
         {data ? (
           <>
             <div className="scroll-slim min-h-0 flex-1 overflow-auto px-5 py-3">
-              <p className="mb-2.5 text-[11.5px] leading-[1.5] text-dim">
+              <p className="mb-2.5 text-[13px] leading-[1.5] text-dim">
                 We found {totalBusy} busy {totalBusy === 1 ? 'block' : 'blocks'} on your calendar. They came in as exact moments and are shown here in event time, so they line up even if your calendar uses a different timezone. Applying only adds the times below — nothing you&apos;ve already marked is changed or removed.
               </p>
               {days.filter((d) => data[d.key]).map((d) => {
                 const di = data[d.key]
                 const added = addedFor(d.key)
                 return (
-                  <div key={d.key} className="flex gap-3 border-t border-border py-2 text-[11.5px] first:border-t-0">
+                  <div key={d.key} className="flex gap-3 border-t border-border py-2 text-[13px] first:border-t-0">
                     <span className="w-[76px] flex-none font-semibold text-dim">{d.dow} {d.date}</span>
                     <span className="min-w-0 flex-1 leading-[1.55]">
                       {di.free.length === 0
@@ -863,28 +863,28 @@ function ImportPreview({ provider, data, mine, days, tz, fmt, gridStartMin, onAp
                         : added.length === 0
                           ? <span className="text-faint">Already covered by your times</span>
                           : added.map((iv, i) => (
-                              <span key={i} className="mr-1.5 inline-block whitespace-nowrap rounded-[6px] border border-teal-border bg-teal-bg px-1.5 py-px text-[10.5px] font-semibold text-teal-text">
+                              <span key={i} className="mr-1.5 inline-block whitespace-nowrap rounded-[6px] border border-teal-border bg-teal-bg px-1.5 py-px text-[12px] font-semibold text-teal-text">
                                 {fmt(gridStartMin + iv.s)} – {fmt(gridStartMin + iv.e)}
                               </span>
                             ))}
-                      {di.busy.length > 0 && <span className="text-[10.5px] text-faint">· {di.busy.length} busy</span>}
+                      {di.busy.length > 0 && <span className="text-[12px] text-faint">· {di.busy.length} busy</span>}
                     </span>
                   </div>
                 )
               })}
-              <p className="mt-2.5 text-[10.5px] leading-[1.5] text-faint">Simulated calendar for now. Provider sign-in arrives with calendar sync.</p>
+              <p className="mt-2.5 text-[12px] leading-[1.5] text-faint">Simulated calendar for now. Provider sign-in arrives with calendar sync.</p>
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3.5">
-              {!anyAdded && <span className="mr-auto text-[11px] text-faint">Nothing new to add — you&apos;ve already covered these times.</span>}
-              <button onClick={onClose} className="flex h-9 items-center rounded-[9px] border border-border2 bg-s1 px-3.5 text-[12px] font-semibold hover:bg-s2">{anyAdded ? 'Cancel' : 'Close'}</button>
-              {anyAdded && <button onClick={onApply} className="flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[12px] font-semibold text-on-accent"><Check size={13} /> Add these times</button>}
+              {!anyAdded && <span className="mr-auto text-[12.5px] text-faint">Nothing new to add — you&apos;ve already covered these times.</span>}
+              <button onClick={onClose} className="flex h-9 items-center rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13.5px] font-semibold hover:bg-s2">{anyAdded ? 'Cancel' : 'Close'}</button>
+              {anyAdded && <button onClick={onApply} className="flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent"><Check size={15} /> Add these times</button>}
             </div>
           </>
         ) : (
           <>
-            <p className="px-5 py-4 text-[12px] leading-[1.55] text-dim">Calendar import isn&apos;t available for this sample event. Create an event of your own to try it.</p>
+            <p className="px-5 py-4 text-[13.5px] leading-[1.55] text-dim">Calendar import isn&apos;t available for this sample event. Create an event of your own to try it.</p>
             <div className="flex items-center justify-end border-t border-border px-5 py-3.5">
-              <button onClick={onClose} className="flex h-9 items-center rounded-[9px] border border-border2 bg-s1 px-3.5 text-[12px] font-semibold hover:bg-s2">Close</button>
+              <button onClick={onClose} className="flex h-9 items-center rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13.5px] font-semibold hover:bg-s2">Close</button>
             </div>
           </>
         )}
@@ -913,18 +913,18 @@ function ImportFromCalendar({ onPick }: { onPick: (provider: string) => void }) 
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className={`flex h-7 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[11.5px] font-medium hover:border-border2 ${open ? 'border-border2' : 'border-border'}`}
+        className={`flex h-7 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2 ${open ? 'border-border2' : 'border-border'}`}
       >
-        <CalendarPlus size={13} /> Import from calendar <ChevronDown size={12} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
+        <CalendarPlus size={15} /> Import from calendar <ChevronDown size={13} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div className="absolute left-0 top-full z-30 mt-1 w-[248px] rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
-          <p className="px-2.5 pb-1.5 pt-2 text-[10.5px] leading-[1.45] text-faint">
+          <p className="px-2.5 pb-1.5 pt-2 text-[12px] leading-[1.45] text-faint">
             Connect a calendar and your free times fill in automatically. Busy times import as exact moments, so they stay correct even if your calendar uses a different timezone than this event. You review everything before it&apos;s saved.
           </p>
           {(['Google Calendar', 'Outlook'] as const).map((name) => (
-            <button key={name} type="button" onClick={() => { setOpen(false); onPick(name) }} className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left text-[12px] font-medium hover:bg-s2">
-              <CalendarPlus size={13} className="text-accent-text" /> {name}
+            <button key={name} type="button" onClick={() => { setOpen(false); onPick(name) }} className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left text-[13.5px] font-medium hover:bg-s2">
+              <CalendarPlus size={15} className="text-accent-text" /> {name}
             </button>
           ))}
         </div>
@@ -953,24 +953,24 @@ function ClearTimes({ onClear }: { onClear: () => void }) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className={`flex h-7 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[11.5px] font-medium text-dim hover:border-border2 hover:text-brick-text ${open ? 'border-border2' : 'border-border'}`}
+        className={`flex h-7 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[13px] font-medium text-dim hover:border-border2 hover:text-brick-text ${open ? 'border-border2' : 'border-border'}`}
       >
-        <Eraser size={13} /> Clear my times
+        <Eraser size={15} /> Clear my times
       </button>
       {open && (
         <div className="absolute left-0 top-full z-30 mt-1 w-[236px] rounded-[10px] border border-brick-border bg-s1 p-3 shadow-soft">
           <div className="flex items-start gap-2">
-            <TriangleAlert size={14} className="mt-px flex-none text-brick-text" />
-            <p className="text-[11.5px] leading-[1.5] text-text">
+            <TriangleAlert size={16} className="mt-px flex-none text-brick-text" />
+            <p className="text-[13px] leading-[1.5] text-text">
               Clear everything you&apos;ve marked on this event? There is no undo.
             </p>
           </div>
           <div className="mt-2.5 flex items-center justify-end gap-2">
-            <button type="button" onClick={() => setOpen(false)} className="flex h-8 items-center rounded-[8px] border border-border2 bg-s1 px-3 text-[11.5px] font-semibold hover:bg-s2">
+            <button type="button" onClick={() => setOpen(false)} className="flex h-8 items-center rounded-[8px] border border-border2 bg-s1 px-3 text-[13px] font-semibold hover:bg-s2">
               Cancel
             </button>
-            <button type="button" onClick={() => { setOpen(false); onClear() }} className="flex h-8 items-center gap-1.5 rounded-[8px] px-3 text-[11.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
-              <Eraser size={12} /> Yes, clear it
+            <button type="button" onClick={() => { setOpen(false); onClear() }} className="flex h-8 items-center gap-1.5 rounded-[8px] px-3 text-[13px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
+              <Eraser size={13} /> Yes, clear it
             </button>
           </div>
         </div>
@@ -1042,22 +1042,22 @@ function AddToCalendar({ event, bw, gridStartMin }: { event: AppEvent; bw: Retur
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className={`flex h-7 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[11.5px] font-medium hover:border-border2 ${open ? 'border-border2' : 'border-border'}`}
+        className={`flex h-7 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2 ${open ? 'border-border2' : 'border-border'}`}
       >
-        <CalendarPlus size={13} /> Add to calendar <ChevronDown size={12} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
+        <CalendarPlus size={15} /> Add to calendar <ChevronDown size={13} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div className="absolute left-0 top-full z-30 mt-1 w-[228px] rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
-          <p className="px-2.5 pb-1.5 pt-2 text-[10.5px] leading-[1.45] text-faint">
+          <p className="px-2.5 pb-1.5 pt-2 text-[12px] leading-[1.45] text-faint">
             {timed
               ? <>Adds the best time so far: {bw!.dayLabel}, {fmtMinute(gridStartMin + timed.s)} – {fmtMinute(gridStartMin + timed.e)} ({event.timezone.split('/').pop()?.replace(/_/g, ' ')} time).</>
               : <>No best time yet, so this adds the whole date window as an all-day entry.</>}
           </p>
-          <button type="button" onClick={() => exportTo('google')} className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left text-[12px] font-medium hover:bg-s2">
-            <CalendarPlus size={13} className="text-accent-text" /> Google Calendar
+          <button type="button" onClick={() => exportTo('google')} className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left text-[13.5px] font-medium hover:bg-s2">
+            <CalendarPlus size={15} className="text-accent-text" /> Google Calendar
           </button>
-          <button type="button" onClick={() => exportTo('outlook')} className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left text-[12px] font-medium hover:bg-s2">
-            <CalendarPlus size={13} className="text-accent-text" /> Outlook
+          <button type="button" onClick={() => exportTo('outlook')} className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left text-[13.5px] font-medium hover:bg-s2">
+            <CalendarPlus size={15} className="text-accent-text" /> Outlook
           </button>
         </div>
       )}
@@ -1073,7 +1073,7 @@ function EdgeHandle({ pct, label, active, side, onDown }: { pct: number; label: 
       <div className="absolute inset-x-0 top-0 -translate-y-1/2 border-t-2" style={{ borderColor: color }} />
       {/* timestamp, kept outside the block: start above the top handle, end below the bottom handle */}
       <span
-        className="absolute left-1/2 whitespace-nowrap rounded-full border bg-s1 px-1.5 py-px text-[9px] font-semibold tabular-nums shadow-soft"
+        className="absolute left-1/2 whitespace-nowrap rounded-full border bg-s1 px-1.5 py-px text-[10px] font-semibold tabular-nums shadow-soft"
         style={{ top: 0, transform: `translate(-50%, ${side === 'above' ? 'calc(-50% - 15px)' : 'calc(-50% + 15px)'})`, borderColor: color, color: '#7A531F' }}
       >
         {label}
@@ -1086,7 +1086,7 @@ function EdgeHandle({ pct, label, active, side, onDown }: { pct: number; label: 
         style={{ borderColor: color, color, touchAction: 'none' }}
         aria-label={`Adjust time, currently ${label}`}
       >
-        <GripHorizontal size={11} />
+        <GripHorizontal size={12} />
       </button>
     </div>
   )
@@ -1099,10 +1099,10 @@ function fmtDur(m: number) { return m < 60 ? `${m}m` : m % 60 ? `${Math.floor(m 
 function PresetFills({ onFill }: { onFill: (startClock: number, endClock: number) => void }) {
   const P = [{ l: 'Morning', s: 8 * 60, e: 12 * 60 }, { l: 'Afternoon', s: 12 * 60, e: 17 * 60 }, { l: 'Evening', s: 17 * 60, e: 21 * 60 }]
   return (
-    <span className="flex items-center gap-1 text-[10.5px] text-faint">
+    <span className="flex items-center gap-1 text-[12px] text-faint">
       Quick fill:
       {P.map((p) => (
-        <button key={p.l} onClick={() => onFill(p.s, p.e)} className="rounded-full border border-border bg-s1 px-2 py-0.5 text-[10.5px] font-medium text-dim hover:border-border2 hover:text-text">{p.l}</button>
+        <button key={p.l} onClick={() => onFill(p.s, p.e)} className="rounded-full border border-border bg-s1 px-2 py-0.5 text-[12px] font-medium text-dim hover:border-border2 hover:text-text">{p.l}</button>
       ))}
     </span>
   )
@@ -1121,18 +1121,18 @@ function MissingPopover({ missing, nudged, onNudge, onNudgeAll, onClose }: { mis
   return (
     <div ref={wrap} className="absolute left-0 top-full z-30 mt-1 w-[244px] rounded-[10px] border border-border bg-s1 p-2 shadow-soft">
       <div className="flex items-center justify-between px-1 pb-1.5">
-        <span className="text-[10.5px] font-semibold uppercase tracking-[.1em] text-faint">Waiting on {missing.length}</span>
-        <button onClick={onNudgeAll} disabled={allNudged} className="flex items-center gap-1 text-[10.5px] font-semibold text-accent-text disabled:text-faint"><Bell size={11} /> Nudge all</button>
+        <span className="text-[12px] font-semibold uppercase tracking-[.1em] text-faint">Waiting on {missing.length}</span>
+        <button onClick={onNudgeAll} disabled={allNudged} className="flex items-center gap-1 text-[12px] font-semibold text-accent-text disabled:text-faint"><Bell size={12} /> Nudge all</button>
       </div>
       <div className="scroll-slim flex max-h-[220px] flex-col gap-0.5 overflow-auto">
         {missing.map((p) => {
           const done = nudged.has(p.id)
           return (
             <div key={p.id} className="flex items-center gap-2 rounded-[7px] px-1 py-1">
-              <Avatar initials={p.initials} color={p.color} size={22} font={9} />
-              <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{p.name}</span>
-              <button onClick={() => onNudge(p.id)} disabled={done} className={`flex h-6 items-center gap-1 rounded-[6px] px-2 text-[10.5px] font-semibold ${done ? 'text-teal-text' : 'border border-border2 hover:bg-s2'}`}>
-                {done ? <><Check size={11} /> Nudged</> : <><Bell size={11} /> Nudge</>}
+              <Avatar initials={p.initials} color={p.color} size={25} font={10} />
+              <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}</span>
+              <button onClick={() => onNudge(p.id)} disabled={done} className={`flex h-6 items-center gap-1 rounded-[6px] px-2 text-[12px] font-semibold ${done ? 'text-teal-text' : 'border border-border2 hover:bg-s2'}`}>
+                {done ? <><Check size={12} /> Nudged</> : <><Bell size={12} /> Nudge</>}
               </button>
             </div>
           )
@@ -1162,24 +1162,24 @@ function CellDetail({ bands, total, fmt, gridStartMin, avatarOf, style, onClose 
       className="absolute z-40 w-[222px] rounded-[11px] border border-border2 bg-s1 p-2.5 shadow-soft"
     >
       <div className="mb-1.5 flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-faint">Who&apos;s free</span>
-        <button onClick={onClose} aria-label="Close" className="text-faint hover:text-text"><X size={12} /></button>
+        <span className="text-[11px] font-semibold uppercase tracking-[.1em] text-faint">Who&apos;s free</span>
+        <button onClick={onClose} aria-label="Close" className="text-faint hover:text-text"><X size={13} /></button>
       </div>
       <div className="flex max-h-[240px] flex-col gap-2 overflow-auto scroll-slim">
         {bands.map((b, i) => (
           <div key={i} className="border-t border-border pt-1.5 first:border-t-0 first:pt-0">
-            <div className="mb-1 flex items-center justify-between text-[10.5px]">
+            <div className="mb-1 flex items-center justify-between text-[12px]">
               <span className="font-semibold">{fmt(gridStartMin + b.s)} – {fmt(gridStartMin + b.e)}</span>
               <span className="text-dim">{b.ids.length}/{total}</span>
             </div>
             {b.ids.length === 0 ? (
-              <span className="text-[10.5px] text-faint">No one free</span>
+              <span className="text-[12px] text-faint">No one free</span>
             ) : (
               <div className="flex flex-wrap gap-1">
                 {b.ids.slice(0, 12).map((id) => { const a = avatarOf(id); return (
-                  <span key={id} className="flex items-center gap-1 rounded-full bg-s2 py-0.5 pl-0.5 pr-1.5"><Avatar initials={a.initials} color={a.color} size={16} font={7.5} /><span className="text-[10px]">{a.name}</span></span>
+                  <span key={id} className="flex items-center gap-1 rounded-full bg-s2 py-0.5 pl-0.5 pr-1.5"><Avatar initials={a.initials} color={a.color} size={18} font={8.5} /><span className="text-[11px]">{a.name}</span></span>
                 ) })}
-                {b.ids.length > 12 && <span className="self-center text-[10px] text-faint">+{b.ids.length - 12}</span>}
+                {b.ids.length > 12 && <span className="self-center text-[11px] text-faint">+{b.ids.length - 12}</span>}
               </div>
             )}
           </div>
@@ -1208,32 +1208,32 @@ function ChatPanel({ members, messages, onSend, onClose, avatarOf }: { members: 
   return (
     <div ref={panel} className="flex h-[340px] w-full flex-none flex-col overflow-hidden rounded-b-2xl border-t border-border bg-s0 lg:h-auto lg:w-[300px] lg:rounded-b-none lg:rounded-r-2xl lg:border-l lg:border-t-0">
       <div className="flex items-center justify-between border-b border-border px-3.5 py-[13px]">
-        <div className="flex items-center gap-1.5 text-[12.5px] font-semibold">
-          <MessageCircle size={14} className="text-accent-text" />
+        <div className="flex items-center gap-1.5 text-[14px] font-semibold">
+          <MessageCircle size={16} className="text-accent-text" />
           Event discussion
-          <span className="rounded-[10px] border border-accent-border bg-accent-bg px-1.5 py-px text-[9.5px] font-semibold text-accent-text">{members} members</span>
+          <span className="rounded-[10px] border border-accent-border bg-accent-bg px-1.5 py-px text-[10.5px] font-semibold text-accent-text">{members} members</span>
         </div>
-        <button onClick={onClose} aria-label="Close chat" className="grid h-[26px] w-[26px] place-items-center rounded-lg text-dim hover:text-text"><X size={15} /></button>
+        <button onClick={onClose} aria-label="Close chat" className="grid h-[26px] w-[26px] place-items-center rounded-lg text-dim hover:text-text"><X size={17} /></button>
       </div>
 
       <div ref={scroller} className="scroll-slim flex flex-1 flex-col gap-3.5 overflow-auto p-3.5">
         {messages.length === 0 ? (
           <div className="m-auto max-w-[210px] text-center">
-            <MessageCircle size={22} className="mx-auto mb-2 text-faint" />
-            <p className="text-[12px] font-semibold">No messages yet</p>
-            <p className="mt-1 text-[11px] leading-[1.5] text-dim">Say hi or ask a question. Everyone invited can chat here.</p>
+            <MessageCircle size={25} className="mx-auto mb-2 text-faint" />
+            <p className="text-[13.5px] font-semibold">No messages yet</p>
+            <p className="mt-1 text-[12.5px] leading-[1.5] text-dim">Say hi or ask a question. Everyone invited can chat here.</p>
           </div>
         ) : (
           messages.map((m, i) => {
             const a = avatarOf(m.id)
             return (
               <div key={i} className={`flex flex-col gap-1.5 ${m.you ? 'items-end' : 'items-start'}`}>
-                <div className="flex items-center gap-1.5 text-[10px] text-dim">
-                  {!m.you && <Avatar initials={a.initials} color={a.color} size={16} font={7.5} />}
+                <div className="flex items-center gap-1.5 text-[11px] text-dim">
+                  {!m.you && <Avatar initials={a.initials} color={a.color} size={18} font={8.5} />}
                   <span className="font-semibold text-text">{m.name}</span>
                   <span>{m.time}</span>
                 </div>
-                <div className="max-w-[86%] rounded-[13px] border px-[11px] py-2 text-[11.5px] leading-[1.45]" style={m.you ? { background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' } : { background: 'var(--s2)', color: 'var(--text)', borderColor: 'var(--border)' }}>
+                <div className="max-w-[86%] rounded-[13px] border px-[11px] py-2 text-[13px] leading-[1.45]" style={m.you ? { background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' } : { background: 'var(--s2)', color: 'var(--text)', borderColor: 'var(--border)' }}>
                   {m.text}
                 </div>
               </div>
@@ -1243,8 +1243,8 @@ function ChatPanel({ members, messages, onSend, onClose, avatarOf }: { members: 
       </div>
 
       <div className="flex items-center gap-2 border-t border-border p-[11px]">
-        <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} placeholder="Add a comment…" className="h-[34px] flex-1 rounded-[9px] border border-border bg-s1 px-[11px] text-[12px] outline-none placeholder:text-faint focus:border-accent-border" />
-        <button onClick={send} aria-label="Send" className="grid h-[34px] w-[34px] place-items-center rounded-[9px] bg-accent text-on-accent"><Send size={14} /></button>
+        <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} placeholder="Add a comment…" className="h-[34px] flex-1 rounded-[9px] border border-border bg-s1 px-[11px] text-[13.5px] outline-none placeholder:text-faint focus:border-accent-border" />
+        <button onClick={send} aria-label="Send" className="grid h-[34px] w-[34px] place-items-center rounded-[9px] bg-accent text-on-accent"><Send size={16} /></button>
       </div>
     </div>
   )
@@ -1255,7 +1255,7 @@ function Segment({ value, onChange, options, compact }: { value: string; onChang
   return (
     <div className="inline-flex w-fit rounded-[9px] bg-s2 p-0.5">
       {options.map((o) => (
-        <button key={o.v} onClick={() => onChange(o.v)} className={`flex h-7 items-center rounded-[7px] font-semibold transition-colors ${compact ? 'px-2.5 text-[11px]' : 'px-3 text-[11.5px]'} ${value === o.v ? 'bg-s0 text-text shadow-soft' : 'text-dim hover:text-text'}`}>
+        <button key={o.v} onClick={() => onChange(o.v)} className={`flex h-7 items-center rounded-[7px] font-semibold transition-colors ${compact ? 'px-2.5 text-[12.5px]' : 'px-3 text-[13px]'} ${value === o.v ? 'bg-s0 text-text shadow-soft' : 'text-dim hover:text-text'}`}>
           {o.l}
         </button>
       ))}

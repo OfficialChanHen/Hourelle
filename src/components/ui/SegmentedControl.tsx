@@ -49,7 +49,7 @@ export function SegmentedControl({ value, onChange, options, size = 'md', stretc
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const h = size === 'sm' ? 'h-7' : 'h-[34px]'
-  const txt = size === 'sm' ? 'text-[11.5px]' : 'text-[12px]'
+  const txt = size === 'sm' ? 'text-[13px]' : 'text-[13.5px]'
   const pad = size === 'sm' ? 'px-3' : 'px-3.5'
   const iconSize = size === 'sm' ? 13 : 14
 

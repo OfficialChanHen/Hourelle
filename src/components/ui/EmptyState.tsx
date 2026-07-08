@@ -22,16 +22,16 @@ export function EmptyState({
     >
       <div>
         <span className="mx-auto mb-3.5 grid h-11 w-11 place-items-center rounded-[11px] border border-border bg-s2 text-dim">
-          <Icon size={20} />
+          <Icon size={22} />
         </span>
-        <p className="font-serif text-[22px] tracking-[-0.01em]">{title}</p>
-        <p className="mx-auto mt-1.5 max-w-sm text-[12.5px] leading-[1.5] text-dim">{body}</p>
+        <p className="font-serif text-[24.5px] tracking-[-0.01em]">{title}</p>
+        <p className="mx-auto mt-1.5 max-w-sm text-[14px] leading-[1.5] text-dim">{body}</p>
         {action && (
           <Link
             href={action.href}
-            className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[12.5px] font-semibold text-on-accent"
+            className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent"
           >
-            <Plus size={15} /> {action.label}
+            <Plus size={17} /> {action.label}
           </Link>
         )}
       </div>

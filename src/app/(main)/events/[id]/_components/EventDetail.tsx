@@ -57,9 +57,9 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
   if (event === null) {
     return (
       <div className="mx-auto max-w-[560px] px-[26px] pt-[72px] text-center">
-        <p className="font-serif text-[30px] tracking-[-0.01em]">Event not found</p>
-        <p className="mx-auto mt-2 max-w-sm text-[13px] text-dim">This event doesn&apos;t exist on this device, or the link is wrong.</p>
-        <Link href="/create" className="mt-5 inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[12.5px] font-semibold text-on-accent">Create an event</Link>
+        <p className="font-serif text-[33.5px] tracking-[-0.01em]">Event not found</p>
+        <p className="mx-auto mt-2 max-w-sm text-[14.5px] text-dim">This event doesn&apos;t exist on this device, or the link is wrong.</p>
+        <Link href="/create" className="mt-5 inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent">Create an event</Link>
       </div>
     )
   }
@@ -82,28 +82,28 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       {/* header */}
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-serif text-[31px] leading-[1.04] tracking-[-0.01em]">{event.title}</h1>
-          <div className="mt-2 flex items-center gap-1.5 text-[12px] text-dim">
-            <Building2 size={13} /> Hosted by {event.hostName}
+          <h1 className="font-serif text-[34.5px] leading-[1.04] tracking-[-0.01em]">{event.title}</h1>
+          <div className="mt-2 flex items-center gap-1.5 text-[13.5px] text-dim">
+            <Building2 size={15} /> Hosted by {event.hostName}
           </div>
         </div>
-        <button onClick={copy} className="flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[12.5px] font-semibold hover:border-border2">
-          {copied ? <Check size={14} /> : <Link2 size={14} />} {copied ? 'Copied' : 'Share link'}
+        <button onClick={copy} className="flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[14px] font-semibold hover:border-border2">
+          {copied ? <Check size={16} /> : <Link2 size={16} />} {copied ? 'Copied' : 'Share link'}
         </button>
       </div>
 
       {/* 4-column open stat strip */}
       <div className="mb-[26px] grid grid-cols-2 gap-8 border-b border-border pb-7 md:grid-cols-4">
         <Stat icon={CalendarDays} label="Time until event">
-          <div className="font-serif text-[31px] leading-none">{untilBig}</div>
-          <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-dim">{dateRangeText(event)} <TimezonePill tz={event.timezone} /></div>
+          <div className="font-serif text-[34.5px] leading-none">{untilBig}</div>
+          <div className="mt-1.5 flex items-center gap-1.5 text-[12.5px] text-dim">{dateRangeText(event)} <TimezonePill tz={event.timezone} /></div>
         </Stat>
 
         <Stat icon={Wallet} label="Budget">
           {event.budget ? (
             <>
-              <div className="font-serif text-[31px] leading-none">${Number(event.budget).toLocaleString()}</div>
-              <div className="mt-1.5 text-[11px] text-dim">
+              <div className="font-serif text-[34.5px] leading-none">${Number(event.budget).toLocaleString()}</div>
+              <div className="mt-1.5 text-[12.5px] text-dim">
                 {event.budgetMode === 'person'
                   ? (going > 0 ? `per person · ~$${(Number(event.budget) * going).toLocaleString()} for ${going} going` : 'per person')
                   : (going > 0 ? `total · ~$${Math.round(Number(event.budget) / going).toLocaleString()} / person` : 'total')}
@@ -111,8 +111,8 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
             </>
           ) : (
             <>
-              <div className="font-serif text-[25px] leading-none text-dim">No budget</div>
-              <div className="mt-1.5 text-[11px] text-faint">Not set</div>
+              <div className="font-serif text-[28px] leading-none text-dim">No budget</div>
+              <div className="mt-1.5 text-[12.5px] text-faint">Not set</div>
             </>
           )}
         </Stat>
@@ -120,10 +120,10 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
         <Stat icon={Users} label="Attendance">
           <div className="mb-1.5 flex flex-wrap gap-x-[9px] gap-y-1.5">
             {event.participants.map((p) => (
-              <span key={p.id} className="text-[11.5px] font-semibold" style={{ color: RSVP[p.rsvp].color }}>{p.initials}</span>
+              <span key={p.id} className="text-[13px] font-semibold" style={{ color: RSVP[p.rsvp].color }}>{p.initials}</span>
             ))}
           </div>
-          <div className="text-[11px] text-dim">
+          <div className="text-[12.5px] text-dim">
             <span className="text-teal-text">{going} going</span>
             {pending > 0 && <> · <span className="text-faint">{pending} pending</span></>}
             {notGoing > 0 && <> · <span className="text-brick-text">{notGoing} out</span></>}
@@ -133,13 +133,13 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
         <Stat icon={BarChart3} label="Best availability" iconColor="var(--teal-text)">
           {best ? (
             <>
-              <div className="font-serif text-[25px] leading-[1.05]">{best.dayLabel.replace(/^\w+, /, '')}</div>
-              <div className="mt-1 text-[11px] text-dim">{best.count} of {event.participants.length} free · {fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)}</div>
+              <div className="font-serif text-[28px] leading-[1.05]">{best.dayLabel.replace(/^\w+, /, '')}</div>
+              <div className="mt-1 text-[12.5px] text-dim">{best.count} of {event.participants.length} free · {fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)}</div>
             </>
           ) : (
             <>
-              <div className="font-serif text-[25px] leading-[1.05] text-dim">TBD</div>
-              <div className="mt-1 text-[11px] text-faint">Waiting on availability</div>
+              <div className="font-serif text-[28px] leading-[1.05] text-dim">TBD</div>
+              <div className="mt-1 text-[12.5px] text-faint">Waiting on availability</div>
             </>
           )}
         </Stat>
@@ -151,8 +151,8 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
           const active = tab === t.key
           const Icon = t.icon
           return (
-            <button key={t.key} onClick={() => setTab(t.key)} className={`flex items-center gap-1.5 whitespace-nowrap rounded-[10px] px-[15px] py-[9px] text-[12.5px] transition-colors ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
-              <Icon size={14} /> {t.label}
+            <button key={t.key} onClick={() => setTab(t.key)} className={`flex items-center gap-1.5 whitespace-nowrap rounded-[10px] px-[15px] py-[9px] text-[14px] transition-colors ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
+              <Icon size={16} /> {t.label}
             </button>
           )
         })}
@@ -170,8 +170,8 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
 function Stat({ icon: Icon, label, iconColor, children }: { icon: typeof Wallet; label: string; iconColor?: string; children: React.ReactNode }) {
   return (
     <div className="py-0.5">
-      <div className="mb-3 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[.13em] text-faint">
-        <Icon size={13} style={iconColor ? { color: iconColor } : undefined} />
+      <div className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">
+        <Icon size={15} style={iconColor ? { color: iconColor } : undefined} />
         {label}
       </div>
       {children}
@@ -187,7 +187,7 @@ function DetailsTab({ event, shareLink, onCopy, copied, onDelete }: { event: App
   return (
     <div className="flex flex-wrap items-start gap-3.5">
       <div className="min-w-[320px] flex-[1.5] rounded-2xl border border-border bg-s1 p-5">
-        <div className="mb-1 flex items-center gap-2 text-[13px] font-semibold"><Settings size={15} className="text-dim" /> Details</div>
+        <div className="mb-1 flex items-center gap-2 text-[14.5px] font-semibold"><Settings size={17} className="text-dim" /> Details</div>
         <DetailRow k="Description" v={event.description || <span className="text-faint">No description</span>} />
         <DetailRow k="When" v={<span className="flex items-center gap-1.5">{dateRangeText(event)} <TimezonePill tz={event.timezone} /></span>} />
         <DetailRow k="Where" v={whereText} />
@@ -196,27 +196,27 @@ function DetailsTab({ event, shareLink, onCopy, copied, onDelete }: { event: App
       </div>
 
       <div className="min-w-[280px] flex-1 rounded-2xl border border-border bg-s1 p-5">
-        <div className="mb-3 flex items-center gap-2 text-[13px] font-semibold">
-          <Users size={15} className="text-dim" /> Participants
-          <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[10.5px] text-dim">{event.participants.length}</span>
+        <div className="mb-3 flex items-center gap-2 text-[14.5px] font-semibold">
+          <Users size={17} className="text-dim" /> Participants
+          <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[12px] text-dim">{event.participants.length}</span>
         </div>
         <div className="flex flex-col">
           {event.participants.map((p, i) => (
             <div key={p.id} className={`flex items-center gap-2.5 py-2 ${i > 0 ? 'border-t border-border' : ''}`}>
-              <Avatar initials={p.initials} color={p.color} size={26} font={9.5} />
-              <span className="flex-1 truncate text-[12px] font-medium">{p.name}</span>
-              {p.host && <span className="rounded-md border border-accent-border bg-accent-bg px-1.5 py-0.5 text-[9.5px] font-semibold text-accent-text">Host</span>}
-              <span className="rounded-md px-2 py-0.5 text-[9.5px] font-semibold" style={{ color: RSVP[p.rsvp].color, background: `var(--${RSVP[p.rsvp].chip}-bg, var(--s2))` }}>{RSVP[p.rsvp].label}</span>
+              <Avatar initials={p.initials} color={p.color} size={29} font={10.5} />
+              <span className="flex-1 truncate text-[13.5px] font-medium">{p.name}</span>
+              {p.host && <span className="rounded-md border border-accent-border bg-accent-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-accent-text">Host</span>}
+              <span className="rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: RSVP[p.rsvp].color, background: `var(--${RSVP[p.rsvp].chip}-bg, var(--s2))` }}>{RSVP[p.rsvp].label}</span>
             </div>
           ))}
         </div>
         <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
           <div className="flex flex-1 items-center gap-2 truncate rounded-[9px] border border-border bg-s2 px-3 py-2">
-            <Link2 size={13} className="flex-none text-dim" />
-            <span className="truncate font-mono text-[11px] text-dim">{shareLink}</span>
+            <Link2 size={15} className="flex-none text-dim" />
+            <span className="truncate font-mono text-[12.5px] text-dim">{shareLink}</span>
           </div>
-          <button onClick={onCopy} className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[11.5px] font-semibold hover:bg-s2">
-            {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? 'Copied' : 'Copy'}
+          <button onClick={onCopy} className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[13px] font-semibold hover:bg-s2">
+            {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? 'Copied' : 'Copy'}
           </button>
         </div>
       </div>
@@ -237,13 +237,13 @@ function DangerZone({ title, onDelete }: { title: string; onDelete: () => void }
   return (
     <div className="w-full rounded-2xl border border-border bg-s1 p-5">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] border border-brick-border bg-brick-bg text-brick-text"><Trash2 size={15} /></span>
+        <span className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] border border-brick-border bg-brick-bg text-brick-text"><Trash2 size={17} /></span>
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold">Delete this event</div>
-          <div className="mt-0.5 text-[12px] text-dim">Removes it for everyone with the link, along with all availability, votes, and chat.</div>
+          <div className="text-[14.5px] font-semibold">Delete this event</div>
+          <div className="mt-0.5 text-[13.5px] text-dim">Removes it for everyone with the link, along with all availability, votes, and chat.</div>
         </div>
         {!confirming && (
-          <button onClick={() => setConfirming(true)} className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-brick-border bg-s1 px-3.5 text-[12px] font-semibold text-brick-text hover:bg-brick-bg">
+          <button onClick={() => setConfirming(true)} className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-brick-border bg-s1 px-3.5 text-[13.5px] font-semibold text-brick-text hover:bg-brick-bg">
             Delete event
           </button>
         )}
@@ -251,17 +251,17 @@ function DangerZone({ title, onDelete }: { title: string; onDelete: () => void }
       {confirming && (
         <div ref={box} className="mt-4 rounded-[11px] border border-brick-border bg-brick-bg p-4">
           <div className="flex items-start gap-2.5">
-            <TriangleAlert size={16} className="mt-px flex-none text-brick-text" />
+            <TriangleAlert size={18} className="mt-px flex-none text-brick-text" />
             <div className="min-w-0 flex-1">
-              <div className="text-[12.5px] font-semibold text-brick-text">Delete &ldquo;{title}&rdquo;?</div>
-              <div className="mt-1 text-[12px] leading-[1.5] text-brick-text/90">
+              <div className="text-[14px] font-semibold text-brick-text">Delete &ldquo;{title}&rdquo;?</div>
+              <div className="mt-1 text-[13.5px] leading-[1.5] text-brick-text/90">
                 This deletes the event for everyone. All availability responses, location votes, and messages go with it. There is no undo.
               </div>
               <div className="mt-3 flex items-center gap-2">
-                <button onClick={onDelete} className="flex h-9 items-center gap-1.5 rounded-[9px] px-3.5 text-[12px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
-                  <Trash2 size={13} /> Yes, delete it
+                <button onClick={onDelete} className="flex h-9 items-center gap-1.5 rounded-[9px] px-3.5 text-[13.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
+                  <Trash2 size={15} /> Yes, delete it
                 </button>
-                <button onClick={() => setConfirming(false)} className="flex h-9 items-center rounded-[9px] border border-border2 bg-s1 px-3.5 text-[12px] font-semibold hover:bg-s2">
+                <button onClick={() => setConfirming(false)} className="flex h-9 items-center rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13.5px] font-semibold hover:bg-s2">
                   Cancel
                 </button>
               </div>
@@ -275,8 +275,8 @@ function DangerZone({ title, onDelete }: { title: string; onDelete: () => void }
 function DetailRow({ k, v, last }: { k: string; v: React.ReactNode; last?: boolean }) {
   return (
     <div className={`flex gap-3.5 py-3 ${last ? '' : 'border-b border-border'}`}>
-      <span className="w-[92px] flex-none text-[11px] text-dim">{k}</span>
-      <span className="min-w-0 flex-1 text-[12px] font-medium">{v}</span>
+      <span className="w-[92px] flex-none text-[12.5px] text-dim">{k}</span>
+      <span className="min-w-0 flex-1 text-[13.5px] font-medium">{v}</span>
     </div>
   )
 }

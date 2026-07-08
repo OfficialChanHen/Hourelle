@@ -275,12 +275,12 @@ export function LocationPanel({ event }: { event: AppEvent }) {
           {/* popup for the focused (or leading) place */}
           {!blurred && sub === 'vote' && focusPlace && (
             <div className="absolute z-[5] min-w-[158px] rounded-[11px] bg-white px-3 py-2.5" style={{ left: slotFor(focusPlace.id).left, top: slotFor(focusPlace.id).top, transform: 'translate(-50%, calc(-100% - 32px))', boxShadow: '0 10px 28px rgba(0,0,0,.28)' }}>
-              <div className="text-[12px] font-semibold text-[#1b1b19]">{focusPlace.name}</div>
-              <div className="mb-1.5 mt-0.5 text-[10.5px] text-[#6b7280]">{focusPlace.place}</div>
+              <div className="text-[13.5px] font-semibold text-[#1b1b19]">{focusPlace.name}</div>
+              <div className="mb-1.5 mt-0.5 text-[12px] text-[#6b7280]">{focusPlace.place}</div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10.5px] font-bold text-teal-text">{votesOf(focusPlace.id).length} vote{votesOf(focusPlace.id).length === 1 ? '' : 's'}</span>
+                <span className="text-[12px] font-bold text-teal-text">{votesOf(focusPlace.id).length} vote{votesOf(focusPlace.id).length === 1 ? '' : 's'}</span>
                 <div className="flex">
-                  {votesOf(focusPlace.id).slice(0, 5).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={17} font={7.5} title={a.name} /></span> })}
+                  {votesOf(focusPlace.id).slice(0, 5).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={19} font={8.5} title={a.name} /></span> })}
                 </div>
               </div>
               <div className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 bg-white" />
@@ -289,8 +289,8 @@ export function LocationPanel({ event }: { event: AppEvent }) {
 
           {/* zoom control (decorative) */}
           <div className="absolute bottom-2.5 right-2.5 z-[6] flex flex-col overflow-hidden rounded-lg border border-[rgba(0,0,0,.12)]">
-            <span className="grid h-[30px] w-[30px] place-items-center border-b border-[rgba(0,0,0,.1)] bg-white text-[16px] text-[#1b1b19]">+</span>
-            <span className="grid h-[30px] w-[30px] place-items-center bg-white text-[16px] text-[#1b1b19]">−</span>
+            <span className="grid h-[30px] w-[30px] place-items-center border-b border-[rgba(0,0,0,.1)] bg-white text-[18px] text-[#1b1b19]">+</span>
+            <span className="grid h-[30px] w-[30px] place-items-center bg-white text-[18px] text-[#1b1b19]">−</span>
           </div>
         </div>
 
@@ -300,25 +300,25 @@ export function LocationPanel({ event }: { event: AppEvent }) {
             <div className="w-full max-w-[330px] rounded-2xl border border-border2 bg-s1 px-5 py-6 text-center shadow-soft">
               {loc.mode === 'remote' ? (
                 <>
-                  <span className="mx-auto mb-3 grid h-[46px] w-[46px] place-items-center rounded-xl border border-accent-border bg-accent-bg text-accent-text"><Video size={22} /></span>
-                  <div className="text-[14px] font-semibold">This event is remote</div>
-                  <p className="mb-3.5 mt-1 text-[11.5px] leading-[1.55] text-dim">Everyone joins online, so there is no map. The link lives here and in every reminder.</p>
+                  <span className="mx-auto mb-3 grid h-[46px] w-[46px] place-items-center rounded-xl border border-accent-border bg-accent-bg text-accent-text"><Video size={25} /></span>
+                  <div className="text-[15.5px] font-semibold">This event is remote</div>
+                  <p className="mb-3.5 mt-1 text-[13px] leading-[1.55] text-dim">Everyone joins online, so there is no map. The link lives here and in every reminder.</p>
                   <div className="mb-2.5 flex h-[38px] items-center gap-2 rounded-[10px] border border-border bg-s2 py-0 pl-3 pr-2">
-                    <Link2 size={14} className="flex-none text-accent-text" />
-                    <span className="flex-1 truncate text-left font-mono text-[11.5px]">{loc.meetingLink || `${loc.platform} link coming soon`}</span>
+                    <Link2 size={16} className="flex-none text-accent-text" />
+                    <span className="flex-1 truncate text-left font-mono text-[13px]">{loc.meetingLink || `${loc.platform} link coming soon`}</span>
                     {loc.meetingLink && (
-                      <button onClick={copyLink} className="flex h-7 flex-none items-center gap-1 rounded-[7px] bg-accent px-2.5 text-[11px] font-semibold text-on-accent">
-                        {copied ? <><Check size={11} /> Copied</> : <><Copy size={11} /> Copy</>}
+                      <button onClick={copyLink} className="flex h-7 flex-none items-center gap-1 rounded-[7px] bg-accent px-2.5 text-[12.5px] font-semibold text-on-accent">
+                        {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
                       </button>
                     )}
                   </div>
-                  <div className="text-[11px] text-dim">{event.participants.filter((p) => p.rsvp !== 'not_going').length} joining on {loc.platform}</div>
+                  <div className="text-[12.5px] text-dim">{event.participants.filter((p) => p.rsvp !== 'not_going').length} joining on {loc.platform}</div>
                 </>
               ) : (
                 <>
-                  <span className="mx-auto mb-3 grid h-[46px] w-[46px] place-items-center rounded-xl border border-ochre-border bg-ochre-bg text-ochre-text"><MapPinOff size={22} /></span>
-                  <div className="text-[14px] font-semibold">No location yet</div>
-                  <p className="mt-1 text-[11.5px] leading-[1.55] text-dim">
+                  <span className="mx-auto mb-3 grid h-[46px] w-[46px] place-items-center rounded-xl border border-ochre-border bg-ochre-bg text-ochre-text"><MapPinOff size={25} /></span>
+                  <div className="text-[15.5px] font-semibold">No location yet</div>
+                  <p className="mt-1 text-[13px] leading-[1.55] text-dim">
                     {loc.mode === 'later'
                       ? 'The host is deciding where later. Availability and chat keep working in the meantime, and the map fills in once places are added.'
                       : canAddPlaces
@@ -345,8 +345,8 @@ export function LocationPanel({ event }: { event: AppEvent }) {
               options={[{ v: 'vote', l: 'Venue vote' }, { v: 'itin', l: 'Itinerary' }]}
             />
             {sub === 'itin' && (
-              <button onClick={() => setAdding((a) => !a)} className={`flex h-8 flex-none items-center gap-1 rounded-[9px] border px-2.5 text-[11.5px] font-semibold ${adding ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
-                <Plus size={14} /> Add stop
+              <button onClick={() => setAdding((a) => !a)} className={`flex h-8 flex-none items-center gap-1 rounded-[9px] border px-2.5 text-[13px] font-semibold ${adding ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
+                <Plus size={16} /> Add stop
               </button>
             )}
             {sub === 'vote' && event.hostedByYou && places.length > 0 && (
@@ -354,15 +354,15 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                 align="end"
                 width={236}
                 trigger={(open) => (
-                  <span className={`flex h-8 flex-none items-center gap-1 rounded-[9px] border px-2.5 text-[11.5px] font-semibold ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`} aria-label="Voting settings">
-                    <SlidersHorizontal size={13} />
+                  <span className={`flex h-8 flex-none items-center gap-1 rounded-[9px] border px-2.5 text-[13px] font-semibold ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`} aria-label="Voting settings">
+                    <SlidersHorizontal size={15} />
                   </span>
                 )}
               >
                 {() => (
                   <div className="flex flex-col gap-3">
                     <div>
-                      <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[.12em] text-faint">Votes per person</div>
+                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Votes per person</div>
                       <div className="flex flex-wrap items-center gap-2">
                         <SegmentedControl
                           size="sm"
@@ -375,20 +375,20 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                         />
                         {customVotes && (
                           <div className="flex items-center gap-1">
-                            <button onClick={() => changeMaxVotes(maxVotes - 1)} disabled={maxVotes <= 1} className="grid h-7 w-7 place-items-center rounded-[7px] border border-border2 bg-s1 enabled:hover:bg-s2 disabled:opacity-30" aria-label="Fewer votes"><Minus size={12} /></button>
+                            <button onClick={() => changeMaxVotes(maxVotes - 1)} disabled={maxVotes <= 1} className="grid h-7 w-7 place-items-center rounded-[7px] border border-border2 bg-s1 enabled:hover:bg-s2 disabled:opacity-30" aria-label="Fewer votes"><Minus size={13} /></button>
                             <input
                               type="number" min={1} max={voteCap} value={maxVotes}
                               onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) changeMaxVotes(n) }}
-                              className="h-7 w-11 rounded-[7px] border border-border bg-s1 px-1.5 text-center text-[12px] font-semibold text-text tabular-nums outline-none focus:border-accent-border"
+                              className="h-7 w-11 rounded-[7px] border border-border bg-s1 px-1.5 text-center text-[13.5px] font-semibold text-text tabular-nums outline-none focus:border-accent-border"
                               aria-label="Votes per person"
                             />
-                            <button onClick={() => changeMaxVotes(maxVotes + 1)} disabled={maxVotes >= voteCap} className="grid h-7 w-7 place-items-center rounded-[7px] border border-border2 bg-s1 enabled:hover:bg-s2 disabled:opacity-30" aria-label="More votes"><Plus size={12} /></button>
-                            <span className="text-[10.5px] text-faint">of {voteCap}</span>
+                            <button onClick={() => changeMaxVotes(maxVotes + 1)} disabled={maxVotes >= voteCap} className="grid h-7 w-7 place-items-center rounded-[7px] border border-border2 bg-s1 enabled:hover:bg-s2 disabled:opacity-30" aria-label="More votes"><Plus size={13} /></button>
+                            <span className="text-[12px] text-faint">of {voteCap}</span>
                           </div>
                         )}
                       </div>
                     </div>
-                    <label className="flex cursor-pointer items-center gap-2 border-t border-border pt-2.5 text-[11.5px]">
+                    <label className="flex cursor-pointer items-center gap-2 border-t border-border pt-2.5 text-[13px]">
                       <input type="checkbox" checked={guestsCanSuggest} onChange={toggleGuestsCanSuggest} className="h-3.5 w-3.5" style={{ accentColor: 'var(--accent)' }} />
                       Guests can add places
                     </label>
@@ -404,8 +404,8 @@ export function LocationPanel({ event }: { event: AppEvent }) {
               {places.length === 0 ? (
                 <EmptyNote icon={Vote} text={canAddPlaces ? 'No places on the ballot yet. Search above to add the first one.' : 'No places to vote on yet. The host can add some, or allow guests to.'} />
               ) : maxVotes > 1 ? (
-                <div className="flex items-center gap-1.5 px-0.5 text-[11px] text-dim">
-                  <Vote size={13} className="text-accent-text" />
+                <div className="flex items-center gap-1.5 px-0.5 text-[12.5px] text-dim">
+                  <Vote size={15} className="text-accent-text" />
                   {maxVotes} votes · <span className={`font-semibold ${votesLeft ? 'text-accent-text' : 'text-brick-text'}`}>{votesLeft} left</span>
                 </div>
               ) : null}
@@ -416,16 +416,16 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                   const lead = p.id === leadingId
                   return (
                     <div key={p.id} data-flip-id={p.id} className={`relative flex items-start gap-2.5 rounded-xl border p-2.5 ${lead ? 'border-accent-border bg-accent-bg/40' : 'border-border bg-s0'}`}>
-                      <span className={`grid h-[30px] w-[30px] flex-none place-items-center rounded-full text-[12px] font-bold ${lead ? 'bg-accent text-on-accent' : 'bg-s2 text-dim'}`}>{i + 1}</span>
+                      <span className={`grid h-[30px] w-[30px] flex-none place-items-center rounded-full text-[13.5px] font-bold ${lead ? 'bg-accent text-on-accent' : 'bg-s2 text-dim'}`}>{i + 1}</span>
                       <div className="min-w-0 flex-1">
                         <div className="mb-0.5 flex items-center gap-1.5">
-                          <span className="text-[12.5px] font-semibold">{p.name}</span>
-                          {lead && <span className="flex-none rounded-[5px] border border-accent-border bg-accent-bg px-[5px] py-px text-[9px] font-semibold text-accent-text">Leading</span>}
+                          <span className="text-[14px] font-semibold">{p.name}</span>
+                          {lead && <span className="flex-none rounded-[5px] border border-accent-border bg-accent-bg px-[5px] py-px text-[10px] font-semibold text-accent-text">Leading</span>}
                         </div>
                         {/* address wraps in full — no truncation */}
-                        <div className="mb-1.5 text-[10.5px] leading-[1.45] text-dim">{p.place} · {ids.length} vote{ids.length === 1 ? '' : 's'}</div>
+                        <div className="mb-1.5 text-[12px] leading-[1.45] text-dim">{p.place} · {ids.length} vote{ids.length === 1 ? '' : 's'}</div>
                         <div className="flex">
-                          {ids.slice(0, 6).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={18} font={7.5} title={a.name} /></span> })}
+                          {ids.slice(0, 6).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={20} font={8.5} title={a.name} /></span> })}
                         </div>
                       </div>
                       <div className="flex flex-none items-center gap-1">
@@ -436,20 +436,20 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                           title={you ? 'Remove your vote' : votesLeft === 0 && maxVotes > 1 ? 'No votes left' : 'Vote for this place'}
                           className={`grid h-[34px] w-[34px] place-items-center rounded-[9px] border ${you ? 'border-accent bg-accent text-on-accent' : 'border-border2 bg-s1 text-text enabled:hover:bg-s2 disabled:opacity-40'}`}
                         >
-                          <ArrowUp size={16} />
+                          <ArrowUp size={18} />
                         </button>
                         {event.hostedByYou && (
                           <button onClick={() => attemptRemovePlace(p.id)} title="Remove this place" aria-label={`Remove ${p.name}`} className="grid h-[34px] w-7 place-items-center rounded-[9px] text-faint hover:text-brick-text">
-                            <Trash2 size={14} />
+                            <Trash2 size={16} />
                           </button>
                         )}
                       </div>
                       {confirmRemove === p.id && (
                         <div className="absolute inset-0 z-10 flex items-center gap-2 rounded-xl border border-brick-border bg-brick-bg px-2.5">
-                          <TriangleAlert size={15} className="flex-none text-brick-text" />
-                          <span className="min-w-0 flex-1 text-[11px] leading-[1.4] text-brick-text">Remove {p.name}? Its {ids.length} vote{ids.length === 1 ? '' : 's'} will be lost.</span>
-                          <button onClick={() => setConfirmRemove(null)} className="flex h-7 flex-none items-center rounded-[7px] border border-brick-border bg-s1 px-2.5 text-[11px] font-semibold text-brick-text">Cancel</button>
-                          <button onClick={() => removePlace(p.id)} className="flex h-7 flex-none items-center gap-1 rounded-[7px] px-2.5 text-[11px] font-semibold text-white" style={{ background: 'var(--brick)' }}><Trash2 size={12} /> Remove</button>
+                          <TriangleAlert size={17} className="flex-none text-brick-text" />
+                          <span className="min-w-0 flex-1 text-[12.5px] leading-[1.4] text-brick-text">Remove {p.name}? Its {ids.length} vote{ids.length === 1 ? '' : 's'} will be lost.</span>
+                          <button onClick={() => setConfirmRemove(null)} className="flex h-7 flex-none items-center rounded-[7px] border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text">Cancel</button>
+                          <button onClick={() => removePlace(p.id)} className="flex h-7 flex-none items-center gap-1 rounded-[7px] px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}><Trash2 size={13} /> Remove</button>
                         </div>
                       )}
                     </div>
@@ -464,20 +464,20 @@ export function LocationPanel({ event }: { event: AppEvent }) {
               {rankChanged && (
                 <div className="rounded-[10px] border border-ochre-border bg-ochre-bg p-3">
                   <div className="flex items-start gap-2">
-                    <RefreshCw size={13} className="mt-0.5 flex-none text-ochre-text" />
-                    <p className="text-[11.5px] leading-[1.5] text-ochre-text">Votes have changed since this itinerary was built, and the ranking is different now.</p>
+                    <RefreshCw size={15} className="mt-0.5 flex-none text-ochre-text" />
+                    <p className="text-[13px] leading-[1.5] text-ochre-text">Votes have changed since this itinerary was built, and the ranking is different now.</p>
                   </div>
                   <div className="mt-2 flex gap-2">
-                    <button onClick={buildFromVotes} className="flex h-7 items-center rounded-[7px] px-2.5 text-[11px] font-semibold text-white" style={{ background: 'var(--ochre)' }}>Rebuild from votes</button>
-                    <button onClick={keepCurrentItin} className="flex h-7 items-center rounded-[7px] border border-ochre-border bg-s1 px-2.5 text-[11px] font-semibold text-ochre-text">Keep as is</button>
+                    <button onClick={buildFromVotes} className="flex h-7 items-center rounded-[7px] px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--ochre)' }}>Rebuild from votes</button>
+                    <button onClick={keepCurrentItin} className="flex h-7 items-center rounded-[7px] border border-ochre-border bg-s1 px-2.5 text-[12.5px] font-semibold text-ochre-text">Keep as is</button>
                   </div>
                 </div>
               )}
               {adding && (
                 <div className="flex max-h-[184px] flex-none flex-col rounded-xl border border-border bg-s0 p-2.5">
                   <div className="mb-1.5 flex flex-none items-center justify-between">
-                    <span className="text-[10.5px] font-semibold uppercase tracking-[.1em] text-faint">Add a stop</span>
-                    <button onClick={() => setAdding(false)} className="text-faint hover:text-text" aria-label="Done adding"><X size={13} /></button>
+                    <span className="text-[12px] font-semibold uppercase tracking-[.1em] text-faint">Add a stop</span>
+                    <button onClick={() => setAdding(false)} className="text-faint hover:text-text" aria-label="Done adding"><X size={15} /></button>
                   </div>
                   {places.length > 0 && (
                     <div className="scroll-slim mb-2 flex min-h-0 flex-1 flex-col gap-1 overflow-auto pr-0.5">
@@ -485,9 +485,9 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                         const count = stops.filter((s) => s.placeId === p.id).length
                         return (
                           <button key={p.id} onClick={() => addStop(p.id)} className="flex items-start gap-2 rounded-[9px] border border-border bg-s1 px-2.5 py-1.5 text-left hover:border-border2">
-                            <MapPin size={13} className="mt-0.5 flex-none text-dim" />
-                            <span className="min-w-0 flex-1 text-[12px] font-medium leading-[1.4]">{p.name} <span className="font-normal text-faint">· {p.place}</span></span>
-                            <span className="mt-0.5 flex flex-none items-center gap-1 text-[11px] font-semibold text-accent-text"><Plus size={13} /> {count > 0 ? `Again${count > 1 ? ` · ${count}` : ''}` : 'Add'}</span>
+                            <MapPin size={15} className="mt-0.5 flex-none text-dim" />
+                            <span className="min-w-0 flex-1 text-[13.5px] font-medium leading-[1.4]">{p.name} <span className="font-normal text-faint">· {p.place}</span></span>
+                            <span className="mt-0.5 flex flex-none items-center gap-1 text-[12.5px] font-semibold text-accent-text"><Plus size={15} /> {count > 0 ? `Again${count > 1 ? ` · ${count}` : ''}` : 'Add'}</span>
                           </button>
                         )
                       })}
@@ -500,22 +500,22 @@ export function LocationPanel({ event }: { event: AppEvent }) {
               )}
               {stops.length === 0 ? (
                 <div className="rounded-xl border border-border bg-s0 p-4 text-center">
-                  <span className="mx-auto mb-2.5 grid h-[38px] w-[38px] place-items-center rounded-[10px] border border-teal-border bg-teal-bg text-teal-text"><Route size={17} /></span>
-                  <div className="text-[12.5px] font-semibold">No itinerary yet</div>
-                  <p className="mx-auto mt-1 max-w-[250px] text-[11.5px] leading-[1.5] text-dim">Build one automatically from the top-voted places, or add the stops yourself in whatever order you like. Reorder or remove any time.</p>
+                  <span className="mx-auto mb-2.5 grid h-[38px] w-[38px] place-items-center rounded-[10px] border border-teal-border bg-teal-bg text-teal-text"><Route size={19} /></span>
+                  <div className="text-[14px] font-semibold">No itinerary yet</div>
+                  <p className="mx-auto mt-1 max-w-[250px] text-[13px] leading-[1.5] text-dim">Build one automatically from the top-voted places, or add the stops yourself in whatever order you like. Reorder or remove any time.</p>
                   <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                     <button
                       onClick={buildFromVotes}
                       disabled={places.length === 0}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[12px] font-semibold text-on-accent disabled:opacity-40"
+                      className="inline-flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent disabled:opacity-40"
                     >
-                      <Route size={13} /> Build from top votes
+                      <Route size={15} /> Build from top votes
                     </button>
                     <button
                       onClick={() => setAdding(true)}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[12px] font-semibold hover:bg-s2"
+                      className="inline-flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13.5px] font-semibold hover:bg-s2"
                     >
-                      <Plus size={13} /> Add stops yourself
+                      <Plus size={15} /> Add stops yourself
                     </button>
                   </div>
                 </div>
@@ -523,27 +523,27 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                 <>
                   {/* schedule + how-you-get-around controls */}
                   <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-s0 p-2.5">
-                    <span className="flex items-center gap-1.5 text-[11px] font-medium text-dim">
-                      <Clock size={12} /> Starts
+                    <span className="flex items-center gap-1.5 text-[12.5px] font-medium text-dim">
+                      <Clock size={13} /> Starts
                       <TimeSelect value={itinStartMin} onChange={changeStart} min={minStart} max={maxStart} title="When the itinerary begins — within the best free window" />
                     </span>
-                    <span className="text-[11px] text-dim">Ends ~{fmtMinute(endMin)} · <span className={overDuration ? 'font-semibold text-ochre-text' : ''}>{fmtDuration(itinDuration)}</span></span>
+                    <span className="text-[12.5px] text-dim">Ends ~{fmtMinute(endMin)} · <span className={overDuration ? 'font-semibold text-ochre-text' : ''}>{fmtDuration(itinDuration)}</span></span>
                     <div className="flex flex-wrap items-center gap-1">
-                      <span className="text-[10.5px] text-faint">Getting around:</span>
+                      <span className="text-[12px] text-faint">Getting around:</span>
                       {ALL_MODES.map((m) => { const on = travelModes.includes(m); const Icon = MODE_ICON[m]; return (
-                        <button key={m} onClick={() => toggleMode(m)} title={MODE_LABEL[m]} className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${on ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-faint'}`}>
-                          <Icon size={10} /> {MODE_LABEL[m]}
+                        <button key={m} onClick={() => toggleMode(m)} title={MODE_LABEL[m]} className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] font-medium ${on ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-faint'}`}>
+                          <Icon size={11} /> {MODE_LABEL[m]}
                         </button>
                       ) })}
                     </div>
                     {bw ? (
-                      <div className="flex w-full items-center gap-1.5 border-t border-border pt-1.5 text-[10.5px] text-faint">
+                      <div className="flex w-full items-center gap-1.5 border-t border-border pt-1.5 text-[12px] text-faint">
                         <span>Best free window {fmtMinute(winStart!)}–{fmtMinute(winEnd!)} · {bw.count} of {event.participants.length} free</span>
                       </div>
                     ) : null}
                     {(overDuration || overWindow) && (
-                      <div className="flex w-full items-start gap-1.5 text-[10.5px] leading-[1.4] text-ochre-text">
-                        <TriangleAlert size={11} className="mt-px flex-none" />
+                      <div className="flex w-full items-start gap-1.5 text-[12px] leading-[1.4] text-ochre-text">
+                        <TriangleAlert size={12} className="mt-px flex-none" />
                         <span>
                           {overDuration
                             ? `This runs ${fmtDuration(itinDuration)}, longer than the ${fmtDuration(eventDuration)} set aside for the event. Trim a stop or shorten time at a venue.`
@@ -565,28 +565,28 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                             data-reorder-item
                             className={`flex items-start gap-2 rounded-xl border bg-s0 p-2.5 ${stopReorder.dragIndex === i ? 'border-accent-border opacity-60 shadow-soft' : 'border-border'}`}
                           >
-                            <button {...stopReorder.handleProps(i)} aria-label="Drag to reorder" className="mt-0.5 flex-none text-faint hover:text-dim"><GripVertical size={15} /></button>
-                            <span className="mt-px grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[11px] font-bold text-on-accent">{i + 1}</span>
+                            <button {...stopReorder.handleProps(i)} aria-label="Drag to reorder" className="mt-0.5 flex-none text-faint hover:text-dim"><GripVertical size={17} /></button>
+                            <span className="mt-px grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[12.5px] font-bold text-on-accent">{i + 1}</span>
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="text-[12.5px] font-semibold">{p.name}</span>
-                                {stops.filter((x) => x.placeId === s.placeId).length > 1 && <span className="flex-none rounded-[5px] border border-border2 bg-s2 px-[5px] py-px text-[8.5px] font-semibold text-dim">revisit</span>}
+                                <span className="text-[14px] font-semibold">{p.name}</span>
+                                {stops.filter((x) => x.placeId === s.placeId).length > 1 && <span className="flex-none rounded-[5px] border border-border2 bg-s2 px-[5px] py-px text-[9.5px] font-semibold text-dim">revisit</span>}
                               </div>
-                              <div className="text-[10.5px] leading-[1.45] text-dim">{p.place} · {votesOf(s.placeId).length} vote{votesOf(s.placeId).length === 1 ? '' : 's'}</div>
+                              <div className="text-[12px] leading-[1.45] text-dim">{p.place} · {votesOf(s.placeId).length} vote{votesOf(s.placeId).length === 1 ? '' : 's'}</div>
                               {/* scheduled arrive–depart + dwell stepper */}
                               <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                                <span className="flex items-center gap-1 text-[10.5px] font-semibold text-accent-text"><Clock size={11} /> {fmtMinute(schedule[i].arrive)} – {fmtMinute(schedule[i].depart)}</span>
-                                <span className="flex items-center gap-1 text-[10.5px] text-dim">
-                                  <button onClick={() => changeDwell(i, s.dwell - 15)} disabled={s.dwell <= 15} className="grid h-[15px] w-[15px] place-items-center rounded border border-border enabled:hover:bg-s2 disabled:opacity-30" aria-label="Less time"><Minus size={9} /></button>
+                                <span className="flex items-center gap-1 text-[12px] font-semibold text-accent-text"><Clock size={12} /> {fmtMinute(schedule[i].arrive)} – {fmtMinute(schedule[i].depart)}</span>
+                                <span className="flex items-center gap-1 text-[12px] text-dim">
+                                  <button onClick={() => changeDwell(i, s.dwell - 15)} disabled={s.dwell <= 15} className="grid h-[15px] w-[15px] place-items-center rounded border border-border enabled:hover:bg-s2 disabled:opacity-30" aria-label="Less time"><Minus size={10} /></button>
                                   {fmtDuration(s.dwell)} here
-                                  <button onClick={() => changeDwell(i, s.dwell + 15)} className="grid h-[15px] w-[15px] place-items-center rounded border border-border hover:bg-s2" aria-label="More time"><Plus size={9} /></button>
+                                  <button onClick={() => changeDwell(i, s.dwell + 15)} className="grid h-[15px] w-[15px] place-items-center rounded border border-border hover:bg-s2" aria-label="More time"><Plus size={10} /></button>
                                 </span>
                               </div>
                             </div>
                             <div className="flex flex-none items-center">
-                              <button onClick={() => moveStop(i, -1)} disabled={i === 0} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move up"><ChevronUp size={15} /></button>
-                              <button onClick={() => moveStop(i, 1)} disabled={i === stops.length - 1} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move down"><ChevronDown size={15} /></button>
-                              <button onClick={() => removeStop(i)} className="grid h-6 w-6 place-items-center rounded-[6px] text-faint hover:text-brick-text" aria-label="Remove stop"><X size={14} /></button>
+                              <button onClick={() => moveStop(i, -1)} disabled={i === 0} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move up"><ChevronUp size={17} /></button>
+                              <button onClick={() => moveStop(i, 1)} disabled={i === stops.length - 1} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move down"><ChevronDown size={17} /></button>
+                              <button onClick={() => removeStop(i)} className="grid h-6 w-6 place-items-center rounded-[6px] text-faint hover:text-brick-text" aria-label="Remove stop"><X size={16} /></button>
                             </div>
                           </div>
                           {leg && <TravelLeg est={leg.est} fastest={leg.fast} />}
@@ -597,15 +597,15 @@ export function LocationPanel({ event }: { event: AppEvent }) {
 
                   {legs.length > 0 && (
                     <div className="mt-1 flex-none rounded-xl border border-teal-border bg-teal-bg/50 p-3">
-                      <div className="flex items-center gap-1.5 text-[12px] font-semibold text-teal-text">
-                        <Route size={14} /> Fastest route · {fmtDuration(routeMinutes)} travel · ends ~{fmtMinute(endMin)}
+                      <div className="flex items-center gap-1.5 text-[13.5px] font-semibold text-teal-text">
+                        <Route size={16} /> Fastest route · {fmtDuration(routeMinutes)} travel · ends ~{fmtMinute(endMin)}
                       </div>
-                      {anyUnreachable && <div className="mt-1 flex items-center gap-1 text-[10.5px] font-medium text-brick-text"><TriangleAlert size={11} /> Some legs have no route with the modes you allow.</div>}
+                      {anyUnreachable && <div className="mt-1 flex items-center gap-1 text-[12px] font-medium text-brick-text"><TriangleAlert size={12} /> Some legs have no route with the modes you allow.</div>}
                       <div className="mt-1.5 flex flex-wrap items-center gap-1">
                         {modesUsed.map((m) => { const Icon = MODE_ICON[m]; return (
-                          <span key={m} className="flex items-center gap-1 rounded-full border border-teal-border bg-s1 px-2 py-0.5 text-[10.5px] font-medium text-teal-text"><Icon size={11} /> {MODE_LABEL[m]}</span>
+                          <span key={m} className="flex items-center gap-1 rounded-full border border-teal-border bg-s1 px-2 py-0.5 text-[12px] font-medium text-teal-text"><Icon size={12} /> {MODE_LABEL[m]}</span>
                         ) })}
-                        <span className="text-[10.5px] text-dim">· quickest allowed mode per leg · drag or use arrows to reorder</span>
+                        <span className="text-[12px] text-dim">· quickest allowed mode per leg · drag or use arrows to reorder</span>
                       </div>
                     </div>
                   )}
@@ -628,7 +628,7 @@ function TravelLeg({ est, fastest }: { est: ModeEstimate[]; fastest: ModeEstimat
       </div>
       <div className="flex flex-wrap items-center gap-1 py-1.5">
         {est.length === 0 ? (
-          <span className="flex items-center gap-1 rounded-full border border-brick-border bg-brick-bg px-2 py-0.5 text-[10.5px] text-brick-text"><TriangleAlert size={10} /> No allowed route</span>
+          <span className="flex items-center gap-1 rounded-full border border-brick-border bg-brick-bg px-2 py-0.5 text-[12px] text-brick-text"><TriangleAlert size={11} /> No allowed route</span>
         ) : est.map((e) => {
           const Icon = MODE_ICON[e.mode]
           const best = !!fastest && e.mode === fastest.mode
@@ -636,9 +636,9 @@ function TravelLeg({ est, fastest }: { est: ModeEstimate[]; fastest: ModeEstimat
             <span
               key={e.mode}
               title={`${MODE_LABEL[e.mode]} · ${fmtDuration(e.minutes)}${best ? ' · fastest' : ''}`}
-              className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10.5px] ${best ? 'border-accent bg-accent text-on-accent font-semibold' : 'border-border bg-s1 text-dim'}`}
+              className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px] ${best ? 'border-accent bg-accent text-on-accent font-semibold' : 'border-border bg-s1 text-dim'}`}
             >
-              <Icon size={11} /> {fmtDuration(e.minutes)}
+              <Icon size={12} /> {fmtDuration(e.minutes)}
             </span>
           )
         })}
@@ -654,7 +654,7 @@ function MapPinMarker({ left, top, color, label, onClick }: { left: string; top:
         className="flex h-[27px] w-[27px] items-center justify-center border-2 border-white"
         style={{ borderRadius: '50% 50% 50% 0', transform: 'rotate(-45deg)', background: color, boxShadow: '0 3px 9px rgba(0,0,0,.38)' }}
       >
-        <span className="text-[11px] font-bold text-white" style={{ transform: 'rotate(45deg)' }}>{label}</span>
+        <span className="text-[12.5px] font-bold text-white" style={{ transform: 'rotate(45deg)' }}>{label}</span>
       </span>
     </button>
   )
@@ -692,28 +692,28 @@ function AddPlaceSearch({ onAdd, taken, placeholder = 'Add a place to the ballot
   return (
     <div className="relative">
       <div className="flex h-9 items-center gap-2 rounded-[10px] border border-border bg-s2 px-3 focus-within:border-accent-border">
-        <Search size={13} className="flex-none text-faint" />
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={placeholder} className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-faint" />
+        <Search size={15} className="flex-none text-faint" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={placeholder} className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-faint" />
       </div>
       {term && (
         <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[240px] overflow-auto rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
           {term.length < 3 ? (
-            <div className="px-2.5 py-2 text-[11px] text-faint">Keep typing to search for a place…</div>
+            <div className="px-2.5 py-2 text-[12.5px] text-faint">Keep typing to search for a place…</div>
           ) : (
             <>
-              {searching && <div className="flex items-center gap-2 px-2.5 py-2 text-[11px] text-faint"><Loader2 size={12} className="animate-spin" /> Searching…</div>}
+              {searching && <div className="flex items-center gap-2 px-2.5 py-2 text-[12.5px] text-faint"><Loader2 size={13} className="animate-spin" /> Searching…</div>}
               {!searching && shown.map((r) => (
                 <button key={r.id} type="button" onClick={() => pick(r)} className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left hover:bg-s2">
-                  <MapPin size={13} className="flex-none text-dim" />
-                  <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{r.name} <span className="font-normal text-faint">· {r.place}</span></span>
-                  <Plus size={13} className="flex-none text-accent-text" />
+                  <MapPin size={15} className="flex-none text-dim" />
+                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{r.name} <span className="font-normal text-faint">· {r.place}</span></span>
+                  <Plus size={15} className="flex-none text-accent-text" />
                 </button>
               ))}
-              {!searching && shown.length === 0 && <div className="px-2.5 py-1.5 text-[11px] text-faint">No new matches. It may already be on the ballot.</div>}
+              {!searching && shown.length === 0 && <div className="px-2.5 py-1.5 text-[12.5px] text-faint">No new matches. It may already be on the ballot.</div>}
               {!searching && (
                 <button type="button" onClick={() => pick({ id: `custom:${term.toLowerCase()}`, name: term, place: 'Custom place' })} className="mt-0.5 flex w-full items-center gap-2 rounded-[7px] border-t border-border px-2.5 py-2 text-left hover:bg-s2">
-                  <Plus size={13} className="flex-none text-accent-text" />
-                  <span className="min-w-0 truncate text-[12px]">Add “<span className="font-semibold">{term}</span>” as a custom place</span>
+                  <Plus size={15} className="flex-none text-accent-text" />
+                  <span className="min-w-0 truncate text-[13.5px]">Add “<span className="font-semibold">{term}</span>” as a custom place</span>
                 </button>
               )}
             </>
@@ -727,8 +727,8 @@ function AddPlaceSearch({ onAdd, taken, placeholder = 'Add a place to the ballot
 function EmptyNote({ icon: Icon, text }: { icon: typeof Vote; text: string }) {
   return (
     <div className="flex items-start gap-2 rounded-[10px] border border-border bg-s2 px-3 py-2.5">
-      <Icon size={14} className="mt-0.5 flex-none text-accent-text" />
-      <span className="text-[11.5px] leading-[1.5] text-dim">{text}</span>
+      <Icon size={16} className="mt-0.5 flex-none text-accent-text" />
+      <span className="text-[13px] leading-[1.5] text-dim">{text}</span>
     </div>
   )
 }

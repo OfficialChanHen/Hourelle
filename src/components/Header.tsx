@@ -20,13 +20,13 @@ export function Header() {
         {/* logo — icon box + serif wordmark */}
         <Link href="/home" className="flex items-center gap-[9px]">
           <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-accent text-on-accent">
-            <CalendarDays size={15} />
+            <CalendarDays size={17} />
           </span>
-          <span className="font-serif text-[22px] leading-none tracking-[.01em]">Aline</span>
+          <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Aline</span>
         </Link>
 
         {/* nav — filled accent box when active, no underlines */}
-        <nav className="hidden items-center gap-[3px] text-[12.5px] md:flex">
+        <nav className="hidden items-center gap-[3px] text-[14px] md:flex">
           {TABS.map((t) => {
             const active = pathname === t.href || pathname.startsWith(t.href + '/')
             return (
@@ -47,29 +47,29 @@ export function Header() {
 
         <Link
           href="/create"
-          className="flex h-[34px] items-center gap-[7px] rounded-[9px] bg-accent px-[11px] text-[12.5px] font-semibold text-on-accent sm:px-[14px]"
+          className="flex h-[34px] items-center gap-[7px] rounded-[9px] bg-accent px-[11px] text-[14px] font-semibold text-on-accent sm:px-[14px]"
         >
-          <Plus size={15} />
+          <Plus size={17} />
           <span className="hidden sm:inline">New event</span>
         </Link>
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <button
-            className="grid h-[30px] w-[30px] place-items-center rounded-full text-[11px] font-semibold"
+            className="grid h-[30px] w-[30px] place-items-center rounded-full text-[12.5px] font-semibold"
             style={{ background: '#F3EAD9', color: '#5A431C' }}
             aria-label="Your account"
           >
             JM
           </button>
           <button className="grid h-[30px] w-[30px] place-items-center rounded-lg border border-border text-dim hover:text-text" aria-label="More">
-            <MoreHorizontal size={16} />
+            <MoreHorizontal size={18} />
           </button>
         </div>
       </div>
 
       {/* mobile nav — second row until the bottom tab bar exists, so pages stay reachable */}
-      <nav className="flex items-center justify-center gap-1 border-t border-border px-3 py-1.5 text-[12.5px] md:hidden">
+      <nav className="flex items-center justify-center gap-1 border-t border-border px-3 py-1.5 text-[14px] md:hidden">
         {TABS.map((t) => {
           const active = pathname === t.href || pathname.startsWith(t.href + '/')
           return (

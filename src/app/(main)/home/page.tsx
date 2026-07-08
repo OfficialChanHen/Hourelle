@@ -21,10 +21,10 @@ export default function HomePage() {
     <div className="mx-auto max-w-[1240px] px-[26px] pb-[104px] pt-[34px]">
       {/* greeting */}
       <div className="mb-5">
-        <h1 className="mb-[9px] font-serif text-[33px] leading-[1.02] tracking-[-0.01em]">Good afternoon, Jordan</h1>
-        <div className="flex items-center gap-3.5 text-[12px] text-dim">
+        <h1 className="mb-[9px] font-serif text-[37px] leading-[1.02] tracking-[-0.01em]">Good afternoon, Jordan</h1>
+        <div className="flex items-center gap-3.5 text-[13.5px] text-dim">
           <span className="flex items-center gap-1.5">
-            <Calendar size={13} /> {has ? `${yours.length} event${yours.length === 1 ? '' : 's'} you're planning` : 'No events yet'}
+            <Calendar size={15} /> {has ? `${yours.length} event${yours.length === 1 ? '' : 's'} you're planning` : 'No events yet'}
           </span>
         </div>
       </div>
@@ -70,15 +70,15 @@ export default function HomePage() {
 function SectionHeader({ icon: Icon, title, count, sort, iconColor, className = '' }: { icon: LucideIcon; title: string; count?: number; sort?: boolean; iconColor?: string; className?: string }) {
   return (
     <div className={`flex items-center justify-between ${className} mb-[11px]`}>
-      <div className="flex items-center gap-2 text-[13px] font-semibold">
-        <Icon size={14} style={{ color: iconColor ?? 'var(--dim)' }} />
+      <div className="flex items-center gap-2 text-[14.5px] font-semibold">
+        <Icon size={16} style={{ color: iconColor ?? 'var(--dim)' }} />
         {title}
-        {count != null && <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[10.5px] text-dim">{count}</span>}
+        {count != null && <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[12px] text-dim">{count}</span>}
       </div>
       {sort && (
-        <div className="flex items-center gap-2 text-[11.5px] text-faint">
+        <div className="flex items-center gap-2 text-[13px] text-faint">
           <span>Sort</span>
-          <span className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-2.5 text-dim">Closest date <ChevronDown size={13} className="text-faint" /></span>
+          <span className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-2.5 text-dim">Closest date <ChevronDown size={15} className="text-faint" /></span>
         </div>
       )}
     </div>

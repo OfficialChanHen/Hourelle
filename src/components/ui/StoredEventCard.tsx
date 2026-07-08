@@ -28,13 +28,13 @@ export function StoredEventCard({ e }: { e: AppEvent }) {
         <Badge variant="ochre">Planning</Badge>
         <Badge variant={du !== null && du >= 0 && du <= 14 ? 'accent' : 'neutral'}>{daysText}</Badge>
       </div>
-      <h3 className="mb-[9px] text-[13.5px] font-semibold tracking-[-0.01em]">{e.title}</h3>
-      <div className="mb-[11px] flex items-center gap-1.5 text-[11.5px] text-dim">
-        <Calendar size={13} /> <span>{dateRangeText(e)}</span> <TimezonePill tz={e.timezone} />
+      <h3 className="mb-[9px] text-[15px] font-semibold tracking-[-0.01em]">{e.title}</h3>
+      <div className="mb-[11px] flex items-center gap-1.5 text-[13px] text-dim">
+        <Calendar size={15} /> <span>{dateRangeText(e)}</span> <TimezonePill tz={e.timezone} />
       </div>
       <div className="flex items-center justify-between">
-        <AvatarRow people={e.participants.map((p) => ({ initials: p.initials, name: p.name, color: p.color }))} size={21} max={4} />
-        <span className="text-[11px] text-dim">{going > 0 ? `${going} going` : `${e.participants.length} invited`}</span>
+        <AvatarRow people={e.participants.map((p) => ({ initials: p.initials, name: p.name, color: p.color }))} size={24} max={4} />
+        <span className="text-[12.5px] text-dim">{going > 0 ? `${going} going` : `${e.participants.length} invited`}</span>
       </div>
     </Link>
   )

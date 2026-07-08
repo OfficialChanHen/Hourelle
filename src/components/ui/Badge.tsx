@@ -21,9 +21,9 @@ export function Badge({
 }) {
   return (
     <span
-      className={`inline-flex h-[21px] items-center gap-1 rounded-md border px-2 text-[10.5px] font-semibold leading-none ${variants[variant]}`}
+      className={`inline-flex h-[21px] items-center gap-1 rounded-md border px-2 text-[12px] font-semibold leading-none ${variants[variant]}`}
     >
-      {Icon && <Icon size={11} />}
+      {Icon && <Icon size={12} />}
       {children}
     </span>
   )
