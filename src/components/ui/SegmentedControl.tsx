@@ -48,9 +48,10 @@ export function SegmentedControl({ value, onChange, options, size = 'md', stretc
     return () => ro.disconnect()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const h = size === 'sm' ? 'h-7' : 'h-[34px]'
+  // min-height (not fixed) so a segment grows and keeps its padding when the label wraps
+  const h = size === 'sm' ? 'min-h-7' : 'min-h-[34px]'
   const txt = size === 'sm' ? 'text-[13px]' : 'text-[13.5px]'
-  const pad = size === 'sm' ? 'px-3' : 'px-3.5'
+  const pad = size === 'sm' ? 'px-3 py-1' : 'px-3.5 py-1.5'
   const iconSize = size === 'sm' ? 13 : 14
 
   return (
@@ -65,7 +66,7 @@ export function SegmentedControl({ value, onChange, options, size = 'md', stretc
             ref={(el) => { btns.current[i] = el }}
             type="button"
             onClick={() => onChange(o.v)}
-            className={`relative z-[1] flex items-center justify-center gap-1.5 rounded-[7px] font-semibold transition-colors ${h} ${txt} ${pad} ${stretch ? 'flex-1' : ''} ${on ? 'text-text' : 'text-dim hover:text-text'}`}
+            className={`relative z-[1] flex items-center justify-center gap-1.5 rounded-[7px] text-center font-semibold leading-tight transition-colors ${h} ${txt} ${pad} ${stretch ? 'flex-1' : ''} ${on ? 'text-text' : 'text-dim hover:text-text'}`}
           >
             {Icon && <Icon size={iconSize} />}
             {o.l}

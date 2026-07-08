@@ -144,19 +144,19 @@ export default function CreatePage() {
   const canCreate = form.title.trim().length > 0
 
   return (
-    <div className="mx-auto max-w-[760px] px-[26px] pb-[104px] pt-[34px]">
+    <div className="mx-auto max-w-[760px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
       <div className="mb-[22px] text-center">
         <h1 className="font-serif text-[33.5px] leading-[1.04] tracking-[-0.01em]">Create event</h1>
         <p className="mt-1.5 text-[13.5px] text-dim">Fill in a few details, invite people, then review and create it.</p>
       </div>
 
-      {/* step indicator */}
+      {/* step indicator — labels collapse to the current step on mobile so it never overflows */}
       <div className="mb-6 flex items-center justify-center">
         {STEPS.map((label, i) => (
           <div key={label} className="flex items-center">
-            <button type="button" onClick={() => i < step && setStep(i)} className="flex items-center gap-[9px]">
+            <button type="button" onClick={() => i < step && setStep(i)} className="flex items-center gap-[7px] sm:gap-[9px]" disabled={i >= step}>
               <span
-                className="grid h-7 w-7 place-items-center rounded-full text-[13.5px] font-bold"
+                className="grid h-7 w-7 flex-none place-items-center rounded-full text-[13.5px] font-bold"
                 style={{
                   background: i < step ? 'var(--teal)' : i === step ? 'var(--accent)' : 'var(--s2)',
                   color: i > step ? 'var(--faint)' : '#fff',
@@ -165,16 +165,17 @@ export default function CreatePage() {
               >
                 {i < step ? <Check size={17} /> : i + 1}
               </span>
-              <span className="text-[13.5px] font-semibold" style={{ color: i > step ? 'var(--faint)' : 'var(--text)' }}>{label}</span>
+              {/* full labels on sm+, only the current step's label on mobile */}
+              <span className={`text-[13.5px] font-semibold ${i === step ? '' : 'hidden'} sm:inline`} style={{ color: i > step ? 'var(--faint)' : 'var(--text)' }}>{label}</span>
             </button>
             {i < STEPS.length - 1 && (
-              <span className="mx-3 h-0.5 w-[46px]" style={{ background: i < step ? 'var(--teal)' : 'var(--border)' }} />
+              <span className="mx-2 h-0.5 w-5 sm:mx-3 sm:w-[46px]" style={{ background: i < step ? 'var(--teal)' : 'var(--border)' }} />
             )}
           </div>
         ))}
       </div>
 
-      <div ref={panel} className="rounded-2xl border border-border bg-s1 px-6 py-[22px]">
+      <div ref={panel} className="rounded-2xl border border-border bg-s1 px-4 py-[22px] sm:px-6">
         {step === 0 && <StepBasics form={form} update={update} today={today} attempted={attempted} errs={basicsErr} />}
         {step === 1 && <StepLocation form={form} update={update} stopUid={stopUid} attempted={attempted} placesError={placesError} />}
         {step === 2 && <StepInvite form={form} update={update} />}
@@ -261,14 +262,15 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
         </div>
       </div>
 
-      <Field label="Description">
+      <div>
+        <Label>Description <span className="font-normal text-faint">(optional)</span></Label>
         <textarea
           value={form.description}
           onChange={(e) => update({ description: e.target.value })}
-          placeholder="What's this event about? (optional)"
+          placeholder="What's this event about?"
           className={`${inputCls(false)} h-[72px] resize-none py-[11px] leading-[1.5]`}
         />
-      </Field>
+      </div>
 
       <div>
         <Label>Date window <Req /></Label>
@@ -278,7 +280,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
               <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Earliest day</span>
               <input type="date" value={form.startDate} min={today || undefined} onChange={(e) => onStart(e.target.value)} className={`${inputCls(show(errs.start))} cursor-pointer !bg-s1`} />
             </div>
-            <span className="pb-[11px] text-faint">→</span>
+            <span className="hidden pb-[11px] text-faint sm:block">→</span>
             <div className="min-w-[150px] flex-1">
               <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Latest day</span>
               <input type="date" value={form.endDate} min={form.startDate || today || undefined} onChange={(e) => onEnd(e.target.value)} className={`${inputCls(show(errs.end))} cursor-pointer !bg-s1`} />

@@ -36,10 +36,28 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
   const [tab, setTab] = useState<TabKey>(initialTab)
   const [event, setEvent] = useState<AppEvent | null | undefined>(undefined)
   const [copied, setCopied] = useState(false)
+  const tabsRef = useRef<HTMLDivElement>(null)
+  const [tabFade, setTabFade] = useState({ l: false, r: false })
 
   // re-read on tab change too: panels persist edits to storage as they happen, and
   // remounting them from a page-load-time snapshot would drop those edits until reload
   useEffect(() => { setEvent(getEvent(id)) }, [id, tab])
+
+  // tab bar overflows on narrow screens — track scroll position to show edge fades, and keep
+  // the active tab in view when it changes
+  const checkTabFade = () => {
+    const el = tabsRef.current; if (!el) return
+    setTabFade({ l: el.scrollLeft > 4, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 })
+  }
+  useEffect(() => {
+    const el = tabsRef.current; if (!el) return
+    const ro = new ResizeObserver(checkTabFade); ro.observe(el) // fires initially → sets the fades
+    return () => ro.disconnect()
+  }, [])
+  useEffect(() => {
+    // scrolling the active tab into view triggers onScroll → checkTabFade
+    tabsRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }, [tab])
 
   function handleDelete() {
     deleteEvent(id)
@@ -78,7 +96,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
   }
 
   return (
-    <div className="mx-auto max-w-[1240px] px-[26px] pb-[104px] pt-[34px]">
+    <div className="mx-auto max-w-[1240px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
       {/* header */}
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
@@ -145,17 +163,21 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
         </Stat>
       </div>
 
-      {/* tabs */}
-      <div className="mb-6 flex items-center gap-1.5 overflow-x-auto">
-        {TABS.map((t) => {
-          const active = tab === t.key
-          const Icon = t.icon
-          return (
-            <button key={t.key} onClick={() => setTab(t.key)} className={`flex items-center gap-1.5 whitespace-nowrap rounded-[10px] px-[15px] py-[9px] text-[14px] transition-colors ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
-              <Icon size={16} /> {t.label}
-            </button>
-          )
-        })}
+      {/* tabs — horizontally scrollable on narrow screens, with edge fades hinting more */}
+      <div className="relative mb-6">
+        <div ref={tabsRef} onScroll={checkTabFade} className="scroll-slim flex items-center gap-1.5 overflow-x-auto pb-1">
+          {TABS.map((t) => {
+            const active = tab === t.key
+            const Icon = t.icon
+            return (
+              <button key={t.key} data-active={active} onClick={() => setTab(t.key)} className={`flex flex-none items-center gap-1.5 whitespace-nowrap rounded-[10px] px-[15px] py-[9px] text-[14px] transition-colors ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
+                <Icon size={16} /> {t.label}
+              </button>
+            )
+          })}
+        </div>
+        <div className={`pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-bg to-transparent transition-opacity ${tabFade.l ? 'opacity-100' : 'opacity-0'}`} />
+        <div className={`pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-bg to-transparent transition-opacity ${tabFade.r ? 'opacity-100' : 'opacity-0'}`} />
       </div>
 
       {/* body */}

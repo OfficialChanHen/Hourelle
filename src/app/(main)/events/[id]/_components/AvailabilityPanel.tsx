@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarPlus, MessageCircle, X, Send, GripHorizontal, Check, Eraser, TriangleAlert, Bell, SlidersHorizontal } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarPlus, MessageCircle, X, Send, GripHorizontal, Check, Eraser, TriangleAlert, Bell, SlidersHorizontal, Minus, Plus, Trash2 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
@@ -151,6 +151,7 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
   const scroller = useRef<HTMLDivElement>(null)
   const colRef = useRef<HTMLDivElement>(null) // left column — cell popover anchors here, outside the scroller
   const lastYRef = useRef(0) // latest pointer Y, for the auto-scroll loop
+  const tapRef = useRef<{ day: string; ti: number; x: number; y: number } | null>(null) // touch: distinguish tap-to-mark from a scroll
   const rafRef = useRef(0)
   const scrollRaf = useRef(0)
 
@@ -244,6 +245,10 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
 
   function onCellDown(e: React.PointerEvent, day: string, ti: number) {
     if (mode !== 'edit') return
+    // Touch: don't hijack the gesture. Remember where it started and let the browser
+    // scroll the grid vertically; a stationary release is treated as a tap-to-mark (see
+    // onCellTap). Drag-to-paint stays a mouse/pen affordance.
+    if (e.pointerType === 'touch') { tapRef.current = { day, ti, x: e.clientX, y: e.clientY }; return }
     e.preventDefault()
     // grid editing is driven by a window key listener, not element focus — drop any lingering
     // focus on a toolbar button so arrow-key nudging doesn't paint a stray focus ring on it
@@ -255,6 +260,19 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
     const a = rowStart(gridMin)
     const d: Drag = { kind: 'paint', day, anchorClientY: e.clientY, anchorScrollTop: scroller.current?.scrollTop ?? 0, anchorMin: gridMin, block: { s: a, e: a + step } }
     dragRef.current = d; setDrag(d); setSel(null)
+  }
+  // touch release: a real tap (little movement) marks or selects the slot; a moved touch was a scroll
+  function onCellTap(e: React.PointerEvent, day: string, ti: number) {
+    if (mode !== 'edit' || e.pointerType !== 'touch') return
+    const t = tapRef.current; tapRef.current = null
+    if (!t || t.day !== day || t.ti !== ti) return
+    if (Math.abs(e.clientY - t.y) > 8 || Math.abs(e.clientX - t.x) > 8) return // was a scroll, not a tap
+    const mid = ti * step + step / 2
+    const hit = (mine[day] ?? []).find((iv) => mid >= iv.s && mid <= iv.e)
+    if (hit) { setSel({ day, s: hit.s, e: hit.e, edge: 'bottom' }); return } // tap a block → select (edit/remove via the bar)
+    const a = rowStart(mid)
+    const norm = commitDay(day, [...(mine[day] ?? []), { s: a, e: a + step }]) // tap empty → fill this slot
+    selectMerged(day, norm, a + step / 2, 'bottom')
   }
   function onHandleDown(e: React.PointerEvent, edge: Edge) {
     e.preventDefault(); e.stopPropagation()
@@ -344,6 +362,19 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // move one edge of the selected block by `delta` minutes (keyboard arrows on desktop = ±1,
+  // the on-screen − / + buttons on touch = ±5). Keeps the block at least MIN_LEN long.
+  function nudgeEdge(edge: Edge, delta: number) {
+    const s = selRef.current; if (!s) return
+    let ns = s.s, ne = s.e
+    if (edge === 'top') ns = Math.max(0, Math.min(s.e - MIN_LEN, s.s + delta))
+    else ne = Math.min(gridMax, Math.max(s.s + MIN_LEN, s.e + delta))
+    if (ns === s.s && ne === s.e) return
+    const base = (mineRef.current[s.day] ?? []).filter((iv) => !(iv.s === s.s && iv.e === s.e))
+    const norm = commitDay(s.day, [...base, { s: ns, e: ne }])
+    selectMerged(s.day, norm, (ns + ne) / 2, edge)
+  }
+
   // keyboard: arrow-nudge the active edge by the minute, Esc to deselect, Del to remove
   useEffect(() => {
     if (!sel) return
@@ -357,14 +388,7 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
       }
       if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
         ev.preventDefault()
-        const delta = ev.key === 'ArrowUp' ? -1 : 1
-        let ns = s.s, ne = s.e
-        if (s.edge === 'top') ns = Math.max(0, Math.min(s.e - MIN_LEN, s.s + delta))
-        else ne = Math.min(gridMax, Math.max(s.s + MIN_LEN, s.e + delta))
-        if (ns === s.s && ne === s.e) return
-        const base = (mineRef.current[s.day] ?? []).filter((iv) => !(iv.s === s.s && iv.e === s.e))
-        const norm = commitDay(s.day, [...base, { s: ns, e: ne }])
-        selectMerged(s.day, norm, (ns + ne) / 2, s.edge)
+        nudgeEdge(s.edge, ev.key === 'ArrowUp' ? -1 : 1)
       }
     }
     window.addEventListener('keydown', key)
@@ -559,14 +583,7 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
           </div>
           {mode === 'edit' && <PresetFills onFill={fillPreset} />}
           {mode === 'edit' && !sel && (
-            <span className="text-[12.5px] text-faint">Drag to block time</span>
-          )}
-          {mode === 'edit' && sel && (
-            <span className="flex items-center gap-1 text-[12.5px] text-accent-text">
-              <kbd className="grid h-[15px] min-w-[15px] place-items-center rounded border border-border2 bg-s1 px-1 text-[10px] font-semibold leading-none">↑</kbd>
-              <kbd className="grid h-[15px] min-w-[15px] place-items-center rounded border border-border2 bg-s1 px-1 text-[10px] font-semibold leading-none">↓</kbd>
-              nudge the edge by the minute
-            </span>
+            <span className="text-[12.5px] text-faint">Tap or drag to add time</span>
           )}
           {/* heat legend — quiet, reads left to right like the ramp */}
           <span className="ml-auto flex items-center gap-1 text-[11px] text-faint">
@@ -583,6 +600,22 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
             <span>Everyone</span>
           </span>
         </div>
+
+        {/* selected-block editor — precise edge control that works by touch (no arrow keys on mobile) */}
+        {mode === 'edit' && sel && (
+          <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[10px] border border-accent-border bg-accent-bg/50 px-3 py-2">
+            <span className="text-[12px] font-semibold text-accent-text">Selected</span>
+            <EdgeNudge label="Start" value={fmt(gridStartMin + sel.s)} onLess={() => nudgeEdge('top', -5)} onMore={() => nudgeEdge('top', 5)} />
+            <EdgeNudge label="End" value={fmt(gridStartMin + sel.e)} onLess={() => nudgeEdge('bottom', -5)} onMore={() => nudgeEdge('bottom', 5)} />
+            <span className="hidden text-[11px] text-faint sm:inline">or arrow keys for ±1 min</span>
+            <div className="ml-auto flex items-center gap-1.5">
+              <button onClick={deleteSel} className="flex h-8 items-center gap-1.5 rounded-[8px] border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text hover:bg-brick-bg">
+                <Trash2 size={14} /> Remove
+              </button>
+              <button onClick={() => setSel(null)} className="flex h-8 items-center rounded-[8px] border border-border2 bg-s1 px-2.5 text-[12.5px] font-semibold hover:bg-s2">Done</button>
+            </div>
+          </div>
+        )}
 
         {/* grid */}
         <div ref={scroller} onScroll={onGridScroll} className="scroll-slim max-h-[58dvh] flex-1 overflow-auto rounded-[10px] border border-border lg:max-h-none">
@@ -716,7 +749,7 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
                       })}
                       {cnt > 0 && <span className="pointer-events-none absolute bottom-[2px] right-1 z-[2] text-[9px] font-bold" style={{ color: cnt >= total ? '#F4F1EA' : '#6E5523' }}>{cnt}/{total}</span>}
                       {/* full-cell hit zone: empty → paint, over a block → select */}
-                      <div className="absolute inset-0 z-[5] touch-none" onPointerDown={(e) => onCellDown(e, d.key, ti)} />
+                      <div className="absolute inset-0 z-[5] touch-auto" onPointerDown={(e) => onCellDown(e, d.key, ti)} onPointerUp={(e) => onCellTap(e, d.key, ti)} onPointerCancel={() => { tapRef.current = null }} />
                       {/* time handles + delete for the selected block */}
                       {isTopEdge && (
                         <>
@@ -1259,6 +1292,19 @@ function Segment({ value, onChange, options, compact }: { value: string; onChang
           {o.l}
         </button>
       ))}
+    </div>
+  )
+}
+// touch-friendly ± stepper for one edge of the selected block (works where arrow keys can't)
+function EdgeNudge({ label, value, onLess, onMore }: { label: string; value: string; onLess: () => void; onMore: () => void }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[11.5px] text-dim">{label}</span>
+      <div className="flex items-center overflow-hidden rounded-[8px] border border-border2 bg-s1">
+        <button type="button" onClick={onLess} className="grid h-8 w-8 place-items-center text-dim hover:bg-s2 active:bg-s3" aria-label={`Move ${label.toLowerCase()} 5 minutes earlier`}><Minus size={14} /></button>
+        <span className="min-w-[54px] px-1 text-center text-[12.5px] font-semibold tabular-nums">{value}</span>
+        <button type="button" onClick={onMore} className="grid h-8 w-8 place-items-center text-dim hover:bg-s2 active:bg-s3" aria-label={`Move ${label.toLowerCase()} 5 minutes later`}><Plus size={14} /></button>
+      </div>
     </div>
   )
 }
