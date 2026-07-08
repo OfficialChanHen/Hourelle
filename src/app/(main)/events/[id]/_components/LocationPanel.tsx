@@ -33,6 +33,11 @@ export function LocationPanel({ event }: { event: AppEvent }) {
   // places are editable on this tab (host, or guests once the host allows it)
   const [places, setPlaces] = useState<EventPlace[]>(loc.places)
   const [guestsCanSuggest, setGuestsCanSuggest] = useState(!!loc.guestsCanSuggest)
+  // venue type is switchable on this tab (In person / Remote); each mode's data (votes,
+  // itinerary, remote link) lives in its own field and is kept when you switch away and back.
+  // A "decide later" event opens as In person here so the host can start adding places.
+  const [mode, setMode] = useState<AppEvent['location']['mode']>(loc.mode === 'later' ? 'vote' : loc.mode)
+  const [meetingLink, setMeetingLink] = useState(loc.meetingLink)
   const canAddPlaces = event.hostedByYou || guestsCanSuggest
   const pById = new Map(event.participants.map((p) => [p.id, p]))
   const avatarOf = (id: string) => {
@@ -62,19 +67,24 @@ export function LocationPanel({ event }: { event: AppEvent }) {
   function persist(patch: Partial<AppEvent>) {
     if (!event.demo) patchEvent(event.id, patch)
   }
-  function persistLocation(nextPlaces: EventPlace[], nextSuggest: boolean) {
-    if (!event.demo) patchEvent(event.id, { location: { ...loc, places: nextPlaces, guestsCanSuggest: nextSuggest } })
+  // one place to persist the location object, so switching mode never clobbers the other
+  // fields — pass the changed field in `over`; unchanged fields come from current state
+  function persistLoc(over: Partial<AppEvent['location']> = {}) {
+    if (event.demo) return
+    patchEvent(event.id, { location: { ...loc, mode, places, guestsCanSuggest, meetingLink, ...over } })
   }
+  function changeMode(m: AppEvent['location']['mode']) { setMode(m); persistLoc({ mode: m }) }
+  function changeLink(v: string) { setMeetingLink(v); persistLoc({ meetingLink: v }) }
   function addPlace(p: EventPlace) {
     if (places.some((x) => x.id === p.id)) return
     const next = [...places, p]
     setPlaces(next)
-    persistLocation(next, guestsCanSuggest)
+    persistLoc({ places: next })
   }
   function toggleGuestsCanSuggest() {
     const next = !guestsCanSuggest
     setGuestsCanSuggest(next)
-    persistLocation(places, next)
+    persistLoc({ guestsCanSuggest: next })
   }
 
   const votesOf = (id: string) => votes[id] ?? []
@@ -127,7 +137,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
     setPlaces(nextPlaces); setVotes(nextVotes); setStops(nextStops); setConfirmRemove(null)
     if (!event.demo) {
       patchEvent(event.id, {
-        location: { ...loc, places: nextPlaces, guestsCanSuggest },
+        location: { ...loc, mode, places: nextPlaces, guestsCanSuggest, meetingLink },
         votes: nextVotes,
         itinStops: nextStops.map((s) => s.placeId),
         itinDwell: nextStops.map((s) => s.dwell),
@@ -177,7 +187,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
     if (!places.some((x) => x.id === p.id)) {
       const nextPlaces = [...places, p]
       setPlaces(nextPlaces)
-      persistLocation(nextPlaces, guestsCanSuggest)
+      persistLoc({ places: nextPlaces })
     }
     addStop(p.id)
   }
@@ -214,7 +224,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
   const itinDuration = endMin - itinStartMin
   const overDuration = stops.length > 0 && itinDuration > eventDuration
   const overWindow = winEnd != null && stops.length > 0 && endMin > winEnd
-  const blurred = loc.mode !== 'vote' || places.length === 0
+  const blurred = mode !== 'vote' || places.length === 0
   const focusPlace = focusPin ? placeAt(focusPin) : (leadingId ? placeAt(leadingId) : null)
 
   // Flip animations: vote list re-ranks smoothly on each vote; itinerary rows slide on reorder
@@ -228,11 +238,27 @@ export function LocationPanel({ event }: { event: AppEvent }) {
   }
 
   function copyLink() {
-    navigator.clipboard?.writeText(loc.meetingLink || '').then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800) }).catch(() => {})
+    navigator.clipboard?.writeText(meetingLink || '').then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800) }).catch(() => {})
   }
 
   return (
-    <div className="flex flex-col items-stretch gap-3.5 lg:flex-row">
+    <div className="flex flex-col gap-3.5">
+      {/* venue-type switch (host) — switching keeps each mode's data */}
+      {event.hostedByYou && (
+        <div className="flex items-center gap-2">
+          <SegmentedControl
+            size="sm"
+            value={mode}
+            onChange={(v) => { setFocusPin(null); changeMode(v as AppEvent['location']['mode']) }}
+            options={[
+              { v: 'vote', l: 'In person', icon: MapPin },
+              { v: 'remote', l: 'Remote', icon: Video },
+            ]}
+          />
+        </div>
+      )}
+
+      <div className="flex flex-col items-stretch gap-3.5 lg:flex-row">
       {/* map */}
       <div className="relative flex min-w-0 flex-1">
         <div
@@ -298,20 +324,33 @@ export function LocationPanel({ event }: { event: AppEvent }) {
         {blurred && (
           <div className="absolute inset-0 z-[8] flex items-center justify-center p-5" style={{ background: 'color-mix(in srgb, var(--bg) 38%, transparent)' }}>
             <div className="w-full max-w-[330px] rounded-2xl border border-border2 bg-s1 px-5 py-6 text-center shadow-soft">
-              {loc.mode === 'remote' ? (
+              {mode === 'remote' ? (
                 <>
                   <span className="mx-auto mb-3 grid h-[46px] w-[46px] place-items-center rounded-xl border border-accent-border bg-accent-bg text-accent-text"><Video size={25} /></span>
                   <div className="text-[15.5px] font-semibold">This event is remote</div>
                   <p className="mb-3.5 mt-1 text-[13px] leading-[1.55] text-dim">Everyone joins online, so there is no map. The link lives here and in every reminder.</p>
-                  <div className="mb-2.5 flex h-[38px] items-center gap-2 rounded-[10px] border border-border bg-s2 py-0 pl-3 pr-2">
-                    <Link2 size={16} className="flex-none text-accent-text" />
-                    <span className="flex-1 truncate text-left font-mono text-[13px]">{loc.meetingLink || `${loc.platform} link coming soon`}</span>
-                    {loc.meetingLink && (
-                      <button onClick={copyLink} className="flex h-7 flex-none items-center gap-1 rounded-[7px] bg-accent px-2.5 text-[12.5px] font-semibold text-on-accent">
-                        {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
-                      </button>
-                    )}
-                  </div>
+                  {event.hostedByYou ? (
+                    // host can set/change the link; it's kept if they switch venue type and back
+                    <div className="mb-2.5 flex h-[38px] items-center gap-2 rounded-[10px] border border-border bg-s2 py-0 pl-3 pr-2 focus-within:border-accent-border">
+                      <Link2 size={16} className="flex-none text-accent-text" />
+                      <input value={meetingLink} onChange={(e) => changeLink(e.target.value)} placeholder={`Paste a ${loc.platform} link`} className="min-w-0 flex-1 bg-transparent text-left font-mono text-[13px] outline-none placeholder:text-faint" />
+                      {meetingLink && (
+                        <button onClick={copyLink} className="flex h-7 flex-none items-center gap-1 rounded-[7px] bg-accent px-2.5 text-[12.5px] font-semibold text-on-accent">
+                          {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mb-2.5 flex h-[38px] items-center gap-2 rounded-[10px] border border-border bg-s2 py-0 pl-3 pr-2">
+                      <Link2 size={16} className="flex-none text-accent-text" />
+                      <span className="flex-1 truncate text-left font-mono text-[13px]">{meetingLink || `${loc.platform} link coming soon`}</span>
+                      {meetingLink && (
+                        <button onClick={copyLink} className="flex h-7 flex-none items-center gap-1 rounded-[7px] bg-accent px-2.5 text-[12.5px] font-semibold text-on-accent">
+                          {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <div className="text-[12.5px] text-dim">{event.participants.filter((p) => p.rsvp !== 'not_going').length} joining on {loc.platform}</div>
                 </>
               ) : (
@@ -319,11 +358,9 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                   <span className="mx-auto mb-3 grid h-[46px] w-[46px] place-items-center rounded-xl border border-ochre-border bg-ochre-bg text-ochre-text"><MapPinOff size={25} /></span>
                   <div className="text-[15.5px] font-semibold">No location yet</div>
                   <p className="mt-1 text-[13px] leading-[1.55] text-dim">
-                    {loc.mode === 'later'
-                      ? 'The host is deciding where later. Availability and chat keep working in the meantime, and the map fills in once places are added.'
-                      : canAddPlaces
-                        ? 'Nothing on the ballot yet. Add the first place in the panel and the map fills in as votes come in.'
-                        : 'No candidate places yet. The host can add some, or allow guests to suggest them.'}
+                    {canAddPlaces
+                      ? 'Nothing on the ballot yet. Add the first place in the panel and the map fills in as votes come in.'
+                      : 'No candidate places yet. The host can add some, or allow guests to suggest them.'}
                   </p>
                 </>
               )}
@@ -333,7 +370,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
       </div>
 
       {/* side panel — only for in-person events */}
-      {loc.mode === 'vote' && (
+      {mode === 'vote' && (
         <div className="flex w-full flex-none flex-col lg:h-[580px] lg:w-[330px]">
           <div className="mb-3 flex flex-none items-center gap-2">
             <SegmentedControl
@@ -615,6 +652,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
           )}
         </div>
       )}
+      </div>
     </div>
   )
 }

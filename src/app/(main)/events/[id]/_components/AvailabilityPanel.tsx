@@ -123,6 +123,7 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
   const [nudged, setNudged] = useState<Set<string>>(new Set())
   const [chatOpen, setChatOpen] = useState(true)
   const [sel, setSel] = useState<Sel | null>(null)
+  const [nudgeStep, setNudgeStep] = useState(5) // minutes the − / + buttons move an edge
   const [drag, setDrag] = useState<Drag | null>(null)
   const [page, setPage] = useState(0)
   // row virtualization: only the visible slice of time rows is mounted.
@@ -603,12 +604,24 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
 
         {/* selected-block editor — precise edge control that works by touch (no arrow keys on mobile) */}
         {mode === 'edit' && sel && (
-          <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[10px] border border-accent-border bg-accent-bg/50 px-3 py-2">
-            <span className="text-[12px] font-semibold text-accent-text">Selected</span>
-            <EdgeNudge label="Start" value={fmt(gridStartMin + sel.s)} onLess={() => nudgeEdge('top', -5)} onMore={() => nudgeEdge('top', 5)} />
-            <EdgeNudge label="End" value={fmt(gridStartMin + sel.e)} onLess={() => nudgeEdge('bottom', -5)} onMore={() => nudgeEdge('bottom', 5)} />
-            <span className="hidden text-[11px] text-faint sm:inline">or arrow keys for ±1 min</span>
-            <div className="ml-auto flex items-center gap-1.5">
+          <div className="mb-2 flex items-stretch justify-between gap-3 rounded-[10px] border border-accent-border bg-accent-bg/50 px-3 py-2.5">
+            {/* left: header, increment toggle, and the two edges stacked (side-by-side on wider screens) */}
+            <div className="flex min-w-0 flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[12px] font-semibold text-accent-text">Selected</span>
+                <div className="inline-flex overflow-hidden rounded-full border border-border2 bg-s1 text-[11px] font-semibold">
+                  {[5, 1].map((s) => (
+                    <button key={s} type="button" onClick={() => setNudgeStep(s)} className={`px-2.5 py-1 ${nudgeStep === s ? 'bg-accent text-on-accent' : 'text-dim hover:bg-s2'}`} aria-pressed={nudgeStep === s}>{s} min</button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+                <EdgeNudge label="Start" value={fmt(gridStartMin + sel.s)} onLess={() => nudgeEdge('top', -nudgeStep)} onMore={() => nudgeEdge('top', nudgeStep)} />
+                <EdgeNudge label="End" value={fmt(gridStartMin + sel.e)} onLess={() => nudgeEdge('bottom', -nudgeStep)} onMore={() => nudgeEdge('bottom', nudgeStep)} />
+              </div>
+            </div>
+            {/* right: Remove / Done pinned bottom-right */}
+            <div className="flex flex-none flex-col items-end justify-end gap-1.5">
               <button onClick={deleteSel} className="flex h-8 items-center gap-1.5 rounded-[8px] border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text hover:bg-brick-bg">
                 <Trash2 size={14} /> Remove
               </button>
@@ -1298,12 +1311,12 @@ function Segment({ value, onChange, options, compact }: { value: string; onChang
 // touch-friendly ± stepper for one edge of the selected block (works where arrow keys can't)
 function EdgeNudge({ label, value, onLess, onMore }: { label: string; value: string; onLess: () => void; onMore: () => void }) {
   return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-[11.5px] text-dim">{label}</span>
+    <div className="flex items-center gap-2">
+      <span className="w-9 flex-none text-[12px] text-dim">{label}</span>
       <div className="flex items-center overflow-hidden rounded-[8px] border border-border2 bg-s1">
-        <button type="button" onClick={onLess} className="grid h-8 w-8 place-items-center text-dim hover:bg-s2 active:bg-s3" aria-label={`Move ${label.toLowerCase()} 5 minutes earlier`}><Minus size={14} /></button>
+        <button type="button" onClick={onLess} className="grid h-8 w-8 place-items-center text-dim hover:bg-s2 active:bg-s3" aria-label={`Move ${label.toLowerCase()} earlier`}><Minus size={14} /></button>
         <span className="min-w-[54px] px-1 text-center text-[12.5px] font-semibold tabular-nums">{value}</span>
-        <button type="button" onClick={onMore} className="grid h-8 w-8 place-items-center text-dim hover:bg-s2 active:bg-s3" aria-label={`Move ${label.toLowerCase()} 5 minutes later`}><Plus size={14} /></button>
+        <button type="button" onClick={onMore} className="grid h-8 w-8 place-items-center text-dim hover:bg-s2 active:bg-s3" aria-label={`Move ${label.toLowerCase()} later`}><Plus size={14} /></button>
       </div>
     </div>
   )
