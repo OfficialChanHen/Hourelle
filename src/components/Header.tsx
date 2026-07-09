@@ -45,15 +45,16 @@ export function Header() {
 
         <div className="flex-1" />
 
+        {/* actions duplicate the mobile bottom tab bar, so on mobile the header is just the logo */}
         <Link
           href="/create"
-          className="flex h-[34px] items-center gap-[7px] rounded-[9px] bg-accent px-[11px] text-[14px] font-semibold text-on-accent sm:px-[14px]"
+          className="hidden h-[34px] items-center gap-[7px] rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent md:flex"
         >
           <Plus size={17} />
-          <span className="hidden sm:inline">New event</span>
+          <span>New event</span>
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="hidden items-center gap-2 md:flex">
           <ThemeToggle />
           <Link
             href="/alerts"
