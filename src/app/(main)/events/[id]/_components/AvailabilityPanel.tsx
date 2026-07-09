@@ -121,7 +121,8 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
   const [detail, setDetail] = useState<{ day: string; ti: number; cx: number; cyTop: number; cyBottom: number; below: boolean } | null>(null) // view-mode cell breakdown
   const [showMissing, setShowMissing] = useState(false)
   const [nudged, setNudged] = useState<Set<string>>(new Set())
-  const [chatOpen, setChatOpen] = useState(true)
+  const [chatOpen, setChatOpen] = useState(true)   // desktop inline side panel
+  const [mobileChat, setMobileChat] = useState(false) // mobile full-height sheet
   const [sel, setSel] = useState<Sel | null>(null)
   const [nudgeStep, setNudgeStep] = useState(5) // minutes the − / + buttons move an edge
   const [drag, setDrag] = useState<Drag | null>(null)
@@ -830,17 +831,17 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
         </div>
       </div>
 
-      {chatOpen && <ChatPanel members={total} messages={messages} onSend={sendMessage} onClose={() => setChatOpen(false)} avatarOf={avatarOf} />}
-      {!chatOpen && (
-        // stacked layout: reopen the chat right where it appears, at the bottom
-        <button
-          onClick={() => setChatOpen(true)}
-          className="flex items-center justify-center gap-1.5 rounded-b-2xl border-t border-border bg-s0 py-3 text-[13.5px] font-semibold hover:bg-s2 lg:hidden"
-        >
-          <MessageCircle size={16} className="text-accent-text" /> Open discussion
-          {messages.length > 0 && <span className="flex h-[16px] items-center rounded-[10px] bg-accent px-[6px] text-[10.5px] text-on-accent">{messages.length}</span>}
-        </button>
-      )}
+      {/* desktop: inline side panel */}
+      {chatOpen && <ChatSidePanel members={total} messages={messages} onSend={sendMessage} onClose={() => setChatOpen(false)} avatarOf={avatarOf} />}
+      {/* mobile: a bar that opens the full-height chat sheet */}
+      <button
+        onClick={() => setMobileChat(true)}
+        className="flex items-center justify-center gap-1.5 rounded-b-2xl border-t border-border bg-s0 py-3 text-[13.5px] font-semibold hover:bg-s2 lg:hidden"
+      >
+        <MessageCircle size={16} className="text-accent-text" /> Open discussion
+        {messages.length > 0 && <span className="flex h-[16px] items-center rounded-[10px] bg-accent px-[6px] text-[10.5px] text-on-accent">{messages.length}</span>}
+      </button>
+      {mobileChat && <ChatSheet members={total} messages={messages} onSend={sendMessage} onClose={() => setMobileChat(false)} avatarOf={avatarOf} />}
 
       {importing && (
         <ImportPreview
@@ -1236,33 +1237,27 @@ function CellDetail({ bands, total, fmt, gridStartMin, avatarOf, style, onClose 
 }
 
 /* ── inline chat side panel (controlled by parent) ── */
-function ChatPanel({ members, messages, onSend, onClose, avatarOf }: { members: number; messages: ChatMessage[]; onSend: (t: string) => void; onClose: () => void; avatarOf: (id: string) => { initials: string; name: string; color: Participant['color'] } }) {
-  const panel = useRef<HTMLDivElement>(null)
+type ChatProps = { members: number; messages: ChatMessage[]; onSend: (t: string) => void; onClose: () => void; avatarOf: (id: string) => { initials: string; name: string; color: Participant['color'] } }
+
+// shared chat content (header + messages + composer); the shell around it differs by device
+function ChatBody({ members, messages, onSend, onClose, avatarOf }: ChatProps) {
   const scroller = useRef<HTMLDivElement>(null)
   const [draft, setDraft] = useState('')
-
-  useGSAP(() => { gsap.fromTo(panel.current, { x: 18, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'power3.out' }) }, { scope: panel })
   useEffect(() => { if (scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight }, [messages.length])
-
-  function send() {
-    const text = draft.trim()
-    if (!text) return
-    onSend(text)
-    setDraft('')
-  }
+  function send() { const text = draft.trim(); if (!text) return; onSend(text); setDraft('') }
 
   return (
-    <div ref={panel} className="flex h-[340px] w-full flex-none flex-col overflow-hidden rounded-b-2xl border-t border-border bg-s0 lg:h-auto lg:w-[300px] lg:rounded-b-none lg:rounded-r-2xl lg:border-l lg:border-t-0">
-      <div className="flex items-center justify-between border-b border-border px-3.5 py-[13px]">
+    <div className="flex h-full min-h-0 w-full flex-col">
+      <div className="flex flex-none items-center justify-between border-b border-border px-3.5 py-[13px]">
         <div className="flex items-center gap-1.5 text-[14px] font-semibold">
           <MessageCircle size={16} className="text-accent-text" />
           Event discussion
           <span className="rounded-[10px] border border-accent-border bg-accent-bg px-1.5 py-px text-[10.5px] font-semibold text-accent-text">{members} members</span>
         </div>
-        <button onClick={onClose} aria-label="Close chat" className="grid h-[26px] w-[26px] place-items-center rounded-lg text-dim hover:text-text"><X size={17} /></button>
+        <button onClick={onClose} aria-label="Close chat" className="grid h-[30px] w-[30px] place-items-center rounded-lg text-dim hover:text-text"><X size={18} /></button>
       </div>
 
-      <div ref={scroller} className="scroll-slim flex flex-1 flex-col gap-3.5 overflow-auto p-3.5">
+      <div ref={scroller} className="scroll-slim flex min-h-0 flex-1 flex-col gap-3.5 overflow-auto p-3.5">
         {messages.length === 0 ? (
           <div className="m-auto max-w-[210px] text-center">
             <MessageCircle size={25} className="mx-auto mb-2 text-faint" />
@@ -1288,9 +1283,39 @@ function ChatPanel({ members, messages, onSend, onClose, avatarOf }: { members: 
         )}
       </div>
 
-      <div className="flex items-center gap-2 border-t border-border p-[11px]">
-        <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} placeholder="Add a comment…" className="h-[34px] flex-1 rounded-[9px] border border-border bg-s1 px-[11px] text-[13.5px] outline-none placeholder:text-faint focus:border-accent-border" />
-        <button onClick={send} aria-label="Send" className="grid h-[34px] w-[34px] place-items-center rounded-[9px] bg-accent text-on-accent"><Send size={16} /></button>
+      <div className="flex flex-none items-center gap-2 border-t border-border p-[11px]">
+        <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} placeholder="Add a comment…" className="h-[38px] flex-1 rounded-[9px] border border-border bg-s1 px-[11px] text-[13.5px] outline-none placeholder:text-faint focus:border-accent-border" />
+        <button onClick={send} aria-label="Send" className="grid h-[38px] w-[38px] flex-none place-items-center rounded-[9px] bg-accent text-on-accent"><Send size={16} /></button>
+      </div>
+    </div>
+  )
+}
+
+// desktop: inline side panel that slides in from the right
+function ChatSidePanel(props: ChatProps) {
+  const panel = useRef<HTMLDivElement>(null)
+  useGSAP(() => { gsap.fromTo(panel.current, { x: 18, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'power3.out' }) }, { scope: panel })
+  return (
+    <div ref={panel} className="hidden w-[300px] flex-none overflow-hidden rounded-r-2xl border-l border-border bg-s0 lg:flex">
+      <ChatBody {...props} />
+    </div>
+  )
+}
+
+// mobile: full-height bottom sheet over a dimmed backdrop, slides up
+function ChatSheet(props: ChatProps) {
+  const sheet = useRef<HTMLDivElement>(null)
+  const back = useRef<HTMLDivElement>(null)
+  useGSAP(() => {
+    gsap.fromTo(back.current, { opacity: 0 }, { opacity: 1, duration: 0.25 })
+    gsap.fromTo(sheet.current, { y: '100%' }, { y: 0, duration: 0.36, ease: 'power3.out' })
+  }, { scope: sheet })
+  return (
+    <div className="fixed inset-0 z-50 lg:hidden">
+      <div ref={back} className="absolute inset-0 bg-black/40" onClick={props.onClose} />
+      <div ref={sheet} className="absolute inset-x-0 bottom-0 flex h-[88dvh] flex-col overflow-hidden rounded-t-2xl border-t border-border bg-s0 shadow-soft" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="flex flex-none justify-center pt-2"><span className="h-1 w-10 rounded-full bg-border2" /></div>
+        <ChatBody {...props} />
       </div>
     </div>
   )

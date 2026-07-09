@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CalendarDays, Plus, MoreHorizontal } from 'lucide-react'
+import { CalendarDays, Plus, MoreHorizontal, Bell } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 
 const TABS = [
@@ -55,36 +55,30 @@ export function Header() {
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <button
+          <Link
+            href="/alerts"
+            aria-label="Alerts"
+            className={`grid h-[30px] w-[30px] place-items-center rounded-lg border ${
+              pathname.startsWith('/alerts')
+                ? 'border-accent-border bg-accent-bg text-accent-text'
+                : 'border-border text-dim hover:text-text'
+            }`}
+          >
+            <Bell size={17} />
+          </Link>
+          <Link
+            href="/profile"
+            aria-label="Your profile"
             className="grid h-[30px] w-[30px] place-items-center rounded-full text-[12.5px] font-semibold"
             style={{ background: '#F3EAD9', color: '#5A431C' }}
-            aria-label="Your account"
           >
             JM
-          </button>
+          </Link>
           <button className="grid h-[30px] w-[30px] place-items-center rounded-lg border border-border text-dim hover:text-text" aria-label="More">
             <MoreHorizontal size={18} />
           </button>
         </div>
       </div>
-
-      {/* mobile nav — second row until the bottom tab bar exists, so pages stay reachable */}
-      <nav className="flex items-center justify-center gap-1 border-t border-border px-3 py-1.5 text-[14px] md:hidden">
-        {TABS.map((t) => {
-          const active = pathname === t.href || pathname.startsWith(t.href + '/')
-          return (
-            <Link
-              key={t.href}
-              href={t.href}
-              className={`rounded-[9px] px-[13px] py-[7px] transition-colors ${
-                active ? 'bg-accent font-medium text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'
-              }`}
-            >
-              {t.label}
-            </Link>
-          )
-        })}
-      </nav>
     </header>
   )
 }

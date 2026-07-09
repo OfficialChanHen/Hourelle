@@ -63,6 +63,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
   const [copied, setCopied] = useState(false)
   const [adding, setAdding] = useState(false) // itinerary "add a stop" picker open
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null) // placeId pending delete confirm
+  const [sheetOpen, setSheetOpen] = useState(false) // mobile: venues/itinerary bottom sheet
 
   function persist(patch: Partial<AppEvent>) {
     if (!event.demo) patchEvent(event.id, patch)
@@ -262,7 +263,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
       {/* map */}
       <div className="relative flex min-w-0 flex-1">
         <div
-          className="relative min-h-[320px] flex-1 overflow-hidden rounded-[13px] border border-border transition-[filter] duration-300 lg:min-h-[580px]"
+          className="relative min-h-[54dvh] flex-1 overflow-hidden rounded-[13px] border border-border transition-[filter] duration-300 lg:min-h-[580px]"
           style={{
             filter: blurred ? 'blur(4px) saturate(.85)' : 'none',
             background: 'repeating-linear-gradient(0deg,transparent 0 43px,rgba(120,118,104,.13) 43px 45px),repeating-linear-gradient(90deg,transparent 0 52px,rgba(120,118,104,.13) 52px 54px),#E7E6DF',
@@ -369,9 +370,23 @@ export function LocationPanel({ event }: { event: AppEvent }) {
         )}
       </div>
 
-      {/* side panel — only for in-person events */}
+      {/* mobile: a bar that lifts the venues/itinerary panel up as a bottom sheet */}
+      {mode === 'vote' && !sheetOpen && (
+        <button onClick={() => setSheetOpen(true)} className="flex items-center justify-between gap-2 rounded-[12px] border border-border bg-s1 px-4 py-3 text-left shadow-soft lg:hidden">
+          <span className="flex items-center gap-2 text-[13.5px] font-semibold"><Route size={16} className="text-accent-text" /> {sub === 'itin' ? 'Itinerary' : 'Venue vote'}</span>
+          <span className="flex items-center gap-1.5 text-[12.5px] text-dim">{places.length} {places.length === 1 ? 'place' : 'places'} <ChevronUp size={16} /></span>
+        </button>
+      )}
+      {mode === 'vote' && sheetOpen && <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSheetOpen(false)} />}
+
+      {/* side panel — only for in-person events; a bottom sheet on mobile, a column on desktop */}
       {mode === 'vote' && (
-        <div className="flex w-full flex-none flex-col lg:h-[580px] lg:w-[330px]">
+        <div className={`flex flex-none flex-col lg:static lg:z-auto lg:flex lg:h-[580px] lg:w-[330px] lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none ${sheetOpen ? 'fixed inset-x-0 bottom-0 z-50 h-[86dvh] w-full rounded-t-2xl border-t border-border bg-s1 px-3 pt-2 shadow-soft' : 'hidden'}`}>
+          {/* grab handle + close (mobile sheet only) */}
+          <div className="relative mb-2 flex flex-none items-center justify-center lg:hidden">
+            <span className="h-1 w-10 rounded-full bg-border2" />
+            <button onClick={() => setSheetOpen(false)} aria-label="Close" className="absolute right-0 grid h-7 w-7 place-items-center rounded-lg text-dim hover:text-text"><X size={18} /></button>
+          </div>
           <div className="mb-3 flex flex-none items-center gap-2">
             <SegmentedControl
               size="sm"
