@@ -275,13 +275,13 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
       <div>
         <Label>Date window <Req /></Label>
         <div className="rounded-[12px] border border-border bg-s2 p-3.5">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-[150px] flex-1">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+            <div className="min-w-0 flex-1 sm:min-w-[150px]">
               <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Earliest day</span>
               <input type="date" value={form.startDate} min={today || undefined} onChange={(e) => onStart(e.target.value)} className={`${inputCls(show(errs.start))} cursor-pointer !bg-s1`} />
             </div>
             <span className="hidden pb-[11px] text-faint sm:block">→</span>
-            <div className="min-w-[150px] flex-1">
+            <div className="min-w-0 flex-1 sm:min-w-[150px]">
               <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Latest day</span>
               <input type="date" value={form.endDate} min={form.startDate || today || undefined} onChange={(e) => onEnd(e.target.value)} className={`${inputCls(show(errs.end))} cursor-pointer !bg-s1`} />
             </div>
@@ -336,7 +336,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
         <div className="min-w-[200px] flex-1">
           <Label>Budget (optional)</Label>
           <div className="flex items-center gap-2">
-            <div className="relative flex-1">
+            <div className="relative min-w-0 flex-1">
               <span className="pointer-events-none absolute left-[13px] top-1/2 -translate-y-1/2 text-dim">$</span>
               <input inputMode="numeric" placeholder="0" value={form.budget} onChange={(e) => update({ budget: e.target.value.replace(/[^\d]/g, '') })} className={`${inputCls(false)} pl-7`} />
             </div>
