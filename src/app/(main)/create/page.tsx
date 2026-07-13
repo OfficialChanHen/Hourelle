@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { use, useEffect, useRef, useState, type RefObject } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -12,7 +12,7 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
 import { av } from '@/lib/people'
-import { createEvent, parseHM, fmtMinute, type AppEvent } from '@/lib/events'
+import { createEvent, draftFromEvent, parseHM, fmtMinute, type AppEvent } from '@/lib/events'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -89,11 +89,22 @@ const initialForm: Form = {
 type Update = (patch: Partial<Form> | ((f: Form) => Partial<Form>)) => void
 type BasicsErrs = { title: string; org: string; start: string; end: string; win: string; tz: string }
 
-export default function CreatePage() {
+// template starting points (/create?template=…) — structure only; dates stay a conscious choice
+const TEMPLATE_PRESETS: Record<string, Partial<Form>> = {
+  offsite: { title: 'Team offsite', description: 'A few days of strategy and team time.', granularity: '60', locMode: 'vote', planMode: 'itinerary', budgetMode: 'person' },
+  trip: { title: 'Weekend trip', description: 'Pick the dates together and vote on where to go.', granularity: '60', locMode: 'vote', planMode: 'itinerary' },
+  birthday: { title: 'Birthday party', description: 'One night, one spot.', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', locMode: 'vote', planMode: 'vote' },
+  conference: { title: 'Conference', hostMode: 'org', granularity: '60', locMode: 'vote', planMode: 'itinerary' },
+  'one-on-one': { title: 'Weekly 1:1', granularity: '15', locMode: 'remote' },
+  dinner: { title: 'Dinner and drinks', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', locMode: 'vote', planMode: 'vote' },
+}
+
+export default function CreatePage({ searchParams }: { searchParams: Promise<{ template?: string; from?: string }> }) {
+  const { template, from } = use(searchParams)
   const router = useRouter()
   const [step, setStep] = useState(0)
   const [created, setCreated] = useState<AppEvent | null>(null)
-  const [form, setForm] = useState<Form>(initialForm)
+  const [form, setForm] = useState<Form>(() => ({ ...initialForm, ...(template ? TEMPLATE_PRESETS[template] : undefined) }))
   const [attempted, setAttempted] = useState(false)
   const [today, setToday] = useState('')
   const stopUid = useRef(0)
@@ -101,6 +112,30 @@ export default function CreatePage() {
 
   const update: Update = (patch) =>
     setForm((f) => ({ ...f, ...(typeof patch === 'function' ? patch(f) : patch) }))
+
+  // reuse a past event (/create?from=…): its structure seeds the form, dates and
+  // responses start fresh (localStorage read, so it has to happen after mount)
+  useEffect(() => {
+    if (!from) return
+    const d = draftFromEvent(from)
+    if (!d) return
+    setForm((f) => ({
+      ...f,
+      title: d.title ?? f.title,
+      description: d.description ?? f.description,
+      timezone: d.timezone ?? f.timezone,
+      granularity: d.granularity ?? f.granularity,
+      budget: d.budget ?? f.budget,
+      budgetMode: d.budgetMode ?? f.budgetMode,
+      locMode: d.locMode ?? f.locMode,
+      planMode: d.planMode ?? f.planMode,
+      picked: (d.picked ?? []).map((p) => ({ ...p, uid: `s${stopUid.current++}` })),
+      platform: d.platform ?? f.platform,
+      meetingLink: d.meetingLink ?? f.meetingLink,
+      emails: d.emails ?? f.emails,
+      accounts: d.accounts ?? f.accounts,
+    }))
+  }, [from])
 
   useEffect(() => {
     const d = new Date()

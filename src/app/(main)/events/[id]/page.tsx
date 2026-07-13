@@ -12,6 +12,7 @@ export default async function EventPage({
 }) {
   const { id } = await params
   const { tab } = await searchParams
-  const initialTab: TabKey = TABS.includes(tab as TabKey) ? (tab as TabKey) : 'availability'
+  // no valid tab in the URL → EventDetail picks one from the event's lifecycle phase
+  const initialTab: TabKey | null = TABS.includes(tab as TabKey) ? (tab as TabKey) : null
   return <EventDetail id={id} initialTab={initialTab} />
 }

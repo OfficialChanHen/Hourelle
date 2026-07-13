@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, SlidersHorizontal } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
-import { patchEvent, fmtMinute, bestWindow, availIvOf, gridStartMinOf, type AppEvent, type EventPlace, type Participant } from '@/lib/events'
+import { patchEvent, fmtMinute, bestWindow, availIvOf, gridStartMinOf, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
 import { fmtDuration, MODE_LABEL, ALL_MODES, type TravelMode, type ModeEstimate } from '@/lib/travel'
 import { computeItinerary, slotFor as slotForOf } from '@/lib/itinerary'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
@@ -18,8 +18,10 @@ const YOU = 'JM'
 // a stop references a place but has its own id (so a venue can repeat) and a dwell time
 type ItinStop = { uid: string; placeId: string; dwell: number }
 
-export function LocationPanel({ event }: { event: AppEvent }) {
+export function LocationPanel({ event, locked = false, confirmed }: { event: AppEvent; locked?: boolean; confirmed?: ConfirmedSlot }) {
   const loc = event.location
+  // once the host locks in, voting and editing close; the chosen place(s) get the highlight
+  const confirmedIds = new Set(confirmed?.placeIds ?? [])
   // the itinerary lives inside the event: it can't start before people are actually free,
   // and it shouldn't run longer than the time the owner set aside for the event.
   const eventDuration = event.durationMin ?? 60
@@ -38,7 +40,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
   // A "decide later" event opens as In person here so the host can start adding places.
   const [mode, setMode] = useState<AppEvent['location']['mode']>(loc.mode === 'later' ? 'vote' : loc.mode)
   const [meetingLink, setMeetingLink] = useState(loc.meetingLink)
-  const canAddPlaces = event.hostedByYou || guestsCanSuggest
+  const canAddPlaces = !locked && (event.hostedByYou || guestsCanSuggest)
   const pById = new Map(event.participants.map((p) => [p.id, p]))
   const avatarOf = (id: string) => {
     const p = pById.get(id)
@@ -245,7 +247,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
   return (
     <div className="flex flex-col gap-3.5">
       {/* venue-type switch (host) — switching keeps each mode's data */}
-      {event.hostedByYou && (
+      {event.hostedByYou && !locked && (
         <div className="flex items-center gap-2">
           <SegmentedControl
             size="sm"
@@ -290,7 +292,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
           {/* pins */}
           {!blurred && sub === 'vote' && places.map((p) => {
             const n = votesOf(p.id).length
-            const lead = p.id === leadingId
+            const lead = locked ? confirmedIds.has(p.id) : p.id === leadingId
             return (
               <MapPinMarker key={p.id} left={slotFor(p.id).left} top={slotFor(p.id).top} color={lead ? '#2E4A3C' : '#5E7B69'} label={String(n)} onClick={() => setFocusPin(p.id)} />
             )
@@ -396,12 +398,12 @@ export function LocationPanel({ event }: { event: AppEvent }) {
               onChange={(v) => { setSub(v as 'vote' | 'itin'); setFocusPin(null) }}
               options={[{ v: 'vote', l: 'Venue vote' }, { v: 'itin', l: 'Itinerary' }]}
             />
-            {sub === 'itin' && (
+            {sub === 'itin' && !locked && (
               <button onClick={() => setAdding((a) => !a)} className={`flex h-8 flex-none items-center gap-1 rounded-[9px] border px-2.5 text-[13px] font-semibold ${adding ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
                 <Plus size={16} /> Add stop
               </button>
             )}
-            {sub === 'vote' && event.hostedByYou && places.length > 0 && (
+            {sub === 'vote' && event.hostedByYou && places.length > 0 && !locked && (
               <Popover
                 align="end"
                 width={236}
@@ -455,7 +457,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
               {canAddPlaces && <AddPlaceSearch onAdd={addPlace} taken={new Set(places.map((p) => p.id))} />}
               {places.length === 0 ? (
                 <EmptyNote icon={Vote} text={canAddPlaces ? 'No places on the ballot yet. Search above to add the first one.' : 'No places to vote on yet. The host can add some, or allow guests to.'} />
-              ) : maxVotes > 1 ? (
+              ) : locked ? null : maxVotes > 1 ? (
                 <div className="flex items-center gap-1.5 px-0.5 text-[12.5px] text-dim">
                   <Vote size={15} className="text-accent-text" />
                   {maxVotes} votes · <span className={`font-semibold ${votesLeft ? 'text-accent-text' : 'text-brick-text'}`}>{votesLeft} left</span>
@@ -465,14 +467,16 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                 {ranked.map((p, i) => {
                   const ids = votesOf(p.id)
                   const you = ids.includes(YOU)
-                  const lead = p.id === leadingId
+                  const isLocked = locked && confirmedIds.has(p.id)
+                  const lead = locked ? isLocked : p.id === leadingId
                   return (
-                    <div key={p.id} data-flip-id={p.id} className={`relative flex items-start gap-2.5 rounded-xl border p-2.5 ${lead ? 'border-accent-border bg-accent-bg/40' : 'border-border bg-s0'}`}>
-                      <span className={`grid h-[30px] w-[30px] flex-none place-items-center rounded-full text-[13.5px] font-bold ${lead ? 'bg-accent text-on-accent' : 'bg-s2 text-dim'}`}>{i + 1}</span>
+                    <div key={p.id} data-flip-id={p.id} className={`relative flex items-start gap-2.5 rounded-xl border p-2.5 ${isLocked ? 'border-teal-border bg-teal-bg/40' : lead ? 'border-accent-border bg-accent-bg/40' : 'border-border bg-s0'}`}>
+                      <span className={`grid h-[30px] w-[30px] flex-none place-items-center rounded-full text-[13.5px] font-bold ${isLocked ? 'bg-teal-bg text-teal-text' : lead ? 'bg-accent text-on-accent' : 'bg-s2 text-dim'}`}>{i + 1}</span>
                       <div className="min-w-0 flex-1">
                         <div className="mb-0.5 flex items-center gap-1.5">
                           <span className="text-[14px] font-semibold">{p.name}</span>
-                          {lead && <span className="flex-none rounded-[5px] border border-accent-border bg-accent-bg px-[5px] py-px text-[10px] font-semibold text-accent-text">Leading</span>}
+                          {isLocked && <span className="flex flex-none items-center gap-1 rounded-[5px] border border-teal-border bg-teal-bg px-[5px] py-px text-[10px] font-semibold text-teal-text"><Check size={10} /> Locked in</span>}
+                          {!locked && lead && <span className="flex-none rounded-[5px] border border-accent-border bg-accent-bg px-[5px] py-px text-[10px] font-semibold text-accent-text">Leading</span>}
                         </div>
                         {/* address wraps in full — no truncation */}
                         <div className="mb-1.5 text-[12px] leading-[1.45] text-dim">{p.place} · {ids.length} vote{ids.length === 1 ? '' : 's'}</div>
@@ -480,22 +484,24 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                           {ids.slice(0, 6).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={20} font={8.5} title={a.name} /></span> })}
                         </div>
                       </div>
-                      <div className="flex flex-none items-center gap-1">
-                        <button
-                          onClick={() => toggleVote(p.id)}
-                          aria-pressed={you}
-                          disabled={!you && maxVotes > 1 && votesLeft === 0}
-                          title={you ? 'Remove your vote' : votesLeft === 0 && maxVotes > 1 ? 'No votes left' : 'Vote for this place'}
-                          className={`grid h-[34px] w-[34px] place-items-center rounded-[9px] border ${you ? 'border-accent bg-accent text-on-accent' : 'border-border2 bg-s1 text-text enabled:hover:bg-s2 disabled:opacity-40'}`}
-                        >
-                          <ArrowUp size={18} />
-                        </button>
-                        {event.hostedByYou && (
-                          <button onClick={() => attemptRemovePlace(p.id)} title="Remove this place" aria-label={`Remove ${p.name}`} className="grid h-[34px] w-7 place-items-center rounded-[9px] text-faint hover:text-brick-text">
-                            <Trash2 size={16} />
+                      {!locked && (
+                        <div className="flex flex-none items-center gap-1">
+                          <button
+                            onClick={() => toggleVote(p.id)}
+                            aria-pressed={you}
+                            disabled={!you && maxVotes > 1 && votesLeft === 0}
+                            title={you ? 'Remove your vote' : votesLeft === 0 && maxVotes > 1 ? 'No votes left' : 'Vote for this place'}
+                            className={`grid h-[34px] w-[34px] place-items-center rounded-[9px] border ${you ? 'border-accent bg-accent text-on-accent' : 'border-border2 bg-s1 text-text enabled:hover:bg-s2 disabled:opacity-40'}`}
+                          >
+                            <ArrowUp size={18} />
                           </button>
-                        )}
-                      </div>
+                          {event.hostedByYou && (
+                            <button onClick={() => attemptRemovePlace(p.id)} title="Remove this place" aria-label={`Remove ${p.name}`} className="grid h-[34px] w-7 place-items-center rounded-[9px] text-faint hover:text-brick-text">
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      )}
                       {confirmRemove === p.id && (
                         <div className="absolute inset-0 z-10 flex items-center gap-2 rounded-xl border border-brick-border bg-brick-bg px-2.5">
                           <TriangleAlert size={17} className="flex-none text-brick-text" />
@@ -513,7 +519,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
 
           {sub === 'itin' && (
             <div className="flex min-h-0 flex-1 flex-col gap-2">
-              {rankChanged && (
+              {!locked && rankChanged && (
                 <div className="rounded-[10px] border border-ochre-border bg-ochre-bg p-3">
                   <div className="flex items-start gap-2">
                     <RefreshCw size={15} className="mt-0.5 flex-none text-ochre-text" />
@@ -525,7 +531,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                   </div>
                 </div>
               )}
-              {adding && (
+              {!locked && adding && (
                 <div className="flex max-h-[184px] flex-none flex-col rounded-xl border border-border bg-s0 p-2.5">
                   <div className="mb-1.5 flex flex-none items-center justify-between">
                     <span className="text-[12px] font-semibold uppercase tracking-[.1em] text-faint">Add a stop</span>
@@ -554,22 +560,28 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                 <div className="rounded-xl border border-border bg-s0 p-4 text-center">
                   <span className="mx-auto mb-2.5 grid h-[38px] w-[38px] place-items-center rounded-[10px] border border-teal-border bg-teal-bg text-teal-text"><Route size={19} /></span>
                   <div className="text-[14px] font-semibold">No itinerary yet</div>
-                  <p className="mx-auto mt-1 max-w-[250px] text-[13px] leading-[1.5] text-dim">Build one automatically from the top-voted places, or add the stops yourself in whatever order you like. Reorder or remove any time.</p>
-                  <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                    <button
-                      onClick={buildFromVotes}
-                      disabled={places.length === 0}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent disabled:opacity-40"
-                    >
-                      <Route size={15} /> Build from top votes
-                    </button>
-                    <button
-                      onClick={() => setAdding(true)}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13.5px] font-semibold hover:bg-s2"
-                    >
-                      <Plus size={15} /> Add stops yourself
-                    </button>
-                  </div>
+                  <p className="mx-auto mt-1 max-w-[250px] text-[13px] leading-[1.5] text-dim">
+                    {locked
+                      ? 'The plan was locked without stops. The host can reopen planning to build one.'
+                      : 'Build one automatically from the top-voted places, or add the stops yourself in whatever order you like. Reorder or remove any time.'}
+                  </p>
+                  {!locked && (
+                    <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                      <button
+                        onClick={buildFromVotes}
+                        disabled={places.length === 0}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent disabled:opacity-40"
+                      >
+                        <Route size={15} /> Build from top votes
+                      </button>
+                      <button
+                        onClick={() => setAdding(true)}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13.5px] font-semibold hover:bg-s2"
+                      >
+                        <Plus size={15} /> Add stops yourself
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>
@@ -577,18 +589,20 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                   <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-s0 p-2.5">
                     <span className="flex items-center gap-1.5 text-[12.5px] font-medium text-dim">
                       <Clock size={13} /> Starts
-                      <TimeSelect value={itinStartMin} onChange={changeStart} min={minStart} max={maxStart} title="When the itinerary begins — within the best free window" />
+                      {locked
+                        ? <span className="text-[12.5px] font-semibold text-text tabular-nums">{fmtMinute(itinStartMin)}</span>
+                        : <TimeSelect value={itinStartMin} onChange={changeStart} min={minStart} max={maxStart} title="When the itinerary begins — within the best free window" />}
                     </span>
                     <span className="text-[12.5px] text-dim">Ends ~{fmtMinute(endMin)} · <span className={overDuration ? 'font-semibold text-ochre-text' : ''}>{fmtDuration(itinDuration)}</span></span>
                     <div className="flex flex-wrap items-center gap-1">
                       <span className="text-[12px] text-faint">Getting around:</span>
-                      {ALL_MODES.map((m) => { const on = travelModes.includes(m); const Icon = MODE_ICON[m]; return (
-                        <button key={m} onClick={() => toggleMode(m)} title={MODE_LABEL[m]} className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] font-medium ${on ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-faint'}`}>
+                      {ALL_MODES.map((m) => { const on = travelModes.includes(m); const Icon = MODE_ICON[m]; if (locked && !on) return null; return (
+                        <button key={m} onClick={() => toggleMode(m)} disabled={locked} title={MODE_LABEL[m]} className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] font-medium ${on ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-faint'}`}>
                           <Icon size={11} /> {MODE_LABEL[m]}
                         </button>
                       ) })}
                     </div>
-                    {bw ? (
+                    {!locked && bw ? (
                       <div className="flex w-full items-center gap-1.5 border-t border-border pt-1.5 text-[12px] text-faint">
                         <span>Best free window {fmtMinute(winStart!)}–{fmtMinute(winEnd!)} · {bw.count} of {event.participants.length} free</span>
                       </div>
@@ -617,7 +631,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                             data-reorder-item
                             className={`flex items-start gap-2 rounded-xl border bg-s0 p-2.5 ${stopReorder.dragIndex === i ? 'border-accent-border opacity-60 shadow-soft' : 'border-border'}`}
                           >
-                            <button {...stopReorder.handleProps(i)} aria-label="Drag to reorder" className="mt-0.5 flex-none text-faint hover:text-dim"><GripVertical size={17} /></button>
+                            {!locked && <button {...stopReorder.handleProps(i)} aria-label="Drag to reorder" className="mt-0.5 flex-none text-faint hover:text-dim"><GripVertical size={17} /></button>}
                             <span className="mt-px grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[12.5px] font-bold text-on-accent">{i + 1}</span>
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-1.5">
@@ -629,17 +643,19 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                               <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
                                 <span className="flex items-center gap-1 text-[12px] font-semibold text-accent-text"><Clock size={12} /> {fmtMinute(schedule[i].arrive)} – {fmtMinute(schedule[i].depart)}</span>
                                 <span className="flex items-center gap-1 text-[12px] text-dim">
-                                  <button onClick={() => changeDwell(i, s.dwell - 15)} disabled={s.dwell <= 15} className="grid h-[15px] w-[15px] place-items-center rounded border border-border enabled:hover:bg-s2 disabled:opacity-30" aria-label="Less time"><Minus size={10} /></button>
+                                  {!locked && <button onClick={() => changeDwell(i, s.dwell - 15)} disabled={s.dwell <= 15} className="grid h-[15px] w-[15px] place-items-center rounded border border-border enabled:hover:bg-s2 disabled:opacity-30" aria-label="Less time"><Minus size={10} /></button>}
                                   {fmtDuration(s.dwell)} here
-                                  <button onClick={() => changeDwell(i, s.dwell + 15)} className="grid h-[15px] w-[15px] place-items-center rounded border border-border hover:bg-s2" aria-label="More time"><Plus size={10} /></button>
+                                  {!locked && <button onClick={() => changeDwell(i, s.dwell + 15)} className="grid h-[15px] w-[15px] place-items-center rounded border border-border hover:bg-s2" aria-label="More time"><Plus size={10} /></button>}
                                 </span>
                               </div>
                             </div>
-                            <div className="flex flex-none items-center">
-                              <button onClick={() => moveStop(i, -1)} disabled={i === 0} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move up"><ChevronUp size={17} /></button>
-                              <button onClick={() => moveStop(i, 1)} disabled={i === stops.length - 1} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move down"><ChevronDown size={17} /></button>
-                              <button onClick={() => removeStop(i)} className="grid h-6 w-6 place-items-center rounded-[6px] text-faint hover:text-brick-text" aria-label="Remove stop"><X size={16} /></button>
-                            </div>
+                            {!locked && (
+                              <div className="flex flex-none items-center">
+                                <button onClick={() => moveStop(i, -1)} disabled={i === 0} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move up"><ChevronUp size={17} /></button>
+                                <button onClick={() => moveStop(i, 1)} disabled={i === stops.length - 1} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move down"><ChevronDown size={17} /></button>
+                                <button onClick={() => removeStop(i)} className="grid h-6 w-6 place-items-center rounded-[6px] text-faint hover:text-brick-text" aria-label="Remove stop"><X size={16} /></button>
+                              </div>
+                            )}
                           </div>
                           {leg && <TravelLeg est={leg.est} fastest={leg.fast} />}
                         </Fragment>
@@ -657,7 +673,7 @@ export function LocationPanel({ event }: { event: AppEvent }) {
                         {modesUsed.map((m) => { const Icon = MODE_ICON[m]; return (
                           <span key={m} className="flex items-center gap-1 rounded-full border border-teal-border bg-s1 px-2 py-0.5 text-[12px] font-medium text-teal-text"><Icon size={12} /> {MODE_LABEL[m]}</span>
                         ) })}
-                        <span className="text-[12px] text-dim">· quickest allowed mode per leg · drag or use arrows to reorder</span>
+                        <span className="text-[12px] text-dim">· quickest allowed mode per leg{!locked && ' · drag or use arrows to reorder'}</span>
                       </div>
                     </div>
                   )}

@@ -4,17 +4,22 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Building2, Link2, CalendarDays, Wallet, Users, BarChart3,
-  CalendarRange, MapPin, UsersRound, Settings, Copy, Check, Trash2, TriangleAlert,
+  Building2, Link2, Users,
+  CalendarRange, MapPin, UsersRound, Settings, Check, Trash2, TriangleAlert,
 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Avatar } from '@/components/ui/Avatar'
-import { getEvent, deleteEvent, bestWindow, availIvOf, fmtMinute, gridStartMinOf, daysUntil, dateRangeText, type AppEvent, type Rsvp } from '@/lib/events'
+import { Badge } from '@/components/ui/Badge'
+import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
+import { getEvent, deleteEvent, dateRangeText, phaseOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
 import { AttendancePanel } from './AttendancePanel'
+import { StageSummary } from './StageSummary'
+import { ConfirmBar } from './ConfirmBar'
+import { ConfirmedHero } from './ConfirmedHero'
 
 const TABS = [
   { key: 'availability', label: 'Availability', icon: CalendarRange },
@@ -31,17 +36,26 @@ const RSVP: Record<Rsvp, { label: string; color: string; chip: string }> = {
   pending: { label: 'No reply', color: 'var(--faint)', chip: 'neutral' },
 }
 
-export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey }) {
+export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey | null }) {
   const router = useRouter()
-  const [tab, setTab] = useState<TabKey>(initialTab)
+  const [tab, setTab] = useState<TabKey>(initialTab ?? 'availability')
   const [event, setEvent] = useState<AppEvent | null | undefined>(undefined)
   const [copied, setCopied] = useState(false)
   const tabsRef = useRef<HTMLDivElement>(null)
   const [tabFade, setTabFade] = useState({ l: false, r: false })
+  const tabResolved = useRef(false)
 
   // re-read on tab change too: panels persist edits to storage as they happen, and
   // remounting them from a page-load-time snapshot would drop those edits until reload
-  useEffect(() => { setEvent(getEvent(id)) }, [id, tab])
+  useEffect(() => {
+    const ev = getEvent(id)
+    setEvent(ev)
+    // no tab in the URL: planning opens on the grid, a settled event on who's coming
+    if (!tabResolved.current) {
+      tabResolved.current = true
+      if (!initialTab && ev && phaseOf(ev) !== 'planning') setTab('attendance')
+    }
+  }, [id, tab, initialTab])
 
   // tab bar overflows on narrow screens — track scroll position to show edge fades, and keep
   // the active tab in view when it changes
@@ -82,86 +96,47 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
     )
   }
 
-  const going = event.participants.filter((p) => p.rsvp === 'attending').length
-  const pending = event.participants.filter((p) => p.rsvp === 'pending').length
-  const notGoing = event.participants.filter((p) => p.rsvp === 'not_going').length
-  const best = bestWindow(availIvOf(event), event.days, event.durationMin ?? 60)
-  const gridStart = gridStartMinOf(event)
-  const du = daysUntil(event.startDate)
-  const untilBig = du === null ? 'TBD' : du < 0 ? 'Past' : du === 0 ? 'Today' : `${du} day${du === 1 ? '' : 's'}`
+  const phase = phaseOf(event)
+  const badge = PHASE_BADGE[phase]
+  const locked = phase !== 'planning'
   const shareLink = `aline.app/e/${event.id}`
 
   function copy() {
     navigator.clipboard?.writeText(`https://${shareLink}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
+  function refresh() {
+    setEvent(getEvent(id))
+  }
 
   return (
     <div className="mx-auto max-w-[1240px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
       {/* header */}
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+        <div className="min-w-0">
           <h1 className="font-serif text-[34.5px] leading-[1.04] tracking-[-0.01em]">{event.title}</h1>
-          <div className="mt-2 flex items-center gap-1.5 text-[13.5px] text-dim">
-            <Building2 size={15} /> Hosted by {event.hostName}
+          <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13.5px] text-dim">
+            <span className="flex items-center gap-1.5"><Building2 size={15} /> Hosted by {event.hostName}</span>
+            <Badge variant={badge.variant}>{badge.label}</Badge>
           </div>
         </div>
-        <button onClick={copy} className="flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[14px] font-semibold hover:border-border2">
-          {copied ? <Check size={16} /> : <Link2 size={16} />} {copied ? 'Copied' : 'Share link'}
-        </button>
+        <div className="flex flex-none items-center gap-2">
+          {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} />}
+          <button onClick={copy} className="flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[14px] font-semibold hover:bg-s2">
+            {copied ? <Check size={16} /> : <Link2 size={16} />} {copied ? 'Copied' : 'Share link'}
+          </button>
+        </div>
       </div>
 
-      {/* 4-column open stat strip */}
-      <div className="mb-[26px] grid grid-cols-2 gap-8 border-b border-border pb-7 md:grid-cols-4">
-        <Stat icon={CalendarDays} label="Time until event">
-          <div className="font-serif text-[34.5px] leading-none">{untilBig}</div>
-          <div className="mt-1.5 flex items-center gap-1.5 text-[12.5px] text-dim">{dateRangeText(event)} <TimezonePill tz={event.timezone} /></div>
-        </Stat>
-
-        <Stat icon={Wallet} label="Budget">
-          {event.budget ? (
-            <>
-              <div className="font-serif text-[34.5px] leading-none">${Number(event.budget).toLocaleString()}</div>
-              <div className="mt-1.5 text-[12.5px] text-dim">
-                {event.budgetMode === 'person'
-                  ? (going > 0 ? `per person · ~$${(Number(event.budget) * going).toLocaleString()} for ${going} going` : 'per person')
-                  : (going > 0 ? `total · ~$${Math.round(Number(event.budget) / going).toLocaleString()} / person` : 'total')}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="font-serif text-[28px] leading-none text-dim">No budget</div>
-              <div className="mt-1.5 text-[12.5px] text-faint">Not set</div>
-            </>
-          )}
-        </Stat>
-
-        <Stat icon={Users} label="Attendance">
-          <div className="mb-1.5 flex flex-wrap gap-x-[9px] gap-y-1.5">
-            {event.participants.map((p) => (
-              <span key={p.id} className="text-[13px] font-semibold" style={{ color: RSVP[p.rsvp].color }}>{p.initials}</span>
-            ))}
-          </div>
-          <div className="text-[12.5px] text-dim">
-            <span className="text-teal-text">{going} going</span>
-            {pending > 0 && <> · <span className="text-faint">{pending} pending</span></>}
-            {notGoing > 0 && <> · <span className="text-brick-text">{notGoing} out</span></>}
-          </div>
-        </Stat>
-
-        <Stat icon={BarChart3} label="Best availability" iconColor="var(--teal-text)">
-          {best ? (
-            <>
-              <div className="font-serif text-[28px] leading-[1.05]">{best.dayLabel.replace(/^\w+, /, '')}</div>
-              <div className="mt-1 text-[12.5px] text-dim">{best.count} of {event.participants.length} free · {fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)}</div>
-            </>
-          ) : (
-            <>
-              <div className="font-serif text-[28px] leading-[1.05] text-dim">TBD</div>
-              <div className="mt-1 text-[12.5px] text-faint">Waiting on availability</div>
-            </>
-          )}
-        </Stat>
+      {/* where the event sits in its life — a quiet strip, then one line of state */}
+      <div className="mb-6 border-b border-border pb-5">
+        <LifecycleStrip phase={phase} className="max-w-[420px]" />
+        {(phase === 'planning' || phase === 'past') && (
+          <div className="mt-3"><StageSummary event={event} phase={phase} /></div>
+        )}
       </div>
+
+      {/* the locked-in plan leads the page once confirmed */}
+      {locked && phase !== 'past' && <ConfirmedHero event={event} onChanged={refresh} />}
 
       {/* tabs — horizontally scrollable on narrow screens, with edge fades hinting more */}
       <div className="relative mb-6">
@@ -181,30 +156,16 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       </div>
 
       {/* body */}
-      {tab === 'availability' && <AvailabilityPanel event={event} />}
-      {tab === 'location' && <LocationPanel event={event} />}
+      {tab === 'availability' && <AvailabilityPanel event={event} locked={locked} />}
+      {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} />}
       {tab === 'attendance' && <AttendancePanel event={event} />}
-      {tab === 'details' && <DetailsTab event={event} shareLink={shareLink} onCopy={copy} copied={copied} onDelete={handleDelete} />}
+      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} />}
     </div>
   )
 }
-
-function Stat({ icon: Icon, label, iconColor, children }: { icon: typeof Wallet; label: string; iconColor?: string; children: React.ReactNode }) {
-  return (
-    <div className="py-0.5">
-      <div className="mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">
-        <Icon size={15} style={iconColor ? { color: iconColor } : undefined} />
-        {label}
-      </div>
-      {children}
-    </div>
-  )
-}
-
-/* ── Location tab ── */
 
 /* ── Details tab ── */
-function DetailsTab({ event, shareLink, onCopy, copied, onDelete }: { event: AppEvent; shareLink: string; onCopy: () => void; copied: boolean; onDelete: () => void }) {
+function DetailsTab({ event, onDelete }: { event: AppEvent; onDelete: () => void }) {
   const whereText = event.location.mode === 'remote' ? `Online · ${event.location.platform}` : event.location.mode === 'later' ? 'To be decided' : event.location.places.length ? event.location.places.map((p) => p.name).join(' · ') : 'To be decided'
   return (
     <div className="flex flex-wrap items-start gap-3.5">
@@ -213,7 +174,6 @@ function DetailsTab({ event, shareLink, onCopy, copied, onDelete }: { event: App
         <DetailRow k="Description" v={event.description || <span className="text-faint">No description</span>} />
         <DetailRow k="When" v={<span className="flex items-center gap-1.5">{dateRangeText(event)} <TimezonePill tz={event.timezone} /></span>} />
         <DetailRow k="Where" v={whereText} />
-        <DetailRow k="Time zone" v={event.timezone.split('/').pop()?.replace(/_/g, ' ') ?? event.timezone} />
         <DetailRow k="Budget" v={event.budget ? `$${Number(event.budget).toLocaleString()} ${event.budgetMode === 'person' ? 'per person' : 'total'}` : <span className="text-faint">None</span>} last />
       </div>
 
@@ -231,15 +191,6 @@ function DetailsTab({ event, shareLink, onCopy, copied, onDelete }: { event: App
               <span className="rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: RSVP[p.rsvp].color, background: `var(--${RSVP[p.rsvp].chip}-bg, var(--s2))` }}>{RSVP[p.rsvp].label}</span>
             </div>
           ))}
-        </div>
-        <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
-          <div className="flex flex-1 items-center gap-2 truncate rounded-[9px] border border-border bg-s2 px-3 py-2">
-            <Link2 size={15} className="flex-none text-dim" />
-            <span className="truncate font-mono text-[12.5px] text-dim">{shareLink}</span>
-          </div>
-          <button onClick={onCopy} className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[13px] font-semibold hover:bg-s2">
-            {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? 'Copied' : 'Copy'}
-          </button>
         </div>
       </div>
 

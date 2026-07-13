@@ -13,6 +13,9 @@ import {
 export type { ChatMessage }
 
 export type Rsvp = 'attending' | 'maybe' | 'not_going' | 'pending'
+export type EventStatus = 'planning' | 'confirmed'
+// the host's locked-in plan: a day, a clock-minute window, and the chosen place(s)
+export type ConfirmedSlot = { dayKey: string; startMin: number; endMin: number; placeIds: string[] }
 export type Participant = { id: string; initials: string; name: string; color: PersonColor; rsvp: Rsvp; you?: boolean; host?: boolean; guest?: boolean }
 export type EventPlace = { id: string; name: string; place: string }
 export type GridDay = { key: string; dow: string; date: string; best?: boolean }
@@ -56,6 +59,9 @@ export type AppEvent = {
   messages: ChatMessage[]
   createdAt: number
   demo?: boolean
+  status?: EventStatus                // undefined reads as 'planning' (back-compat with stored events)
+  confirmed?: ConfirmedSlot           // set when the host locks in a time and place
+  confirmedAt?: number
 }
 
 // what the create wizard hands us (a superset is fine)
@@ -307,6 +313,63 @@ export function dateRangeText(ev: { startDate: string; endDate: string }): strin
   return `${dayLabel(s)} – ${dayLabel(e)}${sameYear ? `, ${e.getFullYear()}` : ''}`
 }
 
+/* ── lifecycle ── */
+// where an event sits in its life: still planning, locked in (far out / this week / today), or over.
+// Derived, not stored — only the 'planning'/'confirmed' split lives on the event.
+export type Phase = 'planning' | 'upcoming' | 'soon' | 'today' | 'past'
+
+export function phaseOf(ev: Pick<AppEvent, 'status' | 'confirmed' | 'endDate'>): Phase {
+  const endRef = ev.confirmed?.dayKey ?? ev.endDate
+  const untilEnd = daysUntil(endRef)
+  if (untilEnd !== null && untilEnd < 0) return 'past'
+  if (ev.status !== 'confirmed' || !ev.confirmed) return 'planning'
+  const du = daysUntil(ev.confirmed.dayKey)
+  if (du === null) return 'upcoming'
+  if (du <= 0) return 'today'
+  return du <= 7 ? 'soon' : 'upcoming'
+}
+
+export function daysUntilLabel(du: number | null): string {
+  if (du === null) return 'Dates TBD'
+  if (du < 0) return 'Past'
+  if (du === 0) return 'Today'
+  return `${du} day${du === 1 ? '' : 's'}`
+}
+
+export function confirmEvent(id: string, slot: ConfirmedSlot): void {
+  patchEvent(id, { status: 'confirmed', confirmed: slot, confirmedAt: Date.now() })
+}
+export function reopenEvent(id: string): void {
+  patchEvent(id, { status: 'planning', confirmed: undefined, confirmedAt: undefined })
+}
+
+// seed the create wizard from an existing event: structure carries over, dates and
+// responses deliberately do not — the host re-picks them for the new occasion
+export function draftFromEvent(id: string): Partial<CreateInput> | null {
+  const ev = getEvent(id)
+  if (!ev) return null
+  const isItin = ev.location.planMode === 'itinerary'
+  const byId = new Map(ev.location.places.map((p) => [p.id, p]))
+  const picked = isItin && ev.itinStops?.length
+    ? ev.itinStops.map((sid) => byId.get(sid)).filter((p): p is EventPlace => !!p)
+    : ev.location.places
+  return {
+    title: ev.title,
+    description: ev.description,
+    timezone: ev.timezone,
+    granularity: ev.granularity,
+    budget: ev.budget,
+    budgetMode: ev.budgetMode,
+    locMode: ev.location.mode,
+    planMode: ev.location.planMode,
+    picked: picked.map((p) => ({ id: p.id, name: p.name, place: p.place })),
+    platform: ev.location.platform,
+    meetingLink: ev.location.meetingLink,
+    emails: ev.participants.filter((p) => p.guest).map((p) => p.id.replace(/^g:/, '')),
+    accounts: ev.participants.filter((p) => !p.guest && !p.you).map((p) => p.id),
+  }
+}
+
 export function respondedCount(avail: Record<string, string[][]>): number {
   const ids = new Set<string>()
   for (const rows of Object.values(avail)) for (const cell of rows) for (const id of cell) ids.add(id)
@@ -386,6 +449,7 @@ export function createEvent(input: CreateInput): AppEvent {
     durationMin: 60,
     messages: [],
     createdAt: Date.now(),
+    status: 'planning',
   }
 
   const list = readAll()

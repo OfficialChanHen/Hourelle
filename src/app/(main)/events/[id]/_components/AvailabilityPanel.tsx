@@ -78,7 +78,7 @@ function peakOf(bands: Band[]): Band {
   return bands.reduce((m, b) => (b.ids.length > m.ids.length ? b : m))
 }
 
-export function AvailabilityPanel({ event }: { event: AppEvent }) {
+export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; locked?: boolean }) {
   const total = event.participants.length
   const pById = new Map(event.participants.map((p) => [p.id, p]))
   const avatarOf = (id: string) => {
@@ -114,7 +114,8 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
   for (const d of event.days) for (const [id, ivs] of Object.entries(others[d.key] ?? {})) if (ivs.length) otherIds.add(id)
   const responded = otherIds.size + (youAny ? 1 : 0)
 
-  const [mode, setMode] = useState<Mode>(responded === 0 ? 'edit' : 'view')
+  // once the plan is locked the grid is reference only — no edit mode
+  const [mode, setMode] = useState<Mode>(locked ? 'view' : responded === 0 ? 'edit' : 'view')
   const [h24, setH24] = useState(false)
   const [myTime, setMyTime] = useState(false) // show times in the viewer's local zone
   const [durationMin, setDurationMin] = useState(event.durationMin ?? 60)
@@ -502,8 +503,12 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
       <div ref={colRef} className="relative flex min-w-0 flex-1 flex-col p-4">
         {/* toolbar */}
         <div className="flex flex-wrap items-center gap-[9px] border-b border-border pb-[13px]">
-          <SegmentedControl size="sm" value={mode} onChange={(v) => { setMode(v as Mode); setSel(null); setDetail(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
-          <span className="h-5 w-px bg-border" />
+          {!locked && (
+            <>
+              <SegmentedControl size="sm" value={mode} onChange={(v) => { setMode(v as Mode); setSel(null); setDetail(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
+              <span className="h-5 w-px bg-border" />
+            </>
+          )}
           <div className="flex items-center gap-[3px]">
             <IconBtn onClick={() => goWeek(-1)} disabled={page === 0}><ChevronLeft size={17} /></IconBtn>
             <span className="px-1 text-center text-[13.5px] font-semibold leading-tight">
@@ -519,10 +524,10 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
           ) : (
             <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={event.timezone} /></span>
           )}
-          <ImportFromCalendar onPick={startImport} />
-          {youAny && <ClearTimes onClear={clearAllMine} />}
+          {!locked && <ImportFromCalendar onPick={startImport} />}
+          {!locked && youAny && <ClearTimes onClear={clearAllMine} />}
           <div className="flex-1" />
-          <Popover
+          {!locked && <Popover
             align="end"
             width={224}
             trigger={(open) => (
@@ -557,7 +562,7 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
                 </div>
               </div>
             )}
-          </Popover>
+          </Popover>}
           {!chatOpen && (
             // side-panel reopen — on stacked layouts the bottom bar below takes over
             <button onClick={() => setChatOpen(true)} className="hidden h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[13px] font-semibold hover:border-border2 lg:flex">
@@ -584,22 +589,27 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
             )}
           </div>
           {mode === 'edit' && <PresetFills onFill={fillPreset} />}
-          {mode === 'edit' && !sel && (
+          {/* first-time hint only — it earns its place until you've marked something */}
+          {mode === 'edit' && !sel && !youAny && (
             <span className="text-[12.5px] text-faint">Tap or drag to add time</span>
           )}
-          {/* heat legend — quiet, reads left to right like the ramp */}
+          {locked && <span className="text-[12.5px] text-faint">Planning is locked. The grid stays for reference.</span>}
+          {/* heat legend in view mode; editing only needs the You swatch */}
           <span className="ml-auto flex items-center gap-1 text-[11px] text-faint">
-            {mode === 'edit' && (
+            {mode === 'edit' ? (
               <>
                 <span className="h-[11px] w-[11px] rounded-[3px]" style={{ background: '#EAD9BE', border: '1.5px solid #7A531F' }} />
-                <span className="mr-1.5">You</span>
+                <span>You</span>
+              </>
+            ) : (
+              <>
+                <span>No one</span>
+                {['var(--s2)', '#EBF1EB', '#CFE0D2', '#9DBBA4', '#2E4A3C'].map((c) => (
+                  <span key={c} className="h-[11px] w-[11px] rounded-[3px] border border-border" style={{ background: c }} />
+                ))}
+                <span>Everyone</span>
               </>
             )}
-            <span>No one</span>
-            {['var(--s2)', '#EBF1EB', '#CFE0D2', '#9DBBA4', '#2E4A3C'].map((c) => (
-              <span key={c} className="h-[11px] w-[11px] rounded-[3px] border border-border" style={{ background: c }} />
-            ))}
-            <span>Everyone</span>
           </span>
         </div>
 
@@ -813,8 +823,8 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
           )
         })()}
 
-        {/* best-window footer */}
-        <div className="mt-0.5 flex flex-wrap items-center gap-2.5 border-t border-border px-0.5 pt-3">
+        {/* best-window footer — gone once locked; the confirmed plan owns the answer */}
+        {!locked && <div className="mt-0.5 flex flex-wrap items-center gap-2.5 border-t border-border px-0.5 pt-3">
           {bw ? (
             <>
               <span className="text-[12.5px] text-dim">Best {fmtDur(durationMin)} slot</span>
@@ -828,7 +838,7 @@ export function AvailabilityPanel({ event }: { event: AppEvent }) {
           ) : (
             <span className="text-[12.5px] text-dim">No availability yet. Add yours in <span className="font-semibold text-text">Edit mine</span> to start finding the best time.</span>
           )}
-        </div>
+        </div>}
       </div>
 
       {/* desktop: inline side panel */}
@@ -1020,92 +1030,6 @@ function ClearTimes({ onClear }: { onClear: () => void }) {
               <Eraser size={13} /> Yes, clear it
             </button>
           </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ── add-to-calendar export (Google / Outlook compose links) ──
-   Not rendered right now on purpose: this returns at the confirmation stage,
-   once a time is locked, as the "add the confirmed event to your calendar" action. */
-function plusDay(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number)
-  const dt = new Date(y, m - 1, d + 1)
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
-}
-
-function AddToCalendar({ event, bw, gridStartMin }: { event: AppEvent; bw: ReturnType<typeof bestWindow>; gridStartMin: number }) {
-  const [open, setOpen] = useState(false)
-  const wrap = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false) }
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
-    window.addEventListener('pointerdown', onDown)
-    window.addEventListener('keydown', onKey)
-    return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
-  }, [open])
-
-  // a timed entry needs a real date + a best window; otherwise export the full date range as all-day
-  const timed = bw && /^\d{4}-\d{2}-\d{2}$/.test(bw.dayKey) ? bw : null
-  const canExport = !!timed || /^\d{4}-\d{2}-\d{2}$/.test(event.startDate)
-  const location = event.location.mode === 'remote'
-    ? (event.location.meetingLink || event.location.platform)
-    : event.location.places.map((p) => p.name).join(', ')
-
-  function links(): { google: string; outlook: string } {
-    const g = new URLSearchParams({ action: 'TEMPLATE', text: event.title, details: event.description, location, ctz: event.timezone })
-    const o = new URLSearchParams({ path: '/calendar/action/compose', rru: 'addevent', subject: event.title, body: event.description, location })
-    if (timed) {
-      const hm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}${String(min % 60).padStart(2, '0')}00`
-      const hmc = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}:00`
-      const d = timed.dayKey.replace(/-/g, '')
-      g.set('dates', `${d}T${hm(gridStartMin + timed.s)}/${d}T${hm(gridStartMin + timed.e)}`)
-      o.set('startdt', `${timed.dayKey}T${hmc(gridStartMin + timed.s)}`)
-      o.set('enddt', `${timed.dayKey}T${hmc(gridStartMin + timed.e)}`)
-    } else {
-      const end = plusDay(event.endDate || event.startDate) // end date is exclusive for all-day entries
-      g.set('dates', `${event.startDate.replace(/-/g, '')}/${end.replace(/-/g, '')}`)
-      o.set('startdt', event.startDate)
-      o.set('enddt', end)
-      o.set('allday', 'true')
-    }
-    return {
-      google: `https://calendar.google.com/calendar/render?${g}`,
-      outlook: `https://outlook.live.com/calendar/0/deeplink/compose?${o}`,
-    }
-  }
-  function exportTo(kind: 'google' | 'outlook') {
-    window.open(links()[kind], '_blank', 'noopener')
-    setOpen(false)
-  }
-
-  if (!canExport) return null
-  return (
-    <div ref={wrap} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className={`flex h-7 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2 ${open ? 'border-border2' : 'border-border'}`}
-      >
-        <CalendarPlus size={15} /> Add to calendar <ChevronDown size={13} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 w-[228px] rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
-          <p className="px-2.5 pb-1.5 pt-2 text-[12px] leading-[1.45] text-faint">
-            {timed
-              ? <>Adds the best time so far: {bw!.dayLabel}, {fmtMinute(gridStartMin + timed.s)} – {fmtMinute(gridStartMin + timed.e)} ({event.timezone.split('/').pop()?.replace(/_/g, ' ')} time).</>
-              : <>No best time yet, so this adds the whole date window as an all-day entry.</>}
-          </p>
-          <button type="button" onClick={() => exportTo('google')} className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left text-[13.5px] font-medium hover:bg-s2">
-            <CalendarPlus size={15} className="text-accent-text" /> Google Calendar
-          </button>
-          <button type="button" onClick={() => exportTo('outlook')} className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left text-[13.5px] font-medium hover:bg-s2">
-            <CalendarPlus size={15} className="text-accent-text" /> Outlook
-          </button>
         </div>
       )}
     </div>
