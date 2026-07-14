@@ -55,6 +55,17 @@ const WIN_PRESETS: { v: WinPreset; l: string; s: string; e: string }[] = [
   { v: 'custom', l: 'Custom', s: '10:00', e: '14:00' },
 ]
 
+// event-length presets, shown the same way as in the availability settings
+const DUR_PRESETS = [30, 60, 90, 120, 180, 240]
+const fmtDur = (m: number) => (m < 60 ? `${m}m` : m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h`)
+// length of the daily time window in minutes — the whole day when no window is set;
+// the event can't run longer than the window people are asked about
+function winLenOf(preset: WinPreset, s: string, e: string): number {
+  if (preset === 'any') return 24 * 60
+  const ws = parseHM(s), we = parseHM(e)
+  return ws !== null && we !== null && we > ws ? we - ws : 24 * 60
+}
+
 type Form = {
   title: string
   hostMode: 'you' | 'org'
@@ -66,6 +77,7 @@ type Form = {
   windowPreset: WinPreset
   windowStart: string
   windowEnd: string
+  durationMin: number
   timezone: string
   budget: string
   budgetMode: 'total' | 'person'
@@ -80,7 +92,7 @@ type Form = {
 
 const initialForm: Form = {
   title: '', hostMode: 'you', orgName: '', description: '',
-  startDate: '', endDate: '', granularity: '30', windowPreset: 'any', windowStart: '', windowEnd: '',
+  startDate: '', endDate: '', granularity: '30', windowPreset: 'any', windowStart: '', windowEnd: '', durationMin: 60,
   timezone: '', budget: '', budgetMode: 'total', // timezone deliberately unset: picking it is a required, conscious step
   locMode: 'vote', planMode: 'vote', picked: [], platform: 'Google Meet', meetingLink: '',
   emails: [], accounts: [],
@@ -93,10 +105,10 @@ type BasicsErrs = { title: string; org: string; start: string; end: string; win:
 const TEMPLATE_PRESETS: Record<string, Partial<Form>> = {
   offsite: { title: 'Team offsite', description: 'A few days of strategy and team time.', granularity: '60', locMode: 'vote', planMode: 'itinerary', budgetMode: 'person' },
   trip: { title: 'Weekend trip', description: 'Pick the dates together and vote on where to go.', granularity: '60', locMode: 'vote', planMode: 'itinerary' },
-  birthday: { title: 'Birthday party', description: 'One night, one spot.', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', locMode: 'vote', planMode: 'vote' },
+  birthday: { title: 'Birthday party', description: 'One night, one spot.', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 180, locMode: 'vote', planMode: 'vote' },
   conference: { title: 'Conference', hostMode: 'org', granularity: '60', locMode: 'vote', planMode: 'itinerary' },
-  'one-on-one': { title: 'Weekly 1:1', granularity: '15', locMode: 'remote' },
-  dinner: { title: 'Dinner and drinks', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', locMode: 'vote', planMode: 'vote' },
+  'one-on-one': { title: 'Weekly 1:1', granularity: '15', durationMin: 30, locMode: 'remote' },
+  dinner: { title: 'Dinner and drinks', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 120, locMode: 'vote', planMode: 'vote' },
 }
 
 export default function CreatePage({ searchParams }: { searchParams: Promise<{ template?: string; from?: string }> }) {
@@ -125,6 +137,7 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
       description: d.description ?? f.description,
       timezone: d.timezone ?? f.timezone,
       granularity: d.granularity ?? f.granularity,
+      durationMin: d.durationMin ?? f.durationMin,
       budget: d.budget ?? f.budget,
       budgetMode: d.budgetMode ?? f.budgetMode,
       locMode: d.locMode ?? f.locMode,
@@ -254,18 +267,30 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
   }
   function pickWin(v: string) {
     const p = WIN_PRESETS.find((x) => x.v === v)!
-    update((f) => ({
-      windowPreset: p.v,
+    update((f) => {
       // returning to Custom keeps whatever times were already picked
-      windowStart: p.v === 'custom' && f.windowStart ? f.windowStart : p.s,
-      windowEnd: p.v === 'custom' && f.windowEnd ? f.windowEnd : p.e,
-    }))
+      const ws = p.v === 'custom' && f.windowStart ? f.windowStart : p.s
+      const we = p.v === 'custom' && f.windowEnd ? f.windowEnd : p.e
+      return {
+        windowPreset: p.v,
+        windowStart: ws,
+        windowEnd: we,
+        durationMin: Math.min(f.durationMin, winLenOf(p.v, ws, we)), // keep the length inside the window
+      }
+    })
   }
   const show = (e: string) => attempted && !!e
   const winS = parseHM(form.windowStart), winE = parseHM(form.windowEnd)
   const winText = form.windowPreset !== 'any' && winS !== null && winE !== null && winE > winS
     ? `${fmtMinute(winS)} and ${fmtMinute(winE)}`
     : ''
+  // event length is bounded by the daily window: 1 minute up to the whole window
+  const winLen = winLenOf(form.windowPreset, form.windowStart, form.windowEnd)
+  const durH = Math.floor(form.durationMin / 60)
+  const durM = form.durationMin % 60
+  function setDur(h: number, m: number) {
+    update({ durationMin: Math.min(winLen, Math.max(1, h * 60 + m)) })
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -325,16 +350,16 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
 
           {/* optional daily time window */}
           <div className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
-            <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Daily time window <span className="text-faint">(optional)</span></span>
+            <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Daily time window</span>
             <Segmented value={form.windowPreset} onChange={pickWin} options={WIN_PRESETS.map((p) => ({ v: p.v, l: p.l }))} />
           </div>
           {form.windowPreset === 'custom' && (
             <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
               <span className="text-[12.5px] text-dim">From</span>
-              <TimeField value={form.windowStart} onChange={(v) => update({ windowStart: v })} err={show(errs.win)} label="Window start" />
+              <TimeField value={form.windowStart} onChange={(v) => update((f) => ({ windowStart: v, durationMin: Math.min(f.durationMin, winLenOf(f.windowPreset, v, f.windowEnd)) }))} err={show(errs.win)} label="Window start" />
               <span className="text-faint">→</span>
               <span className="text-[12.5px] text-dim">to</span>
-              <TimeField value={form.windowEnd} onChange={(v) => update({ windowEnd: v })} err={show(errs.win)} label="Window end" />
+              <TimeField value={form.windowEnd} onChange={(v) => update((f) => ({ windowEnd: v, durationMin: Math.min(f.durationMin, winLenOf(f.windowPreset, f.windowStart, v)) }))} err={show(errs.win)} label="Window end" />
             </div>
           )}
           {show(errs.win) && <FieldError>{errs.win}</FieldError>}
@@ -345,6 +370,31 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           <div className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
             <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Time slot size</span>
             <Segmented value={form.granularity} onChange={(v) => update({ granularity: v })} options={[{ v: '15', l: '15 min' }, { v: '30', l: '30 min' }, { v: '60', l: '1 hour' }]} />
+          </div>
+
+          {/* how long the event needs — drives the best-time search on the grid */}
+          <div className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
+            <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Event length</span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {DUR_PRESETS.map((m) => (
+                <button key={m} type="button" disabled={m > winLen} onClick={() => update({ durationMin: m })} className={`rounded-[7px] border px-2 py-1 text-[12.5px] font-medium ${m === form.durationMin ? 'border-accent bg-accent text-on-accent' : 'border-border2 bg-s1 enabled:hover:bg-s2 disabled:opacity-35'}`}>{fmtDur(m)}</button>
+              ))}
+              <span className="ml-1 text-[12px] text-faint">Custom</span>
+              <input
+                type="number" min={0} max={Math.floor(winLen / 60)} value={durH}
+                onChange={(e) => { const n = parseInt(e.target.value, 10); setDur(Number.isNaN(n) ? 0 : Math.max(0, n), durM) }}
+                className="h-7 w-[52px] rounded-[7px] border border-border bg-s1 px-2 text-[13px] tabular-nums outline-none focus:border-accent-border"
+                aria-label="Event length hours"
+              />
+              <span className="text-[12px] text-faint">hr</span>
+              <input
+                type="number" min={0} max={59} value={durM}
+                onChange={(e) => { const n = parseInt(e.target.value, 10); setDur(durH, Number.isNaN(n) ? 0 : Math.min(59, Math.max(0, n))) }}
+                className="h-7 w-[52px] rounded-[7px] border border-border bg-s1 px-2 text-[13px] tabular-nums outline-none focus:border-accent-border"
+                aria-label="Event length minutes"
+              />
+              <span className="text-[12px] text-faint">min</span>
+            </div>
           </div>
         </div>
       </div>
@@ -410,7 +460,7 @@ function StepLocation({ form, update, stopUid, attempted, placesError }: { form:
     const ctrl = new AbortController()
     const t = setTimeout(async () => {
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q=${encodeURIComponent(term)}`, { signal: ctrl.signal, headers: { Accept: 'application/json' } })
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=10&q=${encodeURIComponent(term)}`, { signal: ctrl.signal, headers: { Accept: 'application/json' } })
         const data: { place_id: number; name?: string; display_name: string }[] = await res.json()
         setResults(data.map((d) => {
           const parts = d.display_name.split(', ')
@@ -470,7 +520,7 @@ function StepLocation({ form, update, stopUid, attempted, placesError }: { form:
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search any place, address, or city…" className="flex-1 bg-transparent text-[14px] outline-none placeholder:text-faint" />
             </div>
             {term && (
-              <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[300px] overflow-auto rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
+              <div className="scroll-slim absolute left-0 right-0 top-full z-20 mt-1 max-h-[300px] overflow-auto overscroll-contain rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
                 {term.length < 3 ? (
                   <div className="px-2.5 py-2 text-[13px] text-faint">Keep typing to search for a place…</div>
                 ) : (
@@ -696,6 +746,7 @@ function StepReview({ form, goStep }: { form: Form; goStep: (n: number) => void 
         <Row k="Date window" v={dateText} />
         <Row k="Time window" v={winLabel} />
         <Row k="Time slots" v={granLabel} />
+        <Row k="Event length" v={fmtDur(form.durationMin)} />
         <Row k="Time zone" v={form.timezone ? tzLabel(form.timezone) : <span className="text-brick-text">Not set — pick one in Basics</span>} />
         <Row k="Budget" v={form.budget ? `$${form.budget} ${form.budgetMode === 'person' ? 'per person' : 'total'}` : <span className="text-faint">None</span>} />
       </ReviewCard>
@@ -762,9 +813,10 @@ function Created({ event }: { event: AppEvent }) {
   useGSAP(() => {
     gsap.fromTo(card.current, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power3.out' })
     gsap.fromTo('.created-check', { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: 'back.out(2)', delay: 0.15 })
+    // drops in from the top — the bottom is covered by the tab bar on mobile
     const tl = gsap.timeline({ delay: 0.5 })
-    tl.fromTo(toast.current, { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power3.out' })
-      .to(toast.current, { y: 24, opacity: 0, duration: 0.4, ease: 'power3.in', delay: 4 })
+    tl.fromTo(toast.current, { y: -24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power3.out' })
+      .to(toast.current, { y: -24, opacity: 0, duration: 0.4, ease: 'power3.in', delay: 4 })
   }, [])
 
   function copy() {
@@ -798,8 +850,8 @@ function Created({ event }: { event: AppEvent }) {
         </div>
       </div>
 
-      {/* toast notification */}
-      <div ref={toast} className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 opacity-0">
+      {/* toast notification — anchored top so the mobile tab bar never hides it */}
+      <div ref={toast} className="pointer-events-none absolute left-1/2 top-4 w-max max-w-[calc(100vw-24px)] -translate-x-1/2 opacity-0">
         <div className="flex items-center gap-2.5 rounded-xl border border-border2 bg-s1 px-4 py-3 shadow-soft">
           <span className="grid h-7 w-7 place-items-center rounded-full bg-accent-bg text-accent-text"><PartyPopper size={17} /></span>
           <span className="text-[14px] font-semibold">Event created{total > 0 ? ` · ${total} ${total === 1 ? 'invite' : 'invites'} sent` : ''}</span>

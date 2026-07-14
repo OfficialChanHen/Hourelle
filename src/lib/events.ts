@@ -77,6 +77,7 @@ export type CreateInput = {
   budget: string
   windowStart?: string // 'HH:MM' — optional daily time window; empty = the whole day
   windowEnd?: string
+  durationMin?: number // optional; drives the best-window search (default 60)
   budgetMode?: 'total' | 'person'
   locMode: 'vote' | 'remote' | 'later'
   planMode: 'vote' | 'itinerary'
@@ -358,6 +359,7 @@ export function draftFromEvent(id: string): Partial<CreateInput> | null {
     description: ev.description,
     timezone: ev.timezone,
     granularity: ev.granularity,
+    durationMin: ev.durationMin,
     budget: ev.budget,
     budgetMode: ev.budgetMode,
     locMode: ev.location.mode,
@@ -446,7 +448,7 @@ export function createEvent(input: CreateInput): AppEvent {
     itinRank: [],
     itinDwell: isItin ? input.picked.map(() => 60) : [],
     itinStartMin: hasWin ? (winS as number) : 9 * 60,
-    durationMin: 60,
+    durationMin: input.durationMin && input.durationMin >= 1 ? Math.min(24 * 60, input.durationMin) : 60,
     messages: [],
     createdAt: Date.now(),
     status: 'planning',

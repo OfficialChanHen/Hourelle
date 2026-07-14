@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Building2, Link2, Users,
+  Building2, Link2, Users, Copy,
   CalendarRange, MapPin, UsersRound, Settings, Check, Trash2, TriangleAlert,
 } from 'lucide-react'
 import { gsap } from 'gsap'
@@ -13,6 +13,7 @@ import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
+import { Popover } from '@/components/ui/Popover'
 import { getEvent, deleteEvent, dateRangeText, phaseOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -119,11 +120,31 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
             <Badge variant={badge.variant}>{badge.label}</Badge>
           </div>
         </div>
-        <div className="flex flex-none items-center gap-2">
+        {/* ml-auto keeps the actions hugging the right edge when the header wraps */}
+        <div className="ml-auto flex min-w-0 items-center gap-2">
           {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} />}
-          <button onClick={copy} className="flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[14px] font-semibold hover:bg-s2">
-            {copied ? <Check size={16} /> : <Link2 size={16} />} {copied ? 'Copied' : 'Share link'}
-          </button>
+          {/* share button opens a dropdown with the URL and a one-tap copy */}
+          <Popover
+            align="end"
+            width={312}
+            trigger={(open) => (
+              <span className={`flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[14px] font-semibold ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
+                <Link2 size={16} /> Share link
+              </span>
+            )}
+          >
+            {() => (
+              <div className="flex items-center gap-2 p-0.5">
+                <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-[9px] border border-border bg-s2 px-3">
+                  <Link2 size={15} className="flex-none text-dim" />
+                  <span className="truncate font-mono text-[12.5px] text-dim">{shareLink}</span>
+                </div>
+                <button onClick={copy} className={`flex h-9 flex-none items-center gap-1.5 rounded-[9px] px-3 text-[13px] font-semibold ${copied ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'}`}>
+                  {copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy</>}
+                </button>
+              </div>
+            )}
+          </Popover>
         </div>
       </div>
 

@@ -527,9 +527,11 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
           {!locked && <ImportFromCalendar onPick={startImport} />}
           {!locked && youAny && <ClearTimes onClear={clearAllMine} />}
           <div className="flex-1" />
+          {/* ml-auto keeps this pinned to the right edge even after the toolbar wraps */}
           {!locked && <Popover
             align="end"
             width={224}
+            className="ml-auto"
             trigger={(open) => (
               <span className={`flex h-7 items-center gap-1.5 rounded-lg border px-[10px] text-[12.5px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
                 <SlidersHorizontal size={13} /> Settings
@@ -580,6 +582,9 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
           <div className="relative">
             <button
               onClick={() => missing.length && setShowMissing((s) => !s)}
+              // keep this pointerdown from reaching the popover's outside-click listener —
+              // it would close the popover first and the click would instantly reopen it
+              onPointerDown={(e) => e.stopPropagation()}
               className={`ml-1.5 flex items-center gap-1 text-[12.5px] ${missing.length ? 'text-accent-text hover:underline' : 'text-dim'}`}
             >
               {responded} of {total} responded{missing.length > 0 && <ChevronDown size={13} className={showMissing ? 'rotate-180' : ''} />}
@@ -643,9 +648,18 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
 
         {/* grid */}
         <div ref={scroller} onScroll={onGridScroll} className="scroll-slim max-h-[58dvh] flex-1 overflow-auto rounded-[10px] border border-border lg:max-h-none">
-          <div className="grid min-w-[520px]" style={{ gridTemplateColumns: `54px repeat(${weekDays.length}, minmax(72px, 1fr))` }}>
-            {/* header row */}
-            <div className="sticky top-0 z-[25] border-b border-r border-border bg-s0" />
+          {/* width tracks the day count: a single day must fit the screen without a
+              horizontal scroll, and shouldn't stretch into one huge column either */}
+          <div
+            className="grid"
+            style={{
+              gridTemplateColumns: `54px repeat(${weekDays.length}, minmax(72px, 1fr))`,
+              minWidth: 54 + weekDays.length * 72,
+              maxWidth: 54 + weekDays.length * 280,
+            }}
+          >
+            {/* header row — the corner cell stays pinned through both scroll directions */}
+            <div className="sticky left-0 top-0 z-[30] border-b border-r border-border bg-s0" />
             {weekDays.map((d) => {
               const dayFull = mode === 'edit' && mine[d.key]?.length === 1 && mine[d.key][0].s === 0 && mine[d.key][0].e === gridMax
               return (
@@ -685,7 +699,9 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
                 <button
                   type="button"
                   onClick={() => toggleTime(ti)}
-                  className="flex items-center justify-center gap-1 border-b border-r border-border bg-s0 p-1 text-[12px] font-medium text-dim"
+                  // sticky-left so the time labels follow horizontal scroll, the same way
+                  // the day header row follows vertical scroll
+                  className="sticky left-0 z-[15] flex items-center justify-center gap-1 border-b border-r border-border bg-s0 p-1 text-[12px] font-medium text-dim"
                   style={{ cursor: mode === 'edit' ? 'pointer' : 'default' }}
                   title={mode === 'edit' ? 'Click to fill this time across the week' : undefined}
                 >

@@ -742,7 +742,7 @@ function AddPlaceSearch({ onAdd, taken, placeholder = 'Add a place to the ballot
     const ctrl = new AbortController()
     const t = setTimeout(async () => {
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q=${encodeURIComponent(term)}`, { signal: ctrl.signal, headers: { Accept: 'application/json' } })
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=10&q=${encodeURIComponent(term)}`, { signal: ctrl.signal, headers: { Accept: 'application/json' } })
         const data: { place_id: number; name?: string; display_name: string }[] = await res.json()
         setResults(data.map((d) => {
           const parts = d.display_name.split(', ')
@@ -765,7 +765,7 @@ function AddPlaceSearch({ onAdd, taken, placeholder = 'Add a place to the ballot
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={placeholder} className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-faint" />
       </div>
       {term && (
-        <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[240px] overflow-auto rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
+        <div className="scroll-slim absolute left-0 right-0 top-full z-20 mt-1 max-h-[240px] overflow-auto overscroll-contain rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
           {term.length < 3 ? (
             <div className="px-2.5 py-2 text-[12.5px] text-faint">Keep typing to search for a place…</div>
           ) : (
