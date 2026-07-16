@@ -391,8 +391,33 @@ function WhenValue({ event, locked, onGoToAvailability }: { event: AppEvent; loc
 /* Where: the confirmed venue once locked; before that, the vote leader for a single venue,
    or a pointer to the itinerary on the Location tab. */
 function WhereValue({ event, locked, onGoToLocation }: { event: AppEvent; locked: boolean; onGoToLocation: () => void }) {
+  const [copied, setCopied] = useState(false)
   const loc = event.location
-  if (loc.mode === 'remote') return <>Online · {loc.platform || 'link to follow'}</>
+  if (loc.mode === 'remote') {
+    const link = loc.meetingLink.trim()
+    const copyLink = () => {
+      navigator.clipboard?.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
+    }
+    return (
+      <div className="flex flex-col gap-1.5">
+        <span>Online · {loc.platform || 'platform to be decided'}</span>
+        {link ? (
+          <span className="flex max-w-[420px] items-center gap-2">
+            <span className="min-w-0 flex-1 truncate rounded-[7px] border border-border bg-s0 px-2.5 py-1 font-mono text-[12px] text-dim">{link}</span>
+            <button onClick={copyLink} className={`flex h-7 flex-none items-center gap-1 rounded-[7px] border px-2 text-[12px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 text-dim hover:bg-s2'}`}>
+              {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
+            </button>
+          </span>
+        ) : event.hostedByYou ? (
+          <button onClick={onGoToLocation} className="text-left text-[12.5px] font-medium text-accent-text hover:underline">
+            Add a meeting link on the Location tab so it lands in every reminder
+          </button>
+        ) : (
+          <span className="text-[12.5px] text-faint">Link to follow</span>
+        )}
+      </div>
+    )
+  }
 
   const itineraryLink = (n: number) => (
     <button onClick={onGoToLocation} className="text-left font-medium text-accent-text hover:underline">
