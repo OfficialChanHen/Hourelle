@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
+import { pushFlash } from '@/components/ui/FlashToast'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
@@ -78,8 +79,10 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
   }, [tab])
 
   function handleDelete() {
+    const title = event?.title
     deleteEvent(id)
-    router.push('/events')
+    pushFlash(title ? `${title} was deleted` : 'Event deleted', 'brick')
+    router.push('/home')
   }
 
   if (event === undefined) {

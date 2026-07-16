@@ -7,6 +7,7 @@ import {
   ArrowRight, type LucideIcon,
 } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { FlashToast } from '@/components/ui/FlashToast'
 import { StoredEventCard } from '@/components/ui/StoredEventCard'
 import { Cover } from '@/components/ui/Cover'
 import { Badge } from '@/components/ui/Badge'
@@ -37,7 +38,8 @@ export default function HomePage() {
   const rest = active.filter((x) => x.e.id !== hero?.e.id)
 
   return (
-    <div className="mx-auto max-w-[1240px] px-[26px] pb-[104px] pt-[34px]">
+    <div className="relative mx-auto max-w-[1240px] px-[26px] pb-[104px] pt-[34px]">
+      <FlashToast />
       {/* greeting */}
       <div className="mb-5">
         <h1 className="mb-[9px] font-serif text-[37px] leading-[1.02] tracking-[-0.01em]">Good afternoon, Jordan</h1>
