@@ -17,6 +17,7 @@ export function ChatDrawer({ event, messages, onSend, onClose }: {
   onClose: () => void
 }) {
   const root = useRef<HTMLDivElement>(null)
+  const sheet = useRef<HTMLDivElement>(null)
 
   useGSAP(() => {
     const tl = gsap.timeline()
@@ -24,6 +25,30 @@ export function ChatDrawer({ event, messages, onSend, onClose }: {
       .fromTo('.cd-panel', { x: 26, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: 'power3.out' }, '<')
       .fromTo('.cd-sheet', { y: '100%' }, { y: 0, duration: 0.36, ease: 'power3.out' }, '<')
   }, { scope: root })
+
+  // the grab bar dismisses the sheet: drag follows the finger, release past the
+  // threshold slides it away, a short drag springs back
+  const drag = useRef<{ startY: number; dy: number } | null>(null)
+  function onGrabDown(e: React.PointerEvent) {
+    drag.current = { startY: e.clientY, dy: 0 }
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  }
+  function onGrabMove(e: React.PointerEvent) {
+    if (!drag.current || !sheet.current) return
+    drag.current.dy = Math.max(0, e.clientY - drag.current.startY)
+    gsap.set(sheet.current, { y: drag.current.dy })
+  }
+  function onGrabUp() {
+    if (!drag.current || !sheet.current) return
+    const { dy } = drag.current
+    drag.current = null
+    if (dy > Math.min(120, sheet.current.clientHeight * 0.22)) {
+      gsap.to(sheet.current, { y: '100%', duration: 0.25, ease: 'power2.in', onComplete: onClose })
+      if (root.current) gsap.to(root.current.querySelector('.cd-back'), { opacity: 0, duration: 0.25 })
+    } else {
+      gsap.to(sheet.current, { y: 0, duration: 0.3, ease: 'power3.out' })
+    }
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -45,12 +70,22 @@ export function ChatDrawer({ event, messages, onSend, onClose }: {
       <div className="cd-panel absolute right-0 top-0 hidden h-full w-[320px] max-w-[88vw] flex-col border-l border-border bg-s0 shadow-soft lg:flex">
         {body}
       </div>
-      {/* mobile: full-height bottom sheet */}
+      {/* mobile: full-height bottom sheet, dismissable by dragging the grab bar */}
       <div
+        ref={sheet}
         className="cd-sheet absolute inset-x-0 bottom-0 flex h-[88dvh] flex-col overflow-hidden rounded-t-2xl border-t border-border bg-s0 shadow-soft lg:hidden"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        <div className="flex flex-none justify-center pt-2"><span className="h-1 w-10 rounded-full bg-border2" /></div>
+        <div
+          className="flex flex-none cursor-grab touch-none justify-center py-2.5 active:cursor-grabbing"
+          onPointerDown={onGrabDown}
+          onPointerMove={onGrabMove}
+          onPointerUp={onGrabUp}
+          onPointerCancel={onGrabUp}
+          aria-label="Drag down to close"
+        >
+          <span className="h-1 w-10 rounded-full bg-border2" />
+        </div>
         {body}
       </div>
     </div>

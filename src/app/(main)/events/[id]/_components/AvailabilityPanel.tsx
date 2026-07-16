@@ -521,14 +521,51 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
   return (
     <div className="relative flex flex-col rounded-2xl border border-border bg-s1 lg:h-[calc(100dvh-300px)] lg:max-h-[820px] lg:min-h-[480px] lg:flex-row">
       <div ref={colRef} className="relative flex min-w-0 flex-1 flex-col p-4">
-        {/* toolbar */}
-        <div className="flex flex-wrap items-center gap-[9px] border-b border-border pb-[13px]">
+        {/* toolbar — first row pairs the mode toggle with Settings (always right-aligned);
+            the week nav and time controls flow on their own row below */}
+        <div className="border-b border-border pb-[13px]">
           {!locked && (
-            <>
+            <div className="mb-2.5 flex items-center justify-between gap-[9px]">
               <SegmentedControl size="sm" value={mode} onChange={(v) => { setMode(v as Mode); setSel(null); setDetail(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
-              <span className="h-5 w-px bg-border" />
-            </>
+              <Popover
+                align="end"
+                width={224}
+                trigger={(open) => (
+                  <span className={`flex h-7 items-center gap-1.5 rounded-lg border px-[10px] text-[12.5px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
+                    <SlidersHorizontal size={13} /> Settings
+                  </span>
+                )}
+              >
+                {() => (
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Event length</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[30, 60, 90, 120, 180, 240].map((m) => (
+                          <button key={m} onClick={() => changeDuration(m)} className={`rounded-[7px] border px-2 py-1 text-[12.5px] font-medium ${m === durationMin ? 'border-accent bg-accent text-on-accent' : 'border-border2 bg-s1 hover:bg-s2'}`}>{fmtDur(m)}</button>
+                        ))}
+                      </div>
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <span className="text-[12px] text-faint">Custom</span>
+                        <input
+                          type="number" min={15} max={720} step={15} value={durationMin}
+                          onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) changeDuration(Math.min(720, Math.max(15, n))) }}
+                          className="h-7 w-16 rounded-[7px] border border-border bg-s1 px-2 text-[13px] tabular-nums outline-none focus:border-accent-border"
+                          aria-label="Custom event length in minutes"
+                        />
+                        <span className="text-[12px] text-faint">min</span>
+                      </div>
+                    </div>
+                    <div className="border-t border-border pt-2.5">
+                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Time format</div>
+                      <Segment value={h24 ? '24' : '12'} onChange={(v) => setH24(v === '24')} options={[{ v: '12', l: '12-hour' }, { v: '24', l: '24-hour' }]} />
+                    </div>
+                  </div>
+                )}
+              </Popover>
+            </div>
           )}
+          <div className="flex flex-wrap items-center gap-[9px]">
           <div className="flex items-center gap-[3px]">
             <IconBtn onClick={() => goWeek(-1)} disabled={page === 0}><ChevronLeft size={17} /></IconBtn>
             <span className="px-1 text-center text-[13.5px] font-semibold leading-tight">
@@ -546,45 +583,7 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
           )}
           {!locked && <ImportFromCalendar onPick={startImport} />}
           {!locked && youAny && <ClearTimes onClear={clearAllMine} />}
-          <div className="flex-1" />
-          {/* ml-auto keeps this pinned to the right edge even after the toolbar wraps */}
-          {!locked && <Popover
-            align="end"
-            width={224}
-            className="ml-auto"
-            trigger={(open) => (
-              <span className={`flex h-7 items-center gap-1.5 rounded-lg border px-[10px] text-[12.5px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
-                <SlidersHorizontal size={13} /> Settings
-              </span>
-            )}
-          >
-            {() => (
-              <div className="flex flex-col gap-3">
-                <div>
-                  <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Event length</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[30, 60, 90, 120, 180, 240].map((m) => (
-                      <button key={m} onClick={() => changeDuration(m)} className={`rounded-[7px] border px-2 py-1 text-[12.5px] font-medium ${m === durationMin ? 'border-accent bg-accent text-on-accent' : 'border-border2 bg-s1 hover:bg-s2'}`}>{fmtDur(m)}</button>
-                    ))}
-                  </div>
-                  <div className="mt-2 flex items-center gap-1.5">
-                    <span className="text-[12px] text-faint">Custom</span>
-                    <input
-                      type="number" min={15} max={720} step={15} value={durationMin}
-                      onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) changeDuration(Math.min(720, Math.max(15, n))) }}
-                      className="h-7 w-16 rounded-[7px] border border-border bg-s1 px-2 text-[13px] tabular-nums outline-none focus:border-accent-border"
-                      aria-label="Custom event length in minutes"
-                    />
-                    <span className="text-[12px] text-faint">min</span>
-                  </div>
-                </div>
-                <div className="border-t border-border pt-2.5">
-                  <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Time format</div>
-                  <Segment value={h24 ? '24' : '12'} onChange={(v) => setH24(v === '24')} options={[{ v: '12', l: '12-hour' }, { v: '24', l: '24-hour' }]} />
-                </div>
-              </div>
-            )}
-          </Popover>}
+          </div>
         </div>
 
         {/* participants + edit hint */}
@@ -1012,7 +1011,7 @@ function ImportFromCalendar({ onPick }: { onPick: (provider: string) => void }) 
         <CalendarPlus size={15} /> Import from calendar <ChevronDown size={13} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 w-[248px] rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
+        <div className="absolute left-0 top-full z-[35] mt-1 w-[248px] rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
           <p className="px-2.5 pb-1.5 pt-2 text-[12px] leading-[1.45] text-faint">
             Connect a calendar and your free times fill in automatically. Busy times import as exact moments, so they stay correct even if your calendar uses a different timezone than this event. You review everything before it&apos;s saved.
           </p>
@@ -1052,7 +1051,7 @@ function ClearTimes({ onClear }: { onClear: () => void }) {
         <Eraser size={15} /> Clear my times
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 w-[236px] rounded-[10px] border border-brick-border bg-s1 p-3 shadow-soft">
+        <div className="absolute left-0 top-full z-[35] mt-1 w-[236px] rounded-[10px] border border-brick-border bg-s1 p-3 shadow-soft">
           <div className="flex items-start gap-2">
             <TriangleAlert size={16} className="mt-px flex-none text-brick-text" />
             <p className="text-[13px] leading-[1.5] text-text">
@@ -1127,7 +1126,7 @@ function MissingPopover({ missing, nudged, onNudge, onNudgeAll, onClose }: { mis
   }, [onClose])
   const allNudged = missing.every((p) => nudged.has(p.id))
   return (
-    <div ref={wrap} className="absolute left-0 top-full z-30 mt-1 w-[244px] rounded-[10px] border border-border bg-s1 p-2 shadow-soft">
+    <div ref={wrap} className="absolute left-0 top-full z-[35] mt-1 w-[244px] rounded-[10px] border border-border bg-s1 p-2 shadow-soft">
       <div className="flex items-center justify-between px-1 pb-1.5">
         <span className="text-[12px] font-semibold uppercase tracking-[.1em] text-faint">Waiting on {missing.length}</span>
         <button onClick={onNudgeAll} disabled={allNudged} className="flex items-center gap-1 text-[12px] font-semibold text-accent-text disabled:text-faint"><Bell size={12} /> Nudge all</button>
