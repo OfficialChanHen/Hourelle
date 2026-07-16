@@ -458,8 +458,8 @@ Tracked on `events.status`. Shown as a 5-dot progress strip (GSAP fill animation
 ### Guest experience
 - Share link: `/events/[id]/join?token=[slug]`
 - Guest enters name → `event_participants` row with `user_id = null`
-- Guest can: mark availability, vote on locations, chat
-- Guest cannot: see budget, edit event details, manage other participants
+- Guest can: mark availability, vote on locations, chat, see the budget (read-only)
+- Guest cannot: edit event details (including the budget), manage other participants
 - Guest session in localStorage + httpOnly cookie
 
 ---
@@ -551,7 +551,7 @@ The app must be fully usable from a ~360px phone to a large desktop. This is a h
 - **Never** put "Create event" as a nav tab — it is a button (desktop) / center FAB (mobile)
 - **Never** use CSS `transition` for complex animations — use GSAP
 - **Never** show a time without a timezone pill
-- **Never** show budget to guest/participant users (only to event host)
+- **Never** let anyone but the event host edit the budget — guests and participants see it read-only, labeled as set by the host
 - **Never** hardcode timezone — always use `event.timezone`
 - **Never** use `position: fixed` in components
 - **Never** show the full availability grid to guests before they enter their name

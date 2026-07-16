@@ -259,9 +259,7 @@ function DetailsTab({ event, onDelete, onGoToTab, onPatch }: { event: AppEvent; 
         <DetailRow k="Where" v={<WhereValue event={event} locked={locked} onGoToLocation={() => onGoToTab('location')} />} />
         <DetailRow
           k="Budget"
-          v={isHost
-            ? <BudgetEditor event={event} onPatch={onPatch} />
-            : event.budget ? `$${Number(event.budget).toLocaleString()} ${event.budgetMode === 'person' ? 'per person' : 'total'}` : <span className="text-faint">None</span>}
+          v={isHost ? <BudgetEditor event={event} onPatch={onPatch} /> : <BudgetReadOnly event={event} />}
           last
         />
       </div>
@@ -388,6 +386,41 @@ function DescriptionValue({ event, editable, onPatch }: { event: AppEvent; edita
   )
 }
 
+/* people who have marked availability on days the event still spans — dormant data for
+   removed days stays in storage but shouldn't count here */
+function respondedInRange(event: AppEvent): number {
+  return respondedCount(Object.fromEntries(event.days.map((d) => [d.key, event.avail[d.key] ?? []])))
+}
+
+/* the other side of the budget math, so the entered number reads in both directions */
+function BudgetConverse({ amount, mode, responded }: { amount: number; mode: 'total' | 'person'; responded: number }) {
+  if (amount <= 0 || responded <= 0) return null
+  return (
+    <span className="text-[12.5px] leading-[1.5] text-faint">
+      <span className="mr-1 italic">or</span>
+      <span className="text-dim">
+        {mode === 'person'
+          ? `$${(amount * responded).toLocaleString()} total for ${responded} currently available`
+          : `$${Math.round(amount / responded).toLocaleString()}/person for ${responded} currently available`}
+      </span>
+    </span>
+  )
+}
+
+/* what everyone who isn't the host sees: the number, the converse math, and who owns it */
+function BudgetReadOnly({ event }: { event: AppEvent }) {
+  if (!event.budget) return <span className="text-faint">None yet</span>
+  const amount = Number(event.budget)
+  const mode = event.budgetMode ?? 'total'
+  return (
+    <div className="flex flex-col gap-1">
+      <span>${amount.toLocaleString()} {mode === 'person' ? 'per person' : 'total'}</span>
+      <BudgetConverse amount={amount} mode={mode} responded={respondedInRange(event)} />
+      <span className="text-[12px] text-faint">Set by the host</span>
+    </div>
+  )
+}
+
 /* Budget: hosts adjust the amount and flip between per-person and total; the caption
    works out the other side of the math from whoever has marked availability so far */
 function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
@@ -405,7 +438,7 @@ function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Pa
   }
 
   const amount = Number(budget || 0)
-  const responded = respondedCount(event.avail)
+  const responded = respondedInRange(event)
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -431,16 +464,7 @@ function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Pa
           ))}
         </div>
       </div>
-      {amount > 0 && responded > 0 && (
-        <span className="text-[12.5px] leading-[1.5] text-faint">
-          <span className="mr-1 italic">or</span>
-          <span className="text-dim">
-            {mode === 'person'
-              ? `$${(amount * responded).toLocaleString()} total for ${responded} currently available`
-              : `$${Math.round(amount / responded).toLocaleString()}/person for ${responded} currently available`}
-          </span>
-        </span>
-      )}
+      <BudgetConverse amount={amount} mode={mode} responded={responded} />
       {amount > 0 && responded === 0 && (
         <span className="text-[12.5px] text-faint">No one has marked availability yet, so there is no estimate.</span>
       )}
