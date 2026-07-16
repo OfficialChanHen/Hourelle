@@ -14,7 +14,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, patchEvent, dateRangeText, fmtMinute, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, type AppEvent, type Rsvp } from '@/lib/events'
+import { getEvent, deleteEvent, patchEvent, buildDays, dateRangeText, fmtMinute, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, type AppEvent, type Rsvp } from '@/lib/events'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
 import { AttendancePanel } from './AttendancePanel'
@@ -255,7 +255,7 @@ function DetailsTab({ event, onDelete, onGoToTab, onPatch }: { event: AppEvent; 
       <div className="min-w-[320px] flex-[1.5] rounded-2xl border border-border bg-s1 p-5">
         <div className="mb-1 flex items-center gap-2 text-[14.5px] font-semibold"><Settings size={17} className="text-dim" /> Details</div>
         <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} onPatch={onPatch} />} />
-        <DetailRow k="When" v={<WhenValue event={event} locked={locked} onGoToAvailability={() => onGoToTab('availability')} />} />
+        <DetailRow k="When" v={<WhenValue event={event} locked={locked} editable={isHost && !locked} onGoToAvailability={() => onGoToTab('availability')} onPatch={onPatch} />} />
         <DetailRow k="Where" v={<WhereValue event={event} locked={locked} onGoToLocation={() => onGoToTab('location')} />} />
         <DetailRow
           k="Budget"
@@ -363,7 +363,10 @@ function CopyInviteLink({ id }: { id: string }) {
 
 /* When: the locked-in day and time once confirmed; before that, the date range being polled.
    A single-day event already knows its day, so only the time reads as open. */
-function WhenValue({ event, locked, onGoToAvailability }: { event: AppEvent; locked: boolean; onGoToAvailability: () => void }) {
+function WhenValue({ event, locked, editable, onGoToAvailability, onPatch }: {
+  event: AppEvent; locked: boolean; editable: boolean; onGoToAvailability: () => void; onPatch: (patch: Partial<AppEvent>) => void
+}) {
+  const [editing, setEditing] = useState(false)
   if (locked) {
     const c = event.confirmed!
     const d = event.days.find((x) => x.key === c.dayKey)
@@ -375,17 +378,79 @@ function WhenValue({ event, locked, onGoToAvailability }: { event: AppEvent; loc
       </span>
     )
   }
-  if (event.startDate === event.endDate) {
-    const dow = event.days[0]?.dow
-    return (
-      <span className="flex flex-wrap items-center gap-1.5">
-        {dow ? `${dow}, ` : ''}{dateRangeText(event)} ·
-        <button onClick={onGoToAvailability} title="Mark when you're free on the Availability tab" className="font-medium text-accent-text hover:underline">time to be decided</button>
-        <TimezonePill tz={event.timezone} />
-      </span>
-    )
+  if (editing) return <WhenEditor event={event} onPatch={onPatch} onDone={() => setEditing(false)} />
+
+  const oneDay = event.startDate === event.endDate
+  const dow = oneDay ? event.days[0]?.dow : null
+  return (
+    <span className="flex flex-wrap items-center gap-1.5">
+      {dow ? `${dow}, ` : ''}{dateRangeText(event)}
+      {oneDay && (
+        <>
+          {' · '}
+          <button onClick={onGoToAvailability} title="Mark when you're free on the Availability tab" className="font-medium text-accent-text hover:underline">time to be decided</button>
+        </>
+      )}
+      <TimezonePill tz={event.timezone} />
+      {editable && (
+        <button onClick={() => setEditing(true)} title="Change the dates or event length" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
+          <Pencil size={13} />
+        </button>
+      )}
+    </span>
+  )
+}
+
+/* dates and event length are editable while planning. Replies are stored per day, so a
+   dropped day keeps its data dormant and gets it back if the day returns to the range. */
+const DURATIONS: [number, string][] = [
+  [30, '30 minutes'], [60, '1 hour'], [90, '1.5 hours'], [120, '2 hours'],
+  [180, '3 hours'], [240, '4 hours'], [360, '6 hours'], [480, '8 hours'],
+]
+function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void; onDone: () => void }) {
+  const [start, setStart] = useState(event.startDate)
+  const [end, setEnd] = useState(event.endDate)
+  const [dur, setDur] = useState(event.durationMin ?? 60)
+  const durations = DURATIONS.some(([m]) => m === dur) ? DURATIONS : [...DURATIONS, [dur, `${dur} minutes`] as [number, string]]
+  const inputCls = 'h-9 rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-border2'
+
+  function save() {
+    const e = end < start ? start : end
+    const days = buildDays(start, e)
+    // keep every existing day's replies (even out-of-range ones stay dormant); new days start empty
+    const avail = { ...event.avail }
+    for (const d of days) if (!avail[d.key]) avail[d.key] = event.times.map(() => [])
+    const availIv = { ...(event.availIv ?? {}) }
+    for (const d of days) if (!availIv[d.key]) availIv[d.key] = {}
+    onPatch({ startDate: start, endDate: e, days, avail, availIv, durationMin: dur })
+    onDone()
   }
-  return <span className="flex flex-wrap items-center gap-1.5">{dateRangeText(event)} <TimezonePill tz={event.timezone} /></span>
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="date" value={start} className={inputCls}
+          onChange={(ev) => { setStart(ev.target.value); if (end < ev.target.value) setEnd(ev.target.value) }}
+        />
+        <span className="text-[13px] text-dim">to</span>
+        <input type="date" value={end} min={start} onChange={(ev) => setEnd(ev.target.value)} className={inputCls} />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[12.5px] text-dim">Needs about</span>
+        <select value={dur} onChange={(ev) => setDur(Number(ev.target.value))} className={inputCls}>
+          {durations.map(([m, l]) => <option key={m} value={m}>{l}</option>)}
+        </select>
+      </div>
+      <p className="max-w-[420px] text-[12px] leading-[1.5] text-faint">
+        Replies are saved per day. If you drop a day and bring it back later, the replies for it come back too.
+      </p>
+      <div className="flex items-center gap-2">
+        <button onClick={save} className="h-8 rounded-[8px] bg-accent px-3 text-[12.5px] font-semibold text-on-accent">Save</button>
+        <button onClick={onDone} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
+      </div>
+    </div>
+  )
 }
 
 /* Where: the confirmed venue once locked; before that, the vote leader for a single venue,
