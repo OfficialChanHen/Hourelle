@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Building2, User, Link2, Users, Copy, MessageCircle, Pencil, EllipsisVertical,
+  Building2, User, Link2, Users, Copy, MessageCircle, Pencil, EllipsisVertical, CopyPlus,
   CalendarRange, MapPin, UsersRound, Settings, Check, Trash2, TriangleAlert,
 } from 'lucide-react'
 import { gsap } from 'gsap'
@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover } from '@/components/ui/Popover'
 import { getEvent, deleteEvent, patchEvent, buildDays, dateRangeText, fmtMinute, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, type AppEvent, type Rsvp } from '@/lib/events'
+import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
 import { AttendancePanel } from './AttendancePanel'
@@ -262,6 +263,16 @@ function DetailsTab({ event, onDelete, onGoToTab, onPatch }: { event: AppEvent; 
           v={isHost ? <BudgetEditor event={event} onPatch={onPatch} /> : <BudgetReadOnly event={event} />}
           last
         />
+        {/* logistics people come here for: put the plan on a calendar, or reuse its shape */}
+        <div className="mt-1 flex flex-wrap items-center gap-2 border-t border-border pt-3.5">
+          <AddToCalendar
+            event={event}
+            slot={locked ? { dayKey: event.confirmed!.dayKey, startMin: event.confirmed!.startMin, endMin: event.confirmed!.endMin } : null}
+          />
+          <Link href={`/create?from=${event.id}`} className="flex h-8 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2">
+            <CopyPlus size={15} /> Plan another like this
+          </Link>
+        </div>
       </div>
 
       <ParticipantsCard event={event} isHost={isHost} onPatch={onPatch} />
