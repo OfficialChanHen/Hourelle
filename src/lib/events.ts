@@ -358,6 +358,21 @@ export function leadingPlaceOf(ev: AppEvent): LeadingPlace | null {
   return { place: ranked[0], voters: votesOf(ranked[0].id), confirmed: false, margin }
 }
 
+// everything that references a participant, minus that participant — their availability,
+// votes, and roster row go together so no tab is left pointing at a ghost
+export function removeParticipantPatch(ev: AppEvent, pid: string): Partial<AppEvent> {
+  return {
+    participants: ev.participants.filter((p) => p.id !== pid),
+    avail: Object.fromEntries(Object.entries(ev.avail).map(([k, rows]) => [k, rows.map((ids) => ids.filter((id) => id !== pid))])),
+    availIv: ev.availIv
+      ? Object.fromEntries(Object.entries(ev.availIv).map(([k, byPid]) => [k, Object.fromEntries(Object.entries(byPid).filter(([id]) => id !== pid))]))
+      : undefined,
+    votes: ev.votes
+      ? Object.fromEntries(Object.entries(ev.votes).map(([k, ids]) => [k, ids.filter((id) => id !== pid)]))
+      : undefined,
+  }
+}
+
 export function setMyRsvp(id: string, rsvp: Rsvp): void {
   const ev = getEvent(id)
   if (!ev) return

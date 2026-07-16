@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Building2, User, Link2, Users, Copy, MessageCircle, Pencil,
+  Building2, User, Link2, Users, Copy, MessageCircle, Pencil, EllipsisVertical,
   CalendarRange, MapPin, UsersRound, Settings, Check, Trash2, TriangleAlert,
 } from 'lucide-react'
 import { gsap } from 'gsap'
@@ -14,7 +14,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, patchEvent, dateRangeText, fmtMinute, leadingPlaceOf, phaseOf, respondedCount, type AppEvent, type Rsvp } from '@/lib/events'
+import { getEvent, deleteEvent, patchEvent, dateRangeText, fmtMinute, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, type AppEvent, type Rsvp } from '@/lib/events'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
 import { AttendancePanel } from './AttendancePanel'
@@ -264,25 +264,100 @@ function DetailsTab({ event, onDelete, onGoToTab, onPatch }: { event: AppEvent; 
         />
       </div>
 
-      <div className="min-w-[280px] flex-1 rounded-2xl border border-border bg-s1 p-5">
-        <div className="mb-3 flex items-center gap-2 text-[14.5px] font-semibold">
-          <Users size={17} className="text-dim" /> Participants
-          <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[12px] text-dim">{event.participants.length}</span>
-        </div>
-        <div className="flex flex-col">
-          {event.participants.map((p, i) => (
-            <div key={p.id} className={`flex items-center gap-2.5 py-2 ${i > 0 ? 'border-t border-border' : ''}`}>
-              <Avatar initials={p.initials} color={p.color} size={29} font={10.5} />
-              <span className="flex-1 truncate text-[13.5px] font-medium">{p.name}</span>
-              {p.host && <span className="rounded-md border border-accent-border bg-accent-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-accent-text">Host</span>}
-              <span className="rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: RSVP[p.rsvp].color, background: `var(--${RSVP[p.rsvp].chip}-bg, var(--s2))` }}>{RSVP[p.rsvp].label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <ParticipantsCard event={event} isHost={isHost} onPatch={onPatch} />
 
       {event.hostedByYou && !event.demo && <DangerZone title={event.title} onDelete={onDelete} />}
     </div>
+  )
+}
+
+/* Participants: who's in, how they replied, and (for the host) the levers per person */
+function ParticipantsCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
+  const going = event.participants.filter((p) => p.rsvp === 'attending').length
+  const noReply = event.participants.filter((p) => p.rsvp === 'pending').length
+  return (
+    <div className="min-w-[280px] flex-1 rounded-2xl border border-border bg-s1 p-5">
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-[14.5px] font-semibold">
+        <Users size={17} className="text-dim" /> Participants
+        <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[12px] text-dim">{event.participants.length}</span>
+        <span className="ml-auto text-[12.5px] font-normal text-dim">
+          {going} going{noReply > 0 && <span className="text-faint"> · {noReply} no reply</span>}
+        </span>
+      </div>
+      <div className="flex flex-col">
+        {event.participants.map((p, i) => (
+          <div key={p.id} className={`flex items-center gap-2.5 py-2 ${i > 0 ? 'border-t border-border' : ''}`}>
+            <Avatar initials={p.initials} color={p.color} size={29} font={10.5} />
+            <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}</span>
+            {p.host && <span className="flex-none rounded-md border border-accent-border bg-accent-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-accent-text">Host</span>}
+            <span className="flex-none rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: RSVP[p.rsvp].color, background: `var(--${RSVP[p.rsvp].chip}-bg, var(--s2))` }}>{RSVP[p.rsvp].label}</span>
+            {isHost && !p.you && <ParticipantMenu p={p} event={event} onPatch={onPatch} />}
+          </div>
+        ))}
+      </div>
+      <CopyInviteLink id={event.id} />
+    </div>
+  )
+}
+
+/* host actions per person: mark their reply for them, share the link, or remove them */
+function ParticipantMenu({ p, event, onPatch }: { p: AppEvent['participants'][number]; event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
+  return (
+    <Popover width={216} align="end" className="flex-none" trigger={() => (
+      <span className="grid h-7 w-7 place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim"><EllipsisVertical size={14} /></span>
+    )}>
+      {(close) => <ParticipantMenuBody p={p} event={event} onPatch={onPatch} close={close} />}
+    </Popover>
+  )
+}
+
+function ParticipantMenuBody({ p, event, onPatch, close }: {
+  p: AppEvent['participants'][number]; event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void; close: () => void
+}) {
+  const [confirmRemove, setConfirmRemove] = useState(false)
+  const first = p.name.split(' ')[0]
+  function markRsvp(r: Rsvp) {
+    onPatch({ participants: event.participants.map((x) => (x.id === p.id ? { ...x, rsvp: r } : x)) })
+    close()
+  }
+  function remove() {
+    onPatch(removeParticipantPatch(event, p.id))
+    close()
+  }
+  return (
+    <div className="flex flex-col p-0.5">
+      <div className="px-2 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Reply for {first}</div>
+      {(Object.keys(RSVP) as Rsvp[]).map((r) => (
+        <button key={r} onClick={() => markRsvp(r)} className={`flex items-center gap-2 rounded-[7px] px-2 py-1.5 text-left text-[13px] font-medium hover:bg-s2 ${p.rsvp === r ? 'bg-s2' : ''}`}>
+          <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: RSVP[r].color }} />
+          {RSVP[r].label}
+          {p.rsvp === r && <Check size={13} className="ml-auto text-dim" />}
+        </button>
+      ))}
+      <div className="my-1 border-t border-border" />
+      {confirmRemove ? (
+        <button onClick={remove} className="rounded-[7px] bg-brick-bg px-2 py-1.5 text-left text-[13px] font-semibold text-brick-text">
+          Remove {first}? This clears their replies too.
+        </button>
+      ) : (
+        <button onClick={() => setConfirmRemove(true)} className="rounded-[7px] px-2 py-1.5 text-left text-[13px] font-medium text-brick-text hover:bg-brick-bg">
+          Remove from event
+        </button>
+      )}
+    </div>
+  )
+}
+
+/* the same link the share button offers, where people go looking for it */
+function CopyInviteLink({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false)
+  function copy() {
+    navigator.clipboard?.writeText(`https://aline.app/e/${id}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
+  }
+  return (
+    <button onClick={copy} className={`mt-3 flex h-9 w-full items-center justify-center gap-1.5 rounded-[9px] border text-[13px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
+      {copied ? <><Check size={14} /> Copied</> : <><Link2 size={14} /> Copy invite link</>}
+    </button>
   )
 }
 
