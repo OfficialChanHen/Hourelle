@@ -58,7 +58,6 @@ export type AppEvent = {
   travelModes?: string[]              // allowed transport modes for route timing (default all)
   durationMin?: number                // how long the event needs — drives the best-window search
   quorum?: number                     // host-set smallest headcount that works; attendance warns below it
-  timingNotes?: Record<string, string> // participantId → a short self-reported timing note ("arriving around 3")
   messages: ChatMessage[]
   createdAt: number
   demo?: boolean

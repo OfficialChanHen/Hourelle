@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { Check, ChevronRight, Clock, Copy, Info, MapPin, Pencil, TriangleAlert, Users } from 'lucide-react'
+import { Check, ChevronRight, Clock, Copy, Info, MapPin, TriangleAlert, Users } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Popover } from '@/components/ui/Popover'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -62,11 +62,10 @@ export function AttendancePanel({ event, onGoToTab }: { event: AppEvent; onGoToT
   const hasItinerary = (event.itinStops?.length ?? 0) > 0
   const [model, setModel] = useState<'single' | 'itin'>(hasItinerary ? 'itin' : 'single')
 
-  // RSVP, quorum and timing notes are editable on this tab — local state first so the demo
-  // event works in memory, persisted for real events (same pattern as the Location tab)
+  // RSVP and quorum are editable on this tab — local state first so the demo event
+  // works in memory, persisted for real events (same pattern as the Location tab)
   const [participants, setParticipants] = useState(event.participants)
   const [quorum, setQuorum] = useState<number | null>(event.quorum ?? null)
-  const [timingNotes, setTimingNotes] = useState<Record<string, string>>(event.timingNotes ?? {})
   // the event re-loads while this tab is open (confirm / reopen in the header) — adopt the
   // fresh participant list during render instead of via an effect
   const [seenParticipants, setSeenParticipants] = useState(event.participants)
@@ -83,13 +82,6 @@ export function AttendancePanel({ event, onGoToTab }: { event: AppEvent; onGoToT
   function changeQuorum(q: number | null) {
     setQuorum(q)
     persist({ quorum: q ?? undefined })
-  }
-  function changeNote(pid: string, v: string) {
-    const next = { ...timingNotes }
-    if (v.trim()) next[pid] = v.trim()
-    else delete next[pid]
-    setTimingNotes(next)
-    persist({ timingNotes: next })
   }
 
   const availIv = availIvOf(event)
@@ -145,7 +137,7 @@ export function AttendancePanel({ event, onGoToTab }: { event: AppEvent; onGoToT
           event={liveEvent} attendees={attendees} win={win} locked={locked} dayIv={dayIv}
           gridStart={gridStart} step={step} rows={rows}
           quorum={quorum} onQuorum={event.hostedByYou ? changeQuorum : undefined}
-          timingNotes={timingNotes} onNote={changeNote} onGoToTab={onGoToTab}
+          onGoToTab={onGoToTab}
         />
       )}
     </div>
@@ -209,12 +201,11 @@ function CopySummaryButton({ event, win, locked, gridStart }: { event: AppEvent;
 
 /* ── Single venue: where it's happening, who's in the room, and when ── */
 function SingleVenue({
-  event, attendees, win, locked, dayIv, gridStart, step, rows, quorum, onQuorum, timingNotes, onNote, onGoToTab,
+  event, attendees, win, locked, dayIv, gridStart, step, rows, quorum, onQuorum, onGoToTab,
 }: {
   event: AppEvent; attendees: Participant[]; win: Win | null; locked: boolean
   dayIv: Record<string, Iv[]>; gridStart: number; step: number; rows: number
   quorum: number | null; onQuorum?: (q: number | null) => void
-  timingNotes: Record<string, string>; onNote: (pid: string, v: string) => void
   onGoToTab?: GoTab
 }) {
   const winS = win?.s ?? 0
@@ -262,11 +253,6 @@ function SingleVenue({
     return found ? { d: found.d, gain: found.count - cur } : null
   }, [win, winS, winE, attendees, dayIv, rows, step])
 
-  const noteExtras = (p: Participant) => ({
-    userNote: timingNotes[p.id],
-    noteEdit: p.you ? (v: string) => onNote(p.id, v) : undefined,
-  })
-
   return (
     <div className="rounded-2xl border border-border bg-s1 p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
@@ -292,14 +278,13 @@ function SingleVenue({
       {shift && <ShiftSuggestion shift={shift} />}
 
       <div className="mt-5 flex flex-col gap-4">
-        <RosterGroup label="Here the whole time" tone="teal" people={groups.whole.map((p) => ({ p, ...noteExtras(p) }))} />
+        <RosterGroup label="Here the whole time" tone="teal" people={groups.whole.map((p) => ({ p }))} />
         <RosterGroup label="Part of the time" tone="ochre" people={groups.part.map((x) => ({
           p: x.p,
           note: x.e != null ? `${fmtMinute(gridStart + x.s)}–${fmtMinute(gridStart + x.e)}` : 'time conflict',
           bar: barOf(x.s, x.e),
-          ...noteExtras(x.p),
         }))} />
-        <RosterGroup label="Maybe" tone="ochre" people={groups.maybe.map((p) => ({ p, ...noteExtras(p) }))} />
+        <RosterGroup label="Maybe" tone="ochre" people={groups.maybe.map((p) => ({ p }))} />
         <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({ p }))} />
         <RosterGroup label="No reply" tone="faint" people={groups.noReply.map((p) => ({ p }))} action={<CopyReminder event={event} />} />
       </div>
@@ -495,7 +480,7 @@ const TONE: Record<string, { dot: string; text: string }> = {
 
 function RosterGroup({ label, tone, people, cap = 12, action }: {
   label: string; tone: keyof typeof TONE | string
-  people: { p: Participant; note?: string; bar?: { left: string; width: string } | null; userNote?: string; noteEdit?: (v: string) => void }[]
+  people: { p: Participant; note?: string; bar?: { left: string; width: string } | null }[]
   cap?: number
   action?: ReactNode
 }) {
@@ -513,7 +498,7 @@ function RosterGroup({ label, tone, people, cap = 12, action }: {
         {action && <span className="ml-auto">{action}</span>}
       </div>
       <div className="flex flex-col gap-1.5">
-        {shown.map(({ p, note, bar, userNote, noteEdit }) => (
+        {shown.map(({ p, note, bar }) => (
           <div key={p.id} className="flex items-center gap-2.5">
             <Avatar initials={p.initials} color={p.color} size={27} font={10} />
             <span className={`min-w-0 truncate text-[14px] ${hasBars ? 'w-[30%] sm:w-[120px] flex-none' : 'flex-1'}`}>{p.name}{p.you && <span className="text-faint"> · you</span>}</span>
@@ -524,40 +509,12 @@ function RosterGroup({ label, tone, people, cap = 12, action }: {
                   : <span className="absolute inset-0 flex items-center px-2 text-[11.5px] text-brick-text">busy during this time</span>}
               </div>
             )}
-            {userNote && <span className="max-w-[110px] flex-none truncate text-[12px] text-ochre-text sm:max-w-[180px]" title={userNote}>&ldquo;{userNote}&rdquo;</span>}
             {note && <span className="hidden flex-none items-center gap-1 text-[12.5px] text-dim sm:flex"><Clock size={12} /> {note}</span>}
-            {noteEdit && <NoteEditor value={userNote ?? ''} onSave={noteEdit} />}
           </div>
         ))}
         {extra > 0 && <div className="pl-[34px] text-[12.5px] text-faint">and {extra} more</div>}
       </div>
     </div>
-  )
-}
-
-/* your own timing note — availability says when you're free, this says what you'll actually do */
-function NoteEditor({ value, onSave }: { value: string; onSave: (v: string) => void }) {
-  const ref = useRef<HTMLInputElement>(null)
-  return (
-    <Popover width={276} align="end" className="flex-none" trigger={() => (
-      <span className="grid h-7 w-7 place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim" title="Add a timing note"><Pencil size={13} /></span>
-    )}>
-      {(close) => (
-        <div className="p-1">
-          <div className="text-[13px] font-semibold">Timing note</div>
-          <p className="mt-1 text-[12.5px] leading-[1.5] text-dim">Let people know your plan, like arriving around 3 or leaving after dinner.</p>
-          <input
-            ref={ref} defaultValue={value} placeholder="Arriving around 3" maxLength={60}
-            className="mt-2.5 h-9 w-full rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] outline-none focus:border-border2"
-            onKeyDown={(e) => { if (e.key === 'Enter') { onSave(ref.current?.value ?? ''); close() } }}
-          />
-          <div className="mt-2 flex items-center justify-end gap-2">
-            {value && <button onClick={() => { onSave(''); close() }} className="h-8 rounded-[8px] px-2.5 text-[12.5px] font-semibold text-brick-text hover:bg-brick-bg">Remove</button>}
-            <button onClick={() => { onSave(ref.current?.value ?? ''); close() }} className="h-8 rounded-[8px] bg-accent px-3 text-[12.5px] font-semibold text-on-accent">Save</button>
-          </div>
-        </div>
-      )}
-    </Popover>
   )
 }
 
