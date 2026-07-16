@@ -110,6 +110,13 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
   function refresh() {
     setEvent(getEvent(id))
   }
+  // persist a field and update the in-memory event in one move, so everything reading
+  // `event` (the header, an open lock-in dropdown) reflects the edit immediately
+  function patchLive(patch: Partial<AppEvent>) {
+    if (!event) return
+    if (!event.demo) patchEvent(event.id, patch)
+    setEvent((ev) => (ev ? { ...ev, ...patch } : ev))
+  }
   function sendMessage(text: string) {
     if (!event) return
     const next = [...event.messages, { id: 'JM', name: 'You', time: 'now', text, you: true }]
@@ -197,7 +204,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       {tab === 'availability' && <AvailabilityPanel event={event} locked={locked} />}
       {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} />}
       {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={setTab} />}
-      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToLocation={() => setTab('location')} />}
+      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToLocation={() => setTab('location')} onPatch={patchLive} />}
 
       {chatOpen && <ChatDrawer event={event} messages={event.messages} onSend={sendMessage} onClose={() => setChatOpen(false)} />}
     </div>
@@ -205,7 +212,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
 }
 
 /* ── Details tab ── */
-function DetailsTab({ event, onDelete, onGoToLocation }: { event: AppEvent; onDelete: () => void; onGoToLocation: () => void }) {
+function DetailsTab({ event, onDelete, onGoToLocation, onPatch }: { event: AppEvent; onDelete: () => void; onGoToLocation: () => void; onPatch: (patch: Partial<AppEvent>) => void }) {
   const isHost = event.hostedByYou
   const locked = event.status === 'confirmed' && !!event.confirmed
 
@@ -213,13 +220,13 @@ function DetailsTab({ event, onDelete, onGoToLocation }: { event: AppEvent; onDe
     <div className="flex flex-wrap items-start gap-3.5">
       <div className="min-w-[320px] flex-[1.5] rounded-2xl border border-border bg-s1 p-5">
         <div className="mb-1 flex items-center gap-2 text-[14.5px] font-semibold"><Settings size={17} className="text-dim" /> Details</div>
-        <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} />} />
+        <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} onPatch={onPatch} />} />
         <DetailRow k="When" v={<WhenValue event={event} locked={locked} />} />
         <DetailRow k="Where" v={<WhereValue event={event} locked={locked} onGoToLocation={onGoToLocation} />} />
         <DetailRow
           k="Budget"
           v={isHost
-            ? <BudgetEditor event={event} />
+            ? <BudgetEditor event={event} onPatch={onPatch} />
             : event.budget ? `$${Number(event.budget).toLocaleString()} ${event.budgetMode === 'person' ? 'per person' : 'total'}` : <span className="text-faint">None</span>}
           last
         />
@@ -302,7 +309,7 @@ function WhereValue({ event, locked, onGoToLocation }: { event: AppEvent; locked
 }
 
 /* Description: hosts edit it in place; everyone else just reads it */
-function DescriptionValue({ event, editable }: { event: AppEvent; editable: boolean }) {
+function DescriptionValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
   const [desc, setDesc] = useState(event.description)
   const [editing, setEditing] = useState(false)
   const ref = useRef<HTMLTextAreaElement>(null)
@@ -311,7 +318,7 @@ function DescriptionValue({ event, editable }: { event: AppEvent; editable: bool
     const v = (ref.current?.value ?? '').trim()
     setDesc(v)
     setEditing(false)
-    if (!event.demo) patchEvent(event.id, { description: v })
+    onPatch({ description: v })
   }
 
   if (!editable) return <>{desc || <span className="text-faint">No description</span>}</>
@@ -342,19 +349,18 @@ function DescriptionValue({ event, editable }: { event: AppEvent; editable: bool
 
 /* Budget: hosts adjust the amount and flip between per-person and total; the caption
    works out the other side of the math from whoever has marked availability so far */
-function BudgetEditor({ event }: { event: AppEvent }) {
+function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
   const [budget, setBudget] = useState(event.budget)
   const [mode, setMode] = useState<'total' | 'person'>(event.budgetMode ?? 'total')
-  const persist = (patch: Partial<AppEvent>) => { if (!event.demo) patchEvent(event.id, patch) }
 
   function changeBudget(v: string) {
     const clean = v.replace(/[^\d]/g, '').slice(0, 7)
     setBudget(clean)
-    persist({ budget: clean })
+    onPatch({ budget: clean })
   }
   function changeMode(m: 'total' | 'person') {
     setMode(m)
-    persist({ budgetMode: m })
+    onPatch({ budgetMode: m })
   }
 
   const amount = Number(budget || 0)
@@ -385,10 +391,13 @@ function BudgetEditor({ event }: { event: AppEvent }) {
         </div>
       </div>
       {amount > 0 && responded > 0 && (
-        <span className="text-[12.5px] leading-[1.5] text-dim">
-          {mode === 'person'
-            ? `$${(amount * responded).toLocaleString()} total for ${responded} currently available`
-            : `$${Math.round(amount / responded).toLocaleString()}/person for ${responded} currently available`}
+        <span className="text-[12.5px] leading-[1.5] text-faint">
+          <span className="mr-1 italic">or</span>
+          <span className="text-dim">
+            {mode === 'person'
+              ? `$${(amount * responded).toLocaleString()} total for ${responded} currently available`
+              : `$${Math.round(amount / responded).toLocaleString()}/person for ${responded} currently available`}
+          </span>
         </span>
       )}
       {amount > 0 && responded === 0 && (
