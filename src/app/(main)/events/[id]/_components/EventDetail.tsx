@@ -44,6 +44,10 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
   const router = useRouter()
   const [tab, setTab] = useState<TabKey>(initialTab ?? 'availability')
   const [event, setEvent] = useState<AppEvent | null | undefined>(undefined)
+  // clicking a person elsewhere jumps to the availability grid filtered to them;
+  // cleared during render once the user moves off that tab
+  const [availFocus, setAvailFocus] = useState<string | null>(null)
+  if (tab !== 'availability' && availFocus) setAvailFocus(null)
   const [copied, setCopied] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const tabsRef = useRef<HTMLDivElement>(null)
@@ -120,6 +124,10 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
     if (!event) return
     if (!event.demo) patchEvent(event.id, patch)
     setEvent((ev) => (ev ? { ...ev, ...patch } : ev))
+  }
+  function goToAvailabilityFor(pid: string) {
+    setAvailFocus(pid)
+    setTab('availability')
   }
   function sendMessage(text: string) {
     if (!event) return
@@ -205,10 +213,10 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       </div>
 
       {/* body */}
-      {tab === 'availability' && <AvailabilityPanel event={event} locked={locked} />}
+      {tab === 'availability' && <AvailabilityPanel event={event} locked={locked} initialFilter={availFocus} />}
       {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} />}
-      {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={setTab} />}
-      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToTab={setTab} onPatch={patchLive} />}
+      {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={setTab} onViewAvailability={goToAvailabilityFor} />}
+      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToTab={setTab} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} />}
 
       {chatOpen && <ChatDrawer event={event} messages={event.messages} onSend={sendMessage} onClose={() => setChatOpen(false)} />}
     </div>
@@ -250,7 +258,10 @@ function EditableTitle({ title, editable, onSave }: { title: string; editable: b
 type DetailsGoTab = (t: 'availability' | 'location') => void
 
 /* ── Details tab ── */
-function DetailsTab({ event, onDelete, onGoToTab, onPatch }: { event: AppEvent; onDelete: () => void; onGoToTab: DetailsGoTab; onPatch: (patch: Partial<AppEvent>) => void }) {
+function DetailsTab({ event, onDelete, onGoToTab, onPatch, onViewAvailability }: {
+  event: AppEvent; onDelete: () => void; onGoToTab: DetailsGoTab
+  onPatch: (patch: Partial<AppEvent>) => void; onViewAvailability: (pid: string) => void
+}) {
   const isHost = event.hostedByYou
   const locked = event.status === 'confirmed' && !!event.confirmed
 
@@ -278,7 +289,7 @@ function DetailsTab({ event, onDelete, onGoToTab, onPatch }: { event: AppEvent; 
         </div>
       </div>
 
-      <ParticipantsCard event={event} isHost={isHost} onPatch={onPatch} />
+      <ParticipantsCard event={event} isHost={isHost} onPatch={onPatch} onViewAvailability={onViewAvailability} />
 
       <ExpensesCard event={event} isHost={isHost} onPatch={onPatch} />
 
@@ -288,7 +299,9 @@ function DetailsTab({ event, onDelete, onGoToTab, onPatch }: { event: AppEvent; 
 }
 
 /* Participants: who's in, how they replied, and (for the host) the levers per person */
-function ParticipantsCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
+function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
+  event: AppEvent; isHost: boolean; onPatch: (patch: Partial<AppEvent>) => void; onViewAvailability: (pid: string) => void
+}) {
   const going = event.participants.filter((p) => p.rsvp === 'attending').length
   const noReply = event.participants.filter((p) => p.rsvp === 'pending').length
   return (
@@ -303,8 +316,13 @@ function ParticipantsCard({ event, isHost, onPatch }: { event: AppEvent; isHost:
       <div className="flex flex-col">
         {event.participants.map((p, i) => (
           <div key={p.id} className={`flex items-center gap-2.5 py-2 ${i > 0 ? 'border-t border-border' : ''}`}>
-            <Avatar initials={p.initials} color={p.color} size={29} font={10.5} />
-            <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}</span>
+            <button
+              type="button" onClick={() => onViewAvailability(p.id)} title={`See when ${p.name} is free`}
+              className="-mx-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-[8px] px-1 py-0.5 text-left hover:bg-s2"
+            >
+              <Avatar initials={p.initials} color={p.color} size={29} font={10.5} />
+              <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}</span>
+            </button>
             {p.host && <span className="flex-none rounded-md border border-accent-border bg-accent-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-accent-text">Host</span>}
             <span className="flex-none rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: RSVP[p.rsvp].color, background: `var(--${RSVP[p.rsvp].chip}-bg, var(--s2))` }}>{RSVP[p.rsvp].label}</span>
             {isHost && !p.you && <ParticipantMenu p={p} event={event} onPatch={onPatch} />}

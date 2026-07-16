@@ -103,7 +103,7 @@ function padToWeeks(days: GridDay[]): GDay[] {
   return out
 }
 
-export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; locked?: boolean }) {
+export function AvailabilityPanel({ event, locked = false, initialFilter = null }: { event: AppEvent; locked?: boolean; initialFilter?: string | null }) {
   const total = event.participants.length
   const pById = new Map(event.participants.map((p) => [p.id, p]))
   const avatarOf = (id: string) => {
@@ -138,8 +138,11 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
   const responded = otherIds.size + (youAny ? 1 : 0)
 
   // once the plan is locked the grid is reference only; otherwise open in edit
-  // until you've marked something — the page's one ask of a new participant
-  const [mode, setMode] = useState<Mode>(locked ? 'view' : !youAny ? 'edit' : 'view')
+  // until you've marked something — the page's one ask of a new participant.
+  // Arriving with a person to focus (clicked from another tab) always opens in view.
+  const [mode, setMode] = useState<Mode>(locked || initialFilter ? 'view' : !youAny ? 'edit' : 'view')
+  // person filter — view mode reads the heat map against just the selected people
+  const [filter, setFilter] = useState<Set<string>>(() => new Set(initialFilter ? [initialFilter] : []))
   const [h24, setH24] = useState(false)
   const [myTime, setMyTime] = useState(false) // show times in the viewer's local zone
   const [durationMin, setDurationMin] = useState(event.durationMin ?? 60)
@@ -235,6 +238,18 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
   function nudge(id: string) {
     setNudged((prev) => new Set(prev).add(id)) // stub: real build sends a reminder email
   }
+  // toggle a person in the filter; from edit mode this jumps to view, where the filter reads
+  function toggleFilter(pid: string) {
+    setFilter((prev) => {
+      const next = new Set(prev)
+      if (next.has(pid)) next.delete(pid)
+      else next.add(pid)
+      return next
+    })
+    setDetail(null)
+    if (mode === 'edit') { setMode('view'); setSel(null) }
+  }
+  function clearFilter() { setFilter(new Set()); setDetail(null) }
   function nudgeAll() { setNudged(new Set(missing.map((p) => p.id))) }
 
   // open the view-mode breakdown, anchored to the clicked cell but rendered outside the
@@ -492,8 +507,20 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
     [mode, editIvsByDay, others, page], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
+  // view mode reads through the person filter: heat, counts, popovers, and the best window
+  // all recompute against just the selected people (an empty filter means everyone)
+  const filterOn = filter.size > 0
+  const viewCombinedByDay = useMemo<AvailIntervals>(() => {
+    if (!filterOn) return combinedByDay
+    return Object.fromEntries(Object.entries(combinedByDay).map(([k, byPid]) => [
+      k,
+      Object.fromEntries(Object.entries(byPid).filter(([id]) => filter.has(id))),
+    ]))
+  }, [combinedByDay, filter, filterOn])
+  const viewTotal = filterOn ? filter.size : total
+
   // best window (live interval sweep — most people simultaneously free, longest such stretch)
-  const bw = useMemo(() => bestWindow(combinedByDay, event.days, durationMin), [combinedByDay, durationMin]) // eslint-disable-line react-hooks/exhaustive-deps
+  const bw = useMemo(() => bestWindow(viewCombinedByDay, event.days, durationMin), [viewCombinedByDay, durationMin]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // who still hasn't marked any availability (to nudge)
   const respondedIds = new Set(otherIds); if (youAny) respondedIds.add('JM')
@@ -589,7 +616,12 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
         {/* participants + edit hint */}
         <div className="flex flex-wrap items-center gap-2.5 py-[11px]">
           <span className="text-[12.5px] text-dim">Participants</span>
-          <AvatarRow people={event.participants.map((p) => ({ initials: p.initials, name: p.name, color: p.color }))} size={25} max={8} overlap={5} />
+          <FilterAvatars participants={event.participants} filter={filter} onToggle={toggleFilter} />
+          {filterOn && (
+            <button onClick={clearFilter} title="Show everyone again" className="flex items-center gap-1 rounded-full border border-accent-border bg-accent-bg px-2 py-0.5 text-[11.5px] font-semibold text-accent-text">
+              Showing {filter.size} {filter.size === 1 ? 'person' : 'people'} <X size={11} />
+            </button>
+          )}
           {/* responded count opens the who's-missing / nudge popover */}
           <div className="relative">
             <button
@@ -624,7 +656,7 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
                 {['var(--s2)', '#EBF1EB', '#CFE0D2', '#9DBBA4', '#2E4A3C'].map((c) => (
                   <span key={c} className="h-[11px] w-[11px] rounded-[3px] border border-border" style={{ background: c }} />
                 ))}
-                <span>Everyone</span>
+                <span>{filterOn ? 'All selected' : 'Everyone'}</span>
               </>
             )}
           </span>
@@ -749,12 +781,12 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
                     )
                   }
                   if (mode === 'view') {
-                    const bands = cellBands(combinedByDay[d.key] ?? {}, w0, w1)
+                    const bands = cellBands(viewCombinedByDay[d.key] ?? {}, w0, w1)
                     const peak = peakOf(bands)
                     const n = peak.ids.length
                     const paint = mergeSlivers(bands, minBandDur)
                     const title = bands.length === 1
-                      ? (n ? `${n} of ${total} free` : 'No one free')
+                      ? (n ? `${n} of ${viewTotal} free` : 'No one free')
                       : bands.map((b) => `${fmt(gridStartMin + b.s)} – ${fmt(gridStartMin + b.e)}: ${b.ids.length} free`).join('\n')
                     const open = detail?.day === d.key && detail?.ti === ti
                     return (
@@ -772,7 +804,7 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
                             style={{
                               top: `${((b.s - w0) / step) * 100}%`,
                               height: `${((b.e - b.s) / step) * 100}%`,
-                              background: heat(b.ids.length, total),
+                              background: heat(b.ids.length, viewTotal),
                               borderTop: b.s > w0 ? '1px dashed var(--border2)' : undefined,
                             }}
                           />
@@ -782,7 +814,7 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
                           {peak.ids.slice(0, AVATAR_CAP).map((id) => { const a = avatarOf(id); return <Avatar key={id} initials={a.initials} color={a.color} size={17} font={8.5} title={a.name} /> })}
                           {n > AVATAR_CAP && <span className="grid h-[15px] min-w-[15px] place-items-center rounded-full bg-s3 px-[3px] text-[8.5px] font-bold text-dim" title={`${n} free`}>+{n - AVATAR_CAP}</span>}
                         </div>
-                        {n > 0 && <span className="pointer-events-none absolute bottom-[3px] right-1 z-[1] text-[9.5px] font-bold" style={{ color: n >= total ? '#F4F1EA' : '#46604F' }}>{n}/{total}</span>}
+                        {n > 0 && <span className="pointer-events-none absolute bottom-[3px] right-1 z-[1] text-[9.5px] font-bold" style={{ color: n >= viewTotal ? '#F4F1EA' : '#46604F' }}>{n}/{viewTotal}</span>}
                       </div>
                     )
                   }
@@ -854,14 +886,14 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
 
         {/* view-mode cell breakdown — anchored to the cell but outside the scroller so nothing clips it */}
         {detail && (() => {
-          const bands = cellBands(combinedByDay[detail.day] ?? {}, detail.ti * step, (detail.ti + 1) * step)
+          const bands = cellBands(viewCombinedByDay[detail.day] ?? {}, detail.ti * step, (detail.ti + 1) * step)
           const W = 222, half = W / 2 + 6
           const colW = colRef.current?.clientWidth ?? 400
           const left = Math.max(half, Math.min(colW - half, detail.cx))
           return (
             <CellDetail
               bands={bands}
-              total={total}
+              total={viewTotal}
               fmt={fmt}
               gridStartMin={gridStartMin}
               avatarOf={avatarOf}
@@ -875,10 +907,10 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
         {!locked && <div className="mt-0.5 flex flex-wrap items-center gap-2.5 border-t border-border px-0.5 pt-3">
           {bw ? (
             <>
-              <span className="text-[12.5px] text-dim">Best {fmtDur(durationMin)} slot</span>
+              <span className="text-[12.5px] text-dim">Best {fmtDur(durationMin)} slot{filterOn ? ' for your selection' : ''}</span>
               <span className="text-[14px] font-semibold">{bw.dayLabel} · {fmt(gridStartMin + bw.s)} – {fmt(gridStartMin + bw.e)}</span>
               <TimezonePill tz={myTime && canConvert ? localTz : event.timezone} />
-              <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {total} free</span>
+              <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {viewTotal} free</span>
               <div className="ml-auto"><AvatarRow people={bw.ids.map(avatarOf)} size={22} max={8} overlap={5} /></div>
             </>
           ) : responded > 0 ? (
@@ -903,6 +935,55 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
         />
       )}
     </div>
+  )
+}
+
+/* ── clickable participant strip: tap a person to filter the grid to their free times.
+   Capped at 8 avatars; the +N chip opens a scrollable picker for everyone else. ── */
+const FILTER_CAP = 8
+function FilterAvatars({ participants, filter, onToggle }: { participants: Participant[]; filter: Set<string>; onToggle: (id: string) => void }) {
+  const shown = participants.slice(0, FILTER_CAP)
+  const extra = participants.slice(FILTER_CAP)
+  const active = filter.size > 0
+  const extraOn = extra.filter((p) => filter.has(p.id)).length
+  return (
+    <span className="flex items-center">
+      {shown.map((p, i) => {
+        const on = filter.has(p.id)
+        return (
+          <button
+            key={p.id} type="button" onClick={() => onToggle(p.id)}
+            title={on ? `${p.name} · click to unfilter` : `${p.name} · see when they are free`}
+            className={`relative rounded-full transition-opacity ${i > 0 ? '-ml-[5px]' : ''}`}
+            style={{ boxShadow: on ? '0 0 0 1.5px var(--s1), 0 0 0 3.5px var(--accent)' : undefined, opacity: active && !on ? 0.35 : 1, zIndex: on ? 1 : undefined }}
+          >
+            <Avatar initials={p.initials} color={p.color} size={25} font={9.5} ring />
+          </button>
+        )
+      })}
+      {extra.length > 0 && (
+        <Popover width={236} align="start" className="ml-1.5" trigger={(open) => (
+          <span className={`grid h-[25px] min-w-[25px] place-items-center rounded-full border px-1.5 text-[10.5px] font-bold ${extraOn > 0 ? 'border-accent-border bg-accent-bg text-accent-text' : `border-border2 text-dim ${open ? 'bg-s2' : 'bg-s1'}`}`}>
+            +{extra.length}
+          </span>
+        )}>
+          {() => (
+            <div className="scroll-slim flex max-h-[264px] flex-col overflow-auto p-0.5">
+              {extra.map((p) => {
+                const on = filter.has(p.id)
+                return (
+                  <button key={p.id} type="button" onClick={() => onToggle(p.id)} className={`flex items-center gap-2 rounded-[7px] px-2 py-1.5 text-left text-[13px] font-medium hover:bg-s2 ${on ? 'bg-s2' : ''}`}>
+                    <Avatar initials={p.initials} color={p.color} size={22} font={9} />
+                    <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                    {on && <Check size={13} className="flex-none text-accent-text" />}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </Popover>
+      )}
+    </span>
   )
 }
 

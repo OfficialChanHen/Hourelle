@@ -40,7 +40,7 @@ function fmtDeadline(iso: string): string {
   return `${DOW[dt.getDay()]}, ${dayLabel(dt)}`
 }
 
-export function AttendancePanel({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab }) {
+export function AttendancePanel({ event, onGoToTab, onViewAvailability }: { event: AppEvent; onGoToTab?: GoTab; onViewAvailability?: (pid: string) => void }) {
   const hasItinerary = (event.itinStops?.length ?? 0) > 0
   const [model, setModel] = useState<'single' | 'itin'>(hasItinerary ? 'itin' : 'single')
 
@@ -113,13 +113,13 @@ export function AttendancePanel({ event, onGoToTab }: { event: AppEvent; onGoToT
       {!anyResponded ? (
         <EmptyState onGoToTab={onGoToTab} />
       ) : model === 'itin' && hasItinerary ? (
-        <ItineraryAttendance event={liveEvent} attendees={attendees} dayIv={dayIv} gridStart={gridStart} />
+        <ItineraryAttendance event={liveEvent} attendees={attendees} dayIv={dayIv} gridStart={gridStart} onPerson={onViewAvailability} />
       ) : (
         <SingleVenue
           event={liveEvent} attendees={attendees} win={win} locked={locked} dayIv={dayIv}
           gridStart={gridStart} step={step} rows={rows}
           quorum={quorum} onQuorum={event.hostedByYou ? changeQuorum : undefined}
-          onGoToTab={onGoToTab}
+          onGoToTab={onGoToTab} onPerson={onViewAvailability}
         />
       )}
     </div>
@@ -183,12 +183,12 @@ function CopySummaryButton({ event, win, locked, gridStart }: { event: AppEvent;
 
 /* ── Single venue: where it's happening, who's in the room, and when ── */
 function SingleVenue({
-  event, attendees, win, locked, dayIv, gridStart, step, rows, quorum, onQuorum, onGoToTab,
+  event, attendees, win, locked, dayIv, gridStart, step, rows, quorum, onQuorum, onGoToTab, onPerson,
 }: {
   event: AppEvent; attendees: Participant[]; win: Win | null; locked: boolean
   dayIv: Record<string, Iv[]>; gridStart: number; step: number; rows: number
   quorum: number | null; onQuorum?: (q: number | null) => void
-  onGoToTab?: GoTab
+  onGoToTab?: GoTab; onPerson?: (pid: string) => void
 }) {
   const winS = win?.s ?? 0
   const winE = win?.e ?? rows * step
@@ -260,15 +260,15 @@ function SingleVenue({
       {shift && <ShiftSuggestion shift={shift} />}
 
       <div className="mt-5 flex flex-col gap-4">
-        <RosterGroup label="Here the whole time" tone="teal" people={groups.whole.map((p) => ({ p }))} />
+        <RosterGroup label="Here the whole time" tone="teal" people={groups.whole.map((p) => ({ p }))} onPerson={onPerson} />
         <RosterGroup label="Part of the time" tone="ochre" people={groups.part.map((x) => ({
           p: x.p,
           note: x.e != null ? `${fmtMinute(gridStart + x.s)}–${fmtMinute(gridStart + x.e)}` : 'time conflict',
           bar: barOf(x.s, x.e),
-        }))} />
-        <RosterGroup label="Maybe" tone="ochre" people={groups.maybe.map((p) => ({ p }))} />
-        <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({ p }))} />
-        <RosterGroup label="No reply" tone="faint" people={groups.noReply.map((p) => ({ p }))} action={<CopyReminder event={event} />} />
+        }))} onPerson={onPerson} />
+        <RosterGroup label="Maybe" tone="ochre" people={groups.maybe.map((p) => ({ p }))} onPerson={onPerson} />
+        <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({ p }))} onPerson={onPerson} />
+        <RosterGroup label="No reply" tone="faint" people={groups.noReply.map((p) => ({ p }))} action={<CopyReminder event={event} />} onPerson={onPerson} />
       </div>
     </div>
   )
@@ -460,11 +460,12 @@ const TONE: Record<string, { dot: string; text: string }> = {
   faint: { dot: 'var(--faint)', text: 'text-faint' },
 }
 
-function RosterGroup({ label, tone, people, cap = 12, action }: {
+function RosterGroup({ label, tone, people, cap = 12, action, onPerson }: {
   label: string; tone: keyof typeof TONE | string
   people: { p: Participant; note?: string; bar?: { left: string; width: string } | null }[]
   cap?: number
   action?: ReactNode
+  onPerson?: (pid: string) => void
 }) {
   if (!people.length) return null
   const t = TONE[tone] ?? TONE.faint
@@ -482,8 +483,14 @@ function RosterGroup({ label, tone, people, cap = 12, action }: {
       <div className="flex flex-col gap-1.5">
         {shown.map(({ p, note, bar }) => (
           <div key={p.id} className="flex items-center gap-2.5">
-            <Avatar initials={p.initials} color={p.color} size={27} font={10} />
-            <span className={`min-w-0 truncate text-[14px] ${hasBars ? 'w-[30%] sm:w-[120px] flex-none' : 'flex-1'}`}>{p.name}{p.you && <span className="text-faint"> · you</span>}</span>
+            <button
+              type="button" onClick={onPerson ? () => onPerson(p.id) : undefined} disabled={!onPerson}
+              title={onPerson ? `See when ${p.name} is free` : undefined}
+              className={`flex min-w-0 items-center gap-2.5 rounded-[8px] text-left ${hasBars ? 'w-[42%] sm:w-[160px] flex-none' : 'flex-1'} ${onPerson ? '-mx-1 px-1 py-0.5 hover:bg-s2' : ''}`}
+            >
+              <Avatar initials={p.initials} color={p.color} size={27} font={10} />
+              <span className="min-w-0 flex-1 truncate text-[14px]">{p.name}{p.you && <span className="text-faint"> · you</span>}</span>
+            </button>
             {hasBars && (
               <div className="relative h-5 min-w-0 flex-1 rounded-[6px] bg-s2">
                 {bar
@@ -517,8 +524,8 @@ function CopyReminder({ event }: { event: AppEvent }) {
 
 /* ── Multi-stop itinerary: O(1) per stop, exceptions not a matrix ── */
 function ItineraryAttendance({
-  event, attendees, dayIv, gridStart,
-}: { event: AppEvent; attendees: Participant[]; dayIv: Record<string, Iv[]>; gridStart: number }) {
+  event, attendees, dayIv, gridStart, onPerson,
+}: { event: AppEvent; attendees: Participant[]; dayIv: Record<string, Iv[]>; gridStart: number; onPerson?: (pid: string) => void }) {
   const placeName = (id: string) => event.location.places.find((p) => p.id === id)?.name ?? 'Stop'
   const stops = event.itinStops ?? []
   const dwell = event.itinDwell ?? []
@@ -610,8 +617,14 @@ function ItineraryAttendance({
           <div className="flex flex-col gap-2.5">
             {exceptions.map(({ p, misses }) => (
               <div key={p.id} className="flex items-center gap-2.5">
-                <Avatar initials={p.initials} color={p.color} size={27} font={10} />
-                <span className="min-w-0 flex-1 truncate text-[14px]">{p.name}</span>
+                <button
+                  type="button" onClick={onPerson ? () => onPerson(p.id) : undefined} disabled={!onPerson}
+                  title={onPerson ? `See when ${p.name} is free` : undefined}
+                  className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-[8px] text-left ${onPerson ? '-mx-1 px-1 py-0.5 hover:bg-s2' : ''}`}
+                >
+                  <Avatar initials={p.initials} color={p.color} size={27} font={10} />
+                  <span className="min-w-0 flex-1 truncate text-[14px]">{p.name}</span>
+                </button>
                 <div className="flex flex-wrap justify-end gap-1">
                   {misses.map((n) => <span key={n} className="grid h-5 w-5 place-items-center rounded-full border border-brick-border bg-brick-bg text-[10.5px] font-semibold text-brick-text" title={`Misses stop ${n}`}>{n}</span>)}
                 </div>
