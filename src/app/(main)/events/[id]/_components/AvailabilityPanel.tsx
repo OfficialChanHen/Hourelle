@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarPlus, X, GripHorizontal, Check, Eraser, TriangleAlert, Bell, SlidersHorizontal, Minus, Plus, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarPlus, X, GripHorizontal, Check, Eraser, TriangleAlert, Bell, SlidersHorizontal, Minus, Plus, Search, Trash2 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
@@ -525,6 +525,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
   // who still hasn't marked any availability (to nudge)
   const respondedIds = new Set(otherIds); if (youAny) respondedIds.add('JM')
   const missing = event.participants.filter((p) => !respondedIds.has(p.id) && p.rsvp !== 'not_going')
+  // filtered-in people with nothing marked — an empty grid needs to say why
+  const unmarked = filterOn
+    ? [...filter].filter((id) => !respondedIds.has(id)).map((id) => pById.get(id)).filter((p): p is Participant => !!p)
+    : []
+  const unmarkedNudgees = unmarked.filter((p) => !p.you)
   const rangeLabel = weekDays.length ? (weekDays.length > 1 ? `${weekDays[0].date} – ${weekDays[weekDays.length - 1].date}` : weekDays[0].date) : ''
 
   // virtualization window: mount only the visible rows (+ overscan), pad the rest with spacers
@@ -661,6 +666,33 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
             )}
           </span>
         </div>
+
+        {/* filtered-in people with no times yet — say so instead of showing a silently empty grid */}
+        {mode === 'view' && unmarked.length > 0 && (() => {
+          const names = unmarked.map((p) => (p.you ? 'You' : p.name.split(' ')[0]))
+          const label = names.length === 1 ? names[0] : names.length === 2 ? `${names[0]} and ${names[1]}` : `${names.slice(0, 2).join(', ')}, and ${names.length - 2} more`
+          const verb = names.length === 1 && names[0] !== 'You' ? "hasn't" : "haven't"
+          const allNudged = unmarkedNudgees.every((p) => nudged.has(p.id))
+          return (
+            <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-[10px] border border-border bg-s0 px-3 py-2">
+              <span className="text-[13px] text-dim">{label} {verb} marked any times yet.</span>
+              {unmarkedNudgees.length > 0 && (
+                <button
+                  onClick={() => unmarkedNudgees.forEach((p) => nudge(p.id))}
+                  disabled={allNudged}
+                  className={`flex items-center gap-1 text-[12.5px] font-semibold ${allNudged ? 'text-teal-text' : 'text-accent-text hover:underline'}`}
+                >
+                  {allNudged ? <><Check size={12} /> Nudged</> : <><Bell size={12} /> {unmarkedNudgees.length === 1 ? `Nudge ${unmarkedNudgees[0].name.split(' ')[0]}` : 'Nudge them'}</>}
+                </button>
+              )}
+              {unmarked.some((p) => p.you) && !locked && (
+                <button onClick={() => { setMode('edit'); setSel(null) }} className="flex items-center gap-1 text-[12.5px] font-semibold text-accent-text hover:underline">
+                  Add yours
+                </button>
+              )}
+            </div>
+          )
+        })()}
 
         {/* selected-block editor — precise edge control that works by touch (no arrow keys on mobile) */}
         {mode === 'edit' && sel && (
@@ -967,23 +999,42 @@ function FilterAvatars({ participants, filter, onToggle }: { participants: Parti
             +{extra.length}
           </span>
         )}>
-          {() => (
-            <div className="scroll-slim flex max-h-[264px] flex-col overflow-auto p-0.5">
-              {extra.map((p) => {
-                const on = filter.has(p.id)
-                return (
-                  <button key={p.id} type="button" onClick={() => onToggle(p.id)} className={`flex items-center gap-2 rounded-[7px] px-2 py-1.5 text-left text-[13px] font-medium hover:bg-s2 ${on ? 'bg-s2' : ''}`}>
-                    <Avatar initials={p.initials} color={p.color} size={22} font={9} />
-                    <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                    {on && <Check size={13} className="flex-none text-accent-text" />}
-                  </button>
-                )
-              })}
-            </div>
-          )}
+          {() => <FilterPickList extra={extra} filter={filter} onToggle={onToggle} />}
         </Popover>
       )}
     </span>
+  )
+}
+
+/* the overflow picker: searchable once the list is long enough that scanning stops working */
+function FilterPickList({ extra, filter, onToggle }: { extra: Participant[]; filter: Set<string>; onToggle: (id: string) => void }) {
+  const [q, setQ] = useState('')
+  const list = q.trim() ? extra.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase())) : extra
+  return (
+    <div className="flex flex-col p-0.5">
+      {extra.length > 8 && (
+        <div className="mb-1 flex items-center gap-1.5 rounded-[8px] border border-border bg-s0 px-2 focus-within:border-border2">
+          <Search size={12} className="flex-none text-faint" />
+          <input
+            autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a person"
+            className="h-7 w-full min-w-0 bg-transparent text-[13px] outline-none placeholder:text-faint"
+          />
+        </div>
+      )}
+      <div className="scroll-slim flex max-h-[264px] flex-col overflow-auto">
+        {list.map((p) => {
+          const on = filter.has(p.id)
+          return (
+            <button key={p.id} type="button" onClick={() => onToggle(p.id)} className={`flex items-center gap-2 rounded-[7px] px-2 py-1.5 text-left text-[13px] font-medium hover:bg-s2 ${on ? 'bg-s2' : ''}`}>
+              <Avatar initials={p.initials} color={p.color} size={22} font={9} />
+              <span className="min-w-0 flex-1 truncate">{p.name}</span>
+              {on && <Check size={13} className="flex-none text-accent-text" />}
+            </button>
+          )
+        })}
+        {list.length === 0 && <span className="px-2 py-1.5 text-[12.5px] text-faint">No one matches.</span>}
+      </div>
+    </div>
   )
 }
 
