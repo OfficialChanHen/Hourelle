@@ -129,7 +129,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       {/* header */}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
-          <h1 className="font-serif text-[34.5px] leading-[1.04] tracking-[-0.01em]">{event.title}</h1>
+          <EditableTitle title={event.title} editable={event.hostedByYou} onSave={(t) => patchLive({ title: t })} />
           <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13.5px] text-dim">
             {/* a person hosts with a person icon; an organization keeps the building */}
             <span className="flex items-center gap-1.5">
@@ -204,15 +204,49 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       {tab === 'availability' && <AvailabilityPanel event={event} locked={locked} />}
       {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} />}
       {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={setTab} />}
-      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToLocation={() => setTab('location')} onPatch={patchLive} />}
+      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToTab={setTab} onPatch={patchLive} />}
 
       {chatOpen && <ChatDrawer event={event} messages={event.messages} onSend={sendMessage} onClose={() => setChatOpen(false)} />}
     </div>
   )
 }
 
+/* the event name is the host's to change — click the pencil, type, Enter or blur saves */
+function EditableTitle({ title, editable, onSave }: { title: string; editable: boolean; onSave: (t: string) => void }) {
+  const [editing, setEditing] = useState(false)
+  const ref = useRef<HTMLInputElement>(null)
+  const h1 = 'font-serif text-[34.5px] leading-[1.04] tracking-[-0.01em]'
+
+  if (!editable) return <h1 className={h1}>{title}</h1>
+  if (editing) {
+    const save = () => {
+      const v = ref.current?.value.trim()
+      if (v && v !== title) onSave(v)
+      setEditing(false)
+    }
+    return (
+      <input
+        ref={ref} defaultValue={title} autoFocus maxLength={80}
+        onBlur={save}
+        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
+        className={`w-full max-w-[560px] rounded-[10px] border border-border bg-s0 px-3 py-0.5 outline-none focus:border-border2 ${h1}`}
+      />
+    )
+  }
+  return (
+    <span className="flex items-center gap-2.5">
+      <h1 className={`min-w-0 ${h1}`}>{title}</h1>
+      <button onClick={() => setEditing(true)} title="Rename this event" className="grid h-8 w-8 flex-none place-items-center rounded-[8px] text-faint hover:bg-s2 hover:text-dim">
+        <Pencil size={15} />
+      </button>
+    </span>
+  )
+}
+
+type DetailsGoTab = (t: 'availability' | 'location') => void
+
 /* ── Details tab ── */
-function DetailsTab({ event, onDelete, onGoToLocation, onPatch }: { event: AppEvent; onDelete: () => void; onGoToLocation: () => void; onPatch: (patch: Partial<AppEvent>) => void }) {
+function DetailsTab({ event, onDelete, onGoToTab, onPatch }: { event: AppEvent; onDelete: () => void; onGoToTab: DetailsGoTab; onPatch: (patch: Partial<AppEvent>) => void }) {
   const isHost = event.hostedByYou
   const locked = event.status === 'confirmed' && !!event.confirmed
 
@@ -221,8 +255,8 @@ function DetailsTab({ event, onDelete, onGoToLocation, onPatch }: { event: AppEv
       <div className="min-w-[320px] flex-[1.5] rounded-2xl border border-border bg-s1 p-5">
         <div className="mb-1 flex items-center gap-2 text-[14.5px] font-semibold"><Settings size={17} className="text-dim" /> Details</div>
         <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} onPatch={onPatch} />} />
-        <DetailRow k="When" v={<WhenValue event={event} locked={locked} />} />
-        <DetailRow k="Where" v={<WhereValue event={event} locked={locked} onGoToLocation={onGoToLocation} />} />
+        <DetailRow k="When" v={<WhenValue event={event} locked={locked} onGoToAvailability={() => onGoToTab('availability')} />} />
+        <DetailRow k="Where" v={<WhereValue event={event} locked={locked} onGoToLocation={() => onGoToTab('location')} />} />
         <DetailRow
           k="Budget"
           v={isHost
@@ -256,7 +290,7 @@ function DetailsTab({ event, onDelete, onGoToLocation, onPatch }: { event: AppEv
 
 /* When: the locked-in day and time once confirmed; before that, the date range being polled.
    A single-day event already knows its day, so only the time reads as open. */
-function WhenValue({ event, locked }: { event: AppEvent; locked: boolean }) {
+function WhenValue({ event, locked, onGoToAvailability }: { event: AppEvent; locked: boolean; onGoToAvailability: () => void }) {
   if (locked) {
     const c = event.confirmed!
     const d = event.days.find((x) => x.key === c.dayKey)
@@ -272,7 +306,8 @@ function WhenValue({ event, locked }: { event: AppEvent; locked: boolean }) {
     const dow = event.days[0]?.dow
     return (
       <span className="flex flex-wrap items-center gap-1.5">
-        {dow ? `${dow}, ` : ''}{dateRangeText(event)} · <span className="text-dim">time to be decided</span>
+        {dow ? `${dow}, ` : ''}{dateRangeText(event)} ·
+        <button onClick={onGoToAvailability} title="Mark when you're free on the Availability tab" className="font-medium text-accent-text hover:underline">time to be decided</button>
         <TimezonePill tz={event.timezone} />
       </span>
     )
@@ -291,20 +326,26 @@ function WhereValue({ event, locked, onGoToLocation }: { event: AppEvent; locked
       {n}-stop itinerary · see it on the Location tab
     </button>
   )
+  const placeLink = (name: string, caption?: string) => (
+    <span className="flex flex-wrap items-center gap-1.5">
+      <button onClick={onGoToLocation} title="Open it on the Location tab" className="text-left font-medium text-accent-text hover:underline">{name}</button>
+      {caption && <span className="text-dim">· {caption}</span>}
+    </span>
+  )
 
   if (locked) {
     const names = event.confirmed!.placeIds
       .map((id) => loc.places.find((p) => p.id === id)?.name)
       .filter((n): n is string => !!n)
-    if (names.length === 1) return <>{names[0]}</>
+    if (names.length === 1) return placeLink(names[0])
     if (names.length > 1) return itineraryLink(names.length)
     return <>To be decided</>
   }
   const stops = event.itinStops?.length ?? 0
   if (loc.planMode === 'itinerary' && stops > 0) return itineraryLink(stops)
   const lead = leadingPlaceOf(event)
-  if (lead) return <span>{lead.place.name} <span className="text-dim">· leading the vote</span></span>
-  if (loc.places.length === 1) return <>{loc.places[0].name}</>
+  if (lead) return placeLink(lead.place.name, 'leading the vote')
+  if (loc.places.length === 1) return placeLink(loc.places[0].name)
   return <>To be decided</>
 }
 
