@@ -133,7 +133,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
         </div>
         {/* ml-auto keeps the actions hugging the right edge when the header wraps */}
         <div className="ml-auto flex min-w-0 items-center gap-2">
-          {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} />}
+          {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToDetails={() => setTab('details')} />}
           {/* discussion follows the event, not a tab */}
           <button onClick={() => setChatOpen(true)} className="flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[14px] font-semibold hover:bg-s2">
             <MessageCircle size={16} className="text-accent-text" />

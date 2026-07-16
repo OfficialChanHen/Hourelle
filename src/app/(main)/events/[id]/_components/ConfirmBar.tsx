@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, ChevronDown, Lock, MapPin, Route, Video, Vote } from 'lucide-react'
+import { Check, ChevronDown, Lock, MapPin, Route, Video, Vote, Wallet } from 'lucide-react'
 import { Popover } from '@/components/ui/Popover'
 import { TimeSelect } from '@/components/ui/TimeSelect'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -13,7 +13,7 @@ import {
 /* ── the host's one clear action while planning: lock in a time and place ──
    The form mounts fresh each time the popover opens, so the day and time always
    prefill from the best window for everyone, sized to the event length. */
-export function ConfirmBar({ event, onChanged }: { event: AppEvent; onChanged: () => void }) {
+export function ConfirmBar({ event, onChanged, onGoToDetails }: { event: AppEvent; onChanged: () => void; onGoToDetails?: () => void }) {
   return (
     <Popover
       align="end"
@@ -24,12 +24,12 @@ export function ConfirmBar({ event, onChanged }: { event: AppEvent; onChanged: (
         </span>
       )}
     >
-      {(close) => <ConfirmForm event={event} close={close} onChanged={onChanged} />}
+      {(close) => <ConfirmForm event={event} close={close} onChanged={onChanged} onGoToDetails={onGoToDetails} />}
     </Popover>
   )
 }
 
-function ConfirmForm({ event, close, onChanged }: { event: AppEvent; close: () => void; onChanged: () => void }) {
+function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEvent; close: () => void; onChanged: () => void; onGoToDetails?: () => void }) {
   const loc = event.location
   const gridStart = gridStartMinOf(event)
   const duration = event.durationMin ?? 60
@@ -149,6 +149,25 @@ function ConfirmForm({ event, close, onChanged }: { event: AppEvent; close: () =
             )}
           </div>
         )}
+      </div>
+
+      <div>
+        <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Budget</div>
+        <div className="flex items-center gap-2 rounded-[9px] border border-border bg-s2 px-3 py-2 text-[13px]">
+          <Wallet size={15} className="flex-none text-dim" />
+          <span className="min-w-0 flex-1 truncate text-dim">
+            {event.budget ? `$${Number(event.budget).toLocaleString()} ${event.budgetMode === 'person' ? 'per person' : 'total'}` : 'No budget set'}
+          </span>
+          {onGoToDetails && (
+            <button
+              onClick={() => { close(); onGoToDetails() }}
+              title="Adjust it on the Event details tab"
+              className="flex-none text-[12.5px] font-semibold text-accent-text hover:underline"
+            >
+              Change
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="border-t border-border pt-2.5">
