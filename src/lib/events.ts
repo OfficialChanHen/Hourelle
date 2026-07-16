@@ -18,6 +18,7 @@ export type EventStatus = 'planning' | 'confirmed'
 export type ConfirmedSlot = { dayKey: string; startMin: number; endMin: number; placeIds: string[] }
 export type Participant = { id: string; initials: string; name: string; color: PersonColor; rsvp: Rsvp; you?: boolean; host?: boolean; guest?: boolean }
 export type EventPlace = { id: string; name: string; place: string; addedBy?: string } // addedBy: participant id who suggested it
+export type EventExpense = { id: string; label: string; amount: number; paidBy: string } // amount in whole dollars; paidBy: participant id
 export type GridDay = { key: string; dow: string; date: string; best?: boolean }
 // minute-precise availability: grid-minutes from the top of the grid, block covers [s, e)
 export type Iv = { s: number; e: number }
@@ -58,6 +59,7 @@ export type AppEvent = {
   travelModes?: string[]              // allowed transport modes for route timing (default all)
   durationMin?: number                // how long the event needs — drives the best-window search
   quorum?: number                     // host-set smallest headcount that works; attendance warns below it
+  expenses?: EventExpense[]           // actual spend logged against the budget
   messages: ChatMessage[]
   createdAt: number
   demo?: boolean

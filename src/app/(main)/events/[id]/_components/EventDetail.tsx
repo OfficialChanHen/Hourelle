@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Building2, User, Link2, Users, Copy, MessageCircle, Pencil, EllipsisVertical, CopyPlus,
-  CalendarRange, MapPin, UsersRound, Settings, Check, Trash2, TriangleAlert,
+  CalendarRange, MapPin, UsersRound, Settings, Check, Trash2, TriangleAlert, Receipt, Plus, X,
 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -276,6 +276,8 @@ function DetailsTab({ event, onDelete, onGoToTab, onPatch }: { event: AppEvent; 
       </div>
 
       <ParticipantsCard event={event} isHost={isHost} onPatch={onPatch} />
+
+      <ExpensesCard event={event} isHost={isHost} onPatch={onPatch} />
 
       {event.hostedByYou && !event.demo && <DangerZone title={event.title} onDelete={onDelete} />}
     </div>
@@ -643,6 +645,134 @@ function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Pa
       <BudgetConverse amount={amount} mode={mode} responded={responded} />
       {amount > 0 && responded === 0 && (
         <span className="text-[12.5px] text-faint">No one has marked availability yet, so there is no estimate.</span>
+      )}
+    </div>
+  )
+}
+
+/* ── Expenses: actual spend against the plan, split across whoever has replied ── */
+function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
+  const [label, setLabel] = useState('')
+  const [amt, setAmt] = useState('')
+  const [paidBy, setPaidBy] = useState(() => event.participants.find((p) => p.you)?.id ?? event.participants[0]?.id ?? '')
+
+  const expenses = event.expenses ?? []
+  const spent = expenses.reduce((s, x) => s + x.amount, 0)
+  const responded = respondedInRange(event)
+  const budgetAmount = Number(event.budget || 0)
+  const budgetTotal = budgetAmount > 0
+    ? (event.budgetMode === 'person' ? (responded > 0 ? budgetAmount * responded : null) : budgetAmount)
+    : null
+  const over = budgetTotal != null && spent > budgetTotal
+  const share = spent > 0 && responded > 0 ? spent / responded : null
+  const byId = new Map(event.participants.map((p) => [p.id, p]))
+
+  // who paid what, so the split reads as balances instead of a matrix
+  const paidTotals = new Map<string, number>()
+  for (const x of expenses) paidTotals.set(x.paidBy, (paidTotals.get(x.paidBy) ?? 0) + x.amount)
+
+  function addExpense() {
+    const a = Math.round(Number(amt))
+    if (!label.trim() || !Number.isFinite(a) || a <= 0) return
+    onPatch({ expenses: [...expenses, { id: `x${Date.now().toString(36)}-${expenses.length}`, label: label.trim(), amount: a, paidBy }] })
+    setLabel('')
+    setAmt('')
+  }
+  function removeExpense(id: string) {
+    onPatch({ expenses: expenses.filter((x) => x.id !== id) })
+  }
+
+  return (
+    <div className="w-full rounded-2xl border border-border bg-s1 p-5">
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-[14.5px] font-semibold">
+        <Receipt size={17} className="text-dim" /> Expenses
+        <span className="ml-auto text-[12.5px] font-normal text-dim">
+          {spent > 0
+            ? budgetTotal != null
+              ? <>spent ${spent.toLocaleString()} of ${budgetTotal.toLocaleString()}</>
+              : <>spent ${spent.toLocaleString()} so far</>
+            : 'nothing spent yet'}
+        </span>
+      </div>
+
+      {budgetTotal != null && spent > 0 && (
+        <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-s2">
+          <div className="h-full rounded-full" style={{ width: `${Math.min(100, (spent / budgetTotal) * 100)}%`, background: over ? 'var(--brick)' : 'var(--teal)' }} />
+        </div>
+      )}
+      {over && (
+        <div className="mb-4 flex items-start gap-2 rounded-[10px] border border-brick-border bg-brick-bg px-3 py-2 text-[13px] leading-[1.5] text-brick-text">
+          <TriangleAlert size={14} className="mt-0.5 flex-none" /> That is ${(spent - budgetTotal!).toLocaleString()} over the budget.
+        </div>
+      )}
+
+      {expenses.length === 0 ? (
+        <p className="text-[13.5px] text-dim">
+          {isHost ? 'Nothing logged yet. Add what gets spent and the split works itself out.' : 'Nothing logged yet.'}
+        </p>
+      ) : (
+        <div className="flex flex-col">
+          {expenses.map((x, i) => {
+            const payer = byId.get(x.paidBy)
+            return (
+              <div key={x.id} className={`flex items-center gap-2.5 py-2 ${i > 0 ? 'border-t border-border' : ''}`}>
+                <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{x.label}</span>
+                {payer && (
+                  <span className="flex flex-none items-center gap-1.5 text-[12.5px] text-dim">
+                    <Avatar initials={payer.initials} color={payer.color} size={20} font={8.5} /> {payer.name.split(' ')[0]}
+                  </span>
+                )}
+                <span className="w-[72px] flex-none text-right text-[13.5px] font-semibold">${x.amount.toLocaleString()}</span>
+                {isHost && (
+                  <button onClick={() => removeExpense(x.id)} title="Remove this expense" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-brick-bg hover:text-brick-text">
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {share != null && (
+        <div className="mt-3 border-t border-border pt-3 text-[12.5px] leading-[1.6] text-dim">
+          <div>That splits to <span className="font-semibold text-text">${Math.round(share).toLocaleString()}/person</span> across {responded} currently available.</div>
+          {[...paidTotals.entries()].map(([pid, total]) => {
+            const payer = byId.get(pid)
+            if (!payer) return null
+            const net = Math.round(total - share)
+            return (
+              <div key={pid}>
+                {payer.name.split(' ')[0]} paid ${total.toLocaleString()}{net > 0 ? <> and gets back <span className="font-semibold text-teal-text">${net.toLocaleString()}</span></> : net < 0 ? <> and still chips in ${(-net).toLocaleString()}</> : <>, exactly their share</>}.
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {isHost && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+          <input
+            value={label} onChange={(e) => setLabel(e.target.value)} placeholder="What was it for?" maxLength={60}
+            onKeyDown={(e) => { if (e.key === 'Enter') addExpense() }}
+            className="h-9 min-w-[140px] flex-1 rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] outline-none focus:border-border2"
+          />
+          <label className="flex h-9 w-[96px] flex-none items-center rounded-[9px] border border-border bg-s0 px-2.5 focus-within:border-border2">
+            <span className="text-[13px] text-dim">$</span>
+            <input
+              value={amt} onChange={(e) => setAmt(e.target.value.replace(/[^\d]/g, '').slice(0, 6))}
+              inputMode="numeric" placeholder="0"
+              onKeyDown={(e) => { if (e.key === 'Enter') addExpense() }}
+              className="w-full min-w-0 bg-transparent px-1 text-[13.5px] font-medium outline-none"
+            />
+          </label>
+          <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} className="h-9 flex-none rounded-[9px] border border-border bg-s0 px-2.5 text-[13px] outline-none focus:border-border2">
+            {event.participants.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <button onClick={addExpense} className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13px] font-semibold text-on-accent">
+            <Plus size={14} /> Add
+          </button>
+        </div>
       )}
     </div>
   )
