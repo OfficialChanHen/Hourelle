@@ -337,6 +337,12 @@ export function daysUntilLabel(du: number | null): string {
   return `${du} day${du === 1 ? '' : 's'}`
 }
 
+export function setMyRsvp(id: string, rsvp: Rsvp): void {
+  const ev = getEvent(id)
+  if (!ev) return
+  patchEvent(id, { participants: ev.participants.map((p) => (p.you ? { ...p, rsvp } : p)) })
+}
+
 export function confirmEvent(id: string, slot: ConfirmedSlot): void {
   patchEvent(id, { status: 'confirmed', confirmed: slot, confirmedAt: Date.now() })
 }

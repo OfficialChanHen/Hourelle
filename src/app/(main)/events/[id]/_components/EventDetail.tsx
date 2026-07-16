@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Building2, Link2, Users, Copy,
+  Building2, Link2, Users, Copy, MessageCircle,
   CalendarRange, MapPin, UsersRound, Settings, Check, Trash2, TriangleAlert,
 } from 'lucide-react'
 import { gsap } from 'gsap'
@@ -14,13 +14,14 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, dateRangeText, phaseOf, type AppEvent, type Rsvp } from '@/lib/events'
+import { getEvent, deleteEvent, patchEvent, dateRangeText, phaseOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
 import { AttendancePanel } from './AttendancePanel'
 import { StageSummary } from './StageSummary'
 import { ConfirmBar } from './ConfirmBar'
 import { ConfirmedHero } from './ConfirmedHero'
+import { ChatDrawer } from './ChatDrawer'
 
 const TABS = [
   { key: 'availability', label: 'Availability', icon: CalendarRange },
@@ -42,6 +43,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
   const [tab, setTab] = useState<TabKey>(initialTab ?? 'availability')
   const [event, setEvent] = useState<AppEvent | null | undefined>(undefined)
   const [copied, setCopied] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
   const tabsRef = useRef<HTMLDivElement>(null)
   const [tabFade, setTabFade] = useState({ l: false, r: false })
   const tabResolved = useRef(false)
@@ -108,6 +110,12 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
   function refresh() {
     setEvent(getEvent(id))
   }
+  function sendMessage(text: string) {
+    if (!event) return
+    const next = [...event.messages, { id: 'JM', name: 'You', time: 'now', text, you: true }]
+    if (!event.demo) patchEvent(event.id, { messages: next })
+    setEvent({ ...event, messages: next })
+  }
 
   return (
     <div className="mx-auto max-w-[1240px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
@@ -123,6 +131,12 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
         {/* ml-auto keeps the actions hugging the right edge when the header wraps */}
         <div className="ml-auto flex min-w-0 items-center gap-2">
           {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} />}
+          {/* discussion follows the event, not a tab */}
+          <button onClick={() => setChatOpen(true)} className="flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[14px] font-semibold hover:bg-s2">
+            <MessageCircle size={16} className="text-accent-text" />
+            <span className="hidden sm:inline">Discussion</span>
+            {event.messages.length > 0 && <span className="flex h-[16px] items-center rounded-[10px] bg-accent px-[6px] text-[10.5px] text-on-accent">{event.messages.length}</span>}
+          </button>
           {/* share button opens a dropdown with the URL and a one-tap copy */}
           <Popover
             align="end"
@@ -181,6 +195,8 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} />}
       {tab === 'attendance' && <AttendancePanel event={event} />}
       {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} />}
+
+      {chatOpen && <ChatDrawer event={event} messages={event.messages} onSend={sendMessage} onClose={() => setChatOpen(false)} />}
     </div>
   )
 }

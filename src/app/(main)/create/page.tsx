@@ -7,6 +7,7 @@ import {
   Check, ChevronDown, ChevronUp, Search, Plus, X, MapPin, Video, Clock,
   Info, Vote, ArrowLeft, ArrowRight, Mail, CalendarRange, Route, GripVertical,
   Loader2, Link2, Copy, Pencil, UserPlus, Users, PartyPopper,
+  Map, Presentation, Repeat, Utensils, type LucideIcon,
 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -111,11 +112,22 @@ const TEMPLATE_PRESETS: Record<string, Partial<Form>> = {
   dinner: { title: 'Dinner and drinks', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 120, locMode: 'vote', planMode: 'vote' },
 }
 
+// the same presets, as tappable chips on the wizard's first step
+const WIZ_TEMPLATES: { key: string; label: string; icon: LucideIcon }[] = [
+  { key: 'offsite', label: 'Team offsite', icon: Route },
+  { key: 'trip', label: 'Weekend trip', icon: Map },
+  { key: 'birthday', label: 'Birthday', icon: PartyPopper },
+  { key: 'conference', label: 'Conference', icon: Presentation },
+  { key: 'one-on-one', label: '1:1', icon: Repeat },
+  { key: 'dinner', label: 'Dinner', icon: Utensils },
+]
+
 export default function CreatePage({ searchParams }: { searchParams: Promise<{ template?: string; from?: string }> }) {
   const { template, from } = use(searchParams)
   const router = useRouter()
   const [step, setStep] = useState(0)
   const [created, setCreated] = useState<AppEvent | null>(null)
+  const [tpl, setTpl] = useState<string | null>(template && TEMPLATE_PRESETS[template] ? template : null)
   const [form, setForm] = useState<Form>(() => ({ ...initialForm, ...(template ? TEMPLATE_PRESETS[template] : undefined) }))
   const [attempted, setAttempted] = useState(false)
   const [today, setToday] = useState('')
@@ -184,6 +196,13 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
     return true
   }
 
+  // tap a template to seed the form; tap it again to start blank
+  function applyTemplate(key: string) {
+    if (tpl === key) { setForm(initialForm); setTpl(null); return }
+    setForm({ ...initialForm, ...TEMPLATE_PRESETS[key] })
+    setTpl(key)
+  }
+
   function next() {
     if (!stepValid(step)) { setAttempted(true); return }
     setStep((s) => Math.min(3, s + 1))
@@ -222,6 +241,30 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
           </div>
         ))}
       </div>
+
+      {/* start from a template — one tap seeds the form, tap again to go blank */}
+      {step === 0 && (
+        <div className="mb-4">
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Start from a template</div>
+          <div className="scroll-slim flex gap-1.5 overflow-x-auto pb-1">
+            {WIZ_TEMPLATES.map((t) => {
+              const Icon = t.icon
+              const on = tpl === t.key
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => applyTemplate(t.key)}
+                  aria-pressed={on}
+                  className={`flex h-8 flex-none items-center gap-1.5 rounded-[9px] border px-3 text-[13px] font-medium ${on ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}
+                >
+                  <Icon size={14} /> {t.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div ref={panel} className="rounded-2xl border border-border bg-s1 px-4 py-[22px] sm:px-6">
         {step === 0 && <StepBasics form={form} update={update} today={today} attempted={attempted} errs={basicsErr} />}

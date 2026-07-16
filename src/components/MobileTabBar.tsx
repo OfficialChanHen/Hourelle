@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, CalendarDays, Plus, Bell, User } from 'lucide-react'
+import { useReminderDot } from '@/hooks/useReminderDot'
 
 // Mobile bottom navigation — Home · Events · center + (create) · Alerts · Profile.
 // Fixed to the viewport bottom (the one place fixed positioning is right); pages reserve
@@ -16,6 +17,7 @@ const ITEMS = [
 
 export function MobileTabBar() {
   const pathname = usePathname()
+  const reminderDot = useReminderDot()
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
   // two items, the raised create FAB, then two more
   const [left, right] = [ITEMS.slice(0, 2), ITEMS.slice(2)]
@@ -40,20 +42,23 @@ export function MobileTabBar() {
           </Link>
         </div>
 
-        {right.map((t) => <TabItem key={t.href} {...t} active={isActive(t.href)} />)}
+        {right.map((t) => <TabItem key={t.href} {...t} active={isActive(t.href)} dot={t.href === '/alerts' && reminderDot} />)}
       </div>
     </nav>
   )
 }
 
-function TabItem({ href, label, icon: Icon, active }: { href: string; label: string; icon: typeof Home; active: boolean }) {
+function TabItem({ href, label, icon: Icon, active, dot }: { href: string; label: string; icon: typeof Home; active: boolean; dot?: boolean }) {
   return (
     <Link
       href={href}
       aria-current={active ? 'page' : undefined}
       className={`flex flex-1 flex-col items-center justify-center gap-1 text-[10.5px] font-semibold ${active ? 'text-accent-text' : 'text-faint'}`}
     >
-      <Icon size={22} strokeWidth={active ? 2.4 : 2} />
+      <span className="relative">
+        <Icon size={22} strokeWidth={active ? 2.4 : 2} />
+        {dot && <span className="absolute -right-0.5 -top-0.5 h-[7px] w-[7px] rounded-full bg-accent ring-2 ring-s0" aria-hidden />}
+      </span>
       {label}
     </Link>
   )

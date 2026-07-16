@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { CalendarDays, Plus, MoreHorizontal, Bell } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
+import { useReminderDot } from '@/hooks/useReminderDot'
 
 const TABS = [
   { href: '/home', label: 'Home' },
@@ -13,6 +14,7 @@ const TABS = [
 
 export function Header() {
   const pathname = usePathname()
+  const reminderDot = useReminderDot()
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md">
@@ -59,13 +61,14 @@ export function Header() {
           <Link
             href="/alerts"
             aria-label="Alerts"
-            className={`grid h-[30px] w-[30px] place-items-center rounded-lg border ${
+            className={`relative grid h-[30px] w-[30px] place-items-center rounded-lg border ${
               pathname.startsWith('/alerts')
                 ? 'border-accent-border bg-accent-bg text-accent-text'
                 : 'border-border text-dim hover:text-text'
             }`}
           >
             <Bell size={17} />
+            {reminderDot && <span className="absolute right-[5px] top-[5px] h-[7px] w-[7px] rounded-full bg-accent ring-2 ring-s0" aria-hidden />}
           </Link>
           <Link
             href="/profile"

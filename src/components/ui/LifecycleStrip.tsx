@@ -62,8 +62,10 @@ export function LifecycleStrip({ phase, size = 'md', className = '' }: { phase: 
       </div>
       {size === 'md' && (
         <div className="relative mt-1.5 h-[15px]">
+          {/* phones: just the current step; wider screens: every step, current bold —
+              the strip teaches the whole process at a glance */}
           <span
-            className="absolute top-0 whitespace-nowrap text-[12px] font-semibold"
+            className="absolute top-0 whitespace-nowrap text-[12px] font-semibold sm:hidden"
             style={{
               left: `${pct}%`,
               transform: idx === 0 ? 'none' : idx === STEPS.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)',
@@ -71,6 +73,18 @@ export function LifecycleStrip({ phase, size = 'md', className = '' }: { phase: 
           >
             {STEPS[idx]}
           </span>
+          {STEPS.map((label, i) => (
+            <span
+              key={label}
+              className={`absolute top-0 hidden whitespace-nowrap text-[11.5px] sm:block ${i === idx ? 'font-semibold text-text' : i < idx ? 'text-dim' : 'text-faint'}`}
+              style={{
+                left: `${(i / (STEPS.length - 1)) * 100}%`,
+                transform: i === 0 ? 'none' : i === STEPS.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)',
+              }}
+            >
+              {label}
+            </span>
+          ))}
         </div>
       )}
     </div>

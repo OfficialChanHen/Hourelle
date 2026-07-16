@@ -1,15 +1,28 @@
 'use client'
 
-import { MapPin, Route, Undo2, Video } from 'lucide-react'
+import { Check, HelpCircle, MapPin, Route, Undo2, Video, X } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { TimezonePill } from '@/components/ui/TimezonePill'
-import { daysUntil, daysUntilLabel, fmtMinute, reopenEvent, type AppEvent } from '@/lib/events'
+import { daysUntil, daysUntilLabel, fmtMinute, reopenEvent, setMyRsvp, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
+
+// your answer to the locked-in plan — strict role colors: teal going, ochre maybe, brick out
+const RSVP_OPTIONS: { v: Rsvp; label: string; icon: typeof Check; on: string }[] = [
+  { v: 'attending', label: 'Going', icon: Check, on: 'border-teal-border bg-teal-bg text-teal-text' },
+  { v: 'maybe', label: 'Maybe', icon: HelpCircle, on: 'border-ochre-border bg-ochre-bg text-ochre-text' },
+  { v: 'not_going', label: "Can't go", icon: X, on: 'border-brick-border bg-brick-bg text-brick-text' },
+]
 
 /* ── the locked-in plan, front and center once the host confirms ── */
 export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged: () => void }) {
   const c = event.confirmed
   if (!c) return null
+
+  const myRsvp = event.participants.find((p) => p.you)?.rsvp
+  function answer(v: Rsvp) {
+    setMyRsvp(event.id, v)
+    onChanged()
+  }
 
   const day = event.days.find((d) => d.key === c.dayKey)
   const dayText = day ? `${day.dow}, ${day.date}` : c.dayKey
@@ -54,6 +67,27 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
               <Undo2 size={14} /> Reopen planning
             </button>
           )}
+        </div>
+      </div>
+
+      {/* your RSVP — the one thing the plan asks of you */}
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3.5">
+        <span className="text-[13px] text-dim">Are you coming?</span>
+        <div className="flex items-center gap-1.5">
+          {RSVP_OPTIONS.map((o) => {
+            const Icon = o.icon
+            const on = myRsvp === o.v
+            return (
+              <button
+                key={o.v}
+                onClick={() => answer(o.v)}
+                aria-pressed={on}
+                className={`flex h-8 items-center gap-1.5 rounded-[9px] border px-3 text-[13px] font-semibold ${on ? o.on : 'border-border2 bg-s1 text-dim hover:bg-s2 hover:text-text'}`}
+              >
+                <Icon size={14} /> {o.label}
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>

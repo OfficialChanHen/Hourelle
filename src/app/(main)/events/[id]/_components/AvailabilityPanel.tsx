@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarPlus, MessageCircle, X, Send, GripHorizontal, Check, Eraser, TriangleAlert, Bell, SlidersHorizontal, Minus, Plus, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarPlus, X, GripHorizontal, Check, Eraser, TriangleAlert, Bell, SlidersHorizontal, Minus, Plus, Trash2 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
@@ -10,8 +10,8 @@ import { TimezonePill } from '@/components/ui/TimezonePill'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Popover } from '@/components/ui/Popover'
 import {
-  patchEvent, availIvOf, intervalsToGrid, normalizeIv, bestWindow, fmtMinute, gridStartMinOf, stepOf,
-  type AppEvent, type Participant, type ChatMessage, type Iv, type AvailIntervals,
+  patchEvent, availIvOf, intervalsToGrid, normalizeIv, bestWindow, fmtMinute, gridStartMinOf, stepOf, dayLabel,
+  type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
 import { buildImportPreview, mockBusyUtc, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport } from '@/lib/calendar-import'
 
@@ -78,6 +78,31 @@ function peakOf(bands: Band[]): Band {
   return bands.reduce((m, b) => (b.ids.length > m.ids.length ? b : m))
 }
 
+// a grid day, possibly a filler outside the event's date window (rendered greyed out, inert)
+type GDay = GridDay & { pad?: boolean }
+const DOW7 = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+// events spanning more than one calendar week pad out to full Sun–Sat weeks, so
+// weekday columns line up across pages and the grid width never shifts between
+// them. Events that fit inside one calendar week stay compact — no dead columns.
+function padToWeeks(days: GridDay[]): GDay[] {
+  if (days.length < 2 || !ISO_DAY.test(days[0].key) || !ISO_DAY.test(days[days.length - 1].key)) return days
+  const parse = (k: string) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d) }
+  const sundayOf = (d: Date) => { const x = new Date(d); x.setDate(x.getDate() - x.getDay()); return x }
+  const first = sundayOf(parse(days[0].key))
+  const lastSunday = sundayOf(parse(days[days.length - 1].key))
+  if (first.getTime() === lastSunday.getTime()) return days // fits one calendar week — compact
+  const byKey = new Map<string, GridDay>(days.map((d) => [d.key, d]))
+  const out: GDay[] = []
+  const cur = new Date(first)
+  const end = new Date(lastSunday); end.setDate(end.getDate() + 6)
+  while (cur <= end && out.length < 6 * 7) { // events cap at 21 days, so ≤5 weeks in practice
+    const key = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`
+    out.push(byKey.get(key) ?? { key, dow: DOW7[cur.getDay()], date: dayLabel(cur), pad: true })
+    cur.setDate(cur.getDate() + 1)
+  }
+  return out
+}
+
 export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; locked?: boolean }) {
   const total = event.participants.length
   const pById = new Map(event.participants.map((p) => [p.id, p]))
@@ -106,24 +131,21 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
     const src = availIvOf(event)
     return Object.fromEntries(event.days.map((d) => [d.key, normalizeIv(src[d.key]?.JM ?? [])]))
   })
-  // chat lives here (not in ChatPanel) so it survives closing/reopening the panel
-  const [messages, setMessages] = useState<ChatMessage[]>(event.messages)
 
   const youAny = event.days.some((d) => (mine[d.key]?.length ?? 0) > 0)
   const otherIds = new Set<string>()
   for (const d of event.days) for (const [id, ivs] of Object.entries(others[d.key] ?? {})) if (ivs.length) otherIds.add(id)
   const responded = otherIds.size + (youAny ? 1 : 0)
 
-  // once the plan is locked the grid is reference only — no edit mode
-  const [mode, setMode] = useState<Mode>(locked ? 'view' : responded === 0 ? 'edit' : 'view')
+  // once the plan is locked the grid is reference only; otherwise open in edit
+  // until you've marked something — the page's one ask of a new participant
+  const [mode, setMode] = useState<Mode>(locked ? 'view' : !youAny ? 'edit' : 'view')
   const [h24, setH24] = useState(false)
   const [myTime, setMyTime] = useState(false) // show times in the viewer's local zone
   const [durationMin, setDurationMin] = useState(event.durationMin ?? 60)
   const [detail, setDetail] = useState<{ day: string; ti: number; cx: number; cyTop: number; cyBottom: number; below: boolean } | null>(null) // view-mode cell breakdown
   const [showMissing, setShowMissing] = useState(false)
   const [nudged, setNudged] = useState<Set<string>>(new Set())
-  const [chatOpen, setChatOpen] = useState(true)   // desktop inline side panel
-  const [mobileChat, setMobileChat] = useState(false) // mobile full-height sheet
   const [sel, setSel] = useState<Sel | null>(null)
   const [nudgeStep, setNudgeStep] = useState(5) // minutes the − / + buttons move an edge
   const [drag, setDrag] = useState<Drag | null>(null)
@@ -136,8 +158,9 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
   const [importing, setImporting] = useState<{ provider: string; data: Record<string, DayImport> | null } | null>(null)
 
   const WEEK = 7
-  const pageCount = Math.max(1, Math.ceil(event.days.length / WEEK))
-  const weekDays = event.days.slice(page * WEEK, page * WEEK + WEEK)
+  const paddedDays = useMemo<GDay[]>(() => padToWeeks(event.days), [event.days])
+  const pageCount = Math.max(1, Math.ceil(paddedDays.length / WEEK))
+  const weekDays = paddedDays.slice(page * WEEK, page * WEEK + WEEK)
   const goWeek = (dir: -1 | 1) => { setPage((p) => Math.max(0, Math.min(pageCount - 1, p + dir))); setSel(null) }
 
   // timezone conversion: shift is 0 unless "my time" is on and the local zone differs
@@ -203,7 +226,7 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
     if (e <= s) return
     setMine((pm) => {
       const next = { ...pm }
-      for (const d of weekDays) next[d.key] = normalizeIv([...(pm[d.key] ?? []), { s, e }])
+      for (const d of weekDays) if (!d.pad) next[d.key] = normalizeIv([...(pm[d.key] ?? []), { s, e }])
       persist(next)
       return next
     })
@@ -413,8 +436,9 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
   function toggleTime(ti: number) {
     if (mode !== 'edit') return
     const w0 = ti * step, w1 = (ti + 1) * step
-    const allFull = weekDays.every((d) => (mine[d.key] ?? []).some((iv) => iv.s <= w0 && iv.e >= w1))
-    for (const d of weekDays) {
+    const real = weekDays.filter((d) => !d.pad) // filler days aren't part of the event
+    const allFull = real.every((d) => (mine[d.key] ?? []).some((iv) => iv.s <= w0 && iv.e >= w1))
+    for (const d of real) {
       const base = mine[d.key] ?? []
       commitDay(d.key, allFull ? base.flatMap((iv) => subtract(iv, w0, w1)) : [...base, { s: w0, e: w1 }])
     }
@@ -449,10 +473,6 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
     for (const [day, di] of Object.entries(importing.data)) next[day] = normalizeIv([...(next[day] ?? []), ...di.free])
     setMine(next); persist(next)
     setSel(null); setImporting(null); setMode('edit')
-  }
-
-  function sendMessage(text: string) {
-    setMessages((prev) => { const next = [...prev, { id: 'JM', name: 'You', time: 'now', text, you: true }]; if (!event.demo) patchEvent(event.id, { messages: next }); return next })
   }
 
   // Scalability: cell rendering must not be O(cells × people). Build each day's combined
@@ -565,13 +585,6 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
               </div>
             )}
           </Popover>}
-          {!chatOpen && (
-            // side-panel reopen — on stacked layouts the bottom bar below takes over
-            <button onClick={() => setChatOpen(true)} className="hidden h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[13px] font-semibold hover:border-border2 lg:flex">
-              <MessageCircle size={15} /> Discussion
-              {messages.length > 0 && <span className="flex h-[15px] items-center rounded-[10px] bg-accent px-[5px] text-[10px] text-on-accent">{messages.length}</span>}
-            </button>
-          )}
         </div>
 
         {/* participants + edit hint */}
@@ -661,6 +674,15 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
             {/* header row — the corner cell stays pinned through both scroll directions */}
             <div className="sticky left-0 top-0 z-[30] border-b border-r border-border bg-s0" />
             {weekDays.map((d) => {
+              // filler day outside the event's window — labeled but inert
+              if (d.pad) {
+                return (
+                  <div key={d.key} className="sticky top-0 z-20 border-b border-r border-border bg-s0 px-1.5 py-2 text-center opacity-60">
+                    <div className="text-[11px] text-faint">{d.dow}</div>
+                    <div className="text-[14px] font-semibold text-faint">{d.date}</div>
+                  </div>
+                )
+              }
               const dayFull = mode === 'edit' && mine[d.key]?.length === 1 && mine[d.key][0].s === 0 && mine[d.key][0].e === gridMax
               return (
                 <button
@@ -693,7 +715,7 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
               const labelMain = h24 ? `${String(rowH).padStart(2, '0')}:${rowMm}` : `${rowH % 12 === 0 ? 12 : rowH % 12}:${rowMm}`
               const labelSub = h24 ? null : rowH < 12 ? 'AM' : 'PM'
               const w0 = ti * step, w1 = (ti + 1) * step
-              const rowFull = weekDays.every((d) => (mine[d.key] ?? []).some((iv) => iv.s <= w0 && iv.e >= w1))
+              const rowFull = weekDays.every((d) => d.pad || (mine[d.key] ?? []).some((iv) => iv.s <= w0 && iv.e >= w1))
               return (
               <div key={ti} className="contents">
                 <button
@@ -716,6 +738,17 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
                   </span>
                 </button>
                 {weekDays.map((d) => {
+                  // out-of-window cell: hatched, no data, no interactions
+                  if (d.pad) {
+                    return (
+                      <div
+                        key={d.key}
+                        className="min-h-[50px] border-b border-r border-border"
+                        style={{ background: 'repeating-linear-gradient(-45deg, var(--s0) 0 5px, var(--s2) 5px 6px)' }}
+                        title="Outside this event's dates"
+                      />
+                    )
+                  }
                   if (mode === 'view') {
                     const bands = cellBands(combinedByDay[d.key] ?? {}, w0, w1)
                     const peak = peakOf(bands)
@@ -856,18 +889,6 @@ export function AvailabilityPanel({ event, locked = false }: { event: AppEvent; 
           )}
         </div>}
       </div>
-
-      {/* desktop: inline side panel */}
-      {chatOpen && <ChatSidePanel members={total} messages={messages} onSend={sendMessage} onClose={() => setChatOpen(false)} avatarOf={avatarOf} />}
-      {/* mobile: a bar that opens the full-height chat sheet */}
-      <button
-        onClick={() => setMobileChat(true)}
-        className="flex items-center justify-center gap-1.5 rounded-b-2xl border-t border-border bg-s0 py-3 text-[13.5px] font-semibold hover:bg-s2 lg:hidden"
-      >
-        <MessageCircle size={16} className="text-accent-text" /> Open discussion
-        {messages.length > 0 && <span className="flex h-[16px] items-center rounded-[10px] bg-accent px-[6px] text-[10.5px] text-on-accent">{messages.length}</span>}
-      </button>
-      {mobileChat && <ChatSheet members={total} messages={messages} onSend={sendMessage} onClose={() => setMobileChat(false)} avatarOf={avatarOf} />}
 
       {importing && (
         <ImportPreview
@@ -1171,91 +1192,6 @@ function CellDetail({ bands, total, fmt, gridStartMin, avatarOf, style, onClose 
             )}
           </div>
         ))}
-      </div>
-    </div>
-  )
-}
-
-/* ── inline chat side panel (controlled by parent) ── */
-type ChatProps = { members: number; messages: ChatMessage[]; onSend: (t: string) => void; onClose: () => void; avatarOf: (id: string) => { initials: string; name: string; color: Participant['color'] } }
-
-// shared chat content (header + messages + composer); the shell around it differs by device
-function ChatBody({ members, messages, onSend, onClose, avatarOf }: ChatProps) {
-  const scroller = useRef<HTMLDivElement>(null)
-  const [draft, setDraft] = useState('')
-  useEffect(() => { if (scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight }, [messages.length])
-  function send() { const text = draft.trim(); if (!text) return; onSend(text); setDraft('') }
-
-  return (
-    <div className="flex h-full min-h-0 w-full flex-col">
-      <div className="flex flex-none items-center justify-between border-b border-border px-3.5 py-[13px]">
-        <div className="flex items-center gap-1.5 text-[14px] font-semibold">
-          <MessageCircle size={16} className="text-accent-text" />
-          Event discussion
-          <span className="rounded-[10px] border border-accent-border bg-accent-bg px-1.5 py-px text-[10.5px] font-semibold text-accent-text">{members} members</span>
-        </div>
-        <button onClick={onClose} aria-label="Close chat" className="grid h-[30px] w-[30px] place-items-center rounded-lg text-dim hover:text-text"><X size={18} /></button>
-      </div>
-
-      <div ref={scroller} className="scroll-slim flex min-h-0 flex-1 flex-col gap-3.5 overflow-auto p-3.5">
-        {messages.length === 0 ? (
-          <div className="m-auto max-w-[210px] text-center">
-            <MessageCircle size={25} className="mx-auto mb-2 text-faint" />
-            <p className="text-[13.5px] font-semibold">No messages yet</p>
-            <p className="mt-1 text-[12.5px] leading-[1.5] text-dim">Say hi or ask a question. Everyone invited can chat here.</p>
-          </div>
-        ) : (
-          messages.map((m, i) => {
-            const a = avatarOf(m.id)
-            return (
-              <div key={i} className={`flex flex-col gap-1.5 ${m.you ? 'items-end' : 'items-start'}`}>
-                <div className="flex items-center gap-1.5 text-[11px] text-dim">
-                  {!m.you && <Avatar initials={a.initials} color={a.color} size={18} font={8.5} />}
-                  <span className="font-semibold text-text">{m.name}</span>
-                  <span>{m.time}</span>
-                </div>
-                <div className="max-w-[86%] rounded-[13px] border px-[11px] py-2 text-[13px] leading-[1.45]" style={m.you ? { background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' } : { background: 'var(--s2)', color: 'var(--text)', borderColor: 'var(--border)' }}>
-                  {m.text}
-                </div>
-              </div>
-            )
-          })
-        )}
-      </div>
-
-      <div className="flex flex-none items-center gap-2 border-t border-border p-[11px]">
-        <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} placeholder="Add a comment…" className="h-[38px] flex-1 rounded-[9px] border border-border bg-s1 px-[11px] text-[13.5px] outline-none placeholder:text-faint focus:border-accent-border" />
-        <button onClick={send} aria-label="Send" className="grid h-[38px] w-[38px] flex-none place-items-center rounded-[9px] bg-accent text-on-accent"><Send size={16} /></button>
-      </div>
-    </div>
-  )
-}
-
-// desktop: inline side panel that slides in from the right
-function ChatSidePanel(props: ChatProps) {
-  const panel = useRef<HTMLDivElement>(null)
-  useGSAP(() => { gsap.fromTo(panel.current, { x: 18, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: 'power3.out' }) }, { scope: panel })
-  return (
-    <div ref={panel} className="hidden w-[300px] flex-none overflow-hidden rounded-r-2xl border-l border-border bg-s0 lg:flex">
-      <ChatBody {...props} />
-    </div>
-  )
-}
-
-// mobile: full-height bottom sheet over a dimmed backdrop, slides up
-function ChatSheet(props: ChatProps) {
-  const sheet = useRef<HTMLDivElement>(null)
-  const back = useRef<HTMLDivElement>(null)
-  useGSAP(() => {
-    gsap.fromTo(back.current, { opacity: 0 }, { opacity: 1, duration: 0.25 })
-    gsap.fromTo(sheet.current, { y: '100%' }, { y: 0, duration: 0.36, ease: 'power3.out' })
-  }, { scope: sheet })
-  return (
-    <div className="fixed inset-0 z-50 lg:hidden">
-      <div ref={back} className="absolute inset-0 bg-black/40" onClick={props.onClose} />
-      <div ref={sheet} className="absolute inset-x-0 bottom-0 flex h-[88dvh] flex-col overflow-hidden rounded-t-2xl border-t border-border bg-s0 shadow-soft" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="flex flex-none justify-center pt-2"><span className="h-1 w-10 rounded-full bg-border2" /></div>
-        <ChatBody {...props} />
       </div>
     </div>
   )
