@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Building2, User, Link2, Users, Copy, MessageCircle, ArrowLeftRight, Pencil,
+  Building2, User, Link2, Users, Copy, MessageCircle, Pencil,
   CalendarRange, MapPin, UsersRound, Settings, Check, Trash2, TriangleAlert,
 } from 'lucide-react'
 import { gsap } from 'gsap'
@@ -352,8 +352,7 @@ function BudgetEditor({ event }: { event: AppEvent }) {
     setBudget(clean)
     persist({ budget: clean })
   }
-  function toggleMode() {
-    const m = mode === 'total' ? 'person' : 'total'
+  function changeMode(m: 'total' | 'person') {
     setMode(m)
     persist({ budgetMode: m })
   }
@@ -373,9 +372,18 @@ function BudgetEditor({ event }: { event: AppEvent }) {
             className="w-full min-w-0 bg-transparent px-1 text-[13.5px] font-medium outline-none"
           />
         </label>
-        <button onClick={toggleMode} title="Switch between per person and total" className="flex h-7 items-center gap-1.5 rounded-full border border-accent-border bg-accent-bg px-2.5 text-[12px] font-semibold text-accent-text">
-          <ArrowLeftRight size={11} /> {mode === 'person' ? 'Per person' : 'Total'}
-        </button>
+        {/* same segmented treatment as the budget step in the create wizard */}
+        <div className="flex flex-wrap rounded-[9px] border border-border bg-s1 p-0.5">
+          {([{ v: 'total', l: 'Total' }, { v: 'person', l: 'Per person' }] as const).map((o) => (
+            <button
+              key={o.v} type="button" onClick={() => changeMode(o.v)}
+              className="flex h-7 items-center rounded-[7px] px-3 text-[13px] font-semibold transition-colors"
+              style={mode === o.v ? { background: 'var(--accent)', color: 'var(--on-accent)' } : { color: 'var(--dim)' }}
+            >
+              {o.l}
+            </button>
+          ))}
+        </div>
       </div>
       {amount > 0 && responded > 0 && (
         <span className="text-[12.5px] leading-[1.5] text-dim">
