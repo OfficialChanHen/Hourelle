@@ -9,8 +9,12 @@ const abbr: Record<string, string> = {
   UTC: 'UTC',
 }
 
+export function tzAbbr(tz: string): string {
+  return abbr[tz] ?? tz.split('/').pop()?.slice(0, 3).toUpperCase() ?? 'UTC'
+}
+
 export function TimezonePill({ tz }: { tz: string }) {
-  const label = abbr[tz] ?? tz.split('/').pop()?.slice(0, 3).toUpperCase() ?? 'UTC'
+  const label = tzAbbr(tz)
   return (
     <span className="inline-flex items-center rounded-[5px] bg-s2 px-[5px] py-px font-mono text-[10px] leading-normal text-dim">
       {label}

@@ -196,7 +196,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       {/* body */}
       {tab === 'availability' && <AvailabilityPanel event={event} locked={locked} />}
       {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} />}
-      {tab === 'attendance' && <AttendancePanel event={event} />}
+      {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={setTab} />}
       {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} />}
 
       {chatOpen && <ChatDrawer event={event} messages={event.messages} onSend={sendMessage} onClose={() => setChatOpen(false)} />}

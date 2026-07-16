@@ -1,12 +1,21 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { Clock, MapPin, TriangleAlert } from 'lucide-react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { Check, ChevronRight, Clock, Copy, Info, MapPin, Pencil, TriangleAlert, Users } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
+import { Popover } from '@/components/ui/Popover'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { availIvOf, bestWindow, gridStartMinOf, fmtMinute, stepOf, type AppEvent, type Participant, type Iv } from '@/lib/events'
+import { tzAbbr } from '@/components/ui/TimezonePill'
+import {
+  availIvOf, bestWindow, dayLabel, gridStartMinOf, fmtMinute, patchEvent, setMyRsvp, stepOf,
+  type AppEvent, type EventPlace, type Iv, type Participant, type Rsvp,
+} from '@/lib/events'
 import { computeItinerary } from '@/lib/itinerary'
 import { ALL_MODES, type TravelMode } from '@/lib/travel'
+
+type GoTab = (t: 'availability' | 'location') => void
+// the window this tab reads attendance against: the confirmed time once locked, else the best free window
+type Win = { s: number; e: number; dayKey: string; dayLabel: string }
 
 type Cover = 'full' | 'partial' | 'none' | 'nodata'
 // how fully a person's free time covers a [s, e) window (grid minutes)
@@ -24,54 +33,147 @@ function windowOf(ivs: Iv[] | undefined, s: number, e: number): { s: number; e: 
   return { s: Math.min(...clipped.map((c) => c.s)), e: Math.max(...clipped.map((c) => c.e)) }
 }
 
-export function AttendancePanel({ event }: { event: AppEvent }) {
+// the place this event is heading to: the confirmed venue once locked, else the vote front-runner.
+// Ranking mirrors the Location tab so the two never disagree.
+type Leader = { place: EventPlace; voters: string[]; confirmed: boolean; margin: number | null }
+function leaderOf(event: AppEvent): Leader | null {
+  const places = event.location.places
+  if (event.location.mode === 'remote' || !places.length) return null
+  const votes = event.votes ?? {}
+  const votesOf = (id: string) => votes[id] ?? []
+  const confirmedPlace = event.status === 'confirmed' && event.confirmed
+    ? places.find((p) => event.confirmed!.placeIds.includes(p.id))
+    : undefined
+  if (confirmedPlace) return { place: confirmedPlace, voters: votesOf(confirmedPlace.id), confirmed: true, margin: null }
+  const ranked = [...places].sort((a, b) => votesOf(b.id).length - votesOf(a.id).length)
+  if (votesOf(ranked[0].id).length === 0) return null
+  const margin = ranked.length > 1 ? votesOf(ranked[0].id).length - votesOf(ranked[1].id).length : null
+  return { place: ranked[0], voters: votesOf(ranked[0].id), confirmed: false, margin }
+}
+
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+function fmtDeadline(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  return `${DOW[dt.getDay()]}, ${dayLabel(dt)}`
+}
+
+export function AttendancePanel({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab }) {
   const hasItinerary = (event.itinStops?.length ?? 0) > 0
   const [model, setModel] = useState<'single' | 'itin'>(hasItinerary ? 'itin' : 'single')
+
+  // RSVP, quorum and timing notes are editable on this tab — local state first so the demo
+  // event works in memory, persisted for real events (same pattern as the Location tab)
+  const [participants, setParticipants] = useState(event.participants)
+  const [quorum, setQuorum] = useState<number | null>(event.quorum ?? null)
+  const [timingNotes, setTimingNotes] = useState<Record<string, string>>(event.timingNotes ?? {})
+  // the event re-loads while this tab is open (confirm / reopen in the header) — adopt the
+  // fresh participant list during render instead of via an effect
+  const [seenParticipants, setSeenParticipants] = useState(event.participants)
+  if (seenParticipants !== event.participants) {
+    setSeenParticipants(event.participants)
+    setParticipants(event.participants)
+  }
+
+  function persist(patch: Partial<AppEvent>) { if (!event.demo) patchEvent(event.id, patch) }
+  function changeRsvp(r: Rsvp) {
+    setParticipants((ps) => ps.map((p) => (p.you ? { ...p, rsvp: r } : p)))
+    if (!event.demo) setMyRsvp(event.id, r)
+  }
+  function changeQuorum(q: number | null) {
+    setQuorum(q)
+    persist({ quorum: q ?? undefined })
+  }
+  function changeNote(pid: string, v: string) {
+    const next = { ...timingNotes }
+    if (v.trim()) next[pid] = v.trim()
+    else delete next[pid]
+    setTimingNotes(next)
+    persist({ timingNotes: next })
+  }
 
   const availIv = availIvOf(event)
   const gridStart = gridStartMinOf(event)
   const step = stepOf(event.granularity)
   const rows = event.times.length
+  const locked = event.status === 'confirmed' && !!event.confirmed
   const best = bestWindow(availIv, event.days, event.durationMin ?? 60)
-  const dayKey = best?.dayKey ?? event.days[0]?.key
-  const dayIv = (dayKey && availIv[dayKey]) || {}
 
-  const attendees = event.participants.filter((p) => p.rsvp === 'attending' || p.rsvp === 'maybe')
-  const anyResponded = event.participants.some((p) => p.rsvp !== 'pending')
+  const win: Win | null = useMemo(() => {
+    if (locked) {
+      const c = event.confirmed!
+      const d = event.days.find((x) => x.key === c.dayKey)
+      return { s: c.startMin - gridStart, e: c.endMin - gridStart, dayKey: c.dayKey, dayLabel: d ? `${d.dow}, ${d.date}` : c.dayKey }
+    }
+    return best ? { s: best.s, e: best.e, dayKey: best.dayKey, dayLabel: best.dayLabel } : null
+  }, [locked, event.confirmed, event.days, gridStart, best])
+  const dayIv = (win?.dayKey && availIv[win.dayKey]) || {}
+
+  const attendees = participants.filter((p) => p.rsvp === 'attending' || p.rsvp === 'maybe')
+  const anyResponded = participants.some((p) => p.rsvp !== 'pending')
+  const me = participants.find((p) => p.you)
+
+  // event with the live participant list, so child views read the same list this tab edits
+  const liveEvent = useMemo(() => ({ ...event, participants }), [event, participants])
 
   return (
     <div className="flex flex-col gap-4">
-      {/* header — friendly summary + (only when relevant) the model switch */}
+      {me?.rsvp === 'pending' && <YourRsvpStrip onPick={changeRsvp} />}
+
+      {/* header — friendly summary, share button, and (only when relevant) the model switch */}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-        <RsvpSummary event={event} />
-        {hasItinerary && (
-          <SegmentedControl
-            size="sm"
-            value={model}
-            onChange={(v) => setModel(v as 'single' | 'itin')}
-            options={[{ v: 'single', l: 'Single venue' }, { v: 'itin', l: 'Itinerary' }]}
-          />
-        )}
+        <RsvpSummary participants={participants} />
+        <div className="flex flex-wrap items-center gap-2">
+          <CopySummaryButton event={liveEvent} win={win} locked={locked} gridStart={gridStart} />
+          {hasItinerary && (
+            <SegmentedControl
+              size="sm"
+              value={model}
+              onChange={(v) => setModel(v as 'single' | 'itin')}
+              options={[{ v: 'single', l: 'Single venue' }, { v: 'itin', l: 'Itinerary' }]}
+            />
+          )}
+        </div>
       </div>
 
       {!anyResponded ? (
-        <EmptyState />
+        <EmptyState onGoToTab={onGoToTab} />
       ) : model === 'itin' && hasItinerary ? (
-        <ItineraryAttendance event={event} attendees={attendees} dayIv={dayIv} gridStart={gridStart} />
+        <ItineraryAttendance event={liveEvent} attendees={attendees} dayIv={dayIv} gridStart={gridStart} />
       ) : (
-        <SingleVenue event={event} attendees={attendees} best={best} dayIv={dayIv} gridStart={gridStart} step={step} rows={rows} />
+        <SingleVenue
+          event={liveEvent} attendees={attendees} win={win} locked={locked} dayIv={dayIv}
+          gridStart={gridStart} step={step} rows={rows}
+          quorum={quorum} onQuorum={event.hostedByYou ? changeQuorum : undefined}
+          timingNotes={timingNotes} onNote={changeNote} onGoToTab={onGoToTab}
+        />
       )}
     </div>
   )
 }
 
+/* ── your own reply, right where the counts are ── */
+function YourRsvpStrip({ onPick }: { onPick: (r: Rsvp) => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-accent-border bg-accent-bg px-4 py-3">
+      <span className="text-[14px] font-semibold text-accent-text">You haven&apos;t replied yet.</span>
+      <span className="text-[13px] text-dim">Are you coming?</span>
+      <div className="ml-auto flex items-center gap-1.5">
+        <button onClick={() => onPick('attending')} className="h-8 rounded-[8px] bg-accent px-3 text-[13px] font-semibold text-on-accent">Going</button>
+        <button onClick={() => onPick('maybe')} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2">Maybe</button>
+        <button onClick={() => onPick('not_going')} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2">Can&apos;t go</button>
+      </div>
+    </div>
+  )
+}
+
 /* ── shared: RSVP figure (borderless, open stats) ── */
-function RsvpSummary({ event }: { event: AppEvent }) {
-  const going = event.participants.filter((p) => p.rsvp === 'attending').length
-  const maybe = event.participants.filter((p) => p.rsvp === 'maybe').length
-  const out = event.participants.filter((p) => p.rsvp === 'not_going').length
-  const noReply = event.participants.filter((p) => p.rsvp === 'pending').length
-  const total = event.participants.length
+function RsvpSummary({ participants }: { participants: Participant[] }) {
+  const going = participants.filter((p) => p.rsvp === 'attending').length
+  const maybe = participants.filter((p) => p.rsvp === 'maybe').length
+  const out = participants.filter((p) => p.rsvp === 'not_going').length
+  const noReply = participants.filter((p) => p.rsvp === 'pending').length
+  const total = participants.length
   return (
     <div>
       <div className="flex items-baseline gap-2">
@@ -87,16 +189,36 @@ function RsvpSummary({ event }: { event: AppEvent }) {
   )
 }
 
-/* ── Single venue: who's in the room, and when ── */
+/* one-tap summary for the group chat: headcount, window, and the place, as plain text */
+function CopySummaryButton({ event, win, locked, gridStart }: { event: AppEvent; win: Win | null; locked: boolean; gridStart: number }) {
+  const [copied, setCopied] = useState(false)
+  function copy() {
+    const going = event.participants.filter((p) => p.rsvp === 'attending').length
+    const parts = [`${event.title}: ${going} of ${event.participants.length} going`]
+    if (win) parts.push(`${locked ? 'confirmed for' : 'best window'} ${win.dayLabel}, ${fmtMinute(gridStart + win.s)}–${fmtMinute(gridStart + win.e)} ${tzAbbr(event.timezone)}`)
+    const lead = leaderOf(event)
+    if (lead) parts.push(lead.confirmed ? `at ${lead.place.name}` : `leading place: ${lead.place.name}`)
+    navigator.clipboard?.writeText(parts.join(' · ')).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
+  }
+  return (
+    <button onClick={copy} className={`flex h-9 items-center gap-1.5 rounded-[9px] border px-3 text-[13px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
+      {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy summary</>}
+    </button>
+  )
+}
+
+/* ── Single venue: where it's happening, who's in the room, and when ── */
 function SingleVenue({
-  event, attendees, best, dayIv, gridStart, step, rows,
+  event, attendees, win, locked, dayIv, gridStart, step, rows, quorum, onQuorum, timingNotes, onNote, onGoToTab,
 }: {
-  event: AppEvent; attendees: Participant[]; best: ReturnType<typeof bestWindow>
+  event: AppEvent; attendees: Participant[]; win: Win | null; locked: boolean
   dayIv: Record<string, Iv[]>; gridStart: number; step: number; rows: number
+  quorum: number | null; onQuorum?: (q: number | null) => void
+  timingNotes: Record<string, string>; onNote: (pid: string, v: string) => void
+  onGoToTab?: GoTab
 }) {
-  const [view, setView] = useState<'roster' | 'timeline'>('roster')
-  const winS = best?.s ?? 0
-  const winE = best?.e ?? rows * step
+  const winS = win?.s ?? 0
+  const winE = win?.e ?? rows * step
 
   // group attendees by how their availability lines up with the event window — RSVP leads,
   // availability only splits "going" into whole-time vs part-of-the-time.
@@ -107,35 +229,259 @@ function SingleVenue({
       if (p.rsvp === 'not_going') { out.push(p); continue }
       if (p.rsvp === 'pending') { noReply.push(p); continue }
       if (p.rsvp === 'maybe') { maybe.push(p); continue }
-      const cover = best ? coverOf(dayIv[p.id], winS, winE) : 'nodata'
+      const cover = win ? coverOf(dayIv[p.id], winS, winE) : 'nodata'
       if (cover === 'partial' || cover === 'none') {
         const w = windowOf(dayIv[p.id], winS, winE)
         part.push({ p, s: w ? w.s : winS, e: w ? w.e : null })
       } else whole.push(p)
     }
     return { whole, part, maybe, out, noReply }
-  }, [event.participants, dayIv, best, winS, winE])
+  }, [event.participants, dayIv, win, winS, winE])
+
+  // inline timing bar for part-time rows, positioned within the window
+  const span = Math.max(1, winE - winS)
+  const barOf = (s: number, e: number | null) => e == null ? null : {
+    left: `${Math.max(0, ((s - winS) / span) * 100).toFixed(1)}%`,
+    width: `${Math.max(2, (((e - s) / span) * 100)).toFixed(1)}%`,
+  }
+
+  // a nearby start that lets more people stay the whole time. The best window can't be
+  // beaten by a shift, so this mostly speaks up when the confirmed time isn't the best one.
+  const shift = useMemo(() => {
+    if (!win) return null
+    const fullCount = (s: number, e: number) => attendees.filter((p) => (dayIv[p.id] ?? []).some((iv) => iv.s <= s && iv.e >= e)).length
+    const cur = fullCount(winS, winE)
+    if (cur >= attendees.length) return null
+    let found: { d: number; count: number } | null = null
+    for (const d of [-120, -90, -60, -45, -30, -15, 15, 30, 45, 60, 90, 120]) {
+      const s = winS + d, e = winE + d
+      if (s < 0 || e > rows * step) continue
+      const c = fullCount(s, e)
+      if (c > cur && (!found || c > found.count || (c === found.count && Math.abs(d) < Math.abs(found.d)))) found = { d, count: c }
+    }
+    return found ? { d: found.d, gain: found.count - cur } : null
+  }, [win, winS, winE, attendees, dayIv, rows, step])
+
+  const noteExtras = (p: Participant) => ({
+    userNote: timingNotes[p.id],
+    noteEdit: p.you ? (v: string) => onNote(p.id, v) : undefined,
+  })
 
   return (
     <div className="rounded-2xl border border-border bg-s1 p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Who&apos;s coming</div>
-        <SegmentedControl size="sm" value={view} onChange={(v) => setView(v as 'roster' | 'timeline')}
-          options={[{ v: 'roster', l: 'Roster' }, { v: 'timeline', l: 'Timeline' }]} />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          {win && (
+            <div className="flex items-center gap-1.5 text-[12.5px] text-dim">
+              {locked ? 'Confirmed time' : 'Best window'} · {win.dayLabel}, {fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}
+              {!locked && <BestWindowInfo />}
+            </div>
+          )}
+          {onQuorum && <QuorumControl quorum={quorum} onChange={onQuorum} />}
+        </div>
       </div>
 
-      {view === 'roster' ? (
-        <div className="flex flex-col gap-4">
-          <RosterGroup label="Here the whole time" tone="teal" people={groups.whole.map((p) => ({ p }))} />
-          <RosterGroup label="Part of the time" tone="ochre" people={groups.part.map((x) => ({ p: x.p, note: x.e != null ? `${fmtMinute(gridStart + x.s)}–${fmtMinute(gridStart + x.e)}` : 'time conflict' }))} />
-          <RosterGroup label="Maybe" tone="ochre" people={groups.maybe.map((p) => ({ p }))} />
-          <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({ p }))} />
-          <RosterGroup label="No reply" tone="faint" people={groups.noReply.map((p) => ({ p }))} />
-        </div>
-      ) : (
-        <DayTimeline attendees={attendees} best={best} dayIv={dayIv} gridStart={gridStart} step={step} rows={rows}
-          whole={groups.whole} part={groups.part} winS={winS} winE={winE} />
+      <LeadingPlace event={event} onGoToTab={onGoToTab} />
+
+      {win
+        ? <HeadcountBars attendees={attendees} dayIv={dayIv} gridStart={gridStart} step={step} rows={rows} winS={winS} winE={winE} locked={locked} quorum={quorum} />
+        : <div className="rounded-xl border border-border bg-s0 px-4 py-6 text-center text-[13.5px] text-dim">Add availability to see who is around when.</div>}
+
+      {quorum != null && win && <QuorumStatus quorum={quorum} whole={groups.whole.length} />}
+      {shift && <ShiftSuggestion shift={shift} />}
+
+      <div className="mt-5 flex flex-col gap-4">
+        <RosterGroup label="Here the whole time" tone="teal" people={groups.whole.map((p) => ({ p, ...noteExtras(p) }))} />
+        <RosterGroup label="Part of the time" tone="ochre" people={groups.part.map((x) => ({
+          p: x.p,
+          note: x.e != null ? `${fmtMinute(gridStart + x.s)}–${fmtMinute(gridStart + x.e)}` : 'time conflict',
+          bar: barOf(x.s, x.e),
+          ...noteExtras(x.p),
+        }))} />
+        <RosterGroup label="Maybe" tone="ochre" people={groups.maybe.map((p) => ({ p, ...noteExtras(p) }))} />
+        <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({ p }))} />
+        <RosterGroup label="No reply" tone="faint" people={groups.noReply.map((p) => ({ p }))} action={<CopyReminder event={event} />} />
+      </div>
+    </div>
+  )
+}
+
+function BestWindowInfo() {
+  return (
+    <Popover width={264} align="end" trigger={() => <Info size={13} className="text-faint hover:text-dim" />}>
+      {() => (
+        <p className="p-1 text-[12.5px] leading-[1.55] text-dim">
+          The best window is the time when the most people are free for the whole event. It updates as people fill in the Availability tab.
+        </p>
       )}
+    </Popover>
+  )
+}
+
+/* host-set minimum headcount — the tab warns when fewer can stay the whole time */
+function QuorumControl({ quorum, onChange }: { quorum: number | null; onChange: (q: number | null) => void }) {
+  const ref = useRef<HTMLInputElement>(null)
+  function save(close: () => void) {
+    const n = parseInt(ref.current?.value ?? '', 10)
+    onChange(Number.isFinite(n) && n >= 1 ? n : null)
+    close()
+  }
+  return (
+    <Popover width={252} align="end" trigger={(open) => (
+      <span className={`flex h-7 items-center gap-1.5 rounded-[8px] border border-border2 px-2.5 text-[12px] font-semibold ${open ? 'bg-s2' : 'bg-s1 hover:bg-s2'}`}>
+        <Users size={13} /> {quorum != null ? `Need ${quorum}` : 'Set a minimum'}
+      </span>
+    )}>
+      {(close) => (
+        <div className="p-1">
+          <div className="text-[13px] font-semibold">How many people make it worth it?</div>
+          <p className="mt-1 text-[12.5px] leading-[1.5] text-dim">This tab warns you when fewer than this can stay the whole time.</p>
+          <div className="mt-2.5 flex items-center gap-2">
+            <input
+              ref={ref} type="number" min={1} max={999} defaultValue={quorum ?? ''} placeholder="e.g. 8"
+              className="h-9 w-[86px] rounded-[9px] border border-border bg-s0 px-3 text-[14px] outline-none focus:border-border2"
+              onKeyDown={(e) => { if (e.key === 'Enter') save(close) }}
+            />
+            <button onClick={() => save(close)} className="h-9 flex-none rounded-[9px] bg-accent px-3 text-[13px] font-semibold text-on-accent">Save</button>
+            {quorum != null && (
+              <button onClick={() => { onChange(null); close() }} className="h-9 flex-none rounded-[9px] px-2 text-[13px] font-semibold text-dim hover:bg-s2">Clear</button>
+            )}
+          </div>
+        </div>
+      )}
+    </Popover>
+  )
+}
+
+function QuorumStatus({ quorum, whole }: { quorum: number; whole: number }) {
+  if (whole >= quorum) {
+    return (
+      <div className="mt-3 flex items-center gap-2 text-[13px] text-teal-text">
+        <span className="h-1.5 w-1.5 flex-none rounded-full bg-teal" /> {whole} can stay the whole time. That clears your minimum of {quorum}.
+      </div>
+    )
+  }
+  return (
+    <div className="mt-3 flex items-start gap-2 rounded-[10px] border border-ochre-border bg-ochre-bg px-3 py-2 text-[13px] leading-[1.5] text-ochre-text">
+      <TriangleAlert size={14} className="mt-0.5 flex-none" /> Only {whole} can stay the whole time, and you wanted at least {quorum}.
+    </div>
+  )
+}
+
+const SHIFT_LABEL: Record<number, string> = { 15: '15 minutes', 30: '30 minutes', 45: '45 minutes', 60: 'an hour', 90: 'an hour and a half', 120: 'two hours' }
+function ShiftSuggestion({ shift }: { shift: { d: number; gain: number } }) {
+  return (
+    <div className="mt-3 flex items-start gap-2 rounded-[10px] border border-accent-border bg-accent-bg px-3 py-2 text-[13px] leading-[1.5] text-accent-text">
+      <Clock size={14} className="mt-0.5 flex-none" />
+      <span>Starting {SHIFT_LABEL[Math.abs(shift.d)]} {shift.d > 0 ? 'later' : 'earlier'} would let {shift.gain} more {shift.gain === 1 ? 'person' : 'people'} stay the whole time.</span>
+    </div>
+  )
+}
+
+/* Leading place: the venue this headcount is for — tap through to the Location tab */
+function LeadingPlace({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab }) {
+  if (event.location.mode === 'remote') {
+    return (
+      <div className="mb-4 flex items-center gap-3 rounded-xl border border-border bg-s0 px-4 py-3">
+        <span className="grid h-9 w-9 flex-none place-items-center rounded-lg border border-border bg-s2 text-dim"><MapPin size={16} /></span>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[14.5px] font-semibold">Online event</div>
+          <div className="text-[12.5px] text-dim">{event.location.platform || 'Meeting link on the Details tab'}</div>
+        </div>
+      </div>
+    )
+  }
+  if (!event.location.places.length) return null
+
+  const lead = leaderOf(event)
+  if (!lead) {
+    return (
+      <button onClick={() => onGoToTab?.('location')} className="mb-4 w-full rounded-xl border border-dashed border-border2 bg-s0 px-4 py-3 text-left text-[13px] leading-[1.5] text-dim transition-colors hover:bg-s2">
+        No votes yet. Once people vote on the Location tab, the leading place shows up here. <span className="font-semibold text-accent-text">Go vote</span>
+      </button>
+    )
+  }
+
+  const voters = lead.voters
+    .map((id) => event.participants.find((p) => p.id === id))
+    .filter((p): p is Participant => !!p)
+
+  return (
+    <button onClick={() => onGoToTab?.('location')} className="mb-4 flex w-full flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-s0 px-4 py-3 text-left transition-colors hover:bg-s2">
+      <span className="grid h-9 w-9 flex-none place-items-center rounded-lg border border-accent-border bg-accent-bg text-accent-text"><MapPin size={16} /></span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="truncate text-[14.5px] font-semibold">{lead.place.name}</span>
+          {lead.confirmed
+            ? <span className="flex-none rounded-[6px] border border-teal-border bg-teal-bg px-1.5 py-px text-[10.5px] font-semibold text-teal-text">Confirmed</span>
+            : <span className="flex-none rounded-[6px] border border-accent-border bg-accent-bg px-1.5 py-px text-[10.5px] font-semibold text-accent-text">Leading</span>}
+        </span>
+        <span className="block truncate text-[12.5px] text-dim">
+          {lead.place.place} · {voters.length} {voters.length === 1 ? 'vote' : 'votes'}
+          {lead.margin != null && lead.margin > 0 && <span> · ahead by {lead.margin}</span>}
+          {lead.margin === 0 && <span className="text-ochre-text"> · tied for first</span>}
+        </span>
+      </span>
+      <AvatarPile people={voters} cap={5} />
+      <ChevronRight size={16} className="flex-none text-faint" />
+    </button>
+  )
+}
+
+/* Headcount through the day — how many attendees are free per slot; tap a bar for the numbers */
+function HeadcountBars({
+  attendees, dayIv, gridStart, step, rows, winS, winE, locked, quorum,
+}: {
+  attendees: Participant[]; dayIv: Record<string, Iv[]>; gridStart: number; step: number; rows: number
+  winS: number; winE: number; locked: boolean; quorum: number | null
+}) {
+  const [sel, setSel] = useState<number | null>(null)
+  const counts = useMemo(() => Array.from({ length: rows }, (_, ti) => {
+    const s = ti * step, e = (ti + 1) * step
+    return attendees.filter((p) => (dayIv[p.id] ?? []).some((iv) => iv.s < e && iv.e > s)).length
+  }), [attendees, dayIv, rows, step])
+  const peak = Math.max(1, ...counts)
+  const total = Math.max(1, attendees.length)
+  const quorumPct = quorum != null ? Math.min(100, (quorum / peak) * 100) : null
+
+  return (
+    <div>
+      <div className="relative">
+        {sel != null && (
+          <div
+            className="pointer-events-none absolute -top-1.5 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-[8px] border border-border bg-s1 px-2.5 py-1.5 text-[12px] shadow-soft"
+            style={{ left: `${Math.min(88, Math.max(12, ((sel + 0.5) / rows) * 100))}%` }}
+          >
+            <span className="font-semibold">{fmtMinute(gridStart + sel * step)}</span> · {counts[sel]} of {total} free
+          </div>
+        )}
+        <div className="flex h-16 items-end gap-[2px]">
+          {counts.map((c, i) => {
+            const frac = c / total
+            const bg = frac === 0 ? 'var(--s2)' : frac >= 0.85 ? 'var(--teal)' : frac >= 0.5 ? '#9DBBA4' : frac >= 0.25 ? '#CFE0D2' : '#EBF1EB'
+            return (
+              <button
+                key={i} onClick={() => setSel(sel === i ? null : i)}
+                aria-label={`${fmtMinute(gridStart + i * step)}, ${c} of ${total} free`}
+                className={`flex-1 rounded-t-[2px] ${sel === i ? 'outline outline-1 outline-[--accent]' : ''}`}
+                style={{ height: `${Math.max(6, (c / peak) * 100)}%`, background: bg }}
+                title={`${fmtMinute(gridStart + i * step)} · ${c} free`}
+              />
+            )
+          })}
+        </div>
+        {quorumPct != null && (
+          <div className="pointer-events-none absolute inset-x-0 border-t border-dashed border-ochre" style={{ bottom: `${quorumPct}%` }}>
+            <span className="absolute right-0 top-0 rounded-[4px] bg-s1/85 px-1 text-[10px] font-semibold text-ochre-text">need {quorum}</span>
+          </div>
+        )}
+      </div>
+      <div className="mt-1.5 flex justify-between text-[11px] text-faint">
+        <span>{fmtMinute(gridStart)}</span>
+        <span className="text-dim">{locked ? 'Confirmed' : 'Best window'} {fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</span>
+        <span>{fmtMinute(gridStart + rows * step)}</span>
+      </div>
     </div>
   )
 }
@@ -147,24 +493,40 @@ const TONE: Record<string, { dot: string; text: string }> = {
   faint: { dot: 'var(--faint)', text: 'text-faint' },
 }
 
-function RosterGroup({ label, tone, people, cap = 12 }: { label: string; tone: keyof typeof TONE | string; people: { p: Participant; note?: string }[]; cap?: number }) {
+function RosterGroup({ label, tone, people, cap = 12, action }: {
+  label: string; tone: keyof typeof TONE | string
+  people: { p: Participant; note?: string; bar?: { left: string; width: string } | null; userNote?: string; noteEdit?: (v: string) => void }[]
+  cap?: number
+  action?: ReactNode
+}) {
   if (!people.length) return null
   const t = TONE[tone] ?? TONE.faint
   const shown = people.slice(0, cap)
   const extra = people.length - shown.length
+  const hasBars = people.some((x) => x.bar)
   return (
     <div>
       <div className="mb-2 flex items-center gap-2">
         <span className="h-1.5 w-1.5 rounded-full" style={{ background: t.dot }} />
         <span className={`text-[13.5px] font-semibold ${t.text}`}>{label}</span>
         <span className="text-[12.5px] text-faint">{people.length}</span>
+        {action && <span className="ml-auto">{action}</span>}
       </div>
       <div className="flex flex-col gap-1.5">
-        {shown.map(({ p, note }) => (
+        {shown.map(({ p, note, bar, userNote, noteEdit }) => (
           <div key={p.id} className="flex items-center gap-2.5">
             <Avatar initials={p.initials} color={p.color} size={27} font={10} />
-            <span className="min-w-0 flex-1 truncate text-[14px]">{p.name}{p.you && <span className="text-faint"> · you</span>}</span>
-            {note && <span className="flex flex-none items-center gap-1 text-[12.5px] text-dim"><Clock size={12} /> {note}</span>}
+            <span className={`min-w-0 truncate text-[14px] ${hasBars ? 'w-[30%] sm:w-[120px] flex-none' : 'flex-1'}`}>{p.name}{p.you && <span className="text-faint"> · you</span>}</span>
+            {hasBars && (
+              <div className="relative h-5 min-w-0 flex-1 rounded-[6px] bg-s2">
+                {bar
+                  ? <div className="absolute inset-y-0 rounded-[6px] border border-ochre-border bg-ochre-bg" style={{ left: bar.left, width: bar.width }} />
+                  : <span className="absolute inset-0 flex items-center px-2 text-[11.5px] text-brick-text">busy during this time</span>}
+              </div>
+            )}
+            {userNote && <span className="max-w-[110px] flex-none truncate text-[12px] text-ochre-text sm:max-w-[180px]" title={userNote}>&ldquo;{userNote}&rdquo;</span>}
+            {note && <span className="hidden flex-none items-center gap-1 text-[12.5px] text-dim sm:flex"><Clock size={12} /> {note}</span>}
+            {noteEdit && <NoteEditor value={userNote ?? ''} onSave={noteEdit} />}
           </div>
         ))}
         {extra > 0 && <div className="pl-[34px] text-[12.5px] text-faint">and {extra} more</div>}
@@ -173,68 +535,44 @@ function RosterGroup({ label, tone, people, cap = 12 }: { label: string; tone: k
   )
 }
 
-/* Timeline: collapse whole-time attendees into one bar; give part-time people their own row */
-function DayTimeline({
-  attendees, best, dayIv, gridStart, step, rows, whole, part, winS, winE,
-}: {
-  attendees: Participant[]; best: ReturnType<typeof bestWindow>
-  dayIv: Record<string, Iv[]>; gridStart: number; step: number; rows: number
-  whole: Participant[]; part: { p: Participant; s: number; e: number | null }[]; winS: number; winE: number
-}) {
-  // headcount across the event day — how many attendees are free per slot
-  const counts = useMemo(() => Array.from({ length: rows }, (_, ti) => {
-    const s = ti * step, e = (ti + 1) * step
-    return attendees.filter((p) => (dayIv[p.id] ?? []).some((iv) => iv.s < e && iv.e > s)).length
-  }), [attendees, dayIv, rows, step])
-  const peak = Math.max(1, ...counts)
-  const total = Math.max(1, attendees.length)
-  const span = Math.max(1, winE - winS)
-  const pct = (m: number) => `${(((m - winS) / span) * 100).toFixed(1)}%`
-  const wid = (a: number, b: number) => `${(((b - a) / span) * 100).toFixed(1)}%`
-
-  if (!best) {
-    return <div className="rounded-xl border border-border bg-s0 px-4 py-6 text-center text-[13.5px] text-dim">Add availability to see who is around when.</div>
-  }
-
+/* your own timing note — availability says when you're free, this says what you'll actually do */
+function NoteEditor({ value, onSave }: { value: string; onSave: (v: string) => void }) {
+  const ref = useRef<HTMLInputElement>(null)
   return (
-    <div className="flex flex-col gap-4">
-      {/* free-through-the-day bars */}
-      <div>
-        <div className="flex h-16 items-end gap-[2px]">
-          {counts.map((c, i) => {
-            const frac = c / total
-            const bg = frac === 0 ? 'var(--s2)' : frac >= 0.85 ? 'var(--teal)' : frac >= 0.5 ? '#9DBBA4' : frac >= 0.25 ? '#CFE0D2' : '#EBF1EB'
-            return <span key={i} className="flex-1 rounded-t-[2px]" style={{ height: `${Math.max(6, (c / peak) * 100)}%`, background: bg }} title={`${fmtMinute(gridStart + i * step)} · ${c} free`} />
-          })}
+    <Popover width={276} align="end" className="flex-none" trigger={() => (
+      <span className="grid h-7 w-7 place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim" title="Add a timing note"><Pencil size={13} /></span>
+    )}>
+      {(close) => (
+        <div className="p-1">
+          <div className="text-[13px] font-semibold">Timing note</div>
+          <p className="mt-1 text-[12.5px] leading-[1.5] text-dim">Let people know your plan, like arriving around 3 or leaving after dinner.</p>
+          <input
+            ref={ref} defaultValue={value} placeholder="Arriving around 3" maxLength={60}
+            className="mt-2.5 h-9 w-full rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] outline-none focus:border-border2"
+            onKeyDown={(e) => { if (e.key === 'Enter') { onSave(ref.current?.value ?? ''); close() } }}
+          />
+          <div className="mt-2 flex items-center justify-end gap-2">
+            {value && <button onClick={() => { onSave(''); close() }} className="h-8 rounded-[8px] px-2.5 text-[12.5px] font-semibold text-brick-text hover:bg-brick-bg">Remove</button>}
+            <button onClick={() => { onSave(ref.current?.value ?? ''); close() }} className="h-8 rounded-[8px] bg-accent px-3 text-[12.5px] font-semibold text-on-accent">Save</button>
+          </div>
         </div>
-        <div className="mt-1.5 flex justify-between text-[11px] text-faint">
-          <span>{fmtMinute(gridStart)}</span>
-          <span className="text-dim">Best window {fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</span>
-          <span>{fmtMinute(gridStart + rows * step)}</span>
-        </div>
-      </div>
+      )}
+    </Popover>
+  )
+}
 
-      {/* who's in the room, within the best window */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-3">
-          <span className="w-[92px] flex-none truncate text-[13px] font-medium text-teal-text">Whole time</span>
-          <div className="relative h-6 flex-1 rounded-[7px] bg-s2">
-            <div className="absolute inset-y-0 rounded-[7px] bg-teal-bg" style={{ left: 0, width: '100%' }} />
-            <span className="absolute inset-0 flex items-center px-2 text-[12px] font-semibold text-teal-text">{whole.length} {whole.length === 1 ? 'person' : 'people'}</span>
-          </div>
-        </div>
-        {part.map(({ p, s, e }) => (
-          <div key={p.id} className="flex items-center gap-3">
-            <span className="flex w-[92px] flex-none items-center gap-1.5 truncate text-[13px]"><Avatar initials={p.initials} color={p.color} size={20} font={8.5} /> {p.name.split(' ')[0]}</span>
-            <div className="relative h-6 flex-1 rounded-[7px] bg-s2">
-              {e != null
-                ? <div className="absolute inset-y-0 rounded-[7px] bg-ochre-bg" style={{ left: pct(s), width: wid(s, e) }} />
-                : <span className="absolute inset-0 flex items-center px-2 text-[12px] text-brick-text">time conflict</span>}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+/* a ready-made nudge for the group chat, aimed at the people who haven't replied */
+function CopyReminder({ event }: { event: AppEvent }) {
+  const [copied, setCopied] = useState(false)
+  function copy() {
+    const deadline = event.voteDeadline ? ` Voting closes ${fmtDeadline(event.voteDeadline)}.` : ''
+    const msg = `Quick reminder about ${event.title}! Please mark when you're free and vote on a place: https://aline.app/e/${event.id}${deadline}`
+    navigator.clipboard?.writeText(msg).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
+  }
+  return (
+    <button onClick={copy} className={`flex h-7 items-center gap-1.5 rounded-[7px] border px-2 text-[12px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 text-dim hover:bg-s2'}`}>
+      {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy a reminder</>}
+    </button>
   )
 }
 
@@ -364,14 +702,28 @@ function Flag({ tone, children }: { tone: 'ochre' | 'brick'; children: React.Rea
   return <span className={`flex items-center gap-1 rounded-[6px] border px-1.5 py-px text-[10.5px] font-semibold ${cls}`}>{tone === 'brick' && <TriangleAlert size={10} />}{children}</span>
 }
 
-function EmptyState() {
+function EmptyState({ onGoToTab }: { onGoToTab?: GoTab }) {
   return (
-    <div className="grid min-h-[280px] place-items-center rounded-2xl border border-dashed border-border2 bg-s1 px-6 text-center">
-      <div className="max-w-sm">
+    <div className="grid min-h-[280px] place-items-center rounded-2xl border border-dashed border-border2 bg-s1 px-6 py-8 text-center">
+      <div className="max-w-md">
         <span className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-xl border border-border bg-s2 text-dim"><MapPin size={22} /></span>
         <p className="font-serif text-[27px] tracking-[-0.01em]">No responses yet</p>
-        <p className="mt-1.5 text-[14px] text-dim">As people RSVP and mark when they are free, the headcount and roster fill in here.</p>
+        <p className="mt-1.5 text-[14px] text-dim">This tab fills in as people reply. It starts with two quick steps.</p>
+        <div className="mx-auto mt-4 flex max-w-[360px] flex-col gap-2 text-left">
+          <StepRow n={1} text="Mark when you're free" cta="Open availability" onClick={() => onGoToTab?.('availability')} />
+          <StepRow n={2} text="Vote on a place" cta="Open location" onClick={() => onGoToTab?.('location')} />
+        </div>
       </div>
     </div>
+  )
+}
+
+function StepRow({ n, text, cta, onClick }: { n: number; text: string; cta: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="flex items-center gap-3 rounded-xl border border-border bg-s0 px-3.5 py-2.5 text-left transition-colors hover:bg-s2">
+      <span className="grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[12px] font-bold text-on-accent">{n}</span>
+      <span className="min-w-0 flex-1 text-[13.5px] font-medium">{text}</span>
+      <span className="flex-none text-[12.5px] font-semibold text-accent-text">{cta}</span>
+    </button>
   )
 }
