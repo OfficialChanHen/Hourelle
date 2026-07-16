@@ -359,7 +359,6 @@ function BudgetEditor({ event }: { event: AppEvent }) {
 
   const amount = Number(budget || 0)
   const responded = respondedCount(event.avail)
-  const people = `${responded} ${responded === 1 ? 'person' : 'people'}`
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -388,8 +387,8 @@ function BudgetEditor({ event }: { event: AppEvent }) {
       {amount > 0 && responded > 0 && (
         <span className="text-[12.5px] leading-[1.5] text-dim">
           {mode === 'person'
-            ? `About $${(amount * responded).toLocaleString()} in total, from the ${people} who marked availability.`
-            : `About $${Math.round(amount / responded).toLocaleString()} per person, split across the ${people} who marked availability.`}
+            ? `$${(amount * responded).toLocaleString()} total for ${responded} currently available`
+            : `$${Math.round(amount / responded).toLocaleString()}/person for ${responded} currently available`}
         </span>
       )}
       {amount > 0 && responded === 0 && (
