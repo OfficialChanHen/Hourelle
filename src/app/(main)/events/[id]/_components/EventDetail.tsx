@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Building2, Link2, Users, Copy, MessageCircle,
+  Building2, User, Link2, Users, Copy, MessageCircle,
   CalendarRange, MapPin, UsersRound, Settings, Check, Trash2, TriangleAlert,
 } from 'lucide-react'
 import { gsap } from 'gsap'
@@ -124,7 +124,10 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
         <div className="min-w-0">
           <h1 className="font-serif text-[34.5px] leading-[1.04] tracking-[-0.01em]">{event.title}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13.5px] text-dim">
-            <span className="flex items-center gap-1.5"><Building2 size={15} /> Hosted by {event.hostName}</span>
+            {/* a person hosts with a person icon; an organization keeps the building */}
+            <span className="flex items-center gap-1.5">
+              {event.hostedByYou ? <User size={15} /> : <Building2 size={15} />} Hosted by {event.hostName}
+            </span>
             <Badge variant={badge.variant}>{badge.label}</Badge>
           </div>
         </div>

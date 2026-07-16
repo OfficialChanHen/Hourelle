@@ -17,7 +17,7 @@ export type EventStatus = 'planning' | 'confirmed'
 // the host's locked-in plan: a day, a clock-minute window, and the chosen place(s)
 export type ConfirmedSlot = { dayKey: string; startMin: number; endMin: number; placeIds: string[] }
 export type Participant = { id: string; initials: string; name: string; color: PersonColor; rsvp: Rsvp; you?: boolean; host?: boolean; guest?: boolean }
-export type EventPlace = { id: string; name: string; place: string }
+export type EventPlace = { id: string; name: string; place: string; addedBy?: string } // addedBy: participant id who suggested it
 export type GridDay = { key: string; dow: string; date: string; best?: boolean }
 // minute-precise availability: grid-minutes from the top of the grid, block covers [s, e)
 export type Iv = { s: number; e: number }
@@ -50,6 +50,7 @@ export type AppEvent = {
   availIv?: AvailIntervals            // source of truth once anyone edits with minute precision
   votes?: Record<string, string[]>    // placeId → participant ids who voted for it
   maxVotes?: number                   // votes each person gets (default 1)
+  voteDeadline?: string               // ISO date; voting closes at the end of this day
   itinStops?: string[]                // ordered place ids once an itinerary exists
   itinRank?: string[]                 // vote ranking snapshot when the itinerary was built from votes
   itinDwell?: number[]                // minutes spent at each stop (aligned to itinStops order)
@@ -419,7 +420,7 @@ export function createEvent(input: CreateInput): AppEvent {
 
   // itinerary picks are an ordered stop list (a venue may repeat); the candidate list is the unique set
   const isItin = input.planMode === 'itinerary'
-  const pickedPlaces = input.picked.map((p) => ({ id: p.id, name: p.name, place: p.place }))
+  const pickedPlaces = input.picked.map((p) => ({ id: p.id, name: p.name, place: p.place, addedBy: YOU.id }))
   const uniquePlaces = pickedPlaces.filter((p, i) => pickedPlaces.findIndex((x) => x.id === p.id) === i)
 
   const ev: AppEvent = {
@@ -482,9 +483,9 @@ const DEMO: AppEvent = {
     mode: 'vote',
     planMode: 'vote',
     places: [
-      { id: 'cavallo', name: 'Cavallo Point Lodge', place: 'Sausalito, CA' },
-      { id: 'terrapin', name: 'Terrapin Crossroads', place: 'San Rafael, CA' },
-      { id: 'presidio', name: 'Odeum at the Presidio', place: 'San Francisco, CA' },
+      { id: 'cavallo', name: 'Cavallo Point Lodge', place: 'Sausalito, CA', addedBy: 'SR' },
+      { id: 'terrapin', name: 'Terrapin Crossroads', place: 'San Rafael, CA', addedBy: 'JM' },
+      { id: 'presidio', name: 'Odeum at the Presidio', place: 'San Francisco, CA', addedBy: 'DW' },
     ],
     platform: 'Google Meet',
     meetingLink: '',

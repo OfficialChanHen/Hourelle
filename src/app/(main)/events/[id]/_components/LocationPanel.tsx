@@ -1,9 +1,9 @@
 'use client'
 
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, SlidersHorizontal } from 'lucide-react'
+import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, SlidersHorizontal, Info, ExternalLink } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
-import { patchEvent, fmtMinute, bestWindow, availIvOf, gridStartMinOf, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
+import { patchEvent, fmtMinute, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
 import { fmtDuration, MODE_LABEL, ALL_MODES, type TravelMode, type ModeEstimate } from '@/lib/travel'
 import { computeItinerary, slotFor as slotForOf } from '@/lib/itinerary'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
@@ -17,6 +17,18 @@ const MODE_ICON: Record<TravelMode, typeof Car> = { walk: Footprints, bus: Bus, 
 const YOU = 'JM'
 // a stop references a place but has its own id (so a venue can repeat) and a dwell time
 type ItinStop = { uid: string; placeId: string; dwell: number }
+
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+function deadlineText(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  return `${DOW[dt.getDay()]}, ${dayLabel(dt)}`
+}
+// check a place out before voting — Nominatim results resolve fine by name search
+function osmUrl(p: EventPlace): string {
+  const q = p.place && p.place !== 'Custom place' ? `${p.name}, ${p.place}` : p.name
+  return `https://www.openstreetmap.org/search?query=${encodeURIComponent(q)}`
+}
 
 export function LocationPanel({ event, locked = false, confirmed }: { event: AppEvent; locked?: boolean; confirmed?: ConfirmedSlot }) {
   const loc = event.location
@@ -40,7 +52,11 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
   // A "decide later" event opens as In person here so the host can start adding places.
   const [mode, setMode] = useState<AppEvent['location']['mode']>(loc.mode === 'later' ? 'vote' : loc.mode)
   const [meetingLink, setMeetingLink] = useState(loc.meetingLink)
-  const canAddPlaces = !locked && (event.hostedByYou || guestsCanSuggest)
+  // optional voting deadline — voting (and ballot changes) freeze once it passes
+  const [voteDeadline, setVoteDeadline] = useState(event.voteDeadline ?? '')
+  const deadlineDu = voteDeadline ? daysUntil(voteDeadline) : null
+  const votingClosed = deadlineDu !== null && deadlineDu < 0
+  const canAddPlaces = !locked && !votingClosed && (event.hostedByYou || guestsCanSuggest)
   const pById = new Map(event.participants.map((p) => [p.id, p]))
   const avatarOf = (id: string) => {
     const p = pById.get(id)
@@ -49,6 +65,9 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
 
   const [votes, setVotes] = useState<Record<string, string[]>>(() => event.votes ?? {})
   const [maxVotes, setMaxVotes] = useState(event.maxVotes ?? 1)
+  // the tab's one-line how-it-works, shown until dismissed (this page never SSRs — the
+  // event itself loads from localStorage first, so reading it in the initializer is safe)
+  const [hintDismissed, setHintDismissed] = useState(() => typeof window !== 'undefined' && localStorage.getItem('aline.hint.location') === '1')
   // custom mode: host sets an arbitrary votes-per-person beyond the 1/2/3 presets
   const [customVotes, setCustomVotes] = useState(() => (event.maxVotes ?? 1) > 3)
   const stopUid = useRef(0)
@@ -63,7 +82,6 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
   const [sub, setSub] = useState<'vote' | 'itin'>(loc.planMode === 'itinerary' ? 'itin' : 'vote')
   const [focusPin, setFocusPin] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [adding, setAdding] = useState(false) // itinerary "add a stop" picker open
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null) // placeId pending delete confirm
   const [sheetOpen, setSheetOpen] = useState(false) // mobile: venues/itinerary bottom sheet
 
@@ -80,9 +98,17 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
   function changeLink(v: string) { setMeetingLink(v); persistLoc({ meetingLink: v }) }
   function addPlace(p: EventPlace) {
     if (places.some((x) => x.id === p.id)) return
-    const next = [...places, p]
+    const next = [...places, { ...p, addedBy: p.addedBy ?? YOU }] // remember who suggested it
     setPlaces(next)
     persistLoc({ places: next })
+  }
+  function changeDeadline(v: string) {
+    setVoteDeadline(v)
+    persist({ voteDeadline: v || undefined })
+  }
+  function dismissHint() {
+    setHintDismissed(true)
+    try { localStorage.setItem('aline.hint.location', '1') } catch { /* private mode */ }
   }
   function toggleGuestsCanSuggest() {
     const next = !guestsCanSuggest
@@ -100,6 +126,7 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
   // vote budget: everyone gets `maxVotes`. With 1, voting moves your single pick (radio);
   // with more, extra votes are blocked once you're out.
   function toggleVote(placeId: string) {
+    if (votingClosed) return
     const has = votesOf(placeId).includes(YOU)
     if (!has && maxVotes > 1 && votesLeft === 0) return // out of votes
     voteFlip.capture()
@@ -188,7 +215,7 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
   // add a brand-new place: it joins the candidate list (so it gets a pin) and becomes a stop
   function addNewPlaceAsStop(p: EventPlace) {
     if (!places.some((x) => x.id === p.id)) {
-      const nextPlaces = [...places, p]
+      const nextPlaces = [...places, { ...p, addedBy: p.addedBy ?? YOU }]
       setPlaces(nextPlaces)
       persistLoc({ places: nextPlaces })
     }
@@ -222,7 +249,7 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
   const placeAt = (id: string) => places.find((p) => p.id === id)
   const slotFor = (id: string) => slotForOf(places, id)
   // schedule + per-leg travel, shared with the Attendance tab so both clocks agree
-  const { schedule, legs, routeMinutes, modesUsed, anyUnreachable, endMin } = computeItinerary(places, stops, itinStartMin, travelModes)
+  const { schedule, legs, routeMinutes, anyUnreachable, endMin } = computeItinerary(places, stops, itinStartMin, travelModes)
   // how long the built itinerary actually runs vs. the time set aside for the event
   const itinDuration = endMin - itinStartMin
   const overDuration = stops.length > 0 && itinDuration > eventDuration
@@ -312,6 +339,20 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
                   {votesOf(focusPlace.id).slice(0, 5).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={19} font={8.5} title={a.name} /></span> })}
                 </div>
               </div>
+              {/* vote right from the map — the popup uses fixed light colors like the map itself */}
+              {!locked && (() => {
+                const youVoted = votesOf(focusPlace.id).includes(YOU)
+                return (
+                  <button
+                    onClick={() => toggleVote(focusPlace.id)}
+                    disabled={votingClosed || (!youVoted && maxVotes > 1 && votesLeft === 0)}
+                    className="mt-2 flex h-7 w-full items-center justify-center gap-1 rounded-[8px] text-[12px] font-semibold disabled:opacity-40"
+                    style={youVoted ? { background: '#E7EEE8', color: '#2A4537', border: '1px solid #CBDCCE' } : { background: '#2E4A3C', color: '#F8F5EC' }}
+                  >
+                    {youVoted ? <><Check size={13} /> Voted</> : <><ArrowUp size={13} /> Vote</>}
+                  </button>
+                )
+              })()}
               <div className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 bg-white" />
             </div>
           )}
@@ -399,9 +440,19 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
               options={[{ v: 'vote', l: 'Venue vote' }, { v: 'itin', l: 'Itinerary' }]}
             />
             {sub === 'itin' && !locked && (
-              <button onClick={() => setAdding((a) => !a)} className={`flex h-8 flex-none items-center gap-1 rounded-[9px] border px-2.5 text-[13px] font-semibold ${adding ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
-                <Plus size={16} /> Add stop
-              </button>
+              // adding lives in a dropdown so the stop list keeps the room
+              <Popover
+                align="end"
+                width={300}
+                className="flex-none"
+                trigger={(open) => (
+                  <span className={`flex h-8 flex-none items-center gap-1 rounded-[9px] border px-2.5 text-[13px] font-semibold ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
+                    <Plus size={16} /> Add stop
+                  </span>
+                )}
+              >
+                {() => <AddStopList places={places} stops={stops} canAdd={canAddPlaces} onExisting={addStop} onNew={addNewPlaceAsStop} />}
+              </Popover>
             )}
             {sub === 'vote' && event.hostedByYou && places.length > 0 && !locked && (
               <Popover
@@ -442,6 +493,22 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
                         )}
                       </div>
                     </div>
+                    <div className="border-t border-border pt-2.5">
+                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Voting closes</div>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="date"
+                          value={voteDeadline}
+                          onChange={(e) => changeDeadline(e.target.value)}
+                          className="h-8 min-w-0 flex-1 rounded-[8px] border border-border bg-s1 px-2 text-[13px] outline-none focus:border-accent-border"
+                          aria-label="Voting deadline"
+                        />
+                        {voteDeadline && (
+                          <button onClick={() => changeDeadline('')} title="Remove the deadline" className="grid h-8 w-8 flex-none place-items-center rounded-[8px] border border-border2 text-dim hover:text-brick-text"><X size={14} /></button>
+                        )}
+                      </div>
+                      <p className="mt-1.5 text-[12px] leading-[1.45] text-faint">Votes and ballot changes freeze after this day.</p>
+                    </div>
                     <label className="flex cursor-pointer items-center gap-2 border-t border-border pt-2.5 text-[13px]">
                       <input type="checkbox" checked={guestsCanSuggest} onChange={toggleGuestsCanSuggest} className="h-3.5 w-3.5" style={{ accentColor: 'var(--accent)' }} />
                       Guests can add places
@@ -452,25 +519,50 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
             )}
           </div>
 
+          {/* one line of how this tab works, gone once dismissed */}
+          {!locked && !hintDismissed && (
+            <div className="mb-2 flex items-start gap-2 rounded-[10px] border border-border bg-s2 px-3 py-2">
+              <Info size={14} className="mt-0.5 flex-none text-accent-text" />
+              <span className="min-w-0 flex-1 text-[12.5px] leading-[1.5] text-dim">
+                {sub === 'vote' ? 'Add places and vote. The host locks in the winner.' : 'Votes pick the places. The route puts them in order.'}
+              </span>
+              <button onClick={dismissHint} aria-label="Dismiss hint" className="flex-none text-faint hover:text-text"><X size={14} /></button>
+            </div>
+          )}
+
           {sub === 'vote' && (
             <div className="flex min-h-0 flex-1 flex-col gap-2">
               {canAddPlaces && <AddPlaceSearch onAdd={addPlace} taken={new Set(places.map((p) => p.id))} />}
               {places.length === 0 ? (
                 <EmptyNote icon={Vote} text={canAddPlaces ? 'No places on the ballot yet. Search above to add the first one.' : 'No places to vote on yet. The host can add some, or allow guests to.'} />
-              ) : locked ? null : maxVotes > 1 ? (
-                <div className="flex items-center gap-1.5 px-0.5 text-[12.5px] text-dim">
-                  <Vote size={15} className="text-accent-text" />
-                  {maxVotes} votes · <span className={`font-semibold ${votesLeft ? 'text-accent-text' : 'text-brick-text'}`}>{votesLeft} left</span>
+              ) : locked ? null : (
+                // always show the vote budget — first-timers need to know tapping the arrow votes
+                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 px-0.5 text-[12.5px] text-dim">
+                  <Vote size={15} className="flex-none text-accent-text" />
+                  {maxVotes > 1 ? (
+                    <span>{maxVotes} votes each · <span className={`font-semibold ${votesLeft ? 'text-accent-text' : 'text-brick-text'}`}>{votesLeft} left</span></span>
+                  ) : (() => {
+                    const mine = places.find((p) => votesOf(p.id).includes(YOU))
+                    return mine
+                      ? <span>1 vote each · yours is on <span className="font-semibold text-text">{mine.name}</span></span>
+                      : <span>1 vote each · you haven&apos;t voted yet</span>
+                  })()}
+                  {voteDeadline && (
+                    votingClosed
+                      ? <span className="rounded-[5px] border border-brick-border bg-brick-bg px-[6px] py-px text-[10.5px] font-semibold text-brick-text">Voting closed</span>
+                      : <span className={`rounded-[5px] border px-[6px] py-px text-[10.5px] font-semibold ${(deadlineDu ?? 9) <= 2 ? 'border-ochre-border bg-ochre-bg text-ochre-text' : 'border-border bg-s2 text-dim'}`}>Closes {deadlineText(voteDeadline)}</span>
+                  )}
                 </div>
-              ) : null}
+              )}
               <div ref={voteFlip.scope} className="scroll-slim flex max-h-[55vh] min-h-0 flex-1 flex-col gap-2 overflow-auto py-0.5 pr-0.5 lg:max-h-none">
                 {ranked.map((p, i) => {
                   const ids = votesOf(p.id)
                   const you = ids.includes(YOU)
                   const isLocked = locked && confirmedIds.has(p.id)
                   const lead = locked ? isLocked : p.id === leadingId
+                  const adder = p.addedBy ? avatarOf(p.addedBy) : null
                   return (
-                    <div key={p.id} data-flip-id={p.id} className={`relative flex items-start gap-2.5 rounded-xl border p-2.5 ${isLocked ? 'border-teal-border bg-teal-bg/40' : lead ? 'border-accent-border bg-accent-bg/40' : 'border-border bg-s0'}`}>
+                    <div key={p.id} data-flip-id={p.id} onClick={() => setFocusPin(p.id)} className={`relative flex cursor-pointer items-start gap-2.5 rounded-xl border p-2.5 ${isLocked ? 'border-teal-border bg-teal-bg/40' : lead ? 'border-accent-border bg-accent-bg/40' : 'border-border bg-s0'}`}>
                       <span className={`grid h-[30px] w-[30px] flex-none place-items-center rounded-full text-[13.5px] font-bold ${isLocked ? 'bg-teal-bg text-teal-text' : lead ? 'bg-accent text-on-accent' : 'bg-s2 text-dim'}`}>{i + 1}</span>
                       <div className="min-w-0 flex-1">
                         <div className="mb-0.5 flex items-center gap-1.5">
@@ -479,7 +571,17 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
                           {!locked && lead && <span className="flex-none rounded-[5px] border border-accent-border bg-accent-bg px-[5px] py-px text-[10px] font-semibold text-accent-text">Leading</span>}
                         </div>
                         {/* address wraps in full — no truncation */}
-                        <div className="mb-1.5 text-[12px] leading-[1.45] text-dim">{p.place} · {ids.length} vote{ids.length === 1 ? '' : 's'}</div>
+                        <div className="mb-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] leading-[1.45] text-dim">
+                          <span>{p.place} · {ids.length} vote{ids.length === 1 ? '' : 's'}</span>
+                          <a href={osmUrl(p)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-0.5 text-[11.5px] font-medium text-accent-text hover:underline">
+                            <ExternalLink size={11} /> Map
+                          </a>
+                          {adder && (
+                            <span className="inline-flex items-center gap-1 text-faint" title={`Added by ${adder.name}`}>
+                              · <Avatar initials={adder.initials} color={adder.color} size={14} font={7} /> added by {adder.name === 'You' ? 'you' : adder.name.split(' ')[0]}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex">
                           {ids.slice(0, 6).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={20} font={8.5} title={a.name} /></span> })}
                         </div>
@@ -487,13 +589,13 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
                       {!locked && (
                         <div className="flex flex-none items-center gap-1">
                           <button
-                            onClick={() => toggleVote(p.id)}
+                            onClick={(e) => { e.stopPropagation(); toggleVote(p.id) }}
                             aria-pressed={you}
-                            disabled={!you && maxVotes > 1 && votesLeft === 0}
-                            title={you ? 'Remove your vote' : votesLeft === 0 && maxVotes > 1 ? 'No votes left' : 'Vote for this place'}
+                            disabled={votingClosed || (!you && maxVotes > 1 && votesLeft === 0)}
+                            title={votingClosed ? 'Voting is closed' : you ? 'Remove your vote' : votesLeft === 0 && maxVotes > 1 ? 'No votes left' : 'Vote for this place'}
                             className={`grid h-[34px] w-[34px] place-items-center rounded-[9px] border ${you ? 'border-accent bg-accent text-on-accent' : 'border-border2 bg-s1 text-text enabled:hover:bg-s2 disabled:opacity-40'}`}
                           >
-                            <ArrowUp size={18} />
+                            {you ? <Check size={18} /> : <ArrowUp size={18} />}
                           </button>
                           {event.hostedByYou && (
                             <button onClick={() => attemptRemovePlace(p.id)} title="Remove this place" aria-label={`Remove ${p.name}`} className="grid h-[34px] w-7 place-items-center rounded-[9px] text-faint hover:text-brick-text">
@@ -531,89 +633,88 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
                   </div>
                 </div>
               )}
-              {!locked && adding && (
-                <div className="flex max-h-[184px] flex-none flex-col rounded-xl border border-border bg-s0 p-2.5">
-                  <div className="mb-1.5 flex flex-none items-center justify-between">
-                    <span className="text-[12px] font-semibold uppercase tracking-[.1em] text-faint">Add a stop</span>
-                    <button onClick={() => setAdding(false)} className="text-faint hover:text-text" aria-label="Done adding"><X size={15} /></button>
-                  </div>
-                  {places.length > 0 && (
-                    <div className="scroll-slim mb-2 flex min-h-0 flex-1 flex-col gap-1 overflow-auto pr-0.5">
-                      {places.map((p) => {
-                        const count = stops.filter((s) => s.placeId === p.id).length
-                        return (
-                          <button key={p.id} onClick={() => addStop(p.id)} className="flex items-start gap-2 rounded-[9px] border border-border bg-s1 px-2.5 py-1.5 text-left hover:border-border2">
-                            <MapPin size={15} className="mt-0.5 flex-none text-dim" />
-                            <span className="min-w-0 flex-1 text-[13.5px] font-medium leading-[1.4]">{p.name} <span className="font-normal text-faint">· {p.place}</span></span>
-                            <span className="mt-0.5 flex flex-none items-center gap-1 text-[12.5px] font-semibold text-accent-text"><Plus size={15} /> {count > 0 ? `Again${count > 1 ? ` · ${count}` : ''}` : 'Add'}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-                  {canAddPlaces
-                    ? <AddPlaceSearch onAdd={addNewPlaceAsStop} taken={new Set(places.map((p) => p.id))} placeholder="Search a new place to add…" />
-                    : places.length === 0 && <EmptyNote icon={MapPin} text="No places to add yet. The host can add candidate places." />}
-                </div>
-              )}
               {stops.length === 0 ? (
-                <div className="rounded-xl border border-border bg-s0 p-4 text-center">
-                  <span className="mx-auto mb-2.5 grid h-[38px] w-[38px] place-items-center rounded-[10px] border border-teal-border bg-teal-bg text-teal-text"><Route size={19} /></span>
-                  <div className="text-[14px] font-semibold">No itinerary yet</div>
-                  <p className="mx-auto mt-1 max-w-[250px] text-[13px] leading-[1.5] text-dim">
-                    {locked
-                      ? 'The plan was locked without stops. The host can reopen planning to build one.'
-                      : 'Build one automatically from the top-voted places, or add the stops yourself in whatever order you like. Reorder or remove any time.'}
-                  </p>
-                  {!locked && (
-                    <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                // empty is the one time adding gets the full space — build or add inline
+                <div className="scroll-slim flex min-h-0 flex-col gap-2 overflow-auto">
+                  <div className="flex-none rounded-xl border border-border bg-s0 p-4 text-center">
+                    <span className="mx-auto mb-2.5 grid h-[38px] w-[38px] place-items-center rounded-[10px] border border-teal-border bg-teal-bg text-teal-text"><Route size={19} /></span>
+                    <div className="text-[14px] font-semibold">No itinerary yet</div>
+                    <p className="mx-auto mt-1 max-w-[250px] text-[13px] leading-[1.5] text-dim">
+                      {locked
+                        ? 'The plan was locked without stops. The host can reopen planning to build one.'
+                        : 'Build one from the top-voted places, or add stops one at a time below.'}
+                    </p>
+                    {!locked && (
                       <button
                         onClick={buildFromVotes}
                         disabled={places.length === 0}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent disabled:opacity-40"
+                        className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent disabled:opacity-40"
                       >
                         <Route size={15} /> Build from top votes
                       </button>
-                      <button
-                        onClick={() => setAdding(true)}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13.5px] font-semibold hover:bg-s2"
-                      >
-                        <Plus size={15} /> Add stops yourself
-                      </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                  {!locked && <AddStopList places={places} stops={stops} canAdd={canAddPlaces} onExisting={addStop} onNew={addNewPlaceAsStop} />}
                 </div>
               ) : (
                 <>
-                  {/* schedule + how-you-get-around controls */}
-                  <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-s0 p-2.5">
+                  {/* one slim schedule line — the stop list below is the main content */}
+                  <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-border bg-s0 px-2.5 py-2">
                     <span className="flex items-center gap-1.5 text-[12.5px] font-medium text-dim">
                       <Clock size={13} /> Starts
                       {locked
                         ? <span className="text-[12.5px] font-semibold text-text tabular-nums">{fmtMinute(itinStartMin)}</span>
-                        : <TimeSelect value={itinStartMin} onChange={changeStart} min={minStart} max={maxStart} title="When the itinerary begins — within the best free window" />}
+                        : <TimeSelect value={itinStartMin} onChange={changeStart} min={minStart} max={maxStart} title={`When the itinerary begins${bw ? ` — best free window ${fmtMinute(winStart!)} to ${fmtMinute(winEnd!)}, ${bw.count} of ${event.participants.length} free` : ''}`} />}
                     </span>
-                    <span className="text-[12.5px] text-dim">Ends ~{fmtMinute(endMin)} · <span className={overDuration ? 'font-semibold text-ochre-text' : ''}>{fmtDuration(itinDuration)}</span></span>
-                    <div className="flex flex-wrap items-center gap-1">
-                      <span className="text-[12px] text-faint">Getting around:</span>
-                      {ALL_MODES.map((m) => { const on = travelModes.includes(m); const Icon = MODE_ICON[m]; if (locked && !on) return null; return (
-                        <button key={m} onClick={() => toggleMode(m)} disabled={locked} title={MODE_LABEL[m]} className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] font-medium ${on ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-faint'}`}>
-                          <Icon size={11} /> {MODE_LABEL[m]}
-                        </button>
-                      ) })}
-                    </div>
-                    {!locked && bw ? (
-                      <div className="flex w-full items-center gap-1.5 border-t border-border pt-1.5 text-[12px] text-faint">
-                        <span>Best free window {fmtMinute(winStart!)}–{fmtMinute(winEnd!)} · {bw.count} of {event.participants.length} free</span>
-                      </div>
-                    ) : null}
-                    {(overDuration || overWindow) && (
-                      <div className="flex w-full items-start gap-1.5 text-[12px] leading-[1.4] text-ochre-text">
+                    <span className="text-[12.5px] text-dim">
+                      Ends ~{fmtMinute(endMin)} · <span className={overDuration ? 'font-semibold text-ochre-text' : ''}>{fmtDuration(itinDuration)}</span>
+                      {legs.length > 0 && <> · {fmtDuration(routeMinutes)} travel</>}
+                    </span>
+                    <span className="ml-auto">
+                      {locked ? (
+                        <span className="flex flex-wrap items-center gap-1">
+                          {travelModes.map((m) => { const Icon = MODE_ICON[m]; return (
+                            <span key={m} title={MODE_LABEL[m]} className="flex items-center gap-1 rounded-full border border-accent-border bg-accent-bg px-1.5 py-0.5 text-[11px] font-medium text-accent-text"><Icon size={11} /></span>
+                          ) })}
+                        </span>
+                      ) : (
+                        // a set-once choice — tucked behind a popover so the schedule stays the focus
+                        <Popover
+                          align="end"
+                          width={228}
+                          trigger={(open) => (
+                            <span className={`flex h-7 items-center gap-1.5 rounded-lg border px-[10px] text-[12px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-dim hover:border-border2'}`}>
+                              Getting around
+                              <span className="flex items-center gap-0.5">
+                                {travelModes.map((m) => { const Icon = MODE_ICON[m]; return <Icon key={m} size={11} /> })}
+                              </span>
+                            </span>
+                          )}
+                        >
+                          {() => (
+                            <div>
+                              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">How people get between stops</div>
+                              <div className="flex flex-wrap gap-1">
+                                {ALL_MODES.map((m) => { const on = travelModes.includes(m); const Icon = MODE_ICON[m]; return (
+                                  <button key={m} onClick={() => toggleMode(m)} title={MODE_LABEL[m]} className={`flex items-center gap-1 rounded-full border px-2 py-1 text-[11.5px] font-medium ${on ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-faint hover:text-text'}`}>
+                                    <Icon size={12} /> {MODE_LABEL[m]}
+                                  </button>
+                                ) })}
+                              </div>
+                            </div>
+                          )}
+                        </Popover>
+                      )}
+                    </span>
+                    {(anyUnreachable || overDuration || overWindow) && (
+                      <div className={`flex w-full items-start gap-1.5 text-[12px] leading-[1.4] ${anyUnreachable ? 'text-brick-text' : 'text-ochre-text'}`}>
                         <TriangleAlert size={12} className="mt-px flex-none" />
                         <span>
-                          {overDuration
-                            ? `This runs ${fmtDuration(itinDuration)}, longer than the ${fmtDuration(eventDuration)} set aside for the event. Trim a stop or shorten time at a venue.`
-                            : `This runs past the best free window (ends ~${fmtMinute(endMin)}, window closes ${fmtMinute(winEnd!)}).`}
+                          {anyUnreachable
+                            ? 'Some legs have no route with the modes you allow.'
+                            : overDuration
+                              ? `Runs ${fmtDuration(itinDuration)}, longer than the ${fmtDuration(eventDuration)} set aside. Trim a stop or shorten time at a venue.`
+                              : `Runs past the best free window (ends ~${fmtMinute(endMin)}, window closes ${fmtMinute(winEnd!)}).`}
                         </span>
                       </div>
                     )}
@@ -663,20 +764,6 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
                     })}
                   </div>
 
-                  {legs.length > 0 && (
-                    <div className="mt-1 flex-none rounded-xl border border-teal-border bg-teal-bg/50 p-3">
-                      <div className="flex items-center gap-1.5 text-[13.5px] font-semibold text-teal-text">
-                        <Route size={16} /> Fastest route · {fmtDuration(routeMinutes)} travel · ends ~{fmtMinute(endMin)}
-                      </div>
-                      {anyUnreachable && <div className="mt-1 flex items-center gap-1 text-[12px] font-medium text-brick-text"><TriangleAlert size={12} /> Some legs have no route with the modes you allow.</div>}
-                      <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                        {modesUsed.map((m) => { const Icon = MODE_ICON[m]; return (
-                          <span key={m} className="flex items-center gap-1 rounded-full border border-teal-border bg-s1 px-2 py-0.5 text-[12px] font-medium text-teal-text"><Icon size={12} /> {MODE_LABEL[m]}</span>
-                        ) })}
-                        <span className="text-[12px] text-dim">· quickest allowed mode per leg{!locked && ' · drag or use arrows to reorder'}</span>
-                      </div>
-                    </div>
-                  )}
                 </>
               )}
             </div>
@@ -789,6 +876,37 @@ function AddPlaceSearch({ onAdd, taken, placeholder = 'Add a place to the ballot
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+/* candidates + a search, shared by the Add stop dropdown and the empty itinerary */
+function AddStopList({ places, stops, canAdd, onExisting, onNew }: {
+  places: EventPlace[]
+  stops: ItinStop[]
+  canAdd: boolean
+  onExisting: (placeId: string) => void
+  onNew: (p: EventPlace) => void
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      {places.length > 0 && (
+        <div className="scroll-slim flex max-h-[168px] flex-col gap-1 overflow-auto pr-0.5">
+          {places.map((p) => {
+            const count = stops.filter((s) => s.placeId === p.id).length
+            return (
+              <button key={p.id} onClick={() => onExisting(p.id)} className="flex items-start gap-2 rounded-[9px] border border-border bg-s1 px-2.5 py-1.5 text-left hover:border-border2">
+                <MapPin size={15} className="mt-0.5 flex-none text-dim" />
+                <span className="min-w-0 flex-1 text-[13.5px] font-medium leading-[1.4]">{p.name} <span className="font-normal text-faint">· {p.place}</span></span>
+                <span className="mt-0.5 flex flex-none items-center gap-1 text-[12.5px] font-semibold text-accent-text"><Plus size={15} /> {count > 0 ? `Again${count > 1 ? ` · ${count}` : ''}` : 'Add'}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+      {canAdd
+        ? <AddPlaceSearch onAdd={onNew} taken={new Set(places.map((p) => p.id))} placeholder="Search a new place to add…" />
+        : places.length === 0 && <EmptyNote icon={MapPin} text="No places to add yet. The host can add candidate places." />}
     </div>
   )
 }

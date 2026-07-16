@@ -30,11 +30,19 @@ export function StageSummary({ event, phase }: { event: AppEvent; phase: Phase }
   const best = bestWindow(availIvOf(event), event.days, event.durationMin ?? 60)
   const gridStart = gridStartMinOf(event)
 
+  // the venue currently winning the vote, so the one line reports both fronts
+  const votesOf = (id: string) => event.votes?.[id] ?? []
+  const top = event.location.mode === 'vote'
+    ? [...event.location.places].sort((a, b) => votesOf(b.id).length - votesOf(a.id).length)[0]
+    : undefined
+  const leading = top && votesOf(top.id).length > 0 ? top : null
+
   return (
     <p className="text-[13.5px] text-dim">
       {responded === 0
         ? 'Waiting on availability'
         : <>{responded} of {total} responded{best && <> · best so far <span className="font-semibold text-text">{best.dayLabel} · {fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)}</span></>}</>}
+      {leading && <> · <span className="font-semibold text-text">{leading.name}</span> leading the vote</>}
     </p>
   )
 }
