@@ -339,6 +339,25 @@ export function daysUntilLabel(du: number | null): string {
   return `${du} day${du === 1 ? '' : 's'}`
 }
 
+/* ── leading place ── */
+// the place an event is heading to: the confirmed venue once locked, else the vote front-runner.
+// Ranking matches the Location tab so no two tabs ever disagree.
+export type LeadingPlace = { place: EventPlace; voters: string[]; confirmed: boolean; margin: number | null }
+export function leadingPlaceOf(ev: AppEvent): LeadingPlace | null {
+  const places = ev.location.places
+  if (ev.location.mode === 'remote' || !places.length) return null
+  const votes = ev.votes ?? {}
+  const votesOf = (id: string) => votes[id] ?? []
+  const confirmedPlace = ev.status === 'confirmed' && ev.confirmed
+    ? places.find((p) => ev.confirmed!.placeIds.includes(p.id))
+    : undefined
+  if (confirmedPlace) return { place: confirmedPlace, voters: votesOf(confirmedPlace.id), confirmed: true, margin: null }
+  const ranked = [...places].sort((a, b) => votesOf(b.id).length - votesOf(a.id).length)
+  if (votesOf(ranked[0].id).length === 0) return null
+  const margin = ranked.length > 1 ? votesOf(ranked[0].id).length - votesOf(ranked[1].id).length : null
+  return { place: ranked[0], voters: votesOf(ranked[0].id), confirmed: false, margin }
+}
+
 export function setMyRsvp(id: string, rsvp: Rsvp): void {
   const ev = getEvent(id)
   if (!ev) return

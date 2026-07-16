@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Building2, User, Link2, Users, Copy, MessageCircle,
+  Building2, User, Link2, Users, Copy, MessageCircle, ArrowLeftRight, Pencil,
   CalendarRange, MapPin, UsersRound, Settings, Check, Trash2, TriangleAlert,
 } from 'lucide-react'
 import { gsap } from 'gsap'
@@ -14,7 +14,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, patchEvent, dateRangeText, phaseOf, type AppEvent, type Rsvp } from '@/lib/events'
+import { getEvent, deleteEvent, patchEvent, dateRangeText, fmtMinute, leadingPlaceOf, phaseOf, respondedCount, type AppEvent, type Rsvp } from '@/lib/events'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
 import { AttendancePanel } from './AttendancePanel'
@@ -197,7 +197,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       {tab === 'availability' && <AvailabilityPanel event={event} locked={locked} />}
       {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} />}
       {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={setTab} />}
-      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} />}
+      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToLocation={() => setTab('location')} />}
 
       {chatOpen && <ChatDrawer event={event} messages={event.messages} onSend={sendMessage} onClose={() => setChatOpen(false)} />}
     </div>
@@ -205,16 +205,24 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
 }
 
 /* ── Details tab ── */
-function DetailsTab({ event, onDelete }: { event: AppEvent; onDelete: () => void }) {
-  const whereText = event.location.mode === 'remote' ? `Online · ${event.location.platform}` : event.location.mode === 'later' ? 'To be decided' : event.location.places.length ? event.location.places.map((p) => p.name).join(' · ') : 'To be decided'
+function DetailsTab({ event, onDelete, onGoToLocation }: { event: AppEvent; onDelete: () => void; onGoToLocation: () => void }) {
+  const isHost = event.hostedByYou
+  const locked = event.status === 'confirmed' && !!event.confirmed
+
   return (
     <div className="flex flex-wrap items-start gap-3.5">
       <div className="min-w-[320px] flex-[1.5] rounded-2xl border border-border bg-s1 p-5">
         <div className="mb-1 flex items-center gap-2 text-[14.5px] font-semibold"><Settings size={17} className="text-dim" /> Details</div>
-        <DetailRow k="Description" v={event.description || <span className="text-faint">No description</span>} />
-        <DetailRow k="When" v={<span className="flex items-center gap-1.5">{dateRangeText(event)} <TimezonePill tz={event.timezone} /></span>} />
-        <DetailRow k="Where" v={whereText} />
-        <DetailRow k="Budget" v={event.budget ? `$${Number(event.budget).toLocaleString()} ${event.budgetMode === 'person' ? 'per person' : 'total'}` : <span className="text-faint">None</span>} last />
+        <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} />} />
+        <DetailRow k="When" v={<WhenValue event={event} locked={locked} />} />
+        <DetailRow k="Where" v={<WhereValue event={event} locked={locked} onGoToLocation={onGoToLocation} />} />
+        <DetailRow
+          k="Budget"
+          v={isHost
+            ? <BudgetEditor event={event} />
+            : event.budget ? `$${Number(event.budget).toLocaleString()} ${event.budgetMode === 'person' ? 'per person' : 'total'}` : <span className="text-faint">None</span>}
+          last
+        />
       </div>
 
       <div className="min-w-[280px] flex-1 rounded-2xl border border-border bg-s1 p-5">
@@ -239,6 +247,150 @@ function DetailsTab({ event, onDelete }: { event: AppEvent; onDelete: () => void
   )
 }
 
+/* When: the locked-in day and time once confirmed; before that, the date range being polled.
+   A single-day event already knows its day, so only the time reads as open. */
+function WhenValue({ event, locked }: { event: AppEvent; locked: boolean }) {
+  if (locked) {
+    const c = event.confirmed!
+    const d = event.days.find((x) => x.key === c.dayKey)
+    const year = c.dayKey.slice(0, 4)
+    return (
+      <span className="flex flex-wrap items-center gap-1.5">
+        {`${d ? `${d.dow}, ${d.date}` : c.dayKey}, ${year} · ${fmtMinute(c.startMin)} – ${fmtMinute(c.endMin)}`}
+        <TimezonePill tz={event.timezone} />
+      </span>
+    )
+  }
+  if (event.startDate === event.endDate) {
+    const dow = event.days[0]?.dow
+    return (
+      <span className="flex flex-wrap items-center gap-1.5">
+        {dow ? `${dow}, ` : ''}{dateRangeText(event)} · <span className="text-dim">time to be decided</span>
+        <TimezonePill tz={event.timezone} />
+      </span>
+    )
+  }
+  return <span className="flex flex-wrap items-center gap-1.5">{dateRangeText(event)} <TimezonePill tz={event.timezone} /></span>
+}
+
+/* Where: the confirmed venue once locked; before that, the vote leader for a single venue,
+   or a pointer to the itinerary on the Location tab. */
+function WhereValue({ event, locked, onGoToLocation }: { event: AppEvent; locked: boolean; onGoToLocation: () => void }) {
+  const loc = event.location
+  if (loc.mode === 'remote') return <>Online · {loc.platform || 'link to follow'}</>
+
+  const itineraryLink = (n: number) => (
+    <button onClick={onGoToLocation} className="text-left font-medium text-accent-text hover:underline">
+      {n}-stop itinerary · see it on the Location tab
+    </button>
+  )
+
+  if (locked) {
+    const names = event.confirmed!.placeIds
+      .map((id) => loc.places.find((p) => p.id === id)?.name)
+      .filter((n): n is string => !!n)
+    if (names.length === 1) return <>{names[0]}</>
+    if (names.length > 1) return itineraryLink(names.length)
+    return <>To be decided</>
+  }
+  const stops = event.itinStops?.length ?? 0
+  if (loc.planMode === 'itinerary' && stops > 0) return itineraryLink(stops)
+  const lead = leadingPlaceOf(event)
+  if (lead) return <span>{lead.place.name} <span className="text-dim">· leading the vote</span></span>
+  if (loc.places.length === 1) return <>{loc.places[0].name}</>
+  return <>To be decided</>
+}
+
+/* Description: hosts edit it in place; everyone else just reads it */
+function DescriptionValue({ event, editable }: { event: AppEvent; editable: boolean }) {
+  const [desc, setDesc] = useState(event.description)
+  const [editing, setEditing] = useState(false)
+  const ref = useRef<HTMLTextAreaElement>(null)
+
+  function save() {
+    const v = (ref.current?.value ?? '').trim()
+    setDesc(v)
+    setEditing(false)
+    if (!event.demo) patchEvent(event.id, { description: v })
+  }
+
+  if (!editable) return <>{desc || <span className="text-faint">No description</span>}</>
+  if (editing) {
+    return (
+      <div className="flex flex-col gap-2">
+        <textarea
+          ref={ref} defaultValue={desc} rows={3} autoFocus maxLength={500}
+          placeholder="What is this event about?"
+          className="w-full resize-y rounded-[9px] border border-border bg-s0 px-3 py-2 text-[13.5px] leading-[1.5] outline-none focus:border-border2"
+        />
+        <div className="flex items-center gap-2">
+          <button onClick={save} className="h-8 rounded-[8px] bg-accent px-3 text-[12.5px] font-semibold text-on-accent">Save</button>
+          <button onClick={() => setEditing(false)} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <span className="flex items-start gap-2">
+      <span className="min-w-0 flex-1">{desc || <span className="text-faint">No description</span>}</span>
+      <button onClick={() => setEditing(true)} title="Edit description" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
+        <Pencil size={13} />
+      </button>
+    </span>
+  )
+}
+
+/* Budget: hosts adjust the amount and flip between per-person and total; the caption
+   works out the other side of the math from whoever has marked availability so far */
+function BudgetEditor({ event }: { event: AppEvent }) {
+  const [budget, setBudget] = useState(event.budget)
+  const [mode, setMode] = useState<'total' | 'person'>(event.budgetMode ?? 'total')
+  const persist = (patch: Partial<AppEvent>) => { if (!event.demo) patchEvent(event.id, patch) }
+
+  function changeBudget(v: string) {
+    const clean = v.replace(/[^\d]/g, '').slice(0, 7)
+    setBudget(clean)
+    persist({ budget: clean })
+  }
+  function toggleMode() {
+    const m = mode === 'total' ? 'person' : 'total'
+    setMode(m)
+    persist({ budgetMode: m })
+  }
+
+  const amount = Number(budget || 0)
+  const responded = respondedCount(event.avail)
+  const people = `${responded} ${responded === 1 ? 'person' : 'people'}`
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex h-8 w-[110px] items-center rounded-[8px] border border-border bg-s0 px-2.5 focus-within:border-border2">
+          <span className="text-[13px] text-dim">$</span>
+          <input
+            value={budget} onChange={(e) => changeBudget(e.target.value)}
+            inputMode="numeric" placeholder="0"
+            className="w-full min-w-0 bg-transparent px-1 text-[13.5px] font-medium outline-none"
+          />
+        </label>
+        <button onClick={toggleMode} title="Switch between per person and total" className="flex h-7 items-center gap-1.5 rounded-full border border-accent-border bg-accent-bg px-2.5 text-[12px] font-semibold text-accent-text">
+          <ArrowLeftRight size={11} /> {mode === 'person' ? 'Per person' : 'Total'}
+        </button>
+      </div>
+      {amount > 0 && responded > 0 && (
+        <span className="text-[12.5px] leading-[1.5] text-dim">
+          {mode === 'person'
+            ? `About $${(amount * responded).toLocaleString()} in total, from the ${people} who marked availability.`
+            : `About $${Math.round(amount / responded).toLocaleString()} per person, split across the ${people} who marked availability.`}
+        </span>
+      )}
+      {amount > 0 && responded === 0 && (
+        <span className="text-[12.5px] text-faint">No one has marked availability yet, so there is no estimate.</span>
+      )}
+    </div>
+  )
+}
+
 function DangerZone({ title, onDelete }: { title: string; onDelete: () => void }) {
   const [confirming, setConfirming] = useState(false)
   const box = useRef<HTMLDivElement>(null)
@@ -249,17 +401,17 @@ function DangerZone({ title, onDelete }: { title: string; onDelete: () => void }
 
   return (
     <div className="w-full rounded-2xl border border-border bg-s1 p-5">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex items-start gap-3">
         <span className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] border border-brick-border bg-brick-bg text-brick-text"><Trash2 size={17} /></span>
         <div className="min-w-0 flex-1">
           <div className="text-[14.5px] font-semibold">Delete this event</div>
           <div className="mt-0.5 text-[13.5px] text-dim">Removes it for everyone with the link, along with all availability, votes, and chat.</div>
+          {!confirming && (
+            <button onClick={() => setConfirming(true)} className="mt-3 flex h-9 items-center rounded-[9px] border border-brick-border bg-s1 px-3.5 text-[13.5px] font-semibold text-brick-text hover:bg-brick-bg">
+              Delete event
+            </button>
+          )}
         </div>
-        {!confirming && (
-          <button onClick={() => setConfirming(true)} className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-brick-border bg-s1 px-3.5 text-[13.5px] font-semibold text-brick-text hover:bg-brick-bg">
-            Delete event
-          </button>
-        )}
       </div>
       {confirming && (
         <div ref={box} className="mt-4 rounded-[11px] border border-brick-border bg-brick-bg p-4">
@@ -271,8 +423,8 @@ function DangerZone({ title, onDelete }: { title: string; onDelete: () => void }
                 This deletes the event for everyone. All availability responses, location votes, and messages go with it. There is no undo.
               </div>
               <div className="mt-3 flex items-center gap-2">
-                <button onClick={onDelete} className="flex h-9 items-center gap-1.5 rounded-[9px] px-3.5 text-[13.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
-                  <Trash2 size={15} /> Yes, delete it
+                <button onClick={onDelete} className="flex h-9 items-center rounded-[9px] px-3.5 text-[13.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
+                  Yes, delete it
                 </button>
                 <button onClick={() => setConfirming(false)} className="flex h-9 items-center rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13.5px] font-semibold hover:bg-s2">
                   Cancel

@@ -7,8 +7,8 @@ import { Popover } from '@/components/ui/Popover'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { tzAbbr } from '@/components/ui/TimezonePill'
 import {
-  availIvOf, bestWindow, dayLabel, gridStartMinOf, fmtMinute, patchEvent, setMyRsvp, stepOf,
-  type AppEvent, type EventPlace, type Iv, type Participant, type Rsvp,
+  availIvOf, bestWindow, dayLabel, gridStartMinOf, fmtMinute, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
+  type AppEvent, type Iv, type Participant, type Rsvp,
 } from '@/lib/events'
 import { computeItinerary } from '@/lib/itinerary'
 import { ALL_MODES, type TravelMode } from '@/lib/travel'
@@ -31,24 +31,6 @@ function windowOf(ivs: Iv[] | undefined, s: number, e: number): { s: number; e: 
   const clipped = (ivs ?? []).map((iv) => ({ s: Math.max(iv.s, s), e: Math.min(iv.e, e) })).filter((iv) => iv.e > iv.s)
   if (!clipped.length) return null
   return { s: Math.min(...clipped.map((c) => c.s)), e: Math.max(...clipped.map((c) => c.e)) }
-}
-
-// the place this event is heading to: the confirmed venue once locked, else the vote front-runner.
-// Ranking mirrors the Location tab so the two never disagree.
-type Leader = { place: EventPlace; voters: string[]; confirmed: boolean; margin: number | null }
-function leaderOf(event: AppEvent): Leader | null {
-  const places = event.location.places
-  if (event.location.mode === 'remote' || !places.length) return null
-  const votes = event.votes ?? {}
-  const votesOf = (id: string) => votes[id] ?? []
-  const confirmedPlace = event.status === 'confirmed' && event.confirmed
-    ? places.find((p) => event.confirmed!.placeIds.includes(p.id))
-    : undefined
-  if (confirmedPlace) return { place: confirmedPlace, voters: votesOf(confirmedPlace.id), confirmed: true, margin: null }
-  const ranked = [...places].sort((a, b) => votesOf(b.id).length - votesOf(a.id).length)
-  if (votesOf(ranked[0].id).length === 0) return null
-  const margin = ranked.length > 1 ? votesOf(ranked[0].id).length - votesOf(ranked[1].id).length : null
-  return { place: ranked[0], voters: votesOf(ranked[0].id), confirmed: false, margin }
 }
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -188,7 +170,7 @@ function CopySummaryButton({ event, win, locked, gridStart }: { event: AppEvent;
     const going = event.participants.filter((p) => p.rsvp === 'attending').length
     const parts = [`${event.title}: ${going} of ${event.participants.length} going`]
     if (win) parts.push(`${locked ? 'confirmed for' : 'best window'} ${win.dayLabel}, ${fmtMinute(gridStart + win.s)}–${fmtMinute(gridStart + win.e)} ${tzAbbr(event.timezone)}`)
-    const lead = leaderOf(event)
+    const lead = leadingPlaceOf(event)
     if (lead) parts.push(lead.confirmed ? `at ${lead.place.name}` : `leading place: ${lead.place.name}`)
     navigator.clipboard?.writeText(parts.join(' · ')).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
@@ -379,7 +361,7 @@ function LeadingPlace({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab
   }
   if (!event.location.places.length) return null
 
-  const lead = leaderOf(event)
+  const lead = leadingPlaceOf(event)
   if (!lead) {
     return (
       <button onClick={() => onGoToTab?.('location')} className="mb-4 w-full rounded-xl border border-dashed border-border2 bg-s0 px-4 py-3 text-left text-[13px] leading-[1.5] text-dim transition-colors hover:bg-s2">
