@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Building2, User, Link2, Users, Copy, MessageCircle, Pencil, EllipsisVertical, CopyPlus,
-  CalendarRange, MapPin, UsersRound, Settings, Check, Trash2, TriangleAlert, Receipt, Plus, X, ImagePlus,
+  CalendarRange, MapPin, UsersRound, Settings, Check, Trash2, TriangleAlert, Receipt, Plus, X, ImagePlus, Video,
 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -275,7 +275,8 @@ function DetailsTab({ event, onDelete, onGoToTab, onPatch, onViewAvailability }:
         {isHost && <DetailRow k="Cover" v={<CoverPicker event={event} onPatch={onPatch} />} />}
         <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} onPatch={onPatch} />} />
         <DetailRow k="When" v={<WhenValue event={event} locked={locked} editable={isHost && !locked} onGoToAvailability={() => onGoToTab('availability')} onPatch={onPatch} />} />
-        <DetailRow k="Where" v={<WhereValue event={event} locked={locked} onGoToLocation={() => onGoToTab('location')} />} />
+        <DetailRow k="Where" v={<WhereValue event={event} locked={locked} onGoToLocation={() => onGoToTab('location')} editable={isHost} onPatch={onPatch} />} />
+        <DetailRow k="Spots" v={<CapacityValue event={event} editable={isHost} onPatch={onPatch} />} />
         <DetailRow
           k="Budget"
           v={isHost ? <BudgetEditor event={event} onPatch={onPatch} /> : <BudgetReadOnly event={event} />}
@@ -494,25 +495,61 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
 
 /* Where: the confirmed venue once locked; before that, the vote leader for a single venue,
    or a pointer to the itinerary on the Location tab. */
-function WhereValue({ event, locked, onGoToLocation }: { event: AppEvent; locked: boolean; onGoToLocation: () => void }) {
+/* Spots: the host caps the guest list; everyone sees how many are left */
+function CapacityValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
+  const [v, setV] = useState(event.capacity?.toString() ?? '')
+  const going = event.participants.filter((p) => p.rsvp === 'attending').length
+  if (!editable) {
+    if (event.capacity == null) return <span className="text-faint">No limit</span>
+    return <span>{going} of {event.capacity} spots taken <span className="text-dim">· first come, first served</span></span>
+  }
+  function change(raw: string) {
+    const clean = raw.replace(/[^\d]/g, '').slice(0, 4)
+    setV(clean)
+    const n = Number(clean)
+    onPatch({ capacity: clean && n >= 1 ? n : undefined })
+  }
+  return (
+    <div className="flex flex-col gap-1">
+      <input
+        value={v} onChange={(e) => change(e.target.value)} inputMode="numeric" placeholder="No limit"
+        className="h-8 w-[110px] rounded-[8px] border border-border bg-s0 px-2.5 text-[13.5px] font-medium outline-none focus-within:border-border2"
+      />
+      <span className="text-[12.5px] leading-[1.5] text-faint">
+        {event.capacity != null
+          ? `${going} of ${event.capacity} spots taken. Spots go to whoever replies first.`
+          : 'Cap how many people can say they are going. Spots go to whoever replies first.'}
+      </span>
+    </div>
+  )
+}
+
+function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
+  event: AppEvent; locked: boolean; onGoToLocation: () => void
+  editable: boolean; onPatch: (patch: Partial<AppEvent>) => void
+}) {
   const [copied, setCopied] = useState(false)
+  const [editingOnline, setEditingOnline] = useState(false)
+  const linkRef = useRef<HTMLInputElement>(null)
   const loc = event.location
+  const link = loc.meetingLink.trim()
+  const copyLink = () => {
+    navigator.clipboard?.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
+  }
+  const linkRow = (
+    <span className="flex max-w-[420px] items-center gap-2">
+      <span className="min-w-0 flex-1 truncate rounded-[7px] border border-border bg-s0 px-2.5 py-1 font-mono text-[12px] text-dim">{link}</span>
+      <button onClick={copyLink} className={`flex h-7 flex-none items-center gap-1 rounded-[7px] border px-2 text-[12px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 text-dim hover:bg-s2'}`}>
+        {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
+      </button>
+    </span>
+  )
+
   if (loc.mode === 'remote') {
-    const link = loc.meetingLink.trim()
-    const copyLink = () => {
-      navigator.clipboard?.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
-    }
     return (
       <div className="flex flex-col gap-1.5">
         <span>Online · {loc.platform || 'platform to be decided'}</span>
-        {link ? (
-          <span className="flex max-w-[420px] items-center gap-2">
-            <span className="min-w-0 flex-1 truncate rounded-[7px] border border-border bg-s0 px-2.5 py-1 font-mono text-[12px] text-dim">{link}</span>
-            <button onClick={copyLink} className={`flex h-7 flex-none items-center gap-1 rounded-[7px] border px-2 text-[12px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 text-dim hover:bg-s2'}`}>
-              {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
-            </button>
-          </span>
-        ) : event.hostedByYou ? (
+        {link ? linkRow : event.hostedByYou ? (
           <button onClick={onGoToLocation} className="text-left text-[12.5px] font-medium text-accent-text hover:underline">
             Add a meeting link on the Location tab so it lands in every reminder
           </button>
@@ -535,20 +572,59 @@ function WhereValue({ event, locked, onGoToLocation }: { event: AppEvent; locked
     </span>
   )
 
+  // in person: work out the main line, then layer the optional online option under it
+  let main: React.ReactNode = <>To be decided</>
+  const stops = event.itinStops?.length ?? 0
+  const lead = leadingPlaceOf(event)
   if (locked) {
     const names = event.confirmed!.placeIds
       .map((id) => loc.places.find((p) => p.id === id)?.name)
       .filter((n): n is string => !!n)
-    if (names.length === 1) return placeLink(names[0])
-    if (names.length > 1) return itineraryLink(names.length)
-    return <>To be decided</>
+    if (names.length === 1) main = placeLink(names[0])
+    else if (names.length > 1) main = itineraryLink(names.length)
+  } else if (loc.planMode === 'itinerary' && stops > 0) main = itineraryLink(stops)
+  else if (lead) main = placeLink(lead.place.name, 'leading the vote')
+  else if (loc.places.length === 1) main = placeLink(loc.places[0].name)
+
+  const hybridOn = !!loc.hybrid && !!link
+  function saveOnline() {
+    const v = (linkRef.current?.value ?? '').trim()
+    onPatch({ location: { ...loc, hybrid: !!v, meetingLink: v || loc.meetingLink } })
+    setEditingOnline(false)
   }
-  const stops = event.itinStops?.length ?? 0
-  if (loc.planMode === 'itinerary' && stops > 0) return itineraryLink(stops)
-  const lead = leadingPlaceOf(event)
-  if (lead) return placeLink(lead.place.name, 'leading the vote')
-  if (loc.places.length === 1) return placeLink(loc.places[0].name)
-  return <>To be decided</>
+  return (
+    <div className="flex flex-col gap-1.5">
+      {main}
+      {hybridOn && (
+        <>
+          <span className="flex items-center gap-1.5 text-[12.5px] text-dim">
+            <Video size={13} /> Also joinable online
+            {editable && (
+              <button onClick={() => onPatch({ location: { ...loc, hybrid: false } })} className="font-semibold text-brick-text hover:underline">Remove</button>
+            )}
+          </span>
+          {linkRow}
+        </>
+      )}
+      {!hybridOn && editable && (
+        editingOnline ? (
+          <span className="flex flex-wrap items-center gap-2">
+            <input
+              ref={linkRef} defaultValue={link} autoFocus placeholder="Paste a meeting link"
+              onKeyDown={(e) => { if (e.key === 'Enter') saveOnline() }}
+              className="h-8 w-[240px] max-w-full rounded-[8px] border border-border bg-s0 px-2.5 font-mono text-[12.5px] outline-none focus:border-border2"
+            />
+            <button onClick={saveOnline} className="h-8 rounded-[8px] bg-accent px-2.5 text-[12.5px] font-semibold text-on-accent">Save</button>
+            <button onClick={() => setEditingOnline(false)} className="h-8 rounded-[8px] border border-border2 bg-s1 px-2.5 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
+          </span>
+        ) : (
+          <button onClick={() => setEditingOnline(true)} className="text-left text-[12.5px] font-medium text-accent-text hover:underline">
+            Add an online option for people who can&apos;t be there in person
+          </button>
+        )
+      )}
+    </div>
+  )
 }
 
 /* Cover: pick a preset scene or upload a photo. Uploads are downscaled and recompressed
