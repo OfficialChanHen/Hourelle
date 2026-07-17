@@ -15,6 +15,8 @@
   /* availability heat ramp */
   --heat-low:#EBF1EB; --heat-mid:#CFE0D2; --heat-high:#9DBBA4; --heat-full:#2E4A3C;
   --you-only:#F3EAD9; --you-some:#EAD9BE; --you-many:#DCC8A2; --you-text:#6E5523;
+  /* grid slot lines — deliberately darker than the hairlines so cells read at a glance */
+  --grid-line:#A89D86;
 }
 
 /* Dark — warm charcoal */
@@ -30,6 +32,7 @@
 
   --heat-low:rgba(127,183,154,.14); --heat-mid:rgba(127,183,154,.30); --heat-high:rgba(127,183,154,.55); --heat-full:#5B9A7C;
   --you-only:rgba(203,161,90,.18); --you-some:rgba(203,161,90,.34); --you-many:rgba(203,161,90,.5); --you-text:#E4C188;
+  --grid-line:rgba(244,236,214,.24);
 }
 
 /* ───────────────── Map semantic tokens → Tailwind utilities (switch per theme) ───────────────── */

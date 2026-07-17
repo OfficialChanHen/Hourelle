@@ -755,12 +755,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
             }}
           >
             {/* header row — the corner cell stays pinned through both scroll directions */}
-            <div className="sticky left-0 top-0 z-[30] border-b border-r border-border2 bg-s0" />
+            <div className="sticky left-0 top-0 z-[30] border-b border-r border-[var(--grid-line)] bg-s0" />
             {weekDays.map((d) => {
               // filler day outside the event's window — labeled but inert
               if (d.pad) {
                 return (
-                  <div key={d.key} className="sticky top-0 z-20 border-b border-r border-border2 bg-s0 px-1.5 py-2 text-center opacity-60">
+                  <div key={d.key} className="sticky top-0 z-20 border-b border-r border-[var(--grid-line)] bg-s0 px-1.5 py-2 text-center opacity-60">
                     <div className="text-[11px] text-faint">{d.dow}</div>
                     <div className="text-[14px] font-semibold text-faint">{d.date}</div>
                   </div>
@@ -773,8 +773,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                   key={d.key}
                   type="button"
                   onClick={() => toggleDay(d.key)}
-                  className="sticky top-0 z-20 border-b border-r border-border2 px-1.5 py-2 text-center"
-                  style={{ background: isBestDay ? 'var(--teal-bg)' : 'var(--s0)', borderBottomColor: isBestDay ? 'var(--teal-border)' : 'var(--border2)', cursor: mode === 'edit' ? 'pointer' : 'default' }}
+                  className="sticky top-0 z-20 border-b border-r border-[var(--grid-line)] px-1.5 py-2 text-center"
+                  style={{ background: isBestDay ? 'var(--teal-bg)' : 'var(--s0)', borderBottomColor: isBestDay ? 'var(--teal-border)' : 'var(--grid-line)', cursor: mode === 'edit' ? 'pointer' : 'default' }}
                   title={mode === 'edit' ? 'Click to fill the whole day' : undefined}
                 >
                   <div className="text-[11px] text-dim">{d.dow}</div>
@@ -807,7 +807,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                   onClick={() => toggleTime(ti)}
                   // sticky-left so the time labels follow horizontal scroll, the same way
                   // the day header row follows vertical scroll
-                  className="sticky left-0 z-[15] flex items-center justify-center gap-1 border-b border-r border-border2 bg-s0 p-1 text-[12px] font-medium text-dim"
+                  className="sticky left-0 z-[15] flex items-center justify-center gap-1 border-b border-r border-[var(--grid-line)] bg-s0 p-1 text-[12px] font-medium text-dim"
                   style={{ cursor: mode === 'edit' ? 'pointer' : 'default' }}
                   title={mode === 'edit' ? 'Click to fill this time across the week' : undefined}
                 >
@@ -827,7 +827,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                     return (
                       <div
                         key={d.key}
-                        className="min-h-[50px] border-b border-r border-border2"
+                        className="min-h-[50px] border-b border-r border-[var(--grid-line)]"
                         style={{ background: 'repeating-linear-gradient(-45deg, var(--s0) 0 5px, var(--s2) 5px 6px)' }}
                         title="Outside this event's dates"
                       />
@@ -842,19 +842,32 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                       ? (n ? `${n} of ${viewTotal} free` : 'No one free')
                       : bands.map((b) => `${fmt(gridStartMin + b.s)} – ${fmt(gridStartMin + b.e)}: ${b.ids.length} free`).join('\n')
                     const open = detail?.day === d.key && detail?.ti === ti
-                    // the best window gets a visible teal ring on the grid itself, not just the footer
+                    // the best window is one continuous ochre frame over its cells — a color the
+                    // grid never uses for lines or heat, so it can't be mistaken for either
                     const inBest = !!bw && d.key === bw.dayKey && w0 < bw.e && w1 > bw.s
-                    const bestChip = inBest && ti === Math.max(0, Math.floor(bw!.s / step))
+                    const bestFirst = inBest && ti === Math.max(0, Math.floor(bw!.s / step))
+                    const bestLast = inBest && ti === Math.min(rows - 1, Math.ceil(bw!.e / step) - 1)
                     return (
                       <div
                         key={d.key}
                         onClick={(e) => openDetail(e, d.key, ti)}
-                        className="relative min-h-[50px] cursor-pointer border-b border-r border-border2"
-                        style={{ boxShadow: open ? 'inset 0 0 0 1.5px var(--accent)' : inBest ? 'inset 0 0 0 1.5px var(--teal)' : d.best ? 'inset 0 0 0 1px var(--teal-border)' : undefined }}
+                        className="relative min-h-[50px] cursor-pointer border-b border-r border-[var(--grid-line)]"
+                        style={{ boxShadow: open ? 'inset 0 0 0 1.5px var(--accent)' : d.best ? 'inset 0 0 0 1px var(--teal-border)' : undefined }}
                         title={title}
                       >
-                        {bestChip && (
-                          <span className="pointer-events-none absolute right-1 top-1 z-[2] rounded-[5px] border border-teal-border bg-teal-bg px-[5px] py-px text-[9.5px] font-semibold text-teal-text">Best time</span>
+                        {inBest && (
+                          <div
+                            className="pointer-events-none absolute inset-0 z-[2]"
+                            style={{
+                              borderLeft: '2.5px solid var(--ochre)',
+                              borderRight: '2.5px solid var(--ochre)',
+                              borderTop: bestFirst ? '2.5px solid var(--ochre)' : undefined,
+                              borderBottom: bestLast ? '2.5px solid var(--ochre)' : undefined,
+                            }}
+                          />
+                        )}
+                        {bestFirst && (
+                          <span className="pointer-events-none absolute right-1 top-1 z-[3] rounded-[5px] border border-ochre-border bg-ochre-bg px-[5px] py-px text-[9.5px] font-semibold text-ochre-text">Best time</span>
                         )}
                         {paint.map((b, k) => (
                           <div
@@ -886,7 +899,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                   const isTopEdge = !!sel && !dragDel && sel.day === d.key && topCell === ti
                   const isBotEdge = !!sel && !dragDel && sel.day === d.key && botCell === ti
                   return (
-                    <div key={d.key} className="relative h-[50px] select-none border-b border-r border-border2" style={{ background: heat(oCount, editTotal), boxShadow: d.best ? 'inset 1px 0 0 0 var(--teal-border), inset -1px 0 0 0 var(--teal-border)' : undefined }}>
+                    <div key={d.key} className="relative h-[50px] select-none border-b border-r border-[var(--grid-line)]" style={{ background: heat(oCount, editTotal), boxShadow: d.best ? 'inset 1px 0 0 0 var(--teal-border), inset -1px 0 0 0 var(--teal-border)' : undefined }}>
                       {ivs.map((iv, k) => {
                         const cs = Math.max(iv.s, w0), ce = Math.min(iv.e, w1)
                         if (ce <= cs) return null
