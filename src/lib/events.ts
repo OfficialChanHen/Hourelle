@@ -60,6 +60,7 @@ export type AppEvent = {
   itinStartMin?: number               // clock minutes the itinerary begins
   travelModes?: string[]              // allowed transport modes for route timing (default all)
   durationMin?: number                // how long the event needs — drives the best-window search
+  bestMode?: BestMode                 // what the best-window search favors (default 'full')
   quorum?: number                     // host-set smallest headcount that works; attendance warns below it
   capacity?: number                   // host-set spot limit; going is first come, first served
   expenses?: EventExpense[]           // actual spend logged against the budget
@@ -87,6 +88,7 @@ export type CreateInput = {
   windowStart?: string // 'HH:MM' — optional daily time window; empty = the whole day
   windowEnd?: string
   durationMin?: number // optional; drives the best-window search (default 60)
+  bestMode?: BestMode  // optional; carried over when reusing an event's shape
   budgetMode?: 'total' | 'person'
   locMode: 'vote' | 'remote' | 'later'
   planMode: 'vote' | 'itinerary'
@@ -265,17 +267,24 @@ export function fmtMinute(min: number, h24 = false): string {
 // interval sweep for the best window. With minLen <= 0 it returns the peak instantaneous
 // overlap (a single segment). With minLen > 0 it finds the window of AT LEAST that length
 // that the most people are free for the whole time, extended to its natural bounds.
-export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0) {
-  let best: { dayKey: string; s: number; e: number; count: number; ids: string[] } | null = null
+// what the best-window search favors: 'full' = the most people who can stay the whole
+// time; 'crowd' = the fullest room on average, even if few can stay start to finish
+export type BestMode = 'full' | 'crowd'
+
+export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0, bestMode: BestMode = 'full') {
+  let best: { dayKey: string; s: number; e: number; count: number; ids: string[]; avg: number } | null = null
   let bestWeight = 0
-  // most whole-window people first; ties break on person-minutes inside the window, so
-  // between two windows the same crowd can fully attend, the one with the bigger
-  // partial crowd (late arrivals, early leavers) wins. Then longer, then earlier.
-  const better = (count: number, weight: number, s: number, e: number) =>
-    !best || count > best.count ||
-    (count === best.count && (weight > bestWeight ||
-      (weight === bestWeight && (e - s > best.e - best.s ||
-        (e - s === best.e - best.s && s < best.s)))))
+  // primary and secondary swap with the mode: whole-window people vs person-minutes
+  // inside the window. Then longer wins, then earlier.
+  const better = (count: number, weight: number, s: number, e: number) => {
+    if (!best) return true
+    const [a1, a2] = bestMode === 'crowd' ? [weight, count] : [count, weight]
+    const [b1, b2] = bestMode === 'crowd' ? [bestWeight, best.count] : [best.count, bestWeight]
+    if (a1 !== b1) return a1 > b1
+    if (a2 !== b2) return a2 > b2
+    if (e - s !== best.e - best.s) return e - s > best.e - best.s
+    return s < best.s
+  }
 
   for (const d of days) {
     const byPid = availIv[d.key] ?? {}
@@ -295,7 +304,8 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0)
       for (let i = 0; i < xs.length - 1; i++) {
         const s = xs[i], e = xs[i + 1]
         const who = coverers(s, e)
-        if (who.length && better(who.length, minutesIn(s, e), s, e)) { best = { dayKey: d.key, s, e, count: who.length, ids: who }; bestWeight = minutesIn(s, e) }
+        const weight = minutesIn(s, e)
+        if (who.length && better(who.length, weight, s, e)) { best = { dayKey: d.key, s, e, count: who.length, ids: who, avg: weight / (e - s) }; bestWeight = weight }
       }
     } else {
       // candidate starts: every point where either the full-window crowd or the
@@ -310,14 +320,15 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0)
         if (s < 0) continue
         const e = s + minLen
         const who = coverers(s, e)
-        if (!who.length) continue
+        // weight over the committed duration, not the extension — the event lasts minLen
+        const weight = minutesIn(s, e)
+        // crowd mode still scores a window nobody can fully cover; full mode skips it
+        if (bestMode === 'crowd' ? weight <= 0 : !who.length) continue
         // extend the window while the same people are all still free (min of their covering-interval ends)
         let ext = Infinity
         for (const id of who) { const iv = byPid[id].find((v) => v.s <= s && v.e >= e); if (iv) ext = Math.min(ext, iv.e) }
         const eEnd = ext === Infinity ? e : ext
-        // weight over the committed duration, not the extension — the event lasts minLen
-        const weight = minutesIn(s, e)
-        if (better(who.length, weight, s, eEnd)) { best = { dayKey: d.key, s, e: eEnd, count: who.length, ids: who }; bestWeight = weight }
+        if (better(who.length, weight, s, eEnd)) { best = { dayKey: d.key, s, e: eEnd, count: who.length, ids: who, avg: weight / minLen }; bestWeight = weight }
       }
     }
   }
@@ -438,6 +449,7 @@ export function draftFromEvent(id: string): Partial<CreateInput> | null {
     timezone: ev.timezone,
     granularity: ev.granularity,
     durationMin: ev.durationMin,
+    bestMode: ev.bestMode,
     budget: ev.budget,
     budgetMode: ev.budgetMode,
     locMode: ev.location.mode,
@@ -527,6 +539,7 @@ export function createEvent(input: CreateInput): AppEvent {
     itinDwell: isItin ? input.picked.map(() => 60) : [],
     itinStartMin: hasWin ? (winS as number) : 9 * 60,
     durationMin: input.durationMin && input.durationMin >= 1 ? Math.min(24 * 60, input.durationMin) : 60,
+    bestMode: input.bestMode,
     capacity: input.capacity && Number(input.capacity) >= 1 ? Number(input.capacity) : undefined,
     messages: [],
     createdAt: Date.now(),

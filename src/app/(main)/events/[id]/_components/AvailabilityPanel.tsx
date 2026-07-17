@@ -10,7 +10,7 @@ import { TimezonePill } from '@/components/ui/TimezonePill'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Popover } from '@/components/ui/Popover'
 import {
-  patchEvent, availIvOf, intervalsToGrid, normalizeIv, bestWindow, fmtMinute, gridStartMinOf, stepOf, dayLabel,
+  patchEvent, availIvOf, intervalsToGrid, normalizeIv, bestWindow, fmtMinute, gridStartMinOf, stepOf, dayLabel, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
 import { buildImportPreview, mockBusyUtc, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport } from '@/lib/calendar-import'
@@ -149,6 +149,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
   const [h24, setH24] = useState(false)
   const [myTime, setMyTime] = useState(false) // show times in the viewer's local zone
   const [durationMin, setDurationMin] = useState(event.durationMin ?? 60)
+  const [bestMode, setBestMode] = useState<BestMode>(event.bestMode ?? 'full')
   const [detail, setDetail] = useState<{ day: string; ti: number; cx: number; cyTop: number; cyBottom: number; below: boolean } | null>(null) // view-mode cell breakdown
   const [showMissing, setShowMissing] = useState(false)
   const [nudged, setNudged] = useState<Set<string>>(new Set())
@@ -233,6 +234,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
   function changeDuration(v: number) {
     setDurationMin(v)
     if (!event.demo) patchEvent(event.id, { durationMin: v })
+  }
+  function changeBestMode(v: BestMode) {
+    setBestMode(v)
+    if (!event.demo) patchEvent(event.id, { bestMode: v })
   }
   // quick-fill: add a clock-time block to every visible day at once
   function fillPreset(startClock: number, endClock: number) {
@@ -552,7 +557,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
   const viewTotal = filterOn ? filter.size : total
 
   // best window (live interval sweep — most people simultaneously free, longest such stretch)
-  const bw = useMemo(() => bestWindow(viewCombinedByDay, event.days, durationMin), [viewCombinedByDay, durationMin]) // eslint-disable-line react-hooks/exhaustive-deps
+  const bw = useMemo(() => bestWindow(viewCombinedByDay, event.days, durationMin, bestMode), [viewCombinedByDay, durationMin, bestMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // who still hasn't marked any availability (to nudge)
   const respondedIds = new Set(otherIds); if (youAny) respondedIds.add('JM')
@@ -593,7 +598,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
               <SegmentedControl size="sm" value={mode} onChange={(v) => { setMode(v as Mode); setSel(null); setDetail(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
               <Popover
                 align="end"
-                width={224}
+                width={264}
                 trigger={(open) => (
                   <span className={`flex h-7 items-center gap-1.5 rounded-lg border px-[10px] text-[12.5px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
                     <SlidersHorizontal size={13} /> Settings
@@ -619,6 +624,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                         />
                         <span className="text-[12px] text-faint">min</span>
                       </div>
+                    </div>
+                    <div className="border-t border-border pt-2.5">
+                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Best time favors</div>
+                      <Segment compact value={bestMode} onChange={(v) => changeBestMode(v as BestMode)} options={[{ v: 'full', l: 'Everyone stays' }, { v: 'crowd', l: 'Biggest crowd' }]} />
+                      <p className="mt-1.5 text-[12px] leading-[1.5] text-faint">
+                        {bestMode === 'full'
+                          ? 'Picks the time the most people can attend start to finish.'
+                          : 'Picks the time with the most people around overall, even if some come and go.'}
+                      </p>
                     </div>
                     <div className="border-t border-border pt-2.5">
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Time format</div>
@@ -1012,7 +1026,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
               <span className="text-[12.5px] text-dim">Best {fmtDur(durationMin)} slot{filterOn ? ' for your selection' : ''}</span>
               <span className="text-[14px] font-semibold text-ochre">{bw.dayLabel} · {fmt(gridStartMin + bw.s)} – {fmt(gridStartMin + bw.e)}</span>
               <TimezonePill tz={myTime && canConvert ? localTz : event.timezone} />
-              <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {viewTotal} free</span>
+              {bestMode === 'crowd'
+                ? <span className="text-[12.5px] font-semibold text-teal-text">around {Math.round(bw.avg)} of {viewTotal} there{bw.count > 0 && <span className="font-normal text-dim"> · {bw.count} the whole time</span>}</span>
+                : <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {viewTotal} free</span>}
               <div className="ml-auto"><AvatarRow people={bw.ids.map(avatarOf)} size={22} max={8} overlap={5} /></div>
             </>
           ) : responded > 0 ? (

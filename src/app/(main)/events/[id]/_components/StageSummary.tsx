@@ -27,7 +27,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
 
   const responded = respondedCount(event.avail)
   const total = event.participants.length
-  const best = bestWindow(availIvOf(event), event.days, event.durationMin ?? 60)
+  const best = bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode)
   const gridStart = gridStartMinOf(event)
 
   // the venue currently winning the vote, so the one line reports both fronts

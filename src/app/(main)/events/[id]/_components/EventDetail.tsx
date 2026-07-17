@@ -322,7 +322,7 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
     const availIv = availIvOf(event)
     const gridStart = gridStartMinOf(event)
     const locked = event.status === 'confirmed' && !!event.confirmed
-    const best = bestWindow(availIv, event.days, event.durationMin ?? 60)
+    const best = bestWindow(availIv, event.days, event.durationMin ?? 60, event.bestMode)
     const win = locked
       ? { dayKey: event.confirmed!.dayKey, s: event.confirmed!.startMin - gridStart, e: event.confirmed!.endMin - gridStart }
       : best

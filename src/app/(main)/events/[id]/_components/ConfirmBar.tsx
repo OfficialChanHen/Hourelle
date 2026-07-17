@@ -33,7 +33,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
   const loc = event.location
   const gridStart = gridStartMinOf(event)
   const duration = event.durationMin ?? 60
-  const bw = bestWindow(availIvOf(event), event.days, duration)
+  const bw = bestWindow(availIvOf(event), event.days, duration, event.bestMode)
 
   // best window for everyone, cut to the event length
   const [dayKey, setDayKey] = useState(() => bw?.dayKey ?? event.days[0]?.key ?? event.startDate)
@@ -101,7 +101,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
         </div>
         {bw && (
           <p className="mt-1.5 text-[12px] text-faint">
-            Best window: {bw.count} of {event.participants.length} free <span className="font-semibold text-ochre">{fmtMinute(gridStart + bw.s)} – {fmtMinute(gridStart + bw.e)}</span>
+            Best window: {event.bestMode === 'crowd' ? <>around {Math.round(bw.avg)} of {event.participants.length} there</> : <>{bw.count} of {event.participants.length} free</>} <span className="font-semibold text-ochre">{fmtMinute(gridStart + bw.s)} – {fmtMinute(gridStart + bw.e)}</span>
           </p>
         )}
       </div>
