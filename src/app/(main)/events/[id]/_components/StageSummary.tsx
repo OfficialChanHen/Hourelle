@@ -10,7 +10,7 @@ import {
 /* ── one quiet line that says where planning stands ──
    Replaces the old always-on stat strip; the confirmed phases skip it because
    the ConfirmedHero carries the answer instead. */
-export function StageSummary({ event, phase }: { event: AppEvent; phase: Phase }) {
+export function StageSummary({ event, phase, onGoToAvailability }: { event: AppEvent; phase: Phase; onGoToAvailability?: () => void }) {
   if (phase === 'past') {
     const went = event.participants.filter((p) => p.rsvp === 'attending').length
     return (
@@ -41,7 +41,7 @@ export function StageSummary({ event, phase }: { event: AppEvent; phase: Phase }
     <p className="text-[13.5px] text-dim">
       {responded === 0
         ? 'Waiting on availability'
-        : <>{responded} of {total} responded{best && <> · best so far <span className="font-semibold text-text">{best.dayLabel} · {fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)}</span></>}</>}
+        : <>{responded} of {total} responded{best && <> · best so far <button type="button" onClick={onGoToAvailability} className="font-semibold text-ochre hover:underline">{best.dayLabel} · {fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)}</button></>}</>}
       {leading && <> · <span className="font-semibold text-text">{leading.name}</span> leading the vote</>}
     </p>
   )

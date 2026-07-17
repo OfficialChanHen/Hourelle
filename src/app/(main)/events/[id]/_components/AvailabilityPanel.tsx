@@ -774,17 +774,17 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                   type="button"
                   onClick={() => toggleDay(d.key)}
                   className="sticky top-0 z-20 border-b border-r border-[var(--grid-line)] px-1.5 py-2 text-center"
-                  style={{ background: isBestDay ? 'var(--teal-bg)' : 'var(--s0)', borderBottomColor: isBestDay ? 'var(--teal-border)' : 'var(--grid-line)', cursor: mode === 'edit' ? 'pointer' : 'default' }}
+                  style={{ background: isBestDay ? 'var(--ochre-bg)' : 'var(--s0)', borderBottomColor: isBestDay ? 'var(--ochre-border)' : 'var(--grid-line)', cursor: mode === 'edit' ? 'pointer' : 'default' }}
                   title={mode === 'edit' ? 'Click to fill the whole day' : undefined}
                 >
                   <div className="text-[11px] text-dim">{d.dow}</div>
-                  <div className="text-[14px] font-semibold" style={{ color: isBestDay ? 'var(--teal-text)' : 'var(--text)' }}>{d.date}</div>
+                  <div className="text-[14px] font-semibold" style={{ color: isBestDay ? 'var(--ochre-text)' : 'var(--text)' }}>{d.date}</div>
                   {mode === 'edit' && (
                     <span className={`mx-auto mt-[3px] grid h-4 w-4 place-items-center rounded-[5px] border ${dayFull ? 'border-accent bg-accent text-on-accent' : 'border-border2 text-transparent'}`}>
                       <Check size={11} />
                     </span>
                   )}
-                  {isBestDay && mode === 'view' && <span className="mt-[3px] inline-block rounded-[5px] border border-teal-border bg-teal-bg px-[5px] py-px text-[9.5px] font-semibold text-teal-text">Best day</span>}
+                  {isBestDay && mode === 'view' && <span className="mt-[3px] inline-block rounded-[5px] border border-ochre-border bg-ochre-bg px-[5px] py-px text-[9.5px] font-semibold text-ochre-text">Best day</span>}
                 </button>
               )
             })}
@@ -845,30 +845,33 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                     // the best window is one continuous ochre frame over its cells — a color the
                     // grid never uses for lines or heat, so it can't be mistaken for either
                     const inBest = !!bw && d.key === bw.dayKey && w0 < bw.e && w1 > bw.s
-                    const bestFirst = inBest && ti === Math.max(0, Math.floor(bw!.s / step))
-                    const bestLast = inBest && ti === Math.min(rows - 1, Math.ceil(bw!.e / step) - 1)
                     return (
                       <div
                         key={d.key}
                         onClick={(e) => openDetail(e, d.key, ti)}
                         className="relative min-h-[50px] cursor-pointer border-b border-r border-[var(--grid-line)]"
-                        style={{ boxShadow: open ? 'inset 0 0 0 1.5px var(--accent)' : d.best ? 'inset 0 0 0 1px var(--teal-border)' : undefined }}
+                        style={{ boxShadow: open ? 'inset 0 0 0 1.5px var(--accent)' : d.best ? 'inset 0 0 0 1px var(--ochre-border)' : undefined }}
                         title={title}
                       >
-                        {inBest && (
-                          <div
-                            className="pointer-events-none absolute inset-0 z-[2]"
-                            style={{
-                              borderLeft: '2.5px solid var(--ochre)',
-                              borderRight: '2.5px solid var(--ochre)',
-                              borderTop: bestFirst ? '2.5px solid var(--ochre)' : undefined,
-                              borderBottom: bestLast ? '2.5px solid var(--ochre)' : undefined,
-                            }}
-                          />
-                        )}
-                        {bestFirst && (
-                          <span className="pointer-events-none absolute right-1 top-1 z-[3] rounded-[5px] border border-ochre-border bg-ochre-bg px-[5px] py-px text-[9.5px] font-semibold text-ochre-text">Best time</span>
-                        )}
+                        {inBest && (() => {
+                          // frame hugs the window's true minutes, not the cell edges — a 10:30
+                          // start draws the top line halfway down the 10:00 cell
+                          const bs = Math.max(bw!.s, w0), be = Math.min(bw!.e, w1)
+                          const edge = '2.5px solid var(--ochre)'
+                          return (
+                            <div
+                              className="pointer-events-none absolute inset-x-0 z-[2]"
+                              style={{
+                                top: `${((bs - w0) / step) * 100}%`,
+                                height: `${((be - bs) / step) * 100}%`,
+                                borderLeft: edge,
+                                borderRight: edge,
+                                borderTop: bs === bw!.s ? edge : undefined,
+                                borderBottom: be === bw!.e ? edge : undefined,
+                              }}
+                            />
+                          )
+                        })()}
                         {paint.map((b, k) => (
                           <div
                             key={k}
@@ -877,10 +880,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                               top: `${((b.s - w0) / step) * 100}%`,
                               height: `${((b.e - b.s) / step) * 100}%`,
                               background: heat(b.ids.length, viewTotal),
-                              borderTop: b.s > w0 ? '1px dashed var(--border2)' : undefined,
+                              borderTop: b.s > w0 ? '1px dashed var(--grid-dash)' : undefined,
                             }}
                           />
                         ))}
+                        {/* slot line redrawn above the heat fills so saturated cells can't wash it out */}
+                        <div className="pointer-events-none absolute z-[1] border-b border-r border-[var(--grid-line)]" style={{ inset: '0 -1px -1px 0' }} />
                         {/* cap the pile so a 100-person cell renders ~6 avatars + "+N", not 100 nodes */}
                         <div className="relative z-[1] flex flex-wrap content-start gap-0.5 p-[5px]">
                           {peak.ids.slice(0, AVATAR_CAP).map((id) => { const a = avatarOf(id); return <Avatar key={id} initials={a.initials} color={a.color} size={17} font={8.5} title={a.name} /> })}
@@ -899,7 +904,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                   const isTopEdge = !!sel && !dragDel && sel.day === d.key && topCell === ti
                   const isBotEdge = !!sel && !dragDel && sel.day === d.key && botCell === ti
                   return (
-                    <div key={d.key} className="relative h-[50px] select-none border-b border-r border-[var(--grid-line)]" style={{ background: heat(oCount, editTotal), boxShadow: d.best ? 'inset 1px 0 0 0 var(--teal-border), inset -1px 0 0 0 var(--teal-border)' : undefined }}>
+                    <div key={d.key} className="relative h-[50px] select-none border-b border-r border-[var(--grid-line)]" style={{ background: heat(oCount, editTotal), boxShadow: d.best ? 'inset 1px 0 0 0 var(--ochre-border), inset -1px 0 0 0 var(--ochre-border)' : undefined }}>
                       {ivs.map((iv, k) => {
                         const cs = Math.max(iv.s, w0), ce = Math.min(iv.e, w1)
                         if (ce <= cs) return null
@@ -923,6 +928,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                           />
                         )
                       })}
+                      {/* slot line redrawn above the heat fills so saturated cells can't wash it out */}
+                      <div className="pointer-events-none absolute z-[1] border-b border-r border-[var(--grid-line)]" style={{ inset: '0 -1px -1px 0' }} />
                       {cnt > 0 && <span className="pointer-events-none absolute bottom-[2px] right-1 z-[2] text-[9px] font-bold" style={{ color: cnt >= editTotal ? '#F4F1EA' : '#6E5523' }}>{cnt}/{editTotal}</span>}
                       {/* full-cell hit zone: empty → paint, over a block → select */}
                       <div className="absolute inset-0 z-[5] touch-auto" onPointerDown={(e) => onCellDown(e, d.key, ti)} onPointerUp={(e) => onCellTap(e, d.key, ti)} onPointerCancel={() => { tapRef.current = null }} />
@@ -982,7 +989,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
           {bw ? (
             <>
               <span className="text-[12.5px] text-dim">Best {fmtDur(durationMin)} slot{filterOn ? ' for your selection' : ''}</span>
-              <span className="text-[14px] font-semibold">{bw.dayLabel} · {fmt(gridStartMin + bw.s)} – {fmt(gridStartMin + bw.e)}</span>
+              <span className="text-[14px] font-semibold text-ochre">{bw.dayLabel} · {fmt(gridStartMin + bw.s)} – {fmt(gridStartMin + bw.e)}</span>
               <TimezonePill tz={myTime && canConvert ? localTz : event.timezone} />
               <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {viewTotal} free</span>
               <div className="ml-auto"><AvatarRow people={bw.ids.map(avatarOf)} size={22} max={8} overlap={5} /></div>

@@ -191,7 +191,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       <div className="mb-6 border-b border-border pb-5">
         <LifecycleStrip phase={phase} className="max-w-[420px]" />
         {(phase === 'planning' || phase === 'past') && (
-          <div className="mt-3"><StageSummary event={event} phase={phase} /></div>
+          <div className="mt-3"><StageSummary event={event} phase={phase} onGoToAvailability={() => setTab('availability')} /></div>
         )}
       </div>
 

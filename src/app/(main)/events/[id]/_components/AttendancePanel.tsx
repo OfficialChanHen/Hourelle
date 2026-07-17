@@ -183,9 +183,7 @@ function RsvpSummary({ participants, capacity }: { participants: Participant[]; 
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-dim">
         <span>{total} invited</span>
-        {capacity != null && <span className="text-faint">· capped at {capacity}</span>}
-        {rest.length > 0 && <span className="text-faint">· the other {maybe + out + noReply}:</span>}
-        {rest.map((r, i) => <span key={i} className="flex items-center gap-1.5">{i > 0 && <span className="text-faint">·</span>}{r}</span>)}
+        {rest.map((r, i) => <span key={i} className="flex items-center gap-1.5"><span className="text-faint">·</span>{r}</span>)}
       </div>
     </div>
   )
@@ -285,7 +283,10 @@ function SingleVenue({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           {win && (
             <div className="flex items-center gap-1.5 text-[12.5px] text-dim">
-              {locked ? 'Confirmed time' : 'Best window'} · {win.dayLabel}, {fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}
+              {locked ? 'Confirmed time' : 'Best window'} ·{' '}
+              {locked
+                ? <span>{win.dayLabel}, {fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</span>
+                : <button type="button" onClick={() => onGoToTab?.('availability')} className="font-semibold text-ochre hover:underline">{win.dayLabel}, {fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</button>}
               {!locked && <BestWindowInfo />}
             </div>
           )}
@@ -296,7 +297,7 @@ function SingleVenue({
       <LeadingPlace event={event} onGoToTab={onGoToTab} />
 
       {win
-        ? <HeadcountBars attendees={attendees} dayIv={dayIv} gridStart={gridStart} step={step} rows={rows} winS={winS} winE={winE} locked={locked} quorum={quorum} />
+        ? <HeadcountBars attendees={attendees} dayIv={dayIv} gridStart={gridStart} step={step} rows={rows} winS={winS} winE={winE} locked={locked} quorum={quorum} onGoToTab={onGoToTab} />
         : <div className="rounded-xl border border-border bg-s0 px-4 py-6 text-center text-[13.5px] text-dim">Add availability to see who is around when.</div>}
 
       {quorum != null && win && <QuorumStatus quorum={quorum} whole={groups.whole.length} />}
@@ -465,10 +466,10 @@ function LeadingPlace({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab
 
 /* Headcount through the day — how many attendees are free per slot; tap a bar for the numbers */
 function HeadcountBars({
-  attendees, dayIv, gridStart, step, rows, winS, winE, locked, quorum,
+  attendees, dayIv, gridStart, step, rows, winS, winE, locked, quorum, onGoToTab,
 }: {
   attendees: Participant[]; dayIv: Record<string, Iv[]>; gridStart: number; step: number; rows: number
-  winS: number; winE: number; locked: boolean; quorum: number | null
+  winS: number; winE: number; locked: boolean; quorum: number | null; onGoToTab?: GoTab
 }) {
   const [sel, setSel] = useState<number | null>(null)
   const counts = useMemo(() => Array.from({ length: rows }, (_, ti) => {
@@ -513,7 +514,11 @@ function HeadcountBars({
       </div>
       <div className="mt-1.5 flex justify-between text-[11px] text-faint">
         <span>{fmtMinute(gridStart)}</span>
-        <span className="text-dim">{locked ? 'Confirmed' : 'Best window'} {fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</span>
+        <span className="text-dim">{locked ? 'Confirmed' : 'Best window'}{' '}
+          {locked
+            ? <span>{fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</span>
+            : <button type="button" onClick={() => onGoToTab?.('availability')} className="font-semibold text-ochre hover:underline">{fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</button>}
+        </span>
         <span>{fmtMinute(gridStart + rows * step)}</span>
       </div>
     </div>

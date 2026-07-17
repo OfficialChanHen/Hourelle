@@ -101,7 +101,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
         </div>
         {bw && (
           <p className="mt-1.5 text-[12px] text-faint">
-            Best window: {bw.count} of {event.participants.length} free {fmtMinute(gridStart + bw.s)} – {fmtMinute(gridStart + bw.e)}
+            Best window: {bw.count} of {event.participants.length} free <span className="font-semibold text-ochre">{fmtMinute(gridStart + bw.s)} – {fmtMinute(gridStart + bw.e)}</span>
           </p>
         )}
       </div>
