@@ -235,6 +235,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
     })
     setSel(null)
   }
+  // one tap for "I'm free whenever": every time slot on every event day
+  function fillAllDays() {
+    const next = Object.fromEntries(event.days.map((d) => [d.key, [{ s: 0, e: gridMax }] as Iv[]]))
+    setMine(next)
+    persist(next)
+    setSel(null)
+  }
   function nudge(id: string) {
     setNudged((prev) => new Set(prev).add(id)) // stub: real build sends a reminder email
   }
@@ -642,10 +649,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
               <MissingPopover missing={missing} nudged={nudged} onNudge={nudge} onNudgeAll={nudgeAll} onClose={() => setShowMissing(false)} />
             )}
           </div>
-          {mode === 'edit' && <PresetFills onFill={fillPreset} />}
+          {mode === 'edit' && <PresetFills onFill={fillPreset} onFillAll={fillAllDays} />}
           {/* first-time hint only — it earns its place until you've marked something */}
           {mode === 'edit' && !sel && !youAny && (
-            <span className="text-[12.5px] text-faint">Tap or drag to add time</span>
+            <span className="text-[12.5px] text-faint">Drag across the times you&apos;re free. The checkmarks fill a whole day or row at once.</span>
           )}
           {locked && <span className="text-[12.5px] text-faint">Planning is locked. The grid stays for reference.</span>}
           {/* heat legend in view mode; editing only needs the You swatch */}
@@ -1234,15 +1241,19 @@ function EdgeHandle({ pct, label, active, side, onDown }: { pct: number; label: 
 /* ── how long the event needs — drives the best-window search (set in the Settings popover) ── */
 function fmtDur(m: number) { return m < 60 ? `${m}m` : m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h` }
 
-/* ── quick-fill presets (edit mode): fill a standard block across every visible day ── */
-function PresetFills({ onFill }: { onFill: (startClock: number, endClock: number) => void }) {
+/* ── quick-fill presets (edit mode): fill a standard block across every visible day,
+   or the whole event in one tap for the always-free ── */
+function PresetFills({ onFill, onFillAll }: { onFill: (startClock: number, endClock: number) => void; onFillAll: () => void }) {
   const P = [{ l: 'Morning', s: 8 * 60, e: 12 * 60 }, { l: 'Afternoon', s: 12 * 60, e: 17 * 60 }, { l: 'Evening', s: 17 * 60, e: 21 * 60 }]
   return (
-    <span className="flex items-center gap-1 text-[12px] text-faint">
+    <span className="flex flex-wrap items-center gap-1 text-[12px] text-faint">
       Quick fill:
       {P.map((p) => (
         <button key={p.l} onClick={() => onFill(p.s, p.e)} className="rounded-full border border-border bg-s1 px-2 py-0.5 text-[12px] font-medium text-dim hover:border-border2 hover:text-text">{p.l}</button>
       ))}
+      <button onClick={onFillAll} title="Mark yourself free for every time on every day" className="rounded-full border border-accent-border bg-accent-bg px-2 py-0.5 text-[12px] font-semibold text-accent-text">
+        Free for all of it
+      </button>
     </span>
   )
 }
