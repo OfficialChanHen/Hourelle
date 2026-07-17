@@ -116,15 +116,17 @@ function writeAll(list: AppEvent[]) {
 }
 
 export function listEvents(): AppEvent[] {
-  // include the built-in demo (createdAt 0 sorts it last) so new users have something to explore
+  // include the built-in demos (createdAt 0 sorts them last) so new users have something to explore
   const stored = readAll()
-  const all = stored.some((e) => e.id === DEMO.id) ? stored : [...stored, DEMO]
+  const all = [...stored]
+  for (const demo of [DEMO, BIG_DEMO]) if (!stored.some((e) => e.id === demo.id)) all.push(demo)
   return all.sort((a, b) => b.createdAt - a.createdAt)
 }
 export function getEvent(id: string): AppEvent | null {
   const found = readAll().find((e) => e.id === id)
   if (found) return found
   if (id === DEMO.id) return DEMO
+  if (id === BIG_DEMO.id) return BIG_DEMO
   return null
 }
 export function deleteEvent(id: string): void {
@@ -145,6 +147,7 @@ function slugify(s: string): string {
 function uniqueSlug(base: string): string {
   const taken = new Set(readAll().map((e) => e.id))
   taken.add(DEMO.id)
+  taken.add(BIG_DEMO.id)
   let slug = base
   let n = 2
   while (taken.has(slug)) slug = `${base}-${n++}`
@@ -557,4 +560,117 @@ const DEMO: AppEvent = {
   messages: demoMsgs,
   createdAt: 0,
   demo: true,
+}
+
+/* ── the built-in demo at scale: 24 people, 12 venues, 3 votes each — for seeing the
+   busy case, not the happy-demo case. Everything is generated deterministically from
+   indices so the event reads the same on every load. ── */
+const BIG_NAMES: [string, string][] = [
+  ['AT', 'Alex Turner'], ['SR', 'Sam Rivera'], ['DW', 'Dana Wu'], ['KL', 'Kim Lee'],
+  ['PR', 'Pat Reyes'], ['LC', 'Lee Chang'], ['MT', 'Mia Torres'], ['BA', 'Ben Adams'],
+  ['ZC', 'Zoe Clark'], ['RP', 'Raj Patel'], ['AS', 'Ana Silva'], ['TB', 'Tom Baker'],
+  ['IC', 'Ivy Chen'], ['MW', 'Max Weber'], ['SL', 'Sky Larson'], ['GM', 'Gus Moreno'],
+  ['FW', 'Fay Wong'], ['EN', 'Eli Novak'], ['UR', 'Uma Reddy'], ['HK', 'Hana Kim'],
+  ['OD', 'Omar Diaz'], ['NV', 'Nora Vance'], ['YS', 'Yuki Sato'],
+]
+const BIG_PLACES: EventPlace[] = [
+  { id: 'bandshell', name: 'Golden Gate Park Bandshell', place: 'San Francisco, CA', addedBy: 'JM' },
+  { id: 'dolores', name: 'Dolores Park', place: 'San Francisco, CA', addedBy: 'AT' },
+  { id: 'presidio-picnic', name: 'Presidio Picnic Grounds', place: 'San Francisco, CA', addedBy: 'SR' },
+  { id: 'fort-mason', name: 'Fort Mason Center', place: 'San Francisco, CA', addedBy: 'JM' },
+  { id: 'crissy', name: 'Crissy Field East Beach', place: 'San Francisco, CA', addedBy: 'DW' },
+  { id: 'lands-end', name: 'Lands End Lookout', place: 'San Francisco, CA', addedBy: 'KL' },
+  { id: 'ocean-firepits', name: 'Ocean Beach Firepits', place: 'San Francisco, CA', addedBy: 'MT' },
+  { id: 'stern-grove', name: 'Stern Grove', place: 'San Francisco, CA', addedBy: 'ZC' },
+  { id: 'alamo', name: 'Alamo Square', place: 'San Francisco, CA', addedBy: 'RP' },
+  { id: 'mission-rock', name: 'Mission Rock Terrace', place: 'San Francisco, CA', addedBy: 'IC' },
+  { id: 'treasure', name: 'Treasure Island Winery', place: 'San Francisco, CA', addedBy: 'FW' },
+  { id: 'berkeley-marina', name: 'Berkeley Marina', place: 'Berkeley, CA', addedBy: 'OD' },
+]
+// venue ids repeated by expected popularity, so the ballot has a clear leader and a real race
+const BIG_WEIGHTED = [
+  'bandshell', 'bandshell', 'bandshell', 'bandshell', 'bandshell',
+  'dolores', 'dolores', 'dolores', 'dolores',
+  'presidio-picnic', 'presidio-picnic', 'presidio-picnic',
+  'crissy', 'crissy', 'stern-grove', 'stern-grove',
+  'fort-mason', 'lands-end', 'ocean-firepits', 'alamo', 'mission-rock', 'treasure', 'berkeley-marina',
+]
+const bigRsvp = (i: number): Rsvp => (i % 11 === 3 ? 'not_going' : i % 9 === 4 ? 'maybe' : i % 7 === 5 ? 'pending' : 'attending')
+const BIG_PARTICIPANTS: Participant[] = [
+  { id: 'JM', initials: 'JM', name: 'You', color: 'purple', rsvp: 'attending', you: true, host: true },
+  ...BIG_NAMES.map(([ini, name], i): Participant => ({
+    id: ini, initials: ini, name, color: GUEST_COLORS[i % GUEST_COLORS.length], rsvp: bigRsvp(i),
+  })),
+]
+const BIG_DAYS = buildDays('2026-09-14', '2026-09-18') // Mon–Fri
+const BIG_TIMES = buildTimes('60', 9 * 60, 18 * 60)    // 9 AM – 6 PM
+const BIG_GRID_MAX = BIG_TIMES.length * 60
+const BIG_AVAIL_IV: AvailIntervals = Object.fromEntries(BIG_DAYS.map((d, di) => {
+  const byPid: Record<string, Iv[]> = {}
+  BIG_PARTICIPANTS.forEach((p, pi) => {
+    if (p.rsvp === 'not_going' || p.rsvp === 'pending') return
+    const h = (pi * 7 + di * 5) % 9
+    if (h === 8) return // out that day
+    const s = (h % 4) * 90
+    const e = Math.min(BIG_GRID_MAX, s + 180 + (pi % 3) * 60)
+    const second = h % 3 === 0 && e + 60 < BIG_GRID_MAX ? [{ s: e + 60, e: Math.min(BIG_GRID_MAX, e + 180) }] : []
+    byPid[p.id] = normalizeIv([{ s, e }, ...second])
+  })
+  return [d.key, byPid]
+}))
+const BIG_VOTES: Record<string, string[]> = {}
+BIG_PARTICIPANTS.forEach((p, i) => {
+  if (p.rsvp === 'not_going') return
+  const picks = new Set([
+    BIG_WEIGHTED[(i * 5) % BIG_WEIGHTED.length],
+    BIG_WEIGHTED[(i * 7 + 3) % BIG_WEIGHTED.length],
+    BIG_WEIGHTED[(i * 11 + 6) % BIG_WEIGHTED.length],
+  ])
+  for (const v of picks) (BIG_VOTES[v] ??= []).push(p.id)
+})
+
+const BIG_DEMO: AppEvent = {
+  id: 'harvest-fair',
+  title: 'Fall Harvest Fair',
+  hostName: 'Jordan Miller',
+  hostedByYou: true,
+  description: 'The whole crew, one afternoon outdoors. Twelve venues on the ballot, three votes each — may the best park win.',
+  timezone: 'America/Los_Angeles',
+  startDate: '2026-09-14',
+  endDate: '2026-09-18',
+  granularity: '60',
+  budget: '6000',
+  budgetMode: 'total',
+  location: {
+    mode: 'vote',
+    planMode: 'vote',
+    places: BIG_PLACES,
+    platform: '',
+    meetingLink: '',
+    guestsCanSuggest: true,
+  },
+  votes: BIG_VOTES,
+  maxVotes: 3,
+  voteDeadline: '2026-09-10',
+  participants: BIG_PARTICIPANTS,
+  days: BIG_DAYS,
+  times: BIG_TIMES,
+  avail: intervalsToGrid(BIG_AVAIL_IV, BIG_DAYS, BIG_TIMES.length, 60),
+  availIv: BIG_AVAIL_IV,
+  durationMin: 180,
+  itinStops: [],
+  itinRank: [],
+  itinDwell: [],
+  itinStartMin: 10 * 60,
+  capacity: 20,
+  quorum: 15,
+  image: 'preset:harvest',
+  messages: [
+    { id: 'AT', name: 'Alex Turner', time: 'Tue', text: 'Three votes each people, spend them wisely', you: false },
+    { id: 'ZC', name: 'Zoe Clark', time: 'Tue', text: 'Bandshell has power outlets for the speakers, just saying', you: false },
+    { id: 'OD', name: 'Omar Diaz', time: 'Wed', text: 'Berkeley Marina if you want wind, which you do not', you: false },
+  ],
+  createdAt: 0,
+  demo: true,
+  status: 'planning',
 }
