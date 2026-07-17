@@ -282,9 +282,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
   }
 
   // everyone's intervals for a day (mine folded in as 'JM'), with the live drag applied
-  function combinedFor(day: string, liveMine?: Iv[]): Record<string, Iv[]> {
+  function combinedFor(day: string, liveMine?: Iv[], source: AvailIntervals = others): Record<string, Iv[]> {
     const m = liveMine ?? mine[day] ?? []
-    return m.length ? { ...(others[day] ?? {}), JM: m } : { ...(others[day] ?? {}) }
+    return m.length ? { ...(source[day] ?? {}), JM: m } : { ...(source[day] ?? {}) }
   }
 
   // ── coordinate + snapping helpers ──
@@ -504,14 +504,27 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
     () => Object.fromEntries(event.days.map((d) => [d.key, combinedFor(d.key)])),
     [mine, others], // eslint-disable-line react-hooks/exhaustive-deps
   )
+  // the person filter reaches edit mode too: others' context heat narrows to the selected
+  // people while your own painted blocks always stay in the foreground
+  const filterOnEarly = filter.size > 0
+  const othersFiltered = useMemo<AvailIntervals>(() => {
+    if (!filterOnEarly) return others
+    return Object.fromEntries(Object.entries(others).map(([k, byPid]) => [
+      k,
+      Object.fromEntries(Object.entries(byPid).filter(([id]) => filter.has(id))),
+    ]))
+  }, [others, filter, filterOnEarly])
+  // in edit mode the denominator is the selected people plus you (you always show)
+  const editTotal = filterOnEarly ? filter.size + (filter.has('JM') ? 0 : 1) : total
+
   // live per-day intervals while editing (folds in the current drag); only the dragged day changes
   const editIvsByDay = useMemo<Record<string, Iv[]>>(
     () => (mode === 'edit' ? Object.fromEntries(weekDays.map((d) => [d.key, renderIvsFor(d.key)])) : {}),
     [mode, mine, drag, page], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const editCombinedByDay = useMemo<Record<string, Record<string, Iv[]>>>(
-    () => (mode === 'edit' ? Object.fromEntries(weekDays.map((d) => [d.key, combinedFor(d.key, editIvsByDay[d.key])])) : {}),
-    [mode, editIvsByDay, others, page], // eslint-disable-line react-hooks/exhaustive-deps
+    () => (mode === 'edit' ? Object.fromEntries(weekDays.map((d) => [d.key, combinedFor(d.key, editIvsByDay[d.key], othersFiltered)])) : {}),
+    [mode, editIvsByDay, othersFiltered, page], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   // view mode reads through the person filter: heat, counts, popovers, and the best window
@@ -742,35 +755,36 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
             }}
           >
             {/* header row — the corner cell stays pinned through both scroll directions */}
-            <div className="sticky left-0 top-0 z-[30] border-b border-r border-border bg-s0" />
+            <div className="sticky left-0 top-0 z-[30] border-b border-r border-border2 bg-s0" />
             {weekDays.map((d) => {
               // filler day outside the event's window — labeled but inert
               if (d.pad) {
                 return (
-                  <div key={d.key} className="sticky top-0 z-20 border-b border-r border-border bg-s0 px-1.5 py-2 text-center opacity-60">
+                  <div key={d.key} className="sticky top-0 z-20 border-b border-r border-border2 bg-s0 px-1.5 py-2 text-center opacity-60">
                     <div className="text-[11px] text-faint">{d.dow}</div>
                     <div className="text-[14px] font-semibold text-faint">{d.date}</div>
                   </div>
                 )
               }
               const dayFull = mode === 'edit' && mine[d.key]?.length === 1 && mine[d.key][0].s === 0 && mine[d.key][0].e === gridMax
+              const isBestDay = d.best || (mode === 'view' && bw?.dayKey === d.key)
               return (
                 <button
                   key={d.key}
                   type="button"
                   onClick={() => toggleDay(d.key)}
-                  className="sticky top-0 z-20 border-b border-r border-border px-1.5 py-2 text-center"
-                  style={{ background: d.best ? 'var(--teal-bg)' : 'var(--s0)', borderBottomColor: d.best ? 'var(--teal-border)' : 'var(--border)', cursor: mode === 'edit' ? 'pointer' : 'default' }}
+                  className="sticky top-0 z-20 border-b border-r border-border2 px-1.5 py-2 text-center"
+                  style={{ background: isBestDay ? 'var(--teal-bg)' : 'var(--s0)', borderBottomColor: isBestDay ? 'var(--teal-border)' : 'var(--border2)', cursor: mode === 'edit' ? 'pointer' : 'default' }}
                   title={mode === 'edit' ? 'Click to fill the whole day' : undefined}
                 >
                   <div className="text-[11px] text-dim">{d.dow}</div>
-                  <div className="text-[14px] font-semibold" style={{ color: d.best ? 'var(--teal-text)' : 'var(--text)' }}>{d.date}</div>
+                  <div className="text-[14px] font-semibold" style={{ color: isBestDay ? 'var(--teal-text)' : 'var(--text)' }}>{d.date}</div>
                   {mode === 'edit' && (
                     <span className={`mx-auto mt-[3px] grid h-4 w-4 place-items-center rounded-[5px] border ${dayFull ? 'border-accent bg-accent text-on-accent' : 'border-border2 text-transparent'}`}>
                       <Check size={11} />
                     </span>
                   )}
-                  {d.best && mode === 'view' && <span className="mt-[3px] inline-block rounded-[5px] border border-teal-border bg-teal-bg px-[5px] py-px text-[9.5px] font-semibold text-teal-text">Best day</span>}
+                  {isBestDay && mode === 'view' && <span className="mt-[3px] inline-block rounded-[5px] border border-teal-border bg-teal-bg px-[5px] py-px text-[9.5px] font-semibold text-teal-text">Best day</span>}
                 </button>
               )
             })}
@@ -793,7 +807,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                   onClick={() => toggleTime(ti)}
                   // sticky-left so the time labels follow horizontal scroll, the same way
                   // the day header row follows vertical scroll
-                  className="sticky left-0 z-[15] flex items-center justify-center gap-1 border-b border-r border-border bg-s0 p-1 text-[12px] font-medium text-dim"
+                  className="sticky left-0 z-[15] flex items-center justify-center gap-1 border-b border-r border-border2 bg-s0 p-1 text-[12px] font-medium text-dim"
                   style={{ cursor: mode === 'edit' ? 'pointer' : 'default' }}
                   title={mode === 'edit' ? 'Click to fill this time across the week' : undefined}
                 >
@@ -813,7 +827,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                     return (
                       <div
                         key={d.key}
-                        className="min-h-[50px] border-b border-r border-border"
+                        className="min-h-[50px] border-b border-r border-border2"
                         style={{ background: 'repeating-linear-gradient(-45deg, var(--s0) 0 5px, var(--s2) 5px 6px)' }}
                         title="Outside this event's dates"
                       />
@@ -828,14 +842,20 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                       ? (n ? `${n} of ${viewTotal} free` : 'No one free')
                       : bands.map((b) => `${fmt(gridStartMin + b.s)} – ${fmt(gridStartMin + b.e)}: ${b.ids.length} free`).join('\n')
                     const open = detail?.day === d.key && detail?.ti === ti
+                    // the best window gets a visible teal ring on the grid itself, not just the footer
+                    const inBest = !!bw && d.key === bw.dayKey && w0 < bw.e && w1 > bw.s
+                    const bestChip = inBest && ti === Math.max(0, Math.floor(bw!.s / step))
                     return (
                       <div
                         key={d.key}
                         onClick={(e) => openDetail(e, d.key, ti)}
-                        className="relative min-h-[50px] cursor-pointer border-b border-r border-border"
-                        style={{ boxShadow: (open ? true : d.best) ? `inset 0 0 0 ${open ? 1.5 : 1}px ${open ? 'var(--accent)' : 'var(--teal-border)'}` : undefined }}
+                        className="relative min-h-[50px] cursor-pointer border-b border-r border-border2"
+                        style={{ boxShadow: open ? 'inset 0 0 0 1.5px var(--accent)' : inBest ? 'inset 0 0 0 1.5px var(--teal)' : d.best ? 'inset 0 0 0 1px var(--teal-border)' : undefined }}
                         title={title}
                       >
+                        {bestChip && (
+                          <span className="pointer-events-none absolute right-1 top-1 z-[2] rounded-[5px] border border-teal-border bg-teal-bg px-[5px] py-px text-[9.5px] font-semibold text-teal-text">Best time</span>
+                        )}
                         {paint.map((b, k) => (
                           <div
                             key={k}
@@ -858,7 +878,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                     )
                   }
                   // edit mode — others' context tinted at their peak concurrency; my blocks in clay above
-                  const oBands = cellBands(others[d.key] ?? {}, w0, w1)
+                  const oBands = cellBands(othersFiltered[d.key] ?? {}, w0, w1)
                   const oCount = peakOf(oBands).ids.length
                   const clay = clayFor(oCount)
                   const ivs = editIvsByDay[d.key] ?? []
@@ -866,7 +886,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                   const isTopEdge = !!sel && !dragDel && sel.day === d.key && topCell === ti
                   const isBotEdge = !!sel && !dragDel && sel.day === d.key && botCell === ti
                   return (
-                    <div key={d.key} className="relative h-[50px] select-none border-b border-r border-border" style={{ background: heat(oCount, total), boxShadow: d.best ? 'inset 1px 0 0 0 var(--teal-border), inset -1px 0 0 0 var(--teal-border)' : undefined }}>
+                    <div key={d.key} className="relative h-[50px] select-none border-b border-r border-border2" style={{ background: heat(oCount, editTotal), boxShadow: d.best ? 'inset 1px 0 0 0 var(--teal-border), inset -1px 0 0 0 var(--teal-border)' : undefined }}>
                       {ivs.map((iv, k) => {
                         const cs = Math.max(iv.s, w0), ce = Math.min(iv.e, w1)
                         if (ce <= cs) return null
@@ -890,7 +910,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                           />
                         )
                       })}
-                      {cnt > 0 && <span className="pointer-events-none absolute bottom-[2px] right-1 z-[2] text-[9px] font-bold" style={{ color: cnt >= total ? '#F4F1EA' : '#6E5523' }}>{cnt}/{total}</span>}
+                      {cnt > 0 && <span className="pointer-events-none absolute bottom-[2px] right-1 z-[2] text-[9px] font-bold" style={{ color: cnt >= editTotal ? '#F4F1EA' : '#6E5523' }}>{cnt}/{editTotal}</span>}
                       {/* full-cell hit zone: empty → paint, over a block → select */}
                       <div className="absolute inset-0 z-[5] touch-auto" onPointerDown={(e) => onCellDown(e, d.key, ti)} onPointerUp={(e) => onCellTap(e, d.key, ti)} onPointerCancel={() => { tapRef.current = null }} />
                       {/* time handles + delete for the selected block */}
@@ -936,6 +956,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
               fmt={fmt}
               gridStartMin={gridStartMin}
               avatarOf={avatarOf}
+              onPerson={toggleFilter}
+              filter={filter}
               style={{ left, top: detail.below ? detail.cyBottom + 6 : detail.cyTop - 6, transform: detail.below ? 'translateX(-50%)' : 'translate(-50%, -100%)' }}
               onClose={() => setDetail(null)}
             />
@@ -1292,10 +1314,13 @@ function MissingPopover({ missing, nudged, onNudge, onNudgeAll, onClose }: { mis
   )
 }
 
-/* ── view-mode cell breakdown: who's free in each subsection of the block ── */
-function CellDetail({ bands, total, fmt, gridStartMin, avatarOf, style, onClose }: {
+/* ── view-mode cell breakdown: who's free in each subsection of the block.
+   Names are tap-to-filter, and the list scrolls so everyone free is reachable. ── */
+function CellDetail({ bands, total, fmt, gridStartMin, avatarOf, onPerson, filter, style, onClose }: {
   bands: Band[]; total: number; fmt: (m: number) => string; gridStartMin: number
-  avatarOf: (id: string) => { initials: string; name: string; color: Participant['color'] }; style: React.CSSProperties; onClose: () => void
+  avatarOf: (id: string) => { initials: string; name: string; color: Participant['color'] }
+  onPerson: (id: string) => void; filter: Set<string>
+  style: React.CSSProperties; onClose: () => void
 }) {
   const wrap = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -1326,10 +1351,17 @@ function CellDetail({ bands, total, fmt, gridStartMin, avatarOf, style, onClose 
               <span className="text-[12px] text-faint">No one free</span>
             ) : (
               <div className="flex flex-wrap gap-1">
-                {b.ids.slice(0, 12).map((id) => { const a = avatarOf(id); return (
-                  <span key={id} className="flex items-center gap-1 rounded-full bg-s2 py-0.5 pl-0.5 pr-1.5"><Avatar initials={a.initials} color={a.color} size={18} font={8.5} /><span className="text-[11px]">{a.name}</span></span>
+                {b.ids.map((id) => { const a = avatarOf(id); const on = filter.has(id); return (
+                  <button
+                    key={id} type="button" onClick={() => onPerson(id)}
+                    title={on ? `Stop filtering to ${a.name}` : `Filter the grid to ${a.name}`}
+                    className={`flex items-center gap-1 rounded-full py-0.5 pl-0.5 pr-1.5 ${on ? 'bg-accent-bg text-accent-text' : 'bg-s2 hover:bg-s3'}`}
+                  >
+                    <Avatar initials={a.initials} color={a.color} size={18} font={8.5} />
+                    <span className="text-[11px] font-medium">{a.name}</span>
+                    {on && <Check size={11} className="text-accent-text" />}
+                  </button>
                 ) })}
-                {b.ids.length > 12 && <span className="self-center text-[11px] text-faint">+{b.ids.length - 12}</span>}
               </div>
             )}
           </div>
