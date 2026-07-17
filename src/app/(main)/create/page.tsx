@@ -82,6 +82,7 @@ type Form = {
   timezone: string
   budget: string
   budgetMode: 'total' | 'person'
+  capacity: string
   locMode: LocMode
   planMode: PlanMode
   picked: Stop[]
@@ -94,7 +95,7 @@ type Form = {
 const initialForm: Form = {
   title: '', hostMode: 'you', orgName: '', description: '',
   startDate: '', endDate: '', granularity: '30', windowPreset: 'any', windowStart: '', windowEnd: '', durationMin: 60,
-  timezone: '', budget: '', budgetMode: 'total', // timezone deliberately unset: picking it is a required, conscious step
+  timezone: '', budget: '', budgetMode: 'total', capacity: '', // timezone deliberately unset: picking it is a required, conscious step
   locMode: 'vote', planMode: 'vote', picked: [], platform: 'Google Meet', meetingLink: '',
   emails: [], accounts: [],
 }
@@ -323,6 +324,8 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
     })
   }
   const show = (e: string) => attempted && !!e
+  const [tune, setTune] = useState(false)
+  const openTune = tune || (attempted && !!errs.win) // never hide a field that has an error
   const winS = parseHM(form.windowStart), winE = parseHM(form.windowEnd)
   const winText = form.windowPreset !== 'any' && winS !== null && winE !== null && winE > winS
     ? `${fmtMinute(winS)} and ${fmtMinute(winE)}`
@@ -391,8 +394,20 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           </div>
           {(show(errs.start) || show(errs.end)) && <FieldError>{errs.start || errs.end}</FieldError>}
 
+          {/* schedule fine-tuning starts collapsed — the defaults work, and a summary line
+              keeps the choices visible without three rows of controls up front */}
+          <div className="mt-3.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border pt-3">
+            <span className="min-w-0 text-[12.5px] leading-[1.5] text-dim">
+              {WIN_PRESETS.find((p) => p.v === form.windowPreset)?.l ?? 'All day'} · {{ '15': '15 min', '30': '30 min', '60': '1 hour' }[form.granularity] ?? form.granularity} slots · {fmtDur(form.durationMin)} long
+            </span>
+            <button type="button" onClick={() => setTune((t) => !t)} className="flex-none text-[12.5px] font-semibold text-accent-text hover:underline">
+              {openTune ? 'Hide options' : 'Change'}
+            </button>
+          </div>
+
+          {openTune && (<>
           {/* optional daily time window */}
-          <div className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
+          <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
             <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Daily time window</span>
             <Segmented value={form.windowPreset} onChange={pickWin} options={WIN_PRESETS.map((p) => ({ v: p.v, l: p.l }))} />
           </div>
@@ -439,6 +454,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
               <span className="text-[12px] text-faint">min</span>
             </div>
           </div>
+          </>)}
         </div>
       </div>
 
@@ -550,10 +566,10 @@ function StepLocation({ form, update, stopUid, attempted, placesError }: { form:
             />
           </div>
 
-          <p className="flex items-center gap-1.5 text-[13px] text-dim">
+          <p className="flex items-start gap-1.5 text-[13px] leading-[1.5] text-dim">
             {form.planMode === 'vote'
-              ? <><Vote size={16} /> Add a few places and let everyone vote. The one with the most votes wins.</>
-              : <><Route size={16} /> Add the places you&apos;ll visit and put them in the order you&apos;ll go.</>}
+              ? <><Vote size={16} className="mt-0.5 flex-none" /> Add a few ideas to start the vote. The one with the most votes wins, and anyone can add more places on the Location tab later.</>
+              : <><Route size={16} className="mt-0.5 flex-none" /> Add the places you&apos;ll visit in the order you&apos;ll go. The route stays editable on the Location tab.</>}
           </p>
 
           {/* search */}
@@ -599,7 +615,7 @@ function StepLocation({ form, update, stopUid, attempted, placesError }: { form:
             <div className={`flex items-start gap-2 rounded-[10px] border px-[13px] py-[11px] ${attempted && placesError ? 'border-brick-border bg-brick-bg' : 'border-border bg-s2'}`}>
               <Info size={16} className={`mt-0.5 ${attempted && placesError ? 'text-brick-text' : 'text-accent-text'}`} />
               <span className={`text-[13px] leading-[1.5] ${attempted && placesError ? 'text-brick-text' : 'text-dim'}`}>
-                {attempted && placesError ? placesError : 'No places yet. Search above to add your first one.'}
+                {attempted && placesError ? placesError : 'No places yet. Search above to add your first one. These are just starting ideas, more can be added any time.'}
               </span>
             </div>
           ) : (
@@ -759,6 +775,19 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
         </div>
       </div>
 
+      {/* optional spot limit — first come, first served */}
+      <div>
+        <Label>Spots <span className="font-normal text-faint">(optional)</span></Label>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <input
+            inputMode="numeric" placeholder="No limit" value={form.capacity}
+            onChange={(e) => update({ capacity: e.target.value.replace(/[^\d]/g, '').slice(0, 4) })}
+            className={`${inputCls(false)} !w-[110px]`}
+          />
+          <span className="text-[12.5px] leading-[1.5] text-faint">Cap how many people can say they&apos;re going. Spots go to whoever replies first.</span>
+        </div>
+      </div>
+
       <div className="flex items-center gap-1.5 text-[13px] text-dim">
         <Users size={15} />
         {total === 0 ? 'No one added yet. You can also invite people after the event is created.' : `${total} ${total === 1 ? 'person' : 'people'} will be invited when you create the event.`}
@@ -792,6 +821,7 @@ function StepReview({ form, goStep }: { form: Form; goStep: (n: number) => void 
         <Row k="Event length" v={fmtDur(form.durationMin)} />
         <Row k="Time zone" v={form.timezone ? tzLabel(form.timezone) : <span className="text-brick-text">Not set — pick one in Basics</span>} />
         <Row k="Budget" v={form.budget ? `$${form.budget} ${form.budgetMode === 'person' ? 'per person' : 'total'}` : <span className="text-faint">None</span>} />
+        <Row k="Spots" v={form.capacity ? `${form.capacity} · first come, first served` : <span className="text-faint">No limit</span>} />
       </ReviewCard>
 
       {/* Location */}

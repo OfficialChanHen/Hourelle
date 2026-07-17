@@ -43,6 +43,7 @@ export type AppEvent = {
     platform: string
     meetingLink: string
     guestsCanSuggest?: boolean // host-granted: lets non-hosts add places to the ballot
+    hybrid?: boolean           // in-person event that people can also join online via meetingLink
   }
   participants: Participant[]
   days: GridDay[]
@@ -59,6 +60,7 @@ export type AppEvent = {
   travelModes?: string[]              // allowed transport modes for route timing (default all)
   durationMin?: number                // how long the event needs — drives the best-window search
   quorum?: number                     // host-set smallest headcount that works; attendance warns below it
+  capacity?: number                   // host-set spot limit; going is first come, first served
   expenses?: EventExpense[]           // actual spend logged against the budget
   image?: string                      // cover: 'preset:<id>' or a downscaled data URL the host uploaded
   messages: ChatMessage[]
@@ -80,6 +82,7 @@ export type CreateInput = {
   granularity: string
   timezone: string
   budget: string
+  capacity?: string    // optional spot limit; going is first come, first served
   windowStart?: string // 'HH:MM' — optional daily time window; empty = the whole day
   windowEnd?: string
   durationMin?: number // optional; drives the best-window search (default 60)
@@ -494,6 +497,7 @@ export function createEvent(input: CreateInput): AppEvent {
     itinDwell: isItin ? input.picked.map(() => 60) : [],
     itinStartMin: hasWin ? (winS as number) : 9 * 60,
     durationMin: input.durationMin && input.durationMin >= 1 ? Math.min(24 * 60, input.durationMin) : 60,
+    capacity: input.capacity && Number(input.capacity) >= 1 ? Number(input.capacity) : undefined,
     messages: [],
     createdAt: Date.now(),
     status: 'planning',
