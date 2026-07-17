@@ -16,7 +16,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, patchEvent, buildDays, dateRangeText, fmtMinute, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, type AppEvent, type Rsvp } from '@/lib/events'
+import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, byFirstLastName, dateRangeText, fmtMinute, gridStartMinOf, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -304,12 +304,39 @@ function DetailsTab({ event, onDelete, onGoToTab, onPatch, onViewAvailability }:
   )
 }
 
-/* Participants: who's in, how they replied, and (for the host) the levers per person */
+/* Participants: who's in, how they replied, and (for the host) the levers per person.
+   Rows sort by the same availability groups the Attendance tab uses: whole-time first,
+   then part-time, then going-without-times, maybe, can't, no reply. */
 function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
   event: AppEvent; isHost: boolean; onPatch: (patch: Partial<AppEvent>) => void; onViewAvailability: (pid: string) => void
 }) {
   const going = event.participants.filter((p) => p.rsvp === 'attending').length
   const noReply = event.participants.filter((p) => p.rsvp === 'pending').length
+
+  const sorted = (() => {
+    const availIv = availIvOf(event)
+    const gridStart = gridStartMinOf(event)
+    const locked = event.status === 'confirmed' && !!event.confirmed
+    const best = bestWindow(availIv, event.days, event.durationMin ?? 60)
+    const win = locked
+      ? { dayKey: event.confirmed!.dayKey, s: event.confirmed!.startMin - gridStart, e: event.confirmed!.endMin - gridStart }
+      : best
+    const dayIv = win ? availIv[win.dayKey] ?? {} : {}
+    const marked = new Set<string>()
+    for (const day of Object.values(availIv)) for (const [id, ivs] of Object.entries(day)) if (ivs.length) marked.add(id)
+    const rank = (p: AppEvent['participants'][number]): number => {
+      if (p.rsvp === 'pending') return 6
+      if (p.rsvp === 'not_going') return 5
+      if (p.rsvp === 'maybe') return 4
+      const ivs = win ? dayIv[p.id] : undefined
+      if (!ivs?.length) return marked.has(p.id) ? 2 : 3 // conflict elsewhere vs never marked
+      if (win && ivs.some((iv) => iv.s <= win.s && iv.e >= win.e)) return 0 // whole time
+      if (win && ivs.some((iv) => iv.s < win.e && iv.e > win.s)) return 1  // part time
+      return 2
+    }
+    return [...event.participants].sort((a, b) => rank(a) - rank(b) || byFirstLastName(a, b))
+  })()
+
   return (
     <div className="min-w-[280px] flex-1 rounded-2xl border border-border bg-s1 p-5">
       <div className="mb-3 flex flex-wrap items-center gap-2 text-[14.5px] font-semibold">
@@ -320,7 +347,7 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
         </span>
       </div>
       <div className="flex flex-col">
-        {event.participants.map((p, i) => (
+        {sorted.map((p, i) => (
           <div key={p.id} className={`flex items-center gap-2.5 py-2 ${i > 0 ? 'border-t border-border' : ''}`}>
             <button
               type="button" onClick={() => onViewAvailability(p.id)} title={`See when ${p.name} is free`}

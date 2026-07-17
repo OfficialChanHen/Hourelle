@@ -7,7 +7,7 @@ import { Popover } from '@/components/ui/Popover'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { tzAbbr } from '@/components/ui/TimezonePill'
 import {
-  availIvOf, bestWindow, dayLabel, gridStartMinOf, fmtMinute, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
+  availIvOf, bestWindow, byFirstLastName, dayLabel, gridStartMinOf, fmtMinute, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
   type AppEvent, type Iv, type Participant, type Rsvp,
 } from '@/lib/events'
 import { computeItinerary } from '@/lib/itinerary'
@@ -92,6 +92,11 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability }: { even
   const anyResponded = participants.some((p) => p.rsvp !== 'pending')
   const me = participants.find((p) => p.you)
 
+  // who has marked ANY availability on any day — "no times yet" means never, not
+  // "not free on this particular day"
+  const markedIds = new Set<string>()
+  for (const day of Object.values(availIv)) for (const [id, ivs] of Object.entries(day)) if (ivs.length) markedIds.add(id)
+
   // event with the live participant list, so child views read the same list this tab edits
   const liveEvent = useMemo(() => ({ ...event, participants }), [event, participants])
 
@@ -124,7 +129,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability }: { even
           event={liveEvent} attendees={attendees} win={win} locked={locked} dayIv={dayIv}
           gridStart={gridStart} step={step} rows={rows}
           quorum={quorum} onQuorum={event.hostedByYou ? changeQuorum : undefined}
-          onGoToTab={onGoToTab} onPerson={onViewAvailability}
+          onGoToTab={onGoToTab} onPerson={onViewAvailability} markedIds={markedIds}
         />
       )}
     </div>
@@ -206,12 +211,13 @@ function CopySummaryButton({ event, win, locked, gridStart }: { event: AppEvent;
 
 /* ── Single venue: where it's happening, who's in the room, and when ── */
 function SingleVenue({
-  event, attendees, win, locked, dayIv, gridStart, step, rows, quorum, onQuorum, onGoToTab, onPerson,
+  event, attendees, win, locked, dayIv, gridStart, step, rows, quorum, onQuorum, onGoToTab, onPerson, markedIds,
 }: {
   event: AppEvent; attendees: Participant[]; win: Win | null; locked: boolean
   dayIv: Record<string, Iv[]>; gridStart: number; step: number; rows: number
   quorum: number | null; onQuorum?: (q: number | null) => void
   onGoToTab?: GoTab; onPerson?: (pid: string) => void
+  markedIds: Set<string>
 }) {
   const winS = win?.s ?? 0
   const winE = win?.e ?? rows * step
@@ -229,16 +235,21 @@ function SingleVenue({
       if (p.rsvp === 'pending') { noReply.push(p); continue }
       if (p.rsvp === 'maybe') { maybe.push(p); continue }
       const cover = win ? coverOf(dayIv[p.id], winS, winE) : 'nodata'
-      if (cover === 'nodata') noTimes.push(p)
-      else if (cover === 'partial' || cover === 'none') {
+      if (cover === 'nodata') {
+        // marked times somewhere, just none in this window → a conflict, not silence
+        if (markedIds.has(p.id)) part.push({ p, s: winS, e: null })
+        else noTimes.push(p)
+      } else if (cover === 'partial' || cover === 'none') {
         const w = windowOf(dayIv[p.id], winS, winE)
         part.push({ p, s: w ? w.s : winS, e: w ? w.e : null })
       } else whole.push(p)
     }
-    // longest availability first; hard conflicts (no overlap at all) sink to the bottom
-    part.sort((a, b) => ((b.e ?? b.s) - b.s) - ((a.e ?? a.s) - a.s))
+    // part-timers: longest availability first, conflicts sinking last; everyone else
+    // alphabetical by first then last name. Name order breaks part-time ties too.
+    part.sort((a, b) => ((b.e ?? b.s) - b.s) - ((a.e ?? a.s) - a.s) || byFirstLastName(a.p, b.p))
+    for (const g of [whole, noTimes, maybe, out, noReply]) g.sort(byFirstLastName)
     return { whole, part, noTimes, maybe, out, noReply }
-  }, [event.participants, dayIv, win, winS, winE])
+  }, [event.participants, dayIv, win, winS, winE, markedIds]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // the roster only says "here" once there is somewhere to be
   const hasVenue = event.location.mode === 'remote' || leadingPlaceOf(event) != null

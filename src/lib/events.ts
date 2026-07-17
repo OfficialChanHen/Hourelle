@@ -368,6 +368,13 @@ export function leadingPlaceOf(ev: AppEvent): LeadingPlace | null {
   return { place: ranked[0], voters: votesOf(ranked[0].id), confirmed: false, margin }
 }
 
+// name ordering used wherever people list: first name A→Z, ties broken by last name
+export function byFirstLastName(a: Pick<Participant, 'name'>, b: Pick<Participant, 'name'>): number {
+  const [af, ...ar] = a.name.split(' ')
+  const [bf, ...br] = b.name.split(' ')
+  return af.localeCompare(bf) || ar.join(' ').localeCompare(br.join(' '))
+}
+
 // everything that references a participant, minus that participant — their availability,
 // votes, and roster row go together so no tab is left pointing at a ghost
 export function removeParticipantPatch(ev: AppEvent, pid: string): Partial<AppEvent> {
@@ -603,13 +610,15 @@ const BIG_PARTICIPANTS: Participant[] = [
     id: ini, initials: ini, name, color: GUEST_COLORS[i % GUEST_COLORS.length], rsvp: bigRsvp(i),
   })),
 ]
-const BIG_DAYS = buildDays('2026-09-14', '2026-09-18') // Mon–Fri
+const BIG_DAYS = buildDays('2026-09-14', '2026-09-25') // two work weeks, Monday in and Friday out
 const BIG_TIMES = buildTimes('60', 9 * 60, 18 * 60)    // 9 AM – 6 PM
 const BIG_GRID_MAX = BIG_TIMES.length * 60
+// three people said yes and never opened the grid — the honest "no times yet" group
+const BIG_NEVER_MARKED = new Set(['DW', 'TB', 'OD'])
 const BIG_AVAIL_IV: AvailIntervals = Object.fromEntries(BIG_DAYS.map((d, di) => {
   const byPid: Record<string, Iv[]> = {}
   BIG_PARTICIPANTS.forEach((p, pi) => {
-    if (p.rsvp === 'not_going' || p.rsvp === 'pending') return
+    if (p.rsvp === 'not_going' || p.rsvp === 'pending' || BIG_NEVER_MARKED.has(p.id)) return
     const h = (pi * 7 + di * 5) % 9
     if (h === 8) return // out that day
     const s = (h % 4) * 90
@@ -619,6 +628,15 @@ const BIG_AVAIL_IV: AvailIntervals = Object.fromEntries(BIG_DAYS.map((d, di) => 
   })
   return [d.key, byPid]
 }))
+// one hour where everyone who responded lines up (Thu of week two, 12–1) — but only an hour,
+// so a 3-hour event's best window still lives elsewhere. The grid shows it full dark.
+{
+  const day = '2026-09-24'
+  const everyone = new Set<string>()
+  for (const byPid of Object.values(BIG_AVAIL_IV)) for (const id of Object.keys(byPid)) everyone.add(id)
+  const byPid = (BIG_AVAIL_IV[day] ??= {})
+  for (const id of everyone) byPid[id] = normalizeIv([...(byPid[id] ?? []), { s: 180, e: 240 }])
+}
 const BIG_VOTES: Record<string, string[]> = {}
 BIG_PARTICIPANTS.forEach((p, i) => {
   if (p.rsvp === 'not_going') return
@@ -638,7 +656,7 @@ const BIG_DEMO: AppEvent = {
   description: 'The whole crew, one afternoon outdoors. Twelve venues on the ballot, three votes each — may the best park win.',
   timezone: 'America/Los_Angeles',
   startDate: '2026-09-14',
-  endDate: '2026-09-18',
+  endDate: '2026-09-25',
   granularity: '60',
   budget: '6000',
   budgetMode: 'total',
