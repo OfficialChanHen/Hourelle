@@ -65,6 +65,7 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
 
   const [votes, setVotes] = useState<Record<string, string[]>>(() => event.votes ?? {})
   const [maxVotes, setMaxVotes] = useState(event.maxVotes ?? 1)
+  const [hideVoters, setHideVoters] = useState(!!event.hideVoters)
   // the tab's one-line how-it-works, shown until dismissed (this page never SSRs — the
   // event itself loads from localStorage first, so reading it in the initializer is safe)
   const [hintDismissed, setHintDismissed] = useState(() => typeof window !== 'undefined' && localStorage.getItem('aline.hint.location') === '1')
@@ -114,6 +115,11 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
     const next = !guestsCanSuggest
     setGuestsCanSuggest(next)
     persistLoc({ guestsCanSuggest: next })
+  }
+  function toggleHideVoters() {
+    const next = !hideVoters
+    setHideVoters(next)
+    persist({ hideVoters: next })
   }
 
   const votesOf = (id: string) => votes[id] ?? []
@@ -335,9 +341,11 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
               <div className="mb-1.5 mt-0.5 text-[12px] text-[#6b7280]">{focusPlace.place}</div>
               <div className="flex items-center gap-1.5">
                 <span className="text-[12px] font-bold text-teal-text">{votesOf(focusPlace.id).length} vote{votesOf(focusPlace.id).length === 1 ? '' : 's'}</span>
-                <div className="flex">
-                  {votesOf(focusPlace.id).slice(0, 5).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={19} font={8.5} title={a.name} /></span> })}
-                </div>
+                {!hideVoters && (
+                  <div className="flex">
+                    {votesOf(focusPlace.id).slice(0, 5).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={19} font={8.5} title={a.name} /></span> })}
+                  </div>
+                )}
               </div>
               {/* vote right from the map — the popup uses fixed light colors like the map itself */}
               {!locked && (() => {
@@ -513,6 +521,13 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
                       <input type="checkbox" checked={guestsCanSuggest} onChange={toggleGuestsCanSuggest} className="h-3.5 w-3.5" style={{ accentColor: 'var(--accent)' }} />
                       Guests can add places
                     </label>
+                    <div className="border-t border-border pt-2.5">
+                      <label className="flex cursor-pointer items-center gap-2 text-[13px]">
+                        <input type="checkbox" checked={hideVoters} onChange={toggleHideVoters} className="h-3.5 w-3.5" style={{ accentColor: 'var(--accent)' }} />
+                        Hide who voted for what
+                      </label>
+                      <p className="mt-1 pl-[22px] text-[12px] leading-[1.45] text-faint">Only vote counts show, for everyone including you. Your own votes stay visible to you.</p>
+                    </div>
                   </div>
                 )}
               </Popover>
@@ -582,9 +597,11 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
                             </span>
                           )}
                         </div>
-                        <div className="flex">
-                          {ids.slice(0, 6).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={20} font={8.5} title={a.name} /></span> })}
-                        </div>
+                        {!hideVoters && (
+                          <div className="flex">
+                            {ids.slice(0, 6).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={20} font={8.5} title={a.name} /></span> })}
+                          </div>
+                        )}
                       </div>
                       {!locked && (
                         <div className="flex flex-none items-center gap-1">

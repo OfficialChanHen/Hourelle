@@ -52,6 +52,7 @@ export type AppEvent = {
   availIv?: AvailIntervals            // source of truth once anyone edits with minute precision
   votes?: Record<string, string[]>    // placeId → participant ids who voted for it
   maxVotes?: number                   // votes each person gets (default 1)
+  hideVoters?: boolean                // anonymous ballot: only counts show, never who voted for what
   voteDeadline?: string               // ISO date; voting closes at the end of this day
   itinStops?: string[]                // ordered place ids once an itinerary exists
   itinRank?: string[]                 // vote ranking snapshot when the itinerary was built from votes

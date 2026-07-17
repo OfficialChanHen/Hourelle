@@ -413,7 +413,7 @@ function LeadingPlace({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab
           {lead.margin === 0 && <span className="text-ochre-text"> · tied for first</span>}
         </span>
       </span>
-      <AvatarPile people={voters} cap={5} />
+      {!event.hideVoters && <AvatarPile people={voters} cap={5} />}
       <ChevronRight size={16} className="flex-none text-faint" />
     </button>
   )
