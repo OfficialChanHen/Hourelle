@@ -56,8 +56,13 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability }: { even
     setParticipants(event.participants)
   }
 
+  // spot limit: going is first come, first served
+  const goingCount = participants.filter((p) => p.rsvp === 'attending').length
+  const full = event.capacity != null && goingCount >= event.capacity
+
   function persist(patch: Partial<AppEvent>) { if (!event.demo) patchEvent(event.id, patch) }
   function changeRsvp(r: Rsvp) {
+    if (r === 'attending' && full) return // no sneaking past a disabled button
     setParticipants((ps) => ps.map((p) => (p.you ? { ...p, rsvp: r } : p)))
     if (!event.demo) setMyRsvp(event.id, r)
   }
@@ -92,11 +97,11 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability }: { even
 
   return (
     <div className="flex flex-col gap-4">
-      {me?.rsvp === 'pending' && <YourRsvpStrip onPick={changeRsvp} />}
+      {me?.rsvp === 'pending' && <YourRsvpStrip onPick={changeRsvp} full={full} />}
 
       {/* header — friendly summary, share button, and (only when relevant) the model switch */}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-        <RsvpSummary participants={participants} />
+        <RsvpSummary participants={participants} capacity={event.capacity} />
         <div className="flex flex-wrap items-center gap-2">
           <CopySummaryButton event={liveEvent} win={win} locked={locked} gridStart={gridStart} />
           {hasItinerary && (
@@ -127,13 +132,19 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability }: { even
 }
 
 /* ── your own reply, right where the counts are ── */
-function YourRsvpStrip({ onPick }: { onPick: (r: Rsvp) => void }) {
+function YourRsvpStrip({ onPick, full }: { onPick: (r: Rsvp) => void; full: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-accent-border bg-accent-bg px-4 py-3">
       <span className="text-[14px] font-semibold text-accent-text">You haven&apos;t replied yet.</span>
-      <span className="text-[13px] text-dim">Are you coming?</span>
+      <span className="text-[13px] text-dim">{full ? 'The event is full, spots went to whoever replied first.' : 'Are you coming?'}</span>
       <div className="ml-auto flex items-center gap-1.5">
-        <button onClick={() => onPick('attending')} className="h-8 rounded-[8px] bg-accent px-3 text-[13px] font-semibold text-on-accent">Going</button>
+        <button
+          onClick={() => onPick('attending')} disabled={full}
+          title={full ? 'All spots are taken' : undefined}
+          className="h-8 rounded-[8px] bg-accent px-3 text-[13px] font-semibold text-on-accent disabled:opacity-40"
+        >
+          Going
+        </button>
         <button onClick={() => onPick('maybe')} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2">Maybe</button>
         <button onClick={() => onPick('not_going')} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2">Can&apos;t go</button>
       </div>
@@ -142,17 +153,23 @@ function YourRsvpStrip({ onPick }: { onPick: (r: Rsvp) => void }) {
 }
 
 /* ── shared: RSVP figure (borderless, open stats) ── */
-function RsvpSummary({ participants }: { participants: Participant[] }) {
+function RsvpSummary({ participants, capacity }: { participants: Participant[]; capacity?: number }) {
   const going = participants.filter((p) => p.rsvp === 'attending').length
   const maybe = participants.filter((p) => p.rsvp === 'maybe').length
   const out = participants.filter((p) => p.rsvp === 'not_going').length
   const noReply = participants.filter((p) => p.rsvp === 'pending').length
   const total = participants.length
+  const full = capacity != null && going >= capacity
   return (
     <div>
       <div className="flex items-baseline gap-2">
         <span className="font-serif text-[42.5px] leading-none">{going}</span>
         <span className="text-[14.5px] text-dim">going of {total}</span>
+        {capacity != null && (
+          <span className={`rounded-[6px] border px-1.5 py-px text-[11px] font-semibold ${full ? 'border-ochre-border bg-ochre-bg text-ochre-text' : 'border-border bg-s2 text-dim'}`}>
+            {full ? 'Full' : `${capacity - going} of ${capacity} spots left`}
+          </span>
+        )}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
         {maybe > 0 && <span className="text-ochre-text">{maybe} maybe</span>}
@@ -194,22 +211,27 @@ function SingleVenue({
   const winE = win?.e ?? rows * step
 
   // group attendees by how their availability lines up with the event window — RSVP leads,
-  // availability only splits "going" into whole-time vs part-of-the-time.
+  // availability splits "going" into whole-time, part-time, and honest silence: someone who
+  // never marked times is NOT assumed present the whole time.
   const groups = useMemo(() => {
     const whole: Participant[] = [], part: { p: Participant; s: number; e: number | null }[] = []
-    const maybe: Participant[] = [], out: Participant[] = [], noReply: Participant[] = []
+    const noTimes: Participant[] = [], maybe: Participant[] = [], out: Participant[] = [], noReply: Participant[] = []
     for (const p of event.participants) {
       if (p.rsvp === 'not_going') { out.push(p); continue }
       if (p.rsvp === 'pending') { noReply.push(p); continue }
       if (p.rsvp === 'maybe') { maybe.push(p); continue }
       const cover = win ? coverOf(dayIv[p.id], winS, winE) : 'nodata'
-      if (cover === 'partial' || cover === 'none') {
+      if (cover === 'nodata') noTimes.push(p)
+      else if (cover === 'partial' || cover === 'none') {
         const w = windowOf(dayIv[p.id], winS, winE)
         part.push({ p, s: w ? w.s : winS, e: w ? w.e : null })
       } else whole.push(p)
     }
-    return { whole, part, maybe, out, noReply }
+    return { whole, part, noTimes, maybe, out, noReply }
   }, [event.participants, dayIv, win, winS, winE])
+
+  // the roster only says "here" once there is somewhere to be
+  const hasVenue = event.location.mode === 'remote' || leadingPlaceOf(event) != null
 
   // inline timing bar for part-time rows, positioned within the window
   const span = Math.max(1, winE - winS)
@@ -260,12 +282,13 @@ function SingleVenue({
       {shift && <ShiftSuggestion shift={shift} />}
 
       <div className="mt-5 flex flex-col gap-4">
-        <RosterGroup label="Here the whole time" tone="teal" people={groups.whole.map((p) => ({ p }))} onPerson={onPerson} />
-        <RosterGroup label="Part of the time" tone="ochre" people={groups.part.map((x) => ({
+        <RosterGroup label={hasVenue ? 'Here the whole time' : 'Free the whole time'} tone="teal" people={groups.whole.map((p) => ({ p }))} onPerson={onPerson} />
+        <RosterGroup label={hasVenue ? 'Part of the time' : 'Free part of the time'} tone="ochre" people={groups.part.map((x) => ({
           p: x.p,
           note: x.e != null ? `${fmtMinute(gridStart + x.s)}–${fmtMinute(gridStart + x.e)}` : 'time conflict',
           bar: barOf(x.s, x.e),
         }))} onPerson={onPerson} />
+        <RosterGroup label="Going, no times yet" tone="faint" people={groups.noTimes.map((p) => ({ p }))} onPerson={onPerson} />
         <RosterGroup label="Maybe" tone="ochre" people={groups.maybe.map((p) => ({ p }))} onPerson={onPerson} />
         <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({ p }))} onPerson={onPerson} />
         <RosterGroup label="No reply" tone="faint" people={groups.noReply.map((p) => ({ p }))} action={<CopyReminder event={event} />} onPerson={onPerson} />
