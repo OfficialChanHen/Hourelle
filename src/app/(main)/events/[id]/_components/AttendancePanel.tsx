@@ -40,7 +40,7 @@ function fmtDeadline(iso: string): string {
   return `${DOW[dt.getDay()]}, ${dayLabel(dt)}`
 }
 
-export function AttendancePanel({ event, onGoToTab, onViewAvailability }: { event: AppEvent; onGoToTab?: GoTab; onViewAvailability?: (pid: string) => void }) {
+export function AttendancePanel({ event, onGoToTab, onViewAvailability, onGoToBestWindow }: { event: AppEvent; onGoToTab?: GoTab; onViewAvailability?: (pid: string) => void; onGoToBestWindow?: () => void }) {
   const hasItinerary = (event.itinStops?.length ?? 0) > 0
   const [model, setModel] = useState<'single' | 'itin'>(hasItinerary ? 'itin' : 'single')
 
@@ -129,7 +129,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability }: { even
           event={liveEvent} attendees={attendees} win={win} locked={locked} dayIv={dayIv}
           gridStart={gridStart} step={step} rows={rows}
           quorum={quorum} onQuorum={event.hostedByYou ? changeQuorum : undefined}
-          onGoToTab={onGoToTab} onPerson={onViewAvailability} markedIds={markedIds}
+          onGoToTab={onGoToTab} onPerson={onViewAvailability} markedIds={markedIds} onGoToBestWindow={onGoToBestWindow}
         />
       )}
     </div>
@@ -209,12 +209,12 @@ function CopySummaryButton({ event, win, locked, gridStart }: { event: AppEvent;
 
 /* ── Single venue: where it's happening, who's in the room, and when ── */
 function SingleVenue({
-  event, attendees, win, locked, dayIv, gridStart, step, rows, quorum, onQuorum, onGoToTab, onPerson, markedIds,
+  event, attendees, win, locked, dayIv, gridStart, step, rows, quorum, onQuorum, onGoToTab, onPerson, markedIds, onGoToBestWindow,
 }: {
   event: AppEvent; attendees: Participant[]; win: Win | null; locked: boolean
   dayIv: Record<string, Iv[]>; gridStart: number; step: number; rows: number
   quorum: number | null; onQuorum?: (q: number | null) => void
-  onGoToTab?: GoTab; onPerson?: (pid: string) => void
+  onGoToTab?: GoTab; onPerson?: (pid: string) => void; onGoToBestWindow?: () => void
   markedIds: Set<string>
 }) {
   const winS = win?.s ?? 0
@@ -286,7 +286,7 @@ function SingleVenue({
               {locked ? 'Confirmed time' : 'Best window'} ·{' '}
               {locked
                 ? <span>{win.dayLabel}, {fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</span>
-                : <button type="button" onClick={() => onGoToTab?.('availability')} className="font-semibold text-ochre hover:underline">{win.dayLabel}, {fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</button>}
+                : <button type="button" onClick={() => (onGoToBestWindow ? onGoToBestWindow() : onGoToTab?.('availability'))} className="font-semibold text-ochre hover:underline">{win.dayLabel}, {fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</button>}
               {!locked && <BestWindowInfo />}
             </div>
           )}
@@ -297,7 +297,7 @@ function SingleVenue({
       <LeadingPlace event={event} onGoToTab={onGoToTab} />
 
       {win
-        ? <HeadcountBars attendees={attendees} dayIv={dayIv} gridStart={gridStart} step={step} rows={rows} winS={winS} winE={winE} locked={locked} quorum={quorum} onGoToTab={onGoToTab} />
+        ? <HeadcountBars attendees={attendees} dayIv={dayIv} gridStart={gridStart} step={step} rows={rows} winS={winS} winE={winE} locked={locked} quorum={quorum} onGoToTab={onGoToTab} onGoToBestWindow={onGoToBestWindow} />
         : <div className="rounded-xl border border-border bg-s0 px-4 py-6 text-center text-[13.5px] text-dim">Add availability to see who is around when.</div>}
 
       {quorum != null && win && <QuorumStatus quorum={quorum} whole={groups.whole.length} />}
@@ -466,10 +466,10 @@ function LeadingPlace({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab
 
 /* Headcount through the day — how many attendees are free per slot; tap a bar for the numbers */
 function HeadcountBars({
-  attendees, dayIv, gridStart, step, rows, winS, winE, locked, quorum, onGoToTab,
+  attendees, dayIv, gridStart, step, rows, winS, winE, locked, quorum, onGoToTab, onGoToBestWindow,
 }: {
   attendees: Participant[]; dayIv: Record<string, Iv[]>; gridStart: number; step: number; rows: number
-  winS: number; winE: number; locked: boolean; quorum: number | null; onGoToTab?: GoTab
+  winS: number; winE: number; locked: boolean; quorum: number | null; onGoToTab?: GoTab; onGoToBestWindow?: () => void
 }) {
   const [sel, setSel] = useState<number | null>(null)
   const counts = useMemo(() => Array.from({ length: rows }, (_, ti) => {
@@ -517,7 +517,7 @@ function HeadcountBars({
         <span className="text-dim">{locked ? 'Confirmed' : 'Best window'}{' '}
           {locked
             ? <span>{fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</span>
-            : <button type="button" onClick={() => onGoToTab?.('availability')} className="font-semibold text-ochre hover:underline">{fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</button>}
+            : <button type="button" onClick={() => (onGoToBestWindow ? onGoToBestWindow() : onGoToTab?.('availability'))} className="font-semibold text-ochre hover:underline">{fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</button>}
         </span>
         <span>{fmtMinute(gridStart + rows * step)}</span>
       </div>

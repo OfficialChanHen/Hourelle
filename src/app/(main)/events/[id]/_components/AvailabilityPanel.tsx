@@ -106,7 +106,7 @@ function padToWeeks(days: GridDay[]): GDay[] {
   return out
 }
 
-export function AvailabilityPanel({ event, locked = false, initialFilter = null }: { event: AppEvent; locked?: boolean; initialFilter?: string | null }) {
+export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0 }: { event: AppEvent; locked?: boolean; initialFilter?: string | null; focusBest?: number }) {
   const total = event.participants.length
   const pById = new Map(event.participants.map((p) => [p.id, p]))
   const avatarOf = (id: string) => {
@@ -586,6 +586,21 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
   const botSide: 'above' | 'below' = sel && rows * CELL - sel.e * pxPerMin < 22 ? 'above' : 'below'
 
   const minBandDur = 7 / pxPerMin // paint bands thinner than ~7px get absorbed
+
+  // a best-window link elsewhere (hero, attendance) jumps here: right week, view
+  // mode so the frame shows, grid scrolled so the window sits mid-viewport
+  useEffect(() => {
+    if (!focusBest || !bw) return
+    const el = scroller.current
+    if (!el) return
+    const idx = paddedDays.findIndex((d) => d.key === bw.dayKey)
+    if (idx >= 0) setPage(Math.floor(idx / WEEK))
+    setMode('view')
+    const target = Math.max(0, ((bw.s + bw.e) / 2) * pxPerMin - el.clientHeight / 2)
+    el.scrollTop = target
+    setScrollTop(target)
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [focusBest]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="relative flex flex-col rounded-2xl border border-border bg-s1 lg:h-[calc(100dvh-300px)] lg:max-h-[820px] lg:min-h-[480px] lg:flex-row">
@@ -1284,8 +1299,8 @@ function ClearTimes({ onClear }: { onClear: () => void }) {
             <button type="button" onClick={() => setOpen(false)} className="flex h-8 items-center rounded-[8px] border border-border2 bg-s1 px-3 text-[13px] font-semibold hover:bg-s2">
               Cancel
             </button>
-            <button type="button" onClick={() => { setOpen(false); onClear() }} className="flex h-8 items-center gap-1.5 rounded-[8px] px-3 text-[13px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
-              <Eraser size={13} /> Yes, clear it
+            <button type="button" onClick={() => { setOpen(false); onClear() }} className="flex h-8 items-center rounded-[8px] px-3 text-[13px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
+              Yes, clear it
             </button>
           </div>
         </div>

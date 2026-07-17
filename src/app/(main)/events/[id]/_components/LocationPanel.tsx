@@ -1,6 +1,7 @@
 'use client'
 
 import { Fragment, useEffect, useRef, useState } from 'react'
+import { gsap } from 'gsap'
 import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, SlidersHorizontal, Info, ExternalLink } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { patchEvent, fmtMinute, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
@@ -84,6 +85,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   const [focusPin, setFocusPin] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null) // placeId pending delete confirm
+  const [confirmClear, setConfirmClear] = useState<'places' | 'stops' | null>(null) // clear-all pending confirm
   const [sheetOpen, setSheetOpen] = useState(false) // mobile: venues/itinerary bottom sheet
 
   // route through the parent when it listens, so the always-mounted surfaces (the
@@ -122,6 +124,32 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
     const next = !hideVoters
     setHideVoters(next)
     persist({ hideVoters: next })
+  }
+
+  // mobile sheet drag-to-close, same feel as the chat sheet: the grab bar follows
+  // the finger, release past the threshold slides it away, a short drag springs back
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const sheetDrag = useRef<{ startY: number; dy: number } | null>(null)
+  function onSheetGrabDown(e: React.PointerEvent) {
+    sheetDrag.current = { startY: e.clientY, dy: 0 }
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  }
+  function onSheetGrabMove(e: React.PointerEvent) {
+    if (!sheetDrag.current || !sheetRef.current) return
+    sheetDrag.current.dy = Math.max(0, e.clientY - sheetDrag.current.startY)
+    gsap.set(sheetRef.current, { y: sheetDrag.current.dy })
+  }
+  function onSheetGrabUp() {
+    const el = sheetRef.current
+    if (!sheetDrag.current || !el) return
+    const { dy } = sheetDrag.current
+    sheetDrag.current = null
+    if (dy > Math.min(120, el.clientHeight * 0.22)) {
+      // reset the transform after hiding, so the sheet reopens in place
+      gsap.to(el, { y: '100%', duration: 0.25, ease: 'power2.in', onComplete: () => { setSheetOpen(false); gsap.set(el, { y: 0 }) } })
+    } else {
+      gsap.to(el, { y: 0, duration: 0.3, ease: 'power3.out' })
+    }
   }
 
   const votesOf = (id: string) => votes[id] ?? []
@@ -179,6 +207,23 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
       itinStops: nextStops.map((s) => s.placeId),
       itinDwell: nextStops.map((s) => s.dwell),
     })
+  }
+
+  // clear-all, behind an inline confirm: the ballot takes votes and the itinerary
+  // with it (stops reference places); clearing the itinerary leaves the ballot alone
+  function clearAllPlaces() {
+    voteFlip.capture(); itinFlip.capture()
+    setPlaces([]); setVotes({}); setStops([]); setBuiltRank([]); setConfirmClear(null)
+    persist({
+      location: { ...loc, mode, places: [], guestsCanSuggest, meetingLink },
+      votes: {},
+      itinStops: [], itinDwell: [], itinRank: [],
+    })
+  }
+  function clearAllStops() {
+    itinFlip.capture()
+    setStops([]); setBuiltRank([]); setConfirmClear(null)
+    persist({ itinStops: [], itinDwell: [], itinRank: [] })
   }
 
   // votes decide WHICH places make the itinerary; geometry decides the SEQUENCE.
@@ -432,11 +477,18 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
 
       {/* side panel — only for in-person events; a bottom sheet on mobile, a column on desktop */}
       {mode === 'vote' && (
-        <div className={`flex flex-none flex-col lg:static lg:z-auto lg:flex lg:h-[580px] lg:w-[330px] lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none ${sheetOpen ? 'fixed inset-x-0 bottom-0 z-50 h-[86dvh] w-full rounded-t-2xl border-t border-border bg-s1 px-3 pt-2 shadow-soft' : 'hidden'}`}>
-          {/* grab handle + close (mobile sheet only) */}
-          <div className="relative mb-2 flex flex-none items-center justify-center lg:hidden">
+        <div ref={sheetRef} className={`flex flex-none flex-col lg:static lg:z-auto lg:flex lg:h-[580px] lg:w-[330px] lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none ${sheetOpen ? 'fixed inset-x-0 bottom-0 z-50 h-[86dvh] w-full rounded-t-2xl border-t border-border bg-s1 px-3 pt-1 shadow-soft' : 'hidden'}`} style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          {/* grab handle + close (mobile sheet only) — drag down to dismiss, like the chat */}
+          <div
+            className="relative mb-1.5 flex flex-none cursor-grab touch-none items-center justify-center py-3 active:cursor-grabbing lg:hidden"
+            onPointerDown={onSheetGrabDown}
+            onPointerMove={onSheetGrabMove}
+            onPointerUp={onSheetGrabUp}
+            onPointerCancel={onSheetGrabUp}
+            aria-label="Drag down to close"
+          >
             <span className="h-1 w-10 rounded-full bg-border2" />
-            <button onClick={() => setSheetOpen(false)} aria-label="Close" className="absolute right-0 grid h-7 w-7 place-items-center rounded-lg text-dim hover:text-text"><X size={18} /></button>
+            <button onClick={() => setSheetOpen(false)} onPointerDown={(e) => e.stopPropagation()} aria-label="Close" className="absolute right-1 grid h-10 w-10 place-items-center rounded-lg text-dim hover:text-text"><X size={18} /></button>
           </div>
           <div className="mb-3 flex flex-none items-center gap-2">
             <SegmentedControl
@@ -564,6 +616,21 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                       ? <span className="rounded-[5px] border border-brick-border bg-brick-bg px-[6px] py-px text-[10.5px] font-semibold text-brick-text">Voting closed</span>
                       : <span className={`rounded-[5px] border px-[6px] py-px text-[10.5px] font-semibold ${(deadlineDu ?? 9) <= 2 ? 'border-ochre-border bg-ochre-bg text-ochre-text' : 'border-border bg-s2 text-dim'}`}>Closes {deadlineText(voteDeadline)}</span>
                   )}
+                  {event.hostedByYou && (
+                    <button onClick={() => setConfirmClear('places')} className="ml-auto flex items-center gap-1 text-[12px] font-medium text-faint hover:text-brick-text">
+                      <Trash2 size={13} /> Remove all
+                    </button>
+                  )}
+                </div>
+              )}
+              {confirmClear === 'places' && (
+                <div className="flex flex-wrap items-center gap-2 rounded-[10px] border border-brick-border bg-brick-bg px-2.5 py-2">
+                  <TriangleAlert size={17} className="flex-none text-brick-text" />
+                  <span className="min-w-0 flex-1 text-[12.5px] leading-[1.4] text-brick-text">
+                    Remove all {places.length} places? Every vote{stops.length > 0 ? ' and the whole itinerary' : ''} goes with them.
+                  </span>
+                  <button onClick={() => setConfirmClear(null)} className="flex h-7 flex-none items-center rounded-[7px] border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text">Cancel</button>
+                  <button onClick={clearAllPlaces} className="flex h-7 flex-none items-center rounded-[7px] px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>Remove all</button>
                 </div>
               )}
               <div ref={voteFlip.scope} className="scroll-slim flex max-h-[55vh] min-h-0 flex-1 flex-col gap-2 overflow-auto py-0.5 pr-0.5 lg:max-h-none">
@@ -623,7 +690,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                           <TriangleAlert size={17} className="flex-none text-brick-text" />
                           <span className="min-w-0 flex-1 text-[12.5px] leading-[1.4] text-brick-text">Remove {p.name}? Its {ids.length} vote{ids.length === 1 ? '' : 's'} will be lost.</span>
                           <button onClick={() => setConfirmRemove(null)} className="flex h-7 flex-none items-center rounded-[7px] border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text">Cancel</button>
-                          <button onClick={() => removePlace(p.id)} className="flex h-7 flex-none items-center gap-1 rounded-[7px] px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}><Trash2 size={13} /> Remove</button>
+                          <button onClick={() => removePlace(p.id)} className="flex h-7 flex-none items-center rounded-[7px] px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>Remove</button>
                         </div>
                       )}
                     </div>
@@ -672,6 +739,20 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 </div>
               ) : (
                 <>
+                  {!locked && event.hostedByYou && (
+                    confirmClear === 'stops' ? (
+                      <div className="flex flex-none flex-wrap items-center gap-2 rounded-[10px] border border-brick-border bg-brick-bg px-2.5 py-2">
+                        <TriangleAlert size={17} className="flex-none text-brick-text" />
+                        <span className="min-w-0 flex-1 text-[12.5px] leading-[1.4] text-brick-text">Clear all {stops.length} stops? The places and votes stay.</span>
+                        <button onClick={() => setConfirmClear(null)} className="flex h-7 flex-none items-center rounded-[7px] border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text">Cancel</button>
+                        <button onClick={clearAllStops} className="flex h-7 flex-none items-center rounded-[7px] px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>Clear</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setConfirmClear('stops')} className="flex flex-none items-center gap-1 self-end px-0.5 text-[12px] font-medium text-faint hover:text-brick-text">
+                        <Trash2 size={13} /> Clear itinerary
+                      </button>
+                    )
+                  )}
                   {/* one slim schedule line — the stop list below is the main content */}
                   <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-border bg-s0 px-2.5 py-2">
                     <span className="flex items-center gap-1.5 text-[12.5px] font-medium text-dim">

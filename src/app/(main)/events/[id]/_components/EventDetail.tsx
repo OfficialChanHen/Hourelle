@@ -49,6 +49,9 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
   // cleared during render once the user moves off that tab
   const [availFocus, setAvailFocus] = useState<string | null>(null)
   if (tab !== 'availability' && availFocus) setAvailFocus(null)
+  // nonce: each best-window click re-centers the grid, even mid-visit
+  const [bestFocus, setBestFocus] = useState(0)
+  if (tab !== 'availability' && bestFocus) setBestFocus(0)
   const [copied, setCopied] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const tabsRef = useRef<HTMLDivElement>(null)
@@ -130,6 +133,10 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
     setAvailFocus(pid)
     setTab('availability')
   }
+  function goToBestWindow() {
+    setBestFocus((n) => n + 1)
+    setTab('availability')
+  }
   function sendMessage(text: string) {
     if (!event) return
     const next = [...event.messages, { id: 'JM', name: 'You', time: 'now', text, you: true }]
@@ -191,7 +198,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       <div className="mb-6 border-b border-border pb-5">
         <LifecycleStrip phase={phase} className="max-w-[420px]" />
         {(phase === 'planning' || phase === 'past') && (
-          <div className="mt-3"><StageSummary event={event} phase={phase} onGoToAvailability={() => setTab('availability')} /></div>
+          <div className="mt-3"><StageSummary event={event} phase={phase} onGoToAvailability={goToBestWindow} /></div>
         )}
       </div>
 
@@ -216,9 +223,9 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       </div>
 
       {/* body */}
-      {tab === 'availability' && <AvailabilityPanel event={event} locked={locked} initialFilter={availFocus} />}
+      {tab === 'availability' && <AvailabilityPanel event={event} locked={locked} initialFilter={availFocus} focusBest={bestFocus} />}
       {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} />}
-      {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={setTab} onViewAvailability={goToAvailabilityFor} />}
+      {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={setTab} onViewAvailability={goToAvailabilityFor} onGoToBestWindow={goToBestWindow} />}
       {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToTab={setTab} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} />}
 
       {chatOpen && <ChatDrawer event={event} messages={event.messages} onSend={sendMessage} onClose={() => setChatOpen(false)} />}

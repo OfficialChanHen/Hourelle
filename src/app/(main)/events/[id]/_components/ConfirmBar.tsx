@@ -52,7 +52,9 @@ function ConfirmModal({ event, close, onChanged, onGoToDetails }: { event: AppEv
       className="fixed inset-0 z-50 grid place-items-center bg-[rgba(0,0,0,.25)] p-4"
       onPointerDown={(e) => { if (e.target === e.currentTarget) close() }}
     >
-      <div ref={card} className="flex max-h-full w-full max-w-[400px] flex-col rounded-2xl border border-border bg-s1 shadow-soft">
+      {/* explicit viewport cap: the centered grid cell grows with content, so
+          max-h-full alone never constrains the card and short phones lose the scroll */}
+      <div ref={card} className="flex max-h-[calc(100dvh-32px)] w-full max-w-[400px] flex-col rounded-2xl border border-border bg-s1 shadow-soft">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
             <div className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint">Final plan</div>
