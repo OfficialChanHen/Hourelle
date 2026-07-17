@@ -267,14 +267,26 @@ export function fmtMinute(min: number, h24 = false): string {
 // that the most people are free for the whole time, extended to its natural bounds.
 export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0) {
   let best: { dayKey: string; s: number; e: number; count: number; ids: string[] } | null = null
-  const better = (count: number, s: number, e: number) =>
-    !best || count > best.count || (count === best.count && e - s > best.e - best.s) || (count === best.count && e - s === best.e - best.s && s < best.s)
+  let bestWeight = 0
+  // most whole-window people first; ties break on person-minutes inside the window, so
+  // between two windows the same crowd can fully attend, the one with the bigger
+  // partial crowd (late arrivals, early leavers) wins. Then longer, then earlier.
+  const better = (count: number, weight: number, s: number, e: number) =>
+    !best || count > best.count ||
+    (count === best.count && (weight > bestWeight ||
+      (weight === bestWeight && (e - s > best.e - best.s ||
+        (e - s === best.e - best.s && s < best.s)))))
 
   for (const d of days) {
     const byPid = availIv[d.key] ?? {}
     const ids = Object.keys(byPid)
     if (!ids.length) continue
     const coverers = (s: number, e: number) => ids.filter((id) => byPid[id].some((iv) => iv.s <= s && iv.e >= e))
+    const minutesIn = (s: number, e: number) => {
+      let w = 0
+      for (const ivs of Object.values(byPid)) for (const iv of ivs) w += Math.max(0, Math.min(iv.e, e) - Math.max(iv.s, s))
+      return w
+    }
 
     if (minLen <= 0) {
       const cuts = new Set<number>()
@@ -283,12 +295,17 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0)
       for (let i = 0; i < xs.length - 1; i++) {
         const s = xs[i], e = xs[i + 1]
         const who = coverers(s, e)
-        if (who.length && better(who.length, s, e)) best = { dayKey: d.key, s, e, count: who.length, ids: who }
+        if (who.length && better(who.length, minutesIn(s, e), s, e)) { best = { dayKey: d.key, s, e, count: who.length, ids: who }; bestWeight = minutesIn(s, e) }
       }
     } else {
-      // candidate window starts: interval starts, and interval-ends shifted back by minLen
+      // candidate starts: every point where either the full-window crowd or the
+      // person-minutes slope can change — interval edges and their minLen shifts
       const starts = new Set<number>()
-      for (const ivs of Object.values(byPid)) for (const iv of ivs) { starts.add(iv.s); if (iv.e - minLen >= iv.s) starts.add(iv.e - minLen) }
+      for (const ivs of Object.values(byPid)) for (const iv of ivs) {
+        starts.add(iv.s); starts.add(iv.e)
+        if (iv.s - minLen >= 0) starts.add(iv.s - minLen)
+        if (iv.e - minLen >= 0) starts.add(iv.e - minLen)
+      }
       for (const s of starts) {
         if (s < 0) continue
         const e = s + minLen
@@ -298,7 +315,9 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0)
         let ext = Infinity
         for (const id of who) { const iv = byPid[id].find((v) => v.s <= s && v.e >= e); if (iv) ext = Math.min(ext, iv.e) }
         const eEnd = ext === Infinity ? e : ext
-        if (better(who.length, s, eEnd)) best = { dayKey: d.key, s, e: eEnd, count: who.length, ids: who }
+        // weight over the committed duration, not the extension — the event lasts minLen
+        const weight = minutesIn(s, e)
+        if (better(who.length, weight, s, eEnd)) { best = { dayKey: d.key, s, e: eEnd, count: who.length, ids: who }; bestWeight = weight }
       }
     }
   }
