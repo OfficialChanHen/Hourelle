@@ -36,10 +36,10 @@ const OVERSCAN = 6 // rows rendered beyond the viewport each side, so scrolling 
 function heat(n: number, total: number) {
   if (n === 0) return 'var(--s2)'
   const r = n / Math.max(total, 1)
-  return r <= 0.25 ? '#EBF1EB' : r <= 0.5 ? '#CFE0D2' : r < 1 ? '#9DBBA4' : '#2E4A3C'
+  return r <= 0.25 ? 'var(--heat-low)' : r <= 0.5 ? 'var(--heat-mid)' : r < 1 ? 'var(--heat-high)' : 'var(--heat-full)'
 }
 function clayFor(n: number) {
-  return n <= 2 ? '#F3EAD9' : n <= 4 ? '#EAD9BE' : '#DCC8A2'
+  return n <= 2 ? 'var(--you-only)' : n <= 4 ? 'var(--you-some)' : 'var(--you-many)'
 }
 function subtract(iv: Iv, a: number, b: number): Iv[] {
   return [{ s: iv.s, e: Math.min(iv.e, a) }, { s: Math.max(iv.s, b), e: iv.e }].filter((x) => x.e > x.s)
@@ -698,13 +698,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
           <span className="ml-auto flex items-center gap-1 text-[11px] text-faint">
             {mode === 'edit' ? (
               <>
-                <span className="h-[11px] w-[11px] rounded-[3px]" style={{ background: '#EAD9BE', border: '1.5px solid #7A531F' }} />
+                <span className="h-[11px] w-[11px] rounded-[3px]" style={{ background: 'var(--you-some)', border: '1.5px solid var(--you-text)' }} />
                 <span>You</span>
               </>
             ) : (
               <>
                 <span>No one</span>
-                {['var(--s2)', '#EBF1EB', '#CFE0D2', '#9DBBA4', '#2E4A3C'].map((c) => (
+                {['var(--s2)', 'var(--heat-low)', 'var(--heat-mid)', 'var(--heat-high)', 'var(--heat-full)'].map((c) => (
                   <span key={c} className="h-[11px] w-[11px] rounded-[3px] border border-border" style={{ background: c }} />
                 ))}
                 <span>{filterOn ? 'All selected' : 'Everyone'}</span>
@@ -1027,9 +1027,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
               <span className="text-[14px] font-semibold text-ochre">{bw.dayLabel} · {fmt(gridStartMin + bw.s)} – {fmt(gridStartMin + bw.e)}</span>
               <TimezonePill tz={myTime && canConvert ? localTz : event.timezone} />
               {bestMode === 'crowd'
-                ? <span className="text-[12.5px] font-semibold text-teal-text">around {Math.round(bw.avg)} of {viewTotal} there{bw.count > 0 && <span className="font-normal text-dim"> · {bw.count} the whole time</span>}</span>
+                // never round a partial attendee away: below one person on average,
+                // count everyone who shows up at all instead
+                ? Math.round(bw.avg) >= 1
+                  ? <span className="text-[12.5px] font-semibold text-teal-text">around {Math.round(bw.avg)} of {viewTotal} there{bw.count > 0 && <span className="font-normal text-dim"> · {bw.count} the whole time</span>}</span>
+                  : <span className="text-[12.5px] font-semibold text-teal-text">{bw.anyIds.length} of {viewTotal} there for part of it</span>
                 : <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {viewTotal} free</span>}
-              <div className="ml-auto"><AvatarRow people={bw.ids.map(avatarOf)} size={22} max={8} overlap={5} /></div>
+              <div className="ml-auto"><AvatarRow people={(bestMode === 'crowd' ? bw.anyIds : bw.ids).map(avatarOf)} size={22} max={8} overlap={5} /></div>
             </>
           ) : responded > 0 ? (
             <span className="text-[12.5px] text-dim">No block long enough for a <span className="font-semibold text-text">{fmtDur(durationMin)}</span> event yet. Try a shorter length, or wait for more responses.</span>

@@ -30,7 +30,7 @@ function osmUrl(p: EventPlace): string {
   return `https://www.openstreetmap.org/search?query=${encodeURIComponent(q)}`
 }
 
-export function LocationPanel({ event, locked = false, confirmed }: { event: AppEvent; locked?: boolean; confirmed?: ConfirmedSlot }) {
+export function LocationPanel({ event, locked = false, confirmed, onPatch }: { event: AppEvent; locked?: boolean; confirmed?: ConfirmedSlot; onPatch?: (patch: Partial<AppEvent>) => void }) {
   const loc = event.location
   // once the host locks in, voting and editing close; the chosen place(s) get the highlight
   const confirmedIds = new Set(confirmed?.placeIds ?? [])
@@ -86,14 +86,16 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null) // placeId pending delete confirm
   const [sheetOpen, setSheetOpen] = useState(false) // mobile: venues/itinerary bottom sheet
 
+  // route through the parent when it listens, so the always-mounted surfaces (the
+  // Lock-it-in popover, the hero summary) see mode/place/vote changes without a reload
   function persist(patch: Partial<AppEvent>) {
-    if (!event.demo) patchEvent(event.id, patch)
+    if (onPatch) onPatch(patch)
+    else if (!event.demo) patchEvent(event.id, patch)
   }
   // one place to persist the location object, so switching mode never clobbers the other
   // fields — pass the changed field in `over`; unchanged fields come from current state
   function persistLoc(over: Partial<AppEvent['location']> = {}) {
-    if (event.demo) return
-    patchEvent(event.id, { location: { ...loc, mode, places, guestsCanSuggest, meetingLink, ...over } })
+    persist({ location: { ...loc, mode, places, guestsCanSuggest, meetingLink, ...over } })
   }
   function changeMode(m: AppEvent['location']['mode']) { setMode(m); persistLoc({ mode: m }) }
   function changeLink(v: string) { setMeetingLink(v); persistLoc({ meetingLink: v }) }
@@ -171,14 +173,12 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
     const nextVotes = { ...votes }; delete nextVotes[placeId]
     const nextStops = stops.filter((s) => s.placeId !== placeId) // drop it from the itinerary too
     setPlaces(nextPlaces); setVotes(nextVotes); setStops(nextStops); setConfirmRemove(null)
-    if (!event.demo) {
-      patchEvent(event.id, {
-        location: { ...loc, mode, places: nextPlaces, guestsCanSuggest, meetingLink },
-        votes: nextVotes,
-        itinStops: nextStops.map((s) => s.placeId),
-        itinDwell: nextStops.map((s) => s.dwell),
-      })
-    }
+    persist({
+      location: { ...loc, mode, places: nextPlaces, guestsCanSuggest, meetingLink },
+      votes: nextVotes,
+      itinStops: nextStops.map((s) => s.placeId),
+      itinDwell: nextStops.map((s) => s.dwell),
+    })
   }
 
   // votes decide WHICH places make the itinerary; geometry decides the SEQUENCE.
@@ -521,13 +521,10 @@ export function LocationPanel({ event, locked = false, confirmed }: { event: App
                       <input type="checkbox" checked={guestsCanSuggest} onChange={toggleGuestsCanSuggest} className="h-3.5 w-3.5" style={{ accentColor: 'var(--accent)' }} />
                       Guests can add places
                     </label>
-                    <div className="border-t border-border pt-2.5">
-                      <label className="flex cursor-pointer items-center gap-2 text-[13px]">
-                        <input type="checkbox" checked={hideVoters} onChange={toggleHideVoters} className="h-3.5 w-3.5" style={{ accentColor: 'var(--accent)' }} />
-                        Hide who voted for what
-                      </label>
-                      <p className="mt-1 pl-[22px] text-[12px] leading-[1.45] text-faint">Only vote counts show, for everyone including you. Your own votes stay visible to you.</p>
-                    </div>
+                    <label className="flex cursor-pointer items-center gap-2 border-t border-border pt-2.5 text-[13px]">
+                      <input type="checkbox" checked={hideVoters} onChange={toggleHideVoters} className="h-3.5 w-3.5" style={{ accentColor: 'var(--accent)' }} />
+                      Hide votes
+                    </label>
                   </div>
                 )}
               </Popover>

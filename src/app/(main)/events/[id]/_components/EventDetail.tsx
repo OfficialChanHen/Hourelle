@@ -217,7 +217,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
 
       {/* body */}
       {tab === 'availability' && <AvailabilityPanel event={event} locked={locked} initialFilter={availFocus} />}
-      {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} />}
+      {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} />}
       {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={setTab} onViewAvailability={goToAvailabilityFor} />}
       {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToTab={setTab} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} />}
 
@@ -597,6 +597,12 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
       {n}-stop itinerary · see it on the Location tab
     </button>
   )
+  // a set of simultaneous venues (art walk, split-activity picnic), not a route
+  const spotsLink = (n: number) => (
+    <button onClick={onGoToLocation} className="text-left font-medium text-accent-text hover:underline">
+      Happening across {n} spots · see them on the Location tab
+    </button>
+  )
   const placeLink = (name: string, caption?: string) => (
     <span className="flex flex-wrap items-center gap-1.5">
       <button onClick={onGoToLocation} title="Open it on the Location tab" className="text-left font-medium text-accent-text hover:underline">{name}</button>
@@ -609,11 +615,16 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
   const stops = event.itinStops?.length ?? 0
   const lead = leadingPlaceOf(event)
   if (locked) {
-    const names = event.confirmed!.placeIds
+    const ids = event.confirmed!.placeIds
+    const names = ids
       .map((id) => loc.places.find((p) => p.id === id)?.name)
       .filter((n): n is string => !!n)
+    // "itinerary" only when the locked places really are the built route, in order —
+    // a multi-place votes lock is a set of simultaneous spots, not stops
+    const itin = event.itinStops ?? []
+    const itinLocked = loc.planMode === 'itinerary' && itin.length > 0 && ids.length === itin.length && ids.every((id, i) => id === itin[i])
     if (names.length === 1) main = placeLink(names[0])
-    else if (names.length > 1) main = itineraryLink(names.length)
+    else if (names.length > 1) main = itinLocked ? itineraryLink(names.length) : spotsLink(names.length)
   } else if (loc.planMode === 'itinerary' && stops > 0) main = itineraryLink(stops)
   else if (lead) main = placeLink(lead.place.name, 'leading the vote')
   else if (loc.places.length === 1) main = placeLink(loc.places[0].name)

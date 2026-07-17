@@ -272,16 +272,20 @@ export function fmtMinute(min: number, h24 = false): string {
 export type BestMode = 'full' | 'crowd'
 
 export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0, bestMode: BestMode = 'full') {
-  let best: { dayKey: string; s: number; e: number; count: number; ids: string[]; avg: number } | null = null
+  // ids = people free the whole window; anyIds = everyone who overlaps it at all
+  let best: { dayKey: string; s: number; e: number; count: number; ids: string[]; anyIds: string[]; avg: number } | null = null
   let bestWeight = 0
+  let bestGap = 0
   // primary and secondary swap with the mode: whole-window people vs person-minutes
-  // inside the window. Then longer wins, then earlier.
-  const better = (count: number, weight: number, s: number, e: number) => {
+  // inside the window. Then the window that opens with people actually there (no dead
+  // air before the first arrival), then longer, then earlier.
+  const better = (count: number, weight: number, gap: number, s: number, e: number) => {
     if (!best) return true
     const [a1, a2] = bestMode === 'crowd' ? [weight, count] : [count, weight]
     const [b1, b2] = bestMode === 'crowd' ? [bestWeight, best.count] : [best.count, bestWeight]
     if (a1 !== b1) return a1 > b1
     if (a2 !== b2) return a2 > b2
+    if (gap !== bestGap) return gap < bestGap
     if (e - s !== best.e - best.s) return e - s > best.e - best.s
     return s < best.s
   }
@@ -305,7 +309,7 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
         const s = xs[i], e = xs[i + 1]
         const who = coverers(s, e)
         const weight = minutesIn(s, e)
-        if (who.length && better(who.length, weight, s, e)) { best = { dayKey: d.key, s, e, count: who.length, ids: who, avg: weight / (e - s) }; bestWeight = weight }
+        if (who.length && better(who.length, weight, 0, s, e)) { best = { dayKey: d.key, s, e, count: who.length, ids: who, anyIds: who, avg: weight / (e - s) }; bestWeight = weight; bestGap = 0 }
       }
     } else {
       // candidate starts: every point where either the full-window crowd or the
@@ -328,7 +332,16 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
         let ext = Infinity
         for (const id of who) { const iv = byPid[id].find((v) => v.s <= s && v.e >= e); if (iv) ext = Math.min(ext, iv.e) }
         const eEnd = ext === Infinity ? e : ext
-        if (better(who.length, weight, s, eEnd)) { best = { dayKey: d.key, s, e: eEnd, count: who.length, ids: who, avg: weight / minLen }; bestWeight = weight }
+        // dead air before anyone arrives: window start to the first free moment in it
+        let firstFree = Infinity
+        for (const ivs of Object.values(byPid)) for (const iv of ivs) if (iv.e > s && iv.s < e) firstFree = Math.min(firstFree, Math.max(iv.s, s))
+        const gap = firstFree === Infinity ? 0 : firstFree - s
+        if (better(who.length, weight, gap, s, eEnd)) {
+          const anyIds = ids.filter((id) => byPid[id].some((iv) => iv.s < e && iv.e > s))
+          best = { dayKey: d.key, s, e: eEnd, count: who.length, ids: who, anyIds, avg: weight / minLen }
+          bestWeight = weight
+          bestGap = gap
+        }
       }
     }
   }

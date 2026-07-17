@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { Check, ChevronDown, Lock, MapPin, Route, Video, Vote, Wallet } from 'lucide-react'
-import { Popover } from '@/components/ui/Popover'
+import { useEffect, useRef, useState } from 'react'
+import { gsap } from 'gsap'
+import { useGSAP } from '@gsap/react'
+import { Check, ChevronDown, Lock, MapPin, Route, Video, Vote, Wallet, X } from 'lucide-react'
 import { TimeSelect } from '@/components/ui/TimeSelect'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import {
@@ -11,21 +12,61 @@ import {
 } from '@/lib/events'
 
 /* ── the host's one clear action while planning: lock in a time and place ──
-   The form mounts fresh each time the popover opens, so the day and time always
+   A centered modal, not a dropdown — the form is the app's most consequential
+   step and needs room; the backdrop also ends any stacking fights with the
+   grid's sticky headers. Mounts fresh each open, so day and time always
    prefill from the best window for everyone, sized to the event length. */
 export function ConfirmBar({ event, onChanged, onGoToDetails }: { event: AppEvent; onChanged: () => void; onGoToDetails?: () => void }) {
+  const [open, setOpen] = useState(false)
   return (
-    <Popover
-      align="end"
-      width={330}
-      trigger={(open) => (
-        <span className={`flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[14px] font-semibold text-on-accent ${open ? 'opacity-90' : ''}`}>
-          <Lock size={15} /> Lock it in
-        </span>
-      )}
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[14px] font-semibold text-on-accent"
+      >
+        <Lock size={15} /> Lock it in
+      </button>
+      {open && <ConfirmModal event={event} close={() => setOpen(false)} onChanged={onChanged} onGoToDetails={onGoToDetails} />}
+    </>
+  )
+}
+
+function ConfirmModal({ event, close, onChanged, onGoToDetails }: { event: AppEvent; close: () => void; onChanged: () => void; onGoToDetails?: () => void }) {
+  const root = useRef<HTMLDivElement>(null)
+  const card = useRef<HTMLDivElement>(null)
+  useGSAP(() => {
+    gsap.timeline()
+      .fromTo(root.current, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: 'power2.out' })
+      .fromTo(card.current, { y: 12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: 'power3.out' }, '<')
+  }, { scope: root })
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div
+      ref={root}
+      className="fixed inset-0 z-50 grid place-items-center bg-[rgba(0,0,0,.25)] p-4"
+      onPointerDown={(e) => { if (e.target === e.currentTarget) close() }}
     >
-      {(close) => <ConfirmForm event={event} close={close} onChanged={onChanged} onGoToDetails={onGoToDetails} />}
-    </Popover>
+      <div ref={card} className="flex max-h-full w-full max-w-[400px] flex-col rounded-2xl border border-border bg-s1 shadow-soft">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <div className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint">Final plan</div>
+            <div className="mt-0.5 text-[15.5px] font-semibold">Lock it in</div>
+          </div>
+          <button onClick={close} aria-label="Close" className="grid h-8 w-8 place-items-center rounded-[8px] text-dim hover:bg-s2 hover:text-text">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="scroll-slim min-h-0 flex-1 overflow-auto px-5 py-4">
+          <ConfirmForm event={event} close={close} onChanged={onChanged} onGoToDetails={onGoToDetails} />
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -43,11 +84,11 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
     return Math.min(s + duration, 24 * 60 - 5)
   })
 
-  // votes rank the ballot; the finalists are the top places, one per vote each guest had
+  // votes rank the ballot; every venue stays pickable, so the host can lock in
+  // as many simultaneous spots as the event needs — the leader is preselected
   const votesOf = (id: string) => event.votes?.[id] ?? []
   const ranked = [...loc.places].sort((a, b) => votesOf(b.id).length - votesOf(a.id).length)
-  const finalists = ranked.slice(0, Math.max(1, event.maxVotes ?? 1))
-  const [placeIds, setPlaceIds] = useState<string[]>(() => (finalists[0] ? [finalists[0].id] : []))
+  const [placeIds, setPlaceIds] = useState<string[]>(() => (ranked[0] ? [ranked[0].id] : []))
 
   // an event can have both a ballot and an itinerary — the host locks in one, not both
   const stops = event.itinStops ?? []
@@ -75,7 +116,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
   }
 
   return (
-    <div className="flex flex-col gap-3 p-1">
+    <div className="flex flex-col gap-3">
       <div>
         <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Day</div>
         <div className="relative">
@@ -101,7 +142,11 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
         </div>
         {bw && (
           <p className="mt-1.5 text-[12px] text-faint">
-            Best window: {event.bestMode === 'crowd' ? <>around {Math.round(bw.avg)} of {event.participants.length} there</> : <>{bw.count} of {event.participants.length} free</>} <span className="font-semibold text-ochre">{fmtMinute(gridStart + bw.s)} – {fmtMinute(gridStart + bw.e)}</span>
+            Best window: {event.bestMode === 'crowd'
+              ? Math.round(bw.avg) >= 1
+                ? <>around {Math.round(bw.avg)} of {event.participants.length} there</>
+                : <>{bw.anyIds.length} of {event.participants.length} there for part of it</>
+              : <>{bw.count} of {event.participants.length} free</>} <span className="font-semibold text-ochre">{fmtMinute(gridStart + bw.s)} – {fmtMinute(gridStart + bw.e)}</span>
           </p>
         )}
       </div>
@@ -134,7 +179,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
               </div>
             ) : (
               <div className="scroll-slim flex max-h-[168px] flex-col gap-1 overflow-auto">
-                {finalists.map((p, i) => {
+                {ranked.map((p, i) => {
                   const on = placeIds.includes(p.id)
                   const n = votesOf(p.id).length
                   return (

@@ -30,6 +30,10 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
   const placeNames = c.placeIds
     .map((id) => event.location.places.find((p) => p.id === id)?.name)
     .filter(Boolean) as string[]
+  // "itinerary" only when the locked places really are the built route, in order —
+  // a multi-place votes lock is a set of simultaneous spots, not stops
+  const itin = event.itinStops ?? []
+  const itinLocked = event.location.planMode === 'itinerary' && itin.length > 0 && c.placeIds.length === itin.length && c.placeIds.every((id, i) => id === itin[i])
 
   function reopen() {
     reopenEvent(event.id)
@@ -51,8 +55,10 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
           <div className="mt-2 flex items-center gap-1.5 text-[13.5px] text-dim">
             {event.location.mode === 'remote' ? (
               <><Video size={15} className="flex-none text-accent-text" /> Online on {event.location.platform}</>
-            ) : event.location.planMode === 'itinerary' && (event.itinStops?.length ?? 0) > 0 ? (
-              <><Route size={15} className="flex-none text-accent-text" /> {event.itinStops!.length}-stop itinerary, on the Location tab</>
+            ) : itinLocked ? (
+              <><Route size={15} className="flex-none text-accent-text" /> {itin.length}-stop itinerary, on the Location tab</>
+            ) : placeNames.length > 1 ? (
+              <><MapPin size={15} className="flex-none text-accent-text" /> <span className="min-w-0">Happening across {placeNames.length} spots: {placeNames.join(' · ')}</span></>
             ) : placeNames.length > 0 ? (
               <><MapPin size={15} className="flex-none text-accent-text" /> <span className="min-w-0">{placeNames.join(' · ')}</span></>
             ) : (
