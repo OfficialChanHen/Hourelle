@@ -5,10 +5,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Building2, User, Link2, Users, Copy, MessageCircle, Pencil, EllipsisVertical, CopyPlus,
-  CalendarRange, MapPin, UsersRound, Settings, Check, Trash2, TriangleAlert, Receipt, Plus, X,
+  CalendarRange, MapPin, UsersRound, Settings, Check, Trash2, TriangleAlert, Receipt, Plus, X, ImagePlus,
 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
+import { Cover, COVER_PRESETS } from '@/components/ui/Cover'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Avatar } from '@/components/ui/Avatar'
@@ -138,6 +139,8 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
 
   return (
     <div className="mx-auto max-w-[1240px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
+      {/* the host's cover, when one is set — photo or preset scene */}
+      {event.image && <Cover src={event.image} from="#E4EDE7" to="#CFE0D5" className="mb-5 h-[130px] border border-border sm:h-[170px]" rounded="rounded-2xl" />}
       {/* header */}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
@@ -269,6 +272,7 @@ function DetailsTab({ event, onDelete, onGoToTab, onPatch, onViewAvailability }:
     <div className="flex flex-wrap items-start gap-3.5">
       <div className="min-w-[320px] flex-[1.5] rounded-2xl border border-border bg-s1 p-5">
         <div className="mb-1 flex items-center gap-2 text-[14.5px] font-semibold"><Settings size={17} className="text-dim" /> Details</div>
+        {isHost && <DetailRow k="Cover" v={<CoverPicker event={event} onPatch={onPatch} />} />}
         <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} onPatch={onPatch} />} />
         <DetailRow k="When" v={<WhenValue event={event} locked={locked} editable={isHost && !locked} onGoToAvailability={() => onGoToTab('availability')} onPatch={onPatch} />} />
         <DetailRow k="Where" v={<WhereValue event={event} locked={locked} onGoToLocation={() => onGoToTab('location')} />} />
@@ -282,6 +286,7 @@ function DetailsTab({ event, onDelete, onGoToTab, onPatch, onViewAvailability }:
           <AddToCalendar
             event={event}
             slot={locked ? { dayKey: event.confirmed!.dayKey, startMin: event.confirmed!.startMin, endMin: event.confirmed!.endMin } : null}
+            align="start"
           />
           <Link href={`/create?from=${event.id}`} className="flex h-8 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2">
             <CopyPlus size={15} /> Plan another like this
@@ -544,6 +549,75 @@ function WhereValue({ event, locked, onGoToLocation }: { event: AppEvent; locked
   if (lead) return placeLink(lead.place.name, 'leading the vote')
   if (loc.places.length === 1) return placeLink(loc.places[0].name)
   return <>To be decided</>
+}
+
+/* Cover: pick a preset scene or upload a photo. Uploads are downscaled and recompressed
+   before storing, so a phone photo doesn't blow the localStorage budget. */
+function downscaleImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      try {
+        const MAX = 1280
+        const scale = Math.min(1, MAX / Math.max(img.width, img.height))
+        const c = document.createElement('canvas')
+        c.width = Math.max(1, Math.round(img.width * scale))
+        c.height = Math.max(1, Math.round(img.height * scale))
+        const ctx = c.getContext('2d')
+        if (!ctx) throw new Error('no canvas')
+        ctx.fillStyle = '#fff' // transparent PNGs land on paper, not black
+        ctx.fillRect(0, 0, c.width, c.height)
+        ctx.drawImage(img, 0, 0, c.width, c.height)
+        resolve(c.toDataURL('image/jpeg', 0.82))
+      } catch (e) { reject(e) } finally { URL.revokeObjectURL(url) }
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')) }
+    img.src = url
+  })
+}
+
+function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [err, setErr] = useState(false)
+  async function pickFile(f: File | undefined) {
+    if (!f) return
+    try {
+      onPatch({ image: await downscaleImage(f) })
+      setErr(false)
+    } catch {
+      setErr(true)
+    }
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {COVER_PRESETS.map((p) => {
+          const on = event.image === `preset:${p.id}`
+          return (
+            <button
+              key={p.id} type="button" title={p.name}
+              onClick={() => onPatch({ image: on ? undefined : `preset:${p.id}` })}
+              className="overflow-hidden rounded-[8px]"
+              style={{ boxShadow: on ? '0 0 0 2px var(--accent)' : '0 0 0 1px var(--border)' }}
+            >
+              <Cover src={`preset:${p.id}`} from={p.from} to={p.to} className="h-9 w-14" />
+            </button>
+          )
+        })}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button onClick={() => fileRef.current?.click()} className="flex h-8 items-center gap-1.5 rounded-[8px] border border-border2 bg-s1 px-2.5 text-[12.5px] font-semibold hover:bg-s2">
+          <ImagePlus size={14} /> {event.image?.startsWith('data:') ? 'Replace photo' : 'Upload a photo'}
+        </button>
+        {event.image && (
+          <button onClick={() => onPatch({ image: undefined })} className="h-8 rounded-[8px] px-2 text-[12.5px] font-semibold text-brick-text hover:bg-brick-bg">Remove</button>
+        )}
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { pickFile(e.target.files?.[0]); e.target.value = '' }} />
+      </div>
+      {err && <span className="text-[12px] text-brick-text">That file did not work. Try a JPG or PNG.</span>}
+    </div>
+  )
 }
 
 /* Description: hosts edit it in place; everyone else just reads it */

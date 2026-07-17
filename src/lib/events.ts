@@ -60,6 +60,7 @@ export type AppEvent = {
   durationMin?: number                // how long the event needs — drives the best-window search
   quorum?: number                     // host-set smallest headcount that works; attendance warns below it
   expenses?: EventExpense[]           // actual spend logged against the budget
+  image?: string                      // cover: 'preset:<id>' or a downscaled data URL the host uploaded
   messages: ChatMessage[]
   createdAt: number
   demo?: boolean

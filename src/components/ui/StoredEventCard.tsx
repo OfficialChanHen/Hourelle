@@ -29,7 +29,7 @@ export function StoredEventCard({ e, reuseHref }: { e: AppEvent; reuseHref?: str
   const [from, to] = coverFor(e.id)
   return (
     <Link href={`/events/${e.id}`} className="group block overflow-hidden rounded-[13px] border border-border bg-s1 p-3.5 transition-all hover:-translate-y-0.5 hover:border-border2">
-      <Cover from={from} to={to} className="-mx-3.5 -mt-3.5 mb-3 h-[92px]" />
+      <Cover src={e.image} from={from} to={to} className="-mx-3.5 -mt-3.5 mb-3 h-[92px]" />
       <div className="mb-[11px] flex items-center justify-between">
         <Badge variant={badge.variant}>{badge.label}</Badge>
         {phase !== 'past' && (

@@ -93,7 +93,7 @@ function HeroCard({ e, phase }: { e: AppEvent; phase: Phase }) {
     : { label: 'See the plan', href: `/events/${e.id}` }
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-s1">
-      <Cover from="#E4EDE7" to="#CFE0D5" className="h-[64px]" />
+      <Cover src={e.image} from="#E4EDE7" to="#CFE0D5" className={e.image ? 'h-[110px]' : 'h-[64px]'} />
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 p-5">
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex items-center gap-2">

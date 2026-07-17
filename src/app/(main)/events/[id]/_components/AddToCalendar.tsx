@@ -15,7 +15,7 @@ function plusDay(iso: string): string {
 
 export type CalendarSlot = { dayKey: string; startMin: number; endMin: number }
 
-export function AddToCalendar({ event, slot }: { event: AppEvent; slot: CalendarSlot | null }) {
+export function AddToCalendar({ event, slot, align = 'end' }: { event: AppEvent; slot: CalendarSlot | null; align?: 'start' | 'end' }) {
   const [open, setOpen] = useState(false)
   const wrap = useRef<HTMLDivElement>(null)
 
@@ -74,7 +74,7 @@ export function AddToCalendar({ event, slot }: { event: AppEvent; slot: Calendar
         <CalendarPlus size={15} /> Add to calendar <ChevronDown size={13} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-[228px] rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
+        <div className={`absolute top-full z-30 mt-1 w-[228px] rounded-[10px] border border-border bg-s1 p-1 shadow-soft ${align === 'end' ? 'right-0' : 'left-0'}`}>
           <p className="px-2.5 pb-1.5 pt-2 text-[12px] leading-[1.45] text-faint">
             {timed
               ? <>Adds {fmtMinute(timed.startMin)} – {fmtMinute(timed.endMin)} ({event.timezone.split('/').pop()?.replace(/_/g, ' ')} time).</>
