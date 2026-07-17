@@ -59,15 +59,18 @@ function cellBands(byPid: Record<string, Iv[]>, w0: number, w1: number): Band[] 
   }
   return out
 }
-// absorb slivers too thin to read into their taller neighbor (paint only — tooltips stay exact)
-function mergeSlivers(bands: Band[], minDur: number): Band[] {
+// absorb slivers too thin to read into their taller neighbor (paint only — tooltips stay exact).
+// `keep` boundaries are never merged across, so the heat edge stays put where a frame is drawn.
+function mergeSlivers(bands: Band[], minDur: number, keep?: number[]): Band[] {
+  const locked = new Set(keep ?? [])
   const out = bands.map((b) => ({ ...b }))
   let again = true
   while (again && out.length > 1) {
     again = false
     for (let i = 0; i < out.length; i++) {
       if (out[i].e - out[i].s >= minDur) continue
-      const prev = out[i - 1], next = out[i + 1]
+      const prev = locked.has(out[i].s) ? undefined : out[i - 1]
+      const next = locked.has(out[i].e) ? undefined : out[i + 1]
       const into = !prev ? next : !next ? prev : (prev.e - prev.s >= next.e - next.s ? prev : next)
       if (into) { into.s = Math.min(into.s, out[i].s); into.e = Math.max(into.e, out[i].e); out.splice(i, 1); again = true; break }
     }
@@ -157,6 +160,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
   // starts at 0 to match the un-scrolled DOM; the mount effect jumps to ~8 AM
   const [scrollTop, setScrollTop] = useState(0)
   const [viewportH, setViewportH] = useState(460)
+  const [viewportW, setViewportW] = useState(0)
   // provider picked → preview of what would be imported (null data = unavailable for this event)
   const [importing, setImporting] = useState<{ provider: string; data: Record<string, DayImport> | null } | null>(null)
 
@@ -165,6 +169,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
   const pageCount = Math.max(1, Math.ceil(paddedDays.length / WEEK))
   const weekDays = paddedDays.slice(page * WEEK, page * WEEK + WEEK)
   const goWeek = (dir: -1 | 1) => { setPage((p) => Math.max(0, Math.min(pageCount - 1, p + dir))); setSel(null) }
+
+  // the avatar pile follows the column width: 17px avatars + 2px gaps in a 5px-padded
+  // cell, at most two rows, and the bottom-right corner stays free for the "n/N" count —
+  // on narrow screens the pile shrinks instead of spilling into the cells below
+  const colW = Math.max(72, ((viewportW || 0) - 54) / WEEK)
+  const pileRow = Math.max(1, Math.floor((colW - 12) / 19))
+  const pileMax = Math.min(AVATAR_CAP + 1, pileRow * 2 - 1)
 
   // timezone conversion: shift is 0 unless "my time" is on and the local zone differs
   const day0 = event.days[0]?.key ?? ''
@@ -192,7 +203,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
     const target = (8 * 60 - gridStartMin) * pxPerMin
     if (target > 0) { el.scrollTop = target; setScrollTop(target) }
     setViewportH(el.clientHeight)
-    const ro = new ResizeObserver(() => setViewportH(el.clientHeight))
+    setViewportW(el.clientWidth)
+    const ro = new ResizeObserver(() => { setViewportH(el.clientHeight); setViewportW(el.clientWidth) })
     ro.observe(el)
     return () => ro.disconnect()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -423,7 +435,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
     selectMerged(s.day, norm, (ns + ne) / 2, edge)
   }
 
-  // keyboard: arrow-nudge the active edge by the minute, Esc to deselect, Del to remove
+  // keyboard: arrow-nudge the active edge by the chosen increment, Esc to deselect, Del to remove
   useEffect(() => {
     if (!sel) return
     function key(ev: KeyboardEvent) {
@@ -436,12 +448,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
       }
       if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
         ev.preventDefault()
-        nudgeEdge(s.edge, ev.key === 'ArrowUp' ? -1 : 1)
+        nudgeEdge(s.edge, ev.key === 'ArrowUp' ? -nudgeStep : nudgeStep)
       }
     }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
-  }, [sel]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sel, nudgeStep]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function deleteSel() {
     const s = selRef.current; if (!s) return
@@ -837,7 +849,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                     const bands = cellBands(viewCombinedByDay[d.key] ?? {}, w0, w1)
                     const peak = peakOf(bands)
                     const n = peak.ids.length
-                    const paint = mergeSlivers(bands, minBandDur)
+                    // the heat must change color exactly at the best-window frame lines, so its
+                    // edges are protected from the sliver merge in the cells they run through
+                    const paint = mergeSlivers(bands, minBandDur, bw && d.key === bw.dayKey ? [bw.s, bw.e] : undefined)
                     const title = bands.length === 1
                       ? (n ? `${n} of ${viewTotal} free` : 'No one free')
                       : bands.map((b) => `${fmt(gridStartMin + b.s)} – ${fmt(gridStartMin + b.e)}: ${b.ids.length} free`).join('\n')
@@ -888,8 +902,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null 
                         <div className="pointer-events-none absolute z-[1] border-b border-r border-[var(--grid-line)]" style={{ inset: '0 -1px -1px 0' }} />
                         {/* cap the pile so a 100-person cell renders ~6 avatars + "+N", not 100 nodes */}
                         <div className="relative z-[1] flex flex-wrap content-start gap-0.5 p-[5px]">
-                          {peak.ids.slice(0, AVATAR_CAP).map((id) => { const a = avatarOf(id); return <Avatar key={id} initials={a.initials} color={a.color} size={17} font={8.5} title={a.name} /> })}
-                          {n > AVATAR_CAP && <span className="grid h-[15px] min-w-[15px] place-items-center rounded-full bg-s3 px-[3px] text-[8.5px] font-bold text-dim" title={`${n} free`}>+{n - AVATAR_CAP}</span>}
+                          {(() => {
+                            const shown = n <= pileMax ? Math.min(n, AVATAR_CAP) : pileMax - 1
+                            return (
+                              <>
+                                {peak.ids.slice(0, shown).map((id) => { const a = avatarOf(id); return <Avatar key={id} initials={a.initials} color={a.color} size={17} font={8.5} title={a.name} /> })}
+                                {n > shown && <span className="grid h-[15px] min-w-[15px] place-items-center rounded-full bg-s3 px-[3px] text-[8.5px] font-bold text-dim" title={`${n} free`}>+{n - shown}</span>}
+                              </>
+                            )
+                          })()}
                         </div>
                         {n > 0 && <span className="pointer-events-none absolute bottom-[3px] right-1 z-[1] text-[9.5px] font-bold" style={{ color: n >= viewTotal ? '#F4F1EA' : '#46604F' }}>{n}/{viewTotal}</span>}
                       </div>

@@ -269,8 +269,12 @@ function DetailsTab({ event, onDelete, onGoToTab, onPatch, onViewAvailability }:
   const locked = event.status === 'confirmed' && !!event.confirmed
 
   return (
-    <div className="flex flex-wrap items-start gap-3.5">
-      <div className="min-w-[320px] flex-[1.5] rounded-2xl border border-border bg-s1 p-5">
+    // two columns on large screens: details + expenses stacked left, participants right.
+    // Below lg the same order stacks, so the open-ended roster comes last and the
+    // compact cards stay reachable without scrolling past it.
+    <div className="grid items-start gap-3.5 lg:grid-cols-[1.5fr_1fr]">
+      <div className="grid min-w-0 gap-3.5">
+      <div className="rounded-2xl border border-border bg-s1 p-5">
         <div className="mb-1 flex items-center gap-2 text-[14.5px] font-semibold"><Settings size={17} className="text-dim" /> Details</div>
         {isHost && <DetailRow k="Cover" v={<CoverPicker event={event} onPatch={onPatch} />} />}
         <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} onPatch={onPatch} />} />
@@ -295,11 +299,12 @@ function DetailsTab({ event, onDelete, onGoToTab, onPatch, onViewAvailability }:
         </div>
       </div>
 
+      <ExpensesCard event={event} isHost={isHost} onPatch={onPatch} />
+      </div>
+
       <ParticipantsCard event={event} isHost={isHost} onPatch={onPatch} onViewAvailability={onViewAvailability} />
 
-      <ExpensesCard event={event} isHost={isHost} onPatch={onPatch} />
-
-      {event.hostedByYou && !event.demo && <DangerZone title={event.title} onDelete={onDelete} />}
+      {event.hostedByYou && !event.demo && <div className="min-w-0 lg:col-span-2"><DangerZone title={event.title} onDelete={onDelete} /></div>}
     </div>
   )
 }
@@ -338,7 +343,7 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
   })()
 
   return (
-    <div className="min-w-[280px] flex-1 rounded-2xl border border-border bg-s1 p-5">
+    <div className="min-w-0 rounded-2xl border border-border bg-s1 p-5">
       <div className="mb-3 flex flex-wrap items-center gap-2 text-[14.5px] font-semibold">
         <Users size={17} className="text-dim" /> Participants
         <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[12px] text-dim">{event.participants.length}</span>
