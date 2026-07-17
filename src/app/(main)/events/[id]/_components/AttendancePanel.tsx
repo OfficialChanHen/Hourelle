@@ -152,7 +152,8 @@ function YourRsvpStrip({ onPick, full }: { onPick: (r: Rsvp) => void; full: bool
   )
 }
 
-/* ── shared: RSVP figure (borderless, open stats) ── */
+/* ── shared: RSVP figure (borderless, open stats). One sentence, not a number soup:
+   the big figure is going, the caption walks through everyone else. ── */
 function RsvpSummary({ participants, capacity }: { participants: Participant[]; capacity?: number }) {
   const going = participants.filter((p) => p.rsvp === 'attending').length
   const maybe = participants.filter((p) => p.rsvp === 'maybe').length
@@ -160,21 +161,26 @@ function RsvpSummary({ participants, capacity }: { participants: Participant[]; 
   const noReply = participants.filter((p) => p.rsvp === 'pending').length
   const total = participants.length
   const full = capacity != null && going >= capacity
+  const rest: React.ReactNode[] = []
+  if (maybe > 0) rest.push(<span key="m" className="text-ochre-text">{maybe} maybe</span>)
+  if (out > 0) rest.push(<span key="o" className="text-brick-text">{out} can&apos;t</span>)
+  if (noReply > 0) rest.push(<span key="n" className="text-faint">{noReply} no reply</span>)
   return (
     <div>
       <div className="flex items-baseline gap-2">
         <span className="font-serif text-[42.5px] leading-none">{going}</span>
-        <span className="text-[14.5px] text-dim">going of {total}</span>
+        <span className="text-[14.5px] text-dim">going</span>
         {capacity != null && (
-          <span className={`rounded-[6px] border px-1.5 py-px text-[11px] font-semibold ${full ? 'border-ochre-border bg-ochre-bg text-ochre-text' : 'border-border bg-s2 text-dim'}`}>
-            {full ? 'Full' : `${capacity - going} of ${capacity} spots left`}
+          <span className={`rounded-[6px] border px-1.5 py-px text-[11px] font-semibold ${full ? 'border-ochre-border bg-ochre-bg text-ochre-text' : 'border-teal-border bg-teal-bg text-teal-text'}`}>
+            {full ? `full · ${capacity} spots` : `${capacity - going} of ${capacity} spots left`}
           </span>
         )}
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
-        {maybe > 0 && <span className="text-ochre-text">{maybe} maybe</span>}
-        {out > 0 && <span className="text-brick-text">{out} can&apos;t</span>}
-        {noReply > 0 && <span className="text-faint">{noReply} no reply</span>}
+      <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-dim">
+        <span>{total} invited</span>
+        {capacity != null && <span className="text-faint">· capped at {capacity}</span>}
+        {rest.length > 0 && <span className="text-faint">· the other {maybe + out + noReply}:</span>}
+        {rest.map((r, i) => <span key={i} className="flex items-center gap-1.5">{i > 0 && <span className="text-faint">·</span>}{r}</span>)}
       </div>
     </div>
   )
@@ -209,6 +215,8 @@ function SingleVenue({
 }) {
   const winS = win?.s ?? 0
   const winE = win?.e ?? rows * step
+  // which roster group to show; everyone by default
+  const [showGroup, setShowGroup] = useState<'all' | 'whole' | 'part' | 'noTimes' | 'maybe' | 'out' | 'noReply'>('all')
 
   // group attendees by how their availability lines up with the event window — RSVP leads,
   // availability splits "going" into whole-time, part-time, and honest silence: someone who
@@ -227,6 +235,8 @@ function SingleVenue({
         part.push({ p, s: w ? w.s : winS, e: w ? w.e : null })
       } else whole.push(p)
     }
+    // longest availability first; hard conflicts (no overlap at all) sink to the bottom
+    part.sort((a, b) => ((b.e ?? b.s) - b.s) - ((a.e ?? a.s) - a.s))
     return { whole, part, noTimes, maybe, out, noReply }
   }, [event.participants, dayIv, win, winS, winE])
 
@@ -281,17 +291,40 @@ function SingleVenue({
       {quorum != null && win && <QuorumStatus quorum={quorum} whole={groups.whole.length} />}
       {shift && <ShiftSuggestion shift={shift} />}
 
-      <div className="mt-5 flex flex-col gap-4">
-        <RosterGroup label={hasVenue ? 'Here the whole time' : 'Free the whole time'} tone="teal" people={groups.whole.map((p) => ({ p }))} onPerson={onPerson} />
-        <RosterGroup label={hasVenue ? 'Part of the time' : 'Free part of the time'} tone="ochre" people={groups.part.map((x) => ({
+      {/* pick one group or read them all — the chips double as a headcount per group */}
+      <div className="mt-5 flex flex-wrap items-center gap-1.5">
+        {([
+          ['all', 'All', event.participants.length],
+          ['whole', hasVenue ? 'Whole time' : 'Free whole time', groups.whole.length],
+          ['part', 'Part time', groups.part.length],
+          ['noTimes', 'No times yet', groups.noTimes.length],
+          ['maybe', 'Maybe', groups.maybe.length],
+          ['out', "Can't", groups.out.length],
+          ['noReply', 'No reply', groups.noReply.length],
+        ] as const).filter(([k, , n]) => k === 'all' || n > 0).map(([k, l, n]) => {
+          const on = showGroup === k
+          return (
+            <button
+              key={k} onClick={() => setShowGroup(k)}
+              className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] font-semibold ${on ? 'border-accent bg-accent text-on-accent' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}
+            >
+              {l} <span className={on ? 'opacity-80' : 'text-faint'}>{n}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="mt-4 flex flex-col gap-4">
+        {(showGroup === 'all' || showGroup === 'whole') && <RosterGroup label={hasVenue ? 'Here the whole time' : 'Free the whole time'} tone="teal" people={groups.whole.map((p) => ({ p }))} onPerson={onPerson} />}
+        {(showGroup === 'all' || showGroup === 'part') && <RosterGroup label={hasVenue ? 'Part of the time' : 'Free part of the time'} tone="ochre" people={groups.part.map((x) => ({
           p: x.p,
           note: x.e != null ? `${fmtMinute(gridStart + x.s)}–${fmtMinute(gridStart + x.e)}` : 'time conflict',
           bar: barOf(x.s, x.e),
-        }))} onPerson={onPerson} />
-        <RosterGroup label="Going, no times yet" tone="faint" people={groups.noTimes.map((p) => ({ p }))} onPerson={onPerson} />
-        <RosterGroup label="Maybe" tone="ochre" people={groups.maybe.map((p) => ({ p }))} onPerson={onPerson} />
-        <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({ p }))} onPerson={onPerson} />
-        <RosterGroup label="No reply" tone="faint" people={groups.noReply.map((p) => ({ p }))} action={<CopyReminder event={event} />} onPerson={onPerson} />
+        }))} onPerson={onPerson} />}
+        {(showGroup === 'all' || showGroup === 'noTimes') && <RosterGroup label="Going, no times yet" tone="faint" hint="They said yes but haven't marked when they're free, so the best window can't count them." people={groups.noTimes.map((p) => ({ p }))} onPerson={onPerson} />}
+        {(showGroup === 'all' || showGroup === 'maybe') && <RosterGroup label="Maybe" tone="ochre" people={groups.maybe.map((p) => ({ p }))} onPerson={onPerson} />}
+        {(showGroup === 'all' || showGroup === 'out') && <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({ p }))} onPerson={onPerson} />}
+        {(showGroup === 'all' || showGroup === 'noReply') && <RosterGroup label="No reply" tone="faint" people={groups.noReply.map((p) => ({ p }))} action={<CopyReminder event={event} />} onPerson={onPerson} />}
       </div>
     </div>
   )
@@ -483,12 +516,13 @@ const TONE: Record<string, { dot: string; text: string }> = {
   faint: { dot: 'var(--faint)', text: 'text-faint' },
 }
 
-function RosterGroup({ label, tone, people, cap = 12, action, onPerson }: {
+function RosterGroup({ label, tone, people, cap = 12, action, onPerson, hint }: {
   label: string; tone: keyof typeof TONE | string
   people: { p: Participant; note?: string; bar?: { left: string; width: string } | null }[]
   cap?: number
   action?: ReactNode
   onPerson?: (pid: string) => void
+  hint?: string
 }) {
   if (!people.length) return null
   const t = TONE[tone] ?? TONE.faint
@@ -503,6 +537,7 @@ function RosterGroup({ label, tone, people, cap = 12, action, onPerson }: {
         <span className="text-[12.5px] text-faint">{people.length}</span>
         {action && <span className="ml-auto">{action}</span>}
       </div>
+      {hint && <p className="mb-2 max-w-[440px] text-[12px] leading-[1.5] text-faint">{hint}</p>}
       <div className="flex flex-col gap-1.5">
         {shown.map(({ p, note, bar }) => (
           <div key={p.id} className="flex items-center gap-2.5">
