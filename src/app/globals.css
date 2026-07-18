@@ -15,10 +15,14 @@
   /* availability heat ramp */
   --heat-low:#EBF1EB; --heat-mid:#CFE0D2; --heat-high:#9DBBA4; --heat-full:#2E4A3C;
   --you-only:#F3EAD9; --you-some:#EAD9BE; --you-many:#DCC8A2; --you-text:#6E5523;
-  /* grid slot lines + dashed cut lines — same color; the solid lines are redrawn
-     above the heat fills in the grid so saturated cells can't wash them out */
-  --grid-line:#A89D86;
+  /* grid slot lines — dark, so each time block reads instantly; redrawn above the
+     heat fills so saturated cells can't wash them out */
+  --grid-line:#7E7460;
+  /* grid chrome (header row + time column) — shared, softer than the slot lines */
+  --grid-edge:#A89D86;
   --grid-dash:#A89D86;
+  /* best-day header fill — must be opaque: it's a sticky surface content scrolls under */
+  --best-head:#F4EBD9;
 }
 
 /* Dark — warm charcoal */
@@ -35,7 +39,9 @@
   --heat-low:rgba(127,183,154,.14); --heat-mid:rgba(127,183,154,.30); --heat-high:rgba(127,183,154,.55); --heat-full:#5B9A7C;
   --you-only:rgba(203,161,90,.18); --you-some:rgba(203,161,90,.34); --you-many:rgba(203,161,90,.5); --you-text:#E4C188;
   --grid-line:rgba(244,236,214,.38);
+  --grid-edge:rgba(244,236,214,.22);
   --grid-dash:rgba(244,236,214,.38);
+  --best-head:#352C1D;
 }
 
 /* ───────────────── Map semantic tokens → Tailwind utilities (switch per theme) ───────────────── */
@@ -47,6 +53,10 @@
   --color-teal:var(--teal); --color-teal-text:var(--teal-text); --color-teal-bg:var(--teal-bg); --color-teal-border:var(--teal-border);
   --color-ochre:var(--ochre); --color-ochre-text:var(--ochre-text); --color-ochre-bg:var(--ochre-bg); --color-ochre-border:var(--ochre-border);
   --color-brick:var(--brick); --color-brick-text:var(--brick-text); --color-brick-bg:var(--brick-bg); --color-brick-border:var(--brick-border);
+  /* grid slot lines — a real color token: border-[var(--grid-line)] is ambiguous to
+     Tailwind and silently fell back to the global border-color */
+  --color-grid-line:var(--grid-line);
+  --color-grid-edge:var(--grid-edge);
 
   --font-serif:var(--font-instrument-serif), serif;
   --font-sans:var(--font-instrument-sans), system-ui, sans-serif;
@@ -54,7 +64,11 @@
   --shadow-soft:var(--shadow);
 }
 
-* { border-color: var(--border); }
+/* default border color — inside @layer base so border-color utilities can win;
+   an unlayered rule here would silently override every border-* color in the app */
+@layer base {
+  * { border-color: var(--border); }
+}
 
 body {
   background: var(--bg);

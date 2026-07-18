@@ -171,6 +171,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const weekDays = paddedDays.slice(page * WEEK, page * WEEK + WEEK)
   const goWeek = (dir: -1 | 1) => { setPage((p) => Math.max(0, Math.min(pageCount - 1, p + dir))); setSel(null) }
 
+  // when out-of-bounds filler leads the week, the first real day draws its own left
+  // border (the filler's grayed edge is too weak to frame it); with no leading filler
+  // the time column's right border already does the job — never both, no doubles
+  const firstRealIdx = weekDays.findIndex((d) => !d.pad)
+  const leftEdgeIdx = firstRealIdx > 0 ? firstRealIdx : -1
+
   // the avatar pile follows the column width: 17px avatars + 2px gaps in a 5px-padded
   // cell, at most two rows, and the bottom-right corner stays free for the "n/N" count —
   // on narrow screens the pile shrinks instead of spilling into the cells below
@@ -796,12 +802,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             }}
           >
             {/* header row — the corner cell stays pinned through both scroll directions */}
-            <div className="sticky left-0 top-0 z-[30] border-b border-r border-[var(--grid-line)] bg-s0" />
-            {weekDays.map((d) => {
+            <div className="sticky left-0 top-0 z-[30] border-b border-r border-grid-edge bg-s0"/>
+            {weekDays.map((d, di) => {
               // filler day outside the event's window — labeled but inert
               if (d.pad) {
                 return (
-                  <div key={d.key} className="sticky top-0 z-20 border-b border-r border-[var(--grid-line)] bg-s0 px-1.5 py-2 text-center opacity-60">
+                  <div key={d.key} className="sticky top-0 z-20 border-b border-r border-border bg-s0 px-1.5 py-2 text-center">
                     <div className="text-[11px] text-faint">{d.dow}</div>
                     <div className="text-[14px] font-semibold text-faint">{d.date}</div>
                   </div>
@@ -814,8 +820,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   key={d.key}
                   type="button"
                   onClick={() => toggleDay(d.key)}
-                  className="sticky top-0 z-20 border-b border-r border-[var(--grid-line)] px-1.5 py-2 text-center"
-                  style={{ background: isBestDay ? 'var(--ochre-bg)' : 'var(--s0)', borderBottomColor: isBestDay ? 'var(--ochre-border)' : 'var(--grid-line)', cursor: mode === 'edit' ? 'pointer' : 'default' }}
+                  className={`sticky top-0 z-20 border-b border-r border-grid-edge px-1.5 py-2 text-center ${di === leftEdgeIdx ? 'border-l border-l-grid-edge' : ''}`}
+                  style={{ background: isBestDay ? 'var(--best-head)' : 'var(--s0)', cursor: mode === 'edit' ? 'pointer' : 'default' }}
                   title={mode === 'edit' ? 'Click to fill the whole day' : undefined}
                 >
                   <div className="text-[11px] text-dim">{d.dow}</div>
@@ -848,7 +854,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   onClick={() => toggleTime(ti)}
                   // sticky-left so the time labels follow horizontal scroll, the same way
                   // the day header row follows vertical scroll
-                  className="sticky left-0 z-[15] flex items-center justify-center gap-1 border-b border-r border-[var(--grid-line)] bg-s0 p-1 text-[12px] font-medium text-dim"
+                  className="sticky left-0 z-[15] flex items-center justify-center gap-1 border-b border-r border-grid-edge bg-s0 p-1 text-[12px] font-medium text-dim"
                   style={{ cursor: mode === 'edit' ? 'pointer' : 'default' }}
                   title={mode === 'edit' ? 'Click to fill this time across the week' : undefined}
                 >
@@ -862,13 +868,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     {labelSub && <span className="text-[9.5px] font-semibold tracking-[.04em] text-faint">{labelSub}</span>}
                   </span>
                 </button>
-                {weekDays.map((d) => {
+                {weekDays.map((d, di) => {
                   // out-of-window cell: hatched, no data, no interactions
                   if (d.pad) {
                     return (
                       <div
                         key={d.key}
-                        className="min-h-[50px] border-b border-r border-[var(--grid-line)]"
+                        className="min-h-[50px] border-b border-r border-border"
                         style={{ background: 'repeating-linear-gradient(-45deg, var(--s0) 0 5px, var(--s2) 5px 6px)' }}
                         title="Outside this event's dates"
                       />
@@ -892,7 +898,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                       <div
                         key={d.key}
                         onClick={(e) => openDetail(e, d.key, ti)}
-                        className="relative min-h-[50px] cursor-pointer border-b border-r border-[var(--grid-line)]"
+                        className={`relative min-h-[50px] cursor-pointer border-b border-r border-grid-line ${di === leftEdgeIdx ? 'border-l border-l-grid-line' : ''}`}
                         style={{ boxShadow: open ? 'inset 0 0 0 1.5px var(--accent)' : d.best ? 'inset 0 0 0 1px var(--ochre-border)' : undefined }}
                         title={title}
                       >
@@ -928,7 +934,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                           />
                         ))}
                         {/* slot line redrawn above the heat fills so saturated cells can't wash it out */}
-                        <div className="pointer-events-none absolute z-[1] border-b border-r border-[var(--grid-line)]" style={{ inset: '0 -1px -1px 0' }} />
+                        <div className="pointer-events-none absolute z-[1] border-b border-r border-grid-line" style={{ inset: '0 -1px -1px 0' }} />
                         {/* cap the pile so a 100-person cell renders ~6 avatars + "+N", not 100 nodes */}
                         <div className="relative z-[1] flex flex-wrap content-start gap-0.5 p-[5px]">
                           {(() => {
@@ -954,7 +960,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   const isTopEdge = !!sel && !dragDel && sel.day === d.key && topCell === ti
                   const isBotEdge = !!sel && !dragDel && sel.day === d.key && botCell === ti
                   return (
-                    <div key={d.key} className="relative h-[50px] select-none border-b border-r border-[var(--grid-line)]" style={{ background: heat(oCount, editTotal), boxShadow: d.best ? 'inset 1px 0 0 0 var(--ochre-border), inset -1px 0 0 0 var(--ochre-border)' : undefined }}>
+                    <div key={d.key} className={`relative h-[50px] select-none border-b border-r border-grid-line ${di === leftEdgeIdx ? 'border-l border-l-grid-line' : ''}`} style={{ background: heat(oCount, editTotal), boxShadow: d.best ? 'inset 1px 0 0 0 var(--ochre-border), inset -1px 0 0 0 var(--ochre-border)' : undefined }}>
                       {ivs.map((iv, k) => {
                         const cs = Math.max(iv.s, w0), ce = Math.min(iv.e, w1)
                         if (ce <= cs) return null
@@ -979,7 +985,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         )
                       })}
                       {/* slot line redrawn above the heat fills so saturated cells can't wash it out */}
-                      <div className="pointer-events-none absolute z-[1] border-b border-r border-[var(--grid-line)]" style={{ inset: '0 -1px -1px 0' }} />
+                      <div className="pointer-events-none absolute z-[1] border-b border-r border-grid-line" style={{ inset: '0 -1px -1px 0' }} />
                       {cnt > 0 && <span className="pointer-events-none absolute bottom-[2px] right-1 z-[2] text-[9px] font-bold" style={{ color: cnt >= editTotal ? '#F4F1EA' : '#6E5523' }}>{cnt}/{editTotal}</span>}
                       {/* full-cell hit zone: empty → paint, over a block → select */}
                       <div className="absolute inset-0 z-[5] touch-auto" onPointerDown={(e) => onCellDown(e, d.key, ti)} onPointerUp={(e) => onCellTap(e, d.key, ti)} onPointerCancel={() => { tapRef.current = null }} />
