@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, ChevronDown, CalendarPlus, X, GripHorizontal, Check, Eraser, TriangleAlert, Bell, SlidersHorizontal, Minus, Plus, Search, Trash2 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
 import { AvatarRow } from '@/components/ui/AvatarRow'
-import { TimezonePill } from '@/components/ui/TimezonePill'
+import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Popover } from '@/components/ui/Popover'
 import {
@@ -674,9 +674,24 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             <IconBtn onClick={() => goWeek(1)} disabled={page >= pageCount - 1}><ChevronRight size={17} /></IconBtn>
           </div>
           {canConvert ? (
-            <button onClick={() => setMyTime((m) => !m)} title="Toggle timezone" className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[10px] text-[12.5px] hover:border-border2">
-              Times in <TimezonePill tz={myTime ? localTz : event.timezone} /> {myTime && <span className="text-faint">(yours)</span>}
-            </button>
+            // a two-sided toggle, so it reads as "event zone vs your zone" at a glance
+            <div className="flex h-7 items-center overflow-hidden rounded-lg border border-border bg-s1 text-[12px] font-medium" role="group" aria-label="Show times in">
+              <button
+                type="button" onClick={() => setMyTime(false)} aria-pressed={!myTime}
+                title={`Event time (${tzAbbr(event.timezone)})`}
+                className={`flex h-full items-center px-2 ${!myTime ? 'bg-accent font-semibold text-on-accent' : 'text-dim hover:text-text'}`}
+              >
+                {/* baseline-align the label and the smaller mono abbr so they sit on one line */}
+                <span className="flex items-baseline gap-1">Event <span className="font-mono text-[10.5px]">{tzAbbr(event.timezone)}</span></span>
+              </button>
+              <button
+                type="button" onClick={() => setMyTime(true)} aria-pressed={myTime}
+                title={`Your time (${tzAbbr(localTz)})`}
+                className={`flex h-full items-center px-2 ${myTime ? 'bg-accent font-semibold text-on-accent' : 'text-dim hover:text-text'}`}
+              >
+                <span className="flex items-baseline gap-1">Yours <span className="font-mono text-[10.5px]">{tzAbbr(localTz)}</span></span>
+              </button>
+            </div>
           ) : (
             <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={event.timezone} /></span>
           )}
@@ -1232,6 +1247,7 @@ function ImportPreview({ provider, data, mine, days, tz, fmt, gridStartMin, onAp
 /* ── import from calendar (availability stage): connect a provider and auto-fill busy times ── */
 function ImportFromCalendar({ onPick }: { onPick: (provider: string) => void }) {
   const [open, setOpen] = useState(false)
+  const panelRef = useClampX(open)
   const wrap = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -1251,12 +1267,12 @@ function ImportFromCalendar({ onPick }: { onPick: (provider: string) => void }) 
         aria-expanded={open}
         className={`flex h-7 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2 ${open ? 'border-border2' : 'border-border'}`}
       >
-        <CalendarPlus size={15} /> Import from calendar <ChevronDown size={13} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
+        <CalendarPlus size={15} /> <span className="sm:hidden">Import</span><span className="hidden sm:inline">Import from calendar</span> <ChevronDown size={13} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-[35] mt-1 w-[248px] rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
+        <div ref={panelRef} className="absolute left-0 top-full z-[35] mt-1 w-[248px] max-w-[calc(100vw-16px)] rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
           <p className="px-2.5 pb-1.5 pt-2 text-[12px] leading-[1.45] text-faint">
-            Connect a calendar and your free times fill in automatically. Busy times import as exact moments, so they stay correct even if your calendar uses a different timezone than this event. You review everything before it&apos;s saved.
+            Connect a calendar and your free times fill in automatically, with a review before anything is saved.
           </p>
           {(['Google Calendar', 'Outlook'] as const).map((name) => (
             <button key={name} type="button" onClick={() => { setOpen(false); onPick(name) }} className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left text-[13.5px] font-medium hover:bg-s2">
@@ -1269,9 +1285,25 @@ function ImportFromCalendar({ onPick }: { onPick: (provider: string) => void }) 
   )
 }
 
+/* nudge an anchored panel back inside the viewport — same trick as the shared Popover */
+function useClampX(open: boolean) {
+  const ref = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!open || !el) return
+    el.style.transform = ''
+    const r = el.getBoundingClientRect()
+    const pad = 8
+    const dx = r.left < pad ? pad - r.left : r.right > window.innerWidth - pad ? window.innerWidth - pad - r.right : 0
+    if (dx) el.style.transform = `translateX(${dx}px)`
+  }, [open])
+  return ref
+}
+
 /* ── clear all my times, with a warning before anything is committed ── */
 function ClearTimes({ onClear }: { onClear: () => void }) {
   const [open, setOpen] = useState(false)
+  const panelRef = useClampX(open)
   const wrap = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -1291,10 +1323,10 @@ function ClearTimes({ onClear }: { onClear: () => void }) {
         aria-expanded={open}
         className={`flex h-7 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[13px] font-medium text-dim hover:border-border2 hover:text-brick-text ${open ? 'border-border2' : 'border-border'}`}
       >
-        <Eraser size={15} /> Clear my times
+        <Eraser size={15} /> <span className="sm:hidden">Clear</span><span className="hidden sm:inline">Clear my times</span>
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-[35] mt-1 w-[236px] rounded-[10px] border border-brick-border bg-s1 p-3 shadow-soft">
+        <div ref={panelRef} className="absolute left-0 top-full z-[35] mt-1 w-[236px] max-w-[calc(100vw-16px)] rounded-[10px] border border-brick-border bg-s1 p-3 shadow-soft">
           <div className="flex items-start gap-2">
             <TriangleAlert size={16} className="mt-px flex-none text-brick-text" />
             <p className="text-[13px] leading-[1.5] text-text">

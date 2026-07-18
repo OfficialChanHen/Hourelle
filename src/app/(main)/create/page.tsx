@@ -212,10 +212,11 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
   const canCreate = form.title.trim().length > 0
 
   return (
-    <div className="mx-auto max-w-[760px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
-      <div className="mb-[22px] text-center">
-        <h1 className="font-serif text-[33.5px] leading-[1.04] tracking-[-0.01em]">Create event</h1>
-        <p className="mt-1.5 text-[13.5px] text-dim">Fill in a few details, invite people, then review and create it.</p>
+    <div className="mx-auto max-w-[760px] px-4 pb-[104px] pt-6 sm:px-[26px] sm:pt-[34px]">
+      {/* compact on phones: the stepper below already tells the story */}
+      <div className="mb-4 text-center sm:mb-[22px]">
+        <h1 className="font-serif text-[27px] leading-[1.04] tracking-[-0.01em] sm:text-[33.5px]">Create event</h1>
+        <p className="mt-1.5 hidden text-[13.5px] text-dim sm:block">Fill in a few details, invite people, then review and create it.</p>
       </div>
 
       {/* step indicator — labels collapse to the current step on mobile so it never overflows */}
@@ -247,7 +248,7 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
       {step === 0 && (
         <div className="mb-4">
           <div className="mb-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Start from a template</div>
-          <div className="scroll-slim flex gap-1.5 overflow-x-auto pb-1">
+          <div className="flex flex-wrap gap-1.5">
             {WIZ_TEMPLATES.map((t) => {
               const Icon = t.icon
               const on = tpl === t.key
@@ -325,6 +326,12 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
   }
   const show = (e: string) => attempted && !!e
   const [tune, setTune] = useState(false)
+  // the visitor's own zone, when it's one we list — powers the one-tap suggestion.
+  // Resolved after mount only: the server can't know it, and guessing there mismatches hydration
+  const [localTzOpt, setLocalTzOpt] = useState<{ v: string; l: string } | null>(null)
+  useEffect(() => {
+    try { setLocalTzOpt(TZ.find((t) => t.v === Intl.DateTimeFormat().resolvedOptions().timeZone) ?? null) } catch { /* keep the plain helper text */ }
+  }, [])
   const openTune = tune || (attempted && !!errs.win) // never hide a field that has an error
   const winS = parseHM(form.windowStart), winE = parseHM(form.windowEnd)
   const winText = form.windowPreset !== 'any' && winS !== null && winE !== null && winE > winS
@@ -475,7 +482,12 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           </div>
           {show(errs.tz)
             ? <FieldError>{errs.tz}</FieldError>
-            : <p className="mt-1.5 text-[12.5px] leading-[1.5] text-faint">Every time on this event uses this zone. Double-check it if people join from elsewhere.</p>}
+            : localTzOpt && !form.timezone
+              // picking a zone stays a conscious step, but the common answer is one tap away
+              ? <button type="button" onClick={() => update({ timezone: localTzOpt.v })} className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-accent-border bg-accent-bg px-2.5 py-1 text-[12px] font-semibold text-accent-text">
+                  Use my time zone · {localTzOpt.l}
+                </button>
+              : <p className="mt-1.5 text-[12.5px] leading-[1.5] text-faint">Every time on this event uses this zone. Double-check it if people join from elsewhere.</p>}
         </div>
         <div className="min-w-[200px] flex-1">
           <Label>Budget (optional)</Label>

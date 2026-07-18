@@ -445,7 +445,8 @@ function LeadingPlace({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab
   return (
     <button onClick={() => onGoToTab?.('location')} className="mb-4 flex w-full flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-s0 px-4 py-3 text-left transition-colors hover:bg-s2">
       <span className="grid h-9 w-9 flex-none place-items-center rounded-lg border border-accent-border bg-accent-bg text-accent-text"><MapPin size={16} /></span>
-      <span className="min-w-0 flex-1">
+      {/* real min width: on phones the avatar pile wraps below instead of crushing the name */}
+      <span className="min-w-[180px] flex-1">
         <span className="flex items-center gap-2">
           <span className="truncate text-[14.5px] font-semibold">{lead.place.name}</span>
           {lead.confirmed

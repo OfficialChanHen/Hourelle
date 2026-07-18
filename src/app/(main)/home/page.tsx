@@ -95,18 +95,19 @@ function HeroCard({ e, phase }: { e: AppEvent; phase: Phase }) {
     <div className="overflow-hidden rounded-2xl border border-border bg-s1">
       <Cover src={e.image} from="#E4EDE7" to="#CFE0D5" className={e.image ? 'h-[110px]' : 'h-[64px]'} />
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 p-5">
-        <div className="min-w-0 flex-1">
+        {/* real min width: on phones the CTA wraps below instead of crushing the title */}
+        <div className="min-w-[220px] flex-1">
           <div className="mb-2 flex items-center gap-2">
             <Badge variant={badge.variant}>{badge.label}</Badge>
             <Badge variant={du !== null && du >= 0 && du <= 14 ? 'accent' : 'neutral'}>{daysUntilLabel(du)}</Badge>
           </div>
           <Link href={`/events/${e.id}`} className="block font-serif text-[27px] leading-[1.08] tracking-[-0.01em] hover:underline">{e.title}</Link>
-          <div className="mt-1.5 flex items-center gap-1.5 text-[13px] text-dim">
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[13px] text-dim">
             <Calendar size={14} /> {dateRangeText(e)} <TimezonePill tz={e.timezone} />
           </div>
           <LifecycleStrip phase={phase} className="mt-4 max-w-[380px]" />
         </div>
-        <Link href={action.href} className="flex h-10 flex-none items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent">
+        <Link href={action.href} className="flex h-10 w-full flex-none items-center justify-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent sm:w-auto">
           {action.label} <ArrowRight size={15} />
         </Link>
       </div>

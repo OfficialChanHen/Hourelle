@@ -27,10 +27,10 @@ import { ConfirmedHero } from './ConfirmedHero'
 import { ChatDrawer } from './ChatDrawer'
 
 const TABS = [
-  { key: 'availability', label: 'Availability', icon: CalendarRange },
-  { key: 'location', label: 'Location', icon: MapPin },
-  { key: 'attendance', label: 'Attendance', icon: UsersRound },
-  { key: 'details', label: 'Event details', icon: Settings },
+  { key: 'availability', label: 'Availability', short: 'Availability', icon: CalendarRange },
+  { key: 'location', label: 'Location', short: 'Location', icon: MapPin },
+  { key: 'attendance', label: 'Attendance', short: 'Attendance', icon: UsersRound },
+  { key: 'details', label: 'Event details', short: 'Details', icon: Settings },
 ] as const
 type TabKey = (typeof TABS)[number]['key']
 
@@ -145,9 +145,10 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
   }
 
   return (
-    <div className="mx-auto max-w-[1240px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
-      {/* the host's cover, when one is set — photo or preset scene */}
-      {event.image && <Cover src={event.image} from="#E4EDE7" to="#CFE0D5" className="mb-5 h-[130px] border border-border sm:h-[170px]" rounded="rounded-2xl" />}
+    <div className="mx-auto max-w-[1240px] px-4 pb-[104px] pt-5 sm:px-[26px] sm:pt-[34px]">
+      {/* the host's cover, when one is set — photo or preset scene; shorter on phones
+          so the tabs and content stay within the first screen */}
+      {event.image && <Cover src={event.image} from="#E4EDE7" to="#CFE0D5" className="mb-4 h-[92px] border border-border sm:mb-5 sm:h-[170px]" rounded="rounded-2xl" />}
       {/* header */}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
@@ -174,8 +175,8 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
             align="end"
             width={312}
             trigger={(open) => (
-              <span className={`flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[14px] font-semibold ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
-                <Link2 size={16} /> Share link
+              <span className={`flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[14px] font-semibold sm:px-3.5 ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
+                <Link2 size={16} /> <span className="hidden sm:inline">Share link</span>
               </span>
             )}
           >
@@ -195,7 +196,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       </div>
 
       {/* where the event sits in its life — a quiet strip, then one line of state */}
-      <div className="mb-6 border-b border-border pb-5">
+      <div className="mb-4 border-b border-border pb-4 sm:mb-6 sm:pb-5">
         <LifecycleStrip phase={phase} className="max-w-[420px]" />
         {(phase === 'planning' || phase === 'past') && (
           <div className="mt-3"><StageSummary event={event} phase={phase} onGoToAvailability={goToBestWindow} /></div>
@@ -206,14 +207,17 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       {locked && phase !== 'past' && <ConfirmedHero event={event} onChanged={refresh} />}
 
       {/* tabs — horizontally scrollable on narrow screens, with edge fades hinting more */}
-      <div className="relative mb-6">
-        <div ref={tabsRef} onScroll={checkTabFade} className="scroll-slim flex items-center gap-1.5 overflow-x-auto pb-1">
+      <div className="relative mb-4 sm:mb-6">
+        <div ref={tabsRef} onScroll={checkTabFade} className="scroll-slim flex items-center gap-1 overflow-x-auto pb-1 sm:gap-1.5">
           {TABS.map((t) => {
             const active = tab === t.key
             const Icon = t.icon
             return (
-              <button key={t.key} data-active={active} onClick={() => setTab(t.key)} className={`flex flex-none items-center gap-1.5 whitespace-nowrap rounded-[10px] px-[15px] py-[9px] text-[14px] transition-colors ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
-                <Icon size={16} /> {t.label}
+              // phones drop the icons and long labels so all four tabs fit without scrolling
+              <button key={t.key} data-active={active} onClick={() => setTab(t.key)} className={`flex flex-none items-center gap-1.5 whitespace-nowrap rounded-[10px] px-2.5 py-2 text-[13.5px] transition-colors sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
+                <Icon size={16} className="hidden sm:block" />
+                <span className="sm:hidden">{t.short}</span>
+                <span className="hidden sm:inline">{t.label}</span>
               </button>
             )
           })}
@@ -237,7 +241,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
 function EditableTitle({ title, editable, onSave }: { title: string; editable: boolean; onSave: (t: string) => void }) {
   const [editing, setEditing] = useState(false)
   const ref = useRef<HTMLInputElement>(null)
-  const h1 = 'font-serif text-[34.5px] leading-[1.04] tracking-[-0.01em]'
+  const h1 = 'font-serif text-[27px] leading-[1.04] tracking-[-0.01em] sm:text-[34.5px]'
 
   if (!editable) return <h1 className={h1}>{title}</h1>
   if (editing) {
