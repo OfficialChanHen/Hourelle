@@ -215,6 +215,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     if (mode === 'edit') { setMode('view'); setSel(null) }
   }
   function clearFilter() { setFilter(new Set()); setDetail(null) }
+  // start from the whole group, then tap people off — the fast path for "everyone except a few"
+  function selectAllFilter() {
+    setFilter(new Set(nameSorted.map((p) => p.id)))
+    setDetail(null)
+    if (mode === 'edit') { setMode('view'); setSel(null) }
+  }
   function nudgeAll() { setNudged(new Set(missing.map((p) => p.id))) }
 
   // open the view-mode breakdown, anchored to the clicked cell but rendered outside the
@@ -653,7 +659,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         {/* participants + edit hint */}
         <div className="flex flex-wrap items-center gap-2.5 py-[11px]">
           <span className="text-[12.5px] text-dim">Participants</span>
-          <FilterAvatars participants={nameSorted} filter={filter} onToggle={toggleFilter} onClear={clearFilter} />
+          <FilterAvatars participants={nameSorted} filter={filter} onToggle={toggleFilter} onClear={clearFilter} onSelectAll={selectAllFilter} />
           {filterOn && (
             <button onClick={clearFilter} title="Show everyone again" className="flex items-center gap-1 rounded-full border border-accent-border bg-accent-bg px-2 py-0.5 text-[11.5px] font-semibold text-accent-text">
               Showing {filter.size} {filter.size === 1 ? 'person' : 'people'} <X size={11} />

@@ -4,7 +4,7 @@
    calendar import (menu + preview), clear-times, drag handles, quick fills,
    the who's-missing popover, the cell breakdown, and small controls */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Bell, CalendarPlus, Check, ChevronDown, Eraser, GripHorizontal, Minus, Plus, Search, X } from 'lucide-react'
+import { Bell, CalendarPlus, Check, ChevronDown, Eraser, GripHorizontal, Minus, Plus, Search, Users, X } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
@@ -16,7 +16,7 @@ import { subtract, type Band } from './grid-lib'
 /* ── clickable participant strip: tap a person to filter the grid to their free times.
    Capped at 8 avatars; the +N chip opens a modal with EVERYONE, filtered people marked. ── */
 export const FILTER_CAP = 8
-export function FilterAvatars({ participants, filter, onToggle, onClear }: { participants: Participant[]; filter: Set<string>; onToggle: (id: string) => void; onClear: () => void }) {
+export function FilterAvatars({ participants, filter, onToggle, onClear, onSelectAll }: { participants: Participant[]; filter: Set<string>; onToggle: (id: string) => void; onClear: () => void; onSelectAll: () => void }) {
   const shown = participants.slice(0, FILTER_CAP)
   const extra = participants.slice(FILTER_CAP)
   const active = filter.size > 0
@@ -46,15 +46,15 @@ export function FilterAvatars({ participants, filter, onToggle, onClear }: { par
         </button>
       )}
       {pickerOpen && (
-        <FilterModal participants={participants} filter={filter} onToggle={onToggle} onClear={onClear} onClose={() => setPickerOpen(false)} />
+        <FilterModal participants={participants} filter={filter} onToggle={onToggle} onClear={onClear} onSelectAll={onSelectAll} onClose={() => setPickerOpen(false)} />
       )}
     </span>
   )
 }
 
 /* the full people picker: everyone in roster order, the filtered group marked */
-export function FilterModal({ participants, filter, onToggle, onClear, onClose }: {
-  participants: Participant[]; filter: Set<string>; onToggle: (id: string) => void; onClear: () => void; onClose: () => void
+export function FilterModal({ participants, filter, onToggle, onClear, onSelectAll, onClose }: {
+  participants: Participant[]; filter: Set<string>; onToggle: (id: string) => void; onClear: () => void; onSelectAll: () => void; onClose: () => void
 }) {
   const root = useRef<HTMLDivElement>(null)
   const card = useRef<HTMLDivElement>(null)
@@ -70,6 +70,7 @@ export function FilterModal({ participants, filter, onToggle, onClear, onClose }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [q, setQ] = useState('')
   const list = q.trim() ? participants.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase())) : participants
+  const allOn = participants.every((p) => filter.has(p.id))
   return (
     <div
       ref={root}
@@ -97,6 +98,17 @@ export function FilterModal({ participants, filter, onToggle, onClear, onClose }
             </div>
           )}
           <div className="scroll-slim flex min-h-0 flex-1 flex-col overflow-auto">
+            {/* fast path for "the whole group except a few": grab everyone, then tap people off */}
+            {!q.trim() && (
+              <button
+                type="button" onClick={onSelectAll} disabled={allOn}
+                className="flex items-center gap-2.5 rounded-[8px] px-2 py-2 text-left text-[13.5px] font-semibold text-accent-text hover:bg-s2 disabled:cursor-default disabled:opacity-45 disabled:hover:bg-transparent"
+              >
+                <span className="grid h-6 w-6 flex-none place-items-center rounded-full border border-accent-border bg-accent-bg"><Users size={12} /></span>
+                <span className="min-w-0 flex-1 truncate">{allOn ? 'Everyone is selected' : 'Select everyone'}</span>
+                {!allOn && <span className="flex-none text-[11.5px] font-medium text-faint">{participants.length} people</span>}
+              </button>
+            )}
             {list.map((p) => {
               const on = filter.has(p.id)
               return (
