@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { Check, ChevronRight, Clock, Copy, Info, MapPin, TriangleAlert, Users } from 'lucide-react'
+import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, TriangleAlert, Users } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Popover } from '@/components/ui/Popover'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -40,7 +40,7 @@ function fmtDeadline(iso: string): string {
   return `${DOW[dt.getDay()]}, ${dayLabel(dt)}`
 }
 
-export function AttendancePanel({ event, onGoToTab, onViewAvailability, onGoToBestWindow }: { event: AppEvent; onGoToTab?: GoTab; onViewAvailability?: (pid: string) => void; onGoToBestWindow?: () => void }) {
+export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAvailabilityGroup, onGoToBestWindow }: { event: AppEvent; onGoToTab?: GoTab; onViewAvailability?: (pid: string) => void; onViewAvailabilityGroup?: (pids: string[]) => void; onGoToBestWindow?: () => void }) {
   const hasItinerary = (event.itinStops?.length ?? 0) > 0
   const [model, setModel] = useState<'single' | 'itin'>(hasItinerary ? 'itin' : 'single')
 
@@ -129,7 +129,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onGoToBe
           event={liveEvent} attendees={attendees} win={win} locked={locked} dayIv={dayIv}
           gridStart={gridStart} step={step} rows={rows}
           quorum={quorum} onQuorum={event.hostedByYou ? changeQuorum : undefined}
-          onGoToTab={onGoToTab} onPerson={onViewAvailability} markedIds={markedIds} onGoToBestWindow={onGoToBestWindow}
+          onGoToTab={onGoToTab} onPerson={onViewAvailability} onViewGroup={onViewAvailabilityGroup} markedIds={markedIds} onGoToBestWindow={onGoToBestWindow}
         />
       )}
     </div>
@@ -209,12 +209,12 @@ function CopySummaryButton({ event, win, locked, gridStart }: { event: AppEvent;
 
 /* ── Single venue: where it's happening, who's in the room, and when ── */
 function SingleVenue({
-  event, attendees, win, locked, dayIv, gridStart, step, rows, quorum, onQuorum, onGoToTab, onPerson, markedIds, onGoToBestWindow,
+  event, attendees, win, locked, dayIv, gridStart, step, rows, quorum, onQuorum, onGoToTab, onPerson, onViewGroup, markedIds, onGoToBestWindow,
 }: {
   event: AppEvent; attendees: Participant[]; win: Win | null; locked: boolean
   dayIv: Record<string, Iv[]>; gridStart: number; step: number; rows: number
   quorum: number | null; onQuorum?: (q: number | null) => void
-  onGoToTab?: GoTab; onPerson?: (pid: string) => void; onGoToBestWindow?: () => void
+  onGoToTab?: GoTab; onPerson?: (pid: string) => void; onViewGroup?: (pids: string[]) => void; onGoToBestWindow?: () => void
   markedIds: Set<string>
 }) {
   const winS = win?.s ?? 0
@@ -242,9 +242,8 @@ function SingleVenue({
         part.push({ p, s: w ? w.s : winS, e: w ? w.e : null })
       } else whole.push(p)
     }
-    // part-timers: longest availability first, conflicts sinking last; everyone else
-    // alphabetical by first then last name. Name order breaks part-time ties too.
-    part.sort((a, b) => ((b.e ?? b.s) - b.s) - ((a.e ?? a.s) - a.s) || byFirstLastName(a.p, b.p))
+    // every group reads the same way: first name, then last name
+    part.sort((a, b) => byFirstLastName(a.p, b.p))
     for (const g of [whole, noTimes, maybe, out, noReply]) g.sort(byFirstLastName)
     return { whole, part, noTimes, maybe, out, noReply }
   }, [event.participants, dayIv, win, winS, winE, markedIds]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -327,13 +326,13 @@ function SingleVenue({
       </div>
 
       <div className="mt-4 flex flex-col gap-4">
-        {(showGroup === 'all' || showGroup === 'whole') && <RosterGroup label={hasVenue ? 'Here the whole time' : 'Free the whole time'} tone="teal" people={groups.whole.map((p) => ({ p }))} onPerson={onPerson} />}
+        {(showGroup === 'all' || showGroup === 'whole') && <RosterGroup label={hasVenue ? 'Here the whole time' : 'Free the whole time'} tone="teal" people={groups.whole.map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.whole.map((p) => p.id)) : undefined} />}
         {(showGroup === 'all' || showGroup === 'part') && <RosterGroup label={hasVenue ? 'Part of the time' : 'Free part of the time'} tone="ochre" people={groups.part.map((x) => ({
           p: x.p,
           note: x.e != null ? `${fmtMinute(gridStart + x.s)}–${fmtMinute(gridStart + x.e)}` : 'time conflict',
           bar: barOf(x.s, x.e),
-        }))} onPerson={onPerson} />}
-        {(showGroup === 'all' || showGroup === 'noTimes') && <RosterGroup label="Going, no times yet" tone="faint" hint="They said yes but haven't marked when they're free, so the best window can't count them." people={groups.noTimes.map((p) => ({ p }))} onPerson={onPerson} />}
+        }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.part.map((x) => x.p.id)) : undefined} />}
+        {(showGroup === 'all' || showGroup === 'noTimes') && <RosterGroup label="Going, no times yet" tone="faint" hint="They said yes but haven't marked when they're free, so the best window can't count them." people={groups.noTimes.map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.noTimes.map((p) => p.id)) : undefined} />}
         {(showGroup === 'all' || showGroup === 'maybe') && <RosterGroup label="Maybe" tone="ochre" people={groups.maybe.map((p) => ({ p }))} onPerson={onPerson} />}
         {(showGroup === 'all' || showGroup === 'out') && <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({ p }))} onPerson={onPerson} />}
         {(showGroup === 'all' || showGroup === 'noReply') && <RosterGroup label="No reply" tone="faint" people={groups.noReply.map((p) => ({ p }))} action={<CopyReminder event={event} />} onPerson={onPerson} />}
@@ -533,12 +532,13 @@ const TONE: Record<string, { dot: string; text: string }> = {
   faint: { dot: 'var(--faint)', text: 'text-faint' },
 }
 
-function RosterGroup({ label, tone, people, cap = 12, action, onPerson, hint }: {
+function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGroup, hint }: {
   label: string; tone: keyof typeof TONE | string
   people: { p: Participant; note?: string; bar?: { left: string; width: string } | null }[]
   cap?: number
   action?: ReactNode
   onPerson?: (pid: string) => void
+  onOpenGroup?: () => void
   hint?: string
 }) {
   if (!people.length) return null
@@ -550,7 +550,14 @@ function RosterGroup({ label, tone, people, cap = 12, action, onPerson, hint }: 
     <div>
       <div className="mb-2 flex items-center gap-2">
         <span className="h-1.5 w-1.5 rounded-full" style={{ background: t.dot }} />
-        <span className={`text-[13.5px] font-semibold ${t.text}`}>{label}</span>
+        {onOpenGroup ? (
+          // availability groups link to the grid filtered to just these people
+          <button type="button" onClick={onOpenGroup} title="See this group on the availability calendar" className={`flex items-center gap-1.5 text-[13.5px] font-semibold hover:underline ${t.text}`}>
+            {label} <CalendarRange size={13} className="text-faint" />
+          </button>
+        ) : (
+          <span className={`text-[13.5px] font-semibold ${t.text}`}>{label}</span>
+        )}
         <span className="text-[12.5px] text-faint">{people.length}</span>
         {action && <span className="ml-auto">{action}</span>}
       </div>

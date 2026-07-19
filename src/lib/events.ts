@@ -418,6 +418,32 @@ export function byFirstLastName(a: Pick<Participant, 'name'>, b: Pick<Participan
   return af.localeCompare(bf) || ar.join(' ').localeCompare(br.join(' '))
 }
 
+// canonical roster order, shared by every people list: availability group first
+// (whole time → part time → conflict elsewhere → never marked → maybe → not going
+// → no reply), then first name, then last name
+export function sortByAttendance(ev: AppEvent): Participant[] {
+  const availIv = availIvOf(ev)
+  const gridStart = gridStartMinOf(ev)
+  const locked = ev.status === 'confirmed' && !!ev.confirmed
+  const win = locked
+    ? { dayKey: ev.confirmed!.dayKey, s: ev.confirmed!.startMin - gridStart, e: ev.confirmed!.endMin - gridStart }
+    : bestWindow(availIv, ev.days, ev.durationMin ?? 60, ev.bestMode)
+  const dayIv = win ? availIv[win.dayKey] ?? {} : {}
+  const marked = new Set<string>()
+  for (const day of Object.values(availIv)) for (const [id, ivs] of Object.entries(day)) if (ivs.length) marked.add(id)
+  const rank = (p: Participant): number => {
+    if (p.rsvp === 'pending') return 6
+    if (p.rsvp === 'not_going') return 5
+    if (p.rsvp === 'maybe') return 4
+    const ivs = win ? dayIv[p.id] : undefined
+    if (!ivs?.length) return marked.has(p.id) ? 2 : 3
+    if (win && ivs.some((iv) => iv.s <= win.s && iv.e >= win.e)) return 0
+    if (win && ivs.some((iv) => iv.s < win.e && iv.e > win.s)) return 1
+    return 2
+  }
+  return [...ev.participants].sort((a, b) => rank(a) - rank(b) || byFirstLastName(a, b))
+}
+
 // everything that references a participant, minus that participant — their availability,
 // votes, and roster row go together so no tab is left pointing at a ghost
 export function removeParticipantPatch(ev: AppEvent, pid: string): Partial<AppEvent> {

@@ -16,7 +16,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, byFirstLastName, dateRangeText, fmtMinute, gridStartMinOf, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, type AppEvent, type Rsvp } from '@/lib/events'
+import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, dateRangeText, fmtMinute, gridStartMinOf, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, sortByAttendance, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -45,9 +45,9 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
   const router = useRouter()
   const [tab, setTab] = useState<TabKey>(initialTab ?? 'availability')
   const [event, setEvent] = useState<AppEvent | null | undefined>(undefined)
-  // clicking a person elsewhere jumps to the availability grid filtered to them;
-  // cleared during render once the user moves off that tab
-  const [availFocus, setAvailFocus] = useState<string | null>(null)
+  // clicking a person or group elsewhere jumps to the availability grid filtered to
+  // them; cleared during render once the user moves off that tab
+  const [availFocus, setAvailFocus] = useState<string[] | null>(null)
   if (tab !== 'availability' && availFocus) setAvailFocus(null)
   // nonce: each best-window click re-centers the grid, even mid-visit
   const [bestFocus, setBestFocus] = useState(0)
@@ -143,7 +143,11 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
     setEvent((ev) => (ev ? { ...ev, ...patch } : ev))
   }
   function goToAvailabilityFor(pid: string) {
-    setAvailFocus(pid)
+    setAvailFocus([pid])
+    setTab('availability')
+  }
+  function goToAvailabilityGroup(pids: string[]) {
+    setAvailFocus(pids.length ? pids : null)
     setTab('availability')
   }
   function goToBestWindow() {
@@ -242,7 +246,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       {/* body */}
       {tab === 'availability' && <AvailabilityPanel event={event} locked={locked} initialFilter={availFocus} focusBest={bestFocus} />}
       {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} />}
-      {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={setTab} onViewAvailability={goToAvailabilityFor} onGoToBestWindow={goToBestWindow} />}
+      {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={setTab} onViewAvailability={goToAvailabilityFor} onViewAvailabilityGroup={goToAvailabilityGroup} onGoToBestWindow={goToBestWindow} />}
       {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToTab={setTab} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} />}
 
       {/* discussion follows you down the page — the classic chat bubble, above the
@@ -359,29 +363,7 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
   const going = event.participants.filter((p) => p.rsvp === 'attending').length
   const noReply = event.participants.filter((p) => p.rsvp === 'pending').length
 
-  const sorted = (() => {
-    const availIv = availIvOf(event)
-    const gridStart = gridStartMinOf(event)
-    const locked = event.status === 'confirmed' && !!event.confirmed
-    const best = bestWindow(availIv, event.days, event.durationMin ?? 60, event.bestMode)
-    const win = locked
-      ? { dayKey: event.confirmed!.dayKey, s: event.confirmed!.startMin - gridStart, e: event.confirmed!.endMin - gridStart }
-      : best
-    const dayIv = win ? availIv[win.dayKey] ?? {} : {}
-    const marked = new Set<string>()
-    for (const day of Object.values(availIv)) for (const [id, ivs] of Object.entries(day)) if (ivs.length) marked.add(id)
-    const rank = (p: AppEvent['participants'][number]): number => {
-      if (p.rsvp === 'pending') return 6
-      if (p.rsvp === 'not_going') return 5
-      if (p.rsvp === 'maybe') return 4
-      const ivs = win ? dayIv[p.id] : undefined
-      if (!ivs?.length) return marked.has(p.id) ? 2 : 3 // conflict elsewhere vs never marked
-      if (win && ivs.some((iv) => iv.s <= win.s && iv.e >= win.e)) return 0 // whole time
-      if (win && ivs.some((iv) => iv.s < win.e && iv.e > win.s)) return 1  // part time
-      return 2
-    }
-    return [...event.participants].sort((a, b) => rank(a) - rank(b) || byFirstLastName(a, b))
-  })()
+  const sorted = sortByAttendance(event)
 
   return (
     <div className="min-w-0 rounded-2xl border border-border bg-s1 p-5">

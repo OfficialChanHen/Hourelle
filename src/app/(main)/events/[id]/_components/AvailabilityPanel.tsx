@@ -10,7 +10,7 @@ import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Popover } from '@/components/ui/Popover'
 import {
-  patchEvent, availIvOf, intervalsToGrid, normalizeIv, bestWindow, fmtMinute, gridStartMinOf, stepOf, dayLabel, type BestMode,
+  patchEvent, availIvOf, intervalsToGrid, normalizeIv, bestWindow, fmtMinute, gridStartMinOf, stepOf, dayLabel, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
 import { buildImportPreview, mockBusyUtc, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport } from '@/lib/calendar-import'
@@ -106,9 +106,14 @@ function padToWeeks(days: GridDay[]): GDay[] {
   return out
 }
 
-export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0 }: { event: AppEvent; locked?: boolean; initialFilter?: string | null; focusBest?: number }) {
+export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0 }: { event: AppEvent; locked?: boolean; initialFilter?: string[] | string | null; focusBest?: number }) {
   const total = event.participants.length
   const pById = new Map(event.participants.map((p) => [p.id, p]))
+  // canonical people order for every list and pile here: availability group
+  // (whole time first), then first name, then last name
+  const rosterSorted = useMemo(() => sortByAttendance(event), [event])
+  const rosterIdx = useMemo(() => new Map(rosterSorted.map((p, i) => [p.id, i])), [rosterSorted])
+  const byRoster = (ids: string[]) => [...ids].sort((a, b) => (rosterIdx.get(a) ?? 999) - (rosterIdx.get(b) ?? 999))
   const avatarOf = (id: string) => {
     const p = pById.get(id)
     return { initials: p?.initials ?? id, name: p?.name ?? id, color: p?.color ?? ('gray' as Participant['color']) }
@@ -144,8 +149,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // until you've marked something — the page's one ask of a new participant.
   // Arriving with a person to focus (clicked from another tab) always opens in view.
   const [mode, setMode] = useState<Mode>(locked || initialFilter ? 'view' : !youAny ? 'edit' : 'view')
-  // person filter — view mode reads the heat map against just the selected people
-  const [filter, setFilter] = useState<Set<string>>(() => new Set(initialFilter ? [initialFilter] : []))
+  // person filter — view mode reads the heat map against just the selected people;
+  // seeded with one person or a whole availability group from other tabs
+  const [filter, setFilter] = useState<Set<string>>(() => new Set(Array.isArray(initialFilter) ? initialFilter : initialFilter ? [initialFilter] : []))
   const [h24, setH24] = useState(false)
   const [myTime, setMyTime] = useState(false) // show times in the viewer's local zone
   const [durationMin, setDurationMin] = useState(event.durationMin ?? 60)
@@ -582,7 +588,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
 
   // who still hasn't marked any availability (to nudge)
   const respondedIds = new Set(otherIds); if (youAny) respondedIds.add('JM')
-  const missing = event.participants.filter((p) => !respondedIds.has(p.id) && p.rsvp !== 'not_going')
+  const missing = rosterSorted.filter((p) => !respondedIds.has(p.id) && p.rsvp !== 'not_going')
   // filtered-in people with nothing marked — an empty grid needs to say why
   const unmarked = filterOn
     ? [...filter].filter((id) => !respondedIds.has(id)).map((id) => pById.get(id)).filter((p): p is Participant => !!p)
@@ -718,7 +724,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         {/* participants + edit hint */}
         <div className="flex flex-wrap items-center gap-2.5 py-[11px]">
           <span className="text-[12.5px] text-dim">Participants</span>
-          <FilterAvatars participants={event.participants} filter={filter} onToggle={toggleFilter} />
+          <FilterAvatars participants={rosterSorted} filter={filter} onToggle={toggleFilter} onClear={clearFilter} />
           {filterOn && (
             <button onClick={clearFilter} title="Show everyone again" className="flex items-center gap-1 rounded-full border border-accent-border bg-accent-bg px-2 py-0.5 text-[11.5px] font-semibold text-accent-text">
               Showing {filter.size} {filter.size === 1 ? 'person' : 'people'} <X size={11} />
@@ -971,7 +977,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                             const shown = n <= pileMax ? Math.min(n, AVATAR_CAP) : pileMax - 1
                             return (
                               <>
-                                {peak.ids.slice(0, shown).map((id) => { const a = avatarOf(id); return <Avatar key={id} initials={a.initials} color={a.color} size={17} font={8.5} title={a.name} /> })}
+                                {byRoster(peak.ids).slice(0, shown).map((id) => { const a = avatarOf(id); return <Avatar key={id} initials={a.initials} color={a.color} size={17} font={8.5} title={a.name} /> })}
                                 {n > shown && <span className="grid h-[15px] min-w-[15px] place-items-center rounded-full bg-s3 px-[3px] text-[8.5px] font-bold text-dim" title={`${n} free`}>+{n - shown}</span>}
                               </>
                             )
@@ -1084,7 +1090,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   ? <span className="text-[12.5px] font-semibold text-teal-text">around {Math.round(bw.avg)} of {viewTotal} there{bw.count > 0 && <span className="font-normal text-dim"> · {bw.count} the whole time</span>}</span>
                   : <span className="text-[12.5px] font-semibold text-teal-text">{bw.anyIds.length} of {viewTotal} there for part of it</span>
                 : <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {viewTotal} free</span>}
-              <div className="ml-auto"><AvatarRow people={(bestMode === 'crowd' ? bw.anyIds : bw.ids).map(avatarOf)} size={22} max={8} overlap={5} /></div>
+              <div className="ml-auto"><AvatarRow people={byRoster(bestMode === 'crowd' ? bw.anyIds : bw.ids).map(avatarOf)} size={22} max={8} overlap={5} /></div>
             </>
           ) : responded > 0 ? (
             <span className="text-[12.5px] text-dim">No block long enough for a <span className="font-semibold text-text">{fmtDur(durationMin)}</span> event yet. Try a shorter length, or wait for more responses.</span>
@@ -1124,13 +1130,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
 }
 
 /* ── clickable participant strip: tap a person to filter the grid to their free times.
-   Capped at 8 avatars; the +N chip opens a scrollable picker for everyone else. ── */
+   Capped at 8 avatars; the +N chip opens a modal with EVERYONE, filtered people marked. ── */
 const FILTER_CAP = 8
-function FilterAvatars({ participants, filter, onToggle }: { participants: Participant[]; filter: Set<string>; onToggle: (id: string) => void }) {
+function FilterAvatars({ participants, filter, onToggle, onClear }: { participants: Participant[]; filter: Set<string>; onToggle: (id: string) => void; onClear: () => void }) {
   const shown = participants.slice(0, FILTER_CAP)
   const extra = participants.slice(FILTER_CAP)
   const active = filter.size > 0
   const extraOn = extra.filter((p) => filter.has(p.id)).length
+  const [pickerOpen, setPickerOpen] = useState(false)
   return (
     <span className="flex items-center">
       {shown.map((p, i) => {
@@ -1147,45 +1154,89 @@ function FilterAvatars({ participants, filter, onToggle }: { participants: Parti
         )
       })}
       {extra.length > 0 && (
-        <Popover width={236} align="start" className="ml-1.5" trigger={(open) => (
-          <span className={`grid h-[25px] min-w-[25px] place-items-center rounded-full border px-1.5 text-[10.5px] font-bold ${extraOn > 0 ? 'border-accent-border bg-accent-bg text-accent-text' : `border-border2 text-dim ${open ? 'bg-s2' : 'bg-s1'}`}`}>
-            +{extra.length}
-          </span>
-        )}>
-          {() => <FilterPickList extra={extra} filter={filter} onToggle={onToggle} />}
-        </Popover>
+        <button
+          type="button" onClick={() => setPickerOpen(true)} title="Pick people to filter by"
+          className={`ml-1.5 grid h-[25px] min-w-[25px] place-items-center rounded-full border px-1.5 text-[10.5px] font-bold ${extraOn > 0 ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border2 bg-s1 text-dim'}`}
+        >
+          +{extra.length}
+        </button>
+      )}
+      {pickerOpen && (
+        <FilterModal participants={participants} filter={filter} onToggle={onToggle} onClear={onClear} onClose={() => setPickerOpen(false)} />
       )}
     </span>
   )
 }
 
-/* the overflow picker: searchable once the list is long enough that scanning stops working */
-function FilterPickList({ extra, filter, onToggle }: { extra: Participant[]; filter: Set<string>; onToggle: (id: string) => void }) {
+/* the full people picker: everyone in roster order, the filtered group marked */
+function FilterModal({ participants, filter, onToggle, onClear, onClose }: {
+  participants: Participant[]; filter: Set<string>; onToggle: (id: string) => void; onClear: () => void; onClose: () => void
+}) {
+  const root = useRef<HTMLDivElement>(null)
+  const card = useRef<HTMLDivElement>(null)
+  useGSAP(() => {
+    gsap.timeline()
+      .fromTo(root.current, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: 'power2.out' })
+      .fromTo(card.current, { y: 12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: 'power3.out' }, '<')
+  }, { scope: root })
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [q, setQ] = useState('')
-  const list = q.trim() ? extra.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase())) : extra
+  const list = q.trim() ? participants.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase())) : participants
   return (
-    <div className="flex flex-col p-0.5">
-      {extra.length > 8 && (
-        <div className="mb-1 flex items-center gap-1.5 rounded-[8px] border border-border bg-s0 px-2 focus-within:border-border2">
-          <Search size={12} className="flex-none text-faint" />
-          <input
-            autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a person"
-            className="h-7 w-full min-w-0 bg-transparent text-[13px] outline-none placeholder:text-faint"
-          />
+    <div
+      ref={root}
+      className="fixed inset-0 z-50 grid place-items-center bg-[rgba(0,0,0,.25)] p-4"
+      onPointerDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div ref={card} className="flex max-h-[calc(100dvh-32px)] w-full max-w-[360px] flex-col rounded-2xl border border-border bg-s1 shadow-soft">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <div className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint">Filter the grid</div>
+            <div className="mt-0.5 text-[15.5px] font-semibold">Pick people</div>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="grid h-8 w-8 place-items-center rounded-[8px] text-dim hover:bg-s2 hover:text-text">
+            <X size={16} />
+          </button>
         </div>
-      )}
-      <div className="scroll-slim flex max-h-[264px] flex-col overflow-auto">
-        {list.map((p) => {
-          const on = filter.has(p.id)
-          return (
-            <button key={p.id} type="button" onClick={() => onToggle(p.id)} className={`flex items-center gap-2 rounded-[7px] px-2 py-1.5 text-left text-[13px] font-medium hover:bg-s2 ${on ? 'bg-s2' : ''}`}>
-              <Avatar initials={p.initials} color={p.color} size={22} font={9} />
-              <span className="min-w-0 flex-1 truncate">{p.name}</span>
-              {on && <Check size={13} className="flex-none text-accent-text" />}
-            </button>
-          )
-        })}
-        {list.length === 0 && <span className="px-2 py-1.5 text-[12.5px] text-faint">No one matches.</span>}
+        <div className="flex min-h-0 flex-col px-3 py-2.5">
+          {participants.length > 8 && (
+            <div className="mb-1.5 flex items-center gap-1.5 rounded-[8px] border border-border bg-s0 px-2 focus-within:border-border2">
+              <Search size={12} className="flex-none text-faint" />
+              <input
+                autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a person"
+                className="h-8 w-full min-w-0 bg-transparent text-[13px] outline-none placeholder:text-faint"
+              />
+            </div>
+          )}
+          <div className="scroll-slim flex min-h-0 flex-1 flex-col overflow-auto">
+            {list.map((p) => {
+              const on = filter.has(p.id)
+              return (
+                <button key={p.id} type="button" onClick={() => onToggle(p.id)} className={`flex items-center gap-2.5 rounded-[8px] px-2 py-2 text-left text-[13.5px] font-medium hover:bg-s2 ${on ? 'bg-s2' : ''}`}>
+                  <Avatar initials={p.initials} color={p.color} size={24} font={9.5} />
+                  <span className="min-w-0 flex-1 truncate">{p.name}{p.you && <span className="font-normal text-faint"> · you</span>}</span>
+                  {on && <span className="flex flex-none items-center gap-1 text-[11.5px] font-semibold text-accent-text">In filter <Check size={13} /></span>}
+                </button>
+              )
+            })}
+            {list.length === 0 && <span className="px-2 py-1.5 text-[12.5px] text-faint">No one matches.</span>}
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-3">
+          <button
+            type="button" onClick={onClear} disabled={filter.size === 0}
+            className="text-[13px] font-semibold text-dim enabled:hover:text-brick-text disabled:opacity-40"
+          >
+            Clear filter{filter.size > 0 ? ` (${filter.size})` : ''}
+          </button>
+          <button type="button" onClick={onClose} className="flex h-9 items-center rounded-[9px] bg-accent px-4 text-[13.5px] font-semibold text-on-accent">
+            Done
+          </button>
+        </div>
       </div>
     </div>
   )
