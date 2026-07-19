@@ -30,9 +30,11 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
   const best = bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode)
   const gridStart = gridStartMinOf(event)
 
-  // the venue currently winning the vote, so the one line reports both fronts
+  // the venue currently winning the vote, so the one line reports both fronts —
+  // unless the host settled the place, which reads as fact instead
+  const settledPlace = event.location.settled ? event.location.places[0] : undefined
   const votesOf = (id: string) => event.votes?.[id] ?? []
-  const top = event.location.mode === 'vote'
+  const top = !settledPlace && event.location.mode === 'vote'
     ? [...event.location.places].sort((a, b) => votesOf(b.id).length - votesOf(a.id).length)[0]
     : undefined
   const leading = top && votesOf(top.id).length > 0 ? top : null
@@ -42,6 +44,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
       {responded === 0
         ? 'Waiting on availability'
         : <>{responded} of {total} responded{best && <> · best so far <button type="button" onClick={onGoToAvailability} className="font-semibold text-ochre hover:underline">{best.dayLabel} · {fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)}</button></>}</>}
+      {settledPlace && <> · <span className="font-semibold text-text">{settledPlace.name}</span> is the place</>}
       {leading && <> · <span className="font-semibold text-text">{leading.name}</span> leading the vote</>}
     </p>
   )

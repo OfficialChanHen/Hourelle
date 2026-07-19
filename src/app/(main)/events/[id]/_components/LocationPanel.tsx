@@ -57,7 +57,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   const [voteDeadline, setVoteDeadline] = useState(event.voteDeadline ?? '')
   const deadlineDu = voteDeadline ? daysUntil(voteDeadline) : null
   const votingClosed = deadlineDu !== null && deadlineDu < 0
-  const canAddPlaces = !locked && !votingClosed && (event.hostedByYou || guestsCanSuggest)
+  // a settled venue is a fact the host set — no voting, no guest suggestions
+  const settled = !!loc.settled
+  const canAddPlaces = !locked && !votingClosed && (event.hostedByYou || (guestsCanSuggest && !settled))
   const pById = new Map(event.participants.map((p) => [p.id, p]))
   const avatarOf = (id: string) => {
     const p = pById.get(id)
@@ -393,7 +395,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 )}
               </div>
               {/* vote right from the map — the popup uses fixed light colors like the map itself */}
-              {!locked && (() => {
+              {!locked && !settled && (() => {
                 const youVoted = votesOf(focusPlace.id).includes(YOU)
                 return (
                   <button
@@ -497,7 +499,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
               className="flex-1"
               value={sub}
               onChange={(v) => { setSub(v as 'vote' | 'itin'); setFocusPin(null) }}
-              options={[{ v: 'vote', l: 'Venue vote' }, { v: 'itin', l: 'Itinerary' }]}
+              options={[{ v: 'vote', l: settled ? 'Venue' : 'Venue vote' }, { v: 'itin', l: 'Itinerary' }]}
             />
             {sub === 'itin' && !locked && (
               // adding lives in a dropdown so the stop list keeps the room
@@ -514,7 +516,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 {() => <AddStopList places={places} stops={stops} canAdd={canAddPlaces} onExisting={addStop} onNew={addNewPlaceAsStop} />}
               </Popover>
             )}
-            {sub === 'vote' && event.hostedByYou && places.length > 0 && !locked && (
+            {sub === 'vote' && event.hostedByYou && places.length > 0 && !locked && !settled && (
               <Popover
                 align="end"
                 width={236}
@@ -588,7 +590,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
             <div className="mb-2 flex items-start gap-2 rounded-[10px] border border-border bg-s2 px-3 py-2">
               <Info size={14} className="mt-0.5 flex-none text-accent-text" />
               <span className="min-w-0 flex-1 text-[12.5px] leading-[1.5] text-dim">
-                {sub === 'vote' ? 'Add places and vote. The host locks in the winner.' : 'Votes pick the places. The route puts them in order.'}
+                {settled ? 'The host set the place. Availability still decides the time.' : sub === 'vote' ? 'Add places and vote. The host locks in the winner.' : 'Votes pick the places. The route puts them in order.'}
               </span>
               <button onClick={dismissHint} aria-label="Dismiss hint" className="flex-none text-faint hover:text-text"><X size={14} /></button>
             </div>
@@ -596,10 +598,10 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
 
           {sub === 'vote' && (
             <div className="flex min-h-0 flex-1 flex-col gap-2">
-              {canAddPlaces && <AddPlaceSearch onAdd={addPlace} taken={new Set(places.map((p) => p.id))} />}
+              {canAddPlaces && <AddPlaceSearch onAdd={addPlace} taken={new Set(places.map((p) => p.id))} placeholder={settled ? 'Add or change the place…' : undefined} />}
               {places.length === 0 ? (
-                <EmptyNote icon={Vote} text={canAddPlaces ? 'No places on the ballot yet. Search above to add the first one.' : 'No places to vote on yet. The host can add some, or allow guests to.'} />
-              ) : locked ? null : (
+                <EmptyNote icon={Vote} text={settled ? 'No place set yet. The host adds it above.' : canAddPlaces ? 'No places on the ballot yet. Search above to add the first one.' : 'No places to vote on yet. The host can add some, or allow guests to.'} />
+              ) : locked || settled ? null : (
                 // always show the vote budget — first-timers need to know tapping the arrow votes
                 <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 px-0.5 text-[12.5px] text-dim">
                   <Vote size={15} className="flex-none text-accent-text" />
@@ -638,20 +640,22 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                   const ids = votesOf(p.id)
                   const you = ids.includes(YOU)
                   const isLocked = locked && confirmedIds.has(p.id)
-                  const lead = locked ? isLocked : p.id === leadingId
+                  const isSet = settled && !locked // the venue as fact, before any lock-in
+                  const lead = locked ? isLocked : !settled && p.id === leadingId
                   const adder = p.addedBy ? avatarOf(p.addedBy) : null
                   return (
-                    <div key={p.id} data-flip-id={p.id} onClick={() => setFocusPin(p.id)} className={`relative flex cursor-pointer items-start gap-2.5 rounded-xl border p-2.5 ${isLocked ? 'border-teal-border bg-teal-bg/40' : lead ? 'border-accent-border bg-accent-bg/40' : 'border-border bg-s0'}`}>
-                      <span className={`grid h-[30px] w-[30px] flex-none place-items-center rounded-full text-[13.5px] font-bold ${isLocked ? 'bg-teal-bg text-teal-text' : lead ? 'bg-accent text-on-accent' : 'bg-s2 text-dim'}`}>{i + 1}</span>
+                    <div key={p.id} data-flip-id={p.id} onClick={() => setFocusPin(p.id)} className={`relative flex cursor-pointer items-start gap-2.5 rounded-xl border p-2.5 ${isLocked || isSet ? 'border-teal-border bg-teal-bg/40' : lead ? 'border-accent-border bg-accent-bg/40' : 'border-border bg-s0'}`}>
+                      <span className={`grid h-[30px] w-[30px] flex-none place-items-center rounded-full text-[13.5px] font-bold ${isLocked || isSet ? 'bg-teal-bg text-teal-text' : lead ? 'bg-accent text-on-accent' : 'bg-s2 text-dim'}`}>{isSet ? <MapPin size={15} /> : i + 1}</span>
                       <div className="min-w-0 flex-1">
                         <div className="mb-0.5 flex items-center gap-1.5">
                           <span className="text-[14px] font-semibold">{p.name}</span>
                           {isLocked && <span className="flex flex-none items-center gap-1 rounded-[5px] border border-teal-border bg-teal-bg px-[5px] py-px text-[10px] font-semibold text-teal-text"><Check size={10} /> Locked in</span>}
+                          {isSet && <span className="flex flex-none items-center gap-1 rounded-[5px] border border-teal-border bg-teal-bg px-[5px] py-px text-[10px] font-semibold text-teal-text"><Check size={10} /> Set</span>}
                           {!locked && lead && <span className="flex-none rounded-[5px] border border-accent-border bg-accent-bg px-[5px] py-px text-[10px] font-semibold text-accent-text">Leading</span>}
                         </div>
                         {/* address wraps in full — no truncation */}
                         <div className="mb-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] leading-[1.45] text-dim">
-                          <span>{p.place} · {ids.length} vote{ids.length === 1 ? '' : 's'}</span>
+                          <span>{p.place}{settled ? '' : ` · ${ids.length} vote${ids.length === 1 ? '' : 's'}`}</span>
                           <a href={osmUrl(p)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-0.5 text-[11.5px] font-medium text-accent-text hover:underline">
                             <ExternalLink size={11} /> Map
                           </a>
@@ -661,7 +665,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                             </span>
                           )}
                         </div>
-                        {!hideVoters && (
+                        {!hideVoters && !settled && (
                           <div className="flex">
                             {ids.slice(0, 6).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={20} font={8.5} title={a.name} /></span> })}
                           </div>
@@ -669,7 +673,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                       </div>
                       {!locked && (
                         <div className="flex flex-none items-center gap-1">
-                          <button
+                          {!settled && <button
                             onClick={(e) => { e.stopPropagation(); toggleVote(p.id) }}
                             aria-pressed={you}
                             disabled={votingClosed || (!you && maxVotes > 1 && votesLeft === 0)}
@@ -677,7 +681,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                             className={`grid h-[34px] w-[34px] place-items-center rounded-[9px] border ${you ? 'border-accent bg-accent text-on-accent' : 'border-border2 bg-s1 text-text enabled:hover:bg-s2 disabled:opacity-40'}`}
                           >
                             {you ? <Check size={18} /> : <ArrowUp size={18} />}
-                          </button>
+                          </button>}
                           {event.hostedByYou && (
                             <button onClick={() => attemptRemovePlace(p.id)} title="Remove this place" aria-label={`Remove ${p.name}`} className="grid h-[34px] w-7 place-items-center rounded-[9px] text-faint hover:text-brick-text">
                               <Trash2 size={16} />

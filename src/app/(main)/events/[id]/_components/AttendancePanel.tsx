@@ -452,8 +452,9 @@ function LeadingPlace({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab
             ? <span className="flex-none rounded-[6px] border border-teal-border bg-teal-bg px-1.5 py-px text-[10.5px] font-semibold text-teal-text">Confirmed</span>
             : <span className="flex-none rounded-[6px] border border-accent-border bg-accent-bg px-1.5 py-px text-[10.5px] font-semibold text-accent-text">Leading</span>}
         </span>
+        {/* a settled or confirmed venue was never voted on — the address alone says it */}
         <span className="block truncate text-[12.5px] text-dim">
-          {lead.place.place} · {voters.length} {voters.length === 1 ? 'vote' : 'votes'}
+          {lead.place.place}{!(event.location.settled || (lead.confirmed && voters.length === 0)) && <> · {voters.length} {voters.length === 1 ? 'vote' : 'votes'}</>}
           {lead.margin != null && lead.margin > 0 && <span> · ahead by {lead.margin}</span>}
           {lead.margin === 0 && <span className="text-ochre-text"> · tied for first</span>}
         </span>

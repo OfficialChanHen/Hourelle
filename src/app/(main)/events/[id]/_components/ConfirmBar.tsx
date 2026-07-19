@@ -87,10 +87,12 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
   })
 
   // votes rank the ballot; every venue stays pickable, so the host can lock in
-  // as many simultaneous spots as the event needs — the leader is preselected
+  // as many simultaneous spots as the event needs — the leader is preselected.
+  // A settled venue skips the choice entirely: it locks in as-is.
+  const settled = !!loc.settled && loc.places.length > 0
   const votesOf = (id: string) => event.votes?.[id] ?? []
   const ranked = [...loc.places].sort((a, b) => votesOf(b.id).length - votesOf(a.id).length)
-  const [placeIds, setPlaceIds] = useState<string[]>(() => (ranked[0] ? [ranked[0].id] : []))
+  const [placeIds, setPlaceIds] = useState<string[]>(() => (settled ? loc.places.map((p) => p.id) : ranked[0] ? [ranked[0].id] : []))
 
   // an event can have both a ballot and an itinerary — the host locks in one, not both
   const stops = event.itinStops ?? []
@@ -158,6 +160,10 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
         {loc.mode === 'remote' ? (
           <div className="flex items-center gap-2 rounded-[9px] border border-border bg-s2 px-3 py-2 text-[13px] text-dim">
             <Video size={15} className="flex-none text-accent-text" /> Online on {loc.platform}
+          </div>
+        ) : settled ? (
+          <div className="flex items-center gap-2 rounded-[9px] border border-border bg-s2 px-3 py-2 text-[13px] text-dim">
+            <MapPin size={15} className="flex-none text-accent-text" /> <span className="min-w-0 truncate">{loc.places.map((p) => p.name).join(' · ')}</span> <span className="flex-none text-faint">already set</span>
           </div>
         ) : !hasBallot ? (
           <div className="flex items-center gap-2 rounded-[9px] border border-border bg-s2 px-3 py-2 text-[13px] text-dim">

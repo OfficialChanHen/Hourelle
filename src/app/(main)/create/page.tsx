@@ -72,6 +72,10 @@ type Form = {
   hostMode: 'you' | 'org'
   orgName: string
   description: string
+  scheduleMode: 'find' | 'set' // find a time together, or the date is already set
+  fixedDay: string
+  fixedStart: string
+  fixedEnd: string
   startDate: string
   endDate: string
   granularity: string
@@ -85,6 +89,7 @@ type Form = {
   capacity: string
   locMode: LocMode
   planMode: PlanMode
+  locSettled: boolean // the place is chosen, not up for a vote
   picked: Stop[]
   platform: string
   meetingLink: string
@@ -94,14 +99,15 @@ type Form = {
 
 const initialForm: Form = {
   title: '', hostMode: 'you', orgName: '', description: '',
+  scheduleMode: 'find', fixedDay: '', fixedStart: '18:00', fixedEnd: '21:00',
   startDate: '', endDate: '', granularity: '30', windowPreset: 'any', windowStart: '', windowEnd: '', durationMin: 60,
   timezone: '', budget: '', budgetMode: 'total', capacity: '', // timezone deliberately unset: picking it is a required, conscious step
-  locMode: 'vote', planMode: 'vote', picked: [], platform: 'Google Meet', meetingLink: '',
+  locMode: 'vote', planMode: 'vote', locSettled: false, picked: [], platform: 'Google Meet', meetingLink: '',
   emails: [], accounts: [],
 }
 
 type Update = (patch: Partial<Form> | ((f: Form) => Partial<Form>)) => void
-type BasicsErrs = { title: string; org: string; start: string; end: string; win: string; tz: string }
+type BasicsErrs = { title: string; org: string; start: string; end: string; win: string; tz: string; fixed: string }
 
 // template starting points (/create?template=…) — structure only; dates stay a conscious choice
 const TEMPLATE_PRESETS: Record<string, Partial<Form>> = {
@@ -177,22 +183,34 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
   if (created) return <Created event={created} />
 
   // ── required-field validation ──
+  const finding = form.scheduleMode === 'find' // the window fields only matter when a time is being found
   const basicsErr: BasicsErrs = {
     title: form.title.trim() ? '' : 'Add an event title.',
     org: form.hostMode === 'org' && !form.orgName.trim() ? 'Add the organization name.' : '',
-    start: !form.startDate ? 'Pick the earliest day.' : today && form.startDate < today ? 'The earliest day can’t be before today.' : '',
-    end: !form.endDate ? 'Pick the latest day.' : form.startDate && form.endDate < form.startDate ? 'The latest day can’t be before the earliest day.' : '',
+    start: !finding ? '' : !form.startDate ? 'Pick the earliest day.' : today && form.startDate < today ? 'The earliest day can’t be before today.' : '',
+    end: !finding ? '' : !form.endDate ? 'Pick the latest day.' : form.startDate && form.endDate < form.startDate ? 'The latest day can’t be before the earliest day.' : '',
     win:
-      form.windowPreset === 'custom' && (parseHM(form.windowStart) === null || parseHM(form.windowEnd) === null)
+      finding && form.windowPreset === 'custom' && (parseHM(form.windowStart) === null || parseHM(form.windowEnd) === null)
         ? 'Pick both times for the custom window.'
-        : form.windowPreset === 'custom' && (parseHM(form.windowEnd) ?? 0) <= (parseHM(form.windowStart) ?? 0)
+        : finding && form.windowPreset === 'custom' && (parseHM(form.windowEnd) ?? 0) <= (parseHM(form.windowStart) ?? 0)
           ? 'The window has to end after it starts.'
           : '',
     tz: form.timezone ? '' : 'Pick the time zone this event runs in.',
+    fixed: finding
+      ? ''
+      : !form.fixedDay
+        ? 'Pick the day.'
+        : today && form.fixedDay < today
+          ? 'The day can’t be before today.'
+          : parseHM(form.fixedStart) === null || parseHM(form.fixedEnd) === null
+            ? 'Pick both times.'
+            : (parseHM(form.fixedEnd) as number) <= (parseHM(form.fixedStart) as number)
+              ? 'It has to end after it starts.'
+              : '',
   }
   // an empty ballot is fine: the Location tab handles it, and guests can add places later
   function stepValid(s: number) {
-    if (s === 0) return !basicsErr.title && !basicsErr.org && !basicsErr.start && !basicsErr.end && !basicsErr.win && !basicsErr.tz
+    if (s === 0) return !basicsErr.title && !basicsErr.org && !basicsErr.start && !basicsErr.end && !basicsErr.win && !basicsErr.tz && !basicsErr.fixed
     return true
   }
 
@@ -284,7 +302,13 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
           </button>
         ) : (
           <button
-            onClick={() => { if (canCreate) setCreated(createEvent(form)) }}
+            onClick={() => {
+              if (!canCreate) return
+              setCreated(createEvent({
+                ...form,
+                fixed: form.scheduleMode === 'set' ? { day: form.fixedDay, start: form.fixedStart, end: form.fixedEnd } : undefined,
+              }))
+            }}
             disabled={!canCreate}
             className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-[18px] text-[14px] font-semibold text-on-accent disabled:opacity-40"
           >
@@ -385,7 +409,34 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
       </div>
 
       <div>
-        <Label>Date window <Req /></Label>
+        <Label>When does it happen? <Req /></Label>
+        <SegmentedControl
+          stretch
+          className="mb-2.5 w-full"
+          value={form.scheduleMode}
+          onChange={(v) => update({ scheduleMode: v as 'find' | 'set' })}
+          options={[{ v: 'find', l: 'Find a time together', icon: CalendarRange }, { v: 'set', l: 'The date is set', icon: Check }]}
+        />
+        {form.scheduleMode === 'set' ? (
+          <div className="rounded-[12px] border border-border bg-s2 p-3.5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+              <div className="min-w-0 flex-1 sm:min-w-[150px]">
+                <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Day</span>
+                <input type="date" value={form.fixedDay} min={today || undefined} onChange={(e) => update({ fixedDay: e.target.value })} className={`${inputCls(show(errs.fixed) && !form.fixedDay)} cursor-pointer !bg-s1`} />
+              </div>
+              <div className="flex flex-none flex-wrap items-center gap-2.5 pb-px">
+                <span className="text-[12.5px] text-dim">from</span>
+                <TimeField value={form.fixedStart} onChange={(v) => update({ fixedStart: v })} err={show(errs.fixed) && !!form.fixedDay} label="Start time" />
+                <span className="text-[12.5px] text-dim">to</span>
+                <TimeField value={form.fixedEnd} onChange={(v) => update({ fixedEnd: v })} err={show(errs.fixed) && !!form.fixedDay} label="End time" />
+              </div>
+            </div>
+            {show(errs.fixed) && <FieldError>{errs.fixed}</FieldError>}
+            <p className="mt-2.5 border-t border-border pt-2.5 text-[12.5px] leading-[1.5] text-faint">
+              The plan starts out locked in. Invites skip the scheduling and go straight to yes or no.
+            </p>
+          </div>
+        ) : (
         <div className="rounded-[12px] border border-border bg-s2 p-3.5">
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
             <div className="min-w-0 flex-1 sm:min-w-[150px]">
@@ -462,6 +513,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           </div>
           </>)}
         </div>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-3.5">
@@ -543,7 +595,8 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
     return () => { ctrl.abort(); clearTimeout(t) }
   }, [term])
 
-  function add(l: Loc) { pickFlip.capture(); update((f) => ({ picked: [...f.picked, { ...l, uid: `s${stopUid.current++}` }] })); setQuery('') }
+  // a settled place is singular — picking another swaps it out
+  function add(l: Loc) { pickFlip.capture(); update((f) => ({ picked: [...(f.locSettled ? [] : f.picked), { ...l, uid: `s${stopUid.current++}` }] })); setQuery('') }
   function addCustom() { const name = term; if (name) add({ id: `custom:${name.toLowerCase()}`, name, place: 'Custom place' }) }
   function remove(uid: string) { pickFlip.capture(); update((f) => ({ picked: f.picked.filter((x) => x.uid !== uid) })) }
   function move(i: number, dir: -1 | 1) {
@@ -571,16 +624,21 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
             <SegmentedControl
               stretch
               className="w-full"
-              value={form.planMode}
-              onChange={(v) => update({ planMode: v as PlanMode })}
-              options={[{ v: 'vote', l: 'Guests vote', icon: Vote }, { v: 'itinerary', l: 'Plan a route', icon: Route }]}
+              value={form.locSettled ? 'set' : form.planMode}
+              onChange={(v) => {
+                if (v === 'set') update((f) => ({ locSettled: true, planMode: 'vote', picked: f.picked.slice(0, 1) }))
+                else update({ locSettled: false, planMode: v as PlanMode })
+              }}
+              options={[{ v: 'vote', l: 'Guests vote', icon: Vote }, { v: 'itinerary', l: 'Plan a route', icon: Route }, { v: 'set', l: 'Already chosen', icon: Check }]}
             />
           </div>
 
           <p className="flex items-start gap-1.5 text-[13px] leading-[1.5] text-dim">
-            {form.planMode === 'vote'
-              ? <><Vote size={16} className="mt-0.5 flex-none" /> Add a few ideas to start the vote. The one with the most votes wins, and anyone can add more places on the Location tab later.</>
-              : <><Route size={16} className="mt-0.5 flex-none" /> Add the places you&apos;ll visit in the order you&apos;ll go. The route stays editable on the Location tab.</>}
+            {form.locSettled
+              ? <><MapPin size={16} className="mt-0.5 flex-none" /> Add the place. Guests see it as settled — no voting, no suggestions.</>
+              : form.planMode === 'vote'
+                ? <><Vote size={16} className="mt-0.5 flex-none" /> Add a few ideas to start the vote. The one with the most votes wins, and anyone can add more places on the Location tab later.</>
+                : <><Route size={16} className="mt-0.5 flex-none" /> Add the places you&apos;ll visit in the order you&apos;ll go. The route stays editable on the Location tab.</>}
           </p>
 
           {/* search */}
@@ -626,13 +684,15 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
             <div className="flex items-start gap-2 rounded-[10px] border border-border bg-s2 px-[13px] py-[11px]">
               <Info size={16} className="mt-0.5 text-accent-text" />
               <span className="text-[13px] leading-[1.5] text-dim">
-                {'No places yet. You can start the vote empty and let everyone add ideas on the Location tab, or search above to seed it.'}
+                {form.locSettled
+                  ? 'No place yet. Search above to add where it happens.'
+                  : 'No places yet. You can start the vote empty and let everyone add ideas on the Location tab, or search above to seed it.'}
               </span>
             </div>
           ) : (
             <div ref={pickFlip.scope} className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <span className="text-[12px] font-semibold uppercase tracking-[.1em] text-faint">{form.planMode === 'vote' ? `${form.picked.length} on the ballot` : `${form.picked.length} ${form.picked.length === 1 ? 'stop' : 'stops'}`}</span>
+                <span className="text-[12px] font-semibold uppercase tracking-[.1em] text-faint">{form.locSettled ? 'The place' : form.planMode === 'vote' ? `${form.picked.length} on the ballot` : `${form.picked.length} ${form.picked.length === 1 ? 'stop' : 'stops'}`}</span>
                 {form.planMode === 'itinerary' && <span className="flex items-center gap-1 text-[12px] text-faint"><GripVertical size={13} /> Drag or use the arrows to reorder</span>}
               </div>
               <div ref={pickReorder.scope} className="flex flex-col gap-2">
@@ -826,10 +886,18 @@ function StepReview({ form, goStep }: { form: Form; goStep: (n: number) => void 
         <Row k="Title" v={form.title || <span className="text-faint">Untitled event</span>} />
         <Row k="Hosted by" v={form.hostMode === 'you' ? USER_NAME : form.orgName || <span className="text-faint">Organization</span>} />
         {form.description && <Row k="Description" v={form.description} />}
+        {form.scheduleMode === 'set' ? (
+          <Row k="When" v={(() => {
+            const s = parseHM(form.fixedStart), e = parseHM(form.fixedEnd)
+            const t = s !== null && e !== null && e > s ? ` · ${fmtMinute(s)} – ${fmtMinute(e)}` : ''
+            return form.fixedDay ? <>{form.fixedDay}{t} <span className="text-faint">· locked in from the start</span></> : <span className="text-brick-text">Not set — pick the day in Basics</span>
+          })()} />
+        ) : (<>
         <Row k="Date window" v={dateText} />
         <Row k="Time window" v={winLabel} />
         <Row k="Time slots" v={granLabel} />
         <Row k="Event length" v={fmtDur(form.durationMin)} />
+        </>)}
         <Row k="Time zone" v={form.timezone ? tzLabel(form.timezone) : <span className="text-brick-text">Not set — pick one in Basics</span>} />
         <Row k="Budget" v={form.budget ? `$${form.budget} ${form.budgetMode === 'person' ? 'per person' : 'total'}` : <span className="text-faint">None</span>} />
         <Row k="Spots" v={form.capacity ? `${form.capacity} · first come, first served` : <span className="text-faint">No limit</span>} />
@@ -846,9 +914,9 @@ function StepReview({ form, goStep }: { form: Form; goStep: (n: number) => void 
         )}
         {form.locMode === 'vote' && (
           <>
-            <Row k="Where" v={`In person · ${form.planMode === 'vote' ? 'guests vote' : 'planned route'}`} />
+            <Row k="Where" v={`In person · ${form.locSettled ? 'place is set' : form.planMode === 'vote' ? 'guests vote' : 'planned route'}`} />
             <Row
-              k={form.planMode === 'vote' ? 'Candidates' : 'Stops'}
+              k={form.locSettled ? 'Place' : form.planMode === 'vote' ? 'Candidates' : 'Stops'}
               v={form.picked.length === 0 ? <span className="text-faint">None added yet</span> : (
                 <div className="flex flex-col gap-1">
                   {form.picked.map((l, i) => (

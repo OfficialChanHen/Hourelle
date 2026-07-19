@@ -651,7 +651,8 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
     if (names.length === 1) main = placeLink(names[0])
     else if (names.length > 1) main = itinLocked ? itineraryLink(names.length) : spotsLink(names.length)
   } else if (loc.planMode === 'itinerary' && stops > 0) main = itineraryLink(stops)
-  else if (lead) main = placeLink(lead.place.name, 'leading the vote')
+  // a settled venue reads as fact (leadingPlaceOf reports it confirmed), never as a front-runner
+  else if (lead) main = placeLink(lead.place.name, lead.confirmed ? undefined : 'leading the vote')
   else if (loc.places.length === 1) main = placeLink(loc.places[0].name)
 
   const hybridOn = !!loc.hybrid && !!link

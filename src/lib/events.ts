@@ -44,6 +44,7 @@ export type AppEvent = {
     meetingLink: string
     guestsCanSuggest?: boolean // host-granted: lets non-hosts add places to the ballot
     hybrid?: boolean           // in-person event that people can also join online via meetingLink
+    settled?: boolean          // the place is a fact set by the host, not a ballot — no voting UI
   }
   participants: Participant[]
   days: GridDay[]
@@ -92,6 +93,8 @@ export type CreateInput = {
   budgetMode?: 'total' | 'person'
   locMode: 'vote' | 'remote' | 'later'
   planMode: 'vote' | 'itinerary'
+  locSettled?: boolean // in person with the place already chosen — guests see it as fact
+  fixed?: { day: string; start: string; end: string } // date already set ('YYYY-MM-DD' + 'HH:MM'): the event is born confirmed
   picked: { id: string; name: string; place: string }[]
   platform: string
   meetingLink: string
@@ -430,6 +433,8 @@ export function leadingPlaceOf(ev: AppEvent): LeadingPlace | null {
     ? places.find((p) => ev.confirmed!.placeIds.includes(p.id))
     : undefined
   if (confirmedPlace) return { place: confirmedPlace, voters: votesOf(confirmedPlace.id), confirmed: true, margin: null }
+  // a settled venue is a fact, not a front-runner — report it as final
+  if (ev.location.settled) return { place: places[0], voters: votesOf(places[0].id), confirmed: true, margin: null }
   const ranked = [...places].sort((a, b) => votesOf(b.id).length - votesOf(a.id).length)
   if (votesOf(ranked[0].id).length === 0) return null
   const margin = ranked.length > 1 ? votesOf(ranked[0].id).length - votesOf(ranked[1].id).length : null
@@ -562,14 +567,22 @@ export function createEvent(input: CreateInput): AppEvent {
     ...input.emails.map((email, i) => guestFromEmail(email, i)),
   ]
 
-  const days = buildDays(input.startDate, input.endDate)
+  // the date is already set: the event is born confirmed on that one day and goes
+  // straight to the RSVP round — the grid exists only as reference
+  const fxS = input.fixed ? parseHM(input.fixed.start) : null
+  const fxE = input.fixed ? parseHM(input.fixed.end) : null
+  const fixed = input.fixed && fxS !== null && fxE !== null && fxE > fxS
+    ? { day: input.fixed.day, s: fxS, e: fxE }
+    : null
+
+  const days = buildDays(fixed ? fixed.day : input.startDate, fixed ? fixed.day : input.endDate)
   // optional daily time window, snapped outward to the slot size so it fully covers the ask;
-  // no window = the whole day
+  // no window = the whole day. A fixed date windows the grid around the chosen slot.
   const st = stepOf(input.granularity)
-  const winS = parseHM(input.windowStart), winE = parseHM(input.windowEnd)
+  const winS = fixed ? fixed.s : parseHM(input.windowStart), winE = fixed ? fixed.e : parseHM(input.windowEnd)
   const hasWin = winS !== null && winE !== null && winE > winS
   const fromMin = hasWin ? Math.floor(winS / st) * st : 0
-  const toMin = hasWin ? Math.ceil(winE / st) * st : 24 * 60
+  const toMin = hasWin ? Math.min(24 * 60, Math.ceil(winE / st) * st) : 24 * 60
   const times = buildTimes(input.granularity, fromMin, toMin)
   const avail: Record<string, string[][]> = {}
   for (const d of days) avail[d.key] = times.map(() => [])
@@ -578,6 +591,9 @@ export function createEvent(input: CreateInput): AppEvent {
   const isItin = input.planMode === 'itinerary'
   const pickedPlaces = input.picked.map((p) => ({ id: p.id, name: p.name, place: p.place, addedBy: YOU.id }))
   const uniquePlaces = pickedPlaces.filter((p, i) => pickedPlaces.findIndex((x) => x.id === p.id) === i)
+  const settled = !!input.locSettled && input.locMode === 'vote'
+  // a fixed date locks the place(s) too, when they're known
+  const fixedPlaceIds = settled ? uniquePlaces.map((p) => p.id) : isItin ? input.picked.map((p) => p.id) : []
 
   const ev: AppEvent = {
     id,
@@ -586,8 +602,8 @@ export function createEvent(input: CreateInput): AppEvent {
     hostedByYou,
     description: input.description.trim(),
     timezone: input.timezone || 'UTC', // wizard validation requires one; fallback for safety
-    startDate: input.startDate,
-    endDate: input.endDate,
+    startDate: fixed ? fixed.day : input.startDate,
+    endDate: fixed ? fixed.day : input.endDate,
     granularity: (input.granularity === '15' || input.granularity === '60' ? input.granularity : '30'),
     budget: input.budget,
     budgetMode: input.budgetMode ?? 'total',
@@ -598,6 +614,7 @@ export function createEvent(input: CreateInput): AppEvent {
       platform: input.platform,
       meetingLink: input.meetingLink,
       guestsCanSuggest: false,
+      settled: settled || undefined,
     },
     participants,
     days,
@@ -611,12 +628,16 @@ export function createEvent(input: CreateInput): AppEvent {
     itinRank: [],
     itinDwell: isItin ? input.picked.map(() => 60) : [],
     itinStartMin: hasWin ? (winS as number) : 9 * 60,
-    durationMin: input.durationMin && input.durationMin >= 1 ? Math.min(24 * 60, input.durationMin) : 60,
+    durationMin: fixed ? fixed.e - fixed.s : input.durationMin && input.durationMin >= 1 ? Math.min(24 * 60, input.durationMin) : 60,
     bestMode: input.bestMode,
     capacity: input.capacity && Number(input.capacity) >= 1 ? Number(input.capacity) : undefined,
     messages: [],
     createdAt: Date.now(),
-    status: 'planning',
+    status: fixed ? 'confirmed' : 'planning',
+    ...(fixed ? {
+      confirmed: { dayKey: fixed.day, startMin: fixed.s, endMin: fixed.e, placeIds: fixedPlaceIds },
+      confirmedAt: Date.now(),
+    } : {}),
   }
 
   const list = readAll()
@@ -825,6 +846,7 @@ const HOUSEWARMING: AppEvent = {
     places: [{ id: 'sr-place', name: 'Sarah’s new apartment', place: 'Oakland, CA', addedBy: 'SR' }],
     platform: '',
     meetingLink: '',
+    settled: true,
   },
   votes: { 'sr-place': ['SR', 'AT', 'MN'] },
   participants: [
