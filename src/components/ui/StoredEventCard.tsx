@@ -56,7 +56,7 @@ export function StoredEventCard({ e, reuseHref, sameDayTitle }: { e: AppEvent; r
   const goReuse = asAction(() => { if (reuseHref) router.push(reuseHref) })
 
   return (
-    <Link href={`/events/${e.id}`} className="group block overflow-hidden rounded-[13px] border border-border bg-s1 p-3.5 transition-all hover:-translate-y-0.5 hover:border-border2">
+    <Link href={`/events/${e.id}`} className="group flex flex-col overflow-hidden rounded-[13px] border border-border bg-s1 p-3.5 transition-all hover:-translate-y-0.5 hover:border-border2">
       <Cover src={e.image} from={from} to={to} className="-mx-3.5 -mt-3.5 mb-3 h-[92px]" />
       <div className="mb-[11px] flex items-center justify-between">
         <Badge variant={badge.variant}>{badge.label}</Badge>
@@ -119,10 +119,18 @@ export function StoredEventCard({ e, reuseHref, sameDayTitle }: { e: AppEvent; r
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-2">
+      {/* anchored to the card's bottom edge so avatars and actions line up across
+          the row even when neighbors carry more metadata lines */}
+      <div className="mt-auto flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <AvatarRow people={e.participants.map((p) => ({ initials: p.initials, name: p.name, color: p.color }))} size={24} max={4} />
-          <span className="truncate text-[12.5px] text-dim">{going > 0 ? `${going} going` : `${e.participants.length} invited`}</span>
+          {/* while planning, nobody has committed yet — count invites; "going" only
+              means something once a time is locked and RSVPs are real */}
+          <span className="truncate text-[12.5px] text-dim">
+            {phase === 'planning' || going === 0
+              ? `${e.participants.length} invited`
+              : phase === 'past' ? `${going} went` : `${going} going`}
+          </span>
         </div>
         <div className="flex flex-none items-center gap-0.5">
           {reuseHref && (

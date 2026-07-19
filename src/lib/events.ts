@@ -496,7 +496,11 @@ export function setMyRsvp(id: string, rsvp: Rsvp): void {
 }
 
 export function confirmEvent(id: string, slot: ConfirmedSlot): void {
-  patchEvent(id, { status: 'confirmed', confirmed: slot, confirmedAt: Date.now() })
+  // locking in opens the RSVP round: being free isn't the same as coming, so
+  // everyone except the host goes back to "no reply" and answers fresh
+  const ev = getEvent(id)
+  const participants = ev?.participants.map((p): Participant => ({ ...p, rsvp: p.host ? 'attending' : 'pending' }))
+  patchEvent(id, { status: 'confirmed', confirmed: slot, confirmedAt: Date.now(), ...(participants ? { participants } : {}) })
 }
 export function reopenEvent(id: string): void {
   patchEvent(id, { status: 'planning', confirmed: undefined, confirmedAt: undefined })
