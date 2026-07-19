@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { History, CalendarX2 } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StoredEventCard } from '@/components/ui/StoredEventCard'
-import { listEvents, phaseOf, type AppEvent, type Phase } from '@/lib/events'
+import { listEvents, phaseOf, sameDayLabelFor, type AppEvent, type Phase } from '@/lib/events'
 
 // real filters over the derived lifecycle phase — Confirmed covers everything locked in
 const FILTERS: { key: string; label: string; match: (p: Phase) => boolean }[] = [
@@ -24,6 +24,7 @@ export default function EventsPage() {
   const shown = withPhase.filter((x) => match.match(x.phase))
   const past = withPhase.filter((x) => x.phase === 'past')
   const showPastSection = filter === 'all' // the Past filter already shows them above
+  const sameDay = sameDayLabelFor(withPhase.filter((x) => x.phase !== 'past').map((x) => x.e))
 
   return (
     <div className="mx-auto max-w-[1240px] px-[26px] pb-[104px] pt-[34px]">
@@ -47,7 +48,7 @@ export default function EventsPage() {
       {shown.length > 0 ? (
         <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((x) => (
-            <StoredEventCard key={x.e.id} e={x.e} reuseHref={x.phase === 'past' ? `/create?from=${x.e.id}` : undefined} />
+            <StoredEventCard key={x.e.id} e={x.e} reuseHref={x.phase === 'past' ? `/create?from=${x.e.id}` : undefined} sameDayTitle={sameDay(x.e)} />
           ))}
         </div>
       ) : (

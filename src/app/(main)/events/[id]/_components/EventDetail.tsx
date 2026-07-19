@@ -41,7 +41,7 @@ const RSVP: Record<Rsvp, { label: string; color: string; chip: string }> = {
   pending: { label: 'No reply', color: 'var(--faint)', chip: 'neutral' },
 }
 
-export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey | null }) {
+export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: string; initialTab: TabKey | null; spotlightDelete?: boolean }) {
   const router = useRouter()
   const [tab, setTab] = useState<TabKey>(initialTab ?? 'availability')
   const [event, setEvent] = useState<AppEvent | null | undefined>(undefined)
@@ -247,7 +247,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       {tab === 'availability' && <AvailabilityPanel event={event} locked={locked} initialFilter={availFocus} focusBest={bestFocus} />}
       {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} />}
       {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={setTab} onViewAvailability={goToAvailabilityFor} onViewAvailabilityGroup={goToAvailabilityGroup} onGoToBestWindow={goToBestWindow} />}
-      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToTab={setTab} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} />}
+      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToTab={setTab} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} />}
 
       {/* discussion follows you down the page — the classic chat bubble, above the
           mobile tab bar; the header button stays for people who look there */}
@@ -306,9 +306,9 @@ function EditableTitle({ title, editable, onSave }: { title: string; editable: b
 type DetailsGoTab = (t: 'availability' | 'location') => void
 
 /* ── Details tab ── */
-function DetailsTab({ event, onDelete, onGoToTab, onPatch, onViewAvailability }: {
+function DetailsTab({ event, onDelete, onGoToTab, onPatch, onViewAvailability, spotlightDelete = false }: {
   event: AppEvent; onDelete: () => void; onGoToTab: DetailsGoTab
-  onPatch: (patch: Partial<AppEvent>) => void; onViewAvailability: (pid: string) => void
+  onPatch: (patch: Partial<AppEvent>) => void; onViewAvailability: (pid: string) => void; spotlightDelete?: boolean
 }) {
   const isHost = event.hostedByYou
   const locked = event.status === 'confirmed' && !!event.confirmed
@@ -349,7 +349,7 @@ function DetailsTab({ event, onDelete, onGoToTab, onPatch, onViewAvailability }:
 
       <ParticipantsCard event={event} isHost={isHost} onPatch={onPatch} onViewAvailability={onViewAvailability} />
 
-      {event.hostedByYou && !event.demo && <div className="min-w-0 lg:col-span-2"><DangerZone title={event.title} onDelete={onDelete} /></div>}
+      {event.hostedByYou && !event.demo && <div className="min-w-0 lg:col-span-2"><DangerZone title={event.title} onDelete={onDelete} spotlight={spotlightDelete} /></div>}
     </div>
   )
 }
@@ -1034,16 +1034,28 @@ function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boo
   )
 }
 
-function DangerZone({ title, onDelete }: { title: string; onDelete: () => void }) {
+function DangerZone({ title, onDelete, spotlight = false }: { title: string; onDelete: () => void; spotlight?: boolean }) {
   const [confirming, setConfirming] = useState(false)
   const box = useRef<HTMLDivElement>(null)
+  const zone = useRef<HTMLDivElement>(null)
 
   useGSAP(() => {
     if (confirming && box.current) gsap.fromTo(box.current, { y: -6, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: 'power3.out' })
   }, { dependencies: [confirming] })
 
+  // arriving via a card's delete shortcut: bring the zone into view and pulse its edge once
+  useGSAP(() => {
+    if (!spotlight || !zone.current) return
+    zone.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    gsap.fromTo(
+      zone.current,
+      { boxShadow: '0 0 0 3px var(--brick-border)' },
+      { boxShadow: '0 0 0 0 rgba(0,0,0,0)', duration: 1.4, ease: 'power2.out', delay: 0.4, clearProps: 'boxShadow' },
+    )
+  }, [])
+
   return (
-    <div className="w-full rounded-2xl border border-border bg-s1 p-5">
+    <div ref={zone} className="w-full rounded-2xl border border-border bg-s1 p-5">
       <div className="flex items-start gap-3">
         <span className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] border border-brick-border bg-brick-bg text-brick-text"><Trash2 size={17} /></span>
         <div className="min-w-0 flex-1">

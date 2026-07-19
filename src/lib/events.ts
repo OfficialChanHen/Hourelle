@@ -124,15 +124,11 @@ export function listEvents(): AppEvent[] {
   // include the built-in demos (createdAt 0 sorts them last) so new users have something to explore
   const stored = readAll()
   const all = [...stored]
-  for (const demo of [DEMO, BIG_DEMO]) if (!stored.some((e) => e.id === demo.id)) all.push(demo)
+  for (const demo of DEMOS) if (!stored.some((e) => e.id === demo.id)) all.push(demo)
   return all.sort((a, b) => b.createdAt - a.createdAt)
 }
 export function getEvent(id: string): AppEvent | null {
-  const found = readAll().find((e) => e.id === id)
-  if (found) return found
-  if (id === DEMO.id) return DEMO
-  if (id === BIG_DEMO.id) return BIG_DEMO
-  return null
+  return readAll().find((e) => e.id === id) ?? DEMOS.find((d) => d.id === id) ?? null
 }
 export function deleteEvent(id: string): void {
   writeAll(readAll().filter((e) => e.id !== id))
@@ -151,8 +147,7 @@ function slugify(s: string): string {
 }
 function uniqueSlug(base: string): string {
   const taken = new Set(readAll().map((e) => e.id))
-  taken.add(DEMO.id)
-  taken.add(BIG_DEMO.id)
+  for (const d of DEMOS) taken.add(d.id)
   let slug = base
   let n = 2
   while (taken.has(slug)) slug = `${base}-${n++}`
@@ -392,6 +387,34 @@ export function daysUntilLabel(du: number | null): string {
   if (du < 0) return 'Past'
   if (du === 0) return 'Today'
   return `${du} day${du === 1 ? '' : 's'}`
+}
+
+// the locked-in slot as one glanceable line: "Sat, Jul 26 · 5:00 PM – 9:00 PM"
+export function confirmedSlotText(ev: Pick<AppEvent, 'confirmed'>): string | null {
+  if (!ev.confirmed) return null
+  const d = parseLocal(ev.confirmed.dayKey)
+  if (!d) return null
+  return `${DOW[d.getDay()]}, ${dayLabel(d)} · ${fmtMinute(ev.confirmed.startMin)} – ${fmtMinute(ev.confirmed.endMin)}`
+}
+
+// which other events land on the same scheduled day. Confirmed events clash on their locked
+// day, single-day events on their date; an open multi-day window isn't a clash yet.
+export function sameDayLabelFor(events: AppEvent[]): (e: AppEvent) => string | undefined {
+  const dayOf = (e: AppEvent) => e.confirmed?.dayKey ?? (e.startDate === e.endDate ? e.startDate : null)
+  const byDay = new Map<string, AppEvent[]>()
+  for (const e of events) {
+    const d = dayOf(e)
+    if (!d) continue
+    const list = byDay.get(d) ?? []
+    list.push(e)
+    byDay.set(d, list)
+  }
+  return (e) => {
+    const d = dayOf(e)
+    const others = d ? (byDay.get(d) ?? []).filter((o) => o.id !== e.id) : []
+    if (others.length === 0) return undefined
+    return others.length === 1 ? others[0].title : `${others[0].title} and ${others.length - 1} more`
+  }
 }
 
 /* ── leading place ── */
@@ -771,3 +794,104 @@ const BIG_DEMO: AppEvent = {
   demo: true,
   status: 'planning',
 }
+
+/* ── invited demos: events someone else is hosting, so home has a "You're invited" lane.
+   Both land on the same Saturday on purpose — the same-day flag needs something to show. ── */
+const HW_DAYS = buildDays('2026-07-24', '2026-07-27')
+const HW_TIMES = buildTimes('60', 12 * 60, 22 * 60)
+// grid minutes measured from noon (times[0]); Sarah is free all day, others trickle in
+const HW_IV: AvailIntervals = {
+  '2026-07-25': { SR: [{ s: 0, e: 600 }], AT: [{ s: 240, e: 600 }], MN: [{ s: 300, e: 540 }] },
+  '2026-07-26': { SR: [{ s: 0, e: 600 }], AT: [{ s: 300, e: 600 }], MN: [{ s: 300, e: 540 }], CL: [{ s: 360, e: 600 }] },
+}
+const HOUSEWARMING: AppEvent = {
+  id: 'sarahs-housewarming',
+  title: 'Housewarming at Sarah’s',
+  hostName: 'Sarah R',
+  hostedByYou: false,
+  description: 'New place, first party. Come see the balcony everyone is going to fight over.',
+  timezone: 'America/Los_Angeles',
+  startDate: '2026-07-24',
+  endDate: '2026-07-27',
+  granularity: '60',
+  budget: '',
+  location: {
+    mode: 'vote',
+    planMode: 'vote',
+    places: [{ id: 'sr-place', name: 'Sarah’s new apartment', place: 'Oakland, CA', addedBy: 'SR' }],
+    platform: '',
+    meetingLink: '',
+  },
+  votes: { 'sr-place': ['SR', 'AT', 'MN'] },
+  participants: [
+    { id: 'SR', initials: 'SR', name: 'Sarah R', color: av('SR').color, rsvp: 'attending', host: true },
+    { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'pending', you: true },
+    { id: 'AT', initials: 'AT', name: 'Alex T', color: av('AT').color, rsvp: 'attending' },
+    { id: 'MN', initials: 'MN', name: 'Mia N', color: av('MN').color, rsvp: 'attending' },
+    { id: 'CL', initials: 'CL', name: 'Chris L', color: av('CL').color, rsvp: 'maybe' },
+    { id: 'NK', initials: 'NK', name: 'Nina K', color: av('NK').color, rsvp: 'pending' },
+  ],
+  days: HW_DAYS,
+  times: HW_TIMES,
+  avail: intervalsToGrid(HW_IV, HW_DAYS, HW_TIMES.length, 60),
+  availIv: HW_IV,
+  durationMin: 240,
+  image: 'preset:evening',
+  messages: [
+    { id: 'SR', name: 'Sarah R', time: 'Mon', text: 'Saturday evening it is. Bring nothing but yourselves', you: false },
+    { id: 'AT', name: 'Alex T', time: 'Mon', text: 'Bringing something anyway', you: false },
+  ],
+  createdAt: 0,
+  demo: true,
+  status: 'confirmed',
+  confirmed: { dayKey: '2026-07-25', startMin: 17 * 60, endMin: 21 * 60, placeIds: ['sr-place'] },
+}
+
+const TRAIL_DAYS = buildDays('2026-07-25', '2026-07-25')
+const TRAIL_TIMES = buildTimes('60', 8 * 60, 14 * 60)
+const TRAIL_IV: AvailIntervals = {
+  '2026-07-25': { OB: [{ s: 0, e: 360 }], JM: [{ s: 60, e: 300 }], DW: [{ s: 60, e: 240 }], GH: [{ s: 0, e: 300 }], BH: [{ s: 120, e: 360 }] },
+}
+const TRAIL_DAY: AppEvent = {
+  id: 'shoreline-cleanup',
+  title: 'Shoreline Trail Cleanup',
+  hostName: 'Omar B',
+  hostedByYou: false,
+  description: 'Gloves and grabbers provided. Coffee after for everyone who shows up.',
+  timezone: 'America/Los_Angeles',
+  startDate: '2026-07-25',
+  endDate: '2026-07-25',
+  granularity: '60',
+  budget: '',
+  location: {
+    mode: 'vote',
+    planMode: 'vote',
+    places: [{ id: 'pt-isabel', name: 'Point Isabel Shoreline', place: 'Richmond, CA', addedBy: 'OB' }],
+    platform: '',
+    meetingLink: '',
+  },
+  votes: { 'pt-isabel': ['OB', 'GH', 'JM'] },
+  participants: [
+    { id: 'OB', initials: 'OB', name: 'Omar B', color: av('OB').color, rsvp: 'attending', host: true },
+    { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'attending', you: true },
+    { id: 'DW', initials: 'DW', name: 'Dana W', color: av('DW').color, rsvp: 'attending' },
+    { id: 'GH', initials: 'GH', name: 'Grace H', color: av('GH').color, rsvp: 'attending' },
+    { id: 'BH', initials: 'BH', name: 'Ben H', color: av('BH').color, rsvp: 'maybe' },
+  ],
+  days: TRAIL_DAYS,
+  times: TRAIL_TIMES,
+  avail: intervalsToGrid(TRAIL_IV, TRAIL_DAYS, TRAIL_TIMES.length, 60),
+  availIv: TRAIL_IV,
+  durationMin: 180,
+  image: 'preset:coast',
+  messages: [
+    { id: 'OB', name: 'Omar B', time: 'Tue', text: 'Morning shift so you still have your Saturday', you: false },
+  ],
+  createdAt: 0,
+  demo: true,
+  status: 'confirmed',
+  confirmed: { dayKey: '2026-07-25', startMin: 9 * 60, endMin: 12 * 60, placeIds: ['pt-isabel'] },
+}
+
+// every built-in demo, in the order they list after stored events
+const DEMOS: AppEvent[] = [DEMO, BIG_DEMO, HOUSEWARMING, TRAIL_DAY]
