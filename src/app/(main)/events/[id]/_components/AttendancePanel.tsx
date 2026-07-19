@@ -26,11 +26,10 @@ function coverOf(ivs: Iv[] | undefined, s: number, e: number): Cover {
   if (ivs.some((iv) => iv.s < e && iv.e > s)) return 'partial'
   return 'none'
 }
-// the span a person is actually around inside a window (for the "arrives late / leaves early" note)
-function windowOf(ivs: Iv[] | undefined, s: number, e: number): { s: number; e: number } | null {
-  const clipped = (ivs ?? []).map((iv) => ({ s: Math.max(iv.s, s), e: Math.min(iv.e, e) })).filter((iv) => iv.e > iv.s)
-  if (!clipped.length) return null
-  return { s: Math.min(...clipped.map((c) => c.s)), e: Math.max(...clipped.map((c) => c.e)) }
+// the spans a person is actually around inside a window — kept as separate segments,
+// so free-at-the-start plus free-at-the-end never reads as one solid block
+function segmentsOf(ivs: Iv[] | undefined, s: number, e: number): Iv[] {
+  return (ivs ?? []).map((iv) => ({ s: Math.max(iv.s, s), e: Math.min(iv.e, e) })).filter((iv) => iv.e > iv.s)
 }
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -102,11 +101,14 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
 
   return (
     <div className="flex flex-col gap-4">
-      {me?.rsvp === 'pending' && <YourRsvpStrip onPick={changeRsvp} full={full} />}
+      {/* "are you coming" is a locked-stage question; while planning, the ask is your times */}
+      {locked
+        ? me?.rsvp === 'pending' && <YourRsvpStrip onPick={changeRsvp} full={full} />
+        : !markedIds.has('JM') && <YourTimesStrip onGo={() => onGoToTab?.('availability')} />}
 
       {/* header — friendly summary, share button, and (only when relevant) the model switch */}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-        <RsvpSummary participants={participants} capacity={event.capacity} />
+        <RsvpSummary participants={participants} capacity={event.capacity} locked={locked} />
         <div className="flex flex-wrap items-center gap-2">
           <CopySummaryButton event={liveEvent} win={win} locked={locked} gridStart={gridStart} />
           {hasItinerary && (
@@ -136,6 +138,19 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
   )
 }
 
+/* while planning, the useful nudge is the grid, not an RSVP */
+function YourTimesStrip({ onGo }: { onGo: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-accent-border bg-accent-bg px-4 py-3">
+      <span className="text-[14px] font-semibold text-accent-text">You haven&apos;t marked your times yet.</span>
+      <span className="text-[13px] text-dim">The best window can&apos;t count you until you do.</span>
+      <button onClick={onGo} className="ml-auto h-8 rounded-[8px] bg-accent px-3 text-[13px] font-semibold text-on-accent">
+        Add your availability
+      </button>
+    </div>
+  )
+}
+
 /* ── your own reply, right where the counts are ── */
 function YourRsvpStrip({ onPick, full }: { onPick: (r: Rsvp) => void; full: boolean }) {
   return (
@@ -159,7 +174,7 @@ function YourRsvpStrip({ onPick, full }: { onPick: (r: Rsvp) => void; full: bool
 
 /* ── shared: RSVP figure (borderless, open stats). One sentence, not a number soup:
    the big figure is going, the caption walks through everyone else. ── */
-function RsvpSummary({ participants, capacity }: { participants: Participant[]; capacity?: number }) {
+function RsvpSummary({ participants, capacity, locked }: { participants: Participant[]; capacity?: number; locked: boolean }) {
   const going = participants.filter((p) => p.rsvp === 'attending').length
   const maybe = participants.filter((p) => p.rsvp === 'maybe').length
   const out = participants.filter((p) => p.rsvp === 'not_going').length
@@ -167,14 +182,15 @@ function RsvpSummary({ participants, capacity }: { participants: Participant[]; 
   const total = participants.length
   const full = capacity != null && going >= capacity
   const rest: React.ReactNode[] = []
-  if (maybe > 0) rest.push(<span key="m" className="text-ochre-text">{maybe} maybe</span>)
+  // "maybe" belongs to the locked-stage RSVP round; planning has no such state
+  if (locked && maybe > 0) rest.push(<span key="m" className="text-ochre-text">{maybe} maybe</span>)
   if (out > 0) rest.push(<span key="o" className="text-brick-text">{out} can&apos;t</span>)
   if (noReply > 0) rest.push(<span key="n" className="text-faint">{noReply} no reply</span>)
   return (
     <div>
       <div className="flex items-baseline gap-2">
         <span className="font-serif text-[42.5px] leading-none">{going}</span>
-        <span className="text-[14.5px] text-dim">going</span>
+        <span className="text-[14.5px] text-dim">{locked ? 'going' : 'available'}</span>
         {capacity != null && (
           <span className={`rounded-[6px] border px-1.5 py-px text-[11px] font-semibold ${full ? 'border-ochre-border bg-ochre-bg text-ochre-text' : 'border-teal-border bg-teal-bg text-teal-text'}`}>
             {full ? `full · ${capacity} spots` : `${capacity - going} of ${capacity} spots left`}
@@ -194,7 +210,7 @@ function CopySummaryButton({ event, win, locked, gridStart }: { event: AppEvent;
   const [copied, setCopied] = useState(false)
   function copy() {
     const going = event.participants.filter((p) => p.rsvp === 'attending').length
-    const parts = [`${event.title}: ${going} of ${event.participants.length} going`]
+    const parts = [`${event.title}: ${going} of ${event.participants.length} ${locked ? 'going' : 'available'}`]
     if (win) parts.push(`${locked ? 'confirmed for' : 'best window'} ${win.dayLabel}, ${fmtMinute(gridStart + win.s)}–${fmtMinute(gridStart + win.e)} ${tzAbbr(event.timezone)}`)
     const lead = leadingPlaceOf(event)
     if (lead) parts.push(lead.confirmed ? `at ${lead.place.name}` : `leading place: ${lead.place.name}`)
@@ -226,20 +242,22 @@ function SingleVenue({
   // availability splits "going" into whole-time, part-time, and honest silence: someone who
   // never marked times is NOT assumed present the whole time.
   const groups = useMemo(() => {
-    const whole: Participant[] = [], part: { p: Participant; s: number; e: number | null }[] = []
+    const whole: Participant[] = [], part: { p: Participant; segs: Iv[] | null }[] = []
     const noTimes: Participant[] = [], maybe: Participant[] = [], out: Participant[] = [], noReply: Participant[] = []
     for (const p of event.participants) {
       if (p.rsvp === 'not_going') { out.push(p); continue }
       if (p.rsvp === 'pending') { noReply.push(p); continue }
-      if (p.rsvp === 'maybe') { maybe.push(p); continue }
+      // "maybe" answers "are you coming", which is only asked once a time is locked —
+      // while planning, a stray maybe reads by their availability like anyone else
+      if (locked && p.rsvp === 'maybe') { maybe.push(p); continue }
       const cover = win ? coverOf(dayIv[p.id], winS, winE) : 'nodata'
       if (cover === 'nodata') {
         // marked times somewhere, just none in this window → a conflict, not silence
-        if (markedIds.has(p.id)) part.push({ p, s: winS, e: null })
+        if (markedIds.has(p.id)) part.push({ p, segs: null })
         else noTimes.push(p)
       } else if (cover === 'partial' || cover === 'none') {
-        const w = windowOf(dayIv[p.id], winS, winE)
-        part.push({ p, s: w ? w.s : winS, e: w ? w.e : null })
+        const segs = segmentsOf(dayIv[p.id], winS, winE)
+        part.push({ p, segs: segs.length ? segs : null })
       } else whole.push(p)
     }
     // every group reads the same way: you first, then first name, then last name
@@ -251,12 +269,13 @@ function SingleVenue({
   // the roster only says "here" once there is somewhere to be
   const hasVenue = event.location.mode === 'remote' || leadingPlaceOf(event) != null
 
-  // inline timing bar for part-time rows, positioned within the window
+  // inline timing bars for part-time rows: one block per stretch they're around,
+  // positioned within the window — gaps stay visibly empty
   const span = Math.max(1, winE - winS)
-  const barOf = (s: number, e: number | null) => e == null ? null : {
-    left: `${Math.max(0, ((s - winS) / span) * 100).toFixed(1)}%`,
-    width: `${Math.max(2, (((e - s) / span) * 100)).toFixed(1)}%`,
-  }
+  const barsOf = (segs: Iv[] | null) => segs?.map((iv) => ({
+    left: `${Math.max(0, ((iv.s - winS) / span) * 100).toFixed(1)}%`,
+    width: `${Math.max(2, (((iv.e - iv.s) / span) * 100)).toFixed(1)}%`,
+  })) ?? null
 
   // a nearby start that lets more people stay the whole time. The best window can't be
   // beaten by a shift, so this mostly speaks up when the confirmed time isn't the best one.
@@ -278,7 +297,7 @@ function SingleVenue({
   return (
     <div className="rounded-2xl border border-border bg-s1 p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Who&apos;s coming</div>
+        <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{locked ? 'Who’s coming' : 'Who’s available'}</div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           {win && (
             <div className="flex items-center gap-1.5 text-[12.5px] text-dim">
@@ -306,8 +325,8 @@ function SingleVenue({
       <div className="mt-5 flex flex-wrap items-center gap-1.5">
         {([
           ['all', 'All', event.participants.length],
-          ['whole', hasVenue ? 'Whole time' : 'Free whole time', groups.whole.length],
-          ['part', 'Part time', groups.part.length],
+          ['whole', locked && hasVenue ? 'Whole time' : 'Free whole time', groups.whole.length],
+          ['part', locked ? 'Part time' : 'Free part time', groups.part.length],
           ['noTimes', 'No times yet', groups.noTimes.length],
           ['maybe', 'Maybe', groups.maybe.length],
           ['out', "Can't", groups.out.length],
@@ -326,13 +345,17 @@ function SingleVenue({
       </div>
 
       <div className="mt-4 flex flex-col gap-4">
-        {(showGroup === 'all' || showGroup === 'whole') && <RosterGroup label={hasVenue ? 'Here the whole time' : 'Free the whole time'} tone="teal" people={groups.whole.map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.whole.map((p) => p.id)) : undefined} />}
-        {(showGroup === 'all' || showGroup === 'part') && <RosterGroup label={hasVenue ? 'Part of the time' : 'Free part of the time'} tone="ochre" people={groups.part.map((x) => ({
+        {(showGroup === 'all' || showGroup === 'whole') && <RosterGroup label={locked && hasVenue ? 'Here the whole time' : 'Free the whole time'} tone="teal" people={groups.whole.map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.whole.map((p) => p.id)) : undefined} />}
+        {(showGroup === 'all' || showGroup === 'part') && <RosterGroup label={locked && hasVenue ? 'Part of the time' : 'Free part of the time'} tone="ochre" people={groups.part.map((x) => ({
           p: x.p,
-          note: x.e != null ? `${fmtMinute(gridStart + x.s)}–${fmtMinute(gridStart + x.e)}` : 'time conflict',
-          bar: barOf(x.s, x.e),
+          note: x.segs == null
+            ? 'time conflict'
+            : x.segs.length === 1
+              ? `${fmtMinute(gridStart + x.segs[0].s)}–${fmtMinute(gridStart + x.segs[0].e)}`
+              : `${fmtMinute(gridStart + x.segs[0].s)}–${fmtMinute(gridStart + x.segs[x.segs.length - 1].e)}, in and out`,
+          bar: barsOf(x.segs),
         }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.part.map((x) => x.p.id)) : undefined} />}
-        {(showGroup === 'all' || showGroup === 'noTimes') && <RosterGroup label="Going, no times yet" tone="faint" hint="They said yes but haven't marked when they're free, so the best window can't count them." people={groups.noTimes.map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.noTimes.map((p) => p.id)) : undefined} />}
+        {(showGroup === 'all' || showGroup === 'noTimes') && <RosterGroup label={locked ? 'Going, no times yet' : 'No times yet'} tone="faint" hint={locked ? "They said yes but haven't marked when they're free, so the best window can't count them." : "They haven't marked when they're free, so the best window can't count them."} people={groups.noTimes.map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.noTimes.map((p) => p.id)) : undefined} />}
         {(showGroup === 'all' || showGroup === 'maybe') && <RosterGroup label="Maybe" tone="ochre" people={groups.maybe.map((p) => ({ p }))} onPerson={onPerson} />}
         {(showGroup === 'all' || showGroup === 'out') && <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({ p }))} onPerson={onPerson} />}
         {(showGroup === 'all' || showGroup === 'noReply') && <RosterGroup label="No reply" tone="faint" people={groups.noReply.map((p) => ({ p }))} action={<CopyReminder event={event} />} onPerson={onPerson} />}
@@ -535,7 +558,7 @@ const TONE: Record<string, { dot: string; text: string }> = {
 
 function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGroup, hint }: {
   label: string; tone: keyof typeof TONE | string
-  people: { p: Participant; note?: string; bar?: { left: string; width: string } | null }[]
+  people: { p: Participant; note?: string; bar?: { left: string; width: string }[] | null }[]
   cap?: number
   action?: ReactNode
   onPerson?: (pid: string) => void
@@ -546,7 +569,7 @@ function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGr
   const t = TONE[tone] ?? TONE.faint
   const shown = people.slice(0, cap)
   const extra = people.length - shown.length
-  const hasBars = people.some((x) => x.bar)
+  const hasBars = people.some((x) => x.bar !== undefined)
   return (
     <div>
       <div className="mb-2 flex items-center gap-2">
@@ -576,8 +599,8 @@ function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGr
             </button>
             {hasBars && (
               <div className="relative h-5 min-w-0 flex-1 rounded-[6px] bg-s2">
-                {bar
-                  ? <div className="absolute inset-y-0 rounded-[6px] border border-ochre-border bg-ochre-bg" style={{ left: bar.left, width: bar.width }} />
+                {bar && bar.length > 0
+                  ? bar.map((b, i) => <div key={i} className="absolute inset-y-0 rounded-[6px] border border-ochre-border bg-ochre-bg" style={{ left: b.left, width: b.width }} />)
                   : <span className="absolute inset-0 flex items-center px-2 text-[11.5px] text-brick-text">busy during this time</span>}
               </div>
             )}

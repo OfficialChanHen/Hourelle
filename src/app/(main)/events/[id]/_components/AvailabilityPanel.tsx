@@ -520,6 +520,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
 
   // best window (live interval sweep — most people simultaneously free, longest such stretch)
   const bw = useMemo(() => bestWindow(viewCombinedByDay, event.days, durationMin, bestMode), [viewCombinedByDay, durationMin, bestMode]) // eslint-disable-line react-hooks/exhaustive-deps
+  // while a person filter is on, the whole group's best window stays on the board
+  // (dashed) so the selection's best time can be compared against everyone's
+  const bwAll = useMemo(
+    () => (filterOn ? bestWindow(combinedByDay, event.days, durationMin, bestMode) : null),
+    [filterOn, combinedByDay, durationMin, bestMode], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  const bwAllShown = bwAll && (!bw || bwAll.dayKey !== bw.dayKey || bwAll.s !== bw.s || bwAll.e !== bw.e) ? bwAll : null
 
   // who still hasn't marked any availability (to nudge)
   const respondedIds = new Set(otherIds); if (youAny) respondedIds.add('JM')
@@ -855,9 +862,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     const bands = cellBands(viewCombinedByDay[d.key] ?? {}, w0, w1)
                     const peak = peakOf(bands)
                     const n = peak.ids.length
+
+
                     // the heat must change color exactly at the best-window frame lines, so its
                     // edges are protected from the sliver merge in the cells they run through
-                    const paint = mergeSlivers(bands, minBandDur, bw && d.key === bw.dayKey ? [bw.s, bw.e] : undefined)
+                    const protect = [
+                      ...(bw && d.key === bw.dayKey ? [bw.s, bw.e] : []),
+                      ...(bwAllShown && d.key === bwAllShown.dayKey ? [bwAllShown.s, bwAllShown.e] : []),
+                    ]
+                    const paint = mergeSlivers(bands, minBandDur, protect.length ? protect : undefined)
                     const title = bands.length === 1
                       ? (n ? `${n} of ${viewTotal} free` : 'No one free')
                       : bands.map((b) => `${fmt(gridStartMin + b.s)} – ${fmt(gridStartMin + b.e)}: ${b.ids.length} free`).join('\n')
@@ -888,6 +901,25 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                                 borderRight: edge,
                                 borderTop: bs === bw!.s ? edge : undefined,
                                 borderBottom: be === bw!.e ? edge : undefined,
+                              }}
+                            />
+                          )
+                        })()}
+                        {/* everyone's best window rides along as a dashed frame while a filter
+                            is on — solid is the selection's best, dashed is the whole group's */}
+                        {!!bwAllShown && d.key === bwAllShown.dayKey && w0 < bwAllShown.e && w1 > bwAllShown.s && (() => {
+                          const bs = Math.max(bwAllShown.s, w0), be = Math.min(bwAllShown.e, w1)
+                          const edge = '2px dashed var(--ochre)'
+                          return (
+                            <div
+                              className="pointer-events-none absolute inset-x-0 z-[2] opacity-80"
+                              style={{
+                                top: `${((bs - w0) / step) * 100}%`,
+                                height: `${((be - bs) / step) * 100}%`,
+                                borderLeft: edge,
+                                borderRight: edge,
+                                borderTop: bs === bwAllShown.s ? edge : undefined,
+                                borderBottom: be === bwAllShown.e ? edge : undefined,
                               }}
                             />
                           )
@@ -1026,6 +1058,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   : <span className="text-[12.5px] font-semibold text-teal-text">{bw.anyIds.length} of {viewTotal} there for part of it</span>
                 : <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {viewTotal} free</span>}
               <div className="ml-auto"><AvatarRow people={byRoster(bestMode === 'crowd' ? bw.anyIds : bw.ids).map(avatarOf)} size={22} max={8} overlap={5} /></div>
+              {bwAllShown && (
+                <span className="flex w-full items-center gap-1.5 text-[12.5px] text-dim">
+                  <span className="inline-block h-0 w-[18px] border-t-2 border-dashed border-ochre" aria-hidden />
+                  Everyone&apos;s best stays marked for comparison: <span className="font-semibold text-text">{bwAllShown.dayLabel} · {fmt(gridStartMin + bwAllShown.s)} – {fmt(gridStartMin + bwAllShown.e)}</span>
+                </span>
+              )}
             </>
           ) : responded > 0 ? (
             <span className="text-[12.5px] text-dim">No block long enough for a <span className="font-semibold text-text">{fmtDur(durationMin)}</span> event yet. Try a shorter length, or wait for more responses.</span>

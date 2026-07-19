@@ -508,7 +508,11 @@ export function confirmEvent(id: string, slot: ConfirmedSlot): void {
   patchEvent(id, { status: 'confirmed', confirmed: slot, confirmedAt: Date.now(), ...(participants ? { participants } : {}) })
 }
 export function reopenEvent(id: string): void {
-  patchEvent(id, { status: 'planning', confirmed: undefined, confirmedAt: undefined })
+  // back to planning: the old RSVPs answered a time that no longer exists, so
+  // everyone but the host returns to no-reply until the next lock-in asks again
+  const ev = getEvent(id)
+  const participants = ev?.participants.map((p): Participant => ({ ...p, rsvp: p.host ? 'attending' : 'pending' }))
+  patchEvent(id, { status: 'planning', confirmed: undefined, confirmedAt: undefined, ...(participants ? { participants } : {}) })
 }
 
 // seed the create wizard from an existing event: structure carries over, dates and
@@ -729,7 +733,8 @@ const BIG_WEIGHTED = [
   'crissy', 'crissy', 'stern-grove', 'stern-grove',
   'fort-mason', 'lands-end', 'ocean-firepits', 'alamo', 'mission-rock', 'treasure', 'berkeley-marina',
 ]
-const bigRsvp = (i: number): Rsvp => (i % 11 === 3 ? 'not_going' : i % 9 === 4 ? 'maybe' : i % 7 === 5 ? 'pending' : 'attending')
+// planning stage has no "maybe" — that answer belongs to the post-lock-in RSVP round
+const bigRsvp = (i: number): Rsvp => (i % 11 === 3 ? 'not_going' : i % 7 === 5 ? 'pending' : 'attending')
 const BIG_PARTICIPANTS: Participant[] = [
   { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'attending', you: true, host: true },
   ...BIG_NAMES.map(([ini, name], i): Participant => ({

@@ -40,6 +40,13 @@ const RSVP: Record<Rsvp, { label: string; color: string; chip: string }> = {
   not_going: { label: 'Not going', color: 'var(--brick-text)', chip: 'brick' },
   pending: { label: 'No reply', color: 'var(--faint)', chip: 'neutral' },
 }
+// while planning, nobody has been asked "are you coming" yet — replies speak to
+// availability, so the same states wear planning-stage words. "Maybe" only exists
+// once a time is locked; the label here is a fallback for stray stored data.
+const PLAN_RSVP_LABEL: Record<Rsvp, string> = {
+  attending: 'Available', maybe: 'Unsure', not_going: 'Can’t make it', pending: 'No reply',
+}
+const rsvpLabel = (r: Rsvp, locked: boolean) => (locked ? RSVP[r].label : PLAN_RSVP_LABEL[r])
 
 export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: string; initialTab: TabKey | null; spotlightDelete?: boolean }) {
   const router = useRouter()
@@ -344,7 +351,8 @@ function DetailsTab({ event, onDelete, onGoToTab, onPatch, onViewAvailability, s
         </div>
       </div>
 
-      <ExpensesCard event={event} isHost={isHost} onPatch={onPatch} />
+      {/* spending is real once the plan is locked — while planning, the budget row above is the whole money story */}
+      {locked && <ExpensesCard event={event} isHost={isHost} onPatch={onPatch} />}
       </div>
 
       <ParticipantsCard event={event} isHost={isHost} onPatch={onPatch} onViewAvailability={onViewAvailability} />
@@ -373,7 +381,7 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
         <Users size={17} className="text-dim" /> Participants
         <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[12px] text-dim">{event.participants.length}</span>
         <span className="ml-auto text-[12.5px] font-normal text-dim">
-          {going} going{noReply > 0 && <span className="text-faint"> · {noReply} no reply</span>}
+          {going} {event.status === 'confirmed' && event.confirmed ? 'going' : 'available'}{noReply > 0 && <span className="text-faint"> · {noReply} no reply</span>}
         </span>
       </div>
       <div className="flex flex-col">
@@ -387,7 +395,7 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
               <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}{p.you && <span className="font-normal text-faint"> (You)</span>}</span>
             </button>
             {p.host && <span className="flex-none rounded-md border border-accent-border bg-accent-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-accent-text">Host</span>}
-            <span className="flex-none rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: RSVP[p.rsvp].color, background: `var(--${RSVP[p.rsvp].chip}-bg, var(--s2))` }}>{RSVP[p.rsvp].label}</span>
+            <span className="flex-none rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: RSVP[p.rsvp].color, background: `var(--${RSVP[p.rsvp].chip}-bg, var(--s2))` }}>{rsvpLabel(p.rsvp, event.status === 'confirmed' && !!event.confirmed)}</span>
             {isHost && !p.you && <ParticipantMenu p={p} event={event} onPatch={onPatch} />}
           </div>
         ))}
@@ -413,6 +421,7 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
 }) {
   const [confirmRemove, setConfirmRemove] = useState(false)
   const first = p.name.split(' ')[0]
+  const locked = event.status === 'confirmed' && !!event.confirmed
   function markRsvp(r: Rsvp) {
     onPatch({ participants: event.participants.map((x) => (x.id === p.id ? { ...x, rsvp: r } : x)) })
     close()
@@ -423,19 +432,27 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
   }
   return (
     <div className="flex flex-col p-0.5">
-      <div className="px-2 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Reply for {first}</div>
-      {(Object.keys(RSVP) as Rsvp[]).map((r) => (
+      <div className="px-2 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">{locked ? 'Reply' : 'Mark'} for {first}</div>
+      {(Object.keys(RSVP) as Rsvp[]).filter((r) => locked || r !== 'maybe').map((r) => (
         <button key={r} onClick={() => markRsvp(r)} className={`flex items-center gap-2 rounded-[7px] px-2 py-1.5 text-left text-[13px] font-medium hover:bg-s2 ${p.rsvp === r ? 'bg-s2' : ''}`}>
           <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: RSVP[r].color }} />
-          {RSVP[r].label}
+          {rsvpLabel(r, locked)}
           {p.rsvp === r && <Check size={13} className="ml-auto text-dim" />}
         </button>
       ))}
       <div className="my-1 border-t border-border" />
       {confirmRemove ? (
-        <button onClick={remove} className="rounded-[7px] bg-brick-bg px-2 py-1.5 text-left text-[13px] font-semibold text-brick-text">
-          Remove {first}? This clears their replies too.
-        </button>
+        <div className="rounded-[7px] bg-brick-bg px-2 py-2">
+          <p className="mb-2 text-[12.5px] leading-[1.45] text-brick-text">Remove {first}? This clears their replies too.</p>
+          <div className="flex items-center gap-1.5">
+            <button onClick={remove} className="h-7 flex-1 rounded-[7px] text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
+              Remove
+            </button>
+            <button onClick={() => setConfirmRemove(false)} className="h-7 flex-1 rounded-[7px] border border-brick-border bg-s1 text-[12.5px] font-semibold text-brick-text">
+              Cancel
+            </button>
+          </div>
+        </div>
       ) : (
         <button onClick={() => setConfirmRemove(true)} className="rounded-[7px] px-2 py-1.5 text-left text-[13px] font-medium text-brick-text hover:bg-brick-bg">
           Remove from event
@@ -911,17 +928,19 @@ function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Pa
 function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
   const [label, setLabel] = useState('')
   const [amt, setAmt] = useState('')
+  const [needLabel, setNeedLabel] = useState(false)
   const [paidBy, setPaidBy] = useState(() => event.participants.find((p) => p.you)?.id ?? event.participants[0]?.id ?? '')
 
   const expenses = event.expenses ?? []
   const spent = expenses.reduce((s, x) => s + x.amount, 0)
-  const responded = respondedInRange(event)
+  // the card only shows after lock-in, so costs split between the people actually going
+  const goingCount = event.participants.filter((p) => p.rsvp === 'attending').length
+  const heads = Math.max(1, goingCount)
+  const perPerson = event.budgetMode === 'person'
   const budgetAmount = Number(event.budget || 0)
-  const budgetTotal = budgetAmount > 0
-    ? (event.budgetMode === 'person' ? (responded > 0 ? budgetAmount * responded : null) : budgetAmount)
-    : null
+  const budgetTotal = budgetAmount > 0 ? (perPerson ? budgetAmount * heads : budgetAmount) : null
   const over = budgetTotal != null && spent > budgetTotal
-  const share = spent > 0 && responded > 0 ? spent / responded : null
+  const share = spent > 0 ? spent / heads : null
   const byId = new Map(event.participants.map((p) => [p.id, p]))
 
   // who paid what, so the split reads as balances instead of a matrix
@@ -930,7 +949,8 @@ function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boo
 
   function addExpense() {
     const a = Math.round(Number(amt))
-    if (!label.trim() || !Number.isFinite(a) || a <= 0) return
+    if (!label.trim()) { setNeedLabel(true); return }
+    if (!Number.isFinite(a) || a <= 0) return
     onPatch({ expenses: [...expenses, { id: `x${Date.now().toString(36)}-${expenses.length}`, label: label.trim(), amount: a, paidBy }] })
     setLabel('')
     setAmt('')
@@ -943,10 +963,13 @@ function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boo
     <div className="w-full rounded-2xl border border-border bg-s1 p-5">
       <div className="mb-3 flex flex-wrap items-center gap-2 text-[14.5px] font-semibold">
         <Receipt size={17} className="text-dim" /> Expenses
+        {/* the caption speaks the budget's own language: per-person budgets compare per head */}
         <span className="ml-auto text-[12.5px] font-normal text-dim">
           {spent > 0
             ? budgetTotal != null
-              ? <>spent ${spent.toLocaleString()} of ${budgetTotal.toLocaleString()}</>
+              ? perPerson
+                ? <>${Math.round(share ?? 0).toLocaleString()} of ${budgetAmount.toLocaleString()} per person</>
+                : <>spent ${spent.toLocaleString()} of ${budgetTotal.toLocaleString()}</>
               : <>spent ${spent.toLocaleString()} so far</>
             : 'nothing spent yet'}
         </span>
@@ -993,14 +1016,14 @@ function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boo
 
       {share != null && (
         <div className="mt-3 border-t border-border pt-3 text-[12.5px] leading-[1.6] text-dim">
-          <div>That splits to <span className="font-semibold text-text">${Math.round(share).toLocaleString()}/person</span> across {responded} currently available.</div>
+          <div>Split between the {heads} {heads === 1 ? 'person' : 'people'} going, that&apos;s <span className="font-semibold text-text">${Math.round(share).toLocaleString()} each</span>.</div>
           {[...paidTotals.entries()].map(([pid, total]) => {
             const payer = byId.get(pid)
             if (!payer) return null
             const net = Math.round(total - share)
             return (
               <div key={pid}>
-                {payer.name.split(' ')[0]} paid ${total.toLocaleString()}{net > 0 ? <> and gets back <span className="font-semibold text-teal-text">${net.toLocaleString()}</span></> : net < 0 ? <> and still chips in ${(-net).toLocaleString()}</> : <>, exactly their share</>}.
+                {payer.name.split(' ')[0]} paid ${total.toLocaleString()}{net > 0 ? <> and is reimbursed <span className="font-semibold text-teal-text">${net.toLocaleString()}</span></> : net < 0 ? <> and still owes ${(-net).toLocaleString()}</> : <>, exactly their share</>}.
               </div>
             )
           })}
@@ -1010,9 +1033,9 @@ function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boo
       {isHost && (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
           <input
-            value={label} onChange={(e) => setLabel(e.target.value)} placeholder="What was it for?" maxLength={60}
+            value={label} onChange={(e) => { setLabel(e.target.value); setNeedLabel(false) }} placeholder="What was it for? (required)" maxLength={60}
             onKeyDown={(e) => { if (e.key === 'Enter') addExpense() }}
-            className="h-9 min-w-[140px] flex-1 rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] outline-none focus:border-border2"
+            className={`h-9 min-w-[140px] flex-1 rounded-[9px] border bg-s0 px-3 text-[13.5px] outline-none ${needLabel ? 'border-brick-border' : 'border-border focus:border-border2'}`}
           />
           <label className="flex h-9 w-[96px] flex-none items-center rounded-[9px] border border-border bg-s0 px-2.5 focus-within:border-border2">
             <span className="text-[13px] text-dim">$</span>
@@ -1029,6 +1052,7 @@ function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boo
           <button onClick={addExpense} className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13px] font-semibold text-on-accent">
             <Plus size={14} /> Add
           </button>
+          {needLabel && <p className="w-full text-[12.5px] text-brick-text">Say what it was for before adding it.</p>}
         </div>
       )}
     </div>
