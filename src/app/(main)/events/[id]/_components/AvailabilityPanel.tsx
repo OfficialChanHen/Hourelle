@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarPlus, X, GripHorizontal, Check, Eraser, TriangleAlert, Bell, SlidersHorizontal, Minus, Plus, Search, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarPlus, X, GripHorizontal, Check, Eraser, Bell, SlidersHorizontal, Minus, Plus, Search, Trash2 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
@@ -500,10 +500,25 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     return mine[day] ?? []
   }
 
+  // clearing is instant with an undo window instead of a scary confirm — the old
+  // times sit in state until the toast expires
+  const [undoTimes, setUndoTimes] = useState<Record<string, Iv[]> | null>(null)
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (undoTimer.current) clearTimeout(undoTimer.current) }, [])
   function clearAllMine() {
+    const snapshot = mine
     const next = Object.fromEntries(event.days.map((d) => [d.key, [] as Iv[]]))
     setMine(next); persist(next)
     setSel(null)
+    setUndoTimes(snapshot)
+    if (undoTimer.current) clearTimeout(undoTimer.current)
+    undoTimer.current = setTimeout(() => setUndoTimes(null), 8000)
+  }
+  function undoClear() {
+    if (!undoTimes) return
+    setMine(undoTimes); persist(undoTimes)
+    setUndoTimes(null)
+    if (undoTimer.current) clearTimeout(undoTimer.current)
   }
 
   // calendar import: fetch busy as UTC instants, convert to event-tz grid minutes, preview, apply
@@ -1079,6 +1094,18 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         </div>}
       </div>
 
+      {/* undo toast — floats above the mobile tab bar, gone after 8s */}
+      {undoTimes && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[84px] z-50 flex justify-center px-4 md:bottom-6">
+          <div className="pointer-events-auto flex items-center gap-2.5 rounded-full border border-border bg-s1 py-1.5 pl-4 pr-1.5 text-[13px] shadow-soft">
+            Your times were cleared
+            <button type="button" onClick={undoClear} className="flex h-8 items-center rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent">
+              Undo
+            </button>
+          </div>
+        </div>
+      )}
+
       {importing && (
         <ImportPreview
           provider={importing.provider}
@@ -1300,50 +1327,16 @@ function useClampX(open: boolean) {
   return ref
 }
 
-/* ── clear all my times, with a warning before anything is committed ── */
+/* ── clear all my times — instant, because the undo toast makes it reversible ── */
 function ClearTimes({ onClear }: { onClear: () => void }) {
-  const [open, setOpen] = useState(false)
-  const panelRef = useClampX(open)
-  const wrap = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false) }
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
-    window.addEventListener('pointerdown', onDown)
-    window.addEventListener('keydown', onKey)
-    return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
-  }, [open])
-
   return (
-    <div ref={wrap} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className={`flex h-7 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[13px] font-medium text-dim hover:border-border2 hover:text-brick-text ${open ? 'border-border2' : 'border-border'}`}
-      >
-        <Eraser size={15} /> <span className="sm:hidden">Clear</span><span className="hidden sm:inline">Clear my times</span>
-      </button>
-      {open && (
-        <div ref={panelRef} className="absolute left-0 top-full z-[35] mt-1 w-[236px] max-w-[calc(100vw-16px)] rounded-[10px] border border-brick-border bg-s1 p-3 shadow-soft">
-          <div className="flex items-start gap-2">
-            <TriangleAlert size={16} className="mt-px flex-none text-brick-text" />
-            <p className="text-[13px] leading-[1.5] text-text">
-              Clear everything you&apos;ve marked on this event? There is no undo.
-            </p>
-          </div>
-          <div className="mt-2.5 flex items-center justify-end gap-2">
-            <button type="button" onClick={() => setOpen(false)} className="flex h-8 items-center rounded-[8px] border border-border2 bg-s1 px-3 text-[13px] font-semibold hover:bg-s2">
-              Cancel
-            </button>
-            <button type="button" onClick={() => { setOpen(false); onClear() }} className="flex h-8 items-center rounded-[8px] px-3 text-[13px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
-              Yes, clear it
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+    <button
+      type="button"
+      onClick={onClear}
+      className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[13px] font-medium text-dim hover:border-border2 hover:text-brick-text"
+    >
+      <Eraser size={15} /> <span className="sm:hidden">Clear</span><span className="hidden sm:inline">Clear my times</span>
+    </button>
   )
 }
 

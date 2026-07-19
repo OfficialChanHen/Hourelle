@@ -1,16 +1,21 @@
 // Small PDT/EDT pill — required on every time display.
-const abbr: Record<string, string> = {
-  'America/Los_Angeles': 'PDT',
-  'America/Denver': 'MDT',
-  'America/Chicago': 'CDT',
-  'America/New_York': 'EDT',
-  'Europe/London': 'BST',
-  'Asia/Singapore': 'SGT',
-  UTC: 'UTC',
-}
+// Abbreviations come from Intl for the current date, so PST/PDT flips with DST
+// instead of being hardcoded to summer; cached because piles render this a lot.
+const cache = new Map<string, string>()
 
 export function tzAbbr(tz: string): string {
-  return abbr[tz] ?? tz.split('/').pop()?.slice(0, 3).toUpperCase() ?? 'UTC'
+  const hit = cache.get(tz)
+  if (hit) return hit
+  let label: string
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'short' }).formatToParts(new Date())
+    label = parts.find((p) => p.type === 'timeZoneName')?.value ?? 'UTC'
+  } catch {
+    // unknown zone string: fall back to the last path segment, uppercased
+    label = tz.split('/').pop()?.slice(0, 3).toUpperCase() ?? 'UTC'
+  }
+  cache.set(tz, label)
+  return label
 }
 
 export function TimezonePill({ tz }: { tz: string }) {

@@ -54,6 +54,19 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
   if (tab !== 'availability' && bestFocus) setBestFocus(0)
   const [copied, setCopied] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
+  // unread discussion count: what arrived since the drawer was last open, not the
+  // lifetime total. Read after mount (localStorage), marked seen while the drawer is up
+  const [seenMsgs, setSeenMsgs] = useState<number | null>(null)
+  useEffect(() => {
+    try { setSeenMsgs(Number(localStorage.getItem(`aline.seen.${id}`) ?? 0) || 0) } catch { setSeenMsgs(0) }
+  }, [id])
+  const msgCount = event?.messages.length ?? 0
+  useEffect(() => {
+    if (!chatOpen) return
+    setSeenMsgs(msgCount)
+    try { localStorage.setItem(`aline.seen.${id}`, String(msgCount)) } catch { /* private mode */ }
+  }, [chatOpen, msgCount, id])
+  const unread = seenMsgs === null ? 0 : Math.max(0, msgCount - seenMsgs)
   const tabsRef = useRef<HTMLDivElement>(null)
   const [tabFade, setTabFade] = useState({ l: false, r: false })
   const tabResolved = useRef(false)
@@ -168,7 +181,7 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
           <button onClick={() => setChatOpen(true)} className="flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[14px] font-semibold hover:bg-s2">
             <MessageCircle size={16} className="text-accent-text" />
             <span className="hidden sm:inline">Discussion</span>
-            {event.messages.length > 0 && <span className="flex h-[16px] items-center rounded-[10px] bg-accent px-[6px] text-[10.5px] text-on-accent">{event.messages.length}</span>}
+            {unread > 0 && <span className="flex h-[16px] items-center rounded-[10px] bg-accent px-[6px] text-[10.5px] text-on-accent">{unread}</span>}
           </button>
           {/* share button opens a dropdown with the URL and a one-tap copy */}
           <Popover
