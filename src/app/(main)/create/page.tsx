@@ -190,10 +190,9 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
           : '',
     tz: form.timezone ? '' : 'Pick the time zone this event runs in.',
   }
-  const placesError = form.locMode === 'vote' && form.picked.length === 0 ? 'Add at least one place, or switch to “Decide later”.' : ''
+  // an empty ballot is fine: the Location tab handles it, and guests can add places later
   function stepValid(s: number) {
     if (s === 0) return !basicsErr.title && !basicsErr.org && !basicsErr.start && !basicsErr.end && !basicsErr.win && !basicsErr.tz
-    if (s === 1) return !placesError
     return true
   }
 
@@ -270,7 +269,7 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
 
       <div ref={panel} className="rounded-2xl border border-border bg-s1 px-4 py-[22px] sm:px-6">
         {step === 0 && <StepBasics form={form} update={update} today={today} attempted={attempted} errs={basicsErr} />}
-        {step === 1 && <StepLocation form={form} update={update} stopUid={stopUid} attempted={attempted} placesError={placesError} />}
+        {step === 1 && <StepLocation form={form} update={update} stopUid={stopUid} />}
         {step === 2 && <StepInvite form={form} update={update} />}
         {step === 3 && <StepReview form={form} goStep={setStep} />}
       </div>
@@ -505,7 +504,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
 }
 
 /* ── Step 2: Location ── */
-function StepLocation({ form, update, stopUid, attempted, placesError }: { form: Form; update: Update; stopUid: RefObject<number>; attempted: boolean; placesError: string }) {
+function StepLocation({ form, update, stopUid }: { form: Form; update: Update; stopUid: RefObject<number> }) {
   const modes: { v: LocMode; l: string; icon: typeof MapPin }[] = [
     { v: 'vote', l: 'In person', icon: MapPin },
     { v: 'remote', l: 'Remote', icon: Video },
@@ -624,10 +623,10 @@ function StepLocation({ form, update, stopUid, attempted, placesError }: { form:
 
           {/* picked */}
           {form.picked.length === 0 ? (
-            <div className={`flex items-start gap-2 rounded-[10px] border px-[13px] py-[11px] ${attempted && placesError ? 'border-brick-border bg-brick-bg' : 'border-border bg-s2'}`}>
-              <Info size={16} className={`mt-0.5 ${attempted && placesError ? 'text-brick-text' : 'text-accent-text'}`} />
-              <span className={`text-[13px] leading-[1.5] ${attempted && placesError ? 'text-brick-text' : 'text-dim'}`}>
-                {attempted && placesError ? placesError : 'No places yet. Search above to add your first one. These are just starting ideas, more can be added any time.'}
+            <div className="flex items-start gap-2 rounded-[10px] border border-border bg-s2 px-[13px] py-[11px]">
+              <Info size={16} className="mt-0.5 text-accent-text" />
+              <span className="text-[13px] leading-[1.5] text-dim">
+                {'No places yet. You can start the vote empty and let everyone add ideas on the Location tab, or search above to seed it.'}
               </span>
             </div>
           ) : (

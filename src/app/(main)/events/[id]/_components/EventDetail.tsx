@@ -245,6 +245,23 @@ export function EventDetail({ id, initialTab }: { id: string; initialTab: TabKey
       {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={setTab} onViewAvailability={goToAvailabilityFor} onGoToBestWindow={goToBestWindow} />}
       {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToTab={setTab} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} />}
 
+      {/* discussion follows you down the page — the classic chat bubble, above the
+          mobile tab bar; the header button stays for people who look there */}
+      {!chatOpen && (
+        <button
+          onClick={() => setChatOpen(true)}
+          aria-label={unread > 0 ? `Open discussion, ${unread} unread` : 'Open discussion'}
+          className="fixed bottom-[84px] right-4 z-40 grid h-12 w-12 place-items-center rounded-full bg-accent text-on-accent shadow-soft md:bottom-6 md:right-6"
+        >
+          <MessageCircle size={21} />
+          {unread > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-s1 bg-brick px-1 text-[10px] font-bold text-white">
+              {unread}
+            </span>
+          )}
+        </button>
+      )}
+
       {chatOpen && <ChatDrawer event={event} messages={event.messages} onSend={sendMessage} onClose={() => setChatOpen(false)} />}
     </div>
   )
@@ -723,6 +740,9 @@ function downscaleImage(file: File): Promise<string> {
 function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [err, setErr] = useState(false)
+  // one-time-use controls start collapsed: the current cover plus a "Change" link,
+  // swatches and upload only when asked for
+  const [editing, setEditing] = useState(false)
   async function pickFile(f: File | undefined) {
     if (!f) return
     try {
@@ -731,6 +751,19 @@ function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Par
     } catch {
       setErr(true)
     }
+  }
+  if (!editing) {
+    const preset = COVER_PRESETS.find((p) => event.image === `preset:${p.id}`)
+    return (
+      <div className="flex flex-wrap items-center gap-2.5">
+        {event.image
+          ? <Cover src={event.image} from={preset?.from ?? '#E4EDE7'} to={preset?.to ?? '#CFE0D5'} className="h-9 w-14 rounded-[8px] border border-border" />
+          : <span className="text-[13px] text-dim">No cover</span>}
+        <button onClick={() => setEditing(true)} className="text-[12.5px] font-semibold text-accent-text hover:underline">
+          {event.image ? 'Change' : 'Add one'}
+        </button>
+      </div>
+    )
   }
   return (
     <div className="flex flex-col gap-2">
@@ -756,6 +789,7 @@ function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Par
         {event.image && (
           <button onClick={() => onPatch({ image: undefined })} className="h-8 rounded-[8px] px-2 text-[12.5px] font-semibold text-brick-text hover:bg-brick-bg">Remove</button>
         )}
+        <button onClick={() => setEditing(false)} className="h-8 rounded-[8px] px-2 text-[12.5px] font-semibold text-dim hover:bg-s2">Done</button>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { pickFile(e.target.files?.[0]); e.target.value = '' }} />
       </div>
       {err && <span className="text-[12px] text-brick-text">That file did not work. Try a JPG or PNG.</span>}
