@@ -111,3 +111,69 @@ input[type="date"]::-webkit-date-and-time-value {
 .scroll-slim::-webkit-scrollbar { width: 9px; height: 9px; }
 .scroll-slim::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 9px; border: 2px solid transparent; background-clip: padding-box; }
 .scroll-slim::-webkit-scrollbar-track { background: transparent; }
+
+/* Up next carousel: quiet dots under the card, the accent marking where you are */
+.upnext-swiper {
+  --swiper-pagination-bottom: 10px;
+  --swiper-navigation-color: var(--dim);
+}
+/* the whole traversal cluster — [prev] dots [next] — sits centered in the padding
+   strip under the card, so nothing ever covers the card's own content. The extra
+   .swiper class outguns swiper's own positioning rules (`.swiper-horizontal
+   .swiper-button-*`, `.swiper-pagination-horizontal`), which tie on specificity
+   and load after this file. */
+/* dots share the arrows' 26px band so the whole cluster sits on one center line */
+.swiper.upnext-swiper .swiper-pagination {
+  left: 50%;
+  bottom: 0;
+  width: auto;
+  transform: translateX(-50%);
+  height: 26px;
+  display: flex;
+  align-items: center;
+}
+.swiper.upnext-swiper .swiper-button-prev,
+.swiper.upnext-swiper .swiper-button-next {
+  top: auto;
+  bottom: 0;
+  margin-top: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  background: var(--s1);
+  border: 1px solid var(--border2);
+  box-shadow: var(--shadow);
+}
+.swiper.upnext-swiper .swiper-button-prev {
+  left: auto;
+  right: calc(50% + 36px);
+}
+.swiper.upnext-swiper .swiper-button-next {
+  left: calc(50% + 36px);
+  right: auto;
+}
+.upnext-swiper .swiper-button-prev:hover,
+.upnext-swiper .swiper-button-next:hover {
+  --swiper-navigation-color: var(--text);
+}
+/* swiper 14 draws the arrow as an inline svg stretched to the button — pin it
+   down so the chevron sits small inside the circle. This is the size knob. */
+.swiper.upnext-swiper .swiper-button-prev svg,
+.swiper.upnext-swiper .swiper-button-next svg {
+  width: 12px;
+  height: 12px;
+}
+.upnext-swiper .swiper-button-disabled {
+  opacity: 0.4;
+}
+.upnext-swiper .swiper-pagination-bullet {
+  width: 7px;
+  height: 7px;
+  margin: 0 4px !important;
+  background: var(--border2);
+  opacity: 1;
+  transition: background 0.2s;
+}
+.upnext-swiper .swiper-pagination-bullet-active {
+  background: var(--accent);
+}

@@ -2,10 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   Calendar, Zap, CalendarCheck, CalendarPlus, CalendarClock, Mail, Check, Link2,
   ArrowRight, type LucideIcon,
 } from 'lucide-react'
+import { Swiper, SwiperSlide } from 'swiper/react'
+import { Navigation, Pagination, A11y } from 'swiper/modules'
+import 'swiper/css'
+import 'swiper/css/navigation'
+import 'swiper/css/pagination'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { FlashToast } from '@/components/ui/FlashToast'
 import { StoredEventCard } from '@/components/ui/StoredEventCard'
@@ -25,16 +31,18 @@ export default function HomePage() {
   const withPhase = (events ?? []).map((e) => ({ e, phase: phaseOf(e) }))
   const active = withPhase.filter((x) => x.phase !== 'past')
 
-  // the one event that needs you next: happening today, else the nearest confirmed,
-  // else the newest one still planning
-  const hero =
-    active.find((x) => x.phase === 'today') ??
-    active
-      .filter((x) => x.phase === 'soon' || x.phase === 'upcoming')
-      .sort((a, b) => (daysUntil(a.e.confirmed?.dayKey ?? a.e.startDate) ?? 0) - (daysUntil(b.e.confirmed?.dayKey ?? b.e.startDate) ?? 0))[0] ??
-    active.find((x) => x.phase === 'planning') ??
-    null
-  const rest = active.filter((x) => x.e.id !== hero?.e.id)
+  // up next: the closest confirmed plans, nearest day first and same-day ties to the
+  // earlier start — up to five slides. With nothing confirmed, the newest planning
+  // event stands in so the spot never sits empty.
+  const upNext = active
+    .filter((x) => x.phase === 'today' || x.phase === 'soon' || x.phase === 'upcoming')
+    .sort((a, b) =>
+      ((daysUntil(a.e.confirmed?.dayKey ?? a.e.startDate) ?? 0) - (daysUntil(b.e.confirmed?.dayKey ?? b.e.startDate) ?? 0)) ||
+      ((a.e.confirmed?.startMin ?? 0) - (b.e.confirmed?.startMin ?? 0)))
+    .slice(0, 5)
+  const heroes = upNext.length > 0 ? upNext : active.filter((x) => x.phase === 'planning').slice(0, 1)
+  const heroIds = new Set(heroes.map((x) => x.e.id))
+  const rest = active.filter((x) => !heroIds.has(x.e.id))
   const yours = rest.filter((x) => x.e.hostedByYou)
   const invited = rest.filter((x) => !x.e.hostedByYou)
   const sameDay = sameDayLabelFor(active.map((x) => x.e))
@@ -50,10 +58,18 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Up next — the single event that wants your attention */}
-      <SectionHeader icon={Zap} iconColor="var(--accent-text)" title="Up next" />
-      {hero ? (
-        <HeroCard e={hero.e} phase={hero.phase} sameDayTitle={sameDay(hero.e)} />
+      {/* Up next — the closest confirmed plans, one card at a time */}
+      <SectionHeader icon={Zap} iconColor="var(--accent-text)" title="Up next" count={heroes.length > 1 ? heroes.length : undefined} />
+      {heroes.length > 1 ? (
+        <Swiper modules={[Navigation, Pagination, A11y]} slidesPerView={1} spaceBetween={18} navigation pagination={{ clickable: true }} className="upnext-swiper !pb-9">
+          {heroes.map((x) => (
+            <SwiperSlide key={x.e.id}>
+              <HeroCard e={x.e} phase={x.phase} sameDayTitle={sameDay(x.e)} />
+            </SwiperSlide>
+          ))}
+        </Swiper>
+      ) : heroes.length === 1 ? (
+        <HeroCard e={heroes[0].e} phase={heroes[0].phase} sameDayTitle={sameDay(heroes[0].e)} />
       ) : (
         <EmptyState
           icon={CalendarPlus}
@@ -86,19 +102,25 @@ export default function HomePage() {
   )
 }
 
-/* the hero: wide card with the lifecycle strip and one contextual action */
+/* the hero: wide card with the lifecycle strip and one contextual action.
+   The whole card opens the event's details; only elements with their own job don't. */
 function HeroCard({ e, phase, sameDayTitle }: { e: AppEvent; phase: Phase; sameDayTitle?: string }) {
+  const router = useRouter()
   const badge = PHASE_BADGE[phase]
   const du = daysUntil(e.confirmed?.dayKey ?? e.startDate)
   const [copied, setCopied] = useState(false)
   const action = phase === 'planning'
     ? { label: 'Add your availability', href: `/events/${e.id}?tab=availability` }
     : { label: 'See the plan', href: `/events/${e.id}` }
-  function copyLink() {
+  function copyLink(ev: React.MouseEvent) {
+    ev.stopPropagation()
     navigator.clipboard?.writeText(`https://aline.app/e/${e.id}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-s1">
+    <div
+      onClick={() => router.push(`/events/${e.id}?tab=details`)}
+      className="cursor-pointer overflow-hidden rounded-2xl border border-border bg-s1 transition-colors hover:border-border2"
+    >
       <Cover src={e.image} from="#E4EDE7" to="#CFE0D5" className={e.image ? 'h-[110px]' : 'h-[64px]'} />
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 p-5">
         {/* real min width: on phones the CTAs wrap below instead of crushing the title */}
@@ -108,7 +130,7 @@ function HeroCard({ e, phase, sameDayTitle }: { e: AppEvent; phase: Phase; sameD
             <Badge variant={du !== null && du >= 0 && du <= 14 ? 'accent' : 'neutral'}>{daysUntilLabel(du)}</Badge>
             {!e.hostedByYou && <Badge variant="neutral">Hosted by {e.hostName}</Badge>}
           </div>
-          <Link href={`/events/${e.id}`} className="block font-serif text-[27px] leading-[1.08] tracking-[-0.01em] hover:underline">{e.title}</Link>
+          <Link href={`/events/${e.id}?tab=details`} onClick={(ev) => ev.stopPropagation()} className="block font-serif text-[27px] leading-[1.08] tracking-[-0.01em] hover:underline">{e.title}</Link>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[13px] text-dim">
             <Calendar size={14} /> {confirmedSlotText(e) ?? dateRangeText(e)} <TimezonePill tz={e.timezone} />
           </div>
@@ -120,7 +142,7 @@ function HeroCard({ e, phase, sameDayTitle }: { e: AppEvent; phase: Phase; sameD
           <LifecycleStrip phase={phase} className="mt-4 max-w-[380px]" />
         </div>
         <div className="flex w-full flex-none flex-col gap-2 sm:w-auto sm:flex-row-reverse sm:items-center">
-          <Link href={action.href} className="flex h-10 w-full flex-none items-center justify-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent sm:w-auto">
+          <Link href={action.href} onClick={(ev) => ev.stopPropagation()} className="flex h-10 w-full flex-none items-center justify-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent sm:w-auto">
             {action.label} <ArrowRight size={15} />
           </Link>
           {e.hostedByYou && (
