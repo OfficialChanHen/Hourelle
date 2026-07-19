@@ -24,9 +24,23 @@ import {
   type AppEvent, type Phase,
 } from '@/lib/events'
 
+// what part of the day it is, by the reader's clock
+function greetingFor(hour: number): string {
+  if (hour < 5) return 'Good evening'
+  if (hour < 12) return 'Good morning'
+  if (hour < 18) return 'Good afternoon'
+  return 'Good evening'
+}
+
 export default function HomePage() {
   const [events, setEvents] = useState<AppEvent[] | null>(null)
-  useEffect(() => { setEvents(listEvents()) }, [])
+  // greeting settles after mount so the server-rendered HTML never disagrees
+  // with a visitor in another timezone
+  const [greeting, setGreeting] = useState('Good afternoon')
+  useEffect(() => {
+    setEvents(listEvents())
+    setGreeting(greetingFor(new Date().getHours()))
+  }, [])
 
   const withPhase = (events ?? []).map((e) => ({ e, phase: phaseOf(e) }))
   const active = withPhase.filter((x) => x.phase !== 'past')
@@ -52,7 +66,7 @@ export default function HomePage() {
       <FlashToast />
       {/* greeting */}
       <div className="mb-5">
-        <h1 className="mb-[9px] font-serif text-[37px] leading-[1.02] tracking-[-0.01em]">Good afternoon, Jordan</h1>
+        <h1 className="mb-[9px] font-serif text-[37px] leading-[1.02] tracking-[-0.01em]" suppressHydrationWarning>{greeting}, Jordan</h1>
         <div className="flex items-center gap-1.5 text-[13.5px] text-dim">
           <Calendar size={15} /> {active.length > 0 ? `${active.length} event${active.length === 1 ? '' : 's'} in motion` : 'No events yet'}
         </div>
@@ -129,6 +143,7 @@ function HeroCard({ e, phase, sameDayTitle }: { e: AppEvent; phase: Phase; sameD
             <Badge variant={badge.variant}>{badge.label}</Badge>
             <Badge variant={du !== null && du >= 0 && du <= 14 ? 'accent' : 'neutral'}>{daysUntilLabel(du)}</Badge>
             {!e.hostedByYou && <Badge variant="neutral">Hosted by {e.hostName}</Badge>}
+            {e.participants.some((p) => p.you && p.rsvp === 'pending') && <Badge variant="accent">Awaiting your reply</Badge>}
           </div>
           <Link href={`/events/${e.id}?tab=details`} onClick={(ev) => ev.stopPropagation()} className="block font-serif text-[27px] leading-[1.08] tracking-[-0.01em] hover:underline">{e.title}</Link>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[13px] text-dim">

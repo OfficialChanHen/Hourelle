@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CalendarDays, Plus, MoreHorizontal, Bell } from 'lucide-react'
+import { CalendarDays, Plus, Bell } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { useReminderDot } from '@/hooks/useReminderDot'
 
@@ -78,9 +78,6 @@ export function Header() {
           >
             JM
           </Link>
-          <button className="grid h-[30px] w-[30px] place-items-center rounded-lg border border-border text-dim hover:text-text" aria-label="More">
-            <MoreHorizontal size={18} />
-          </button>
         </div>
       </div>
     </header>

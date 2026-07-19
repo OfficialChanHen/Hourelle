@@ -3,12 +3,12 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Calendar, CalendarClock, Check, Link2, MapPin, RotateCcw, Trash2, UserRound } from 'lucide-react'
+import { Calendar, CalendarClock, Check, Link2, MapPin, Reply, RotateCcw, Trash2, UserRound, UsersRound, Vote } from 'lucide-react'
 import { Badge } from './Badge'
 import { AvatarRow } from './AvatarRow'
 import { TimezonePill } from './TimezonePill'
 import { Cover } from './Cover'
-import { daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, leadingPlaceOf, phaseOf, type AppEvent } from '@/lib/events'
+import { daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, leadingPlaceOf, phaseOf, respondedCount, type AppEvent } from '@/lib/events'
 import { PHASE_BADGE } from './LifecycleStrip'
 
 const COVERS: [string, string][] = [
@@ -43,6 +43,11 @@ export function StoredEventCard({ e, reuseHref, sameDayTitle }: { e: AppEvent; r
   const [from, to] = coverFor(e.id)
   const canShare = e.hostedByYou && phase !== 'past'
   const canDelete = e.hostedByYou && !e.demo
+  // the three glance cues that call for action: your missing reply, how many the
+  // host is still waiting on, and a voting deadline that hasn't passed
+  const youPending = phase !== 'past' && e.participants.some((p) => p.you && p.rsvp === 'pending')
+  const replied = e.hostedByYou && phase === 'planning' ? respondedCount(e.avail) : null
+  const voteDays = phase === 'planning' && e.voteDeadline ? daysUntil(e.voteDeadline) : null
 
   const copyLink = asAction(() => {
     navigator.clipboard?.writeText(`https://aline.app/e/${e.id}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
@@ -63,6 +68,12 @@ export function StoredEventCard({ e, reuseHref, sameDayTitle }: { e: AppEvent; r
 
       {/* glance lines: a settled time beats a date range; place and host only when they say something */}
       <div className="mb-3 flex flex-col gap-[7px] text-[13px] text-dim">
+        {youPending && (
+          <div className="flex items-center gap-1.5 font-medium text-accent-text">
+            <Reply size={14} className="flex-none" />
+            <span>You haven&apos;t replied yet</span>
+          </div>
+        )}
         <div className="flex items-center gap-1.5">
           <Calendar size={14} className="flex-none" />
           {slot ? (
@@ -82,6 +93,22 @@ export function StoredEventCard({ e, reuseHref, sameDayTitle }: { e: AppEvent; r
           <div className="flex items-center gap-1.5">
             <UserRound size={14} className="flex-none" />
             <span className="truncate">Hosted by {e.hostName}</span>
+          </div>
+        )}
+        {replied !== null && (
+          <div className="flex items-center gap-1.5">
+            <UsersRound size={14} className="flex-none" />
+            <span className="truncate">
+              {replied >= e.participants.length ? 'Everyone has replied' : `${replied} of ${e.participants.length} replied so far`}
+            </span>
+          </div>
+        )}
+        {voteDays !== null && voteDays >= 0 && (
+          <div className={`flex items-center gap-1.5 ${voteDays <= 7 ? 'font-medium text-ochre-text' : ''}`}>
+            <Vote size={14} className="flex-none" />
+            <span className="truncate">
+              {voteDays === 0 ? 'Voting closes today' : voteDays <= 7 ? `Voting closes in ${voteDays} day${voteDays === 1 ? '' : 's'}` : `Voting closes ${dateRangeText({ startDate: e.voteDeadline!, endDate: e.voteDeadline! })}`}
+            </span>
           </div>
         )}
         {sameDayTitle && (
