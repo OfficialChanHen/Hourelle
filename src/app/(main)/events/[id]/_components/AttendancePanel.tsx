@@ -7,7 +7,7 @@ import { Popover } from '@/components/ui/Popover'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { tzAbbr } from '@/components/ui/TimezonePill'
 import {
-  availIvOf, bestWindow, byFirstLastName, dayLabel, gridStartMinOf, fmtMinute, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
+  availIvOf, bestWindow, byYouFirst, dayLabel, gridStartMinOf, fmtMinute, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
   type AppEvent, type Iv, type Participant, type Rsvp,
 } from '@/lib/events'
 import { computeItinerary } from '@/lib/itinerary'
@@ -242,9 +242,9 @@ function SingleVenue({
         part.push({ p, s: w ? w.s : winS, e: w ? w.e : null })
       } else whole.push(p)
     }
-    // every group reads the same way: first name, then last name
-    part.sort((a, b) => byFirstLastName(a.p, b.p))
-    for (const g of [whole, noTimes, maybe, out, noReply]) g.sort(byFirstLastName)
+    // every group reads the same way: you first, then first name, then last name
+    part.sort((a, b) => byYouFirst(a.p, b.p))
+    for (const g of [whole, noTimes, maybe, out, noReply]) g.sort(byYouFirst)
     return { whole, part, noTimes, maybe, out, noReply }
   }, [event.participants, dayIv, win, winS, winE, markedIds]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -571,7 +571,7 @@ function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGr
               className={`flex min-w-0 items-center gap-2.5 rounded-[8px] text-left ${hasBars ? 'w-[42%] sm:w-[160px] flex-none' : 'flex-1'} ${onPerson ? '-mx-1 px-1 py-0.5 hover:bg-s2' : ''}`}
             >
               <Avatar initials={p.initials} color={p.color} size={27} font={10} />
-              <span className="min-w-0 flex-1 truncate text-[14px]">{p.name}{p.you && <span className="text-faint"> · you</span>}</span>
+              <span className="min-w-0 flex-1 truncate text-[14px]">{p.name}{p.you && <span className="text-faint"> (You)</span>}</span>
             </button>
             {hasBars && (
               <div className="relative h-5 min-w-0 flex-1 rounded-[6px] bg-s2">

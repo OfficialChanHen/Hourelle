@@ -102,7 +102,7 @@ export function FilterModal({ participants, filter, onToggle, onClear, onClose }
               return (
                 <button key={p.id} type="button" onClick={() => onToggle(p.id)} className={`flex items-center gap-2.5 rounded-[8px] px-2 py-2 text-left text-[13.5px] font-medium hover:bg-s2 ${on ? 'bg-s2' : ''}`}>
                   <Avatar initials={p.initials} color={p.color} size={24} font={9.5} />
-                  <span className="min-w-0 flex-1 truncate">{p.name}{p.you && <span className="font-normal text-faint"> · you</span>}</span>
+                  <span className="min-w-0 flex-1 truncate">{p.name}{p.you && <span className="font-normal text-faint"> (You)</span>}</span>
                   {on && <span className="flex flex-none items-center gap-1 text-[11.5px] font-semibold text-accent-text">In filter <Check size={13} /></span>}
                 </button>
               )

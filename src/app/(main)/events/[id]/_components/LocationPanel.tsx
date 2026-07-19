@@ -61,7 +61,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   const pById = new Map(event.participants.map((p) => [p.id, p]))
   const avatarOf = (id: string) => {
     const p = pById.get(id)
-    return { initials: p?.initials ?? id, name: p?.name ?? id, color: p?.color ?? ('gray' as Participant['color']) }
+    return { initials: p?.initials ?? id, name: p?.name ?? id, color: p?.color ?? ('gray' as Participant['color']), you: !!p?.you }
   }
 
   const [votes, setVotes] = useState<Record<string, string[]>>(() => event.votes ?? {})
@@ -657,7 +657,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                           </a>
                           {adder && (
                             <span className="inline-flex items-center gap-1 text-faint" title={`Added by ${adder.name}`}>
-                              · <Avatar initials={adder.initials} color={adder.color} size={14} font={7} /> added by {adder.name === 'You' ? 'you' : adder.name.split(' ')[0]}
+                              · <Avatar initials={adder.initials} color={adder.color} size={14} font={7} /> added by {adder.you ? 'you' : adder.name.split(' ')[0]}
                             </span>
                           )}
                         </div>

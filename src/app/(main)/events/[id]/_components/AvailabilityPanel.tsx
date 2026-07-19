@@ -10,7 +10,7 @@ import { Popover } from '@/components/ui/Popover'
 import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, ImportPreview, MissingPopover, PresetFills, Segment } from './availability/parts'
 import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, subtract, type Band, type GDay } from './availability/grid-lib'
 import {
-  patchEvent, availIvOf, intervalsToGrid, normalizeIv, bestWindow, byFirstLastName, fmtMinute, gridStartMinOf, stepOf, sortByAttendance, type BestMode,
+  patchEvent, availIvOf, intervalsToGrid, normalizeIv, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, stepOf, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
 import { buildImportPreview, mockBusyUtc, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport } from '@/lib/calendar-import'
@@ -42,7 +42,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const byRoster = (ids: string[]) => [...ids].sort((a, b) => (rosterIdx.get(a) ?? 999) - (rosterIdx.get(b) ?? 999))
   // the filter strip and modal show no group titles, so availability ordering there
   // reads as random — plain first-then-last-name order instead
-  const nameSorted = useMemo(() => [...event.participants].sort(byFirstLastName), [event])
+  const nameSorted = useMemo(() => [...event.participants].sort(byYouFirst), [event])
   const avatarOf = (id: string) => {
     const p = pById.get(id)
     return { initials: p?.initials ?? id, name: p?.name ?? id, color: p?.color ?? ('gray' as Participant['color']) }

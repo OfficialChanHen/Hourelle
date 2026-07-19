@@ -16,7 +16,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, byFirstLastName, dateRangeText, fmtMinute, gridStartMinOf, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, type AppEvent, type Rsvp } from '@/lib/events'
+import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, byYouFirst, dateRangeText, fmtMinute, gridStartMinOf, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -365,7 +365,7 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
 
   // no group titles on this card, so availability ordering would read as random —
   // the RSVP chip per row carries the status; names carry the order
-  const sorted = [...event.participants].sort(byFirstLastName)
+  const sorted = [...event.participants].sort(byYouFirst)
 
   return (
     <div className="min-w-0 rounded-2xl border border-border bg-s1 p-5">
@@ -384,7 +384,7 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
               className="-mx-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-[8px] px-1 py-0.5 text-left hover:bg-s2"
             >
               <Avatar initials={p.initials} color={p.color} size={29} font={10.5} />
-              <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}</span>
+              <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}{p.you && <span className="font-normal text-faint"> (You)</span>}</span>
             </button>
             {p.host && <span className="flex-none rounded-md border border-accent-border bg-accent-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-accent-text">Host</span>}
             <span className="flex-none rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: RSVP[p.rsvp].color, background: `var(--${RSVP[p.rsvp].chip}-bg, var(--s2))` }}>{RSVP[p.rsvp].label}</span>

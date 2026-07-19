@@ -99,7 +99,9 @@ export type CreateInput = {
   accounts: string[]
 }
 
-export const YOU = { id: 'JM', name: 'You', color: 'purple' as PersonColor }
+// the signed-in identity (stubbed until auth): rosters show the real name with a
+// "(You)" marker rendered from the `you` flag, never a participant literally named You
+export const YOU = { id: 'JM', name: 'Jordan Miller', color: 'purple' as PersonColor }
 
 /* ── storage ── */
 const KEY = 'aline.events.v1'
@@ -418,6 +420,11 @@ export function byFirstLastName(a: Pick<Participant, 'name'>, b: Pick<Participan
   return af.localeCompare(bf) || ar.join(' ').localeCompare(br.join(' '))
 }
 
+// same, but with the signed-in person pinned first — the row people look for most
+export function byYouFirst(a: Pick<Participant, 'name' | 'you'>, b: Pick<Participant, 'name' | 'you'>): number {
+  return Number(!!b.you) - Number(!!a.you) || byFirstLastName(a, b)
+}
+
 // canonical roster order, shared by every people list: availability group first
 // (whole time → part time → conflict elsewhere → never marked → maybe → not going
 // → no reply), then first name, then last name
@@ -441,7 +448,7 @@ export function sortByAttendance(ev: AppEvent): Participant[] {
     if (win && ivs.some((iv) => iv.s < win.e && iv.e > win.s)) return 1
     return 2
   }
-  return [...ev.participants].sort((a, b) => rank(a) - rank(b) || byFirstLastName(a, b))
+  return [...ev.participants].sort((a, b) => rank(a) - rank(b) || byYouFirst(a, b))
 }
 
 // everything that references a participant, minus that participant — their availability,
@@ -627,7 +634,7 @@ const DEMO: AppEvent = {
   participants: demoIds.map((id) => ({
     id,
     initials: id,
-    name: id === 'JM' ? 'You' : av(id).name,
+    name: id === 'JM' ? 'Jordan Miller' : av(id).name,
     color: av(id).color,
     rsvp: (demoNotGoing.includes(id) ? 'not_going' : 'attending') as Rsvp,
     you: id === 'JM',
@@ -676,7 +683,7 @@ const BIG_WEIGHTED = [
 ]
 const bigRsvp = (i: number): Rsvp => (i % 11 === 3 ? 'not_going' : i % 9 === 4 ? 'maybe' : i % 7 === 5 ? 'pending' : 'attending')
 const BIG_PARTICIPANTS: Participant[] = [
-  { id: 'JM', initials: 'JM', name: 'You', color: 'purple', rsvp: 'attending', you: true, host: true },
+  { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'attending', you: true, host: true },
   ...BIG_NAMES.map(([ini, name], i): Participant => ({
     id: ini, initials: ini, name, color: GUEST_COLORS[i % GUEST_COLORS.length], rsvp: bigRsvp(i),
   })),
