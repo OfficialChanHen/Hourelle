@@ -10,7 +10,7 @@ import { Popover } from '@/components/ui/Popover'
 import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, ImportPreview, MissingPopover, PresetFills, Segment } from './availability/parts'
 import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, subtract, type Band, type GDay } from './availability/grid-lib'
 import {
-  patchEvent, availIvOf, intervalsToGrid, normalizeIv, bestWindow, fmtMinute, gridStartMinOf, stepOf, dayLabel, sortByAttendance, type BestMode,
+  patchEvent, availIvOf, intervalsToGrid, normalizeIv, bestWindow, byFirstLastName, fmtMinute, gridStartMinOf, stepOf, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
 import { buildImportPreview, mockBusyUtc, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport } from '@/lib/calendar-import'
@@ -40,6 +40,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const rosterSorted = useMemo(() => sortByAttendance(event), [event])
   const rosterIdx = useMemo(() => new Map(rosterSorted.map((p, i) => [p.id, i])), [rosterSorted])
   const byRoster = (ids: string[]) => [...ids].sort((a, b) => (rosterIdx.get(a) ?? 999) - (rosterIdx.get(b) ?? 999))
+  // the filter strip and modal show no group titles, so availability ordering there
+  // reads as random — plain first-then-last-name order instead
+  const nameSorted = useMemo(() => [...event.participants].sort(byFirstLastName), [event])
   const avatarOf = (id: string) => {
     const p = pById.get(id)
     return { initials: p?.initials ?? id, name: p?.name ?? id, color: p?.color ?? ('gray' as Participant['color']) }
@@ -650,7 +653,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         {/* participants + edit hint */}
         <div className="flex flex-wrap items-center gap-2.5 py-[11px]">
           <span className="text-[12.5px] text-dim">Participants</span>
-          <FilterAvatars participants={rosterSorted} filter={filter} onToggle={toggleFilter} onClear={clearFilter} />
+          <FilterAvatars participants={nameSorted} filter={filter} onToggle={toggleFilter} onClear={clearFilter} />
           {filterOn && (
             <button onClick={clearFilter} title="Show everyone again" className="flex items-center gap-1 rounded-full border border-accent-border bg-accent-bg px-2 py-0.5 text-[11.5px] font-semibold text-accent-text">
               Showing {filter.size} {filter.size === 1 ? 'person' : 'people'} <X size={11} />

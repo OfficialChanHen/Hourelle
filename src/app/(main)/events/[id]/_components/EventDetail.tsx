@@ -16,7 +16,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, dateRangeText, fmtMinute, gridStartMinOf, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, sortByAttendance, type AppEvent, type Rsvp } from '@/lib/events'
+import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, byFirstLastName, dateRangeText, fmtMinute, gridStartMinOf, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -363,7 +363,9 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
   const going = event.participants.filter((p) => p.rsvp === 'attending').length
   const noReply = event.participants.filter((p) => p.rsvp === 'pending').length
 
-  const sorted = sortByAttendance(event)
+  // no group titles on this card, so availability ordering would read as random —
+  // the RSVP chip per row carries the status; names carry the order
+  const sorted = [...event.participants].sort(byFirstLastName)
 
   return (
     <div className="min-w-0 rounded-2xl border border-border bg-s1 p-5">
