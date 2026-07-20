@@ -612,22 +612,24 @@ function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGr
         <div className="mb-1 flex items-end gap-2.5">
           {/* mirrors the name buttons below, including their -mx-1 hover inset */}
           <div className={`w-[42%] flex-none sm:w-[160px] ${onPerson ? '-mx-1 px-1' : ''}`} />
-          {/* tick and time sit side by side on one line; labeled ticks run the full
-              height, half-hour ticks stay short and quiet */}
-          <div className="relative h-[14px] min-w-0 flex-1">
-            {axis.map((t, i) => {
-              const end = t.pct >= 99
-              return (
-                <span
-                  key={i}
-                  className={`absolute inset-y-0 flex items-center gap-1 ${end ? 'flex-row-reverse' : ''}`}
-                  style={end ? { right: 0 } : { left: `calc(${t.pct}% - 0.5px)` }}
-                >
-                  <span className={`w-px self-stretch ${t.label ? 'bg-faint' : 'my-[3px] bg-border2'}`} />
-                  {t.label && <span className="whitespace-nowrap text-[11px] font-medium leading-none text-dim">{t.label}</span>}
-                </span>
-              )
-            })}
+          {/* times sit above their ticks; labeled ticks stay tall and dark, half-hour
+              ticks short and quiet */}
+          <div className="relative h-[22px] min-w-0 flex-1">
+            {axis.map((t, i) => (
+              <span key={i} className={`absolute bottom-0 w-px ${t.label ? 'h-[7px] bg-faint' : 'h-1 bg-border2'}`} style={{ left: `calc(${t.pct}% - 0.5px)` }} />
+            ))}
+            {/* every label centers over its own tick, endpoints included — the row has
+                open space either side, so a half-label overhang costs nothing. Interior
+                labels sit out below sm so the endpoints never get squeezed. */}
+            {axis.filter((t) => t.label).map((t, i) => (
+              <span
+                key={`l${i}`}
+                className={`absolute top-0 -translate-x-1/2 whitespace-nowrap text-[11px] font-medium leading-none text-dim ${t.pct > 1 && t.pct < 99 ? 'hidden sm:block' : ''}`}
+                style={{ left: `${t.pct}%` }}
+              >
+                {t.label}
+              </span>
+            ))}
           </div>
         </div>
       )}
