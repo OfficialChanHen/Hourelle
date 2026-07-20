@@ -283,6 +283,19 @@ function SingleVenue({
     full: `${fmtMinute(gridStart + iv.s)} – ${fmtMinute(gridStart + iv.e)}`,
   })) ?? null
 
+  // one shared time axis over the part-time tracks: window edges labeled, hour marks
+  // labeled when there's room, half-hour ticks silent
+  const axis: { pct: number; label?: string }[] = []
+  if (win) {
+    axis.push({ pct: 0, label: short(gridStart + winS) }, { pct: 100, label: short(gridStart + winE) })
+    for (let m = Math.ceil(winS / 30) * 30; m < winE; m += 30) {
+      const pct = ((m - winS) / span) * 100
+      if (pct <= 2 || pct >= 98) continue
+      const labeled = m % 60 === 0 && span >= 120 && pct > 14 && pct < 86
+      axis.push({ pct, label: labeled ? short(gridStart + m) : undefined })
+    }
+  }
+
   // a nearby start that lets more people stay the whole time. The best window can't be
   // beaten by a shift, so this mostly speaks up when the confirmed time isn't the best one.
   const shift = useMemo(() => {
@@ -355,10 +368,10 @@ function SingleVenue({
         {(showGroup === 'all' || showGroup === 'part') && <RosterGroup label={locked && hasVenue ? 'Part of the time' : 'Free part of the time'} tone="ochre" people={groups.part.map((x) => ({
           p: x.p,
           bar: barsOf(x.segs),
-        }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.part.map((x) => x.p.id)) : undefined} />}
+        }))} axis={axis.length ? axis : undefined} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.part.map((x) => x.p.id)) : undefined} />}
         {(showGroup === 'all' || showGroup === 'noTimes') && <RosterGroup label={locked ? 'Going, no times yet' : 'No times yet'} tone="faint" hint={locked ? "They said yes but haven't marked when they're free, so the best window can't count them." : "They haven't marked when they're free, so the best window can't count them."} people={groups.noTimes.map((p) => ({ p }))} action={!locked && groups.noTimes.length > 0 ? <CopyReminder event={event} /> : undefined} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.noTimes.map((p) => p.id)) : undefined} />}
         {(showGroup === 'all' || showGroup === 'maybe') && <RosterGroup label="Maybe" tone="ochre" people={groups.maybe.map((p) => ({ p }))} onPerson={onPerson} />}
-        {(showGroup === 'all' || showGroup === 'out') && <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({ p }))} onPerson={onPerson} />}
+        {(showGroup === 'all' || showGroup === 'out') && <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.out.map((p) => p.id)) : undefined} />}
         {(showGroup === 'all' || showGroup === 'noReply') && <RosterGroup label="No reply" tone="faint" people={groups.noReply.map((p) => ({ p }))} action={<CopyReminder event={event} />} onPerson={onPerson} />}
       </div>
     </div>
@@ -557,7 +570,7 @@ const TONE: Record<string, { dot: string; text: string }> = {
   faint: { dot: 'var(--faint)', text: 'text-faint' },
 }
 
-function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGroup, hint }: {
+function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGroup, hint, axis }: {
   label: string; tone: keyof typeof TONE | string
   people: { p: Participant; note?: string; bar?: { left: string; width: string; label: string; full: string }[] | null }[]
   cap?: number
@@ -565,6 +578,7 @@ function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGr
   onPerson?: (pid: string) => void
   onOpenGroup?: () => void
   hint?: string
+  axis?: { pct: number; label?: string }[]
 }) {
   if (!people.length) return null
   const t = TONE[tone] ?? TONE.faint
@@ -587,6 +601,28 @@ function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGr
         {action && <span className="ml-auto">{action}</span>}
       </div>
       {hint && <p className="mb-2 max-w-[440px] text-[12px] leading-[1.5] text-faint">{hint}</p>}
+      {/* shared clock for every track below — the spacer mirrors the name column so the
+          ticks land exactly over the rails */}
+      {axis && hasBars && (
+        <div className="mb-1 flex items-end gap-2.5">
+          {/* mirrors the name buttons below, including their -mx-1 hover inset */}
+          <div className={`w-[42%] flex-none sm:w-[160px] ${onPerson ? '-mx-1 px-1' : ''}`} />
+          <div className="relative h-[19px] min-w-0 flex-1">
+            {axis.map((t, i) => (
+              <span key={i} className={`absolute bottom-0 border-l ${t.label ? 'h-[6px] border-border2' : 'h-1 border-border'}`} style={{ left: `calc(${t.pct}% - 0.5px)` }} />
+            ))}
+            {axis.filter((t) => t.label).map((t, i) => (
+              <span
+                key={`l${i}`}
+                className="absolute bottom-[8px] whitespace-nowrap text-[11px] leading-none text-faint"
+                style={{ left: `${t.pct}%`, transform: t.pct <= 1 ? undefined : t.pct >= 99 ? 'translateX(-100%)' : 'translateX(-50%)' }}
+              >
+                {t.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-1.5">
         {shown.map(({ p, note, bar }) => (
           <div key={p.id} className="flex items-center gap-2.5">
@@ -602,21 +638,10 @@ function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGr
               <div className="relative h-5 min-w-0 flex-1 rounded-[6px] bg-s2">
                 {bar && bar.length > 0
                   ? bar.map((b, i) => (
-                      // a narrow segment clips its label, so every bar is a tap target
-                      // that pops the full interval
-                      <div key={i} className="absolute inset-y-0" style={{ left: b.left, width: b.width }}>
-                        <Popover
-                          // bars in the right half anchor their panel to the right edge, so it
-                          // can never poke past the viewport and widen the page
-                          width={150} align={parseFloat(b.left) > 50 ? 'end' : 'start'} className="h-full w-full [&>button]:block [&>button]:h-full [&>button]:w-full"
-                          trigger={() => (
-                            <span className="flex h-full w-full items-center justify-center overflow-hidden rounded-[6px] border border-ochre bg-ochre-border">
-                              <span className="truncate px-1 text-[11px] font-semibold text-ochre-text">{b.label}</span>
-                            </span>
-                          )}
-                        >
-                          {() => <p className="whitespace-nowrap text-center text-[12.5px] font-semibold">{b.full}</p>}
-                        </Popover>
+                      // narrow segments clip their label — the shared axis above carries
+                      // the position, and the tooltip keeps the exact minutes on desktop
+                      <div key={i} title={b.full} className="absolute inset-y-0 flex items-center justify-center overflow-hidden rounded-[6px] border border-ochre bg-ochre-border" style={{ left: b.left, width: b.width }}>
+                        <span className="truncate px-1 text-[11px] font-semibold text-ochre-text">{b.label}</span>
                       </div>
                     ))
                   : <span className="absolute inset-0 flex items-center px-2 text-[11.5px] text-brick-text">busy during this time</span>}
