@@ -23,6 +23,8 @@
   --grid-dash:#A89D86;
   /* best-day header fill — must be opaque: it's a sticky surface content scrolls under */
   --best-head:#F4EBD9;
+  /* the n/N count in a heat cell: partial cells vs the saturated full cell */
+  --heat-count:#46604F; --heat-count-full:#F4F1EA;
 }
 
 /* Dark — warm charcoal */
@@ -42,6 +44,121 @@
   --grid-edge:rgba(244,236,214,.22);
   --grid-dash:rgba(244,236,214,.38);
   --best-head:#352C1D;
+  --heat-count:#9FD3BB; --heat-count-full:#F4F1EA;
+}
+
+/* ── Appearances — optional palettes layered over the same tokens ──
+   data-palette on <html> picks the family (absent = the Aline editorial look);
+   data-theme still picks light or dark inside it, so the sun/moon toggle keeps
+   working everywhere. Each block redefines the full token set. */
+
+/* Calendar — clean white and blue, after Google Calendar */
+[data-palette="gcal"] {
+  --bg:#F8FAFD; --s0:#FFFFFF; --s1:#FFFFFF; --s2:#F1F3F4; --s3:#E8EAED;
+  --border:#E0E3E7; --border2:#C4C7C5;
+  --text:#1F1F1F; --dim:#5F6368; --faint:#9AA0A6;
+  --accent:#0B57D0; --accent-text:#0B57D0; --accent-bg:#E8F0FE; --accent-border:#C6DAFC; --on-accent:#FFFFFF;
+  --teal:#188038; --teal-text:#137333; --teal-bg:#E6F4EA; --teal-border:#CEEAD6;
+  --ochre:#F29900; --ochre-text:#B06000; --ochre-bg:#FEF7E0; --ochre-border:#FEEFC3;
+  --brick:#D93025; --brick-text:#C5221F; --brick-bg:#FCE8E6; --brick-border:#FAD2CF;
+  --shadow:0 1px 2px rgba(60,64,67,.12), 0 8px 24px rgba(60,64,67,.10);
+  --heat-low:#E8F0FE; --heat-mid:#AECBFA; --heat-high:#669DF6; --heat-full:#0B57D0;
+  --you-only:#FEF7E0; --you-some:#FDE293; --you-many:#FDD663; --you-text:#7A5800;
+  --grid-line:#80868B; --grid-edge:#AEB3B8; --grid-dash:#AEB3B8;
+  --best-head:#FEF7E0;
+  --heat-count:#174EA6; --heat-count-full:#FFFFFF;
+}
+[data-palette="gcal"][data-theme="dark"] {
+  --bg:#131314; --s0:#1A1A1C; --s1:#1E1F21; --s2:#28292C; --s3:#333539;
+  --border:rgba(232,234,237,.11); --border2:rgba(232,234,237,.20);
+  --text:#E8EAED; --dim:#9AA0A6; --faint:#6C7176;
+  --accent:#A8C7FA; --accent-text:#A8C7FA; --accent-bg:rgba(168,199,250,.14); --accent-border:rgba(168,199,250,.38); --on-accent:#062E6F;
+  --teal:#81C995; --teal-text:#81C995; --teal-bg:rgba(129,201,149,.14); --teal-border:rgba(129,201,149,.36);
+  --ochre:#FDD663; --ochre-text:#FDD663; --ochre-bg:rgba(253,214,99,.14); --ochre-border:rgba(253,214,99,.36);
+  --brick:#F28B82; --brick-text:#F28B82; --brick-bg:rgba(242,139,130,.14); --brick-border:rgba(242,139,130,.36);
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
+  --heat-low:rgba(138,180,248,.14); --heat-mid:rgba(138,180,248,.30); --heat-high:rgba(138,180,248,.55); --heat-full:#8AB4F8;
+  --you-only:rgba(253,214,99,.16); --you-some:rgba(253,214,99,.32); --you-many:rgba(253,214,99,.5); --you-text:#FDD663;
+  --grid-line:rgba(232,234,237,.38); --grid-edge:rgba(232,234,237,.22); --grid-dash:rgba(232,234,237,.38);
+  --best-head:#33301C;
+  --heat-count:#A8C7FA; --heat-count-full:#0A2A5C;
+}
+
+/* Frost — icy silver, chrome, and a cold red. Certain listeners will feel at home. */
+[data-palette="drain"] {
+  --bg:#EDF1F6; --s0:#F5F8FB; --s1:#FCFDFF; --s2:#E5EBF2; --s3:#D7DFE9;
+  --border:#D7DFE8; --border2:#BECBD8;
+  --text:#161B23; --dim:#5B6675; --faint:#8F9CAB;
+  --accent:#C8102E; --accent-text:#A90E27; --accent-bg:#FAE7EA; --accent-border:#F0C6CD; --on-accent:#FFF6F6;
+  --teal:#2F7F8D; --teal-text:#266773; --teal-bg:#E0EFF2; --teal-border:#BEDDE3;
+  --ochre:#9A7B3D; --ochre-text:#7B6128; --ochre-bg:#F3ECDB; --ochre-border:#E3D5B3;
+  --brick:#96453D; --brick-text:#7D3831; --brick-bg:#F3E4E1; --brick-border:#E3C9C4;
+  --shadow:0 1px 2px rgba(15,35,65,.05), 0 10px 30px rgba(15,35,65,.08);
+  --heat-low:#E6EEF6; --heat-mid:#C3D8EB; --heat-high:#8DB3D8; --heat-full:#31608F;
+  --you-only:#EFE9F8; --you-some:#DCCFEF; --you-many:#C5B2E3; --you-text:#533E79;
+  --grid-line:#6D7B8B; --grid-edge:#98A6B5; --grid-dash:#98A6B5;
+  --best-head:#F3ECDB;
+  --heat-count:#3D5C7E; --heat-count-full:#EDF3FA;
+}
+/* Frost dark leans steel-blue with the cold red carrying through as the accent, so it
+   never reads as a rehash of the Calendar dark grays */
+[data-palette="drain"][data-theme="dark"] {
+  --bg:#0D1219; --s0:#121824; --s1:#161D2A; --s2:#1D2634; --s3:#263143;
+  --border:rgba(200,220,245,.11); --border2:rgba(200,220,245,.20);
+  --text:#E9F0F8; --dim:#9CACC0; --faint:#66788E;
+  --accent:#D63B54; --accent-text:#F58EA0; --accent-bg:rgba(214,59,84,.15); --accent-border:rgba(214,59,84,.4); --on-accent:#FFF5F6;
+  --teal:#5CA7B7; --teal-text:#97CDD9; --teal-bg:rgba(92,167,183,.14); --teal-border:rgba(92,167,183,.36);
+  --ochre:#C6A867; --ochre-text:#DFC791; --ochre-bg:rgba(198,168,103,.15); --ochre-border:rgba(198,168,103,.38);
+  --brick:#CE6A50; --brick-text:#EDA893; --brick-bg:rgba(206,106,80,.15); --brick-border:rgba(206,106,80,.36);
+  --shadow:0 1px 2px rgba(0,0,0,.55), 0 14px 36px rgba(0,0,0,.5);
+  --heat-low:rgba(143,182,228,.14); --heat-mid:rgba(143,182,228,.30); --heat-high:rgba(143,182,228,.55); --heat-full:#5E90CC;
+  --you-only:rgba(167,139,222,.18); --you-some:rgba(167,139,222,.34); --you-many:rgba(167,139,222,.5); --you-text:#CBB8F0;
+  --grid-line:rgba(200,220,245,.38); --grid-edge:rgba(200,220,245,.22); --grid-dash:rgba(200,220,245,.38);
+  --best-head:#2C2A1E;
+  --heat-count:#B4CFEF; --heat-count-full:#0B1826;
+}
+
+/* Pride — the six-stripe flag, with every stripe on duty: red = danger, orange = your
+   own grid cells, yellow = caution, green = confirmed, blue = the heat map, violet =
+   the accent. Light is warm gallery white; dark goes deep plum. Accent-filled surfaces
+   (CTAs, selected tabs, the chat bubble) wear the flag itself as a gradient — deepened
+   stripes in light so the near-white label stays readable, bright stripes under the
+   dark plum label in dark. The solid --accent remains the fallback underneath. */
+[data-palette="pride"] .bg-accent {
+  background-image: linear-gradient(135deg, #B3221E, #B25E07 22%, #837000 40%, #007523 60%, #2547C4 79%, #6D2A7C);
+}
+[data-palette="pride"][data-theme="dark"] .bg-accent {
+  background-image: linear-gradient(135deg, #F26060, #FFA740 22%, #EDD34D 40%, #4CC96E 60%, #5D8AFF 79%, #C084FC);
+}
+[data-palette="pride"] {
+  --bg:#F8F5F1; --s0:#FDFBF8; --s1:#FFFFFF; --s2:#F1ECE7; --s3:#E7E0D9;
+  --border:#E7E0D8; --border2:#D5CCC2;
+  --text:#221C26; --dim:#6B6270; --faint:#9C93A2;
+  --accent:#732982; --accent-text:#632470; --accent-bg:#F3E6F5; --accent-border:#E0C4E4; --on-accent:#FDF7FE;
+  --teal:#008026; --teal-text:#00661E; --teal-bg:#E0F3E4; --teal-border:#B8E2C2;
+  --ochre:#C7A500; --ochre-text:#8F7600; --ochre-bg:#FBF6D5; --ochre-border:#EFE3A0;
+  --brick:#D21F1B; --brick-text:#A81613; --brick-bg:#FBE3E2; --brick-border:#F2C2C0;
+  --shadow:0 1px 2px rgba(60,30,70,.05), 0 10px 30px rgba(60,30,70,.08);
+  --heat-low:#E8EEFF; --heat-mid:#BCCEFF; --heat-high:#7D9BFA; --heat-full:#2E4FD8;
+  --you-only:#FFF0DC; --you-some:#FFDCAD; --you-many:#FFC475; --you-text:#8F5300;
+  --grid-line:#837589; --grid-edge:#A99DB0; --grid-dash:#A99DB0;
+  --best-head:#FBF6D5;
+  --heat-count:#2743A8; --heat-count-full:#F2F6FF;
+}
+[data-palette="pride"][data-theme="dark"] {
+  --bg:#171020; --s0:#1C1527; --s1:#211A2E; --s2:#2A2138; --s3:#352B46;
+  --border:rgba(240,225,250,.11); --border2:rgba(240,225,250,.20);
+  --text:#F0E9F6; --dim:#B4A7C2; --faint:#7D7090;
+  --accent:#C084FC; --accent-text:#D6B4FE; --accent-bg:rgba(192,132,252,.15); --accent-border:rgba(192,132,252,.4); --on-accent:#2A0A45;
+  --teal:#4CC96E; --teal-text:#8FE3A8; --teal-bg:rgba(76,201,110,.15); --teal-border:rgba(76,201,110,.38);
+  --ochre:#EDD34D; --ochre-text:#F5E48A; --ochre-bg:rgba(237,211,77,.14); --ochre-border:rgba(237,211,77,.36);
+  --brick:#F26060; --brick-text:#F9A0A0; --brick-bg:rgba(242,96,96,.15); --brick-border:rgba(242,96,96,.36);
+  --shadow:0 1px 2px rgba(0,0,0,.55), 0 14px 36px rgba(0,0,0,.5);
+  --heat-low:rgba(122,155,255,.15); --heat-mid:rgba(122,155,255,.32); --heat-high:rgba(122,155,255,.55); --heat-full:#5D8AFF;
+  --you-only:rgba(255,167,64,.16); --you-some:rgba(255,167,64,.32); --you-many:rgba(255,167,64,.48); --you-text:#FFC98F;
+  --grid-line:rgba(240,225,250,.38); --grid-edge:rgba(240,225,250,.22); --grid-dash:rgba(240,225,250,.38);
+  --best-head:#353018;
+  --heat-count:#A9C0FF; --heat-count-full:#0E2C7A;
 }
 
 /* ───────────────── Map semantic tokens → Tailwind utilities (switch per theme) ───────────────── */

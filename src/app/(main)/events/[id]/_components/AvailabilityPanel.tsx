@@ -987,7 +987,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                             )
                           })()}
                         </div>
-                        {n > 0 && <span className="pointer-events-none absolute bottom-[3px] right-1 z-[1] text-[9.5px] font-bold" style={{ color: n >= viewTotal ? '#F4F1EA' : '#46604F' }}>{n}/{viewTotal}</span>}
+                        {n > 0 && <span className="pointer-events-none absolute bottom-[3px] right-1 z-[1] text-[9.5px] font-bold" style={{ color: n >= viewTotal ? 'var(--heat-count-full)' : 'var(--heat-count)' }}>{n}/{viewTotal}</span>}
                       </div>
                     )
                   }
@@ -1026,7 +1026,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                       })}
                       {/* slot line redrawn above the heat fills so saturated cells can't wash it out */}
                       <div className="pointer-events-none absolute z-[1] border-b border-r border-grid-line" style={{ inset: '0 -1px -1px 0' }} />
-                      {cnt > 0 && <span className="pointer-events-none absolute bottom-[2px] right-1 z-[2] text-[9px] font-bold" style={{ color: cnt >= editTotal ? '#F4F1EA' : '#6E5523' }}>{cnt}/{editTotal}</span>}
+                      {cnt > 0 && <span className="pointer-events-none absolute bottom-[2px] right-1 z-[2] text-[9px] font-bold" style={{ color: cnt >= editTotal ? 'var(--heat-count-full)' : 'var(--you-text)' }}>{cnt}/{editTotal}</span>}
                       {/* full-cell hit zone: empty → paint, over a block → select */}
                       <div className="absolute inset-0 z-[5] touch-auto" onPointerDown={(e) => onCellDown(e, d.key, ti)} onPointerUp={(e) => onCellTap(e, d.key, ti)} onPointerCancel={() => { tapRef.current = null }} />
                       {/* time handles + delete for the selected block */}

@@ -34,6 +34,13 @@ export default function RootLayout({
       className={`${instrumentSerif.variable} ${instrumentSans.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-bg text-text font-sans">
+        {/* apply the saved appearance before anything paints, the same way next-themes
+            applies data-theme — otherwise non-default palettes flash the Aline look */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var p=localStorage.getItem("aline.palette");if(p==="gcal"||p==="drain"||p==="pride")document.documentElement.setAttribute("data-palette",p)}catch(e){}`,
+          }}
+        />
         <Providers>{children}</Providers>
       </body>
     </html>
