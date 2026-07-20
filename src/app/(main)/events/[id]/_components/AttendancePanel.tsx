@@ -371,7 +371,12 @@ function SingleVenue({
         }))} axis={axis.length ? axis : undefined} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.part.map((x) => x.p.id)) : undefined} />}
         {(showGroup === 'all' || showGroup === 'noTimes') && <RosterGroup label={locked ? 'Going, no times yet' : 'No times yet'} tone="faint" hint={locked ? "They said yes but haven't marked when they're free, so the best window can't count them." : "They haven't marked when they're free, so the best window can't count them."} people={groups.noTimes.map((p) => ({ p }))} action={!locked && groups.noTimes.length > 0 ? <CopyReminder event={event} /> : undefined} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.noTimes.map((p) => p.id)) : undefined} />}
         {(showGroup === 'all' || showGroup === 'maybe') && <RosterGroup label="Maybe" tone="ochre" people={groups.maybe.map((p) => ({ p }))} onPerson={onPerson} />}
-        {(showGroup === 'all' || showGroup === 'out') && <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.out.map((p) => p.id)) : undefined} />}
+        {/* two flavors of decline, told apart by the grid: never entered times vs
+            entered times that all miss this window */}
+        {(showGroup === 'all' || showGroup === 'out') && <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({
+          p,
+          note: markedIds.has(p.id) ? 'has times, none in this window' : 'never entered times',
+        }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.out.map((p) => p.id)) : undefined} />}
         {(showGroup === 'all' || showGroup === 'noReply') && <RosterGroup label="No reply" tone="faint" people={groups.noReply.map((p) => ({ p }))} action={<CopyReminder event={event} />} onPerson={onPerson} />}
       </div>
     </div>
@@ -607,19 +612,22 @@ function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGr
         <div className="mb-1 flex items-end gap-2.5">
           {/* mirrors the name buttons below, including their -mx-1 hover inset */}
           <div className={`w-[42%] flex-none sm:w-[160px] ${onPerson ? '-mx-1 px-1' : ''}`} />
-          <div className="relative h-[19px] min-w-0 flex-1">
-            {axis.map((t, i) => (
-              <span key={i} className={`absolute bottom-0 border-l ${t.label ? 'h-[6px] border-border2' : 'h-1 border-border'}`} style={{ left: `calc(${t.pct}% - 0.5px)` }} />
-            ))}
-            {axis.filter((t) => t.label).map((t, i) => (
-              <span
-                key={`l${i}`}
-                className="absolute bottom-[8px] whitespace-nowrap text-[11px] leading-none text-faint"
-                style={{ left: `${t.pct}%`, transform: t.pct <= 1 ? undefined : t.pct >= 99 ? 'translateX(-100%)' : 'translateX(-50%)' }}
-              >
-                {t.label}
-              </span>
-            ))}
+          {/* tick and time sit side by side on one line; labeled ticks run the full
+              height, half-hour ticks stay short and quiet */}
+          <div className="relative h-[14px] min-w-0 flex-1">
+            {axis.map((t, i) => {
+              const end = t.pct >= 99
+              return (
+                <span
+                  key={i}
+                  className={`absolute inset-y-0 flex items-center gap-1 ${end ? 'flex-row-reverse' : ''}`}
+                  style={end ? { right: 0 } : { left: `calc(${t.pct}% - 0.5px)` }}
+                >
+                  <span className={`w-px self-stretch ${t.label ? 'bg-faint' : 'my-[3px] bg-border2'}`} />
+                  {t.label && <span className="whitespace-nowrap text-[11px] font-medium leading-none text-dim">{t.label}</span>}
+                </span>
+              )
+            })}
           </div>
         </div>
       )}

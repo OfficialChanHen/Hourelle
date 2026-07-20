@@ -766,6 +766,9 @@ const BIG_AVAIL_IV: AvailIntervals = Object.fromEntries(BIG_DAYS.map((d, di) => 
   const byPid = (BIG_AVAIL_IV[day] ??= {})
   for (const id of everyone) byPid[id] = normalizeIv([...(byPid[id] ?? []), { s: 180, e: 240 }])
 }
+// the two flavors of "can't make it": Kim Lee declined and never touched the grid,
+// Sky Larson declined but marked mornings — real times, none inside the best window
+for (const d of BIG_DAYS) (BIG_AVAIL_IV[d.key] ??= {}).SL = [{ s: 0, e: 120 }]
 const BIG_VOTES: Record<string, string[]> = {}
 BIG_PARTICIPANTS.forEach((p, i) => {
   if (p.rsvp === 'not_going') return
