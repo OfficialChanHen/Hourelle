@@ -10,7 +10,7 @@ import { Popover } from '@/components/ui/Popover'
 import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, ImportPreview, MissingPopover, PresetFills, Segment } from './availability/parts'
 import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, subtract, type Band, type GDay } from './availability/grid-lib'
 import {
-  patchEvent, availIvOf, intervalsToGrid, normalizeIv, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, stepOf, sortByAttendance, type BestMode,
+  patchEvent, availIvOf, fullAvailIvOf, intervalsToGrid, normalizeIv, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, stepOf, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
 import { buildImportPreview, mockBusyUtc, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport } from '@/lib/calendar-import'
@@ -175,13 +175,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       if (!event.demo) patchEvent(event.id, { unavailableIds: (event.unavailableIds ?? []).filter((id) => id !== 'JM') })
     }
     if (event.demo) return
-    const availIv: AvailIntervals = {}
+    // start from every stored day, not just the current window — replies on days a
+    // shrunken window dropped stay dormant and come back if the window re-grows
+    const availIv: AvailIntervals = { ...fullAvailIvOf(event) }
     for (const d of event.days) {
       availIv[d.key] = { ...(others[d.key] ?? {}) }
       if (m[d.key]?.length) availIv[d.key].JM = m[d.key]
       else delete availIv[d.key].JM
     }
-    patchEvent(event.id, { availIv, avail: intervalsToGrid(availIv, event.days, rows, step) })
+    patchEvent(event.id, { availIv, avail: { ...event.avail, ...intervalsToGrid(availIv, event.days, rows, step) } })
   }
   // your explicit empty reply: none of these days work — cleared by marking any time
   function toggleNoneWork() {

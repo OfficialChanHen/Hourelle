@@ -16,7 +16,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, byYouFirst, dateRangeText, fmtMinute, gridStartMinOf, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, type AppEvent, type Rsvp } from '@/lib/events'
+import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -254,7 +254,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       {tab === 'availability' && <AvailabilityPanel event={event} locked={locked} initialFilter={availFocus} focusBest={bestFocus} />}
       {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} />}
       {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={setTab} onViewAvailability={goToAvailabilityFor} onViewAvailabilityGroup={goToAvailabilityGroup} onGoToBestWindow={goToBestWindow} />}
-      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToTab={setTab} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} />}
+      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToTab={setTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} />}
 
       {/* discussion follows you down the page — the classic chat bubble, above the
           mobile tab bar; the header button stays for people who look there */}
@@ -313,8 +313,8 @@ function EditableTitle({ title, editable, onSave }: { title: string; editable: b
 type DetailsGoTab = (t: 'availability' | 'location') => void
 
 /* ── Details tab ── */
-function DetailsTab({ event, onDelete, onGoToTab, onPatch, onViewAvailability, spotlightDelete = false }: {
-  event: AppEvent; onDelete: () => void; onGoToTab: DetailsGoTab
+function DetailsTab({ event, onDelete, onGoToTab, onGoToBestWindow, onPatch, onViewAvailability, spotlightDelete = false }: {
+  event: AppEvent; onDelete: () => void; onGoToTab: DetailsGoTab; onGoToBestWindow: () => void
   onPatch: (patch: Partial<AppEvent>) => void; onViewAvailability: (pid: string) => void; spotlightDelete?: boolean
 }) {
   const isHost = event.hostedByYou
@@ -330,7 +330,7 @@ function DetailsTab({ event, onDelete, onGoToTab, onPatch, onViewAvailability, s
         <div className="mb-1 flex items-center gap-2 text-[14.5px] font-semibold"><Settings size={17} className="text-dim" /> Details</div>
         {isHost && <DetailRow k="Cover" v={<CoverPicker event={event} onPatch={onPatch} />} />}
         <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} onPatch={onPatch} />} />
-        <DetailRow k="When" v={<WhenValue event={event} locked={locked} editable={isHost && !locked} onGoToAvailability={() => onGoToTab('availability')} onPatch={onPatch} />} />
+        <DetailRow k="When" v={<WhenValue event={event} locked={locked} editable={isHost && !locked} onGoToAvailability={() => onGoToTab('availability')} onGoToBestWindow={onGoToBestWindow} onPatch={onPatch} />} />
         <DetailRow k="Where" v={<WhereValue event={event} locked={locked} onGoToLocation={() => onGoToTab('location')} editable={isHost} onPatch={onPatch} />} />
         <DetailRow k="Spots" v={<CapacityValue event={event} editable={isHost} onPatch={onPatch} />} />
         <DetailRow
@@ -363,16 +363,36 @@ function DetailsTab({ event, onDelete, onGoToTab, onPatch, onViewAvailability, s
 }
 
 /* Participants: who's in, how they replied, and (for the host) the levers per person.
-   Rows sort by the same availability groups the Attendance tab uses: whole-time first,
-   then part-time, then going-without-times, maybe, can't, no reply. */
+   While planning, the chip and the header counts come from actual replies: marked a
+   time in the current window (or vouched for by the host) → Available, said no days
+   work (or the host marked them out) → Can't make it, silence → No reply. One group each. */
+type PlanGroup = 'available' | 'cant' | 'none'
+const PLAN_GROUP: Record<PlanGroup, { label: string; color: string; bg: string }> = {
+  available: { label: 'Available', color: 'var(--teal-text)', bg: 'var(--teal-bg)' },
+  cant: { label: 'Can’t make it', color: 'var(--brick-text)', bg: 'var(--brick-bg)' },
+  none: { label: 'No reply', color: 'var(--faint)', bg: 'var(--s2)' },
+}
 function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
   event: AppEvent; isHost: boolean; onPatch: (patch: Partial<AppEvent>) => void; onViewAvailability: (pid: string) => void
 }) {
+  const locked = event.status === 'confirmed' && !!event.confirmed
+  // who actually marked a free time on a day the event still spans
+  const availIv = availIvOf(event)
+  const marked = new Set<string>()
+  for (const d of event.days) for (const [pid, ivs] of Object.entries(availIv[d.key] ?? {})) if (ivs.length) marked.add(pid)
+  // available = marked a time in the current window, or the host vouched for them
+  const groupOf = (p: AppEvent['participants'][number]): PlanGroup =>
+    p.rsvp === 'not_going' || event.unavailableIds?.includes(p.id) ? 'cant'
+    : marked.has(p.id) || p.rsvp === 'attending' ? 'available' : 'none'
+
   const going = event.participants.filter((p) => p.rsvp === 'attending').length
   const noReply = event.participants.filter((p) => p.rsvp === 'pending').length
+  const nAvail = event.participants.filter((p) => groupOf(p) === 'available').length
+  const nCant = event.participants.filter((p) => groupOf(p) === 'cant').length
+  const nNone = event.participants.length - nAvail - nCant
 
   // no group titles on this card, so availability ordering would read as random —
-  // the RSVP chip per row carries the status; names carry the order
+  // the status chip per row carries the state; names carry the order
   const sorted = [...event.participants].sort(byYouFirst)
 
   return (
@@ -381,29 +401,31 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
         <Users size={17} className="text-dim" /> Participants
         <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[12px] text-dim">{event.participants.length}</span>
         <span className="ml-auto text-[12.5px] font-normal text-dim">
-          {going} {event.status === 'confirmed' && event.confirmed ? 'going' : 'available'}{noReply > 0 && <span className="text-faint"> · {noReply} no reply</span>}
+          {locked
+            ? <>{going} going{noReply > 0 && <span className="text-faint"> · {noReply} no reply</span>}</>
+            : <>{nAvail} available{nCant > 0 && <> · {nCant} can&rsquo;t make it</>}{nNone > 0 && <span className="text-faint"> · {nNone} no reply</span>}</>}
         </span>
       </div>
       <div className="flex flex-col">
-        {sorted.map((p, i) => (
-          <div key={p.id} className={`flex items-center gap-2.5 py-2 ${i > 0 ? 'border-t border-border' : ''}`}>
-            <button
-              type="button" onClick={() => onViewAvailability(p.id)} title={`See when ${p.name} is free`}
-              className="-mx-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-[8px] px-1 py-0.5 text-left hover:bg-s2"
-            >
-              <Avatar initials={p.initials} color={p.color} size={29} font={10.5} />
-              <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}{p.you && <span className="font-normal text-faint"> (You)</span>}</span>
-            </button>
-            {p.host && <span className="flex-none rounded-md border border-accent-border bg-accent-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-accent-text">Host</span>}
-            {/* a declared "none of these days work" outranks the silent no-reply chip while planning */}
-            {!(event.status === 'confirmed' && event.confirmed) && p.rsvp === 'pending' && event.unavailableIds?.includes(p.id) ? (
-              <span className="flex-none rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: 'var(--brick-text)', background: 'var(--brick-bg)' }}>Not free these days</span>
-            ) : (
-              <span className="flex-none rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: RSVP[p.rsvp].color, background: `var(--${RSVP[p.rsvp].chip}-bg, var(--s2))` }}>{rsvpLabel(p.rsvp, event.status === 'confirmed' && !!event.confirmed)}</span>
-            )}
-            {isHost && !p.you && <ParticipantMenu p={p} event={event} onPatch={onPatch} />}
-          </div>
-        ))}
+        {sorted.map((p, i) => {
+          const chip = locked
+            ? { label: RSVP[p.rsvp].label, color: RSVP[p.rsvp].color, bg: `var(--${RSVP[p.rsvp].chip}-bg, var(--s2))` }
+            : PLAN_GROUP[groupOf(p)]
+          return (
+            <div key={p.id} className={`flex items-center gap-2.5 py-2 ${i > 0 ? 'border-t border-border' : ''}`}>
+              <button
+                type="button" onClick={() => onViewAvailability(p.id)} title={`See when ${p.name} is free`}
+                className="-mx-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-[8px] px-1 py-0.5 text-left hover:bg-s2"
+              >
+                <Avatar initials={p.initials} color={p.color} size={29} font={10.5} />
+                <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}{p.you && <span className="font-normal text-faint"> (You)</span>}</span>
+              </button>
+              {p.host && <span className="flex-none rounded-md border border-accent-border bg-accent-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-accent-text">Host</span>}
+              <span className="flex-none rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: chip.color, background: chip.bg }}>{chip.label}</span>
+              {isHost && !p.you && <ParticipantMenu p={p} event={event} onPatch={onPatch} />}
+            </div>
+          )
+        })}
       </div>
       <CopyInviteLink id={event.id} />
     </div>
@@ -427,8 +449,16 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
   const [confirmRemove, setConfirmRemove] = useState(false)
   const first = p.name.split(' ')[0]
   const locked = event.status === 'confirmed' && !!event.confirmed
+  // while planning there is no "maybe" yet; the host can vouch for someone as
+  // available, mark them out, or reset them to no reply
+  const options = (Object.keys(RSVP) as Rsvp[]).filter((r) => locked || r !== 'maybe')
   function markRsvp(r: Rsvp) {
-    onPatch({ participants: event.participants.map((x) => (x.id === p.id ? { ...x, rsvp: r } : x)) })
+    // resetting to no reply also takes back a declared "none of these days work"
+    const clearUnavail = !locked && r !== 'not_going' && event.unavailableIds?.includes(p.id)
+    onPatch({
+      participants: event.participants.map((x) => (x.id === p.id ? { ...x, rsvp: r } : x)),
+      ...(clearUnavail ? { unavailableIds: event.unavailableIds!.filter((id) => id !== p.id) } : {}),
+    })
     close()
   }
   function remove() {
@@ -438,7 +468,7 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
   return (
     <div className="flex flex-col p-0.5">
       <div className="px-2 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">{locked ? 'Reply' : 'Mark'} for {first}</div>
-      {(Object.keys(RSVP) as Rsvp[]).filter((r) => locked || r !== 'maybe').map((r) => (
+      {options.map((r) => (
         <button key={r} onClick={() => markRsvp(r)} className={`flex items-center gap-2 rounded-[7px] px-2 py-1.5 text-left text-[13px] font-medium hover:bg-s2 ${p.rsvp === r ? 'bg-s2' : ''}`}>
           <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: RSVP[r].color }} />
           {rsvpLabel(r, locked)}
@@ -480,10 +510,12 @@ function CopyInviteLink({ id }: { id: string }) {
   )
 }
 
-/* When: the locked-in day and time once confirmed; before that, the date range being polled.
-   A single-day event already knows its day, so only the time reads as open. */
-function WhenValue({ event, locked, editable, onGoToAvailability, onPatch }: {
-  event: AppEvent; locked: boolean; editable: boolean; onGoToAvailability: () => void; onPatch: (patch: Partial<AppEvent>) => void
+/* When: the locked-in day and time once confirmed; before that, the date range being
+   polled with the leading time so far beneath it. Only the date window is editable —
+   the leading time is computed from replies, and it carries the timezone pill. */
+function WhenValue({ event, locked, editable, onGoToAvailability, onGoToBestWindow, onPatch }: {
+  event: AppEvent; locked: boolean; editable: boolean
+  onGoToAvailability: () => void; onGoToBestWindow: () => void; onPatch: (patch: Partial<AppEvent>) => void
 }) {
   const [editing, setEditing] = useState(false)
   if (locked) {
@@ -501,22 +533,34 @@ function WhenValue({ event, locked, editable, onGoToAvailability, onPatch }: {
 
   const oneDay = event.startDate === event.endDate
   const dow = oneDay ? event.days[0]?.dow : null
+  const best = bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode)
+  const gridStart = gridStartMinOf(event)
   return (
-    <span className="flex flex-wrap items-center gap-1.5">
-      {dow ? `${dow}, ` : ''}{dateRangeText(event)}
-      {oneDay && (
-        <>
-          {' · '}
-          <button onClick={onGoToAvailability} title="Mark when you're free on the Availability tab" className="font-medium text-accent-text hover:underline">time to be decided</button>
-        </>
-      )}
-      <TimezonePill tz={event.timezone} />
-      {editable && (
-        <button onClick={() => setEditing(true)} title="Change the dates or event length" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
-          <Pencil size={13} />
-        </button>
-      )}
-    </span>
+    <div className="flex flex-col gap-1">
+      <span className="flex flex-wrap items-center gap-1.5">
+        {dow ? `${dow}, ` : ''}{dateRangeText(event)}
+        {editable && (
+          <button onClick={() => setEditing(true)} title="Change the dates or event length" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
+            <Pencil size={13} />
+          </button>
+        )}
+      </span>
+      <span className="flex flex-wrap items-center gap-1.5 text-[12.5px] text-dim">
+        {best ? (
+          <>
+            Best time so far
+            <button onClick={onGoToBestWindow} title="See it on the Availability tab" className="font-medium text-accent-text hover:underline">
+              {best.dayLabel} · {fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)}
+            </button>
+          </>
+        ) : (
+          <button onClick={onGoToAvailability} title="Mark when you're free on the Availability tab" className="font-medium text-accent-text hover:underline">
+            Time to be decided
+          </button>
+        )}
+        <TimezonePill tz={event.timezone} />
+      </span>
+    </div>
   )
 }
 
@@ -539,7 +583,9 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
     // keep every existing day's replies (even out-of-range ones stay dormant); new days start empty
     const avail = { ...event.avail }
     for (const d of days) if (!avail[d.key]) avail[d.key] = event.times.map(() => [])
-    const availIv = { ...(event.availIv ?? {}) }
+    // seed from the full store (dormant days too) — starting from an empty object here
+    // would shadow legacy grid replies the moment availIv gets written
+    const availIv = { ...fullAvailIvOf(event) }
     for (const d of days) if (!availIv[d.key]) availIv[d.key] = {}
     onPatch({ startDate: start, endDate: e, days, avail, availIv, durationMin: dur })
     onDone()
@@ -574,13 +620,13 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
 
 /* Where: the confirmed venue once locked; before that, the vote leader for a single venue,
    or a pointer to the itinerary on the Location tab. */
-/* Spots: the host caps the guest list; everyone sees how many are left */
+/* Spots: the host caps the guest list; everyone sees the number, only the host edits it */
 function CapacityValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
   const [v, setV] = useState(event.capacity?.toString() ?? '')
   const going = event.participants.filter((p) => p.rsvp === 'attending').length
   if (!editable) {
     if (event.capacity == null) return <span className="text-faint">No limit</span>
-    return <span>{going} of {event.capacity} spots taken <span className="text-dim">· first come, first served</span></span>
+    return <span>{going} of {event.capacity} spots taken</span>
   }
   function change(raw: string) {
     const clean = raw.replace(/[^\d]/g, '').slice(0, 4)
@@ -589,17 +635,10 @@ function CapacityValue({ event, editable, onPatch }: { event: AppEvent; editable
     onPatch({ capacity: clean && n >= 1 ? n : undefined })
   }
   return (
-    <div className="flex flex-col gap-1">
-      <input
-        value={v} onChange={(e) => change(e.target.value)} inputMode="numeric" placeholder="No limit"
-        className="h-8 w-[110px] rounded-[8px] border border-border bg-s0 px-2.5 text-[13.5px] font-medium outline-none focus-within:border-border2"
-      />
-      <span className="text-[12.5px] leading-[1.5] text-faint">
-        {event.capacity != null
-          ? `${going} of ${event.capacity} spots taken. Spots go to whoever replies first.`
-          : 'Cap how many people can say they are going. Spots go to whoever replies first.'}
-      </span>
-    </div>
+    <input
+      value={v} onChange={(e) => change(e.target.value)} inputMode="numeric" placeholder="No limit"
+      className="h-8 w-[110px] rounded-[8px] border border-border bg-s0 px-2.5 text-[13.5px] font-medium outline-none focus-within:border-border2"
+    />
   )
 }
 

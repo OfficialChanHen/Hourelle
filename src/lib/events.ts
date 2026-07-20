@@ -233,7 +233,7 @@ export function normalizeIv(list: Iv[]): Iv[] {
   return out
 }
 // legacy per-cell grid → per-participant intervals (each marked cell becomes a full slot)
-export function gridToIntervals(avail: Record<string, string[][]>, days: GridDay[], step: number): AvailIntervals {
+export function gridToIntervals(avail: Record<string, string[][]>, days: Pick<GridDay, 'key'>[], step: number): AvailIntervals {
   const out: AvailIntervals = {}
   for (const d of days) {
     const byPid: Record<string, Iv[]> = {}
@@ -350,6 +350,11 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
 }
 export function availIvOf(ev: AppEvent): AvailIntervals {
   return ev.availIv ?? gridToIntervals(ev.avail, ev.days, stepOf(ev.granularity))
+}
+// same, but over every stored day — including dormant ones dropped from the current
+// range — so writers never lose the replies a later window change should bring back
+export function fullAvailIvOf(ev: Pick<AppEvent, 'avail' | 'availIv' | 'granularity'>): AvailIntervals {
+  return ev.availIv ?? gridToIntervals(ev.avail, Object.keys(ev.avail).map((key) => ({ key })), stepOf(ev.granularity))
 }
 
 export function daysUntil(startDate: string): number | null {
