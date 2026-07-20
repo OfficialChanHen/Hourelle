@@ -5,10 +5,10 @@ import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Triangle
 import { Avatar } from '@/components/ui/Avatar'
 import { Popover } from '@/components/ui/Popover'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { tzAbbr } from '@/components/ui/TimezonePill'
+import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import {
   availIvOf, bestWindow, byYouFirst, dayLabel, gridStartMinOf, fmtMinute, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
-  type AppEvent, type Iv, type Participant, type Rsvp,
+  type AppEvent, type BestMode, type Iv, type Participant, type Rsvp,
 } from '@/lib/events'
 import { computeItinerary } from '@/lib/itinerary'
 import { ALL_MODES, type TravelMode } from '@/lib/travel'
@@ -95,6 +95,22 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
   // "not free on this particular day"
   const markedIds = new Set<string>()
   for (const day of Object.values(availIv)) for (const [id, ivs] of Object.entries(day)) if (ivs.length) markedIds.add(id)
+  // who declared "none of these days work" — an explicit empty reply, not silence
+  const unavailSet = useMemo(() => new Set(event.unavailableIds ?? []), [event.unavailableIds])
+
+  // the planning-stage headline: people actually free (fully or partly) inside the
+  // best window right now — not RSVPs, which haven't been asked yet
+  const availableNow = win
+    ? participants.filter((p) => {
+        if (p.rsvp === 'not_going' || unavailSet.has(p.id)) return false
+        const c = coverOf(dayIv[p.id], win.s, win.e)
+        return c === 'full' || c === 'partial'
+      }).length
+    : 0
+  // planning caption counts mirror the roster groups exactly — declines plus declared
+  // "none work" on one side, everyone silent on the other
+  const outCount = participants.filter((p) => p.rsvp === 'not_going' || (!locked && unavailSet.has(p.id) && !markedIds.has(p.id))).length
+  const noTimesCount = locked ? 0 : participants.filter((p) => p.rsvp !== 'not_going' && !markedIds.has(p.id) && !unavailSet.has(p.id)).length
 
   // event with the live participant list, so child views read the same list this tab edits
   const liveEvent = useMemo(() => ({ ...event, participants }), [event, participants])
@@ -104,13 +120,13 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
       {/* "are you coming" is a locked-stage question; while planning, the ask is your times */}
       {locked
         ? me?.rsvp === 'pending' && <YourRsvpStrip onPick={changeRsvp} full={full} />
-        : !markedIds.has('JM') && <YourTimesStrip onGo={() => onGoToTab?.('availability')} />}
+        : !markedIds.has('JM') && !unavailSet.has('JM') && <YourTimesStrip onGo={() => onGoToTab?.('availability')} />}
 
       {/* header — friendly summary, share button, and (only when relevant) the model switch */}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-        <RsvpSummary participants={participants} capacity={event.capacity} locked={locked} />
+        <RsvpSummary participants={participants} capacity={event.capacity} locked={locked} available={availableNow} planningOut={outCount} planningNoTimes={noTimesCount} />
         <div className="flex flex-wrap items-center gap-2">
-          <CopySummaryButton event={liveEvent} win={win} locked={locked} gridStart={gridStart} />
+          <CopySummaryButton event={liveEvent} win={win} locked={locked} gridStart={gridStart} available={availableNow} />
           {hasItinerary && (
             <SegmentedControl
               size="sm"
@@ -131,7 +147,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
           event={liveEvent} attendees={attendees} win={win} locked={locked} dayIv={dayIv}
           gridStart={gridStart} step={step} rows={rows}
           quorum={quorum} onQuorum={event.hostedByYou ? changeQuorum : undefined}
-          onGoToTab={onGoToTab} onPerson={onViewAvailability} onViewGroup={onViewAvailabilityGroup} markedIds={markedIds} onGoToBestWindow={onGoToBestWindow}
+          onGoToTab={onGoToTab} onPerson={onViewAvailability} onViewGroup={onViewAvailabilityGroup} markedIds={markedIds} unavailSet={unavailSet} onGoToBestWindow={onGoToBestWindow}
         />
       )}
     </div>
@@ -174,7 +190,9 @@ function YourRsvpStrip({ onPick, full }: { onPick: (r: Rsvp) => void; full: bool
 
 /* ── shared: RSVP figure (borderless, open stats). One sentence, not a number soup:
    the big figure is going, the caption walks through everyone else. ── */
-function RsvpSummary({ participants, capacity, locked }: { participants: Participant[]; capacity?: number; locked: boolean }) {
+function RsvpSummary({ participants, capacity, locked, available, planningOut, planningNoTimes }: {
+  participants: Participant[]; capacity?: number; locked: boolean; available: number; planningOut: number; planningNoTimes: number
+}) {
   const going = participants.filter((p) => p.rsvp === 'attending').length
   const maybe = participants.filter((p) => p.rsvp === 'maybe').length
   const out = participants.filter((p) => p.rsvp === 'not_going').length
@@ -182,16 +200,24 @@ function RsvpSummary({ participants, capacity, locked }: { participants: Partici
   const total = participants.length
   const full = capacity != null && going >= capacity
   const rest: React.ReactNode[] = []
-  // "maybe" belongs to the locked-stage RSVP round; planning has no such state
-  if (locked && maybe > 0) rest.push(<span key="m" className="text-ochre-text">{maybe} maybe</span>)
-  if (out > 0) rest.push(<span key="o" className="text-brick-text">{out} can&apos;t</span>)
-  if (noReply > 0) rest.push(<span key="n" className="text-faint">{noReply} no reply</span>)
+  if (locked) {
+    if (maybe > 0) rest.push(<span key="m" className="text-ochre-text">{maybe} maybe</span>)
+    if (out > 0) rest.push(<span key="o" className="text-brick-text">{out} can&apos;t</span>)
+    if (noReply > 0) rest.push(<span key="n" className="text-faint">{noReply} no reply</span>)
+  } else {
+    // planning caption uses the same numbers as the roster groups below
+    if (planningOut > 0) rest.push(<span key="o" className="text-brick-text">{planningOut} can&apos;t</span>)
+    if (planningNoTimes > 0) rest.push(<span key="n" className="text-faint">{planningNoTimes} no times yet</span>)
+  }
   return (
     <div>
       <div className="flex items-baseline gap-2">
-        <span className="font-serif text-[42.5px] leading-none">{going}</span>
+        {/* planning counts people actually free in the best window; going is RSVP-real only once locked */}
+        <span className="font-serif text-[42.5px] leading-none">{locked ? going : available}</span>
         <span className="text-[14.5px] text-dim">{locked ? 'going' : 'available'}</span>
-        {capacity != null && (
+        {/* spots are claimed by RSVPs, which only exist once the plan is locked —
+            during planning the pill would count replies nobody has given yet */}
+        {locked && capacity != null && (
           <span className={`rounded-[6px] border px-1.5 py-px text-[11px] font-semibold ${full ? 'border-ochre-border bg-ochre-bg text-ochre-text' : 'border-teal-border bg-teal-bg text-teal-text'}`}>
             {full ? `full · ${capacity} spots` : `${capacity - going} of ${capacity} spots left`}
           </span>
@@ -206,11 +232,11 @@ function RsvpSummary({ participants, capacity, locked }: { participants: Partici
 }
 
 /* one-tap summary for the group chat: headcount, window, and the place, as plain text */
-function CopySummaryButton({ event, win, locked, gridStart }: { event: AppEvent; win: Win | null; locked: boolean; gridStart: number }) {
+function CopySummaryButton({ event, win, locked, gridStart, available }: { event: AppEvent; win: Win | null; locked: boolean; gridStart: number; available: number }) {
   const [copied, setCopied] = useState(false)
   function copy() {
     const going = event.participants.filter((p) => p.rsvp === 'attending').length
-    const parts = [`${event.title}: ${going} of ${event.participants.length} ${locked ? 'going' : 'available'}`]
+    const parts = [`${event.title}: ${locked ? going : available} of ${event.participants.length} ${locked ? 'going' : 'available'}`]
     if (win) parts.push(`${locked ? 'confirmed for' : 'best window'} ${win.dayLabel}, ${fmtMinute(gridStart + win.s)}–${fmtMinute(gridStart + win.e)} ${tzAbbr(event.timezone)}`)
     const lead = leadingPlaceOf(event)
     if (lead) parts.push(lead.confirmed ? `at ${lead.place.name}` : `leading place: ${lead.place.name}`)
@@ -225,13 +251,14 @@ function CopySummaryButton({ event, win, locked, gridStart }: { event: AppEvent;
 
 /* ── Single venue: where it's happening, who's in the room, and when ── */
 function SingleVenue({
-  event, attendees, win, locked, dayIv, gridStart, step, rows, quorum, onQuorum, onGoToTab, onPerson, onViewGroup, markedIds, onGoToBestWindow,
+  event, attendees, win, locked, dayIv, gridStart, step, rows, quorum, onQuorum, onGoToTab, onPerson, onViewGroup, markedIds, unavailSet, onGoToBestWindow,
 }: {
   event: AppEvent; attendees: Participant[]; win: Win | null; locked: boolean
   dayIv: Record<string, Iv[]>; gridStart: number; step: number; rows: number
   quorum: number | null; onQuorum?: (q: number | null) => void
   onGoToTab?: GoTab; onPerson?: (pid: string) => void; onViewGroup?: (pids: string[]) => void; onGoToBestWindow?: () => void
   markedIds: Set<string>
+  unavailSet: Set<string>
 }) {
   const winS = win?.s ?? 0
   const winE = win?.e ?? rows * step
@@ -246,6 +273,8 @@ function SingleVenue({
     const noTimes: Participant[] = [], maybe: Participant[] = [], out: Participant[] = [], noReply: Participant[] = []
     for (const p of event.participants) {
       if (p.rsvp === 'not_going') { out.push(p); continue }
+      // a declared "none of these days work" is a decline in planning terms
+      if (!locked && unavailSet.has(p.id) && !markedIds.has(p.id)) { out.push(p); continue }
       // RSVP states only mean something once a time is locked. While planning, the grid
       // is the reply: anyone not declined reads by their availability, and "no reply"
       // merges into "no times yet" — they're the same wait.
@@ -324,7 +353,8 @@ function SingleVenue({
               {locked
                 ? <span>{win.dayLabel}, {fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</span>
                 : <button type="button" onClick={() => (onGoToBestWindow ? onGoToBestWindow() : onGoToTab?.('availability'))} className="font-semibold text-ochre hover:underline">{win.dayLabel}, {fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</button>}
-              {!locked && <BestWindowInfo />}
+              <TimezonePill tz={event.timezone} />
+              {!locked && <BestWindowInfo mode={event.bestMode ?? 'full'} />}
             </div>
           )}
           {onQuorum && <QuorumControl quorum={quorum} onChange={onQuorum} />}
@@ -334,11 +364,19 @@ function SingleVenue({
       <LeadingPlace event={event} onGoToTab={onGoToTab} />
 
       {win
-        ? <HeadcountBars attendees={attendees} dayIv={dayIv} gridStart={gridStart} step={step} rows={rows} winS={winS} winE={winE} locked={locked} quorum={quorum} onGoToTab={onGoToTab} onGoToBestWindow={onGoToBestWindow} />
+        ? <HeadcountBars attendees={attendees} dayIv={dayIv} gridStart={gridStart} step={step} winS={winS} winE={winE} quorum={quorum} />
         : <div className="rounded-xl border border-border bg-s0 px-4 py-6 text-center text-[13.5px] text-dim">Add availability to see who is around when.</div>}
 
       {quorum != null && win && <QuorumStatus quorum={quorum} whole={groups.whole.length} />}
       {shift && <ShiftSuggestion shift={shift} />}
+
+      {/* explicit "none of these days work" replies are the signal to widen the window */}
+      {!locked && unavailSet.size > 0 && (
+        <div className="mt-3 flex items-start gap-2 rounded-[10px] border border-ochre-border bg-ochre-bg px-3 py-2 text-[13px] leading-[1.5] text-ochre-text">
+          <TriangleAlert size={14} className="mt-0.5 flex-none" />
+          <span>{unavailSet.size === 1 ? '1 person isn’t' : `${unavailSet.size} people aren’t`} free on any of these days. Widening the date window could bring them in.</span>
+        </div>
+      )}
 
       {/* pick one group or read them all — the chips double as a headcount per group */}
       <div className="mt-5 flex flex-wrap items-center gap-1.5">
@@ -369,26 +407,23 @@ function SingleVenue({
           p: x.p,
           bar: barsOf(x.segs),
         }))} axis={axis.length ? axis : undefined} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.part.map((x) => x.p.id)) : undefined} />}
-        {(showGroup === 'all' || showGroup === 'noTimes') && <RosterGroup label={locked ? 'Going, no times yet' : 'No times yet'} tone="faint" hint={locked ? "They said yes but haven't marked when they're free, so the best window can't count them." : "They haven't marked when they're free, so the best window can't count them."} people={groups.noTimes.map((p) => ({ p }))} action={!locked && groups.noTimes.length > 0 ? <CopyReminder event={event} /> : undefined} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.noTimes.map((p) => p.id)) : undefined} />}
+        {(showGroup === 'all' || showGroup === 'noTimes') && <RosterGroup label={locked ? 'Going, no times yet' : 'No times yet'} tone="faint" people={groups.noTimes.map((p) => ({ p }))} action={!locked && groups.noTimes.length > 0 ? <CopyReminder event={event} /> : undefined} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.noTimes.map((p) => p.id)) : undefined} />}
         {(showGroup === 'all' || showGroup === 'maybe') && <RosterGroup label="Maybe" tone="ochre" people={groups.maybe.map((p) => ({ p }))} onPerson={onPerson} />}
-        {/* two flavors of decline, told apart by the grid: never entered times vs
-            entered times that all miss this window */}
-        {(showGroup === 'all' || showGroup === 'out') && <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({
-          p,
-          note: markedIds.has(p.id) ? 'has times, none in this window' : 'never entered times',
-        }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.out.map((p) => p.id)) : undefined} />}
+        {(showGroup === 'all' || showGroup === 'out') && <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.out.map((p) => p.id)) : undefined} />}
         {(showGroup === 'all' || showGroup === 'noReply') && <RosterGroup label="No reply" tone="faint" people={groups.noReply.map((p) => ({ p }))} action={<CopyReminder event={event} />} onPerson={onPerson} />}
       </div>
     </div>
   )
 }
 
-function BestWindowInfo() {
+function BestWindowInfo({ mode }: { mode: BestMode }) {
   return (
-    <Popover width={264} align="end" trigger={() => <Info size={13} className="text-faint hover:text-dim" />}>
+    <Popover width={240} align="end" trigger={() => <Info size={13} className="text-faint hover:text-dim" />}>
       {() => (
         <p className="p-1 text-[12.5px] leading-[1.55] text-dim">
-          The best window is the time when the most people are free for the whole event. It updates as people fill in the Availability tab.
+          {mode === 'crowd'
+            ? <>Favoring <span className="font-semibold text-text">biggest crowd</span>: the slot with the most people around, even part-time.</>
+            : <>Favoring <span className="font-semibold text-text">everyone stays</span>: the slot where the most people are free the whole time.</>}
         </p>
       )}
     </Popover>
@@ -509,16 +544,19 @@ function LeadingPlace({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab
 
 /* Headcount through the day — how many attendees are free per slot; tap a bar for the numbers */
 function HeadcountBars({
-  attendees, dayIv, gridStart, step, rows, winS, winE, locked, quorum, onGoToTab, onGoToBestWindow,
+  attendees, dayIv, gridStart, step, winS, winE, quorum,
 }: {
-  attendees: Participant[]; dayIv: Record<string, Iv[]>; gridStart: number; step: number; rows: number
-  winS: number; winE: number; locked: boolean; quorum: number | null; onGoToTab?: GoTab; onGoToBestWindow?: () => void
+  attendees: Participant[]; dayIv: Record<string, Iv[]>; gridStart: number; step: number
+  winS: number; winE: number; quorum: number | null
 }) {
   const [sel, setSel] = useState<number | null>(null)
-  const counts = useMemo(() => Array.from({ length: rows }, (_, ti) => {
-    const s = ti * step, e = (ti + 1) * step
+  // the strip covers the window being decided on, not the whole grid day — every
+  // bar is a slot inside the best (or confirmed) window
+  const spanRows = Math.max(1, Math.ceil((winE - winS) / step))
+  const counts = useMemo(() => Array.from({ length: spanRows }, (_, ti) => {
+    const s = winS + ti * step, e = Math.min(winE, s + step)
     return attendees.filter((p) => (dayIv[p.id] ?? []).some((iv) => iv.s < e && iv.e > s)).length
-  }), [attendees, dayIv, rows, step])
+  }), [attendees, dayIv, spanRows, step, winS, winE])
   const peak = Math.max(1, ...counts)
   const total = Math.max(1, attendees.length)
   const quorumPct = quorum != null ? Math.min(100, (quorum / peak) * 100) : null
@@ -529,9 +567,9 @@ function HeadcountBars({
         {sel != null && (
           <div
             className="pointer-events-none absolute -top-1.5 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-[8px] border border-border bg-s1 px-2.5 py-1.5 text-[12px] shadow-soft"
-            style={{ left: `${Math.min(88, Math.max(12, ((sel + 0.5) / rows) * 100))}%` }}
+            style={{ left: `${Math.min(88, Math.max(12, ((sel + 0.5) / spanRows) * 100))}%` }}
           >
-            <span className="font-semibold">{fmtMinute(gridStart + sel * step)}</span> · {counts[sel]} of {total} free
+            <span className="font-semibold">{fmtMinute(gridStart + winS + sel * step)}</span> · {counts[sel]} of {total} free
           </div>
         )}
         <div className="flex h-16 items-end gap-[2px]">
@@ -541,10 +579,10 @@ function HeadcountBars({
             return (
               <button
                 key={i} onClick={() => setSel(sel === i ? null : i)}
-                aria-label={`${fmtMinute(gridStart + i * step)}, ${c} of ${total} free`}
+                aria-label={`${fmtMinute(gridStart + winS + i * step)}, ${c} of ${total} free`}
                 className={`flex-1 rounded-t-[2px] ${sel === i ? 'outline outline-1 outline-[--accent]' : ''}`}
                 style={{ height: `${Math.max(6, (c / peak) * 100)}%`, background: bg }}
-                title={`${fmtMinute(gridStart + i * step)} · ${c} free`}
+                title={`${fmtMinute(gridStart + winS + i * step)} · ${c} free`}
               />
             )
           })}
@@ -556,13 +594,8 @@ function HeadcountBars({
         )}
       </div>
       <div className="mt-1.5 flex justify-between text-[11px] text-faint">
-        <span>{fmtMinute(gridStart)}</span>
-        <span className="text-dim">{locked ? 'Confirmed' : 'Best window'}{' '}
-          {locked
-            ? <span>{fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</span>
-            : <button type="button" onClick={() => (onGoToBestWindow ? onGoToBestWindow() : onGoToTab?.('availability'))} className="font-semibold text-ochre hover:underline">{fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</button>}
-        </span>
-        <span>{fmtMinute(gridStart + rows * step)}</span>
+        <span>{fmtMinute(gridStart + winS)}</span>
+        <span>{fmtMinute(gridStart + winE)}</span>
       </div>
     </div>
   )

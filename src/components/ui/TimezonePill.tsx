@@ -20,8 +20,10 @@ export function tzAbbr(tz: string): string {
 
 export function TimezonePill({ tz }: { tz: string }) {
   const label = tzAbbr(tz)
+  // align-middle centers the chip against surrounding text when it sits inline in a
+  // sentence; flex parents ignore it, so toolbars keep their own alignment
   return (
-    <span className="inline-flex items-center rounded-[5px] bg-s2 px-[5px] py-px font-mono text-[10px] leading-normal text-dim">
+    <span className="inline-flex items-center rounded-[5px] bg-s2 px-[5px] py-px align-middle font-mono text-[10px] leading-normal text-dim">
       {label}
     </span>
   )

@@ -395,7 +395,12 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
               <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}{p.you && <span className="font-normal text-faint"> (You)</span>}</span>
             </button>
             {p.host && <span className="flex-none rounded-md border border-accent-border bg-accent-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-accent-text">Host</span>}
-            <span className="flex-none rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: RSVP[p.rsvp].color, background: `var(--${RSVP[p.rsvp].chip}-bg, var(--s2))` }}>{rsvpLabel(p.rsvp, event.status === 'confirmed' && !!event.confirmed)}</span>
+            {/* a declared "none of these days work" outranks the silent no-reply chip while planning */}
+            {!(event.status === 'confirmed' && event.confirmed) && p.rsvp === 'pending' && event.unavailableIds?.includes(p.id) ? (
+              <span className="flex-none rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: 'var(--brick-text)', background: 'var(--brick-bg)' }}>Not free these days</span>
+            ) : (
+              <span className="flex-none rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: RSVP[p.rsvp].color, background: `var(--${RSVP[p.rsvp].chip}-bg, var(--s2))` }}>{rsvpLabel(p.rsvp, event.status === 'confirmed' && !!event.confirmed)}</span>
+            )}
             {isHost && !p.you && <ParticipantMenu p={p} event={event} onPatch={onPatch} />}
           </div>
         ))}

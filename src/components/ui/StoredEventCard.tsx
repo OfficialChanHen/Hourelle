@@ -46,7 +46,7 @@ export function StoredEventCard({ e, reuseHref, sameDayTitle }: { e: AppEvent; r
   // the three glance cues that call for action: your missing reply, how many the
   // host is still waiting on, and a voting deadline that hasn't passed
   const youPending = phase !== 'past' && e.participants.some((p) => p.you && p.rsvp === 'pending')
-  const replied = e.hostedByYou && phase === 'planning' ? respondedCount(e.avail) : null
+  const replied = e.hostedByYou && phase === 'planning' ? respondedCount(e.avail, e.unavailableIds) : null
   const voteDays = phase === 'planning' && e.voteDeadline ? daysUntil(e.voteDeadline) : null
 
   const copyLink = asAction(() => {

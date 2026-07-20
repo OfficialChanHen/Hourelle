@@ -70,9 +70,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   })
 
   const youAny = event.days.some((d) => (mine[d.key]?.length ?? 0) > 0)
+  // declared "none of these days work" — an explicit empty reply, held locally so the
+  // demo works in memory and persisted for real events
+  const [unavail, setUnavail] = useState<Set<string>>(() => new Set(event.unavailableIds ?? []))
   const otherIds = new Set<string>()
   for (const d of event.days) for (const [id, ivs] of Object.entries(others[d.key] ?? {})) if (ivs.length) otherIds.add(id)
-  const responded = otherIds.size + (youAny ? 1 : 0)
+  const respondedIdSet = new Set(otherIds)
+  if (youAny) respondedIdSet.add('JM')
+  for (const id of unavail) respondedIdSet.add(id) // an explicit "none work" is a reply
+  const responded = respondedIdSet.size
 
   // once the plan is locked the grid is reference only; otherwise open in edit
   // until you've marked something — the page's one ask of a new participant.
@@ -163,6 +169,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   useEffect(() => () => { if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current) }, [])
 
   function persist(m: Record<string, Iv[]>) {
+    // marking any time takes back an earlier "none of these days work"
+    if (Object.values(m).some((ivs) => ivs.length) && unavail.has('JM')) {
+      setUnavail((prev) => { const next = new Set(prev); next.delete('JM'); return next })
+      if (!event.demo) patchEvent(event.id, { unavailableIds: (event.unavailableIds ?? []).filter((id) => id !== 'JM') })
+    }
     if (event.demo) return
     const availIv: AvailIntervals = {}
     for (const d of event.days) {
@@ -171,6 +182,16 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       else delete availIv[d.key].JM
     }
     patchEvent(event.id, { availIv, avail: intervalsToGrid(availIv, event.days, rows, step) })
+  }
+  // your explicit empty reply: none of these days work — cleared by marking any time
+  function toggleNoneWork() {
+    setUnavail((prev) => {
+      const next = new Set(prev)
+      if (next.has('JM')) next.delete('JM')
+      else next.add('JM')
+      if (!event.demo) patchEvent(event.id, { unavailableIds: [...next] })
+      return next
+    })
   }
   function changeDuration(v: number) {
     setDurationMin(v)
@@ -529,7 +550,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const bwAllShown = bwAll && (!bw || bwAll.dayKey !== bw.dayKey || bwAll.s !== bw.s || bwAll.e !== bw.e) ? bwAll : null
 
   // who still hasn't marked any availability (to nudge)
-  const respondedIds = new Set(otherIds); if (youAny) respondedIds.add('JM')
+  const respondedIds = respondedIdSet
   const missing = rosterSorted.filter((p) => !respondedIds.has(p.id) && p.rsvp !== 'not_going')
   // filtered-in people with nothing marked — an empty grid needs to say why
   const unmarked = filterOn
@@ -688,6 +709,20 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             )}
           </div>
           {mode === 'edit' && <PresetFills onFill={fillPreset} onFillAll={fillAllDays} />}
+          {/* the explicit empty reply: with nothing marked, "none of these days work"
+              is one tap — and marking any time takes it back */}
+          {mode === 'edit' && !locked && !youAny && (
+            unavail.has('JM') ? (
+              <span className="flex items-center gap-1.5 rounded-full border border-brick-border bg-brick-bg px-2.5 py-1 text-[11.5px] font-semibold text-brick-text">
+                Marked as not free on any of these days
+                <button type="button" onClick={toggleNoneWork} className="underline underline-offset-2">Undo</button>
+              </span>
+            ) : (
+              <button type="button" onClick={toggleNoneWork} className="text-[12.5px] font-medium text-dim underline-offset-2 hover:text-brick-text hover:underline">
+                None of these days work?
+              </button>
+            )
+          )}
           {/* first-time hint only — it earns its place until you've marked something */}
           {mode === 'edit' && !sel && !youAny && (
             <span className="text-[12.5px] text-faint">Drag across the times you&apos;re free. The checkmarks fill a whole day or row at once.</span>

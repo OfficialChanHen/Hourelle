@@ -65,6 +65,7 @@ export type AppEvent = {
   quorum?: number                     // host-set smallest headcount that works; attendance warns below it
   capacity?: number                   // host-set spot limit; going is first come, first served
   expenses?: EventExpense[]           // actual spend logged against the budget
+  unavailableIds?: string[]           // declared "none of these days work" — an explicit empty reply, not silence
   image?: string                      // cover: 'preset:<id>' or a downscaled data URL the host uploaded
   messages: ChatMessage[]
   createdAt: number
@@ -542,8 +543,9 @@ export function draftFromEvent(id: string): Partial<CreateInput> | null {
   }
 }
 
-export function respondedCount(avail: Record<string, string[][]>): number {
-  const ids = new Set<string>()
+export function respondedCount(avail: Record<string, string[][]>, unavailableIds?: string[]): number {
+  // declaring "none of these days work" is a reply too — an explicit empty one
+  const ids = new Set<string>(unavailableIds ?? [])
   for (const rows of Object.values(avail)) for (const cell of rows) for (const id of cell) ids.add(id)
   return ids.size
 }
@@ -815,6 +817,9 @@ const BIG_DEMO: AppEvent = {
   itinStartMin: 10 * 60,
   capacity: 20,
   quorum: 15,
+  // Hana declared none of the days work — the third flavor of absence, next to
+  // Kim's silence-and-decline and Sky's mismatched times
+  unavailableIds: ['HK'],
   image: 'preset:harvest',
   messages: [
     { id: 'AT', name: 'Alex Turner', time: 'Tue', text: 'Three votes each people, spend them wisely', you: false },

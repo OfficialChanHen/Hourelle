@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { RotateCcw } from 'lucide-react'
+import { TimezonePill } from '@/components/ui/TimezonePill'
 import {
   availIvOf, bestWindow, dateRangeText, fmtMinute, gridStartMinOf,
   respondedCount, type AppEvent, type Phase,
@@ -25,7 +26,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
 
   if (phase !== 'planning') return null
 
-  const responded = respondedCount(event.avail)
+  const responded = respondedCount(event.avail, event.unavailableIds)
   const total = event.participants.length
   const best = bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode)
   const gridStart = gridStartMinOf(event)
@@ -43,7 +44,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
     <p className="text-[13.5px] text-dim">
       {responded === 0
         ? 'Waiting on availability'
-        : <>{responded} of {total} responded{best && <> · best so far <button type="button" onClick={onGoToAvailability} className="font-semibold text-ochre hover:underline">{best.dayLabel} · {fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)}</button></>}</>}
+        : <>{responded} of {total} responded{best && <> · best so far <button type="button" onClick={onGoToAvailability} className="font-semibold text-ochre hover:underline">{best.dayLabel} · {fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)}</button> <TimezonePill tz={event.timezone} /></>}</>}
       {settledPlace && <> · <span className="font-semibold text-text">{settledPlace.name}</span> is the place</>}
       {leading && <> · <span className="font-semibold text-text">{leading.name}</span> leading the vote</>}
     </p>
