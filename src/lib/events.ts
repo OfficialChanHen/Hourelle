@@ -328,17 +328,15 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
         const weight = minutesIn(s, e)
         // crowd mode still scores a window nobody can fully cover; full mode skips it
         if (bestMode === 'crowd' ? weight <= 0 : !who.length) continue
-        // extend the window while the same people are all still free (min of their covering-interval ends)
-        let ext = Infinity
-        for (const id of who) { const iv = byPid[id].find((v) => v.s <= s && v.e >= e); if (iv) ext = Math.min(ext, iv.e) }
-        const eEnd = ext === Infinity ? e : ext
         // dead air before anyone arrives: window start to the first free moment in it
         let firstFree = Infinity
         for (const ivs of Object.values(byPid)) for (const iv of ivs) if (iv.e > s && iv.s < e) firstFree = Math.min(firstFree, Math.max(iv.s, s))
         const gap = firstFree === Infinity ? 0 : firstFree - s
-        if (better(who.length, weight, gap, s, eEnd)) {
+        // the window is exactly the event's length — the frame and footers report a
+        // slot you could book as-is, never a longer stretch around it
+        if (better(who.length, weight, gap, s, e)) {
           const anyIds = ids.filter((id) => byPid[id].some((iv) => iv.s < e && iv.e > s))
-          best = { dayKey: d.key, s, e: eEnd, count: who.length, ids: who, anyIds, avg: weight / minLen }
+          best = { dayKey: d.key, s, e, count: who.length, ids: who, anyIds, avg: weight / minLen }
           bestWeight = weight
           bestGap = gap
         }

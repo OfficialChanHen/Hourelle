@@ -246,10 +246,12 @@ function SingleVenue({
     const noTimes: Participant[] = [], maybe: Participant[] = [], out: Participant[] = [], noReply: Participant[] = []
     for (const p of event.participants) {
       if (p.rsvp === 'not_going') { out.push(p); continue }
-      if (p.rsvp === 'pending') { noReply.push(p); continue }
-      // "maybe" answers "are you coming", which is only asked once a time is locked —
-      // while planning, a stray maybe reads by their availability like anyone else
+      // RSVP states only mean something once a time is locked. While planning, the grid
+      // is the reply: anyone not declined reads by their availability, and "no reply"
+      // merges into "no times yet" — they're the same wait.
+      if (locked && p.rsvp === 'pending') { noReply.push(p); continue }
       if (locked && p.rsvp === 'maybe') { maybe.push(p); continue }
+      if (!locked && p.rsvp === 'pending' && !markedIds.has(p.id)) { noTimes.push(p); continue }
       const cover = win ? coverOf(dayIv[p.id], winS, winE) : 'nodata'
       if (cover === 'nodata') {
         // marked times somewhere, just none in this window → a conflict, not silence
@@ -264,17 +266,21 @@ function SingleVenue({
     part.sort((a, b) => byYouFirst(a.p, b.p))
     for (const g of [whole, noTimes, maybe, out, noReply]) g.sort(byYouFirst)
     return { whole, part, noTimes, maybe, out, noReply }
-  }, [event.participants, dayIv, win, winS, winE, markedIds]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [event.participants, dayIv, win, winS, winE, markedIds, locked]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // the roster only says "here" once there is somewhere to be
   const hasVenue = event.location.mode === 'remote' || leadingPlaceOf(event) != null
 
   // inline timing bars for part-time rows: one block per stretch they're around,
-  // positioned within the window — gaps stay visibly empty
+  // positioned within the window — gaps stay visibly empty. Each block carries its
+  // own times; ":00" drops so the label fits a narrow segment.
   const span = Math.max(1, winE - winS)
+  const short = (m: number) => fmtMinute(m).replace(':00 ', ' ')
   const barsOf = (segs: Iv[] | null) => segs?.map((iv) => ({
     left: `${Math.max(0, ((iv.s - winS) / span) * 100).toFixed(1)}%`,
     width: `${Math.max(2, (((iv.e - iv.s) / span) * 100)).toFixed(1)}%`,
+    label: `${short(gridStart + iv.s)}–${short(gridStart + iv.e)}`,
+    full: `${fmtMinute(gridStart + iv.s)} – ${fmtMinute(gridStart + iv.e)}`,
   })) ?? null
 
   // a nearby start that lets more people stay the whole time. The best window can't be
@@ -348,14 +354,9 @@ function SingleVenue({
         {(showGroup === 'all' || showGroup === 'whole') && <RosterGroup label={locked && hasVenue ? 'Here the whole time' : 'Free the whole time'} tone="teal" people={groups.whole.map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.whole.map((p) => p.id)) : undefined} />}
         {(showGroup === 'all' || showGroup === 'part') && <RosterGroup label={locked && hasVenue ? 'Part of the time' : 'Free part of the time'} tone="ochre" people={groups.part.map((x) => ({
           p: x.p,
-          note: x.segs == null
-            ? 'time conflict'
-            : x.segs.length === 1
-              ? `${fmtMinute(gridStart + x.segs[0].s)}–${fmtMinute(gridStart + x.segs[0].e)}`
-              : `${fmtMinute(gridStart + x.segs[0].s)}–${fmtMinute(gridStart + x.segs[x.segs.length - 1].e)}, in and out`,
           bar: barsOf(x.segs),
         }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.part.map((x) => x.p.id)) : undefined} />}
-        {(showGroup === 'all' || showGroup === 'noTimes') && <RosterGroup label={locked ? 'Going, no times yet' : 'No times yet'} tone="faint" hint={locked ? "They said yes but haven't marked when they're free, so the best window can't count them." : "They haven't marked when they're free, so the best window can't count them."} people={groups.noTimes.map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.noTimes.map((p) => p.id)) : undefined} />}
+        {(showGroup === 'all' || showGroup === 'noTimes') && <RosterGroup label={locked ? 'Going, no times yet' : 'No times yet'} tone="faint" hint={locked ? "They said yes but haven't marked when they're free, so the best window can't count them." : "They haven't marked when they're free, so the best window can't count them."} people={groups.noTimes.map((p) => ({ p }))} action={!locked && groups.noTimes.length > 0 ? <CopyReminder event={event} /> : undefined} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.noTimes.map((p) => p.id)) : undefined} />}
         {(showGroup === 'all' || showGroup === 'maybe') && <RosterGroup label="Maybe" tone="ochre" people={groups.maybe.map((p) => ({ p }))} onPerson={onPerson} />}
         {(showGroup === 'all' || showGroup === 'out') && <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({ p }))} onPerson={onPerson} />}
         {(showGroup === 'all' || showGroup === 'noReply') && <RosterGroup label="No reply" tone="faint" people={groups.noReply.map((p) => ({ p }))} action={<CopyReminder event={event} />} onPerson={onPerson} />}
@@ -558,7 +559,7 @@ const TONE: Record<string, { dot: string; text: string }> = {
 
 function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGroup, hint }: {
   label: string; tone: keyof typeof TONE | string
-  people: { p: Participant; note?: string; bar?: { left: string; width: string }[] | null }[]
+  people: { p: Participant; note?: string; bar?: { left: string; width: string; label: string; full: string }[] | null }[]
   cap?: number
   action?: ReactNode
   onPerson?: (pid: string) => void
@@ -600,7 +601,24 @@ function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGr
             {hasBars && (
               <div className="relative h-5 min-w-0 flex-1 rounded-[6px] bg-s2">
                 {bar && bar.length > 0
-                  ? bar.map((b, i) => <div key={i} className="absolute inset-y-0 rounded-[6px] border border-ochre-border bg-ochre-bg" style={{ left: b.left, width: b.width }} />)
+                  ? bar.map((b, i) => (
+                      // a narrow segment clips its label, so every bar is a tap target
+                      // that pops the full interval
+                      <div key={i} className="absolute inset-y-0" style={{ left: b.left, width: b.width }}>
+                        <Popover
+                          // bars in the right half anchor their panel to the right edge, so it
+                          // can never poke past the viewport and widen the page
+                          width={150} align={parseFloat(b.left) > 50 ? 'end' : 'start'} className="h-full w-full [&>button]:block [&>button]:h-full [&>button]:w-full"
+                          trigger={() => (
+                            <span className="flex h-full w-full items-center justify-center overflow-hidden rounded-[6px] border border-ochre bg-ochre-border">
+                              <span className="truncate px-1 text-[11px] font-semibold text-ochre-text">{b.label}</span>
+                            </span>
+                          )}
+                        >
+                          {() => <p className="whitespace-nowrap text-center text-[12.5px] font-semibold">{b.full}</p>}
+                        </Popover>
+                      </div>
+                    ))
                   : <span className="absolute inset-0 flex items-center px-2 text-[11.5px] text-brick-text">busy during this time</span>}
               </div>
             )}
