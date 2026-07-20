@@ -69,8 +69,6 @@ function winLenOf(preset: WinPreset, s: string, e: string): number {
 
 type Form = {
   title: string
-  hostMode: 'you' | 'org'
-  orgName: string
   description: string
   scheduleMode: 'find' | 'set' // find a time together, or the date is already set
   fixedDay: string
@@ -98,7 +96,7 @@ type Form = {
 }
 
 const initialForm: Form = {
-  title: '', hostMode: 'you', orgName: '', description: '',
+  title: '', description: '',
   scheduleMode: 'find', fixedDay: '', fixedStart: '18:00', fixedEnd: '21:00',
   startDate: '', endDate: '', granularity: '30', windowPreset: 'any', windowStart: '', windowEnd: '', durationMin: 60,
   timezone: '', budget: '', budgetMode: 'total', capacity: '', // timezone deliberately unset: picking it is a required, conscious step
@@ -107,14 +105,14 @@ const initialForm: Form = {
 }
 
 type Update = (patch: Partial<Form> | ((f: Form) => Partial<Form>)) => void
-type BasicsErrs = { title: string; org: string; start: string; end: string; win: string; tz: string; fixed: string }
+type BasicsErrs = { title: string; start: string; end: string; win: string; tz: string; fixed: string }
 
 // template starting points (/create?template=…) — structure only; dates stay a conscious choice
 const TEMPLATE_PRESETS: Record<string, Partial<Form>> = {
   offsite: { title: 'Team offsite', description: 'A few days of strategy and team time.', granularity: '60', locMode: 'vote', planMode: 'itinerary', budgetMode: 'person' },
   trip: { title: 'Weekend trip', description: 'Pick the dates together and vote on where to go.', granularity: '60', locMode: 'vote', planMode: 'itinerary' },
   birthday: { title: 'Birthday party', description: 'One night, one spot.', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 180, locMode: 'vote', planMode: 'vote' },
-  conference: { title: 'Conference', hostMode: 'org', granularity: '60', locMode: 'vote', planMode: 'itinerary' },
+  conference: { title: 'Conference', granularity: '60', locMode: 'vote', planMode: 'itinerary' },
   'one-on-one': { title: 'Weekly 1:1', granularity: '15', durationMin: 30, locMode: 'remote' },
   dinner: { title: 'Dinner and drinks', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 120, locMode: 'vote', planMode: 'vote' },
 }
@@ -186,7 +184,6 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
   const finding = form.scheduleMode === 'find' // the window fields only matter when a time is being found
   const basicsErr: BasicsErrs = {
     title: form.title.trim() ? '' : 'Add an event title.',
-    org: form.hostMode === 'org' && !form.orgName.trim() ? 'Add the organization name.' : '',
     start: !finding ? '' : !form.startDate ? 'Pick the earliest day.' : today && form.startDate < today ? 'The earliest day can’t be before today.' : '',
     end: !finding ? '' : !form.endDate ? 'Pick the latest day.' : form.startDate && form.endDate < form.startDate ? 'The latest day can’t be before the earliest day.' : '',
     win:
@@ -210,7 +207,7 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
   }
   // an empty ballot is fine: the Location tab handles it, and guests can add places later
   function stepValid(s: number) {
-    if (s === 0) return !basicsErr.title && !basicsErr.org && !basicsErr.start && !basicsErr.end && !basicsErr.win && !basicsErr.tz && !basicsErr.fixed
+    if (s === 0) return !basicsErr.title && !basicsErr.start && !basicsErr.end && !basicsErr.win && !basicsErr.tz && !basicsErr.fixed
     return true
   }
 
@@ -376,26 +373,10 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
         {show(errs.title) && <FieldError>{errs.title}</FieldError>}
       </div>
 
-      <div className="flex flex-wrap gap-3.5">
-        <div className="min-w-[200px] flex-1">
-          <Label>Hosted by <Req /></Label>
-          <SegmentedControl
-            stretch
-            className="w-full"
-            value={form.hostMode}
-            onChange={(v) => update({ hostMode: v as 'you' | 'org' })}
-            options={[{ v: 'you', l: 'You' }, { v: 'org', l: 'Organization' }]}
-          />
-        </div>
-        <div className="min-w-[200px] flex-1">
-          <Label>{form.hostMode === 'you' ? 'Host' : <>Organization name <Req /></>}</Label>
-          {form.hostMode === 'you' ? (
-            <input key="host-you" value={USER_NAME} readOnly disabled className={`${inputCls(false)} cursor-not-allowed opacity-60`} />
-          ) : (
-            <input key="host-org" value={form.orgName} onChange={(e) => update({ orgName: e.target.value })} placeholder="e.g. Acme Engineering Org" className={inputCls(show(errs.org))} />
-          )}
-          {form.hostMode === 'org' && show(errs.org) && <FieldError>{errs.org}</FieldError>}
-        </div>
+      {/* events are hosted by the signed-in account — nothing to choose, the name is locked */}
+      <div>
+        <Label>Hosted by</Label>
+        <input value={USER_NAME} readOnly disabled className={`${inputCls(false)} max-w-[320px] cursor-not-allowed opacity-60`} />
       </div>
 
       <div>
@@ -884,7 +865,7 @@ function StepReview({ form, goStep }: { form: Form; goStep: (n: number) => void 
       {/* Basics */}
       <ReviewCard title="Basics" onEdit={() => goStep(0)}>
         <Row k="Title" v={form.title || <span className="text-faint">Untitled event</span>} />
-        <Row k="Hosted by" v={form.hostMode === 'you' ? USER_NAME : form.orgName || <span className="text-faint">Organization</span>} />
+        <Row k="Hosted by" v={USER_NAME} />
         {form.description && <Row k="Description" v={form.description} />}
         {form.scheduleMode === 'set' ? (
           <Row k="When" v={(() => {

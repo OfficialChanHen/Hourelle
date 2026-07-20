@@ -178,9 +178,10 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         <div className="min-w-0">
           <EditableTitle title={event.title} editable={event.hostedByYou} onSave={(t) => patchLive({ title: t })} />
           <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13.5px] text-dim">
-            {/* a person hosts with a person icon; an organization keeps the building */}
+            {/* the icon reads the hosting account's kind — person or organization (set by
+                the login later); events stored before hostKind fall back on hostedByYou */}
             <span className="flex items-center gap-1.5">
-              {event.hostedByYou ? <User size={15} /> : <Building2 size={15} />} Hosted by {event.hostName}
+              {(event.hostKind ?? (event.hostedByYou ? 'person' : 'org')) === 'org' ? <Building2 size={15} /> : <User size={15} />} Hosted by {event.hostName}
             </span>
             <Badge variant={badge.variant}>{badge.label}</Badge>
           </div>

@@ -29,6 +29,7 @@ export type AppEvent = {
   title: string
   hostName: string
   hostedByYou: boolean
+  hostKind?: AccountKind // drives the host icon; older events fall back on hostedByYou
   description: string
   timezone: string
   startDate: string
@@ -75,11 +76,10 @@ export type AppEvent = {
   confirmedAt?: number
 }
 
-// what the create wizard hands us (a superset is fine)
+// what the create wizard hands us (a superset is fine). The host is always the
+// signed-in account — creating an event requires one, so there is nothing to choose.
 export type CreateInput = {
   title: string
-  hostMode: 'you' | 'org'
-  orgName: string
   description: string
   startDate: string
   endDate: string
@@ -103,9 +103,13 @@ export type CreateInput = {
   accounts: string[]
 }
 
+// how the hosting account reads: a person or an organization. Decided by the login
+// (Google workspace accounts read as org) once auth exists; stubbed as person for now.
+export type AccountKind = 'person' | 'org'
+
 // the signed-in identity (stubbed until auth): rosters show the real name with a
 // "(You)" marker rendered from the `you` flag, never a participant literally named You
-export const YOU = { id: 'JM', name: 'Jordan Miller', color: 'purple' as PersonColor }
+export const YOU = { id: 'JM', name: 'Jordan Miller', color: 'purple' as PersonColor, kind: 'person' as AccountKind }
 
 /* ── storage ── */
 const KEY = 'aline.events.v1'
@@ -567,11 +571,9 @@ function guestFromEmail(email: string, i: number): Participant {
 /* ── create ── */
 export function createEvent(input: CreateInput): AppEvent {
   const id = uniqueSlug(slugify(input.title))
-  const hostedByYou = input.hostMode === 'you'
-  const hostName = hostedByYou ? 'Jordan Miller' : input.orgName.trim() || 'Organization'
 
   const participants: Participant[] = [
-    { id: YOU.id, initials: YOU.id, name: YOU.name, color: YOU.color, rsvp: 'attending', you: true, host: hostedByYou },
+    { id: YOU.id, initials: YOU.id, name: YOU.name, color: YOU.color, rsvp: 'attending', you: true, host: true },
     ...input.accounts.map((pid) => ({ id: pid, initials: pid, name: av(pid).name, color: av(pid).color, rsvp: 'pending' as Rsvp })),
     ...input.emails.map((email, i) => guestFromEmail(email, i)),
   ]
@@ -607,8 +609,9 @@ export function createEvent(input: CreateInput): AppEvent {
   const ev: AppEvent = {
     id,
     title: input.title.trim() || 'Untitled event',
-    hostName,
-    hostedByYou,
+    hostName: YOU.name,
+    hostedByYou: true,
+    hostKind: YOU.kind,
     description: input.description.trim(),
     timezone: input.timezone || 'UTC', // wizard validation requires one; fallback for safety
     startDate: fixed ? fixed.day : input.startDate,
@@ -850,6 +853,7 @@ const HOUSEWARMING: AppEvent = {
   title: 'Housewarming at Sarah’s',
   hostName: 'Sarah R',
   hostedByYou: false,
+  hostKind: 'person',
   description: 'New place, first party. Come see the balcony everyone is going to fight over.',
   timezone: 'America/Los_Angeles',
   startDate: '2026-07-24',
@@ -899,6 +903,7 @@ const TRAIL_DAY: AppEvent = {
   title: 'Shoreline Trail Cleanup',
   hostName: 'Omar B',
   hostedByYou: false,
+  hostKind: 'person',
   description: 'Gloves and grabbers provided. Coffee after for everyone who shows up.',
   timezone: 'America/Los_Angeles',
   startDate: '2026-07-25',
