@@ -2,11 +2,10 @@
 
 import { use, useEffect, useRef, useState, type RefObject } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import {
   Check, ChevronDown, ChevronUp, Search, Plus, X, MapPin, Video, Clock,
-  Info, Vote, ArrowLeft, ArrowRight, Mail, CalendarRange, Route, GripVertical,
-  Loader2, Link2, Copy, Pencil, UserPlus, Users, PartyPopper,
+  Info, Vote, ArrowRight, Mail, CalendarRange, Route, GripVertical,
+  Loader2, Link2, Copy, UserPlus, Users, PartyPopper, AlignLeft, Wallet,
   Map, Presentation, Repeat, Utensils, type LucideIcon,
 } from 'lucide-react'
 import { gsap } from 'gsap'
@@ -18,7 +17,6 @@ import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 
-const STEPS = ['Basics', 'Location', 'Invite', 'Review'] as const
 const USER_NAME = 'Jordan Miller'
 
 // people with existing accounts you've invited before (hard-coded for now)
@@ -39,8 +37,6 @@ const TZ = [
   { v: 'Europe/London', l: 'London (GMT/BST)' },
   { v: 'UTC', l: 'UTC' },
 ]
-const tzLabel = (v: string) => TZ.find((t) => t.v === v)?.l ?? v
-
 type Loc = { id: string; name: string; place: string }
 type Stop = Loc & { uid: string }
 type LocMode = 'vote' | 'remote' | 'later'
@@ -129,8 +125,6 @@ const WIZ_TEMPLATES: { key: string; label: string; icon: LucideIcon }[] = [
 
 export default function CreatePage({ searchParams }: { searchParams: Promise<{ template?: string; from?: string }> }) {
   const { template, from } = use(searchParams)
-  const router = useRouter()
-  const [step, setStep] = useState(0)
   const [created, setCreated] = useState<AppEvent | null>(null)
   const [tpl, setTpl] = useState<string | null>(template && TEMPLATE_PRESETS[template] ? template : null)
   const [form, setForm] = useState<Form>(() => ({ ...initialForm, ...(template ? TEMPLATE_PRESETS[template] : undefined) }))
@@ -167,16 +161,27 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
     }))
   }, [from])
 
+  // today, the visitor's own zone, and the coming week as the starting window — all
+  // detected after mount, so creating only asks for what a machine can't guess
   useEffect(() => {
+    const iso = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
     const d = new Date()
-    setToday(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
+    const week = new Date(d)
+    week.setDate(week.getDate() + 6)
+    const t = iso(d)
+    setToday(t)
+    let local = ''
+    try { local = TZ.find((x) => x.v === Intl.DateTimeFormat().resolvedOptions().timeZone)?.v ?? '' } catch { /* the field still asks */ }
+    setForm((f) => ({
+      ...f,
+      timezone: f.timezone || local,
+      startDate: f.startDate || t,
+      endDate: f.endDate || iso(week),
+      fixedDay: f.fixedDay || t,
+    }))
   }, [])
-  useEffect(() => { setAttempted(false) }, [step]) // clear errors when moving between steps
 
-  useGSAP(
-    () => { gsap.fromTo(panel.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out' }) },
-    { dependencies: [step] },
-  )
+  useGSAP(() => { gsap.fromTo(panel.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out' }) }, [])
 
   if (created) return <Created event={created} />
 
@@ -205,117 +210,153 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
               ? 'It has to end after it starts.'
               : '',
   }
-  // an empty ballot is fine: the Location tab handles it, and guests can add places later
-  function stepValid(s: number) {
-    if (s === 0) return !basicsErr.title && !basicsErr.start && !basicsErr.end && !basicsErr.win && !basicsErr.tz && !basicsErr.fixed
-    return true
-  }
+  const basicsOk = !basicsErr.title && !basicsErr.start && !basicsErr.end && !basicsErr.win && !basicsErr.tz && !basicsErr.fixed
 
-  // tap a template to seed the form; tap it again to start blank
+  // tap a template to seed the form; tap it again to start blank. The detected
+  // defaults (dates, zone) survive the reset.
   function applyTemplate(key: string) {
-    if (tpl === key) { setForm(initialForm); setTpl(null); return }
-    setForm({ ...initialForm, ...TEMPLATE_PRESETS[key] })
-    setTpl(key)
+    setForm((f) => ({
+      ...initialForm,
+      timezone: f.timezone, startDate: f.startDate, endDate: f.endDate, fixedDay: f.fixedDay,
+      ...(tpl === key ? {} : TEMPLATE_PRESETS[key]),
+    }))
+    setTpl(tpl === key ? null : key)
   }
 
-  function next() {
-    if (!stepValid(step)) { setAttempted(true); return }
-    setStep((s) => Math.min(3, s + 1))
+  function create() {
+    if (!basicsOk) {
+      setAttempted(true)
+      panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+    setCreated(createEvent({
+      ...form,
+      fixed: form.scheduleMode === 'set' ? { day: form.fixedDay, start: form.fixedStart, end: form.fixedEnd } : undefined,
+    }))
   }
-  function back() { step === 0 ? router.push('/home') : setStep((s) => s - 1) }
-  const canCreate = form.title.trim().length > 0
+
+  // one-line summaries so each closed drawer still says where it stands
+  const inviteTotal = form.emails.length + form.accounts.length
+  const placeSummary = form.locMode === 'remote'
+    ? `Online · ${form.platform}`
+    : form.locMode === 'later'
+      ? 'Decide later'
+      : form.locSettled
+        ? form.picked[0]?.name ?? 'Pick the place'
+        : form.planMode === 'itinerary'
+          ? form.picked.length ? `${form.picked.length} ${form.picked.length === 1 ? 'stop' : 'stops'} planned` : 'Plan a route'
+          : form.picked.length ? `${form.picked.length} on the ballot` : 'Guests vote'
+  const peopleSummary = inviteTotal
+    ? `${inviteTotal} ${inviteTotal === 1 ? 'person' : 'people'} added`
+    : 'Invite now, or just share the link after'
+  const moneySummary = [
+    form.budget ? `$${Number(form.budget).toLocaleString()} ${form.budgetMode === 'person' ? 'per person' : 'total'}` : '',
+    form.capacity ? `${form.capacity} spots` : '',
+  ].filter(Boolean).join(' · ') || 'No budget, no spot limit'
 
   return (
     <div className="mx-auto max-w-[760px] px-4 pb-[104px] pt-6 sm:px-[26px] sm:pt-[34px]">
-      {/* compact on phones: the stepper below already tells the story */}
       <div className="mb-4 text-center sm:mb-[22px]">
         <h1 className="font-serif text-[27px] leading-[1.04] tracking-[-0.01em] sm:text-[33.5px]">Create event</h1>
-        <p className="mt-1.5 hidden text-[13.5px] text-dim sm:block">Fill in a few details, invite people, then review and create it.</p>
-      </div>
-
-      {/* step indicator — labels collapse to the current step on mobile so it never overflows */}
-      <div className="mb-6 flex items-center justify-center">
-        {STEPS.map((label, i) => (
-          <div key={label} className="flex items-center">
-            <button type="button" onClick={() => i < step && setStep(i)} className="flex items-center gap-[7px] sm:gap-[9px]" disabled={i >= step}>
-              <span
-                className="grid h-7 w-7 flex-none place-items-center rounded-full text-[13.5px] font-bold"
-                style={{
-                  background: i < step ? 'var(--teal)' : i === step ? 'var(--accent)' : 'var(--s2)',
-                  color: i > step ? 'var(--faint)' : '#fff',
-                  boxShadow: i === step ? '0 0 0 4px var(--accent-bg)' : undefined,
-                }}
-              >
-                {i < step ? <Check size={17} /> : i + 1}
-              </span>
-              {/* full labels on sm+, only the current step's label on mobile */}
-              <span className={`text-[13.5px] font-semibold ${i === step ? '' : 'hidden'} sm:inline`} style={{ color: i > step ? 'var(--faint)' : 'var(--text)' }}>{label}</span>
-            </button>
-            {i < STEPS.length - 1 && (
-              <span className="mx-2 h-0.5 w-5 sm:mx-3 sm:w-[46px]" style={{ background: i < step ? 'var(--teal)' : 'var(--border)' }} />
-            )}
-          </div>
-        ))}
+        <p className="mt-1.5 hidden text-[13.5px] text-dim sm:block">Name it, check the days, create. Everything else can wait.</p>
       </div>
 
       {/* start from a template — one tap seeds the form, tap again to go blank */}
-      {step === 0 && (
-        <div className="mb-4">
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Start from a template</div>
-          <div className="flex flex-wrap gap-1.5">
-            {WIZ_TEMPLATES.map((t) => {
-              const Icon = t.icon
-              const on = tpl === t.key
-              return (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => applyTemplate(t.key)}
-                  aria-pressed={on}
-                  className={`flex h-8 flex-none items-center gap-1.5 rounded-[9px] border px-3 text-[13px] font-medium ${on ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}
-                >
-                  <Icon size={14} /> {t.label}
-                </button>
-              )
-            })}
-          </div>
+      <div className="mb-4">
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Start from a template</div>
+        <div className="flex flex-wrap gap-1.5">
+          {WIZ_TEMPLATES.map((t) => {
+            const Icon = t.icon
+            const on = tpl === t.key
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => applyTemplate(t.key)}
+                aria-pressed={on}
+                className={`flex h-8 flex-none items-center gap-1.5 rounded-[9px] border px-3 text-[13px] font-medium ${on ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}
+              >
+                <Icon size={14} /> {t.label}
+              </button>
+            )
+          })}
         </div>
-      )}
+      </div>
 
       <div ref={panel} className="rounded-2xl border border-border bg-s1 px-4 py-[22px] sm:px-6">
-        {step === 0 && <StepBasics form={form} update={update} today={today} attempted={attempted} errs={basicsErr} />}
-        {step === 1 && <StepLocation form={form} update={update} stopUid={stopUid} />}
-        {step === 2 && <StepInvite form={form} update={update} />}
-        {step === 3 && <StepReview form={form} goStep={setStep} />}
+        <StepBasics form={form} update={update} today={today} attempted={attempted} errs={basicsErr} />
+
+        {/* everything optional lives in drawers — open what you need, skip the rest */}
+        <div className="mt-5 border-t border-border pt-4">
+          <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">More options · all of it editable on the event page too</div>
+          <Collapse icon={AlignLeft} title="Description" summary={form.description || 'What is it about?'}>
+            <textarea
+              value={form.description}
+              onChange={(e) => update({ description: e.target.value })}
+              placeholder="What's this event about?"
+              className={`${inputCls(false)} h-[72px] resize-none py-[11px] leading-[1.5]`}
+            />
+          </Collapse>
+          <Collapse icon={MapPin} title="Place" summary={placeSummary}>
+            <StepLocation form={form} update={update} stopUid={stopUid} />
+          </Collapse>
+          <Collapse icon={Users} title="People" summary={peopleSummary}>
+            <StepInvite form={form} update={update} />
+          </Collapse>
+          <Collapse icon={Wallet} title="Budget and spots" summary={moneySummary}>
+            <div className="flex flex-wrap gap-3.5">
+              <div className="min-w-[200px] flex-1">
+                <Label>Budget</Label>
+                <div className="flex items-center gap-2">
+                  <div className="relative min-w-0 flex-1">
+                    <span className="pointer-events-none absolute left-[13px] top-1/2 -translate-y-1/2 text-dim">$</span>
+                    <input inputMode="numeric" placeholder="0" value={form.budget} onChange={(e) => update({ budget: e.target.value.replace(/[^\d]/g, '') })} className={`${inputCls(false)} pl-7`} />
+                  </div>
+                  <Segmented value={form.budgetMode} onChange={(v) => update({ budgetMode: v as 'total' | 'person' })} options={[{ v: 'total', l: 'Total' }, { v: 'person', l: 'Per person' }]} />
+                </div>
+              </div>
+              <div className="min-w-[140px] flex-1">
+                <Label>Spots</Label>
+                <input
+                  inputMode="numeric" placeholder="No limit" value={form.capacity}
+                  onChange={(e) => update({ capacity: e.target.value.replace(/[^\d]/g, '').slice(0, 4) })}
+                  className={`${inputCls(false)} !w-[110px]`}
+                />
+              </div>
+            </div>
+          </Collapse>
+        </div>
       </div>
 
       <div className="mt-4 flex items-center justify-between">
-        <button onClick={back} className="flex h-10 items-center gap-1.5 rounded-[10px] border border-border2 bg-transparent px-4 text-[14px] font-semibold hover:bg-s2">
-          <ArrowLeft size={17} /> Back
+        <Link href="/home" className="flex h-10 items-center rounded-[10px] border border-border2 bg-transparent px-4 text-[14px] font-semibold hover:bg-s2">
+          Cancel
+        </Link>
+        <button onClick={create} className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-[18px] text-[14px] font-semibold text-on-accent">
+          <Check size={17} /> Create event
         </button>
-        {step < 3 ? (
-          <button onClick={next} className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-[18px] text-[14px] font-semibold text-on-accent">
-            Continue <ArrowRight size={17} />
-          </button>
-        ) : (
-          <button
-            onClick={() => {
-              if (!canCreate) return
-              setCreated(createEvent({
-                ...form,
-                fixed: form.scheduleMode === 'set' ? { day: form.fixedDay, start: form.fixedStart, end: form.fixedEnd } : undefined,
-              }))
-            }}
-            disabled={!canCreate}
-            className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-[18px] text-[14px] font-semibold text-on-accent disabled:opacity-40"
-          >
-            <Check size={17} /> Create event
-          </button>
-        )}
       </div>
-      {step === 3 && !canCreate && (
-        <p className="mt-2 text-right text-[12.5px] text-brick-text">Add an event title in Basics before creating.</p>
+      {attempted && !basicsOk && (
+        <p className="mt-2 text-right text-[12.5px] text-brick-text">Fix the highlighted fields above first.</p>
       )}
+    </div>
+  )
+}
+
+/* a closed drawer shows its one-line state; open, it is the full section */
+function Collapse({ icon: Icon, title, summary, children }: {
+  icon: LucideIcon; title: string; summary?: React.ReactNode; children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="border-b border-border last:border-b-0">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-2.5 py-3.5 text-left">
+        <Icon size={16} className="flex-none text-dim" />
+        <span className="flex-none text-[14px] font-semibold">{title}</span>
+        <span className={`min-w-0 flex-1 truncate text-right text-[12.5px] text-dim ${open ? 'invisible' : ''}`}>{summary}</span>
+        <ChevronDown size={16} className={`flex-none text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && <div className="pb-4">{children}</div>}
     </div>
   )
 }
@@ -346,12 +387,6 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
   }
   const show = (e: string) => attempted && !!e
   const [tune, setTune] = useState(false)
-  // the visitor's own zone, when it's one we list — powers the one-tap suggestion.
-  // Resolved after mount only: the server can't know it, and guessing there mismatches hydration
-  const [localTzOpt, setLocalTzOpt] = useState<{ v: string; l: string } | null>(null)
-  useEffect(() => {
-    try { setLocalTzOpt(TZ.find((t) => t.v === Intl.DateTimeFormat().resolvedOptions().timeZone) ?? null) } catch { /* keep the plain helper text */ }
-  }, [])
   const openTune = tune || (attempted && !!errs.win) // never hide a field that has an error
   const winS = parseHM(form.windowStart), winE = parseHM(form.windowEnd)
   const winText = form.windowPreset !== 'any' && winS !== null && winE !== null && winE > winS
@@ -377,16 +412,6 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
       <div>
         <Label>Hosted by</Label>
         <input value={USER_NAME} readOnly disabled className={`${inputCls(false)} max-w-[320px] cursor-not-allowed opacity-60`} />
-      </div>
-
-      <div>
-        <Label>Description <span className="font-normal text-faint">(optional)</span></Label>
-        <textarea
-          value={form.description}
-          onChange={(e) => update({ description: e.target.value })}
-          placeholder="What's this event about?"
-          className={`${inputCls(false)} h-[72px] resize-none py-[11px] leading-[1.5]`}
-        />
       </div>
 
       <div>
@@ -497,40 +522,24 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
         )}
       </div>
 
-      <div className="flex flex-wrap gap-3.5">
-        <div className="min-w-[200px] flex-1">
-          <Label>Time zone <Req /></Label>
-          <div className="relative">
-            <select
-              value={form.timezone}
-              onChange={(e) => update({ timezone: e.target.value })}
-              className={`${inputCls(show(errs.tz))} cursor-pointer appearance-none pr-9`}
-              style={form.timezone ? undefined : { color: 'var(--faint)' }}
-            >
-              <option value="" disabled>Choose a time zone…</option>
-              {TZ.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
-            </select>
-            <ChevronDown size={17} className="pointer-events-none absolute right-[13px] top-1/2 -translate-y-1/2 text-dim" />
-          </div>
-          {show(errs.tz)
-            ? <FieldError>{errs.tz}</FieldError>
-            : localTzOpt && !form.timezone
-              // picking a zone stays a conscious step, but the common answer is one tap away
-              ? <button type="button" onClick={() => update({ timezone: localTzOpt.v })} className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-accent-border bg-accent-bg px-2.5 py-1 text-[12px] font-semibold text-accent-text">
-                  Use my time zone · {localTzOpt.l}
-                </button>
-              : <p className="mt-1.5 text-[12.5px] leading-[1.5] text-faint">Every time on this event uses this zone. Double-check it if people join from elsewhere.</p>}
+      {/* the zone defaults to the visitor's own — it's here to check, not to fill in */}
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+        <span className="text-[13px] font-semibold text-dim">Times in</span>
+        <div className="relative">
+          <select
+            value={form.timezone}
+            onChange={(e) => update({ timezone: e.target.value })}
+            className={`h-9 cursor-pointer appearance-none rounded-[9px] border ${show(errs.tz) ? 'border-brick-border' : 'border-border'} bg-s2 pl-3 pr-8 text-[13.5px] font-medium outline-none focus:border-accent-border`}
+            style={form.timezone ? undefined : { color: 'var(--faint)' }}
+          >
+            <option value="" disabled>Choose a time zone…</option>
+            {TZ.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
+          </select>
+          <ChevronDown size={15} className="pointer-events-none absolute right-[10px] top-1/2 -translate-y-1/2 text-dim" />
         </div>
-        <div className="min-w-[200px] flex-1">
-          <Label>Budget (optional)</Label>
-          <div className="flex items-center gap-2">
-            <div className="relative min-w-0 flex-1">
-              <span className="pointer-events-none absolute left-[13px] top-1/2 -translate-y-1/2 text-dim">$</span>
-              <input inputMode="numeric" placeholder="0" value={form.budget} onChange={(e) => update({ budget: e.target.value.replace(/[^\d]/g, '') })} className={`${inputCls(false)} pl-7`} />
-            </div>
-            <Segmented value={form.budgetMode} onChange={(v) => update({ budgetMode: v as 'total' | 'person' })} options={[{ v: 'total', l: 'Total' }, { v: 'person', l: 'Per person' }]} />
-          </div>
-        </div>
+        {show(errs.tz)
+          ? <FieldError>{errs.tz}</FieldError>
+          : <span className="text-[12.5px] text-faint">Double-check it if people join from elsewhere.</span>}
       </div>
     </div>
   )
@@ -827,109 +836,10 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
         </div>
       </div>
 
-      {/* optional spot limit — first come, first served */}
-      <div>
-        <Label>Spots <span className="font-normal text-faint">(optional)</span></Label>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <input
-            inputMode="numeric" placeholder="No limit" value={form.capacity}
-            onChange={(e) => update({ capacity: e.target.value.replace(/[^\d]/g, '').slice(0, 4) })}
-            className={`${inputCls(false)} !w-[110px]`}
-          />
-          <span className="text-[12.5px] leading-[1.5] text-faint">Cap how many people can say they&apos;re going. Spots go to whoever replies first.</span>
-        </div>
-      </div>
-
       <div className="flex items-center gap-1.5 text-[13px] text-dim">
         <Users size={15} />
         {total === 0 ? 'No one added yet. You can also invite people after the event is created.' : `${total} ${total === 1 ? 'person' : 'people'} will be invited when you create the event.`}
       </div>
-    </div>
-  )
-}
-
-/* ── Step 4: Review ── */
-function StepReview({ form, goStep }: { form: Form; goStep: (n: number) => void }) {
-  const total = form.emails.length + form.accounts.length
-  const dateText = form.startDate ? (form.endDate && form.endDate !== form.startDate ? `${form.startDate} → ${form.endDate}` : form.startDate) : 'Not set'
-  const granLabel = { '15': '15 min', '30': '30 min', '60': '1 hour' }[form.granularity] ?? form.granularity
-  const ws = parseHM(form.windowStart), we = parseHM(form.windowEnd)
-  const winLabel = form.windowPreset === 'any' || ws === null || we === null || we <= ws
-    ? 'All day'
-    : `${form.windowPreset === 'custom' ? '' : `${WIN_PRESETS.find((p) => p.v === form.windowPreset)?.l} · `}${fmtMinute(ws)} – ${fmtMinute(we)}`
-
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-[13.5px] text-dim">Give everything a last look. When you create the event, invites go out and you&apos;ll get a link to share.</p>
-
-      {/* Basics */}
-      <ReviewCard title="Basics" onEdit={() => goStep(0)}>
-        <Row k="Title" v={form.title || <span className="text-faint">Untitled event</span>} />
-        <Row k="Hosted by" v={USER_NAME} />
-        {form.description && <Row k="Description" v={form.description} />}
-        {form.scheduleMode === 'set' ? (
-          <Row k="When" v={(() => {
-            const s = parseHM(form.fixedStart), e = parseHM(form.fixedEnd)
-            const t = s !== null && e !== null && e > s ? ` · ${fmtMinute(s)} – ${fmtMinute(e)}` : ''
-            return form.fixedDay ? <>{form.fixedDay}{t} <span className="text-faint">· locked in from the start</span></> : <span className="text-brick-text">Not set — pick the day in Basics</span>
-          })()} />
-        ) : (<>
-        <Row k="Date window" v={dateText} />
-        <Row k="Time window" v={winLabel} />
-        <Row k="Time slots" v={granLabel} />
-        <Row k="Event length" v={fmtDur(form.durationMin)} />
-        </>)}
-        <Row k="Time zone" v={form.timezone ? tzLabel(form.timezone) : <span className="text-brick-text">Not set — pick one in Basics</span>} />
-        <Row k="Budget" v={form.budget ? `$${form.budget} ${form.budgetMode === 'person' ? 'per person' : 'total'}` : <span className="text-faint">None</span>} />
-        <Row k="Spots" v={form.capacity ? `${form.capacity} · first come, first served` : <span className="text-faint">No limit</span>} />
-      </ReviewCard>
-
-      {/* Location */}
-      <ReviewCard title="Location" onEdit={() => goStep(1)}>
-        {form.locMode === 'later' && <Row k="Where" v="Decide later" />}
-        {form.locMode === 'remote' && (
-          <>
-            <Row k="Where" v={`Remote · ${form.platform}`} />
-            <Row k="Link" v={form.meetingLink || <span className="text-faint">Add later</span>} />
-          </>
-        )}
-        {form.locMode === 'vote' && (
-          <>
-            <Row k="Where" v={`In person · ${form.locSettled ? 'place is set' : form.planMode === 'vote' ? 'guests vote' : 'planned route'}`} />
-            <Row
-              k={form.locSettled ? 'Place' : form.planMode === 'vote' ? 'Candidates' : 'Stops'}
-              v={form.picked.length === 0 ? <span className="text-faint">None added yet</span> : (
-                <div className="flex flex-col gap-1">
-                  {form.picked.map((l, i) => (
-                    <span key={l.uid} className="flex items-center gap-1.5">
-                      {form.planMode === 'itinerary' && <span className="grid h-4 w-4 flex-none place-items-center rounded-full bg-accent text-[10px] font-bold text-on-accent">{i + 1}</span>}
-                      <span className="font-medium">{l.name}</span> <span className="text-faint">· {l.place}</span>
-                    </span>
-                  ))}
-                </div>
-              )}
-            />
-          </>
-        )}
-      </ReviewCard>
-
-      {/* Invites */}
-      <ReviewCard title="Invites" onEdit={() => goStep(2)}>
-        {total === 0 ? (
-          <Row k="People" v={<span className="text-faint">No one yet</span>} />
-        ) : (
-          <>
-            {form.accounts.length > 0 && (
-              <Row k="Accounts" v={
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {form.accounts.map((id) => <span key={id} className="flex items-center gap-1 rounded-full border border-border bg-s2 py-0.5 pl-0.5 pr-2 text-[12.5px]"><Avatar initials={id} color={av(id).color} size={20} font={9} /> {av(id).name}</span>)}
-                </div>
-              } />
-            )}
-            {form.emails.length > 0 && <Row k="Emails" v={form.emails.join(', ')} />}
-          </>
-        )}
-      </ReviewCard>
     </div>
   )
 }
@@ -1088,25 +998,6 @@ function Segmented({ value, onChange, options }: { value: string; onChange: (v: 
           {o.l}
         </button>
       ))}
-    </div>
-  )
-}
-function ReviewCard({ title, onEdit, children }: { title: string; onEdit: () => void; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-border bg-s0 p-4">
-      <div className="mb-2.5 flex items-center justify-between border-b border-border pb-2">
-        <span className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint">{title}</span>
-        <button type="button" onClick={onEdit} className="flex items-center gap-1 text-[13px] font-semibold text-accent-text hover:underline"><Pencil size={13} /> Edit</button>
-      </div>
-      <div className="flex flex-col gap-1.5">{children}</div>
-    </div>
-  )
-}
-function Row({ k, v }: { k: string; v: React.ReactNode }) {
-  return (
-    <div className="flex gap-3 text-[14px]">
-      <span className="w-[92px] flex-none text-dim">{k}</span>
-      <span className="min-w-0 flex-1 font-medium text-text">{v}</span>
     </div>
   )
 }

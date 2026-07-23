@@ -29,7 +29,6 @@ type Drag =
 
 const CELL = 50 // px per grid row — must match the h-[50px] cell height below
 const MIN_LEN = 5 // smallest block, in minutes
-const AVATAR_CAP = 6 // most avatars drawn in one grid cell before collapsing to "+N"
 const OVERSCAN = 6 // rows rendered beyond the viewport each side, so scrolling doesn't flash blank
 
 export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0 }: { event: AppEvent; locked?: boolean; initialFilter?: string[] | string | null; focusBest?: number }) {
@@ -118,12 +117,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const firstRealIdx = weekDays.findIndex((d) => !d.pad)
   const leftEdgeIdx = firstRealIdx > 0 ? firstRealIdx : -1
 
-  // the avatar pile follows the column width: 17px avatars + 2px gaps in a 5px-padded
-  // cell, at most two rows, and the bottom-right corner stays free for the "n/N" count —
-  // on narrow screens the pile shrinks instead of spilling into the cells below
+  // avatar icons per cell stay scarce by design: at most 3 on wide screens, 2 on
+  // phones — the "+N" chip and the n/N corner count carry the rest of the story
+  const avatarCap = (viewportW || 999) < 600 ? 2 : 3
+  // the pile still bows to the column width: 17px avatars + 2px gaps in a 5px-padded
+  // cell, so narrow columns shrink the pile instead of spilling into cells below
   const colW = Math.max(72, ((viewportW || 0) - 54) / WEEK)
   const pileRow = Math.max(1, Math.floor((colW - 12) / 19))
-  const pileMax = Math.min(AVATAR_CAP + 1, pileRow * 2 - 1)
+  const pileMax = Math.min(avatarCap + 1, pileRow * 2 - 1)
 
   // timezone conversion: shift is 0 unless "my time" is on and the local zone differs
   const day0 = event.days[0]?.key ?? ''
@@ -645,6 +646,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Time format</div>
                       <Segment value={h24 ? '24' : '12'} onChange={(v) => setH24(v === '24')} options={[{ v: '12', l: '12-hour' }, { v: '24', l: '24-hour' }]} />
                     </div>
+                    {youAny && (
+                      <div className="border-t border-border pt-2.5">
+                        <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Your times</div>
+                        <ClearTimes onClear={clearAllMine} />
+                      </div>
+                    )}
                   </div>
                 )}
               </Popover>
@@ -682,7 +689,6 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={event.timezone} /></span>
           )}
           {!locked && <ImportFromCalendar onPick={startImport} />}
-          {!locked && youAny && <ClearTimes onClear={clearAllMine} />}
           </div>
         </div>
 
@@ -978,7 +984,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         {/* cap the pile so a 100-person cell renders ~6 avatars + "+N", not 100 nodes */}
                         <div className="relative z-[1] flex flex-wrap content-start gap-0.5 p-[5px]">
                           {(() => {
-                            const shown = n <= pileMax ? Math.min(n, AVATAR_CAP) : pileMax - 1
+                            const shown = n <= pileMax ? Math.min(n, avatarCap) : pileMax - 1
                             return (
                               <>
                                 {byRoster(peak.ids).slice(0, shown).map((id) => { const a = avatarOf(id); return <Avatar key={id} initials={a.initials} color={a.color} size={17} font={8.5} title={a.name} /> })}

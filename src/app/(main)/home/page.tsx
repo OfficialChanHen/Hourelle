@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/Badge'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import {
-  listEvents, phaseOf, daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, sameDayLabelFor,
+  createEvent, listEvents, phaseOf, daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, sameDayLabelFor,
   type AppEvent, type Phase,
 } from '@/lib/events'
 
@@ -72,6 +72,9 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* plan something in one line: name it, keep or nudge the week, create */}
+      <QuickCreate />
+
       {/* Up next — the closest confirmed plans, one card at a time */}
       <SectionHeader icon={Zap} iconColor="var(--accent-text)" title="Up next" count={heroes.length > 1 ? heroes.length : undefined} />
       {heroes.length > 1 ? (
@@ -112,6 +115,65 @@ export default function HomePage() {
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+/* the fastest path to a live event: a name, the coming week prefilled, one click.
+   Everything else (place, invites, budget) waits on the event page or in /create. */
+function QuickCreate() {
+  const router = useRouter()
+  const [title, setTitle] = useState('')
+  const [start, setStart] = useState('')
+  const [end, setEnd] = useState('')
+  const [need, setNeed] = useState(false)
+  // dates fill after mount: the server doesn't know the visitor's today
+  useEffect(() => {
+    const iso = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
+    const d = new Date()
+    const week = new Date(d)
+    week.setDate(week.getDate() + 6)
+    setStart(iso(d))
+    setEnd(iso(week))
+  }, [])
+  function go() {
+    const t = title.trim()
+    if (!t) { setNeed(true); return }
+    let tz = 'UTC'
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' } catch { /* UTC */ }
+    const ev = createEvent({
+      title: t, description: '', startDate: start, endDate: end < start ? start : end,
+      granularity: '30', timezone: tz, budget: '', durationMin: 60,
+      locMode: 'later', planMode: 'vote', picked: [], platform: 'Google Meet', meetingLink: '',
+      emails: [], accounts: [],
+    })
+    router.push(`/events/${ev.id}?tab=availability`)
+  }
+  const dateCls = 'h-10 rounded-[10px] border border-border bg-s2 px-2.5 text-[13.5px] outline-none focus:border-accent-border'
+  return (
+    <div className="mb-6 rounded-2xl border border-border bg-s1 p-4">
+      <div className="flex flex-wrap items-center gap-2.5">
+        <input
+          value={title}
+          onChange={(e) => { setTitle(e.target.value); setNeed(false) }}
+          onKeyDown={(e) => { if (e.key === 'Enter') go() }}
+          placeholder="What are you planning?"
+          className={`h-10 min-w-[200px] flex-1 rounded-[10px] border ${need ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[14.5px] outline-none placeholder:text-faint focus:border-accent-border`}
+        />
+        <div className="flex flex-none items-center gap-2">
+          <input type="date" value={start} aria-label="Earliest day" className={dateCls}
+            onChange={(e) => { setStart(e.target.value); if (end < e.target.value) setEnd(e.target.value) }} />
+          <span className="text-faint">→</span>
+          <input type="date" value={end} min={start} aria-label="Latest day" className={dateCls} onChange={(e) => setEnd(e.target.value)} />
+        </div>
+        <button onClick={go} className="flex h-10 flex-none items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent">
+          <CalendarPlus size={16} /> Create
+        </button>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[12.5px] text-dim">
+        <span>{need ? <span className="font-medium text-brick-text">Give it a name first.</span> : 'Uses your time zone. Share the link and people mark when they are free.'}</span>
+        <Link href="/create" className="font-semibold text-accent-text hover:underline">More options</Link>
+      </div>
     </div>
   )
 }
