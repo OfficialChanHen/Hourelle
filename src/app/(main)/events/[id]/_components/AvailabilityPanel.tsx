@@ -1100,8 +1100,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           )
         })()}
 
-        {/* best-window footer — gone once locked; the confirmed plan owns the answer */}
-        {!locked && <div className="mt-0.5 flex flex-wrap items-center gap-2.5 border-t border-border px-0.5 pt-3">
+        {/* best-window footer — gone once a time exists (locked in, or fixed at creation
+            while the place vote runs); the slot itself owns the answer then */}
+        {!locked && !event.confirmed && <div className="mt-0.5 flex flex-wrap items-center gap-2.5 border-t border-border px-0.5 pt-3">
           {bw ? (
             <>
               <span className="text-[12.5px] text-dim">Best {fmtDur(durationMin)} slot{filterOn ? ' for your selection' : ''}</span>

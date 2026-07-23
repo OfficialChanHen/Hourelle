@@ -24,7 +24,9 @@ export const PHASE_TINT: Record<Phase, { dot: string; border?: string }> = {
   past: { dot: 'var(--faint)' },
 }
 
-const STEPS = ['Plan', 'Lock in', 'Remind', 'Event', 'Done'] as const
+// five states of the event, all in one voice — "Lock in" only lights up once BOTH
+// the time and the place are answered (a fixed date with a live place vote is still Plan)
+const STEPS = ['Plan', 'Lock in', 'Soon', 'Event', 'Done'] as const
 const PHASE_STEP: Record<Phase, number> = { planning: 0, upcoming: 1, soon: 2, today: 3, past: 4 }
 
 // a quiet hint at where the event sits in its life: hairline + dots, only the

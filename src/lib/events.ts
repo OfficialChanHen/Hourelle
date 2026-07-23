@@ -72,7 +72,9 @@ export type AppEvent = {
   createdAt: number
   demo?: boolean
   status?: EventStatus                // undefined reads as 'planning' (back-compat with stored events)
-  confirmed?: ConfirmedSlot           // set when the host locks in a time and place
+  // the answered "when": set when the host locks in a plan, OR from birth when the date
+  // was fixed at creation. A planning event with a slot here is "time set, place still open".
+  confirmed?: ConfirmedSlot
   confirmedAt?: number
 }
 
@@ -95,7 +97,9 @@ export type CreateInput = {
   locMode: 'vote' | 'remote' | 'later'
   planMode: 'vote' | 'itinerary'
   locSettled?: boolean // in person with the place already chosen — guests see it as fact
-  fixed?: { day: string; start: string; end: string } // date already set ('YYYY-MM-DD' + 'HH:MM'): the event is born confirmed
+  // date already set ('YYYY-MM-DD' + 'HH:MM'): the time is a fact from birth. The event
+  // is only born confirmed if the place is also answered — a live ballot keeps it planning.
+  fixed?: { day: string; start: string; end: string }
   picked: { id: string; name: string; place: string }[]
   platform: string
   meetingLink: string
@@ -378,8 +382,24 @@ export function dateRangeText(ev: { startDate: string; endDate: string }): strin
 }
 
 /* ── lifecycle ── */
-// where an event sits in its life: still planning, locked in (far out / this week / today), or over.
-// Derived, not stored — only the 'planning'/'confirmed' split lives on the event.
+// Every event answers two independent questions: WHEN and WHERE. Each arrives either
+// open (find a time together / vote on a place) or pre-answered (date set / place set),
+// which gives the four planning shapes. An event is 'confirmed' only once BOTH are
+// closed — so a fixed-date event with a live place ballot stays in planning, with its
+// time already reading as fact (a `confirmed` slot on a status:'planning' event).
+export type OpenQuestion = 'time' | 'place'
+export function openQuestions(ev: Pick<AppEvent, 'status' | 'confirmed' | 'location'>): OpenQuestion[] {
+  if (ev.status === 'confirmed' && ev.confirmed) return []
+  const out: OpenQuestion[] = []
+  if (!ev.confirmed) out.push('time')
+  // remote and decide-later close the question; a settled venue is a fact, not a ballot
+  if (ev.location.mode === 'vote' && !ev.location.settled) out.push('place')
+  return out
+}
+
+// where an event sits in its life: still planning (a question is open), locked in
+// (far out / this week / today), or over. Derived, not stored — only the
+// 'planning'/'confirmed' split lives on the event.
 export type Phase = 'planning' | 'upcoming' | 'soon' | 'today' | 'past'
 
 export function phaseOf(ev: Pick<AppEvent, 'status' | 'confirmed' | 'endDate'>): Phase {
@@ -586,8 +606,9 @@ export function createEvent(input: CreateInput): AppEvent {
     ...input.emails.map((email, i) => guestFromEmail(email, i)),
   ]
 
-  // the date is already set: the event is born confirmed on that one day and goes
-  // straight to the RSVP round — the grid exists only as reference
+  // the date is already set: the time is a fact from birth. If the place is answered
+  // too the event is born confirmed and goes straight to the RSVP round; with a live
+  // ballot it stays in planning until the place is locked.
   const fxS = input.fixed ? parseHM(input.fixed.start) : null
   const fxE = input.fixed ? parseHM(input.fixed.end) : null
   const fixed = input.fixed && fxS !== null && fxE !== null && fxE > fxS
@@ -613,6 +634,9 @@ export function createEvent(input: CreateInput): AppEvent {
   const settled = !!input.locSettled && input.locMode === 'vote'
   // a fixed date locks the place(s) too, when they're known
   const fixedPlaceIds = settled ? uniquePlaces.map((p) => p.id) : isItin ? input.picked.map((p) => p.id) : []
+  // a live ballot means the place question is still open: even with a fixed date the
+  // event is born planning (time as fact), and only locks once the place is chosen
+  const placeOpen = input.locMode === 'vote' && !settled && !isItin
 
   const ev: AppEvent = {
     id,
@@ -653,10 +677,10 @@ export function createEvent(input: CreateInput): AppEvent {
     capacity: input.capacity && Number(input.capacity) >= 1 ? Number(input.capacity) : undefined,
     messages: [],
     createdAt: Date.now(),
-    status: fixed ? 'confirmed' : 'planning',
+    status: fixed && !placeOpen ? 'confirmed' : 'planning',
     ...(fixed ? {
       confirmed: { dayKey: fixed.day, startMin: fixed.s, endMin: fixed.e, placeIds: fixedPlaceIds },
-      confirmedAt: Date.now(),
+      ...(placeOpen ? {} : { confirmedAt: Date.now() }),
     } : {}),
   }
 
@@ -948,5 +972,233 @@ const TRAIL_DAY: AppEvent = {
   confirmed: { dayKey: '2026-07-25', startMin: 9 * 60, endMin: 12 * 60, placeIds: ['pt-isabel'] },
 }
 
+/* ── the four planning shapes, one demo each. Every event answers two questions,
+   when and where, and each can arrive open or already answered:
+   1. both open        → Design Team Dinner   (find a time, vote on a place)
+   2. place answered   → Brunch at Mama's     (venue set, finding the day)
+   3. time answered    → Priya's Send-off     (Friday is booked, voting the venue —
+                          status stays 'planning' while the confirmed slot is a fact)
+   4. both answered    → Trivia Night         (born confirmed, straight to RSVPs) ── */
+
+// 1 · both questions open
+const DINNER_DAYS = buildDays('2026-08-03', '2026-08-09')
+const DINNER_TIMES = buildTimes('30', 17 * 60, 22 * 60)
+const DINNER_IV: AvailIntervals = {
+  '2026-08-05': { JM: [{ s: 60, e: 300 }], AT: [{ s: 0, e: 240 }], SR: [{ s: 120, e: 300 }] },
+  '2026-08-06': { JM: [{ s: 0, e: 300 }], AT: [{ s: 60, e: 300 }] },
+  '2026-08-07': { SR: [{ s: 0, e: 180 }] },
+}
+const DESIGN_DINNER: AppEvent = {
+  id: 'design-team-dinner',
+  title: 'Design Team Dinner',
+  hostName: 'Jordan Miller',
+  hostedByYou: true,
+  hostKind: 'person',
+  description: 'End of quarter dinner for the design crew. Mark the evenings you can do and vote on where we eat.',
+  timezone: 'America/Los_Angeles',
+  startDate: '2026-08-03',
+  endDate: '2026-08-09',
+  granularity: '30',
+  budget: '450',
+  budgetMode: 'total',
+  location: {
+    mode: 'vote',
+    planMode: 'vote',
+    places: [
+      { id: 'luna', name: 'Luna Trattoria', place: 'San Francisco, CA', addedBy: 'AT' },
+      { id: 'golden-lotus', name: 'Golden Lotus', place: 'San Francisco, CA', addedBy: 'JM' },
+      { id: 'fable-fern', name: 'Fable & Fern', place: 'San Francisco, CA', addedBy: 'SR' },
+    ],
+    platform: '',
+    meetingLink: '',
+    guestsCanSuggest: true,
+  },
+  votes: { luna: ['AT', 'SR'], 'golden-lotus': ['JM'] },
+  maxVotes: 1,
+  participants: [
+    { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'attending', you: true, host: true },
+    { id: 'AT', initials: 'AT', name: av('AT').name, color: av('AT').color, rsvp: 'attending' },
+    { id: 'SR', initials: 'SR', name: av('SR').name, color: av('SR').color, rsvp: 'attending' },
+    { id: 'MN', initials: 'MN', name: av('MN').name, color: av('MN').color, rsvp: 'attending' },
+    { id: 'CL', initials: 'CL', name: av('CL').name, color: av('CL').color, rsvp: 'pending' },
+    { id: 'NK', initials: 'NK', name: av('NK').name, color: av('NK').color, rsvp: 'pending' },
+  ],
+  days: DINNER_DAYS,
+  times: DINNER_TIMES,
+  avail: intervalsToGrid(DINNER_IV, DINNER_DAYS, DINNER_TIMES.length, 30),
+  availIv: DINNER_IV,
+  durationMin: 120,
+  image: 'preset:dusk',
+  messages: [
+    { id: 'AT', name: 'Alex T', time: 'Mon', text: 'Luna has the big table in the back, voting for that', you: false },
+  ],
+  createdAt: 0,
+  demo: true,
+  status: 'planning',
+}
+
+// 2 · place answered, time open
+const BRUNCH_DAYS = buildDays('2026-08-08', '2026-08-16')
+const BRUNCH_TIMES = buildTimes('60', 9 * 60, 15 * 60)
+const BRUNCH_IV: AvailIntervals = {
+  '2026-08-08': { JM: [{ s: 0, e: 240 }], PR: [{ s: 60, e: 300 }], DW: [{ s: 0, e: 120 }] },
+  '2026-08-09': { JM: [{ s: 0, e: 360 }], PR: [{ s: 0, e: 180 }], EM: [{ s: 60, e: 240 }], GH: [{ s: 0, e: 240 }] },
+  '2026-08-15': { GH: [{ s: 120, e: 360 }] },
+}
+const BRUNCH: AppEvent = {
+  id: 'brunch-at-mamas',
+  title: 'Brunch at Mama’s',
+  hostName: 'Jordan Miller',
+  hostedByYou: true,
+  hostKind: 'person',
+  description: 'The place is set, we just need the right morning. Mark the days you could make it.',
+  timezone: 'America/Los_Angeles',
+  startDate: '2026-08-08',
+  endDate: '2026-08-16',
+  granularity: '60',
+  budget: '',
+  location: {
+    mode: 'vote',
+    planMode: 'vote',
+    places: [{ id: 'mamas', name: 'Mama’s on Washington Square', place: 'San Francisco, CA', addedBy: 'JM' }],
+    platform: '',
+    meetingLink: '',
+    settled: true,
+  },
+  votes: {},
+  participants: [
+    { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'attending', you: true, host: true },
+    { id: 'PR', initials: 'PR', name: av('PR').name, color: av('PR').color, rsvp: 'attending' },
+    { id: 'DW', initials: 'DW', name: av('DW').name, color: av('DW').color, rsvp: 'attending' },
+    { id: 'TC', initials: 'TC', name: av('TC').name, color: av('TC').color, rsvp: 'pending' },
+    { id: 'EM', initials: 'EM', name: av('EM').name, color: av('EM').color, rsvp: 'attending' },
+    { id: 'GH', initials: 'GH', name: av('GH').name, color: av('GH').color, rsvp: 'attending' },
+  ],
+  days: BRUNCH_DAYS,
+  times: BRUNCH_TIMES,
+  avail: intervalsToGrid(BRUNCH_IV, BRUNCH_DAYS, BRUNCH_TIMES.length, 60),
+  availIv: BRUNCH_IV,
+  durationMin: 90,
+  image: 'preset:meadow',
+  messages: [
+    { id: 'GH', name: 'Grace H', time: 'Sun', text: 'They do not take reservations so early beats the line', you: false },
+  ],
+  createdAt: 0,
+  demo: true,
+  status: 'planning',
+}
+
+// 3 · time answered, place open: the slot is a fact on a status:'planning' event,
+// so the place ballot stays live and the lock-in only asks for the venue
+const SENDOFF_DAYS = buildDays('2026-08-07', '2026-08-07')
+const SENDOFF_TIMES = buildTimes('30', 19 * 60, 22 * 60)
+const SENDOFF_IV: AvailIntervals = {
+  '2026-08-07': {
+    JM: [{ s: 0, e: 180 }], PR: [{ s: 0, e: 180 }], AT: [{ s: 0, e: 180 }],
+    MN: [{ s: 60, e: 180 }], EM: [{ s: 0, e: 120 }],
+  },
+}
+const SENDOFF: AppEvent = {
+  id: 'priyas-send-off',
+  title: 'Priya’s Send-off',
+  hostName: 'Jordan Miller',
+  hostedByYou: true,
+  hostKind: 'person',
+  description: 'Friday night is booked for Priya’s last week. Vote on the restaurant so we can reserve a table.',
+  timezone: 'America/Los_Angeles',
+  startDate: '2026-08-07',
+  endDate: '2026-08-07',
+  granularity: '30',
+  budget: '',
+  location: {
+    mode: 'vote',
+    planMode: 'vote',
+    places: [
+      { id: 'trestle', name: 'Trestle', place: 'San Francisco, CA', addedBy: 'JM' },
+      { id: 'zuni', name: 'Zuni Café', place: 'San Francisco, CA', addedBy: 'EM' },
+      { id: 'copita', name: 'Copita', place: 'Sausalito, CA', addedBy: 'AT' },
+    ],
+    platform: '',
+    meetingLink: '',
+    guestsCanSuggest: true,
+  },
+  votes: { trestle: ['JM', 'MN'], zuni: ['EM', 'KL'], copita: ['AT'] },
+  maxVotes: 1,
+  voteDeadline: '2026-08-03',
+  participants: [
+    { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'attending', you: true, host: true },
+    { id: 'PR', initials: 'PR', name: av('PR').name, color: av('PR').color, rsvp: 'attending' },
+    { id: 'AT', initials: 'AT', name: av('AT').name, color: av('AT').color, rsvp: 'attending' },
+    { id: 'KL', initials: 'KL', name: av('KL').name, color: av('KL').color, rsvp: 'attending' },
+    { id: 'MN', initials: 'MN', name: av('MN').name, color: av('MN').color, rsvp: 'attending' },
+    { id: 'EM', initials: 'EM', name: av('EM').name, color: av('EM').color, rsvp: 'attending' },
+    { id: 'BH', initials: 'BH', name: av('BH').name, color: av('BH').color, rsvp: 'pending' },
+  ],
+  days: SENDOFF_DAYS,
+  times: SENDOFF_TIMES,
+  avail: intervalsToGrid(SENDOFF_IV, SENDOFF_DAYS, SENDOFF_TIMES.length, 30),
+  availIv: SENDOFF_IV,
+  durationMin: 180,
+  image: 'preset:evening',
+  messages: [
+    { id: 'PR', name: 'Priya R', time: 'Tue', text: 'I get a vote on my own dinner right', you: false },
+    { id: 'AT', name: 'Alex T', time: 'Tue', text: 'Copita is worth the bridge, hear me out', you: false },
+  ],
+  createdAt: 0,
+  demo: true,
+  status: 'planning',
+  confirmed: { dayKey: '2026-08-07', startMin: 19 * 60, endMin: 22 * 60, placeIds: [] },
+}
+
+// 4 · both answered: born confirmed, straight to the RSVP round
+const TRIVIA_DAYS = buildDays('2026-07-30', '2026-07-30')
+const TRIVIA_TIMES = buildTimes('30', 19 * 60, 21 * 60 + 30)
+const TRIVIA_IV: AvailIntervals = {
+  '2026-07-30': { JM: [{ s: 0, e: 150 }], RW: [{ s: 0, e: 150 }], TC: [{ s: 30, e: 150 }] },
+}
+const TRIVIA: AppEvent = {
+  id: 'trivia-night-anchor',
+  title: 'Trivia Night at The Anchor',
+  hostName: 'Jordan Miller',
+  hostedByYou: true,
+  hostKind: 'person',
+  description: 'Same bar, same table, last Thursday of the month. July edition is locked in, just say if you are in.',
+  timezone: 'America/Los_Angeles',
+  startDate: '2026-07-30',
+  endDate: '2026-07-30',
+  granularity: '30',
+  budget: '',
+  location: {
+    mode: 'vote',
+    planMode: 'vote',
+    places: [{ id: 'anchor', name: 'The Anchor', place: 'Oakland, CA', addedBy: 'JM' }],
+    platform: '',
+    meetingLink: '',
+    settled: true,
+  },
+  votes: {},
+  participants: [
+    { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'attending', you: true, host: true },
+    { id: 'RW', initials: 'RW', name: av('RW').name, color: av('RW').color, rsvp: 'attending' },
+    { id: 'TC', initials: 'TC', name: av('TC').name, color: av('TC').color, rsvp: 'attending' },
+    { id: 'NK', initials: 'NK', name: av('NK').name, color: av('NK').color, rsvp: 'maybe' },
+    { id: 'DV', initials: 'DV', name: av('DV').name, color: av('DV').color, rsvp: 'not_going' },
+    { id: 'OB', initials: 'OB', name: av('OB').name, color: av('OB').color, rsvp: 'pending' },
+  ],
+  days: TRIVIA_DAYS,
+  times: TRIVIA_TIMES,
+  avail: intervalsToGrid(TRIVIA_IV, TRIVIA_DAYS, TRIVIA_TIMES.length, 30),
+  availIv: TRIVIA_IV,
+  durationMin: 150,
+  image: 'preset:garden',
+  messages: [
+    { id: 'RW', name: 'Riley W', time: 'Mon', text: 'We are not losing to the pharmacists again', you: false },
+  ],
+  createdAt: 0,
+  demo: true,
+  status: 'confirmed',
+  confirmed: { dayKey: '2026-07-30', startMin: 19 * 60, endMin: 21 * 60 + 30, placeIds: ['anchor'] },
+}
+
 // every built-in demo, in the order they list after stored events
-const DEMOS: AppEvent[] = [DEMO, BIG_DEMO, HOUSEWARMING, TRAIL_DAY]
+const DEMOS: AppEvent[] = [DEMO, BIG_DEMO, DESIGN_DINNER, BRUNCH, SENDOFF, TRIVIA, HOUSEWARMING, TRAIL_DAY]

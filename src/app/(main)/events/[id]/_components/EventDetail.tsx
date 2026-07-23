@@ -346,7 +346,7 @@ function DetailsTab({ event, onDelete, onGoToTab, onGoToBestWindow, onPatch, onV
         <div className="mb-1 flex items-center gap-2 text-[14.5px] font-semibold"><Settings size={17} className="text-dim" /> Details</div>
         {isHost && <DetailRow k="Cover" v={<CoverPicker event={event} onPatch={onPatch} />} />}
         <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} onPatch={onPatch} />} />
-        <DetailRow k="When" v={<WhenValue event={event} locked={locked} editable={isHost && !locked} onGoToAvailability={() => onGoToTab('availability')} onGoToBestWindow={onGoToBestWindow} onPatch={onPatch} />} />
+        <DetailRow k="When" v={<WhenValue event={event} editable={isHost && !locked} onGoToAvailability={() => onGoToTab('availability')} onGoToBestWindow={onGoToBestWindow} onPatch={onPatch} />} />
         <DetailRow k="Where" v={<WhereValue event={event} locked={locked} onGoToLocation={() => onGoToTab('location')} editable={isHost} onPatch={onPatch} />} />
         <DetailRow k="Spots" v={<CapacityValue event={event} editable={isHost} onPatch={onPatch} />} />
         <DetailRow
@@ -358,7 +358,7 @@ function DetailsTab({ event, onDelete, onGoToTab, onGoToBestWindow, onPatch, onV
         <div className="mt-1 flex flex-wrap items-center gap-2 border-t border-border pt-3.5">
           <AddToCalendar
             event={event}
-            slot={locked ? { dayKey: event.confirmed!.dayKey, startMin: event.confirmed!.startMin, endMin: event.confirmed!.endMin } : null}
+            slot={event.confirmed ? { dayKey: event.confirmed.dayKey, startMin: event.confirmed.startMin, endMin: event.confirmed.endMin } : null}
             align="start"
           />
           <Link href={`/create?from=${event.id}`} className="flex h-8 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2">
@@ -526,16 +526,17 @@ function CopyInviteLink({ id }: { id: string }) {
   )
 }
 
-/* When: the locked-in day and time once confirmed; before that, the date range being
-   polled with the leading time so far beneath it. Only the date window is editable —
-   the leading time is computed from replies, and it carries the timezone pill. */
-function WhenValue({ event, locked, editable, onGoToAvailability, onGoToBestWindow, onPatch }: {
-  event: AppEvent; locked: boolean; editable: boolean
+/* When: the day and time as fact once they exist — locked in, or fixed at creation
+   (which can happen while the place is still being voted). Before that, the date range
+   being polled with the leading time so far beneath it. Only the date window is
+   editable — the leading time is computed from replies, and it carries the timezone pill. */
+function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPatch }: {
+  event: AppEvent; editable: boolean
   onGoToAvailability: () => void; onGoToBestWindow: () => void; onPatch: (patch: Partial<AppEvent>) => void
 }) {
   const [editing, setEditing] = useState(false)
-  if (locked) {
-    const c = event.confirmed!
+  if (event.confirmed) {
+    const c = event.confirmed
     const d = event.days.find((x) => x.key === c.dayKey)
     const year = c.dayKey.slice(0, 4)
     return (
