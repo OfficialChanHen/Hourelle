@@ -67,12 +67,24 @@ export function padToWeeks(days: GridDay[]): GDay[] {
   if (first.getTime() === lastSunday.getTime()) return days // fits one calendar week — compact
   const byKey = new Map<string, GridDay>(days.map((d) => [d.key, d]))
   const out: GDay[] = []
-  const cur = new Date(first)
-  const end = new Date(lastSunday); end.setDate(end.getDate() + 6)
-  while (cur <= end && out.length < 6 * 7) { // events cap at 21 days, so ≤5 weeks in practice
-    const key = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`
-    out.push(byKey.get(key) ?? { key, dow: DOW7[cur.getDay()], date: dayLabel(cur), pad: true })
-    cur.setDate(cur.getDate() + 1)
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  // week by week; a sparse day list (weekends only, hand-picked dates) can stretch over
+  // months, so weeks with no real day are dropped instead of becoming blank pager pages.
+  // 26 weeks is the safety stop — 21 selected days fill at most 21 distinct weeks.
+  const weekStart = new Date(first)
+  while (weekStart <= lastSunday && out.length < 26 * 7) {
+    const week: GDay[] = []
+    let hasReal = false
+    const cur = new Date(weekStart)
+    for (let i = 0; i < 7; i++) {
+      const key = iso(cur)
+      const real = byKey.get(key)
+      if (real) hasReal = true
+      week.push(real ?? { key, dow: DOW7[cur.getDay()], date: dayLabel(cur), pad: true })
+      cur.setDate(cur.getDate() + 1)
+    }
+    if (hasReal) out.push(...week)
+    weekStart.setDate(weekStart.getDate() + 7)
   }
   return out
 }

@@ -12,11 +12,12 @@ import { useGSAP } from '@gsap/react'
 import { Cover, COVER_PRESETS } from '@/components/ui/Cover'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { TimezonePill } from '@/components/ui/TimezonePill'
+import { DaysPicker } from '@/components/ui/DaysPicker'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, type AppEvent, type Rsvp } from '@/lib/events'
+import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, selectedDayKeys, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -587,16 +588,41 @@ const DURATIONS: [number, string][] = [
   [30, '30 minutes'], [60, '1 hour'], [90, '1.5 hours'], [120, '2 hours'],
   [180, '3 hours'], [240, '4 hours'], [360, '6 hours'], [480, '8 hours'],
 ]
+// which days the event currently skips, read back from its day list: a weekday with
+// every occurrence missing reads as a turned-off weekday, other gaps as single days —
+// so editing the dates never silently resurrects days the host turned off
+function deriveExclusions(ev: AppEvent): { dows: number[]; days: string[] } {
+  const have = new Set(ev.days.map((d) => d.key))
+  const all = selectedDayKeys(ev.startDate, ev.endDate, [], [])
+  const dowOf = (k: string) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d).getDay() }
+  const missing = all.filter((k) => !have.has(k))
+  const byDow = (list: string[]) => list.reduce<Record<number, number>>((acc, k) => { const d = dowOf(k); acc[d] = (acc[d] ?? 0) + 1; return acc }, {})
+  const total = byDow(all)
+  const gone = byDow(missing)
+  const dows = Object.keys(total).map(Number).filter((d) => total[d] > 0 && gone[d] === total[d])
+  const dowSet = new Set(dows)
+  return { dows, days: missing.filter((k) => !dowSet.has(dowOf(k))) }
+}
+
 function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void; onDone: () => void }) {
   const [start, setStart] = useState(event.startDate)
   const [end, setEnd] = useState(event.endDate)
   const [dur, setDur] = useState(event.durationMin ?? 60)
+  const [excluded, setExcluded] = useState(() => deriveExclusions(event))
   const durations = DURATIONS.some(([m]) => m === dur) ? DURATIONS : [...DURATIONS, [dur, `${dur} minutes`] as [number, string]]
   const inputCls = 'h-9 rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-border2'
 
+  const endEff = end < start ? start : end
+  const selKeys = selectedDayKeys(start, endEff, excluded.dows, excluded.days)
+  const selErr = selKeys.length === 0
+    ? 'Every day is turned off. Turn at least one back on.'
+    : selKeys.length > 21
+      ? `That's ${selKeys.length} days to poll. Keep it to 21 or fewer by turning off the days that don't apply.`
+      : ''
+
   function save() {
-    const e = end < start ? start : end
-    const days = buildDays(start, e)
+    if (selErr) return
+    const days = excluded.dows.length || excluded.days.length ? buildDaysFrom(selKeys) : buildDays(start, endEff)
     // keep every existing day's replies (even out-of-range ones stay dormant); new days start empty
     const avail = { ...event.avail }
     for (const d of days) if (!avail[d.key]) avail[d.key] = event.times.map(() => [])
@@ -604,7 +630,7 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
     // would shadow legacy grid replies the moment availIv gets written
     const availIv = { ...fullAvailIvOf(event) }
     for (const d of days) if (!availIv[d.key]) availIv[d.key] = {}
-    onPatch({ startDate: start, endDate: e, days, avail, availIv, durationMin: dur })
+    onPatch({ startDate: days[0].key, endDate: days[days.length - 1].key, days, avail, availIv, durationMin: dur })
     onDone()
   }
 
@@ -618,6 +644,14 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
         <span className="text-[13px] text-dim">to</span>
         <input type="date" value={end} min={start} onChange={(ev) => setEnd(ev.target.value)} className={inputCls} />
       </div>
+      <DaysPicker
+        startDate={start}
+        endDate={endEff}
+        excludedDows={excluded.dows}
+        excludedDays={excluded.days}
+        onChange={(p) => setExcluded((x) => ({ dows: p.excludedDows ?? x.dows, days: p.excludedDays ?? x.days }))}
+      />
+      {selErr && <p className="text-[12.5px] font-medium text-brick-text">{selErr}</p>}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[12.5px] text-dim">Needs about</span>
         <select value={dur} onChange={(ev) => setDur(Number(ev.target.value))} className={inputCls}>
@@ -628,7 +662,7 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
         Replies are saved per day. If you drop a day and bring it back later, the replies for it come back too.
       </p>
       <div className="flex items-center gap-2">
-        <button onClick={save} className="h-8 rounded-[8px] bg-accent px-3 text-[12.5px] font-semibold text-on-accent">Save</button>
+        <button onClick={save} disabled={!!selErr} className="h-8 rounded-[8px] bg-accent px-3 text-[12.5px] font-semibold text-on-accent disabled:opacity-40">Save</button>
         <button onClick={onDone} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
       </div>
     </div>

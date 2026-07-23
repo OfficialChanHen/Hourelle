@@ -12,7 +12,8 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
 import { av } from '@/lib/people'
-import { createEvent, draftFromEvent, parseHM, fmtMinute, type AppEvent } from '@/lib/events'
+import { createEvent, draftFromEvent, parseHM, fmtMinute, selectedDayKeys, type AppEvent } from '@/lib/events'
+import { DaysPicker } from '@/components/ui/DaysPicker'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -72,6 +73,8 @@ type Form = {
   fixedEnd: string
   startDate: string
   endDate: string
+  excludedDows: number[]  // weekdays turned off across the whole range (0=Sun … 6=Sat)
+  excludedDays: string[]  // single dates turned off inside the range
   granularity: string
   windowPreset: WinPreset
   windowStart: string
@@ -94,14 +97,14 @@ type Form = {
 const initialForm: Form = {
   title: '', description: '',
   scheduleMode: 'find', fixedDay: '', fixedStart: '18:00', fixedEnd: '21:00',
-  startDate: '', endDate: '', granularity: '30', windowPreset: 'any', windowStart: '', windowEnd: '', durationMin: 60,
+  startDate: '', endDate: '', excludedDows: [], excludedDays: [], granularity: '30', windowPreset: 'any', windowStart: '', windowEnd: '', durationMin: 60,
   timezone: '', budget: '', budgetMode: 'total', capacity: '', // timezone deliberately unset: picking it is a required, conscious step
   locMode: 'vote', planMode: 'vote', locSettled: false, picked: [], platform: 'Google Meet', meetingLink: '',
   emails: [], accounts: [],
 }
 
 type Update = (patch: Partial<Form> | ((f: Form) => Partial<Form>)) => void
-type BasicsErrs = { title: string; start: string; end: string; win: string; tz: string; fixed: string }
+type BasicsErrs = { title: string; start: string; end: string; days: string; win: string; tz: string; fixed: string }
 
 // template starting points (/create?template=…) — structure only; dates stay a conscious choice
 const TEMPLATE_PRESETS: Record<string, Partial<Form>> = {
@@ -189,10 +192,24 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
 
   // ── required-field validation ──
   const finding = form.scheduleMode === 'find' // the window fields only matter when a time is being found
+  const startErr = !finding ? '' : !form.startDate ? 'Pick the earliest day.' : today && form.startDate < today ? 'The earliest day can’t be before today.' : ''
+  const endErr = !finding ? '' : !form.endDate ? 'Pick the latest day.' : form.startDate && form.endDate < form.startDate ? 'The latest day can’t be before the earliest day.' : ''
+  // the days actually being polled: the range minus turned-off weekdays and dates.
+  // The grid holds 21 days, so long ranges pass by turning days off, not by truncation.
+  const selKeys = finding && !startErr && !endErr && form.startDate && form.endDate
+    ? selectedDayKeys(form.startDate, form.endDate, form.excludedDows, form.excludedDays)
+    : null
   const basicsErr: BasicsErrs = {
     title: form.title.trim() ? '' : 'Add an event title.',
-    start: !finding ? '' : !form.startDate ? 'Pick the earliest day.' : today && form.startDate < today ? 'The earliest day can’t be before today.' : '',
-    end: !finding ? '' : !form.endDate ? 'Pick the latest day.' : form.startDate && form.endDate < form.startDate ? 'The latest day can’t be before the earliest day.' : '',
+    start: startErr,
+    end: endErr,
+    days: !selKeys
+      ? ''
+      : selKeys.length === 0
+        ? 'Every day is turned off. Turn at least one back on.'
+        : selKeys.length > 21
+          ? `That's ${selKeys.length} days to poll. Keep it to 21 or fewer by turning off the days that don't apply.`
+          : '',
     win:
       finding && form.windowPreset === 'custom' && (parseHM(form.windowStart) === null || parseHM(form.windowEnd) === null)
         ? 'Pick both times for the custom window.'
@@ -212,7 +229,7 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
               ? 'It has to end after it starts.'
               : '',
   }
-  const basicsOk = !basicsErr.title && !basicsErr.start && !basicsErr.end && !basicsErr.win && !basicsErr.tz && !basicsErr.fixed
+  const basicsOk = !basicsErr.title && !basicsErr.start && !basicsErr.end && !basicsErr.days && !basicsErr.win && !basicsErr.tz && !basicsErr.fixed
 
   // tap a template to seed the form; tap it again to start blank. The detected
   // defaults (dates, zone) survive the reset.
@@ -237,6 +254,8 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
       // speaks one enum, where a chosen place is its own mode
       locMode: form.locMode === 'vote' && form.locSettled ? 'set' : form.locMode,
       fixed: form.scheduleMode === 'set' ? { day: form.fixedDay, start: form.fixedStart, end: form.fixedEnd } : undefined,
+      // only pass an explicit day list when days were actually turned off
+      pickedDays: finding && (form.excludedDows.length || form.excludedDays.length) ? selKeys ?? undefined : undefined,
     }))
   }
 
@@ -461,6 +480,17 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
             </div>
           </div>
           {(show(errs.start) || show(errs.end)) && <FieldError>{errs.start || errs.end}</FieldError>}
+
+          {/* which days inside the range are really being polled — weekends only,
+              or single days turned off. Long ranges fit by turning days off. */}
+          <DaysPicker
+            startDate={form.startDate}
+            endDate={form.endDate}
+            excludedDows={form.excludedDows}
+            excludedDays={form.excludedDays}
+            onChange={(p) => update(p)}
+          />
+          {show(errs.days) && <FieldError>{errs.days}</FieldError>}
 
           {/* schedule fine-tuning starts collapsed — the defaults work, and a summary line
               keeps the choices visible without three rows of controls up front */}

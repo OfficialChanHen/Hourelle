@@ -87,6 +87,9 @@ export type CreateInput = {
   description: string
   startDate: string
   endDate: string
+  // explicit day keys when the poll skips days inside the range (weekends only,
+  // hand-picked dates); absent or empty = every day from startDate to endDate
+  pickedDays?: string[]
   granularity: string
   timezone: string
   budget: string
@@ -203,6 +206,39 @@ export function buildDays(start: string, end: string): GridDay[] {
   }
   if (days.length === 0) days.push({ key: isoOf(s), dow: DOW[s.getDay()], date: dayLabel(s) })
   return days
+}
+
+// an explicit, possibly non-contiguous day list ("weekends only", hand-picked days) —
+// dedup, sort, same 21-day cap as buildDays (validation upstream keeps lists inside it)
+export function buildDaysFrom(keys: string[]): GridDay[] {
+  const seen = new Set<string>()
+  const days: GridDay[] = []
+  for (const key of [...keys].sort()) {
+    const d = parseLocal(key)
+    if (!d || seen.has(key)) continue
+    seen.add(key)
+    days.push({ key, dow: DOW[d.getDay()], date: dayLabel(d) })
+    if (days.length === 21) break
+  }
+  return days
+}
+
+// the day keys a range yields after exclusions — the count matters for validation, so
+// this deliberately has no 21-day cap (a hard stop at 400 guards runaway ranges)
+export function selectedDayKeys(start: string, end: string, excludedDows: number[], excludedDays: string[]): string[] {
+  const s = parseLocal(start)
+  const e = parseLocal(end) ?? s
+  if (!s || !e) return []
+  const dows = new Set(excludedDows)
+  const skip = new Set(excludedDays)
+  const out: string[] = []
+  const cur = new Date(s)
+  for (let i = 0; i < 400 && cur <= e; i++) {
+    const key = isoOf(cur)
+    if (!dows.has(cur.getDay()) && !skip.has(key)) out.push(key)
+    cur.setDate(cur.getDate() + 1)
+  }
+  return out
 }
 
 function timeLabel(mins: number): string {
@@ -382,13 +418,18 @@ export function daysUntil(startDate: string): number | null {
   const t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   return Math.round((s.getTime() - t0.getTime()) / 86400000)
 }
-export function dateRangeText(ev: { startDate: string; endDate: string }): string {
+export function dateRangeText(ev: { startDate: string; endDate: string; days?: GridDay[] }): string {
   const s = parseLocal(ev.startDate)
   const e = parseLocal(ev.endDate)
   if (!s) return 'Dates TBD'
   if (!e || ev.startDate === ev.endDate) return `${dayLabel(s)}, ${s.getFullYear()}`
   const sameYear = s.getFullYear() === e.getFullYear()
-  return `${dayLabel(s)} – ${dayLabel(e)}${sameYear ? `, ${e.getFullYear()}` : ''}`
+  const range = `${dayLabel(s)} – ${dayLabel(e)}${sameYear ? `, ${e.getFullYear()}` : ''}`
+  // a sparse poll (weekends only, hand-picked days) says how many days it really asks
+  // about, so a two-month span doesn't read as a two-month marathon
+  const span = Math.round((e.getTime() - s.getTime()) / 86400000) + 1
+  const n = ev.days?.length ?? 0
+  return n > 1 && n < span ? `${range} · ${n} days` : range
 }
 
 /* ── lifecycle ── */
@@ -626,7 +667,10 @@ export function createEvent(input: CreateInput): AppEvent {
     ? { day: input.fixed.day, s: fxS, e: fxE }
     : null
 
-  const days = buildDays(fixed ? fixed.day : input.startDate, fixed ? fixed.day : input.endDate)
+  // an explicit day list (weekends only, hand-picked dates) beats the plain range
+  const sparseList = !fixed && input.pickedDays?.length ? buildDaysFrom(input.pickedDays) : null
+  const sparse = sparseList?.length ? sparseList : null
+  const days = sparse ?? buildDays(fixed ? fixed.day : input.startDate, fixed ? fixed.day : input.endDate)
   // optional daily time window, snapped outward to the slot size so it fully covers the ask;
   // no window = the whole day. A fixed date windows the grid around the chosen slot.
   const st = stepOf(input.granularity)
@@ -657,8 +701,8 @@ export function createEvent(input: CreateInput): AppEvent {
     hostKind: YOU.kind,
     description: input.description.trim(),
     timezone: input.timezone || 'UTC', // wizard validation requires one; fallback for safety
-    startDate: fixed ? fixed.day : input.startDate,
-    endDate: fixed ? fixed.day : input.endDate,
+    startDate: fixed ? fixed.day : sparse ? days[0].key : input.startDate,
+    endDate: fixed ? fixed.day : sparse ? days[days.length - 1].key : input.endDate,
     granularity: (input.granularity === '15' || input.granularity === '60' ? input.granularity : '30'),
     budget: input.budget,
     budgetMode: input.budgetMode ?? 'total',
