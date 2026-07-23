@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, ChevronDown, X, Check, Bell, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, X, Check, Bell, Info, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
@@ -688,7 +688,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           ) : (
             <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={event.timezone} /></span>
           )}
-          {!locked && <ImportFromCalendar onPick={startImport} />}
+          {/* importing fills YOUR times, so it rides with edit mode — view stays lean */}
+          {!locked && mode === 'edit' && <ImportFromCalendar onPick={startImport} />}
           </div>
         </div>
 
@@ -736,22 +737,35 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             <span className="text-[12.5px] text-faint">Drag across the times you&apos;re free. The checkmarks fill a whole day or row at once.</span>
           )}
           {locked && <span className="text-[12.5px] text-faint">Planning is locked. The grid stays for reference.</span>}
-          {/* heat legend in view mode; editing only needs the You swatch */}
-          <span className="ml-auto flex items-center gap-1 text-[11px] text-faint">
-            {mode === 'edit' ? (
-              <>
-                <span className="h-[11px] w-[11px] rounded-[3px]" style={{ background: 'var(--you-some)', border: '1.5px solid var(--you-text)' }} />
-                <span>You</span>
-              </>
-            ) : (
-              <>
-                <span>No one</span>
-                {['var(--s2)', 'var(--heat-low)', 'var(--heat-mid)', 'var(--heat-high)', 'var(--heat-full)'].map((c) => (
-                  <span key={c} className="h-[11px] w-[11px] rounded-[3px] border border-border" style={{ background: c }} />
-                ))}
-                <span>{filterOn ? 'All selected' : 'Everyone'}</span>
-              </>
-            )}
+          {/* the legend is teaching UI — it waits behind a small info icon instead of
+              sitting in the strip forever */}
+          <span className="ml-auto">
+            <Popover
+              align="end"
+              width={232}
+              trigger={(open) => (
+                <span aria-label="How to read the grid" title="How to read the grid" className={`grid h-6 w-6 place-items-center rounded-full ${open ? 'bg-s2 text-dim' : 'text-faint hover:bg-s2 hover:text-dim'}`}>
+                  <Info size={14} />
+                </span>
+              )}
+            >
+              {() => (
+                <div className="flex flex-col gap-2.5 p-0.5 text-[12px] leading-[1.5] text-dim">
+                  <div className="flex items-center gap-1 text-[11px] text-faint">
+                    <span>No one</span>
+                    {['var(--s2)', 'var(--heat-low)', 'var(--heat-mid)', 'var(--heat-high)', 'var(--heat-full)'].map((c) => (
+                      <span key={c} className="h-[11px] w-[11px] rounded-[3px] border border-border" style={{ background: c }} />
+                    ))}
+                    <span>{filterOn ? 'All selected' : 'Everyone'}</span>
+                  </div>
+                  <p>Darker cells mean more people are free then. The corner count is exact.</p>
+                  <div className="flex items-center gap-1.5 border-t border-border pt-2">
+                    <span className="h-[11px] w-[11px] flex-none rounded-[3px]" style={{ background: 'var(--you-some)', border: '1.5px solid var(--you-text)' }} />
+                    <span>Your own marked times, in Edit mine.</span>
+                  </div>
+                </div>
+              )}
+            </Popover>
           </span>
         </div>
 

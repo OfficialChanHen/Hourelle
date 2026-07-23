@@ -4,10 +4,11 @@
    calendar import (menu + preview), clear-times, drag handles, quick fills,
    the who's-missing popover, the cell breakdown, and small controls */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Bell, CalendarPlus, Check, ChevronDown, Eraser, GripHorizontal, Minus, Plus, Search, Users, X } from 'lucide-react'
+import { Bell, CalendarPlus, Check, ChevronDown, Eraser, GripHorizontal, Minus, Plus, Search, Users, X, Zap } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
+import { Popover } from '@/components/ui/Popover'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import type { AppEvent, Iv, Participant } from '@/lib/events'
 import type { DayImport } from '@/lib/calendar-import'
@@ -314,20 +315,37 @@ export function EdgeHandle({ pct, label, active, side, onDown }: { pct: number; 
   )
 }
 
-/* ── quick-fill presets (edit mode): fill a standard block across every visible day,
-   or the whole event in one tap for the always-free ── */
+/* ── quick-fill presets (edit mode): one small dropdown instead of a row of pills —
+   fill a standard block across every visible day, or the whole event in one tap ── */
 export function PresetFills({ onFill, onFillAll }: { onFill: (startClock: number, endClock: number) => void; onFillAll: () => void }) {
-  const P = [{ l: 'Morning', s: 8 * 60, e: 12 * 60 }, { l: 'Afternoon', s: 12 * 60, e: 17 * 60 }, { l: 'Evening', s: 17 * 60, e: 21 * 60 }]
+  const P = [
+    { l: 'Mornings', hint: '8 AM – 12 PM', s: 8 * 60, e: 12 * 60 },
+    { l: 'Afternoons', hint: '12 – 5 PM', s: 12 * 60, e: 17 * 60 },
+    { l: 'Evenings', hint: '5 – 9 PM', s: 17 * 60, e: 21 * 60 },
+  ]
   return (
-    <span className="flex flex-wrap items-center gap-1 text-[12px] text-faint">
-      Quick fill:
-      {P.map((p) => (
-        <button key={p.l} onClick={() => onFill(p.s, p.e)} className="rounded-full border border-border bg-s1 px-2 py-0.5 text-[12px] font-medium text-dim hover:border-border2 hover:text-text">{p.l}</button>
-      ))}
-      <button onClick={onFillAll} title="Mark yourself free for every time on every day" className="rounded-full border border-accent-border bg-accent-bg px-2 py-0.5 text-[12px] font-semibold text-accent-text">
-        Free for all of it
-      </button>
-    </span>
+    <Popover
+      width={216}
+      trigger={(open) => (
+        <span className={`flex h-7 items-center gap-1.5 rounded-lg border px-[10px] text-[12.5px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
+          <Zap size={13} /> Quick fill <ChevronDown size={12} className={open ? 'rotate-180' : ''} />
+        </span>
+      )}
+    >
+      {(close) => (
+        <div className="flex flex-col p-0.5">
+          {P.map((p) => (
+            <button key={p.l} onClick={() => { onFill(p.s, p.e); close() }} className="flex items-baseline gap-2 rounded-[7px] px-2 py-1.5 text-left text-[13px] font-medium hover:bg-s2">
+              {p.l} <span className="text-[11.5px] font-normal text-faint">{p.hint}</span>
+            </button>
+          ))}
+          <div className="my-1 border-t border-border" />
+          <button onClick={() => { onFillAll(); close() }} title="Mark yourself free for every time on every day" className="rounded-[7px] px-2 py-1.5 text-left text-[13px] font-semibold text-accent-text hover:bg-accent-bg">
+            Free for all of it
+          </button>
+        </div>
+      )}
+    </Popover>
   )
 }
 
