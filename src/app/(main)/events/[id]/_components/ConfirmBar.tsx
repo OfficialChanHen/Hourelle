@@ -95,8 +95,8 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
 
   // votes rank the ballot; every venue stays pickable, so the host can lock in
   // as many simultaneous spots as the event needs — the leader is preselected.
-  // A settled venue skips the choice entirely: it locks in as-is.
-  const settled = !!loc.settled && loc.places.length > 0
+  // A set venue skips the choice entirely: it locks in as-is.
+  const settled = loc.mode === 'set' && loc.places.length > 0
   const votesOf = (id: string) => event.votes?.[id] ?? []
   const ranked = [...loc.places].sort((a, b) => votesOf(b.id).length - votesOf(a.id).length)
   const [placeIds, setPlaceIds] = useState<string[]>(() => (settled ? loc.places.map((p) => p.id) : ranked[0] ? [ranked[0].id] : []))
@@ -119,7 +119,8 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
       dayKey,
       startMin,
       endMin,
-      placeIds: !hasBallot ? [] : source === 'itin' ? stops : placeIds,
+      // a set venue locks in as-is even though it never ran as a ballot
+      placeIds: settled ? placeIds : !hasBallot ? [] : source === 'itin' ? stops : placeIds,
     }
     confirmEvent(event.id, slot)
     close()

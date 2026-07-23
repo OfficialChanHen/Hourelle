@@ -52,13 +52,16 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // itinerary, remote link) lives in its own field and is kept when you switch away and back.
   // A "decide later" event opens as In person here so the host can start adding places.
   const [mode, setMode] = useState<AppEvent['location']['mode']>(loc.mode === 'later' ? 'vote' : loc.mode)
+  // which in-person flavor this event uses ('vote' ballot vs 'set' fact), so toggling
+  // to Remote and back never demotes a set venue into a ballot
+  const inPerson = useRef<'vote' | 'set'>(loc.mode === 'set' ? 'set' : 'vote')
   const [meetingLink, setMeetingLink] = useState(loc.meetingLink)
   // optional voting deadline — voting (and ballot changes) freeze once it passes
   const [voteDeadline, setVoteDeadline] = useState(event.voteDeadline ?? '')
   const deadlineDu = voteDeadline ? daysUntil(voteDeadline) : null
   const votingClosed = deadlineDu !== null && deadlineDu < 0
-  // a settled venue is a fact the host set — no voting, no guest suggestions
-  const settled = !!loc.settled
+  // a set venue is a fact the host stated — no voting, no guest suggestions
+  const settled = mode === 'set'
   const canAddPlaces = !locked && !votingClosed && (event.hostedByYou || (guestsCanSuggest && !settled))
   const pById = new Map(event.participants.map((p) => [p.id, p]))
   const avatarOf = (id: string) => {
@@ -307,7 +310,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   const itinDuration = endMin - itinStartMin
   const overDuration = stops.length > 0 && itinDuration > eventDuration
   const overWindow = winEnd != null && stops.length > 0 && endMin > winEnd
-  const blurred = mode !== 'vote' || places.length === 0
+  const blurred = mode === 'remote' || places.length === 0
   const focusPlace = focusPin ? placeAt(focusPin) : (leadingId ? placeAt(leadingId) : null)
 
   // Flip animations: vote list re-ranks smoothly on each vote; itinerary rows slide on reorder
@@ -331,8 +334,8 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
         <div className="flex items-center gap-2">
           <SegmentedControl
             size="sm"
-            value={mode}
-            onChange={(v) => { setFocusPin(null); changeMode(v as AppEvent['location']['mode']) }}
+            value={mode === 'remote' ? 'remote' : 'vote'}
+            onChange={(v) => { setFocusPin(null); changeMode(v === 'remote' ? 'remote' : inPerson.current) }}
             options={[
               { v: 'vote', l: 'In person', icon: MapPin },
               { v: 'remote', l: 'Remote', icon: Video },
@@ -469,16 +472,16 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
       </div>
 
       {/* mobile: a bar that lifts the venues/itinerary panel up as a bottom sheet */}
-      {mode === 'vote' && !sheetOpen && (
+      {mode !== 'remote' && !sheetOpen && (
         <button onClick={() => setSheetOpen(true)} className="flex items-center justify-between gap-2 rounded-[12px] border border-border bg-s1 px-4 py-3 text-left shadow-soft lg:hidden">
           <span className="flex items-center gap-2 text-[13.5px] font-semibold"><Route size={16} className="text-accent-text" /> {sub === 'itin' ? 'Itinerary' : 'Venue vote'}</span>
           <span className="flex items-center gap-1.5 text-[12.5px] text-dim">{places.length} {places.length === 1 ? 'place' : 'places'} <ChevronUp size={16} /></span>
         </button>
       )}
-      {mode === 'vote' && sheetOpen && <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSheetOpen(false)} />}
+      {mode !== 'remote' && sheetOpen && <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSheetOpen(false)} />}
 
       {/* side panel — only for in-person events; a bottom sheet on mobile, a column on desktop */}
-      {mode === 'vote' && (
+      {mode !== 'remote' && (
         <div ref={sheetRef} className={`flex flex-none flex-col lg:static lg:z-auto lg:flex lg:h-[580px] lg:w-[330px] lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none ${sheetOpen ? 'fixed inset-x-0 bottom-0 z-50 h-[86dvh] w-full rounded-t-2xl border-t border-border bg-s1 px-3 pt-1 shadow-soft' : 'hidden'}`} style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           {/* grab handle + close (mobile sheet only) — drag down to dismiss, like the chat */}
           <div

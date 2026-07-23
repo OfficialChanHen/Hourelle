@@ -151,7 +151,9 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
       durationMin: d.durationMin ?? f.durationMin,
       budget: d.budget ?? f.budget,
       budgetMode: d.budgetMode ?? f.budgetMode,
-      locMode: d.locMode ?? f.locMode,
+      // 'set' comes back as the In person mode with the chosen-place flag on
+      locMode: d.locMode ? (d.locMode === 'set' ? 'vote' : d.locMode) : f.locMode,
+      locSettled: d.locMode ? d.locMode === 'set' : f.locSettled,
       planMode: d.planMode ?? f.planMode,
       picked: (d.picked ?? []).map((p) => ({ ...p, uid: `s${stopUid.current++}` })),
       platform: d.platform ?? f.platform,
@@ -231,6 +233,9 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
     }
     setCreated(createEvent({
       ...form,
+      // the form tracks "already chosen" as a flag under In person; the event model
+      // speaks one enum, where a chosen place is its own mode
+      locMode: form.locMode === 'vote' && form.locSettled ? 'set' : form.locMode,
       fixed: form.scheduleMode === 'set' ? { day: form.fixedDay, start: form.fixedStart, end: form.fixedEnd } : undefined,
     }))
   }

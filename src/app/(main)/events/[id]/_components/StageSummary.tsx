@@ -32,8 +32,8 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
   const gridStart = gridStartMinOf(event)
 
   // the venue currently winning the vote, so the one line reports both fronts —
-  // unless the host settled the place, which reads as fact instead
-  const settledPlace = event.location.settled ? event.location.places[0] : undefined
+  // unless the host set the place, which reads as fact instead
+  const settledPlace = event.location.mode === 'set' ? event.location.places[0] : undefined
   const votesOf = (id: string) => event.votes?.[id] ?? []
   const top = !settledPlace && event.location.mode === 'vote'
     ? [...event.location.places].sort((a, b) => votesOf(b.id).length - votesOf(a.id).length)[0]

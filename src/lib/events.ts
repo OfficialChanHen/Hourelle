@@ -38,14 +38,16 @@ export type AppEvent = {
   budget: string
   budgetMode?: 'total' | 'person'
   location: {
-    mode: 'vote' | 'remote' | 'later'
+    // how the "where" question is answered: 'vote' runs a live ballot, 'set' is a venue
+    // the host picked as fact (no voting UI), 'remote' is online, 'later' defers it
+    mode: 'vote' | 'set' | 'remote' | 'later'
     planMode: 'vote' | 'itinerary'
     places: EventPlace[]
     platform: string
     meetingLink: string
     guestsCanSuggest?: boolean // host-granted: lets non-hosts add places to the ballot
     hybrid?: boolean           // in-person event that people can also join online via meetingLink
-    settled?: boolean          // the place is a fact set by the host, not a ballot — no voting UI
+    settled?: boolean          // legacy (pre-'set'): folded into mode by readAll — never read it elsewhere
   }
   participants: Participant[]
   days: GridDay[]
@@ -94,9 +96,8 @@ export type CreateInput = {
   durationMin?: number // optional; drives the best-window search (default 60)
   bestMode?: BestMode  // optional; carried over when reusing an event's shape
   budgetMode?: 'total' | 'person'
-  locMode: 'vote' | 'remote' | 'later'
+  locMode: 'vote' | 'set' | 'remote' | 'later' // 'set': in person with the place already chosen — guests see it as fact
   planMode: 'vote' | 'itinerary'
-  locSettled?: boolean // in person with the place already chosen — guests see it as fact
   // date already set ('YYYY-MM-DD' + 'HH:MM'): the time is a fact from birth. The event
   // is only born confirmed if the place is also answered — a live ballot keeps it planning.
   fixed?: { day: string; start: string; end: string }
@@ -118,11 +119,20 @@ export const YOU = { id: 'JM', name: 'Jordan Miller', color: 'purple' as PersonC
 /* ── storage ── */
 const KEY = 'aline.events.v1'
 
+// pre-'set' events stored a settled venue as mode:'vote' + settled:true — fold that into
+// the mode on read so every consumer sees one vocabulary (writes then self-heal via patch)
+function normalizeStored(e: AppEvent): AppEvent {
+  if (e.location?.mode === 'vote' && e.location.settled) {
+    return { ...e, location: { ...e.location, mode: 'set', settled: undefined } }
+  }
+  return e
+}
+
 function readAll(): AppEvent[] {
   if (typeof window === 'undefined') return []
   try {
     const raw = localStorage.getItem(KEY)
-    return raw ? (JSON.parse(raw) as AppEvent[]) : []
+    return raw ? (JSON.parse(raw) as AppEvent[]).map(normalizeStored) : []
   } catch {
     return []
   }
@@ -392,8 +402,9 @@ export function openQuestions(ev: Pick<AppEvent, 'status' | 'confirmed' | 'locat
   if (ev.status === 'confirmed' && ev.confirmed) return []
   const out: OpenQuestion[] = []
   if (!ev.confirmed) out.push('time')
-  // remote and decide-later close the question; a settled venue is a fact, not a ballot
-  if (ev.location.mode === 'vote' && !ev.location.settled) out.push('place')
+  // only a live ballot ('vote') leaves the question open — 'set' is a fact the host
+  // stated, 'remote' and 'later' never had a ballot to run
+  if (ev.location.mode === 'vote') out.push('place')
   return out
 }
 
@@ -469,8 +480,8 @@ export function leadingPlaceOf(ev: AppEvent): LeadingPlace | null {
     ? places.find((p) => ev.confirmed!.placeIds.includes(p.id))
     : undefined
   if (confirmedPlace) return { place: confirmedPlace, voters: votesOf(confirmedPlace.id), confirmed: true, margin: null }
-  // a settled venue is a fact, not a front-runner — report it as final
-  if (ev.location.settled) return { place: places[0], voters: votesOf(places[0].id), confirmed: true, margin: null }
+  // a set venue is a fact, not a front-runner — report it as final
+  if (ev.location.mode === 'set') return { place: places[0], voters: votesOf(places[0].id), confirmed: true, margin: null }
   const ranked = [...places].sort((a, b) => votesOf(b.id).length - votesOf(a.id).length)
   if (votesOf(ranked[0].id).length === 0) return null
   const margin = ranked.length > 1 ? votesOf(ranked[0].id).length - votesOf(ranked[1].id).length : null
@@ -631,12 +642,12 @@ export function createEvent(input: CreateInput): AppEvent {
   const isItin = input.planMode === 'itinerary'
   const pickedPlaces = input.picked.map((p) => ({ id: p.id, name: p.name, place: p.place, addedBy: YOU.id }))
   const uniquePlaces = pickedPlaces.filter((p, i) => pickedPlaces.findIndex((x) => x.id === p.id) === i)
-  const settled = !!input.locSettled && input.locMode === 'vote'
+  const settled = input.locMode === 'set'
   // a fixed date locks the place(s) too, when they're known
   const fixedPlaceIds = settled ? uniquePlaces.map((p) => p.id) : isItin ? input.picked.map((p) => p.id) : []
   // a live ballot means the place question is still open: even with a fixed date the
   // event is born planning (time as fact), and only locks once the place is chosen
-  const placeOpen = input.locMode === 'vote' && !settled && !isItin
+  const placeOpen = input.locMode === 'vote' && !isItin
 
   const ev: AppEvent = {
     id,
@@ -658,7 +669,6 @@ export function createEvent(input: CreateInput): AppEvent {
       platform: input.platform,
       meetingLink: input.meetingLink,
       guestsCanSuggest: false,
-      settled: settled || undefined,
     },
     participants,
     days,
@@ -893,12 +903,11 @@ const HOUSEWARMING: AppEvent = {
   granularity: '60',
   budget: '',
   location: {
-    mode: 'vote',
+    mode: 'set',
     planMode: 'vote',
     places: [{ id: 'sr-place', name: 'Sarah’s new apartment', place: 'Oakland, CA', addedBy: 'SR' }],
     platform: '',
     meetingLink: '',
-    settled: true,
   },
   votes: { 'sr-place': ['SR', 'AT', 'MN'] },
   participants: [
@@ -1058,12 +1067,11 @@ const BRUNCH: AppEvent = {
   granularity: '60',
   budget: '',
   location: {
-    mode: 'vote',
+    mode: 'set',
     planMode: 'vote',
     places: [{ id: 'mamas', name: 'Mama’s on Washington Square', place: 'San Francisco, CA', addedBy: 'JM' }],
     platform: '',
     meetingLink: '',
-    settled: true,
   },
   votes: {},
   participants: [
@@ -1169,12 +1177,11 @@ const TRIVIA: AppEvent = {
   granularity: '30',
   budget: '',
   location: {
-    mode: 'vote',
+    mode: 'set',
     planMode: 'vote',
     places: [{ id: 'anchor', name: 'The Anchor', place: 'Oakland, CA', addedBy: 'JM' }],
     platform: '',
     meetingLink: '',
-    settled: true,
   },
   votes: {},
   participants: [
