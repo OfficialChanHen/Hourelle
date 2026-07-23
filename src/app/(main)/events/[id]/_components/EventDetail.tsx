@@ -1099,7 +1099,11 @@ function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boo
   )
 }
 
+/* deleting is a once-ever action, so it starts as one quiet row — the full card
+   with the explanation and confirm flow only unfolds when asked (or when a card's
+   delete shortcut sends someone here with spotlight on) */
 function DangerZone({ title, onDelete, spotlight = false }: { title: string; onDelete: () => void; spotlight?: boolean }) {
+  const [open, setOpen] = useState(spotlight)
   const [confirming, setConfirming] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   const zone = useRef<HTMLDivElement>(null)
@@ -1119,8 +1123,24 @@ function DangerZone({ title, onDelete, spotlight = false }: { title: string; onD
     )
   }, [])
 
+  if (!open) {
+    return (
+      <div className="w-full">
+        <button onClick={() => setOpen(true)} className="flex items-center gap-2 rounded-[9px] px-2.5 py-2 text-[13px] font-medium text-brick-text hover:bg-brick-bg">
+          <Trash2 size={15} /> Delete this event…
+        </button>
+      </div>
+    )
+  }
   return (
-    <div ref={zone} className="w-full rounded-2xl border border-border bg-s1 p-5">
+    <div ref={zone} className="relative w-full rounded-2xl border border-border bg-s1 p-5">
+      <button
+        onClick={() => { setConfirming(false); setOpen(false) }}
+        aria-label="Close" title="Keep the event"
+        className="absolute right-3 top-3 grid h-7 w-7 place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim"
+      >
+        <X size={15} />
+      </button>
       <div className="flex items-start gap-3">
         <span className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] border border-brick-border bg-brick-bg text-brick-text"><Trash2 size={17} /></span>
         <div className="min-w-0 flex-1">
