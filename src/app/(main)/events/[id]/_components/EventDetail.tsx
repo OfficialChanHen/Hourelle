@@ -190,13 +190,15 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         <div className="ml-auto flex min-w-0 items-center gap-2">
           {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToDetails={() => setTab('details')} />}
           {/* discussion lives in the floating bubble alone — one entry point, less header */}
-          {/* share button opens a dropdown with the URL and a one-tap copy */}
+          {/* share button opens a dropdown with the URL and a one-tap copy; on phones it
+              folds into the ⋯ menu so the title and lock-in keep the row */}
           <Popover
             align="end"
             width={312}
+            className="hidden sm:block"
             trigger={(open) => (
-              <span className={`flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[14px] font-semibold sm:px-3.5 ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
-                <Link2 size={16} /> <span className="hidden sm:inline">Share link</span>
+              <span className={`flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[14px] font-semibold ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
+                <Link2 size={16} /> Share link
               </span>
             )}
           >
@@ -208,6 +210,24 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
                 </div>
                 <button onClick={copy} className={`flex h-9 flex-none items-center gap-1.5 rounded-[9px] px-3 text-[13px] font-semibold ${copied ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'}`}>
                   {copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy</>}
+                </button>
+              </div>
+            )}
+          </Popover>
+          <Popover
+            align="end"
+            width={216}
+            className="sm:hidden"
+            trigger={(open) => (
+              <span aria-label="More actions" className={`grid h-9 w-9 place-items-center rounded-[9px] border border-border2 bg-s1 ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
+                <EllipsisVertical size={16} />
+              </span>
+            )}
+          >
+            {() => (
+              <div className="flex flex-col p-0.5">
+                <button onClick={copy} className="flex items-center gap-2 rounded-[7px] px-2 py-2 text-left text-[13px] font-medium hover:bg-s2">
+                  {copied ? <><Check size={15} className="text-teal-text" /> Link copied</> : <><Link2 size={15} className="text-dim" /> Copy invite link</>}
                 </button>
               </div>
             )}
