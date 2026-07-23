@@ -802,11 +802,11 @@ function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Par
   if (!editing) {
     const preset = COVER_PRESETS.find((p) => event.image === `preset:${p.id}`)
     return (
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="flex items-center gap-2.5">
         {event.image
-          ? <Cover src={event.image} from={preset?.from ?? '#E4EDE7'} to={preset?.to ?? '#CFE0D5'} className="h-9 w-14 rounded-[8px] border border-border" />
-          : <span className="text-[13px] text-dim">No cover</span>}
-        <button onClick={() => setEditing(true)} className="text-[12.5px] font-semibold text-accent-text hover:underline">
+          ? <Cover src={event.image} from={preset?.from ?? '#E4EDE7'} to={preset?.to ?? '#CFE0D5'} className="h-9 w-14 flex-none rounded-[8px] border border-border" />
+          : <span className="text-[13px] leading-none text-dim">No cover</span>}
+        <button onClick={() => setEditing(true)} className="text-[13px] font-semibold leading-none text-accent-text hover:underline">
           {event.image ? 'Change' : 'Add one'}
         </button>
       </div>

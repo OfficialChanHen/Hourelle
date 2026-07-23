@@ -127,14 +127,13 @@ function QuickCreate() {
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
   const [need, setNeed] = useState(false)
-  // dates fill after mount: the server doesn't know the visitor's today
+  // dates fill after mount: the server doesn't know the visitor's today.
+  // Both default to today — a single-day plan — and stretch only if you say so.
   useEffect(() => {
     const iso = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
-    const d = new Date()
-    const week = new Date(d)
-    week.setDate(week.getDate() + 6)
-    setStart(iso(d))
-    setEnd(iso(week))
+    const t = iso(new Date())
+    setStart(t)
+    setEnd(t)
   }, [])
   function go() {
     const t = title.trim()

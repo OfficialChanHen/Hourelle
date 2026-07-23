@@ -118,6 +118,71 @@
   --heat-count:#B4CFEF; --heat-count-full:#0B1826;
 }
 
+/* Professional — quiet cool grays and a navy accent; the one to screen-share at work */
+[data-palette="pro"] {
+  --bg:#F5F6F8; --s0:#FAFBFC; --s1:#FFFFFF; --s2:#EEF0F3; --s3:#E2E5EA;
+  --border:#E1E4E9; --border2:#C9CED6;
+  --text:#1C2430; --dim:#5A6472; --faint:#8D97A5;
+  --accent:#274A6D; --accent-text:#20405F; --accent-bg:#E6EDF4; --accent-border:#C4D4E3; --on-accent:#F5F9FD;
+  --teal:#2E7D5B; --teal-text:#256349; --teal-bg:#E2F1EA; --teal-border:#BFE0D0;
+  --ochre:#8F6B1E; --ochre-text:#74561A; --ochre-bg:#F5EDD8; --ochre-border:#E6D6AC;
+  --brick:#A94442; --brick-text:#8C3835; --brick-bg:#F6E4E3; --brick-border:#E8C8C6;
+  --shadow:0 1px 2px rgba(28,36,48,.06), 0 10px 30px rgba(28,36,48,.07);
+  --heat-low:#E9EEF4; --heat-mid:#C4D3E3; --heat-high:#8FA9C6; --heat-full:#274A6D;
+  --you-only:#F6EEDA; --you-some:#EAD9AE; --you-many:#DCC382; --you-text:#74561A;
+  --grid-line:#76808D; --grid-edge:#A2AAB6; --grid-dash:#A2AAB6;
+  --best-head:#F5EDD8;
+  --heat-count:#2C4A6B; --heat-count-full:#F2F6FA;
+}
+[data-palette="pro"][data-theme="dark"] {
+  --bg:#14181D; --s0:#191E24; --s1:#1E242B; --s2:#252C35; --s3:#303945;
+  --border:rgba(226,233,240,.10); --border2:rgba(226,233,240,.19);
+  --text:#E7ECF1; --dim:#A3ADB9; --faint:#6E7987;
+  --accent:#7FA6CC; --accent-text:#A7C4DF; --accent-bg:rgba(127,166,204,.14); --accent-border:rgba(127,166,204,.38); --on-accent:#0E1B29;
+  --teal:#5FAE8C; --teal-text:#98D1B8; --teal-bg:rgba(95,174,140,.14); --teal-border:rgba(95,174,140,.36);
+  --ochre:#BFA05C; --ochre-text:#DCC48B; --ochre-bg:rgba(191,160,92,.15); --ochre-border:rgba(191,160,92,.38);
+  --brick:#C97B72; --brick-text:#E5ABA3; --brick-bg:rgba(201,123,114,.14); --brick-border:rgba(201,123,114,.36);
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
+  --heat-low:rgba(127,166,204,.14); --heat-mid:rgba(127,166,204,.30); --heat-high:rgba(127,166,204,.55); --heat-full:#6D96BE;
+  --you-only:rgba(191,160,92,.16); --you-some:rgba(191,160,92,.32); --you-many:rgba(191,160,92,.48); --you-text:#DCC48B;
+  --grid-line:rgba(226,233,240,.38); --grid-edge:rgba(226,233,240,.22); --grid-dash:rgba(226,233,240,.38);
+  --best-head:#312B1B;
+  --heat-count:#A7C4DF; --heat-count-full:#0E1B29;
+}
+
+/* High contrast — strong lines, saturated color, true black-and-white bases; built for
+   glare, low vision, and reading at arm's length */
+[data-palette="contrast"] {
+  --bg:#FFFFFF; --s0:#FFFFFF; --s1:#FFFFFF; --s2:#F2F2F2; --s3:#E5E5E5;
+  --border:#6B6B6B; --border2:#111111;
+  --text:#000000; --dim:#333333; --faint:#595959;
+  --accent:#0033CC; --accent-text:#0026A3; --accent-bg:#E0E7FF; --accent-border:#0033CC; --on-accent:#FFFFFF;
+  --teal:#006B21; --teal-text:#005A1C; --teal-bg:#DDF5E2; --teal-border:#006B21;
+  --ochre:#9A5B00; --ochre-text:#7A4800; --ochre-bg:#FFF0D0; --ochre-border:#9A5B00;
+  --brick:#C40000; --brick-text:#A30000; --brick-bg:#FFE1E1; --brick-border:#C40000;
+  --shadow:0 1px 2px rgba(0,0,0,.25);
+  --heat-low:#E4EBFF; --heat-mid:#A9BFFF; --heat-high:#5B7FF2; --heat-full:#0033CC;
+  --you-only:#FFF3B8; --you-some:#FFE065; --you-many:#FFD02E; --you-text:#5C4A00;
+  --grid-line:#000000; --grid-edge:#4D4D4D; --grid-dash:#4D4D4D;
+  --best-head:#FFF0D0;
+  --heat-count:#002080; --heat-count-full:#FFFFFF;
+}
+[data-palette="contrast"][data-theme="dark"] {
+  --bg:#000000; --s0:#0A0A0A; --s1:#101010; --s2:#1C1C1C; --s3:#2A2A2A;
+  --border:rgba(255,255,255,.35); --border2:rgba(255,255,255,.55);
+  --text:#FFFFFF; --dim:#D0D0D0; --faint:#9E9E9E;
+  --accent:#7DA9FF; --accent-text:#A9C6FF; --accent-bg:rgba(125,169,255,.18); --accent-border:rgba(125,169,255,.6); --on-accent:#00123D;
+  --teal:#4DDB77; --teal-text:#86EFA5; --teal-bg:rgba(77,219,119,.16); --teal-border:rgba(77,219,119,.55);
+  --ochre:#FFC53D; --ochre-text:#FFDC85; --ochre-bg:rgba(255,197,61,.16); --ochre-border:rgba(255,197,61,.55);
+  --brick:#FF6161; --brick-text:#FF9C9C; --brick-bg:rgba(255,97,97,.16); --brick-border:rgba(255,97,97,.55);
+  --shadow:0 1px 2px rgba(0,0,0,.8);
+  --heat-low:rgba(125,169,255,.18); --heat-mid:rgba(125,169,255,.40); --heat-high:rgba(125,169,255,.65); --heat-full:#7DA9FF;
+  --you-only:rgba(255,197,61,.18); --you-some:rgba(255,197,61,.36); --you-many:rgba(255,197,61,.55); --you-text:#FFDC85;
+  --grid-line:rgba(255,255,255,.6); --grid-edge:rgba(255,255,255,.4); --grid-dash:rgba(255,255,255,.6);
+  --best-head:#2E2609;
+  --heat-count:#A9C6FF; --heat-count-full:#00123D;
+}
+
 /* Pride — the six-stripe flag, with every stripe on duty: red = danger, orange = your
    own grid cells, yellow = caution, green = confirmed, blue = the heat map, violet =
    the accent. Light is warm gallery white; dark goes deep plum. Accent-filled surfaces

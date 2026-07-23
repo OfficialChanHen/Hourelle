@@ -1,4 +1,4 @@
-import { Bell, LogOut, ChevronRight } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { AppearancePicker } from '@/components/AppearancePicker'
@@ -29,10 +29,6 @@ export default function ProfilePage() {
             <AppearancePicker />
           </div>
         </div>
-        <button className="flex w-full items-center justify-between border-t border-border px-5 py-4 text-left hover:bg-s2">
-          <span className="flex items-center gap-2 text-[14px] font-medium"><Bell size={16} className="text-dim" /> Notifications</span>
-          <ChevronRight size={17} className="text-faint" />
-        </button>
         <button className="flex w-full items-center justify-between border-t border-border px-5 py-4 text-left text-brick-text hover:bg-brick-bg/50">
           <span className="flex items-center gap-2 text-[14px] font-medium"><LogOut size={16} /> Sign out</span>
         </button>
