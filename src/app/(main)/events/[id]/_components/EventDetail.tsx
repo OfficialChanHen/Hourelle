@@ -189,12 +189,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         {/* ml-auto keeps the actions hugging the right edge when the header wraps */}
         <div className="ml-auto flex min-w-0 items-center gap-2">
           {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToDetails={() => setTab('details')} />}
-          {/* discussion follows the event, not a tab */}
-          <button onClick={() => setChatOpen(true)} className="flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[14px] font-semibold hover:bg-s2">
-            <MessageCircle size={16} className="text-accent-text" />
-            <span className="hidden sm:inline">Discussion</span>
-            {unread > 0 && <span className="flex h-[16px] items-center rounded-[10px] bg-accent px-[6px] text-[10.5px] text-on-accent">{unread}</span>}
-          </button>
+          {/* discussion lives in the floating bubble alone — one entry point, less header */}
           {/* share button opens a dropdown with the URL and a one-tap copy */}
           <Popover
             align="end"
@@ -258,7 +253,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToTab={setTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} />}
 
       {/* discussion follows you down the page — the classic chat bubble, above the
-          mobile tab bar; the header button stays for people who look there */}
+          mobile tab bar; it is the one and only way in, unread badge included */}
       {!chatOpen && (
         <button
           onClick={() => setChatOpen(true)}
