@@ -14,6 +14,16 @@ export const PHASE_BADGE: Record<Phase, { label: string; variant: 'teal' | 'ochr
   past: { label: 'Past', variant: 'neutral' },
 }
 
+// the quieter phase cues cards use instead of badge chips: a small status dot and a
+// tinted border wash. Past events stay neutral — no border entry means the default.
+export const PHASE_TINT: Record<Phase, { dot: string; border?: string }> = {
+  planning: { dot: 'var(--ochre)', border: 'var(--ochre-border)' },
+  upcoming: { dot: 'var(--teal)', border: 'var(--teal-border)' },
+  soon: { dot: 'var(--teal)', border: 'var(--teal-border)' },
+  today: { dot: 'var(--accent)', border: 'var(--accent-border)' },
+  past: { dot: 'var(--faint)' },
+}
+
 const STEPS = ['Plan', 'Lock in', 'Remind', 'Event', 'Done'] as const
 const PHASE_STEP: Record<Phase, number> = { planning: 0, upcoming: 1, soon: 2, today: 3, past: 4 }
 

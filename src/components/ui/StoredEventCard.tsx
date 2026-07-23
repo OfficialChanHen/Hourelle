@@ -4,12 +4,11 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Calendar, CalendarClock, Check, Link2, MapPin, Reply, RotateCcw, Trash2, UserRound, UsersRound, Vote } from 'lucide-react'
-import { Badge } from './Badge'
 import { AvatarRow } from './AvatarRow'
 import { TimezonePill } from './TimezonePill'
 import { Cover } from './Cover'
 import { daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, leadingPlaceOf, phaseOf, respondedCount, type AppEvent } from '@/lib/events'
-import { PHASE_BADGE } from './LifecycleStrip'
+import { PHASE_BADGE, PHASE_TINT } from './LifecycleStrip'
 
 const COVERS: [string, string][] = [
   ['#E4EDE7', '#CFE0D5'], ['#E7E2EE', '#D9CFE4'], ['#DEE7EC', '#C7DAE2'],
@@ -36,6 +35,7 @@ export function StoredEventCard({ e, reuseHref, sameDayTitle }: { e: AppEvent; r
   const [copied, setCopied] = useState(false)
   const phase = phaseOf(e)
   const badge = PHASE_BADGE[phase]
+  const tint = PHASE_TINT[phase]
   const du = daysUntil(e.confirmed?.dayKey ?? e.startDate)
   const going = e.participants.filter((p) => p.rsvp === 'attending').length
   const slot = confirmedSlotText(e)
@@ -56,12 +56,22 @@ export function StoredEventCard({ e, reuseHref, sameDayTitle }: { e: AppEvent; r
   const goReuse = asAction(() => { if (reuseHref) router.push(reuseHref) })
 
   return (
-    <Link href={`/events/${e.id}`} className="group flex flex-col overflow-hidden rounded-[13px] border border-border bg-s1 p-3.5 transition-all hover:-translate-y-0.5 hover:border-border2">
+    <Link
+      href={`/events/${e.id}`}
+      className="group flex flex-col overflow-hidden rounded-[13px] border border-border bg-s1 p-3.5 transition-all hover:-translate-y-0.5 hover:border-border2"
+      // status reads from the frame, not from chips: the border wears the phase color
+      style={tint.border ? { borderColor: tint.border } : undefined}
+    >
       <Cover src={e.image} from={from} to={to} className="-mx-3.5 -mt-3.5 mb-3 h-[92px]" />
-      <div className="mb-[11px] flex items-center justify-between">
-        <Badge variant={badge.variant}>{badge.label}</Badge>
-        {phase !== 'past' && (
-          <Badge variant={du !== null && du >= 0 && du <= 14 ? 'accent' : 'neutral'}>{daysUntilLabel(du)}</Badge>
+      {/* the old badge row as one quiet line: dot for the phase, words for the rest */}
+      <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium text-dim">
+        <span className="h-2 w-2 flex-none rounded-full" style={{ background: tint.dot }} />
+        <span>{badge.label}</span>
+        {phase !== 'past' && du !== null && (
+          <>
+            <span className="text-faint">·</span>
+            <span className={du >= 0 && du <= 14 ? 'text-accent-text' : ''}>{daysUntilLabel(du)}</span>
+          </>
         )}
       </div>
       <h3 className="mb-[9px] text-[15px] font-semibold tracking-[-0.01em]">{e.title}</h3>

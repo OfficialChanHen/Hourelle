@@ -16,9 +16,8 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { FlashToast } from '@/components/ui/FlashToast'
 import { StoredEventCard } from '@/components/ui/StoredEventCard'
 import { Cover } from '@/components/ui/Cover'
-import { Badge } from '@/components/ui/Badge'
 import { TimezonePill } from '@/components/ui/TimezonePill'
-import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
+import { LifecycleStrip, PHASE_BADGE, PHASE_TINT } from '@/components/ui/LifecycleStrip'
 import {
   createEvent, listEvents, phaseOf, daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, sameDayLabelFor,
   type AppEvent, type Phase,
@@ -55,10 +54,10 @@ export default function HomePage() {
       ((a.e.confirmed?.startMin ?? 0) - (b.e.confirmed?.startMin ?? 0)))
     .slice(0, 5)
   const heroes = upNext.length > 0 ? upNext : active.filter((x) => x.phase === 'planning').slice(0, 1)
-  const heroIds = new Set(heroes.map((x) => x.e.id))
-  const rest = active.filter((x) => !heroIds.has(x.e.id))
-  const yours = rest.filter((x) => x.e.hostedByYou)
-  const invited = rest.filter((x) => !x.e.hostedByYou)
+  // hero events keep their card below too — Up next is a spotlight, not a filing
+  // cabinet, and an invited event should always be findable under You're invited
+  const yours = active.filter((x) => x.e.hostedByYou)
+  const invited = active.filter((x) => !x.e.hostedByYou)
   const sameDay = sameDayLabelFor(active.map((x) => x.e))
 
   return (
@@ -182,6 +181,7 @@ function QuickCreate() {
 function HeroCard({ e, phase, sameDayTitle }: { e: AppEvent; phase: Phase; sameDayTitle?: string }) {
   const router = useRouter()
   const badge = PHASE_BADGE[phase]
+  const tint = PHASE_TINT[phase]
   const du = daysUntil(e.confirmed?.dayKey ?? e.startDate)
   const [copied, setCopied] = useState(false)
   const action = phase === 'planning'
@@ -195,16 +195,36 @@ function HeroCard({ e, phase, sameDayTitle }: { e: AppEvent; phase: Phase; sameD
     <div
       onClick={() => router.push(`/events/${e.id}?tab=details`)}
       className="cursor-pointer overflow-hidden rounded-2xl border border-border bg-s1 transition-colors hover:border-border2"
+      style={tint.border ? { borderColor: tint.border } : undefined}
     >
       <Cover src={e.image} from="#E4EDE7" to="#CFE0D5" className={e.image ? 'h-[110px]' : 'h-[64px]'} />
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 p-5">
         {/* real min width: on phones the CTAs wrap below instead of crushing the title */}
         <div className="min-w-[220px] flex-1">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <Badge variant={badge.variant}>{badge.label}</Badge>
-            <Badge variant={du !== null && du >= 0 && du <= 14 ? 'accent' : 'neutral'}>{daysUntilLabel(du)}</Badge>
-            {!e.hostedByYou && <Badge variant="neutral">Hosted by {e.hostName}</Badge>}
-            {e.participants.some((p) => p.you && p.rsvp === 'pending') && <Badge variant="accent">Awaiting your reply</Badge>}
+          {/* one quiet line instead of a chip row: dot for the phase, words for the rest */}
+          <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] font-medium text-dim">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 flex-none rounded-full" style={{ background: tint.dot }} />
+              {badge.label}
+            </span>
+            {du !== null && (
+              <>
+                <span className="text-faint">·</span>
+                <span className={du >= 0 && du <= 14 ? 'text-accent-text' : ''}>{daysUntilLabel(du)}</span>
+              </>
+            )}
+            {!e.hostedByYou && (
+              <>
+                <span className="text-faint">·</span>
+                <span>Hosted by {e.hostName}</span>
+              </>
+            )}
+            {e.participants.some((p) => p.you && p.rsvp === 'pending') && (
+              <>
+                <span className="text-faint">·</span>
+                <span className="text-accent-text">your reply is waiting</span>
+              </>
+            )}
           </div>
           <Link href={`/events/${e.id}?tab=details`} onClick={(ev) => ev.stopPropagation()} className="block font-serif text-[27px] leading-[1.08] tracking-[-0.01em] hover:underline">{e.title}</Link>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[13px] text-dim">
