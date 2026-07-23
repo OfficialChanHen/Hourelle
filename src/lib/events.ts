@@ -410,7 +410,11 @@ export function confirmedSlotText(ev: Pick<AppEvent, 'confirmed'>): string | nul
 
 // which other events land on the same scheduled day. Confirmed events clash on their locked
 // day, single-day events on their date; an open multi-day window isn't a clash yet.
-export function sameDayLabelFor(events: AppEvent[]): (e: AppEvent) => string | undefined {
+// One clash is worth naming; a crowd becomes a count — otherwise every card on a busy
+// day leads with the same arbitrary title and "and 3 more" that names nothing. The
+// full list rides along for a tooltip, but only when it says more than the label does.
+export type SameDayInfo = { label: string; all?: string }
+export function sameDayLabelFor(events: AppEvent[]): (e: AppEvent) => SameDayInfo | undefined {
   const dayOf = (e: AppEvent) => e.confirmed?.dayKey ?? (e.startDate === e.endDate ? e.startDate : null)
   const byDay = new Map<string, AppEvent[]>()
   for (const e of events) {
@@ -424,7 +428,11 @@ export function sameDayLabelFor(events: AppEvent[]): (e: AppEvent) => string | u
     const d = dayOf(e)
     const others = d ? (byDay.get(d) ?? []).filter((o) => o.id !== e.id) : []
     if (others.length === 0) return undefined
-    return others.length === 1 ? others[0].title : `${others[0].title} and ${others.length - 1} more`
+    if (others.length === 1) return { label: others[0].title }
+    return {
+      label: `${others.length} other events`,
+      all: others.map((o) => o.title).join(', '),
+    }
   }
 }
 

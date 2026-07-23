@@ -48,7 +48,7 @@ export default function EventsPage() {
       {shown.length > 0 ? (
         <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((x) => (
-            <StoredEventCard key={x.e.id} e={x.e} reuseHref={x.phase === 'past' ? `/create?from=${x.e.id}` : undefined} sameDayTitle={sameDay(x.e)} />
+            <StoredEventCard key={x.e.id} e={x.e} reuseHref={x.phase === 'past' ? `/create?from=${x.e.id}` : undefined} sameDay={sameDay(x.e)} />
           ))}
         </div>
       ) : (

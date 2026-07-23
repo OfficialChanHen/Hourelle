@@ -7,7 +7,8 @@ import { Calendar, CalendarClock, Check, Link2, MapPin, Reply, RotateCcw, Trash2
 import { AvatarRow } from './AvatarRow'
 import { TimezonePill } from './TimezonePill'
 import { Cover } from './Cover'
-import { daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, leadingPlaceOf, phaseOf, respondedCount, type AppEvent } from '@/lib/events'
+import { Tip } from './Tip'
+import { daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, leadingPlaceOf, phaseOf, respondedCount, type AppEvent, type SameDayInfo } from '@/lib/events'
 import { PHASE_BADGE, PHASE_TINT } from './LifecycleStrip'
 
 const COVERS: [string, string][] = [
@@ -30,7 +31,7 @@ function asAction(fn: () => void) {
   }
 }
 
-export function StoredEventCard({ e, reuseHref, sameDayTitle }: { e: AppEvent; reuseHref?: string; sameDayTitle?: string }) {
+export function StoredEventCard({ e, reuseHref, sameDay }: { e: AppEvent; reuseHref?: string; sameDay?: SameDayInfo }) {
   const router = useRouter()
   const [copied, setCopied] = useState(false)
   const phase = phaseOf(e)
@@ -121,12 +122,17 @@ export function StoredEventCard({ e, reuseHref, sameDayTitle }: { e: AppEvent; r
             </span>
           </div>
         )}
-        {sameDayTitle && (
-          <div className="flex items-center gap-1.5 font-medium text-ochre-text">
-            <CalendarClock size={14} className="flex-none" />
-            <span className="truncate">Same day as {sameDayTitle}</span>
-          </div>
-        )}
+        {sameDay && (() => {
+          const line = (
+            <div className="flex items-center gap-1.5 font-medium text-ochre-text">
+              <CalendarClock size={14} className="flex-none" />
+              <span className="truncate">Same day as {sameDay.label}</span>
+            </div>
+          )
+          // a single clash is already named in full — the tooltip only earns its
+          // tap when there's a count to unpack
+          return sameDay.all ? <Tip text={`Same day as ${sameDay.all}`}>{line}</Tip> : line
+        })()}
       </div>
 
       {/* anchored to the card's bottom edge so avatars and actions line up across

@@ -17,10 +17,11 @@ import { FlashToast } from '@/components/ui/FlashToast'
 import { StoredEventCard } from '@/components/ui/StoredEventCard'
 import { Cover } from '@/components/ui/Cover'
 import { TimezonePill } from '@/components/ui/TimezonePill'
+import { Tip } from '@/components/ui/Tip'
 import { LifecycleStrip, PHASE_BADGE, PHASE_TINT } from '@/components/ui/LifecycleStrip'
 import {
   createEvent, listEvents, phaseOf, daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, sameDayLabelFor,
-  type AppEvent, type Phase,
+  type AppEvent, type Phase, type SameDayInfo,
 } from '@/lib/events'
 
 // what part of the day it is, by the reader's clock
@@ -80,12 +81,12 @@ export default function HomePage() {
         <Swiper modules={[Navigation, Pagination, A11y]} slidesPerView={1} spaceBetween={18} navigation pagination={{ clickable: true }} className="upnext-swiper !pb-9">
           {heroes.map((x) => (
             <SwiperSlide key={x.e.id}>
-              <HeroCard e={x.e} phase={x.phase} sameDayTitle={sameDay(x.e)} />
+              <HeroCard e={x.e} phase={x.phase} sameDay={sameDay(x.e)} />
             </SwiperSlide>
           ))}
         </Swiper>
       ) : heroes.length === 1 ? (
-        <HeroCard e={heroes[0].e} phase={heroes[0].phase} sameDayTitle={sameDay(heroes[0].e)} />
+        <HeroCard e={heroes[0].e} phase={heroes[0].phase} sameDay={sameDay(heroes[0].e)} />
       ) : (
         <EmptyState
           icon={CalendarPlus}
@@ -100,7 +101,7 @@ export default function HomePage() {
         <>
           <SectionHeader icon={CalendarCheck} title="Your events" count={yours.length} className="mt-[26px]" />
           <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
-            {yours.map((x) => <StoredEventCard key={x.e.id} e={x.e} sameDayTitle={sameDay(x.e)} />)}
+            {yours.map((x) => <StoredEventCard key={x.e.id} e={x.e} sameDay={sameDay(x.e)} />)}
           </div>
         </>
       )}
@@ -110,7 +111,7 @@ export default function HomePage() {
         <>
           <SectionHeader icon={Mail} title="You're invited" count={invited.length} className="mt-[26px]" />
           <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
-            {invited.map((x) => <StoredEventCard key={x.e.id} e={x.e} sameDayTitle={sameDay(x.e)} />)}
+            {invited.map((x) => <StoredEventCard key={x.e.id} e={x.e} sameDay={sameDay(x.e)} />)}
           </div>
         </>
       )}
@@ -178,7 +179,7 @@ function QuickCreate() {
 
 /* the hero: wide card with the lifecycle strip and one contextual action.
    The whole card opens the event's details; only elements with their own job don't. */
-function HeroCard({ e, phase, sameDayTitle }: { e: AppEvent; phase: Phase; sameDayTitle?: string }) {
+function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo }) {
   const router = useRouter()
   const badge = PHASE_BADGE[phase]
   const tint = PHASE_TINT[phase]
@@ -230,11 +231,17 @@ function HeroCard({ e, phase, sameDayTitle }: { e: AppEvent; phase: Phase; sameD
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[13px] text-dim">
             <Calendar size={14} /> {confirmedSlotText(e) ?? dateRangeText(e)} <TimezonePill tz={e.timezone} />
           </div>
-          {sameDayTitle && (
-            <div className="mt-1.5 flex items-center gap-1.5 text-[13px] font-medium text-ochre-text">
-              <CalendarClock size={14} className="flex-none" /> <span className="truncate">Same day as {sameDayTitle}</span>
-            </div>
-          )}
+          {sameDay && (() => {
+            const line = (
+              <div className="flex items-center gap-1.5 text-[13px] font-medium text-ochre-text">
+                <CalendarClock size={14} className="flex-none" /> <span className="truncate">Same day as {sameDay.label}</span>
+              </div>
+            )
+            // one clash names itself; only a count gets the expanding tooltip
+            return sameDay.all
+              ? <Tip text={`Same day as ${sameDay.all}`} className="mt-1.5 block w-fit max-w-full">{line}</Tip>
+              : <div className="mt-1.5">{line}</div>
+          })()}
           <LifecycleStrip phase={phase} className="mt-4 max-w-[380px]" />
         </div>
         <div className="flex w-full flex-none flex-col gap-2 sm:w-auto sm:flex-row-reverse sm:items-center">
