@@ -138,6 +138,10 @@ function QuickCreate() {
     setStart(iso(d))
     setEnd(iso(week))
   }, [])
+  // beyond the 28-day time-poll cap, the range is trip-shaped: ask which days instead
+  // of silently cutting the range short
+  const spanDays = start && end && end >= start ? Math.round((Date.parse(end) - Date.parse(start)) / 86400000) + 1 : 1
+  const asDayPoll = spanDays > 28
   function go() {
     const t = title.trim()
     if (!t) { setNeed(true); return }
@@ -145,7 +149,7 @@ function QuickCreate() {
     try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' } catch { /* UTC */ }
     const ev = createEvent({
       title: t, description: '', startDate: start, endDate: end < start ? start : end,
-      granularity: '30', timezone: tz, budget: '', durationMin: 60,
+      granularity: asDayPoll ? 'day' : '30', timezone: tz, budget: '', durationMin: 60,
       locMode: 'later', planMode: 'vote', picked: [], platform: 'Google Meet', meetingLink: '',
       emails: [], accounts: [],
     })
@@ -173,7 +177,13 @@ function QuickCreate() {
         </button>
       </div>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[12.5px] text-dim">
-        <span>{need ? <span className="font-medium text-brick-text">Give it a name first.</span> : 'Uses your time zone. Share the link and people mark when they are free.'}</span>
+        <span>
+          {need
+            ? <span className="font-medium text-brick-text">Give it a name first.</span>
+            : asDayPoll
+              ? 'Over four weeks, so this asks which days work instead of times.'
+              : 'Uses your time zone. Share the link and people mark when they are free.'}
+        </span>
         <Link href="/create" className="font-semibold text-accent-text hover:underline">More options</Link>
       </div>
     </div>
