@@ -538,25 +538,57 @@ export function confirmedSlotText(ev: Pick<AppEvent, 'confirmed'>): string | nul
   return allDay ? day : `${day} · ${fmtMinute(ev.confirmed.startMin)} – ${fmtMinute(ev.confirmed.endMin)}`
 }
 
-// which other events land on the same scheduled day. Confirmed events clash on their locked
-// day, single-day events on their date; an open multi-day window isn't a clash yet.
+// the longest stretch of touching calendar days in a poll — the ceiling for any
+// "days in a row" answer, shared by the grid dial and the planning summary
+export function longestRun(days: Pick<GridDay, 'key'>[]): number {
+  let best = days.length ? 1 : 0
+  let run = 1
+  for (let i = 1; i < days.length; i++) {
+    const prev = parseLocal(days[i - 1].key)
+    if (prev) prev.setDate(prev.getDate() + 1)
+    run = prev && isoOf(prev) === days[i].key ? run + 1 : 1
+    if (run > best) best = run
+  }
+  return best
+}
+
+// which other events land on the same scheduled day. Confirmed events clash on every
+// day of their locked run (a Fri–Sun trip conflicts with a Saturday party), single-day
+// events on their date; an open multi-day window isn't a clash yet.
 // One clash is worth naming; a crowd becomes a count — otherwise every card on a busy
 // day leads with the same arbitrary title and "and 3 more" that names nothing. The
 // full list rides along for a tooltip, but only when it says more than the label does.
 export type SameDayInfo = { label: string; all?: string }
 export function sameDayLabelFor(events: AppEvent[]): (e: AppEvent) => SameDayInfo | undefined {
-  const dayOf = (e: AppEvent) => e.confirmed?.dayKey ?? (e.startDate === e.endDate ? e.startDate : null)
+  const daysOf = (e: AppEvent): string[] => {
+    if (e.confirmed) {
+      const out: string[] = []
+      const cur = parseLocal(e.confirmed.dayKey)
+      const end = parseLocal(e.confirmed.endDayKey ?? e.confirmed.dayKey)
+      if (!cur || !end) return []
+      for (let i = 0; i < 90 && cur <= end; i++) { out.push(isoOf(cur)); cur.setDate(cur.getDate() + 1) }
+      return out
+    }
+    return e.startDate === e.endDate ? [e.startDate] : []
+  }
   const byDay = new Map<string, AppEvent[]>()
   for (const e of events) {
-    const d = dayOf(e)
-    if (!d) continue
-    const list = byDay.get(d) ?? []
-    list.push(e)
-    byDay.set(d, list)
+    for (const d of daysOf(e)) {
+      const list = byDay.get(d) ?? []
+      list.push(e)
+      byDay.set(d, list)
+    }
   }
   return (e) => {
-    const d = dayOf(e)
-    const others = d ? (byDay.get(d) ?? []).filter((o) => o.id !== e.id) : []
+    const seen = new Set<string>()
+    const others: AppEvent[] = []
+    for (const d of daysOf(e)) {
+      for (const o of byDay.get(d) ?? []) {
+        if (o.id === e.id || seen.has(o.id)) continue
+        seen.add(o.id)
+        others.push(o)
+      }
+    }
     if (others.length === 0) return undefined
     if (others.length === 1) return { label: others[0].title }
     return {
@@ -1333,5 +1365,69 @@ const TRIVIA: AppEvent = {
   confirmed: { dayKey: '2026-07-30', startMin: 19 * 60, endMin: 21 * 60 + 30, placeIds: ['anchor'] },
 }
 
+/* ── the day-poll demo: a trip asks which days, weekends only, best-run answer ── */
+const CABIN_DAYS = buildDaysFrom([
+  '2026-09-04', '2026-09-05', '2026-09-06',
+  '2026-09-11', '2026-09-12', '2026-09-13',
+  '2026-09-18', '2026-09-19', '2026-09-20',
+])
+const CABIN_FULL: Iv[] = [{ s: 0, e: 24 * 60 }]
+const CABIN_IV: AvailIntervals = {
+  '2026-09-04': { JM: CABIN_FULL, AT: CABIN_FULL, SR: CABIN_FULL, MN: CABIN_FULL },
+  '2026-09-05': { JM: CABIN_FULL, AT: CABIN_FULL, SR: CABIN_FULL, MN: CABIN_FULL, KL: CABIN_FULL },
+  '2026-09-06': { JM: CABIN_FULL, AT: CABIN_FULL, SR: CABIN_FULL, KL: CABIN_FULL },
+  '2026-09-11': { JM: CABIN_FULL, KL: CABIN_FULL },
+  '2026-09-12': { JM: CABIN_FULL, MN: CABIN_FULL, KL: CABIN_FULL },
+  '2026-09-19': { AT: CABIN_FULL, SR: CABIN_FULL },
+}
+const CABIN_TRIP: AppEvent = {
+  id: 'cabin-trip',
+  title: 'Cabin Trip',
+  hostName: 'Jordan Miller',
+  hostedByYou: true,
+  hostKind: 'person',
+  description: 'Three weekends on the table, one cabin at the end. Tap the days you could go.',
+  timezone: 'America/Los_Angeles',
+  startDate: '2026-09-04',
+  endDate: '2026-09-20',
+  granularity: 'day',
+  budget: '900',
+  budgetMode: 'person',
+  location: {
+    mode: 'vote',
+    planMode: 'vote',
+    places: [
+      { id: 'tahoe-cabin', name: 'Donner Lake Cabin', place: 'Truckee, CA', addedBy: 'JM' },
+      { id: 'sea-ranch', name: 'Sea Ranch House', place: 'Sea Ranch, CA', addedBy: 'SR' },
+    ],
+    platform: '',
+    meetingLink: '',
+    guestsCanSuggest: true,
+  },
+  votes: { 'tahoe-cabin': ['JM', 'AT', 'KL'], 'sea-ranch': ['SR'] },
+  maxVotes: 1,
+  participants: [
+    { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'attending', you: true, host: true },
+    { id: 'AT', initials: 'AT', name: av('AT').name, color: av('AT').color, rsvp: 'attending' },
+    { id: 'SR', initials: 'SR', name: av('SR').name, color: av('SR').color, rsvp: 'attending' },
+    { id: 'MN', initials: 'MN', name: av('MN').name, color: av('MN').color, rsvp: 'attending' },
+    { id: 'KL', initials: 'KL', name: av('KL').name, color: av('KL').color, rsvp: 'attending' },
+    { id: 'BH', initials: 'BH', name: av('BH').name, color: av('BH').color, rsvp: 'pending' },
+  ],
+  days: CABIN_DAYS,
+  times: buildTimes('day'),
+  avail: intervalsToGrid(CABIN_IV, CABIN_DAYS, 1, 24 * 60),
+  availIv: CABIN_IV,
+  durationMin: 60,
+  image: 'preset:coast',
+  messages: [
+    { id: 'SR', name: 'Sarah R', time: 'Wed', text: 'First September weekend looks strong so far', you: false },
+    { id: 'KL', name: 'Kyle L', time: 'Wed', text: 'I can do any of them except the 19th', you: false },
+  ],
+  createdAt: 0,
+  demo: true,
+  status: 'planning',
+}
+
 // every built-in demo, in the order they list after stored events
-const DEMOS: AppEvent[] = [DEMO, BIG_DEMO, DESIGN_DINNER, BRUNCH, SENDOFF, TRIVIA, HOUSEWARMING, TRAIL_DAY]
+const DEMOS: AppEvent[] = [DEMO, BIG_DEMO, DESIGN_DINNER, BRUNCH, SENDOFF, TRIVIA, CABIN_TRIP, HOUSEWARMING, TRAIL_DAY]

@@ -68,5 +68,6 @@ Not part of the four-shape set, but useful context:
 
 - **Q3 Team Offsite Planning** (`/events/q3-offsite`) — shape 1, the original populated demo
 - **Fall Harvest Fair** (`/events/harvest-fair`) — shape 1 at scale: 24 people, 12 venues
+- **Cabin Trip** (`/events/cabin-trip`) — shape 1 as a day poll: weekends only (sparse days), tap-per-day marking, best-run-of-days answer
 - **Housewarming at Sarah's** (`/events/sarahs-housewarming`) — shape 4, hosted by someone else (invited view)
 - **Shoreline Trail Cleanup** (`/events/shoreline-cleanup`) — shape 4, invited view, same-day clash demo
