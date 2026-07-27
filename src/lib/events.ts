@@ -402,6 +402,44 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
   const day = days.find((d) => d.key === best.dayKey)!
   return { ...best, dayLabel: `${day.dow}, ${day.date}` }
 }
+/* ── best run of consecutive days ──
+   Which N-day block can the most people make? A person counts for a day when they
+   marked any free time on it. Blocks are consecutive CALENDAR days that are all in
+   the poll — so a weekends-only poll naturally forms Sat+Sun blocks and nothing else.
+   'full' favors people who can make every day of the block; 'crowd' favors the
+   most person-days overall. Earlier blocks win ties. */
+export type BestBlock = { startKey: string; endKey: string; count: number; ids: string[]; anyIds: string[]; avgPerDay: number }
+export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: number, bestMode: BestMode = 'full'): BestBlock | null {
+  if (blockLen < 1 || days.length < blockLen) return null
+  const keys = days.map((d) => d.key)
+  const nextDay = (k: string) => {
+    const d = parseLocal(k)
+    if (!d) return ''
+    d.setDate(d.getDate() + 1)
+    return isoOf(d)
+  }
+  let best: BestBlock | null = null
+  let bestPrimary = 0
+  let bestSecondary = 0
+  for (let i = 0; i + blockLen <= keys.length; i++) {
+    const block = keys.slice(i, i + blockLen)
+    if (block.some((k, j) => j > 0 && block[j - 1] !== '' && k !== nextDay(block[j - 1]))) continue
+    const perDay = block.map((k) => new Set(Object.entries(availIv[k] ?? {}).filter(([, ivs]) => ivs.length > 0).map(([id]) => id)))
+    const anySet = new Set<string>()
+    for (const s of perDay) for (const id of s) anySet.add(id)
+    const ids = [...anySet].filter((id) => perDay.every((s) => s.has(id)))
+    const personDays = perDay.reduce((n, s) => n + s.size, 0)
+    if (personDays === 0) continue
+    const [p, s] = bestMode === 'crowd' ? [personDays, ids.length] : [ids.length, personDays]
+    if (p > bestPrimary || (p === bestPrimary && s > bestSecondary)) {
+      best = { startKey: block[0], endKey: block[block.length - 1], count: ids.length, ids, anyIds: [...anySet], avgPerDay: personDays / blockLen }
+      bestPrimary = p
+      bestSecondary = s
+    }
+  }
+  return best
+}
+
 export function availIvOf(ev: AppEvent): AvailIntervals {
   return ev.availIv ?? gridToIntervals(ev.avail, ev.days, stepOf(ev.granularity))
 }

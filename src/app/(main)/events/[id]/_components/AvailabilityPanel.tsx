@@ -10,7 +10,7 @@ import { Popover } from '@/components/ui/Popover'
 import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, ImportPreview, MissingPopover, PresetFills, Segment } from './availability/parts'
 import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, subtract, type Band, type GDay } from './availability/grid-lib'
 import {
-  patchEvent, availIvOf, fullAvailIvOf, intervalsToGrid, normalizeIv, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, stepOf, sortByAttendance, type BestMode,
+  patchEvent, availIvOf, fullAvailIvOf, intervalsToGrid, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, stepOf, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
 import { buildImportPreview, mockBusyUtc, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport } from '@/lib/calendar-import'
@@ -551,6 +551,18 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     [filterOn, combinedByDay, durationMin, bestMode], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const bwAllShown = bwAll && (!bw || bwAll.dayKey !== bw.dayKey || bwAll.s !== bw.s || bwAll.e !== bw.e) ? bwAll : null
+
+  // best run of consecutive days — the multi-day answer (best weekend, best week off)
+  // next to the best single slot. Length is a view control, not event config.
+  const [blockLen, setBlockLen] = useState(2)
+  const block = useMemo(
+    () => (event.days.length > 1 ? bestBlock(viewCombinedByDay, event.days, blockLen, bestMode) : null),
+    [viewCombinedByDay, blockLen, bestMode], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  const blockDayLabel = (k: string) => {
+    const d = event.days.find((x) => x.key === k)
+    return d ? `${d.dow}, ${d.date}` : k
+  }
 
   // who still hasn't marked any availability (to nudge)
   const respondedIds = respondedIdSet
@@ -1127,6 +1139,33 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             <span className="text-[12.5px] text-dim">No block long enough for a <span className="font-semibold text-text">{fmtDur(durationMin)}</span> event yet. Try a shorter length, or wait for more responses.</span>
           ) : (
             <span className="text-[12.5px] text-dim">No availability yet. Add yours in <span className="font-semibold text-text">Edit mine</span> to start finding the best time.</span>
+          )}
+          {event.days.length > 1 && responded > 0 && (
+            <span className="flex w-full flex-wrap items-center gap-2.5">
+              <span className="text-[12.5px] text-dim">Best</span>
+              <select
+                value={blockLen}
+                onChange={(e) => setBlockLen(Number(e.target.value))}
+                aria-label="How many days in a row"
+                className="h-7 cursor-pointer rounded-[7px] border border-border bg-s1 px-1.5 text-[12.5px] font-medium outline-none focus:border-accent-border"
+              >
+                {[2, 3, 4, 5, 7].filter((n) => n <= event.days.length).map((n) => <option key={n} value={n}>{n} days</option>)}
+              </select>
+              <span className="text-[12.5px] text-dim">in a row</span>
+              {block ? (
+                <>
+                  <span className="text-[14px] font-semibold text-ochre">{blockDayLabel(block.startKey)} – {blockDayLabel(block.endKey)}</span>
+                  <span className="text-[12.5px] font-semibold text-teal-text">
+                    {bestMode === 'crowd'
+                      ? <>around {Math.round(block.avgPerDay)} of {viewTotal} there each day</>
+                      : <>{block.count} of {viewTotal} free every day</>}
+                  </span>
+                  <span className="ml-auto"><AvatarRow people={byRoster(bestMode === 'crowd' ? block.anyIds : block.ids).map(avatarOf)} size={22} max={8} overlap={5} /></span>
+                </>
+              ) : (
+                <span className="text-[12.5px] text-dim">No {blockLen} days in a row with replies yet.</span>
+              )}
+            </span>
           )}
         </div>}
       </div>
