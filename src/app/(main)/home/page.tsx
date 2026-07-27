@@ -128,12 +128,15 @@ function QuickCreate() {
   const [end, setEnd] = useState('')
   const [need, setNeed] = useState(false)
   // dates fill after mount: the server doesn't know the visitor's today.
-  // Both default to today — a single-day plan — and stretch only if you say so.
+  // The coming week is the default window (same as the wizard) — a scheduling poll
+  // needs days to choose between, and one week is the typical ask.
   useEffect(() => {
     const iso = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
-    const t = iso(new Date())
-    setStart(t)
-    setEnd(t)
+    const d = new Date()
+    const week = new Date(d)
+    week.setDate(week.getDate() + 6)
+    setStart(iso(d))
+    setEnd(iso(week))
   }, [])
   function go() {
     const t = title.trim()
