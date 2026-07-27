@@ -4,8 +4,8 @@ import Link from 'next/link'
 import { RotateCcw } from 'lucide-react'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import {
-  availIvOf, bestWindow, confirmedSlotText, dateRangeText, fmtMinute, gridStartMinOf,
-  respondedCount, type AppEvent, type Phase,
+  availIvOf, bestBlock, bestWindow, confirmedSlotText, dateRangeText, fmtMinute, gridStartMinOf,
+  longestRun, respondedCount, type AppEvent, type Phase,
 } from '@/lib/events'
 
 /* ── one quiet line that says where planning stands ──
@@ -28,8 +28,17 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
 
   const responded = respondedCount(event.avail, event.unavailableIds)
   const total = event.participants.length
-  // a day poll has no best clock time — the grid's best-days line carries that answer
-  const best = event.granularity === 'day' ? null : bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode)
+  // a day poll answers in days, not clock times: its "best so far" is the leading run
+  // of days (or single day), matching the grid dial's default
+  const dayPoll = event.granularity === 'day'
+  const best = dayPoll ? null : bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode)
+  const bestDays = dayPoll
+    ? bestBlock(availIvOf(event), event.days, Math.min(2, longestRun(event.days)) || 1, event.bestMode)
+    : null
+  const dayLabelOf = (k: string) => {
+    const d = event.days.find((x) => x.key === k)
+    return d ? `${d.dow}, ${d.date}` : k
+  }
   const gridStart = gridStartMinOf(event)
 
   // the venue currently winning the vote, so the one line reports both fronts —
@@ -64,7 +73,9 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
     <p className="text-[13.5px] text-dim">
       {responded === 0
         ? 'Waiting on availability'
-        : <>{responded} of {total} responded{best && <> · best so far <button type="button" onClick={onGoToAvailability} className="font-semibold text-ochre hover:underline">{best.dayLabel} · {fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)}</button> <TimezonePill tz={event.timezone} /></>}</>}
+        : <>{responded} of {total} responded
+          {best && <> · best so far <button type="button" onClick={onGoToAvailability} className="font-semibold text-ochre hover:underline">{best.dayLabel} · {fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)}</button> <TimezonePill tz={event.timezone} /></>}
+          {bestDays && <> · best so far <button type="button" onClick={onGoToAvailability} className="font-semibold text-ochre hover:underline">{bestDays.startKey === bestDays.endKey ? dayLabelOf(bestDays.startKey) : <>{dayLabelOf(bestDays.startKey)} – {dayLabelOf(bestDays.endKey)}</>}</button></>}</>}
       {settledPlace && <> · <span className="font-semibold text-text">{settledPlace.name}</span> is the place</>}
       {leading && <> · <span className="font-semibold text-text">{leading.name}</span> leading the vote</>}
     </p>

@@ -19,8 +19,15 @@ import {
    backdrop also ends any stacking fights with the grid's sticky headers. Mounts
    fresh each open, so day and time always prefill from the best window for
    everyone, sized to the event length. */
-export function ConfirmBar({ event, onChanged, onGoToDetails }: { event: AppEvent; onChanged: () => void; onGoToDetails?: () => void }) {
+// prefill + openNonce let other surfaces hand the modal an answer: the grid's
+// "Lock these days" shortcut opens it with the winning run already picked
+export type LockPrefill = { dayKey: string; endDayKey?: string }
+export function ConfirmBar({ event, onChanged, onGoToDetails, prefill, openNonce }: {
+  event: AppEvent; onChanged: () => void; onGoToDetails?: () => void
+  prefill?: LockPrefill | null; openNonce?: number
+}) {
   const [open, setOpen] = useState(false)
+  useEffect(() => { if (openNonce) setOpen(true) }, [openNonce])
   return (
     <>
       <button
@@ -30,12 +37,12 @@ export function ConfirmBar({ event, onChanged, onGoToDetails }: { event: AppEven
       >
         <Lock size={15} /> {event.confirmed ? 'Lock in the place' : 'Lock it in'}
       </button>
-      {open && <ConfirmModal event={event} close={() => setOpen(false)} onChanged={onChanged} onGoToDetails={onGoToDetails} />}
+      {open && <ConfirmModal event={event} close={() => setOpen(false)} onChanged={onChanged} onGoToDetails={onGoToDetails} prefill={prefill} />}
     </>
   )
 }
 
-function ConfirmModal({ event, close, onChanged, onGoToDetails }: { event: AppEvent; close: () => void; onChanged: () => void; onGoToDetails?: () => void }) {
+function ConfirmModal({ event, close, onChanged, onGoToDetails, prefill }: { event: AppEvent; close: () => void; onChanged: () => void; onGoToDetails?: () => void; prefill?: LockPrefill | null }) {
   const root = useRef<HTMLDivElement>(null)
   const card = useRef<HTMLDivElement>(null)
   useGSAP(() => {
@@ -68,14 +75,14 @@ function ConfirmModal({ event, close, onChanged, onGoToDetails }: { event: AppEv
           </button>
         </div>
         <div className="scroll-slim min-h-0 flex-1 overflow-auto px-5 py-4">
-          <ConfirmForm event={event} close={close} onChanged={onChanged} onGoToDetails={onGoToDetails} />
+          <ConfirmForm event={event} close={close} onChanged={onChanged} onGoToDetails={onGoToDetails} prefill={prefill} />
         </div>
       </div>
     </div>
   )
 }
 
-function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEvent; close: () => void; onChanged: () => void; onGoToDetails?: () => void }) {
+function ConfirmForm({ event, close, onChanged, onGoToDetails, prefill }: { event: AppEvent; close: () => void; onChanged: () => void; onGoToDetails?: () => void; prefill?: LockPrefill | null }) {
   const loc = event.location
   const gridStart = gridStartMinOf(event)
   const duration = event.durationMin ?? 60
@@ -86,11 +93,12 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
   // a day poll locks a whole day: no clock times to pick
   const dayPoll = event.granularity === 'day'
 
-  // best window for everyone, cut to the event length
-  const [dayKey, setDayKey] = useState(() => timeSet?.dayKey ?? bw?.dayKey ?? event.days[0]?.key ?? event.startDate)
+  // best window for everyone, cut to the event length; a handed-in prefill (the grid's
+  // "Lock these days" shortcut) beats the computed default
+  const [dayKey, setDayKey] = useState(() => prefill?.dayKey ?? timeSet?.dayKey ?? bw?.dayKey ?? event.days[0]?.key ?? event.startDate)
   // day polls can lock a run of days: the last day runs through the consecutive
   // calendar days that follow the first (a gap in the poll ends the run)
-  const [lastDay, setLastDay] = useState(dayKey)
+  const [lastDay, setLastDay] = useState(prefill?.endDayKey ?? prefill?.dayKey ?? dayKey)
   const runFrom = (start: string): string[] => {
     const i = event.days.findIndex((d) => d.key === start)
     if (i < 0) return [start]

@@ -8,7 +8,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import {
   availIvOf, bestWindow, byYouFirst, dayLabel, gridStartMinOf, fmtMinute, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
-  type AppEvent, type BestMode, type Iv, type Participant, type Rsvp,
+  type AppEvent, type AvailIntervals, type BestMode, type GridDay, type Iv, type Participant, type Rsvp,
 } from '@/lib/events'
 import { computeItinerary } from '@/lib/itinerary'
 import { ALL_MODES, type TravelMode } from '@/lib/travel'
@@ -112,6 +112,14 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
   const outCount = participants.filter((p) => p.rsvp === 'not_going' || (!locked && unavailSet.has(p.id) && !markedIds.has(p.id))).length
   const noTimesCount = locked ? 0 : participants.filter((p) => p.rsvp !== 'not_going' && !markedIds.has(p.id) && !unavailSet.has(p.id)).length
 
+  // a locked run of days answers by day, not by clock: which days of the run each
+  // person can make. ISO keys compare as strings, so the filter is a plain range.
+  const runDays = useMemo(() => {
+    const c = event.confirmed
+    if (!locked || !c?.endDayKey) return null
+    return event.days.filter((d) => d.key >= c.dayKey && d.key <= c.endDayKey!)
+  }, [locked, event.confirmed, event.days])
+
   // event with the live participant list, so child views read the same list this tab edits
   const liveEvent = useMemo(() => ({ ...event, participants }), [event, participants])
 
@@ -138,6 +146,10 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
         </div>
       </div>
 
+      {runDays && runDays.length > 1 && (
+        <DayRunAttendance days={runDays} participants={participants} availIv={availIv} onPerson={onViewAvailability} />
+      )}
+
       {!anyResponded ? (
         <EmptyState onGoToTab={onGoToTab} />
       ) : model === 'itin' && hasItinerary ? (
@@ -149,6 +161,58 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
           quorum={quorum} onQuorum={event.hostedByYou ? changeQuorum : undefined}
           onGoToTab={onGoToTab} onPerson={onViewAvailability} onViewGroup={onViewAvailabilityGroup} markedIds={markedIds} unavailSet={unavailSet} onGoToBestWindow={onGoToBestWindow}
         />
+      )}
+    </div>
+  )
+}
+
+/* ── day-by-day attendance for a locked run of days ──
+   One row per day (bar + count), then exceptions only: people who can make some
+   days but not all get a row with the days they miss — never a person × day matrix. */
+function DayRunAttendance({ days, participants, availIv, onPerson }: {
+  days: GridDay[]; participants: Participant[]; availIv: AvailIntervals
+  onPerson?: (pid: string) => void
+}) {
+  const ppl = participants.filter((p) => p.rsvp !== 'not_going')
+  const covered = (id: string, k: string) => (availIv[k]?.[id] ?? []).length > 0
+  const perDay = days.map((d) => ({ d, n: ppl.filter((p) => covered(p.id, d.key)).length }))
+  const everyDay = ppl.filter((p) => days.every((d) => covered(p.id, d.key)))
+  const someDays = ppl.filter((p) => !days.every((d) => covered(p.id, d.key)) && days.some((d) => covered(p.id, d.key)))
+  const noDays = ppl.length - everyDay.length - someDays.length
+
+  return (
+    <div className="rounded-2xl border border-border bg-s1 p-5">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <span className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Day by day</span>
+        <span className="text-[12.5px] text-dim">{everyDay.length} of {ppl.length} can make every day</span>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {perDay.map(({ d, n }) => (
+          <div key={d.key} className="flex items-center gap-2.5">
+            <span className="w-[86px] flex-none text-[12.5px] font-medium">{d.dow}, {d.date}</span>
+            <span className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-s2">
+              <span className="block h-full rounded-full" style={{ width: `${ppl.length ? (n / ppl.length) * 100 : 0}%`, background: 'var(--teal)' }} />
+            </span>
+            <span className="w-[52px] flex-none text-right text-[12.5px] tabular-nums text-dim">{n} of {ppl.length}</span>
+          </div>
+        ))}
+      </div>
+      {(someDays.length > 0 || noDays > 0) && (
+        <div className="mt-3.5 flex flex-col gap-1.5 border-t border-border pt-3">
+          {someDays.map((p) => (
+            <button key={p.id} type="button" onClick={() => onPerson?.(p.id)} title="See their days on the grid" className="flex flex-wrap items-center gap-1.5 rounded-[8px] px-1 py-0.5 text-left hover:bg-s2">
+              <Avatar initials={p.initials} color={p.color} size={20} font={8.5} />
+              <span className="text-[13px] font-medium">{p.name}</span>
+              <span className="text-[12.5px] text-dim">misses</span>
+              {days.filter((d) => !covered(p.id, d.key)).map((d) => (
+                <span key={d.key} className="rounded-[5px] border border-ochre-border bg-ochre-bg px-[5px] py-px text-[10.5px] font-semibold text-ochre-text">{d.dow} {d.date}</span>
+              ))}
+            </button>
+          ))}
+          {noDays > 0 && (
+            <span className="px-1 text-[12.5px] text-dim">{noDays} {noDays === 1 ? 'person hasn’t' : 'people haven’t'} marked any of these days.</span>
+          )}
+        </div>
       )}
     </div>
   )
@@ -347,16 +411,20 @@ function SingleVenue({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{locked ? 'Who’s coming' : 'Who’s available'}</div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          {win && (
-            <div className="flex items-center gap-1.5 text-[12.5px] text-dim">
-              {locked ? 'Confirmed time' : 'Best window'} ·{' '}
-              {locked
-                ? <span>{win.dayLabel}, {fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</span>
-                : <button type="button" onClick={() => (onGoToBestWindow ? onGoToBestWindow() : onGoToTab?.('availability'))} className="font-semibold text-ochre hover:underline">{win.dayLabel}, {fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</button>}
-              <TimezonePill tz={event.timezone} />
-              {!locked && <BestWindowInfo mode={event.bestMode ?? 'full'} />}
-            </div>
-          )}
+          {win && (() => {
+            // an all-day lock (day polls) has no clock times to show
+            const allDay = gridStart + winS === 0 && gridStart + winE === 24 * 60
+            return (
+              <div className="flex items-center gap-1.5 text-[12.5px] text-dim">
+                {locked ? (allDay ? 'Confirmed day' : 'Confirmed time') : 'Best window'} ·{' '}
+                {locked
+                  ? <span>{win.dayLabel}{allDay ? '' : `, ${fmtMinute(gridStart + winS)}–${fmtMinute(gridStart + winE)}`}</span>
+                  : <button type="button" onClick={() => (onGoToBestWindow ? onGoToBestWindow() : onGoToTab?.('availability'))} className="font-semibold text-ochre hover:underline">{win.dayLabel}, {fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</button>}
+                {!allDay && <TimezonePill tz={event.timezone} />}
+                {!locked && <BestWindowInfo mode={event.bestMode ?? 'full'} />}
+              </div>
+            )
+          })()}
           {onQuorum && <QuorumControl quorum={quorum} onChange={onQuorum} />}
         </div>
       </div>

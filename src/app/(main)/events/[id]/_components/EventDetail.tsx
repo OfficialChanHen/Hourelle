@@ -108,6 +108,11 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     tabsRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' })
   }, [tab])
 
+  // the grid's "Lock these days" shortcut: hands the winning run to the confirm modal
+  // and opens it (nonce bumps so a repeat ask reopens). Lives above the early returns —
+  // hooks must run on every render.
+  const [lockAsk, setLockAsk] = useState<{ dayKey: string; endDayKey?: string; nonce: number } | null>(null)
+
   function handleDelete() {
     const title = event?.title
     deleteEvent(id)
@@ -190,7 +195,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         </div>
         {/* ml-auto keeps the actions hugging the right edge when the header wraps */}
         <div className="ml-auto flex min-w-0 items-center gap-2">
-          {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToDetails={() => setTab('details')} />}
+          {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToDetails={() => setTab('details')} prefill={lockAsk} openNonce={lockAsk?.nonce} />}
           {/* discussion lives in the floating bubble alone — one entry point, less header */}
           {/* share button opens a dropdown with the URL and a one-tap copy; on phones it
               folds into the ⋯ menu so the title and lock-in keep the row */}
@@ -269,7 +274,17 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       </div>
 
       {/* body */}
-      {tab === 'availability' && <AvailabilityPanel event={event} locked={locked} initialFilter={availFocus} focusBest={bestFocus} />}
+      {tab === 'availability' && (
+        <AvailabilityPanel
+          event={event}
+          locked={locked}
+          initialFilter={availFocus}
+          focusBest={bestFocus}
+          onLockDays={event.hostedByYou && phase === 'planning'
+            ? (startKey, endKey) => setLockAsk((p) => ({ dayKey: startKey, endDayKey: endKey !== startKey ? endKey : undefined, nonce: (p?.nonce ?? 0) + 1 }))
+            : undefined}
+        />
+      )}
       {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} />}
       {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={setTab} onViewAvailability={goToAvailabilityFor} onViewAvailabilityGroup={goToAvailabilityGroup} onGoToBestWindow={goToBestWindow} />}
       {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToTab={setTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} />}

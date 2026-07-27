@@ -10,7 +10,7 @@ import { Popover } from '@/components/ui/Popover'
 import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, ImportPreview, MissingPopover, PresetFills, Segment } from './availability/parts'
 import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, subtract, type Band, type GDay } from './availability/grid-lib'
 import {
-  patchEvent, availIvOf, fullAvailIvOf, intervalsToGrid, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, stepOf, sortByAttendance, type BestMode,
+  patchEvent, availIvOf, fullAvailIvOf, intervalsToGrid, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
 import { buildImportPreview, mockBusyUtc, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport } from '@/lib/calendar-import'
@@ -31,7 +31,11 @@ const CELL = 50 // px per grid row — must match the h-[50px] cell height below
 const MIN_LEN = 5 // smallest block, in minutes
 const OVERSCAN = 6 // rows rendered beyond the viewport each side, so scrolling doesn't flash blank
 
-export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0 }: { event: AppEvent; locked?: boolean; initialFilter?: string[] | string | null; focusBest?: number }) {
+export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0, onLockDays }: {
+  event: AppEvent; locked?: boolean; initialFilter?: string[] | string | null; focusBest?: number
+  // host-only shortcut on day polls: hand the footer's winning run straight to the confirm modal
+  onLockDays?: (startKey: string, endKey: string) => void
+}) {
   const total = event.participants.length
   const pById = new Map(event.participants.map((p) => [p.id, p]))
   // canonical people order for every list and pile here: availability group
@@ -558,18 +562,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // one footer answer, one length control: "1 day" is the best single slot (or the best
   // single day on a day poll), anything longer is the best run of consecutive days.
   // The longest pickable run is the longest stretch of touching calendar days in the poll.
-  const maxRun = useMemo(() => {
-    let best = event.days.length ? 1 : 0
-    let run = 1
-    for (let i = 1; i < event.days.length; i++) {
-      const [y, m, dd] = event.days[i - 1].key.split('-').map(Number)
-      const next = new Date(y, m - 1, dd + 1)
-      const nk = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
-      run = event.days[i].key === nk ? run + 1 : 1
-      if (run > best) best = run
-    }
-    return best
-  }, [event.days])
+  const maxRun = useMemo(() => longestRun(event.days), [event.days])
   const [blockLen, setBlockLen] = useState(() => (dayPoll && maxRun >= 2 ? 2 : 1))
   const block = useMemo(
     () => bestBlock(viewCombinedByDay, event.days, blockLen, bestMode),
@@ -1231,6 +1224,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         ? <>around {Math.round(block.avgPerDay)} of {viewTotal} there each day</>
                         : <>{block.count} of {viewTotal} free every day</>}
                   </span>
+                  {dayPoll && onLockDays && (
+                    <button
+                      type="button"
+                      onClick={() => onLockDays(block.startKey, block.endKey)}
+                      className="text-[12.5px] font-semibold text-accent-text hover:underline"
+                    >
+                      {blockLen === 1 ? 'Lock this day' : 'Lock these days'}
+                    </button>
+                  )}
                   <span className="ml-auto"><AvatarRow people={byRoster(bestMode === 'crowd' ? block.anyIds : block.ids).map(avatarOf)} size={22} max={8} overlap={5} /></span>
                 </>
               ) : (
