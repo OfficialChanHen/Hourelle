@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { CalendarDays, Plus, Bell } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { useReminderDot } from '@/hooks/useReminderDot'
@@ -14,22 +14,7 @@ const TABS = [
 
 export function Header() {
   const pathname = usePathname()
-  const router = useRouter()
   const reminderDot = useReminderDot()
-
-  // on home, the quick-create strip already does the job — point the button at it
-  // instead of switching pages; everywhere else it opens the full form
-  function newEvent() {
-    if (pathname === '/home') {
-      const input = document.querySelector<HTMLInputElement>('input[placeholder="What are you planning?"]')
-      if (input) {
-        input.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        input.focus({ preventScroll: true })
-        return
-      }
-    }
-    router.push('/create')
-  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md">
@@ -62,15 +47,16 @@ export function Header() {
 
         <div className="flex-1" />
 
-        {/* actions duplicate the mobile bottom tab bar, so on mobile the header is just the logo */}
-        <button
-          type="button"
-          onClick={newEvent}
+        {/* actions duplicate the mobile bottom tab bar, so on mobile the header is just the logo.
+            Always the full form, home included — someone scrolled deep into their list wants a
+            new event, not a smooth ride back to the top composer */}
+        <Link
+          href="/create"
           className="hidden h-[34px] items-center gap-[7px] rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent md:flex"
         >
           <Plus size={17} />
           <span>New event</span>
-        </button>
+        </Link>
 
         <div className="hidden items-center gap-2 md:flex">
           <ThemeToggle />
