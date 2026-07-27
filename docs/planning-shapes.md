@@ -8,6 +8,12 @@ An event is `status: 'confirmed'` only once **both** questions are closed. Until
 `'planning'` — even when one answer is already a fact. The derived phase and open-question
 logic live in `src/lib/events.ts` (`phaseOf`, `openQuestions`).
 
+Pre-answered facts stay **host-editable while the event is planning** (shapes 1–3): a set
+venue swaps out on the Location tab ("Add or change the place"), and a fixed slot moves
+from the Details tab's When row (moving it clears the can-you-come replies, since they
+answered a slot that no longer exists). Only a fully confirmed event (shape 4) is
+read-only — "Reopen planning" is the way back.
+
 | # | When | Where | Demo event | URL |
 |---|------|-------|-----------|-----|
 | 1 | open | open | **Design Team Dinner** | `/events/design-team-dinner` |

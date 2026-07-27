@@ -108,7 +108,10 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   function changeLink(v: string) { setMeetingLink(v); persistLoc({ meetingLink: v }) }
   function addPlace(p: EventPlace) {
     if (places.some((x) => x.id === p.id)) return
-    const next = [...places, { ...p, addedBy: p.addedBy ?? YOU }] // remember who suggested it
+    // a set venue is singular — picking another swaps it out (same as the wizard);
+    // on a ballot, new places join the list. addedBy remembers who suggested it.
+    const entry = { ...p, addedBy: p.addedBy ?? YOU }
+    const next = settled ? [entry] : [...places, entry]
     setPlaces(next)
     persistLoc({ places: next })
   }

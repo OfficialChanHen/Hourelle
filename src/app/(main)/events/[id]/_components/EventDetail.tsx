@@ -13,11 +13,12 @@ import { Cover, COVER_PRESETS } from '@/components/ui/Cover'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { DaysPicker } from '@/components/ui/DaysPicker'
+import { TimeSelect } from '@/components/ui/TimeSelect'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, selectedDayKeys, type AppEvent, type Rsvp } from '@/lib/events'
+import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, selectedDayKeys, stepOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -528,9 +529,10 @@ function CopyInviteLink({ id }: { id: string }) {
 }
 
 /* When: the day and time as fact once they exist — locked in, or fixed at creation
-   (which can happen while the place is still being voted). Before that, the date range
-   being polled with the leading time so far beneath it. Only the date window is
-   editable — the leading time is computed from replies, and it carries the timezone pill. */
+   (which can happen while the place is still being voted). While the event is still
+   planning, the host can move a fixed slot; once locked (case 4), the fact is read-only
+   and "Reopen planning" is the way back. Before any time exists: the date range being
+   polled with the leading time so far beneath it. */
 function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPatch }: {
   event: AppEvent; editable: boolean
   onGoToAvailability: () => void; onGoToBestWindow: () => void; onPatch: (patch: Partial<AppEvent>) => void
@@ -538,12 +540,18 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
   const [editing, setEditing] = useState(false)
   if (event.confirmed) {
     const c = event.confirmed
+    if (editing && editable) return <FixedWhenEditor event={event} onPatch={onPatch} onDone={() => setEditing(false)} />
     const d = event.days.find((x) => x.key === c.dayKey)
     const year = c.dayKey.slice(0, 4)
     return (
       <span className="flex flex-wrap items-center gap-1.5">
         {`${d ? `${d.dow}, ${d.date}` : c.dayKey}, ${year} · ${fmtMinute(c.startMin)} – ${fmtMinute(c.endMin)}`}
         <TimezonePill tz={event.timezone} />
+        {editable && (
+          <button onClick={() => setEditing(true)} title="Change the day or time" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
+            <Pencil size={13} />
+          </button>
+        )}
       </span>
     )
   }
@@ -663,6 +671,61 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
       </p>
       <div className="flex items-center gap-2">
         <button onClick={save} disabled={!!selErr} className="h-8 rounded-[8px] bg-accent px-3 text-[12.5px] font-semibold text-on-accent disabled:opacity-40">Save</button>
+        <button onClick={onDone} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
+      </div>
+    </div>
+  )
+}
+
+/* a fixed slot is still movable while the event plans (the place vote may be live).
+   Moving it rebuilds the one-day grid around the new window and clears the
+   can-you-come replies — they answered a slot that no longer exists. */
+function FixedWhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void; onDone: () => void }) {
+  const c = event.confirmed!
+  const [day, setDay] = useState(c.dayKey)
+  const [startMin, setStartMin] = useState(c.startMin)
+  const [endMin, setEndMin] = useState(c.endMin)
+  const inputCls = 'h-9 rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-border2'
+  const changed = day !== c.dayKey || startMin !== c.startMin || endMin !== c.endMin
+
+  function changeStart(v: number) {
+    setStartMin(v)
+    setEndMin((e) => (e <= v ? Math.min(v + (c.endMin - c.startMin), 24 * 60 - 5) : e))
+  }
+  function save() {
+    if (!changed) { onDone(); return }
+    if (!day || endMin <= startMin) return
+    const st = stepOf(event.granularity)
+    const times = buildTimes(event.granularity, Math.floor(startMin / st) * st, Math.min(24 * 60, Math.ceil(endMin / st) * st))
+    onPatch({
+      confirmed: { ...c, dayKey: day, startMin, endMin },
+      startDate: day,
+      endDate: day,
+      days: buildDays(day, day),
+      times,
+      durationMin: endMin - startMin,
+      avail: { [day]: times.map(() => []) },
+      availIv: { [day]: {} },
+      unavailableIds: [],
+    })
+    onDone()
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <input type="date" value={day} onChange={(ev) => setDay(ev.target.value)} className={inputCls} />
+        <TimeSelect value={startMin} onChange={changeStart} step={15} />
+        <span className="text-[13px] text-dim">to</span>
+        <TimeSelect value={endMin} onChange={setEndMin} min={startMin + 15} step={15} />
+      </div>
+      {changed && (
+        <p className="max-w-[420px] text-[12px] leading-[1.5] text-faint">
+          Moving the time clears everyone&apos;s can-you-come replies, so they answer for the new slot.
+        </p>
+      )}
+      <div className="flex items-center gap-2">
+        <button onClick={save} disabled={!day || endMin <= startMin} className="h-8 rounded-[8px] bg-accent px-3 text-[12.5px] font-semibold text-on-accent disabled:opacity-40">Save</button>
         <button onClick={onDone} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
       </div>
     </div>
