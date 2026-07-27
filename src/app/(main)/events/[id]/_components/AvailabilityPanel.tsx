@@ -556,17 +556,42 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   )
   const bwAllShown = bwAll && (!bw || bwAll.dayKey !== bw.dayKey || bwAll.s !== bw.s || bwAll.e !== bw.e) ? bwAll : null
 
-  // best run of consecutive days — the multi-day answer (best weekend, best week off)
-  // next to the best single slot. Length is a view control, not event config.
-  const [blockLen, setBlockLen] = useState(2)
+  // one footer answer, one length control: "1 day" is the best single slot (or the best
+  // single day on a day poll), anything longer is the best run of consecutive days.
+  // The longest pickable run is the longest stretch of touching calendar days in the poll.
+  const maxRun = useMemo(() => {
+    let best = event.days.length ? 1 : 0
+    let run = 1
+    for (let i = 1; i < event.days.length; i++) {
+      const [y, m, dd] = event.days[i - 1].key.split('-').map(Number)
+      const next = new Date(y, m - 1, dd + 1)
+      const nk = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
+      run = event.days[i].key === nk ? run + 1 : 1
+      if (run > best) best = run
+    }
+    return best
+  }, [event.days])
+  const [blockLen, setBlockLen] = useState(() => (dayPoll && maxRun >= 2 ? 2 : 1))
   const block = useMemo(
-    () => (event.days.length > 1 ? bestBlock(viewCombinedByDay, event.days, blockLen, bestMode) : null),
+    () => bestBlock(viewCombinedByDay, event.days, blockLen, bestMode),
     [viewCombinedByDay, blockLen, bestMode], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const blockDayLabel = (k: string) => {
     const d = event.days.find((x) => x.key === k)
     return d ? `${d.dow}, ${d.date}` : k
   }
+  // the winning stretch's days, for the header indicator (only when answering in days)
+  const blockKeys = useMemo(() => {
+    if (!block || blockLen < 2) return null
+    const s = new Set<string>()
+    const [y, m, dd] = block.startKey.split('-').map(Number)
+    const cur = new Date(y, m - 1, dd)
+    for (let i = 0; i < blockLen; i++) {
+      s.add(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`)
+      cur.setDate(cur.getDate() + 1)
+    }
+    return s
+  }, [block, blockLen])
 
   // who still hasn't marked any availability (to nudge)
   const respondedIds = respondedIdSet
@@ -605,6 +630,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const idx = paddedDays.findIndex((d) => d.key === bw.dayKey)
     if (idx >= 0) setPage(Math.floor(idx / WEEK))
     setMode('view')
+    setBlockLen(1) // the jump targets the best single slot — keep the footer on the same answer
     const target = Math.max(0, ((bw.s + bw.e) / 2) * pxPerMin - el.clientHeight / 2)
     el.scrollTop = target
     setScrollTop(target)
@@ -872,24 +898,37 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 )
               }
               const dayFull = mode === 'edit' && mine[d.key]?.length === 1 && mine[d.key][0].s === 0 && mine[d.key][0].e === gridMax
-              const isBestDay = d.best || (mode === 'view' && bw?.dayKey === d.key)
+              // the header mirrors whatever the footer is answering: one best day, or the
+              // winning run of days (a hairline across its headers ties the run together)
+              const inBlock = mode === 'view' && !!blockKeys?.has(d.key)
+              const blockFirst = inBlock && block?.startKey === d.key
+              const singleBestKey = dayPoll ? (blockLen === 1 ? block?.startKey : undefined) : bw?.dayKey
+              const isBestDay = !blockKeys && (d.best || (mode === 'view' && singleBestKey === d.key))
               return (
                 <button
                   key={d.key}
                   type="button"
                   onClick={() => toggleDay(d.key)}
                   className={`sticky top-0 z-20 border-b border-r border-grid-edge px-1.5 py-2 text-center ${di === leftEdgeIdx ? 'border-l border-l-grid-edge' : ''}`}
-                  style={{ background: isBestDay ? 'var(--best-head)' : 'var(--s0)', cursor: mode === 'edit' ? 'pointer' : 'default' }}
+                  style={{
+                    background: isBestDay || inBlock ? 'var(--best-head)' : 'var(--s0)',
+                    boxShadow: inBlock ? 'inset 0 2px 0 var(--ochre)' : undefined,
+                    cursor: mode === 'edit' ? 'pointer' : 'default',
+                  }}
                   title={mode === 'edit' ? 'Click to fill the whole day' : undefined}
                 >
                   <div className="text-[11px] text-dim">{d.dow}</div>
-                  <div className="text-[14px] font-semibold" style={{ color: isBestDay ? 'var(--ochre-text)' : 'var(--text)' }}>{d.date}</div>
+                  <div className="text-[14px] font-semibold" style={{ color: isBestDay || inBlock ? 'var(--ochre-text)' : 'var(--text)' }}>{d.date}</div>
                   {mode === 'edit' && (
                     <span className={`mx-auto mt-[3px] grid h-4 w-4 place-items-center rounded-[5px] border ${dayFull ? 'border-accent bg-accent text-on-accent' : 'border-border2 text-transparent'}`}>
                       <Check size={11} />
                     </span>
                   )}
-                  {isBestDay && mode === 'view' && <span className="mt-[3px] inline-block rounded-[5px] border border-ochre-border bg-ochre-bg px-[5px] py-px text-[9.5px] font-semibold text-ochre-text">Best day</span>}
+                  {mode === 'view' && (blockFirst
+                    ? <span className="mt-[3px] inline-block whitespace-nowrap rounded-[5px] border border-ochre-border bg-ochre-bg px-[5px] py-px text-[9.5px] font-semibold text-ochre-text">Best {blockLen} days</span>
+                    : isBestDay
+                      ? <span className="mt-[3px] inline-block rounded-[5px] border border-ochre-border bg-ochre-bg px-[5px] py-px text-[9.5px] font-semibold text-ochre-text">Best day</span>
+                      : null)}
                 </button>
               )
             })}
@@ -1123,63 +1162,76 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           )
         })()}
 
-        {/* best-window footer — gone once a time exists (locked in, or fixed at creation
-            while the place vote runs); the slot itself owns the answer then */}
+        {/* best-answer footer — gone once a time exists (locked in, or fixed at creation
+            while the place vote runs). One line, one length control: "1 day" answers with
+            the best single slot (or day), longer answers with the best run of days. */}
         {!locked && !event.confirmed && <div className="mt-0.5 flex flex-wrap items-center gap-2.5 border-t border-border px-0.5 pt-3">
-          {/* day polls skip the clock-time answer; the best-days line below is the whole story */}
-          {dayPoll ? (
-            responded === 0 && <span className="text-[12.5px] text-dim">No days marked yet. Add yours in <span className="font-semibold text-text">Edit mine</span>.</span>
-          ) : bw ? (
-            <>
-              <span className="text-[12.5px] text-dim">Best {fmtDur(durationMin)} slot{filterOn ? ' for your selection' : ''}</span>
-              <span className="text-[14px] font-semibold text-ochre">{bw.dayLabel} · {fmt(gridStartMin + bw.s)} – {fmt(gridStartMin + bw.e)}</span>
-              <TimezonePill tz={myTime && canConvert ? localTz : event.timezone} />
-              {bestMode === 'crowd'
-                // never round a partial attendee away: below one person on average,
-                // count everyone who shows up at all instead
-                ? Math.round(bw.avg) >= 1
-                  ? <span className="text-[12.5px] font-semibold text-teal-text">around {Math.round(bw.avg)} of {viewTotal} there{bw.count > 0 && <span className="font-normal text-dim"> · {bw.count} the whole time</span>}</span>
-                  : <span className="text-[12.5px] font-semibold text-teal-text">{bw.anyIds.length} of {viewTotal} there for part of it</span>
-                : <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {viewTotal} free</span>}
-              <div className="ml-auto"><AvatarRow people={byRoster(bestMode === 'crowd' ? bw.anyIds : bw.ids).map(avatarOf)} size={22} max={8} overlap={5} /></div>
-              {bwAllShown && (
-                <span className="flex w-full items-center gap-1.5 text-[12.5px] text-dim">
-                  <span className="inline-block h-0 w-[18px] border-t-2 border-dashed border-ochre" aria-hidden />
-                  Everyone&apos;s best stays marked for comparison: <span className="font-semibold text-text">{bwAllShown.dayLabel} · {fmt(gridStartMin + bwAllShown.s)} – {fmt(gridStartMin + bwAllShown.e)}</span>
-                </span>
-              )}
-            </>
-          ) : responded > 0 ? (
-            <span className="text-[12.5px] text-dim">No block long enough for a <span className="font-semibold text-text">{fmtDur(durationMin)}</span> event yet. Try a shorter length, or wait for more responses.</span>
+          {responded === 0 ? (
+            <span className="text-[12.5px] text-dim">
+              {dayPoll
+                ? <>No days marked yet. Add yours in <span className="font-semibold text-text">Edit mine</span>.</>
+                : <>No availability yet. Add yours in <span className="font-semibold text-text">Edit mine</span> to start finding the best time.</>}
+            </span>
           ) : (
-            <span className="text-[12.5px] text-dim">No availability yet. Add yours in <span className="font-semibold text-text">Edit mine</span> to start finding the best time.</span>
-          )}
-          {event.days.length > 1 && responded > 0 && (
-            <span className="flex w-full flex-wrap items-center gap-2.5">
-              <span className="text-[12.5px] text-dim">Best</span>
-              <select
-                value={blockLen}
-                onChange={(e) => setBlockLen(Number(e.target.value))}
-                aria-label="How many days in a row"
-                className="h-7 cursor-pointer rounded-[7px] border border-border bg-s1 px-1.5 text-[12.5px] font-medium outline-none focus:border-accent-border"
-              >
-                {[2, 3, 4, 5, 7].filter((n) => n <= event.days.length).map((n) => <option key={n} value={n}>{n} days</option>)}
-              </select>
-              <span className="text-[12.5px] text-dim">in a row</span>
-              {block ? (
+            <>
+              {maxRun >= 2 ? (
                 <>
-                  <span className="text-[14px] font-semibold text-ochre">{blockDayLabel(block.startKey)} – {blockDayLabel(block.endKey)}</span>
-                  <span className="text-[12.5px] font-semibold text-teal-text">
+                  <span className="text-[12.5px] text-dim">Best</span>
+                  <select
+                    value={blockLen}
+                    onChange={(e) => setBlockLen(Number(e.target.value))}
+                    aria-label="How many days in a row"
+                    className="h-7 cursor-pointer rounded-[7px] border border-border bg-s1 px-1.5 text-[12.5px] font-medium outline-none focus:border-accent-border"
+                  >
+                    {Array.from({ length: maxRun }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n === 1 ? '1 day' : `${n} days`}</option>)}
+                  </select>
+                  {blockLen >= 2 && <span className="text-[12.5px] text-dim">in a row</span>}
+                </>
+              ) : (
+                <span className="text-[12.5px] text-dim">{dayPoll ? 'Best day' : `Best ${fmtDur(durationMin)} slot`}</span>
+              )}
+              {filterOn && <span className="text-[12.5px] text-dim">for your selection</span>}
+              {blockLen === 1 && !dayPoll ? (
+                bw ? (
+                  <>
+                    <span className="text-[14px] font-semibold text-ochre">{bw.dayLabel} · {fmt(gridStartMin + bw.s)} – {fmt(gridStartMin + bw.e)}</span>
+                    <TimezonePill tz={myTime && canConvert ? localTz : event.timezone} />
                     {bestMode === 'crowd'
-                      ? <>around {Math.round(block.avgPerDay)} of {viewTotal} there each day</>
-                      : <>{block.count} of {viewTotal} free every day</>}
+                      // never round a partial attendee away: below one person on average,
+                      // count everyone who shows up at all instead
+                      ? Math.round(bw.avg) >= 1
+                        ? <span className="text-[12.5px] font-semibold text-teal-text">around {Math.round(bw.avg)} of {viewTotal} there{bw.count > 0 && <span className="font-normal text-dim"> · {bw.count} the whole time</span>}</span>
+                        : <span className="text-[12.5px] font-semibold text-teal-text">{bw.anyIds.length} of {viewTotal} there for part of it</span>
+                      : <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {viewTotal} free</span>}
+                    <div className="ml-auto"><AvatarRow people={byRoster(bestMode === 'crowd' ? bw.anyIds : bw.ids).map(avatarOf)} size={22} max={8} overlap={5} /></div>
+                    {bwAllShown && (
+                      <span className="flex w-full items-center gap-1.5 text-[12.5px] text-dim">
+                        <span className="inline-block h-0 w-[18px] border-t-2 border-dashed border-ochre" aria-hidden />
+                        Everyone&apos;s best stays marked for comparison: <span className="font-semibold text-text">{bwAllShown.dayLabel} · {fmt(gridStartMin + bwAllShown.s)} – {fmt(gridStartMin + bwAllShown.e)}</span>
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-[12.5px] text-dim">No block long enough for a <span className="font-semibold text-text">{fmtDur(durationMin)}</span> event yet. Try a shorter length, or wait for more responses.</span>
+                )
+              ) : block ? (
+                <>
+                  <span className="text-[14px] font-semibold text-ochre">
+                    {blockLen === 1 ? blockDayLabel(block.startKey) : <>{blockDayLabel(block.startKey)} – {blockDayLabel(block.endKey)}</>}
+                  </span>
+                  <span className="text-[12.5px] font-semibold text-teal-text">
+                    {blockLen === 1
+                      ? <>{block.count} of {viewTotal} free that day</>
+                      : bestMode === 'crowd'
+                        ? <>around {Math.round(block.avgPerDay)} of {viewTotal} there each day</>
+                        : <>{block.count} of {viewTotal} free every day</>}
                   </span>
                   <span className="ml-auto"><AvatarRow people={byRoster(bestMode === 'crowd' ? block.anyIds : block.ids).map(avatarOf)} size={22} max={8} overlap={5} /></span>
                 </>
               ) : (
                 <span className="text-[12.5px] text-dim">No {blockLen} days in a row with replies yet.</span>
               )}
-            </span>
+            </>
           )}
         </div>}
       </div>
