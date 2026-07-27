@@ -12,7 +12,7 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
 import { av } from '@/lib/people'
-import { createEvent, draftFromEvent, parseHM, fmtMinute, selectedDayKeys, type AppEvent } from '@/lib/events'
+import { createEvent, draftFromEvent, maxPollDays, parseHM, fmtMinute, selectedDayKeys, type AppEvent } from '@/lib/events'
 import { DaysPicker } from '@/components/ui/DaysPicker'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
@@ -207,8 +207,8 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
       ? ''
       : selKeys.length === 0
         ? 'Every day is turned off. Turn at least one back on.'
-        : selKeys.length > 21
-          ? `That's ${selKeys.length} days to poll. Keep it to 21 or fewer by turning off the days that don't apply.`
+        : selKeys.length > maxPollDays(form.granularity)
+          ? `That's ${selKeys.length} days to poll. Keep it to ${maxPollDays(form.granularity)} or fewer by turning off the days that don't apply${form.granularity === 'day' ? '' : ', or switch to whole days'}.`
           : '',
     win:
       finding && form.granularity !== 'day' && form.windowPreset === 'custom' && (parseHM(form.windowStart) === null || parseHM(form.windowEnd) === null)

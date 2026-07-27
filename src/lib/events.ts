@@ -195,13 +195,20 @@ export function dayLabel(d: Date): string {
   return `${MON[d.getMonth()]} ${d.getDate()}`
 }
 
-export function buildDays(start: string, end: string): GridDay[] {
+// how many days one poll may ask about. The limit protects the person replying, not
+// the grid — so it tracks the effort per day: an hour grid is a real ask per day,
+// a day poll is one tap, which is why trips get to stretch to a season.
+export function maxPollDays(gran: string): number {
+  return gran === 'day' ? 90 : 28
+}
+
+export function buildDays(start: string, end: string, cap = 28): GridDay[] {
   const s = parseLocal(start) ?? new Date()
   const e = parseLocal(end) ?? s
   const days: GridDay[] = []
   const cur = new Date(s)
-  // inclusive of both endpoints; cap at 21 days so the grid stays usable
-  for (let i = 0; i < 21 && cur <= e; i++) {
+  // inclusive of both endpoints; capped so the poll stays answerable (see maxPollDays)
+  for (let i = 0; i < cap && cur <= e; i++) {
     days.push({ key: isoOf(cur), dow: DOW[cur.getDay()], date: dayLabel(cur) })
     cur.setDate(cur.getDate() + 1)
   }
@@ -210,8 +217,8 @@ export function buildDays(start: string, end: string): GridDay[] {
 }
 
 // an explicit, possibly non-contiguous day list ("weekends only", hand-picked days) —
-// dedup, sort, same 21-day cap as buildDays (validation upstream keeps lists inside it)
-export function buildDaysFrom(keys: string[]): GridDay[] {
+// dedup, sort, same cap as buildDays (validation upstream keeps lists inside it)
+export function buildDaysFrom(keys: string[], cap = 28): GridDay[] {
   const seen = new Set<string>()
   const days: GridDay[] = []
   for (const key of [...keys].sort()) {
@@ -219,7 +226,7 @@ export function buildDaysFrom(keys: string[]): GridDay[] {
     if (!d || seen.has(key)) continue
     seen.add(key)
     days.push({ key, dow: DOW[d.getDay()], date: dayLabel(d) })
-    if (days.length === 21) break
+    if (days.length === cap) break
   }
   return days
 }
@@ -735,15 +742,17 @@ export function createEvent(input: CreateInput): AppEvent {
     ? { day: input.fixed.day, s: fxS, e: fxE }
     : null
 
-  // an explicit day list (weekends only, hand-picked dates) beats the plain range
-  const sparseList = !fixed && input.pickedDays?.length ? buildDaysFrom(input.pickedDays) : null
-  const sparse = sparseList?.length ? sparseList : null
-  const days = sparse ?? buildDays(fixed ? fixed.day : input.startDate, fixed ? fixed.day : input.endDate)
   // a fixed date carries clock times, so it can't be a day poll — coerce to 30 min
   const gran: AppEvent['granularity'] =
     input.granularity === '15' || input.granularity === '60' ? input.granularity
       : input.granularity === 'day' && !fixed ? 'day'
         : '30'
+
+  // an explicit day list (weekends only, hand-picked dates) beats the plain range
+  const dayCap = maxPollDays(gran)
+  const sparseList = !fixed && input.pickedDays?.length ? buildDaysFrom(input.pickedDays, dayCap) : null
+  const sparse = sparseList?.length ? sparseList : null
+  const days = sparse ?? buildDays(fixed ? fixed.day : input.startDate, fixed ? fixed.day : input.endDate, dayCap)
   // optional daily time window, snapped outward to the slot size so it fully covers the ask;
   // no window = the whole day. A fixed date windows the grid around the chosen slot.
   const st = stepOf(gran)

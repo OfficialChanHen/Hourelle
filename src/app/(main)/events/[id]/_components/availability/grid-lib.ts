@@ -70,9 +70,9 @@ export function padToWeeks(days: GridDay[]): GDay[] {
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   // week by week; a sparse day list (weekends only, hand-picked dates) can stretch over
   // months, so weeks with no real day are dropped instead of becoming blank pager pages.
-  // 26 weeks is the safety stop — 21 selected days fill at most 21 distinct weeks.
+  // 52 weeks is the safety stop — a 90-day poll spread thin still fits inside a year.
   const weekStart = new Date(first)
-  while (weekStart <= lastSunday && out.length < 26 * 7) {
+  while (weekStart <= lastSunday && out.length < 52 * 7) {
     const week: GDay[] = []
     let hasReal = false
     const cur = new Date(weekStart)

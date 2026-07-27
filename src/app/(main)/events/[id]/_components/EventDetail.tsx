@@ -18,7 +18,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, phaseOf, removeParticipantPatch, respondedCount, selectedDayKeys, stepOf, type AppEvent, type Rsvp } from '@/lib/events'
+import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, maxPollDays, phaseOf, removeParticipantPatch, respondedCount, selectedDayKeys, stepOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -626,15 +626,16 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
 
   const endEff = end < start ? start : end
   const selKeys = selectedDayKeys(start, endEff, excluded.dows, excluded.days)
+  const dayCap = maxPollDays(event.granularity)
   const selErr = selKeys.length === 0
     ? 'Every day is turned off. Turn at least one back on.'
-    : selKeys.length > 21
-      ? `That's ${selKeys.length} days to poll. Keep it to 21 or fewer by turning off the days that don't apply.`
+    : selKeys.length > dayCap
+      ? `That's ${selKeys.length} days to poll. Keep it to ${dayCap} or fewer by turning off the days that don't apply.`
       : ''
 
   function save() {
     if (selErr) return
-    const days = excluded.dows.length || excluded.days.length ? buildDaysFrom(selKeys) : buildDays(start, endEff)
+    const days = excluded.dows.length || excluded.days.length ? buildDaysFrom(selKeys, dayCap) : buildDays(start, endEff, dayCap)
     // keep every existing day's replies (even out-of-range ones stay dormant); new days start empty
     const avail = { ...event.avail }
     for (const d of days) if (!avail[d.key]) avail[d.key] = event.times.map(() => [])

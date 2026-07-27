@@ -70,7 +70,7 @@ export function DaysPicker({ startDate, endDate, excludedDows, excludedDays, onC
         )}
         <span className="text-[12px] text-faint">{selected} of {all.length} days on</span>
       </div>
-      {all.length <= 21 && (
+      {all.length <= 28 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {all.map((k) => {
             const dowOff = exDow.has(dowOf(k))
