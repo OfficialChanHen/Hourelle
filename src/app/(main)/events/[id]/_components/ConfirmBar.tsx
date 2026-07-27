@@ -83,12 +83,15 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
 
   // a date fixed at creation is a fact, not a choice — the form only asks for the place
   const timeSet = event.confirmed ?? null
+  // a day poll locks a whole day: no clock times to pick
+  const dayPoll = event.granularity === 'day'
 
   // best window for everyone, cut to the event length
   const [dayKey, setDayKey] = useState(() => timeSet?.dayKey ?? bw?.dayKey ?? event.days[0]?.key ?? event.startDate)
-  const [startMin, setStartMin] = useState(() => timeSet?.startMin ?? (bw ? gridStart + bw.s : 18 * 60))
+  const [startMin, setStartMin] = useState(() => timeSet?.startMin ?? (dayPoll ? 0 : bw ? gridStart + bw.s : 18 * 60))
   const [endMin, setEndMin] = useState(() => {
     if (timeSet) return timeSet.endMin
+    if (dayPoll) return 24 * 60
     const s = bw ? gridStart + bw.s : 18 * 60
     return Math.min(s + duration, 24 * 60 - 5)
   })
@@ -157,7 +160,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
             </div>
           </div>
 
-          <div>
+          {!dayPoll && <div>
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Time</div>
             <div className="flex items-center gap-2">
               <TimeSelect value={startMin} onChange={changeStart} step={15} />
@@ -173,7 +176,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
                   : <>{bw.count} of {event.participants.length} free</>} <span className="font-semibold text-ochre">{fmtMinute(gridStart + bw.s)} – {fmtMinute(gridStart + bw.e)}</span>
               </p>
             )}
-          </div>
+          </div>}
         </>
       )}
 

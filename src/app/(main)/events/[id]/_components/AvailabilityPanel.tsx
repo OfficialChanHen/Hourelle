@@ -52,6 +52,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const gridMax = rows * step
   const gridStartMin = gridStartMinOf(event)
   const pxPerMin = CELL / step
+  // a day poll asks "which days", not "which times": one all-day row, tap to mark,
+  // and everything minute-shaped (handles, presets, clock settings) stays hidden
+  const dayPoll = event.granularity === 'day'
 
   // others: everyone but you, minute-interval ranges per participant (read-only context)
   const [others] = useState<AvailIntervals>(() => {
@@ -377,7 +380,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       if (d.kind === 'paint') {
         if (d.block) {
           const norm = commitDay(d.day, [...(mineRef.current[d.day] ?? []), d.block])
-          selectMerged(d.day, norm, (d.block.s + d.block.e) / 2, 'bottom')
+          // day polls have no sub-slot precision, so a mark never opens the handle chip
+          if (!dayPoll) selectMerged(d.day, norm, (d.block.s + d.block.e) / 2, 'bottom')
         }
       } else {
         const base = (mineRef.current[d.day] ?? []).filter((iv) => !(iv.s === d.origS && iv.e === d.origE))
@@ -608,7 +612,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   }, [focusBest]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="relative flex flex-col rounded-2xl border border-border bg-s1 lg:h-[calc(100dvh-300px)] lg:max-h-[820px] lg:min-h-[480px] lg:flex-row">
+    // a day poll is one short row, so the panel hugs its content instead of filling the viewport
+    <div className={`relative flex flex-col rounded-2xl border border-border bg-s1 lg:flex-row ${dayPoll ? '' : 'lg:h-[calc(100dvh-300px)] lg:max-h-[820px] lg:min-h-[480px]'}`}>
       <div ref={colRef} className="relative flex min-w-0 flex-1 flex-col p-4">
         {/* toolbar — first row pairs the mode toggle with Settings (always right-aligned);
             the week nav and time controls flow on their own row below */}
@@ -627,7 +632,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               >
                 {() => (
                   <div className="flex flex-col gap-3">
-                    <div>
+                    {!dayPoll && <div>
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Event length</div>
                       <div className="flex flex-wrap gap-1.5">
                         {[30, 60, 90, 120, 180, 240].map((m) => (
@@ -644,20 +649,24 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         />
                         <span className="text-[12px] text-faint">min</span>
                       </div>
-                    </div>
-                    <div className="border-t border-border pt-2.5">
-                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Best time favors</div>
+                    </div>}
+                    <div className={dayPoll ? '' : 'border-t border-border pt-2.5'}>
+                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">{dayPoll ? 'Best days favor' : 'Best time favors'}</div>
                       <Segment compact value={bestMode} onChange={(v) => changeBestMode(v as BestMode)} options={[{ v: 'full', l: 'Everyone stays' }, { v: 'crowd', l: 'Biggest crowd' }]} />
                       <p className="mt-1.5 text-[12px] leading-[1.5] text-faint">
-                        {bestMode === 'full'
-                          ? 'Picks the time the most people can attend start to finish.'
-                          : 'Picks the time with the most people around overall, even if some come and go.'}
+                        {dayPoll
+                          ? bestMode === 'full'
+                            ? 'Picks the days the most people can make from start to end.'
+                            : 'Picks the days with the most people around overall.'
+                          : bestMode === 'full'
+                            ? 'Picks the time the most people can attend start to finish.'
+                            : 'Picks the time with the most people around overall, even if some come and go.'}
                       </p>
                     </div>
-                    <div className="border-t border-border pt-2.5">
+                    {!dayPoll && <div className="border-t border-border pt-2.5">
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Time format</div>
                       <Segment value={h24 ? '24' : '12'} onChange={(v) => setH24(v === '24')} options={[{ v: '12', l: '12-hour' }, { v: '24', l: '24-hour' }]} />
-                    </div>
+                    </div>}
                     {youAny && (
                       <div className="border-t border-border pt-2.5">
                         <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Your times</div>
@@ -678,7 +687,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             </span>
             <IconBtn onClick={() => goWeek(1)} disabled={page >= pageCount - 1}><ChevronRight size={17} /></IconBtn>
           </div>
-          {canConvert ? (
+          {dayPoll ? null : canConvert ? (
             // a two-sided toggle, so it reads as "event zone vs your zone" at a glance
             <div className="flex h-7 items-center overflow-hidden rounded-lg border border-border bg-s1 text-[12px] font-medium" role="group" aria-label="Show times in">
               <button
@@ -729,7 +738,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               <MissingPopover missing={missing} nudged={nudged} onNudge={nudge} onNudgeAll={nudgeAll} onClose={() => setShowMissing(false)} />
             )}
           </div>
-          {mode === 'edit' && <PresetFills onFill={fillPreset} onFillAll={fillAllDays} />}
+          {mode === 'edit' && !dayPoll && <PresetFills onFill={fillPreset} onFillAll={fillAllDays} />}
           {/* the explicit empty reply: with nothing marked, "none of these days work"
               is one tap — and marking any time takes it back */}
           {mode === 'edit' && !locked && !youAny && (
@@ -746,7 +755,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           )}
           {/* first-time hint only — it earns its place until you've marked something */}
           {mode === 'edit' && !sel && !youAny && (
-            <span className="text-[12.5px] text-faint">Drag across the times you&apos;re free. The checkmarks fill a whole day or row at once.</span>
+            <span className="text-[12.5px] text-faint">
+              {dayPoll ? 'Tap the days you can make it.' : 'Drag across the times you’re free. The checkmarks fill a whole day or row at once.'}
+            </span>
           )}
           {locked && <span className="text-[12.5px] text-faint">Planning is locked. The grid stays for reference.</span>}
           {/* the legend is teaching UI — it waits behind a small info icon instead of
@@ -911,8 +922,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     </span>
                   )}
                   <span className="flex flex-col items-center leading-[1.15]">
-                    <span>{labelMain}</span>
-                    {labelSub && <span className="text-[9.5px] font-semibold tracking-[.04em] text-faint">{labelSub}</span>}
+                    <span>{dayPoll ? 'All day' : labelMain}</span>
+                    {!dayPoll && labelSub && <span className="text-[9.5px] font-semibold tracking-[.04em] text-faint">{labelSub}</span>}
                   </span>
                 </button>
                 {weekDays.map((d, di) => {
@@ -1115,7 +1126,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         {/* best-window footer — gone once a time exists (locked in, or fixed at creation
             while the place vote runs); the slot itself owns the answer then */}
         {!locked && !event.confirmed && <div className="mt-0.5 flex flex-wrap items-center gap-2.5 border-t border-border px-0.5 pt-3">
-          {bw ? (
+          {/* day polls skip the clock-time answer; the best-days line below is the whole story */}
+          {dayPoll ? (
+            responded === 0 && <span className="text-[12.5px] text-dim">No days marked yet. Add yours in <span className="font-semibold text-text">Edit mine</span>.</span>
+          ) : bw ? (
             <>
               <span className="text-[12.5px] text-dim">Best {fmtDur(durationMin)} slot{filterOn ? ' for your selection' : ''}</span>
               <span className="text-[14px] font-semibold text-ochre">{bw.dayLabel} · {fmt(gridStartMin + bw.s)} – {fmt(gridStartMin + bw.e)}</span>

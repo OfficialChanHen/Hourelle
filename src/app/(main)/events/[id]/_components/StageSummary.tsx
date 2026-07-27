@@ -28,7 +28,8 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
 
   const responded = respondedCount(event.avail, event.unavailableIds)
   const total = event.participants.length
-  const best = bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode)
+  // a day poll has no best clock time — the grid's best-days line carries that answer
+  const best = event.granularity === 'day' ? null : bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode)
   const gridStart = gridStartMinOf(event)
 
   // the venue currently winning the vote, so the one line reports both fronts —

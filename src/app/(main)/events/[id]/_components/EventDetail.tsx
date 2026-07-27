@@ -559,7 +559,8 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
 
   const oneDay = event.startDate === event.endDate
   const dow = oneDay ? event.days[0]?.dow : null
-  const best = bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode)
+  const dayPoll = event.granularity === 'day'
+  const best = dayPoll ? null : bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode)
   const gridStart = gridStartMinOf(event)
   return (
     <div className="flex flex-col gap-1">
@@ -580,11 +581,11 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
             </button>
           </>
         ) : (
-          <button onClick={onGoToAvailability} title="Mark when you're free on the Availability tab" className="font-medium text-accent-text hover:underline">
-            Time to be decided
+          <button onClick={onGoToAvailability} title={dayPoll ? 'Mark the days you can make on the Availability tab' : "Mark when you're free on the Availability tab"} className="font-medium text-accent-text hover:underline">
+            {dayPoll ? 'Days to be decided' : 'Time to be decided'}
           </button>
         )}
-        <TimezonePill tz={event.timezone} />
+        {!dayPoll && <TimezonePill tz={event.timezone} />}
       </span>
     </div>
   )

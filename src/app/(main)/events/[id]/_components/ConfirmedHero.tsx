@@ -49,8 +49,15 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
             <Badge variant={du !== null && du >= 0 && du <= 14 ? 'accent' : 'neutral'}>{daysUntilLabel(du)}</Badge>
           </div>
           <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-            <span className="font-serif text-[27px] leading-[1.05] tracking-[-0.01em]">{dayText} · {fmtMinute(c.startMin)} – {fmtMinute(c.endMin)}</span>
-            <TimezonePill tz={event.timezone} />
+            {/* an all-day lock (day polls) has no clock times to show */}
+            {c.startMin === 0 && c.endMin === 24 * 60 ? (
+              <span className="font-serif text-[27px] leading-[1.05] tracking-[-0.01em]">{dayText} · all day</span>
+            ) : (
+              <>
+                <span className="font-serif text-[27px] leading-[1.05] tracking-[-0.01em]">{dayText} · {fmtMinute(c.startMin)} – {fmtMinute(c.endMin)}</span>
+                <TimezonePill tz={event.timezone} />
+              </>
+            )}
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-[13.5px] text-dim">
             {event.location.mode === 'remote' ? (

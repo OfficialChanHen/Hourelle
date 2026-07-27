@@ -34,7 +34,7 @@ export type AppEvent = {
   timezone: string
   startDate: string
   endDate: string
-  granularity: '15' | '30' | '60'
+  granularity: '15' | '30' | '60' | 'day' // 'day': one all-day row per day — a tap-per-day poll for trips and multi-day plans
   budget: string
   budgetMode?: 'total' | 'person'
   location: {
@@ -252,7 +252,11 @@ export function parseHM(v: string | undefined): number | null {
   const m = /^(\d{1,2}):(\d{2})$/.exec(v ?? '')
   return m ? Number(m[1]) * 60 + Number(m[2]) : null
 }
+// day polls have one row covering the whole day — the label is a marker other code
+// checks (gridStartMinOf), so it stays a single constant
+export const ALL_DAY = 'All day'
 export function buildTimes(gran: string, fromMin = 0, toMin = 24 * 60): string[] {
+  if (gran === 'day') return [ALL_DAY]
   const step = gran === '15' ? 15 : gran === '60' ? 60 : 30
   const out: string[] = []
   for (let m = fromMin; m < toMin; m += step) out.push(timeLabel(m))
@@ -261,7 +265,7 @@ export function buildTimes(gran: string, fromMin = 0, toMin = 24 * 60): string[]
 
 /* ── minute-precision availability ── */
 export function stepOf(gran: string): number {
-  return gran === '15' ? 15 : gran === '60' ? 60 : 30
+  return gran === 'day' ? 24 * 60 : gran === '15' ? 15 : gran === '60' ? 60 : 30
 }
 export function parseClockLabel(s: string): number | null {
   const m = /^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i.exec(s.trim())
@@ -274,6 +278,7 @@ export function parseClockLabel(s: string): number | null {
   return h * 60 + mm
 }
 export function gridStartMinOf(ev: Pick<AppEvent, 'times'>): number {
+  if (ev.times[0] === ALL_DAY) return 0
   return parseClockLabel(ev.times[0] ?? '') ?? 8 * 60
 }
 export function normalizeIv(list: Iv[]): Iv[] {
@@ -510,12 +515,15 @@ export function daysUntilLabel(du: number | null): string {
   return `${du} day${du === 1 ? '' : 's'}`
 }
 
-// the locked-in slot as one glanceable line: "Sat, Jul 26 · 5:00 PM – 9:00 PM"
+// the locked-in slot as one glanceable line: "Sat, Jul 26 · 5:00 PM – 9:00 PM".
+// An all-day slot (a day poll's lock) skips the clock times.
 export function confirmedSlotText(ev: Pick<AppEvent, 'confirmed'>): string | null {
   if (!ev.confirmed) return null
   const d = parseLocal(ev.confirmed.dayKey)
   if (!d) return null
-  return `${DOW[d.getDay()]}, ${dayLabel(d)} · ${fmtMinute(ev.confirmed.startMin)} – ${fmtMinute(ev.confirmed.endMin)}`
+  const allDay = ev.confirmed.startMin === 0 && ev.confirmed.endMin === 24 * 60
+  const day = `${DOW[d.getDay()]}, ${dayLabel(d)}`
+  return allDay ? day : `${day} · ${fmtMinute(ev.confirmed.startMin)} – ${fmtMinute(ev.confirmed.endMin)}`
 }
 
 // which other events land on the same scheduled day. Confirmed events clash on their locked
@@ -709,14 +717,19 @@ export function createEvent(input: CreateInput): AppEvent {
   const sparseList = !fixed && input.pickedDays?.length ? buildDaysFrom(input.pickedDays) : null
   const sparse = sparseList?.length ? sparseList : null
   const days = sparse ?? buildDays(fixed ? fixed.day : input.startDate, fixed ? fixed.day : input.endDate)
+  // a fixed date carries clock times, so it can't be a day poll — coerce to 30 min
+  const gran: AppEvent['granularity'] =
+    input.granularity === '15' || input.granularity === '60' ? input.granularity
+      : input.granularity === 'day' && !fixed ? 'day'
+        : '30'
   // optional daily time window, snapped outward to the slot size so it fully covers the ask;
   // no window = the whole day. A fixed date windows the grid around the chosen slot.
-  const st = stepOf(input.granularity)
+  const st = stepOf(gran)
   const winS = fixed ? fixed.s : parseHM(input.windowStart), winE = fixed ? fixed.e : parseHM(input.windowEnd)
   const hasWin = winS !== null && winE !== null && winE > winS
   const fromMin = hasWin ? Math.floor(winS / st) * st : 0
   const toMin = hasWin ? Math.min(24 * 60, Math.ceil(winE / st) * st) : 24 * 60
-  const times = buildTimes(input.granularity, fromMin, toMin)
+  const times = buildTimes(gran, fromMin, toMin)
   const avail: Record<string, string[][]> = {}
   for (const d of days) avail[d.key] = times.map(() => [])
 
@@ -741,7 +754,7 @@ export function createEvent(input: CreateInput): AppEvent {
     timezone: input.timezone || 'UTC', // wizard validation requires one; fallback for safety
     startDate: fixed ? fixed.day : sparse ? days[0].key : input.startDate,
     endDate: fixed ? fixed.day : sparse ? days[days.length - 1].key : input.endDate,
-    granularity: (input.granularity === '15' || input.granularity === '60' ? input.granularity : '30'),
+    granularity: gran,
     budget: input.budget,
     budgetMode: input.budgetMode ?? 'total',
     location: {

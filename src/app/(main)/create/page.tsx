@@ -211,9 +211,9 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
           ? `That's ${selKeys.length} days to poll. Keep it to 21 or fewer by turning off the days that don't apply.`
           : '',
     win:
-      finding && form.windowPreset === 'custom' && (parseHM(form.windowStart) === null || parseHM(form.windowEnd) === null)
+      finding && form.granularity !== 'day' && form.windowPreset === 'custom' && (parseHM(form.windowStart) === null || parseHM(form.windowEnd) === null)
         ? 'Pick both times for the custom window.'
-        : finding && form.windowPreset === 'custom' && (parseHM(form.windowEnd) ?? 0) <= (parseHM(form.windowStart) ?? 0)
+        : finding && form.granularity !== 'day' && form.windowPreset === 'custom' && (parseHM(form.windowEnd) ?? 0) <= (parseHM(form.windowStart) ?? 0)
           ? 'The window has to end after it starts.'
           : '',
     tz: form.timezone ? '' : 'Pick the time zone this event runs in.',
@@ -496,7 +496,9 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
               keeps the choices visible without three rows of controls up front */}
           <div className="mt-3.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border pt-3">
             <span className="min-w-0 text-[12.5px] leading-[1.5] text-dim">
-              {WIN_PRESETS.find((p) => p.v === form.windowPreset)?.l ?? 'All day'} · {{ '15': '15 min', '30': '30 min', '60': '1 hour' }[form.granularity] ?? form.granularity} slots · {fmtDur(form.durationMin)} long
+              {form.granularity === 'day'
+                ? 'Full days · people tap the days they can make'
+                : <>{WIN_PRESETS.find((p) => p.v === form.windowPreset)?.l ?? 'All day'} · {{ '15': '15 min', '30': '30 min', '60': '1 hour' }[form.granularity] ?? form.granularity} slots · {fmtDur(form.durationMin)} long</>}
             </span>
             <button type="button" onClick={() => setTune((t) => !t)} className="flex-none text-[12.5px] font-semibold text-accent-text hover:underline">
               {openTune ? 'Hide options' : 'Change'}
@@ -504,6 +506,16 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           </div>
 
           {openTune && (<>
+          <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
+            <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Asking about</span>
+            <Segmented
+              value={form.granularity === 'day' ? 'day' : 'times'}
+              onChange={(v) => update({ granularity: v === 'day' ? 'day' : '30' })}
+              options={[{ v: 'times', l: 'Times of day' }, { v: 'day', l: 'Whole days' }]}
+            />
+            {form.granularity === 'day' && <span className="text-[12.5px] text-faint">Good for trips. People tap the days they can make.</span>}
+          </div>
+          {form.granularity !== 'day' && (<>
           {/* optional daily time window */}
           <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
             <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Daily time window</span>
@@ -552,6 +564,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
               <span className="text-[12px] text-faint">min</span>
             </div>
           </div>
+          </>)}
           </>)}
         </div>
         )}
