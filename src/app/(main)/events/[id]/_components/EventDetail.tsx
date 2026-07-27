@@ -1225,15 +1225,15 @@ function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boo
 /* deleting is a once-ever action, so it starts as one quiet row — the full card
    with the explanation and confirm flow only unfolds when asked (or when a card's
    delete shortcut sends someone here with spotlight on) */
+// two clicks total: "Delete this event…" opens the full warning, "Yes, delete it" ends it
 function DangerZone({ title, onDelete, spotlight = false }: { title: string; onDelete: () => void; spotlight?: boolean }) {
   const [open, setOpen] = useState(spotlight)
-  const [confirming, setConfirming] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   const zone = useRef<HTMLDivElement>(null)
 
   useGSAP(() => {
-    if (confirming && box.current) gsap.fromTo(box.current, { y: -6, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: 'power3.out' })
-  }, { dependencies: [confirming] })
+    if (open && box.current) gsap.fromTo(box.current, { y: -6, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: 'power3.out' })
+  }, { dependencies: [open] })
 
   // arriving via a card's delete shortcut: bring the zone into view and pulse its edge once
   useGSAP(() => {
@@ -1258,45 +1258,31 @@ function DangerZone({ title, onDelete, spotlight = false }: { title: string; onD
   return (
     <div ref={zone} className="relative w-full rounded-2xl border border-border bg-s1 p-5">
       <button
-        onClick={() => { setConfirming(false); setOpen(false) }}
+        onClick={() => setOpen(false)}
         aria-label="Close" title="Keep the event"
         className="absolute right-3 top-3 grid h-7 w-7 place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim"
       >
         <X size={15} />
       </button>
-      <div className="flex items-start gap-3">
-        <span className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] border border-brick-border bg-brick-bg text-brick-text"><Trash2 size={17} /></span>
-        <div className="min-w-0 flex-1">
-          <div className="text-[14.5px] font-semibold">Delete this event</div>
-          <div className="mt-0.5 text-[13.5px] text-dim">Removes it for everyone with the link, along with all availability, votes, and chat.</div>
-          {!confirming && (
-            <button onClick={() => setConfirming(true)} className="mt-3 flex h-9 items-center rounded-[9px] border border-brick-border bg-s1 px-3.5 text-[13.5px] font-semibold text-brick-text hover:bg-brick-bg">
-              Delete event
-            </button>
-          )}
-        </div>
-      </div>
-      {confirming && (
-        <div ref={box} className="mt-4 rounded-[11px] border border-brick-border bg-brick-bg p-4">
-          <div className="flex items-start gap-2.5">
-            <TriangleAlert size={18} className="mt-px flex-none text-brick-text" />
-            <div className="min-w-0 flex-1">
-              <div className="text-[14px] font-semibold text-brick-text">Delete &ldquo;{title}&rdquo;?</div>
-              <div className="mt-1 text-[13.5px] leading-[1.5] text-brick-text/90">
-                This deletes the event for everyone. All availability responses, location votes, and messages go with it. There is no undo.
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <button onClick={onDelete} className="flex h-9 items-center rounded-[9px] px-3.5 text-[13.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
-                  Yes, delete it
-                </button>
-                <button onClick={() => setConfirming(false)} className="flex h-9 items-center rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13.5px] font-semibold hover:bg-s2">
-                  Cancel
-                </button>
-              </div>
+      <div ref={box} className="rounded-[11px] border border-brick-border bg-brick-bg p-4">
+        <div className="flex items-start gap-2.5">
+          <TriangleAlert size={18} className="mt-px flex-none text-brick-text" />
+          <div className="min-w-0 flex-1">
+            <div className="text-[14px] font-semibold text-brick-text">Delete &ldquo;{title}&rdquo;?</div>
+            <div className="mt-1 text-[13.5px] leading-[1.5] text-brick-text/90">
+              This deletes the event for everyone. All availability responses, location votes, and messages go with it. There is no undo.
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <button onClick={onDelete} className="flex h-9 items-center rounded-[9px] px-3.5 text-[13.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
+                Yes, delete it
+              </button>
+              <button onClick={() => setOpen(false)} className="flex h-9 items-center rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13.5px] font-semibold hover:bg-s2">
+                Cancel
+              </button>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }

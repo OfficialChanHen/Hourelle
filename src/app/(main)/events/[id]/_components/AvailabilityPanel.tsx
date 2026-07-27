@@ -114,11 +114,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const weekDays = paddedDays.slice(page * WEEK, page * WEEK + WEEK)
   const goWeek = (dir: -1 | 1) => { setPage((p) => Math.max(0, Math.min(pageCount - 1, p + dir))); setSel(null) }
 
-  // when out-of-bounds filler leads the week, the first real day draws its own left
-  // border (the filler's grayed edge is too weak to frame it); with no leading filler
-  // the time column's right border already does the job — never both, no doubles
-  const firstRealIdx = weekDays.findIndex((d) => !d.pad)
-  const leftEdgeIdx = firstRealIdx > 0 ? firstRealIdx : -1
+  // a real day whose left neighbor is filler draws its own left border — the filler's
+  // grayed edge is too weak to frame it. Covers a leading filler AND gaps inside a
+  // sparse poll; with a real neighbor (or the time column) the shared border does the job.
+  const ownLeft = (di: number) => di > 0 && weekDays[di - 1].pad
 
   // avatar icons per cell stay scarce by design: at most 3 on wide screens, 2 on
   // phones — the "+N" chip and the n/N corner count carry the rest of the story
@@ -580,6 +579,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const d = event.days.find((x) => x.key === k)
     return d ? `${d.dow}, ${d.date}` : k
   }
+  // the slot frame in the cells belongs to the "1 day" answer on a minute grid — a day
+  // poll's cells never carry it (the header indicator is the whole story there), and a
+  // longer dial hands the spotlight to the run of days
+  const showSlotFrame = !dayPoll && blockLen === 1
   // the winning stretch's days, for the header indicator (only when answering in days)
   const blockKeys = useMemo(() => {
     if (!block || blockLen < 2) return null
@@ -909,7 +912,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   key={d.key}
                   type="button"
                   onClick={() => toggleDay(d.key)}
-                  className={`sticky top-0 z-20 border-b border-r border-grid-edge px-1.5 py-2 text-center ${di === leftEdgeIdx ? 'border-l border-l-grid-edge' : ''}`}
+                  className={`sticky top-0 z-20 border-b border-r border-grid-edge px-1.5 py-2 text-center ${ownLeft(di) ? 'border-l border-l-grid-edge' : ''}`}
                   style={{
                     background: isBestDay || inBlock ? 'var(--best-head)' : 'var(--s0)',
                     boxShadow: inBlock ? 'inset 0 2px 0 var(--ochre)' : undefined,
@@ -985,10 +988,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
 
                     // the heat must change color exactly at the best-window frame lines, so its
                     // edges are protected from the sliver merge in the cells they run through
-                    const protect = [
-                      ...(bw && d.key === bw.dayKey ? [bw.s, bw.e] : []),
-                      ...(bwAllShown && d.key === bwAllShown.dayKey ? [bwAllShown.s, bwAllShown.e] : []),
-                    ]
+                    const protect = showSlotFrame
+                      ? [
+                          ...(bw && d.key === bw.dayKey ? [bw.s, bw.e] : []),
+                          ...(bwAllShown && d.key === bwAllShown.dayKey ? [bwAllShown.s, bwAllShown.e] : []),
+                        ]
+                      : []
                     const paint = mergeSlivers(bands, minBandDur, protect.length ? protect : undefined)
                     const title = bands.length === 1
                       ? (n ? `${n} of ${viewTotal} free` : 'No one free')
@@ -996,12 +1001,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     const open = detail?.day === d.key && detail?.ti === ti
                     // the best window is one continuous ochre frame over its cells — a color the
                     // grid never uses for lines or heat, so it can't be mistaken for either
-                    const inBest = !!bw && d.key === bw.dayKey && w0 < bw.e && w1 > bw.s
+                    const inBest = showSlotFrame && !!bw && d.key === bw.dayKey && w0 < bw.e && w1 > bw.s
                     return (
                       <div
                         key={d.key}
                         onClick={(e) => openDetail(e, d.key, ti)}
-                        className={`relative min-h-[50px] cursor-pointer border-b border-r border-grid-line ${di === leftEdgeIdx ? 'border-l border-l-grid-line' : ''}`}
+                        className={`relative min-h-[50px] cursor-pointer border-b border-r border-grid-line ${ownLeft(di) ? 'border-l border-l-grid-line' : ''}`}
                         style={{ boxShadow: open ? 'inset 0 0 0 1.5px var(--accent)' : d.best ? 'inset 0 0 0 1px var(--ochre-border)' : undefined }}
                         title={title}
                       >
@@ -1026,7 +1031,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         })()}
                         {/* everyone's best window rides along as a dashed frame while a filter
                             is on — solid is the selection's best, dashed is the whole group's */}
-                        {!!bwAllShown && d.key === bwAllShown.dayKey && w0 < bwAllShown.e && w1 > bwAllShown.s && (() => {
+                        {showSlotFrame && !!bwAllShown && d.key === bwAllShown.dayKey && w0 < bwAllShown.e && w1 > bwAllShown.s && (() => {
                           const bs = Math.max(bwAllShown.s, w0), be = Math.min(bwAllShown.e, w1)
                           const edge = '2px dashed var(--ochre)'
                           return (
@@ -1082,7 +1087,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   const isTopEdge = !!sel && !dragDel && sel.day === d.key && topCell === ti
                   const isBotEdge = !!sel && !dragDel && sel.day === d.key && botCell === ti
                   return (
-                    <div key={d.key} className={`relative h-[50px] select-none border-b border-r border-grid-line ${di === leftEdgeIdx ? 'border-l border-l-grid-line' : ''}`} style={{ background: heat(oCount, editTotal), boxShadow: d.best ? 'inset 1px 0 0 0 var(--ochre-border), inset -1px 0 0 0 var(--ochre-border)' : undefined }}>
+                    <div key={d.key} className={`relative h-[50px] select-none border-b border-r border-grid-line ${ownLeft(di) ? 'border-l border-l-grid-line' : ''}`} style={{ background: heat(oCount, editTotal), boxShadow: d.best ? 'inset 1px 0 0 0 var(--ochre-border), inset -1px 0 0 0 var(--ochre-border)' : undefined }}>
                       {ivs.map((iv, k) => {
                         const cs = Math.max(iv.s, w0), ce = Math.min(iv.e, w1)
                         if (ce <= cs) return null
