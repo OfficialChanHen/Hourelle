@@ -13,7 +13,7 @@ function plusDay(iso: string): string {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
 }
 
-export type CalendarSlot = { dayKey: string; startMin: number; endMin: number }
+export type CalendarSlot = { dayKey: string; endDayKey?: string; startMin: number; endMin: number }
 
 export function AddToCalendar({ event, slot, align = 'end' }: { event: AppEvent; slot: CalendarSlot | null; align?: 'start' | 'end' }) {
   const [open, setOpen] = useState(false)
@@ -28,8 +28,10 @@ export function AddToCalendar({ event, slot, align = 'end' }: { event: AppEvent;
     return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
   }, [open])
 
-  // a timed entry needs a real date; otherwise export the full date range as all-day
+  // a timed entry needs a real date; otherwise export the full date range as all-day.
+  // A locked all-day slot (day polls) exports as an all-day entry over its run of days.
   const timed = slot && /^\d{4}-\d{2}-\d{2}$/.test(slot.dayKey) ? slot : null
+  const slotAllDay = !!timed && timed.startMin === 0 && timed.endMin === 24 * 60
   const canExport = !!timed || /^\d{4}-\d{2}-\d{2}$/.test(event.startDate)
   const location = event.location.mode === 'remote'
     ? (event.location.meetingLink || event.location.platform)
@@ -38,7 +40,13 @@ export function AddToCalendar({ event, slot, align = 'end' }: { event: AppEvent;
   function links(): { google: string; outlook: string } {
     const g = new URLSearchParams({ action: 'TEMPLATE', text: event.title, details: event.description, location, ctz: event.timezone })
     const o = new URLSearchParams({ path: '/calendar/action/compose', rru: 'addevent', subject: event.title, body: event.description, location })
-    if (timed) {
+    if (timed && slotAllDay) {
+      const end = plusDay(timed.endDayKey ?? timed.dayKey) // end date is exclusive for all-day entries
+      g.set('dates', `${timed.dayKey.replace(/-/g, '')}/${end.replace(/-/g, '')}`)
+      o.set('startdt', timed.dayKey)
+      o.set('enddt', end)
+      o.set('allday', 'true')
+    } else if (timed) {
       const hm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}${String(min % 60).padStart(2, '0')}00`
       const hmc = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}:00`
       const d = timed.dayKey.replace(/-/g, '')
@@ -76,9 +84,11 @@ export function AddToCalendar({ event, slot, align = 'end' }: { event: AppEvent;
       {open && (
         <div className={`absolute top-full z-30 mt-1 w-[228px] rounded-[10px] border border-border bg-s1 p-1 shadow-soft ${align === 'end' ? 'right-0' : 'left-0'}`}>
           <p className="px-2.5 pb-1.5 pt-2 text-[12px] leading-[1.45] text-faint">
-            {timed
-              ? <>Adds {fmtMinute(timed.startMin)} – {fmtMinute(timed.endMin)} ({event.timezone.split('/').pop()?.replace(/_/g, ' ')} time).</>
-              : <>No time locked in yet, so this adds the whole date window as an all-day entry.</>}
+            {timed && slotAllDay
+              ? <>Adds it as an all-day entry.</>
+              : timed
+                ? <>Adds {fmtMinute(timed.startMin)} – {fmtMinute(timed.endMin)} ({event.timezone.split('/').pop()?.replace(/_/g, ' ')} time).</>
+                : <>No time locked in yet, so this adds the whole date window as an all-day entry.</>}
           </p>
           <button type="button" onClick={() => exportTo('google')} className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left text-[13.5px] font-medium hover:bg-s2">
             <CalendarPlus size={15} className="text-accent-text" /> Google Calendar

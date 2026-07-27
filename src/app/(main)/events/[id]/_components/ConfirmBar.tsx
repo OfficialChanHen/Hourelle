@@ -88,6 +88,28 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
 
   // best window for everyone, cut to the event length
   const [dayKey, setDayKey] = useState(() => timeSet?.dayKey ?? bw?.dayKey ?? event.days[0]?.key ?? event.startDate)
+  // day polls can lock a run of days: the last day runs through the consecutive
+  // calendar days that follow the first (a gap in the poll ends the run)
+  const [lastDay, setLastDay] = useState(dayKey)
+  const runFrom = (start: string): string[] => {
+    const i = event.days.findIndex((d) => d.key === start)
+    if (i < 0) return [start]
+    const out = [start]
+    for (let j = i + 1; j < event.days.length; j++) {
+      const [y, m, dd] = out[out.length - 1].split('-').map(Number)
+      const next = new Date(y, m - 1, dd + 1)
+      const nextKey = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
+      if (event.days[j].key !== nextKey) break
+      out.push(nextKey)
+    }
+    return out
+  }
+  const lastOptions = dayPoll ? runFrom(dayKey) : []
+  function changeDay(v: string) {
+    setDayKey(v)
+    // keep the run valid: the last day follows the first
+    setLastDay((l) => (runFrom(v).includes(l) && l >= v ? l : v))
+  }
   const [startMin, setStartMin] = useState(() => timeSet?.startMin ?? (dayPoll ? 0 : bw ? gridStart + bw.s : 18 * 60))
   const [endMin, setEndMin] = useState(() => {
     if (timeSet) return timeSet.endMin
@@ -120,6 +142,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
   function lockIn() {
     const slot: ConfirmedSlot = {
       dayKey,
+      ...(dayPoll && lastDay !== dayKey ? { endDayKey: lastDay } : {}),
       startMin,
       endMin,
       // a set venue locks in as-is even though it never ran as a ballot
@@ -145,11 +168,11 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
       ) : (
         <>
           <div>
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Day</div>
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">{dayPoll ? 'First day' : 'Day'}</div>
             <div className="relative">
               <select
                 value={dayKey}
-                onChange={(e) => setDayKey(e.target.value)}
+                onChange={(e) => changeDay(e.target.value)}
                 className="h-9 w-full appearance-none rounded-[9px] border border-border bg-s1 pl-3 pr-8 text-[13.5px] font-medium outline-none focus:border-accent-border"
               >
                 {event.days.map((d) => (
@@ -159,6 +182,25 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails }: { event: AppEve
               <ChevronDown size={15} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-faint" />
             </div>
           </div>
+
+          {dayPoll && lastOptions.length > 1 && (
+            <div>
+              <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Last day</div>
+              <div className="relative">
+                <select
+                  value={lastDay}
+                  onChange={(e) => setLastDay(e.target.value)}
+                  className="h-9 w-full appearance-none rounded-[9px] border border-border bg-s1 pl-3 pr-8 text-[13.5px] font-medium outline-none focus:border-accent-border"
+                >
+                  {lastOptions.map((k) => {
+                    const d = event.days.find((x) => x.key === k)
+                    return <option key={k} value={k}>{d ? `${d.dow}, ${d.date}` : k}{k === dayKey ? ' · one day' : ''}</option>
+                  })}
+                </select>
+                <ChevronDown size={15} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-faint" />
+              </div>
+            </div>
+          )}
 
           {!dayPoll && <div>
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Time</div>

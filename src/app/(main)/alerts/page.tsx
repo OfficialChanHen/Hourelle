@@ -84,8 +84,13 @@ export default function AlertsPage() {
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[14.5px] font-semibold">{e.title}</div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12.5px] text-dim">
-                        <span>{du <= 0 ? 'Today' : `In ${du} day${du === 1 ? '' : 's'}`}{day ? ` · ${day.dow}, ${day.date}` : ''} · {fmtMinute(c.startMin)}</span>
-                        <TimezonePill tz={e.timezone} />
+                        <span>
+                          {du <= 0 ? 'Today' : `In ${du} day${du === 1 ? '' : 's'}`}
+                          {day ? ` · ${day.dow}, ${day.date}` : ''}
+                          {c.endDayKey && (() => { const ed = e.days.find((d) => d.key === c.endDayKey); return ed ? ` – ${ed.dow}, ${ed.date}` : '' })()}
+                          {c.startMin === 0 && c.endMin === 24 * 60 ? '' : ` · ${fmtMinute(c.startMin)}`}
+                        </span>
+                        {!(c.startMin === 0 && c.endMin === 24 * 60) && <TimezonePill tz={e.timezone} />}
                         <span className="flex items-center gap-1">{remote ? <Video size={12} /> : <MapPin size={12} />} {place}</span>
                       </div>
                     </div>

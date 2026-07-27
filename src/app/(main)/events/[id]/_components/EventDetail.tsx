@@ -360,7 +360,7 @@ function DetailsTab({ event, onDelete, onGoToTab, onGoToBestWindow, onPatch, onV
         <div className="mt-1 flex flex-wrap items-center gap-2 border-t border-border pt-3.5">
           <AddToCalendar
             event={event}
-            slot={event.confirmed ? { dayKey: event.confirmed.dayKey, startMin: event.confirmed.startMin, endMin: event.confirmed.endMin } : null}
+            slot={event.confirmed ? { dayKey: event.confirmed.dayKey, endDayKey: event.confirmed.endDayKey, startMin: event.confirmed.startMin, endMin: event.confirmed.endMin } : null}
             align="start"
           />
           <Link href={`/create?from=${event.id}`} className="flex h-8 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2">
@@ -542,11 +542,14 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
     const c = event.confirmed
     if (editing && editable) return <FixedWhenEditor event={event} onPatch={onPatch} onDone={() => setEditing(false)} />
     const d = event.days.find((x) => x.key === c.dayKey)
-    const year = c.dayKey.slice(0, 4)
+    const endD = c.endDayKey ? event.days.find((x) => x.key === c.endDayKey) : null
+    const allDay = c.startMin === 0 && c.endMin === 24 * 60
+    const year = (c.endDayKey ?? c.dayKey).slice(0, 4)
+    const dayPart = `${d ? `${d.dow}, ${d.date}` : c.dayKey}${endD ? ` – ${endD.dow}, ${endD.date}` : ''}, ${year}`
     return (
       <span className="flex flex-wrap items-center gap-1.5">
-        {`${d ? `${d.dow}, ${d.date}` : c.dayKey}, ${year} · ${fmtMinute(c.startMin)} – ${fmtMinute(c.endMin)}`}
-        <TimezonePill tz={event.timezone} />
+        {allDay ? dayPart : `${dayPart} · ${fmtMinute(c.startMin)} – ${fmtMinute(c.endMin)}`}
+        {!allDay && <TimezonePill tz={event.timezone} />}
         {editable && (
           <button onClick={() => setEditing(true)} title="Change the day or time" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
             <Pencil size={13} />

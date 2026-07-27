@@ -25,7 +25,8 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
   }
 
   const day = event.days.find((d) => d.key === c.dayKey)
-  const dayText = day ? `${day.dow}, ${day.date}` : c.dayKey
+  const endDay = c.endDayKey ? event.days.find((d) => d.key === c.endDayKey) : null
+  const dayText = (day ? `${day.dow}, ${day.date}` : c.dayKey) + (endDay ? ` – ${endDay.dow}, ${endDay.date}` : '')
   const du = daysUntil(c.dayKey)
   const placeNames = c.placeIds
     .map((id) => event.location.places.find((p) => p.id === id)?.name)
@@ -49,9 +50,10 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
             <Badge variant={du !== null && du >= 0 && du <= 14 ? 'accent' : 'neutral'}>{daysUntilLabel(du)}</Badge>
           </div>
           <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-            {/* an all-day lock (day polls) has no clock times to show */}
+            {/* an all-day lock (day polls) has no clock times to show; a run of days
+                reads as the range alone */}
             {c.startMin === 0 && c.endMin === 24 * 60 ? (
-              <span className="font-serif text-[27px] leading-[1.05] tracking-[-0.01em]">{dayText} · all day</span>
+              <span className="font-serif text-[27px] leading-[1.05] tracking-[-0.01em]">{dayText}{endDay ? '' : ' · all day'}</span>
             ) : (
               <>
                 <span className="font-serif text-[27px] leading-[1.05] tracking-[-0.01em]">{dayText} · {fmtMinute(c.startMin)} – {fmtMinute(c.endMin)}</span>
@@ -74,7 +76,7 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
           </div>
         </div>
         <div className="flex flex-none items-center gap-2">
-          <AddToCalendar event={event} slot={{ dayKey: c.dayKey, startMin: c.startMin, endMin: c.endMin }} />
+          <AddToCalendar event={event} slot={{ dayKey: c.dayKey, endDayKey: c.endDayKey, startMin: c.startMin, endMin: c.endMin }} />
           {event.hostedByYou && (
             <button onClick={reopen} className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-dim hover:bg-s2 hover:text-text">
               <Undo2 size={14} /> Reopen planning

@@ -14,8 +14,9 @@ export type { ChatMessage }
 
 export type Rsvp = 'attending' | 'maybe' | 'not_going' | 'pending'
 export type EventStatus = 'planning' | 'confirmed'
-// the host's locked-in plan: a day, a clock-minute window, and the chosen place(s)
-export type ConfirmedSlot = { dayKey: string; startMin: number; endMin: number; placeIds: string[] }
+// the host's locked-in plan: a day, a clock-minute window, and the chosen place(s).
+// endDayKey (day polls only) makes it a run of whole days — absent means one day.
+export type ConfirmedSlot = { dayKey: string; endDayKey?: string; startMin: number; endMin: number; placeIds: string[] }
 export type Participant = { id: string; initials: string; name: string; color: PersonColor; rsvp: Rsvp; you?: boolean; host?: boolean; guest?: boolean }
 export type EventPlace = { id: string; name: string; place: string; addedBy?: string } // addedBy: participant id who suggested it
 export type EventExpense = { id: string; label: string; amount: number; paidBy: string } // amount in whole dollars; paidBy: participant id
@@ -498,7 +499,8 @@ export function openQuestions(ev: Pick<AppEvent, 'status' | 'confirmed' | 'locat
 export type Phase = 'planning' | 'upcoming' | 'soon' | 'today' | 'past'
 
 export function phaseOf(ev: Pick<AppEvent, 'status' | 'confirmed' | 'endDate'>): Phase {
-  const endRef = ev.confirmed?.dayKey ?? ev.endDate
+  // a multi-day lock ends on its last day, and counts as "today" for its whole run
+  const endRef = ev.confirmed?.endDayKey ?? ev.confirmed?.dayKey ?? ev.endDate
   const untilEnd = daysUntil(endRef)
   if (untilEnd !== null && untilEnd < 0) return 'past'
   if (ev.status !== 'confirmed' || !ev.confirmed) return 'planning'
@@ -516,13 +518,16 @@ export function daysUntilLabel(du: number | null): string {
 }
 
 // the locked-in slot as one glanceable line: "Sat, Jul 26 · 5:00 PM – 9:00 PM".
-// An all-day slot (a day poll's lock) skips the clock times.
+// An all-day slot (a day poll's lock) skips the clock times; a run of days reads
+// as "Fri, Aug 14 – Sun, Aug 16".
 export function confirmedSlotText(ev: Pick<AppEvent, 'confirmed'>): string | null {
   if (!ev.confirmed) return null
   const d = parseLocal(ev.confirmed.dayKey)
   if (!d) return null
-  const allDay = ev.confirmed.startMin === 0 && ev.confirmed.endMin === 24 * 60
   const day = `${DOW[d.getDay()]}, ${dayLabel(d)}`
+  const e = ev.confirmed.endDayKey ? parseLocal(ev.confirmed.endDayKey) : null
+  if (e) return `${day} – ${DOW[e.getDay()]}, ${dayLabel(e)}`
+  const allDay = ev.confirmed.startMin === 0 && ev.confirmed.endMin === 24 * 60
   return allDay ? day : `${day} · ${fmtMinute(ev.confirmed.startMin)} – ${fmtMinute(ev.confirmed.endMin)}`
 }
 
@@ -600,10 +605,27 @@ export function sortByAttendance(ev: AppEvent): Participant[] {
   const dayIv = win ? availIv[win.dayKey] ?? {} : {}
   const marked = new Set<string>()
   for (const day of Object.values(availIv)) for (const [id, ivs] of Object.entries(day)) if (ivs.length) marked.add(id)
+  // a locked run of days ranks by day coverage: every day → 0, some days → 1
+  const blockKeys: string[] | null = locked && ev.confirmed!.endDayKey
+    ? (() => {
+        const out: string[] = []
+        const cur = parseLocal(ev.confirmed!.dayKey)
+        const end = parseLocal(ev.confirmed!.endDayKey!)
+        if (!cur || !end) return null
+        for (let i = 0; i < 90 && cur <= end; i++) { out.push(isoOf(cur)); cur.setDate(cur.getDate() + 1) }
+        return out
+      })()
+    : null
   const rank = (p: Participant): number => {
     if (p.rsvp === 'pending') return 6
     if (p.rsvp === 'not_going') return 5
     if (p.rsvp === 'maybe') return 4
+    if (blockKeys) {
+      const covered = blockKeys.filter((k) => (availIv[k]?.[p.id] ?? []).length > 0).length
+      if (covered === blockKeys.length) return 0
+      if (covered > 0) return 1
+      return marked.has(p.id) ? 2 : 3
+    }
     const ivs = win ? dayIv[p.id] : undefined
     if (!ivs?.length) return marked.has(p.id) ? 2 : 3
     if (win && ivs.some((iv) => iv.s <= win.s && iv.e >= win.e)) return 0
