@@ -12,7 +12,7 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
 import { av } from '@/lib/people'
-import { createEvent, draftFromEvent, maxPollDays, parseHM, fmtMinute, selectedDayKeys, type AppEvent } from '@/lib/events'
+import { createEvent, draftFromEvent, getEvent, maxPollDays, parseHM, fmtMinute, selectedDayKeys, type AppEvent } from '@/lib/events'
 import { DaysPicker } from '@/components/ui/DaysPicker'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
@@ -126,8 +126,8 @@ const WIZ_TEMPLATES: { key: string; label: string; icon: LucideIcon }[] = [
   { key: 'dinner', label: 'Dinner', icon: Utensils },
 ]
 
-export default function CreatePage({ searchParams }: { searchParams: Promise<{ template?: string; from?: string }> }) {
-  const { template, from } = use(searchParams)
+export default function CreatePage({ searchParams }: { searchParams: Promise<{ template?: string; from?: string; created?: string }> }) {
+  const { template, from, created: createdParam } = use(searchParams)
   const [created, setCreated] = useState<AppEvent | null>(null)
   const [tpl, setTpl] = useState<string | null>(template && TEMPLATE_PRESETS[template] ? template : null)
   const [form, setForm] = useState<Form>(() => ({ ...initialForm, ...(template ? TEMPLATE_PRESETS[template] : undefined) }))
@@ -138,6 +138,14 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
 
   const update: Update = (patch) =>
     setForm((f) => ({ ...f, ...(typeof patch === 'function' ? patch(f) : patch) }))
+
+  // quick create routes here (/create?created=…) so every new event ends on the same
+  // "your event is live" page with the share link (localStorage read, so after mount)
+  useEffect(() => {
+    if (!createdParam) return
+    const ev = getEvent(createdParam)
+    if (ev) setCreated(ev)
+  }, [createdParam])
 
   // reuse a past event (/create?from=…): its structure seeds the form, dates and
   // responses start fresh (localStorage read, so it has to happen after mount)

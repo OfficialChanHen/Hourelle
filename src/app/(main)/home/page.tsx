@@ -153,7 +153,8 @@ function QuickCreate() {
       locMode: 'later', planMode: 'vote', picked: [], platform: 'Google Meet', meetingLink: '',
       emails: [], accounts: [],
     })
-    router.push(`/events/${ev.id}?tab=availability`)
+    // every new event ends on the same created page, share link front and center
+    router.push(`/create?created=${ev.id}`)
   }
   const dateCls = 'h-10 rounded-[10px] border border-border bg-s2 px-2.5 text-[13.5px] outline-none focus:border-accent-border'
   return (
