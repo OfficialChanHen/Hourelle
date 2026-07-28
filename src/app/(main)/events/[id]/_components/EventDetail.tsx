@@ -117,7 +117,9 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     const title = event?.title
     deleteEvent(id)
     pushFlash(title ? `${title} was deleted` : 'Event deleted', 'brick')
-    router.push('/home')
+    // back to wherever they came from; a straight-to-URL visit falls back to home
+    if (typeof window !== 'undefined' && window.history.length > 1) router.back()
+    else router.push('/home')
   }
 
   if (event === undefined) {
