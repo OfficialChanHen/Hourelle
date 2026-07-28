@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { History, CalendarX2 } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StoredEventCard } from '@/components/ui/StoredEventCard'
@@ -14,9 +15,22 @@ const FILTERS: { key: string; label: string; match: (p: Phase) => boolean }[] = 
   { key: 'past', label: 'Past', match: (p) => p === 'past' },
 ]
 
+// useSearchParams needs a Suspense boundary to prerender; the page itself is the shell
 export default function EventsPage() {
+  return (
+    <Suspense fallback={null}>
+      <EventsList />
+    </Suspense>
+  )
+}
+
+function EventsList() {
   const [events, setEvents] = useState<AppEvent[] | null>(null)
-  const [filter, setFilter] = useState('all')
+  // the filter lives in the URL, so coming back (after a delete, or plain back
+  // navigation) lands on the same section you left
+  const router = useRouter()
+  const filter = useSearchParams().get('filter') ?? 'all'
+  const setFilter = (k: string) => router.replace(k === 'all' ? '/events' : `/events?filter=${k}`, { scroll: false })
   useEffect(() => { setEvents(listEvents()) }, [])
 
   const withPhase = (events ?? []).map((e) => ({ e, phase: phaseOf(e) }))
