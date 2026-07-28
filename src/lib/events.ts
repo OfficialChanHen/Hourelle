@@ -783,6 +783,32 @@ export function draftFromEvent(id: string): Partial<CreateInput> | null {
   }
 }
 
+// have you answered this poll at all — marked a time, or declared no days work
+export function youReplied(ev: AppEvent): boolean {
+  if (ev.unavailableIds?.includes(YOU.id)) return true
+  if (ev.availIv) return Object.values(ev.availIv).some((day) => (day[YOU.id] ?? []).length > 0)
+  return Object.values(ev.avail).some((rows) => rows.some((cell) => cell.includes(YOU.id)))
+}
+
+// have you cast any location vote
+export function youVoted(ev: AppEvent): boolean {
+  return Object.values(ev.votes ?? {}).some((ids) => ids.includes(YOU.id))
+}
+
+// where a card click should land: whatever the event is still waiting on YOU for —
+// your times first, then your vote, then the plan itself
+export function eventTabFor(ev: AppEvent): string {
+  const base = `/events/${ev.id}`
+  const phase = phaseOf(ev)
+  if (phase === 'past') return base
+  if (phase !== 'planning') return `${base}?tab=details`
+  if (ev.participants.some((p) => p.you)) {
+    if (!youReplied(ev)) return `${base}?tab=availability`
+    if (ev.location.mode === 'vote' && ev.location.places.length > 0 && !youVoted(ev)) return `${base}?tab=location`
+  }
+  return base
+}
+
 export function respondedCount(avail: Record<string, string[][]>, unavailableIds?: string[]): number {
   // declaring "none of these days work" is a reply too — an explicit empty one
   const ids = new Set<string>(unavailableIds ?? [])

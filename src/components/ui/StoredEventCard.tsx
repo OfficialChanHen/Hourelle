@@ -8,14 +8,15 @@ import { AvatarRow } from './AvatarRow'
 import { TimezonePill } from './TimezonePill'
 import { Cover } from './Cover'
 import { Tip } from './Tip'
-import { daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, leadingPlaceOf, phaseOf, respondedCount, type AppEvent, type SameDayInfo } from '@/lib/events'
+import { daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, eventTabFor, leadingPlaceOf, phaseOf, respondedCount, type AppEvent, type SameDayInfo } from '@/lib/events'
 import { PHASE_BADGE, PHASE_TINT } from './LifecycleStrip'
 
 const COVERS: [string, string][] = [
   ['#E4EDE7', '#CFE0D5'], ['#E7E2EE', '#D9CFE4'], ['#DEE7EC', '#C7DAE2'],
   ['#EFE7D6', '#E4D3B4'], ['#EEE1DD', '#E4CCC7'], ['#E4EADB', '#CDDCBB'],
 ]
-function coverFor(id: string): [string, string] {
+// shared with the home hero, so the same event wears the same cover everywhere
+export function coverFor(id: string): [string, string] {
   let h = 0
   for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0
   return COVERS[h % COVERS.length]
@@ -58,7 +59,7 @@ export function StoredEventCard({ e, reuseHref, sameDay }: { e: AppEvent; reuseH
 
   return (
     <Link
-      href={`/events/${e.id}`}
+      href={eventTabFor(e)}
       className="group flex flex-col overflow-hidden rounded-[13px] border border-border bg-s1 p-3.5 transition-all hover:-translate-y-0.5 hover:border-border2"
       // status reads from the frame, not from chips: the border wears the phase color
       style={tint.border ? { borderColor: tint.border } : undefined}

@@ -576,6 +576,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // poll's cells never carry it (the header indicator is the whole story there), and a
   // longer dial hands the spotlight to the run of days
   const showSlotFrame = !dayPoll && blockLen === 1
+  // with the dial on a run of days, the grid is answering in days — Settings follows
+  // (clock-flavored options step aside until the dial comes back to 1 day)
+  const daysAnswer = dayPoll || blockLen >= 2
+  // when the plan locks while you're mid-edit, the grid drops to the read-only view —
+  // otherwise it keeps an edit surface the lock just made meaningless
+  useEffect(() => {
+    if (locked) { setMode('view'); setSel(null) }
+  }, [locked]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // the winning stretch's days, for the header indicator (only when answering in days)
   const blockKeys = useMemo(() => {
     if (!block || blockLen < 2) return null
@@ -654,7 +663,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               >
                 {() => (
                   <div className="flex flex-col gap-3">
-                    {!dayPoll && <div>
+                    {!daysAnswer && <div>
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Event length</div>
                       <div className="flex flex-wrap gap-1.5">
                         {[30, 60, 90, 120, 180, 240].map((m) => (
@@ -672,11 +681,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         <span className="text-[12px] text-faint">min</span>
                       </div>
                     </div>}
-                    <div className={dayPoll ? '' : 'border-t border-border pt-2.5'}>
-                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">{dayPoll ? 'Best days favor' : 'Best time favors'}</div>
+                    <div className={daysAnswer ? '' : 'border-t border-border pt-2.5'}>
+                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">{daysAnswer ? 'Best days favor' : 'Best time favors'}</div>
                       <Segment compact value={bestMode} onChange={(v) => changeBestMode(v as BestMode)} options={[{ v: 'full', l: 'Everyone stays' }, { v: 'crowd', l: 'Biggest crowd' }]} />
                       <p className="mt-1.5 text-[12px] leading-[1.5] text-faint">
-                        {dayPoll
+                        {daysAnswer
                           ? bestMode === 'full'
                             ? 'Picks the days the most people can make from start to end.'
                             : 'Picks the days with the most people around overall.'
@@ -685,7 +694,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                             : 'Picks the time with the most people around overall, even if some come and go.'}
                       </p>
                     </div>
-                    {!dayPoll && <div className="border-t border-border pt-2.5">
+                    {!daysAnswer && <div className="border-t border-border pt-2.5">
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Time format</div>
                       <Segment value={h24 ? '24' : '12'} onChange={(v) => setH24(v === '24')} options={[{ v: '12', l: '12-hour' }, { v: '24', l: '24-hour' }]} />
                     </div>}

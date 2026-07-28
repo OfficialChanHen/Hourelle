@@ -14,13 +14,13 @@ import 'swiper/css/navigation'
 import 'swiper/css/pagination'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { FlashToast } from '@/components/ui/FlashToast'
-import { StoredEventCard } from '@/components/ui/StoredEventCard'
+import { coverFor, StoredEventCard } from '@/components/ui/StoredEventCard'
 import { Cover } from '@/components/ui/Cover'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Tip } from '@/components/ui/Tip'
 import { LifecycleStrip, PHASE_BADGE, PHASE_TINT } from '@/components/ui/LifecycleStrip'
 import {
-  createEvent, listEvents, phaseOf, daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, sameDayLabelFor,
+  createEvent, eventTabFor, listEvents, phaseOf, daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, sameDayLabelFor,
   type AppEvent, type Phase, type SameDayInfo,
 } from '@/lib/events'
 
@@ -197,6 +197,9 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
   const router = useRouter()
   const badge = PHASE_BADGE[phase]
   const tint = PHASE_TINT[phase]
+  // same fallback gradient as the section cards, so the hero wears the same cover
+  const [coverFrom, coverTo] = coverFor(e.id)
+  const dest = eventTabFor(e)
   const du = daysUntil(e.confirmed?.dayKey ?? e.startDate)
   const [copied, setCopied] = useState(false)
   const action = phase === 'planning'
@@ -208,11 +211,11 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
   }
   return (
     <div
-      onClick={() => router.push(`/events/${e.id}?tab=details`)}
+      onClick={() => router.push(dest)}
       className="cursor-pointer overflow-hidden rounded-2xl border border-border bg-s1 transition-colors hover:border-border2"
       style={tint.border ? { borderColor: tint.border } : undefined}
     >
-      <Cover src={e.image} from="#E4EDE7" to="#CFE0D5" className={e.image ? 'h-[110px]' : 'h-[64px]'} />
+      <Cover src={e.image} from={coverFrom} to={coverTo} className={e.image ? 'h-[110px]' : 'h-[64px]'} />
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 p-5">
         {/* real min width: on phones the CTAs wrap below instead of crushing the title */}
         <div className="min-w-[220px] flex-1">
@@ -241,7 +244,7 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
               </>
             )}
           </div>
-          <Link href={`/events/${e.id}?tab=details`} onClick={(ev) => ev.stopPropagation()} className="block font-serif text-[27px] leading-[1.08] tracking-[-0.01em] hover:underline">{e.title}</Link>
+          <Link href={dest} onClick={(ev) => ev.stopPropagation()} className="block font-serif text-[27px] leading-[1.08] tracking-[-0.01em] hover:underline">{e.title}</Link>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[13px] text-dim">
             <Calendar size={14} /> {confirmedSlotText(e) ?? dateRangeText(e)} <TimezonePill tz={e.timezone} />
           </div>

@@ -1,5 +1,4 @@
-import { daysUntil, listEvents, phaseOf, type AppEvent } from './events'
-import { YOU } from './events'
+import { daysUntil, listEvents, phaseOf, youReplied, type AppEvent } from './events'
 
 /* ── notifications: derived, never stored ──
    Each notification has a stable key, so "seen" can persist across visits: the badge
@@ -8,13 +7,6 @@ import { YOU } from './events'
 
 export type NotificationKind = 'event' | 'votes' | 'availability' | 'reopened'
 export type NotificationItem = { e: AppEvent; du: number; kind: NotificationKind; key: string }
-
-// have you answered this poll at all — marked a time, or declared no days work
-export function youReplied(e: AppEvent): boolean {
-  if (e.unavailableIds?.includes(YOU.id)) return true
-  if (e.availIv) return Object.values(e.availIv).some((day) => (day[YOU.id] ?? []).length > 0)
-  return Object.values(e.avail).some((rows) => rows.some((cell) => cell.includes(YOU.id)))
-}
 
 export function deriveNotifications(events: AppEvent[]): NotificationItem[] {
   return events
