@@ -740,7 +740,17 @@ export function reopenEvent(id: string): void {
   // everyone but the host returns to no-reply until the next lock-in asks again
   const ev = getEvent(id)
   const participants = ev?.participants.map((p): Participant => ({ ...p, rsvp: p.host ? 'attending' : 'pending', rsvpAuto: undefined }))
-  patchEvent(id, { status: 'planning', confirmed: undefined, confirmedAt: undefined, ...(participants ? { participants } : {}) })
+  // reopening changes what everyone agreed to, so it announces itself in the chat —
+  // guests who saw "confirmed" find out why it reads "planning" again
+  const host = ev?.participants.find((p) => p.host)
+  const note: ChatMessage | null = ev && host
+    ? { id: host.id, name: host.name, time: 'just now', text: 'Reopened the plan. RSVPs are cleared until it locks in again.', you: !!host.you }
+    : null
+  patchEvent(id, {
+    status: 'planning', confirmed: undefined, confirmedAt: undefined,
+    ...(participants ? { participants } : {}),
+    ...(note ? { messages: [...(ev!.messages ?? []), note] } : {}),
+  })
 }
 
 // seed the create wizard from an existing event: structure carries over, dates and
