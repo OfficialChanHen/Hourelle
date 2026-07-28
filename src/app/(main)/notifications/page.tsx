@@ -11,18 +11,23 @@ type Bucket = { title: string; items: NotificationItem[] }
 
 export default function NotificationsPage() {
   const [events, setEvents] = useState<AppEvent[] | null>(null)
-  // anything you haven't seen before gets a short highlight, then settles in
+  // anything you haven't seen before gets a short highlight, then settles in.
+  // `fading` keeps the slow color transition ONLY while that settle runs — left on
+  // permanently it would drag every theme switch through a 700ms color tween.
   const [fresh, setFresh] = useState<Set<string>>(new Set())
+  const [fading, setFading] = useState<Set<string>>(new Set())
   useEffect(() => { setEvents(listEvents()) }, [])
   useEffect(() => {
     if (!events) return
     const seen = seenNotificationKeys()
     const f = new Set(deriveNotifications(events).filter((n) => !seen.has(n.key)).map((n) => n.key))
     setFresh(f)
+    setFading(f)
     markAllNotificationsSeen()
     if (f.size === 0) return
-    const t = setTimeout(() => setFresh(new Set()), 2400)
-    return () => clearTimeout(t)
+    const t1 = setTimeout(() => setFresh(new Set()), 2400)
+    const t2 = setTimeout(() => setFading(new Set()), 3200)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [events])
 
   const notifications = deriveNotifications(events ?? [])
@@ -34,7 +39,7 @@ export default function NotificationsPage() {
 
   // shared card shell; fresh ones glow briefly, then the color eases away
   const cardCls = (key: string) =>
-    `flex items-center gap-3 rounded-xl border p-3.5 transition-all duration-700 hover:-translate-y-0.5 ${
+    `flex items-center gap-3 rounded-xl border p-3.5 transition-all hover:-translate-y-0.5 ${fading.has(key) ? 'duration-700' : ''} ${
       fresh.has(key) ? 'border-accent-border bg-accent-bg/40' : 'border-border bg-s1 hover:border-border2'
     }`
 
