@@ -367,6 +367,14 @@ function DetailsTab({ event, onDelete, onGoToTab, onGoToBestWindow, onPatch, onV
         <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} onPatch={onPatch} />} />
         <DetailRow k="When" v={<WhenValue event={event} editable={isHost && !locked} onGoToAvailability={() => onGoToTab('availability')} onGoToBestWindow={onGoToBestWindow} onPatch={onPatch} />} />
         <DetailRow k="Where" v={<WhereValue event={event} locked={locked} onGoToLocation={() => onGoToTab('location')} editable={isHost} onPatch={onPatch} />} />
+        {/* optional deadlines — each reminds everyone the day before and the day of.
+            Plan-by belongs to planning, RSVP-by to the locked plan. */}
+        {!locked && (isHost || event.planDeadline) && (
+          <DetailRow k="Plan by" v={<DeadlineValue value={event.planDeadline} editable={isHost} onChange={(v) => onPatch({ planDeadline: v })} hint="Reminders go out the day before and the day of." />} />
+        )}
+        {locked && (isHost || event.rsvpDeadline) && (
+          <DetailRow k="RSVP by" v={<DeadlineValue value={event.rsvpDeadline} editable={isHost} onChange={(v) => onPatch({ rsvpDeadline: v })} hint="Everyone gets a reminder the day before and the day of." />} />
+        )}
         <DetailRow k="Spots" v={<CapacityValue event={event} editable={isHost} onPatch={onPatch} />} />
         <DetailRow
           k="Budget"
@@ -750,6 +758,31 @@ function FixedWhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch:
         <button onClick={save} disabled={!day || endMin <= startMin} className="h-8 rounded-[8px] bg-accent px-3 text-[12.5px] font-semibold text-on-accent disabled:opacity-40">Save</button>
         <button onClick={onDone} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
       </div>
+    </div>
+  )
+}
+
+/* an optional deadline date: the host sets or clears it, everyone else reads it as fact */
+function DeadlineValue({ value, editable, onChange, hint }: {
+  value?: string; editable: boolean; onChange: (v?: string) => void; hint: string
+}) {
+  if (!editable) return <span>{value ? dateRangeText({ startDate: value, endDate: value }) : 'Not set'}</span>
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="flex flex-wrap items-center gap-2">
+        <input
+          type="date"
+          value={value ?? ''}
+          onChange={(e) => onChange(e.target.value || undefined)}
+          className="h-9 cursor-pointer rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-border2"
+        />
+        {value && (
+          <button onClick={() => onChange(undefined)} className="text-[12.5px] font-semibold text-dim hover:text-brick-text hover:underline">
+            Clear
+          </button>
+        )}
+      </span>
+      {value && <span className="text-[12px] text-faint">{hint}</span>}
     </div>
   )
 }

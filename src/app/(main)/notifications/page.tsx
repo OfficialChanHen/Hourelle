@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Bell, CalendarClock, CalendarRange, ChevronRight, MapPin, Undo2, Video, Vote } from 'lucide-react'
+import { Bell, CalendarClock, CalendarRange, ChevronRight, Hourglass, MapPin, Undo2, UserCheck, Video, Vote } from 'lucide-react'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { fmtMinute, listEvents, respondedCount, type AppEvent } from '@/lib/events'
 import { deriveNotifications, markAllNotificationsSeen, seenNotificationKeys, type NotificationItem } from '@/lib/notifications'
@@ -62,6 +62,34 @@ export default function NotificationsPage() {
             <div className="mb-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{b.title}</div>
             <div className="flex flex-col gap-2">
               {b.items.map(({ e, du, kind, key }) => {
+                if (kind === 'plan-deadline') {
+                  return (
+                    <Link key={key} href={`/events/${e.id}?tab=details`} className={cardCls(key)}>
+                      <span className={`grid h-[38px] w-[38px] flex-none place-items-center rounded-[10px] border ${du <= 0 ? 'border-ochre-border bg-ochre-bg text-ochre-text' : 'border-border bg-s2 text-dim'}`}>
+                        <Hourglass size={19} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[14.5px] font-semibold">{e.title}</div>
+                        <div className="mt-0.5 text-[12.5px] text-dim">Planning wraps up {du <= 0 ? 'today' : 'tomorrow'}{e.hostedByYou ? ' · time to lock it in' : ''}</div>
+                      </div>
+                      <ChevronRight size={17} className="flex-none text-faint" />
+                    </Link>
+                  )
+                }
+                if (kind === 'rsvp-deadline') {
+                  return (
+                    <Link key={key} href={`/events/${e.id}?tab=details`} className={cardCls(key)}>
+                      <span className={`grid h-[38px] w-[38px] flex-none place-items-center rounded-[10px] border ${du <= 0 ? 'border-ochre-border bg-ochre-bg text-ochre-text' : 'border-border bg-s2 text-dim'}`}>
+                        <UserCheck size={19} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[14.5px] font-semibold">{e.title}</div>
+                        <div className="mt-0.5 text-[12.5px] text-dim">RSVPs close {du <= 0 ? 'today' : 'tomorrow'}</div>
+                      </div>
+                      <ChevronRight size={17} className="flex-none text-faint" />
+                    </Link>
+                  )
+                }
                 if (kind === 'reopened') {
                   return (
                     <Link key={key} href={`/events/${e.id}?tab=details`} className={cardCls(key)}>

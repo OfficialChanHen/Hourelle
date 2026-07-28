@@ -65,6 +65,8 @@ export type AppEvent = {
   maxVotes?: number                   // votes each person gets (default 1)
   hideVoters?: boolean                // anonymous ballot: only counts show, never who voted for what
   voteDeadline?: string               // ISO date; voting closes at the end of this day
+  planDeadline?: string               // optional host-set date to have the plan locked by; reminders fire the day before and the day of
+  rsvpDeadline?: string               // optional host-set date to have RSVPs in by (locked events); same reminder cadence
   itinStops?: string[]                // ordered place ids once an itinerary exists
   itinRank?: string[]                 // vote ranking snapshot when the itinerary was built from votes
   itinDwell?: number[]                // minutes spent at each stop (aligned to itinStops order)
