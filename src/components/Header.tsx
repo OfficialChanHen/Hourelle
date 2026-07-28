@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { CalendarDays, Plus, Bell } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
-import { useReminderDot } from '@/hooks/useReminderDot'
+import { useNotificationCount } from '@/hooks/useNotificationCount'
 
 const TABS = [
   { href: '/home', label: 'Home' },
@@ -14,7 +14,7 @@ const TABS = [
 
 export function Header() {
   const pathname = usePathname()
-  const reminderDot = useReminderDot()
+  const notifCount = useNotificationCount()
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md">
@@ -61,16 +61,21 @@ export function Header() {
         <div className="hidden items-center gap-2 md:flex">
           <ThemeToggle />
           <Link
-            href="/alerts"
-            aria-label="Alerts"
+            href="/notifications"
+            aria-label="Notifications"
             className={`relative grid h-[30px] w-[30px] place-items-center rounded-lg border ${
-              pathname.startsWith('/alerts')
+              pathname.startsWith('/notifications')
                 ? 'border-accent-border bg-accent-bg text-accent-text'
                 : 'border-border text-dim hover:text-text'
             }`}
           >
             <Bell size={17} />
-            {reminderDot && <span className="absolute right-[5px] top-[5px] h-[7px] w-[7px] rounded-full bg-accent ring-2 ring-s0" aria-hidden />}
+            {/* how many you haven't looked at — opening the page clears it */}
+            {notifCount > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 grid h-[16px] min-w-[16px] place-items-center rounded-full bg-accent px-1 text-[10px] font-bold leading-none text-on-accent ring-2 ring-s0">
+                {notifCount > 9 ? '9+' : notifCount}
+              </span>
+            )}
           </Link>
           <Link
             href="/profile"

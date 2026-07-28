@@ -80,6 +80,7 @@ export type AppEvent = {
   messages: ChatMessage[]
   createdAt: number
   demo?: boolean
+  reopenedAt?: number                 // set when a locked plan reopens; cleared by the next lock-in — feeds the notification
   status?: EventStatus                // undefined reads as 'planning' (back-compat with stored events)
   // the answered "when": set when the host locks in a plan, OR from birth when the date
   // was fixed at creation. A planning event with a slot here is "time set, place still open".
@@ -733,7 +734,7 @@ export function confirmEvent(id: string, slot: ConfirmedSlot): void {
     if (ev.unavailableIds?.includes(p.id)) return { ...p, rsvp: 'not_going', rsvpAuto: true }
     return { ...p, rsvp: 'pending', rsvpAuto: undefined }
   })
-  patchEvent(id, { status: 'confirmed', confirmed: slot, confirmedAt: Date.now(), ...(participants ? { participants } : {}) })
+  patchEvent(id, { status: 'confirmed', confirmed: slot, confirmedAt: Date.now(), reopenedAt: undefined, ...(participants ? { participants } : {}) })
 }
 export function reopenEvent(id: string): void {
   // back to planning: the old RSVPs answered a time that no longer exists, so
@@ -747,7 +748,7 @@ export function reopenEvent(id: string): void {
     ? { id: host.id, name: host.name, time: 'just now', text: 'Reopened the plan. RSVPs are cleared until it locks in again.', you: !!host.you }
     : null
   patchEvent(id, {
-    status: 'planning', confirmed: undefined, confirmedAt: undefined,
+    status: 'planning', confirmed: undefined, confirmedAt: undefined, reopenedAt: Date.now(),
     ...(participants ? { participants } : {}),
     ...(note ? { messages: [...(ev!.messages ?? []), note] } : {}),
   })

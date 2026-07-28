@@ -3,21 +3,21 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, CalendarDays, Plus, Bell, User } from 'lucide-react'
-import { useReminderDot } from '@/hooks/useReminderDot'
+import { useNotificationCount } from '@/hooks/useNotificationCount'
 
-// Mobile bottom navigation — Home · Events · center + (create) · Alerts · Profile.
+// Mobile bottom navigation — Home · Events · center + (create) · Notifications · Profile.
 // Fixed to the viewport bottom (the one place fixed positioning is right); pages reserve
 // pb-[104px] so their content clears it. Hidden from md up, where the top Header nav takes over.
 const ITEMS = [
   { href: '/home', label: 'Home', icon: Home },
   { href: '/events', label: 'Events', icon: CalendarDays },
-  { href: '/alerts', label: 'Alerts', icon: Bell },
+  { href: '/notifications', label: 'Notifications', icon: Bell },
   { href: '/profile', label: 'Profile', icon: User },
 ] as const
 
 export function MobileTabBar() {
   const pathname = usePathname()
-  const reminderDot = useReminderDot()
+  const notifCount = useNotificationCount()
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
   // two items, the raised create FAB, then two more
   const [left, right] = [ITEMS.slice(0, 2), ITEMS.slice(2)]
@@ -42,13 +42,13 @@ export function MobileTabBar() {
           </Link>
         </div>
 
-        {right.map((t) => <TabItem key={t.href} {...t} active={isActive(t.href)} dot={t.href === '/alerts' && reminderDot} />)}
+        {right.map((t) => <TabItem key={t.href} {...t} active={isActive(t.href)} count={t.href === '/notifications' ? notifCount : 0} />)}
       </div>
     </nav>
   )
 }
 
-function TabItem({ href, label, icon: Icon, active, dot }: { href: string; label: string; icon: typeof Home; active: boolean; dot?: boolean }) {
+function TabItem({ href, label, icon: Icon, active, count = 0 }: { href: string; label: string; icon: typeof Home; active: boolean; count?: number }) {
   return (
     <Link
       href={href}
@@ -57,7 +57,11 @@ function TabItem({ href, label, icon: Icon, active, dot }: { href: string; label
     >
       <span className="relative">
         <Icon size={22} strokeWidth={active ? 2.4 : 2} />
-        {dot && <span className="absolute -right-0.5 -top-0.5 h-[7px] w-[7px] rounded-full bg-accent ring-2 ring-s0" aria-hidden />}
+        {count > 0 && (
+          <span className="absolute -right-2 -top-1.5 grid h-[15px] min-w-[15px] place-items-center rounded-full bg-accent px-1 text-[9.5px] font-bold leading-none text-on-accent ring-2 ring-s0">
+            {count > 9 ? '9+' : count}
+          </span>
+        )}
       </span>
       {label}
     </Link>
