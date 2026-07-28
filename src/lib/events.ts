@@ -17,7 +17,13 @@ export type EventStatus = 'planning' | 'confirmed'
 // the host's locked-in plan: a day, a clock-minute window, and the chosen place(s).
 // endDayKey (day polls only) makes it a run of whole days — absent means one day.
 export type ConfirmedSlot = { dayKey: string; endDayKey?: string; startMin: number; endMin: number; placeIds: string[] }
-export type Participant = { id: string; initials: string; name: string; color: PersonColor; rsvp: Rsvp; you?: boolean; host?: boolean; guest?: boolean }
+export type Participant = {
+  id: string; initials: string; name: string; color: PersonColor; rsvp: Rsvp
+  // set when lock-in answered for them from their availability — cleared the moment
+  // they answer themselves, so the UI can say "marked going from your times"
+  rsvpAuto?: boolean
+  you?: boolean; host?: boolean; guest?: boolean
+}
 export type EventPlace = { id: string; name: string; place: string; addedBy?: string } // addedBy: participant id who suggested it
 export type EventExpense = { id: string; label: string; amount: number; paidBy: string } // amount in whole dollars; paidBy: participant id
 export type GridDay = { key: string; dow: string; date: string; best?: boolean }
@@ -692,21 +698,48 @@ export function removeParticipantPatch(ev: AppEvent, pid: string): Partial<AppEv
 export function setMyRsvp(id: string, rsvp: Rsvp): void {
   const ev = getEvent(id)
   if (!ev) return
-  patchEvent(id, { participants: ev.participants.map((p) => (p.you ? { ...p, rsvp } : p)) })
+  // answering yourself retires the availability-based assumption
+  patchEvent(id, { participants: ev.participants.map((p) => (p.you ? { ...p, rsvp, rsvpAuto: undefined } : p)) })
+}
+
+// does this person's availability cover the locked slot in full? A run of days needs
+// a mark on every day; a timed slot needs one interval spanning the whole window.
+export function slotFits(ev: AppEvent, slot: ConfirmedSlot, pid: string): boolean {
+  const availIv = availIvOf(ev)
+  if (slot.endDayKey) {
+    const cur = parseLocal(slot.dayKey)
+    const end = parseLocal(slot.endDayKey)
+    if (!cur || !end) return false
+    for (let i = 0; i < 90 && cur <= end; i++) {
+      if (!(availIv[isoOf(cur)]?.[pid] ?? []).length) return false
+      cur.setDate(cur.getDate() + 1)
+    }
+    return true
+  }
+  const gridStart = gridStartMinOf(ev)
+  const s = slot.startMin - gridStart
+  const e = slot.endMin - gridStart
+  return (availIv[slot.dayKey]?.[pid] ?? []).some((iv) => iv.s <= s && iv.e >= e)
 }
 
 export function confirmEvent(id: string, slot: ConfirmedSlot): void {
-  // locking in opens the RSVP round: being free isn't the same as coming, so
-  // everyone except the host goes back to "no reply" and answers fresh
+  // locking in opens the RSVP round with an assumption instead of a blank: whoever's
+  // availability covers the locked slot starts as going (marked so they can undo it),
+  // a declared "no days work" reads as can't go, and everyone else starts at no reply
   const ev = getEvent(id)
-  const participants = ev?.participants.map((p): Participant => ({ ...p, rsvp: p.host ? 'attending' : 'pending' }))
+  const participants = ev?.participants.map((p): Participant => {
+    if (p.host) return { ...p, rsvp: 'attending', rsvpAuto: undefined }
+    if (slotFits(ev, slot, p.id)) return { ...p, rsvp: 'attending', rsvpAuto: true }
+    if (ev.unavailableIds?.includes(p.id)) return { ...p, rsvp: 'not_going', rsvpAuto: true }
+    return { ...p, rsvp: 'pending', rsvpAuto: undefined }
+  })
   patchEvent(id, { status: 'confirmed', confirmed: slot, confirmedAt: Date.now(), ...(participants ? { participants } : {}) })
 }
 export function reopenEvent(id: string): void {
   // back to planning: the old RSVPs answered a time that no longer exists, so
   // everyone but the host returns to no-reply until the next lock-in asks again
   const ev = getEvent(id)
-  const participants = ev?.participants.map((p): Participant => ({ ...p, rsvp: p.host ? 'attending' : 'pending' }))
+  const participants = ev?.participants.map((p): Participant => ({ ...p, rsvp: p.host ? 'attending' : 'pending', rsvpAuto: undefined }))
   patchEvent(id, { status: 'planning', confirmed: undefined, confirmedAt: undefined, ...(participants ? { participants } : {}) })
 }
 

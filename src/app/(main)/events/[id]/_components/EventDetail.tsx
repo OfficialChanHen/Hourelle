@@ -489,7 +489,7 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
     // resetting to no reply also takes back a declared "none of these days work"
     const clearUnavail = !locked && r !== 'not_going' && event.unavailableIds?.includes(p.id)
     onPatch({
-      participants: event.participants.map((x) => (x.id === p.id ? { ...x, rsvp: r } : x)),
+      participants: event.participants.map((x) => (x.id === p.id ? { ...x, rsvp: r, rsvpAuto: undefined } : x)),
       ...(clearUnavail ? { unavailableIds: event.unavailableIds!.filter((id) => id !== p.id) } : {}),
     })
     close()

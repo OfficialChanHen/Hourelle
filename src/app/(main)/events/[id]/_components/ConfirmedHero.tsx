@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Check, HelpCircle, MapPin, Route, Undo2, Video, X } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { TimezonePill } from '@/components/ui/TimezonePill'
@@ -18,7 +19,9 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
   const c = event.confirmed
   if (!c) return null
 
-  const myRsvp = event.participants.find((p) => p.you)?.rsvp
+  const me = event.participants.find((p) => p.you)
+  const myRsvp = me?.rsvp
+  const [confirmReopen, setConfirmReopen] = useState(false)
   function answer(v: Rsvp) {
     setMyRsvp(event.id, v)
     onChanged()
@@ -77,10 +80,18 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
         </div>
         <div className="flex flex-none items-center gap-2">
           <AddToCalendar event={event} slot={{ dayKey: c.dayKey, endDayKey: c.endDayKey, startMin: c.startMin, endMin: c.endMin }} />
-          {event.hostedByYou && (
-            <button onClick={reopen} className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-dim hover:bg-s2 hover:text-text">
+          {/* reopening is consequential — everyone's RSVPs reset — so it asks once */}
+          {event.hostedByYou && !confirmReopen && (
+            <button onClick={() => setConfirmReopen(true)} className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-dim hover:bg-s2 hover:text-text">
               <Undo2 size={14} /> Reopen planning
             </button>
+          )}
+          {event.hostedByYou && confirmReopen && (
+            <span className="flex flex-wrap items-center gap-2 rounded-[9px] border border-ochre-border bg-ochre-bg px-2.5 py-1.5">
+              <span className="text-[12.5px] font-medium text-ochre-text">Unlocks the plan for everyone and clears the RSVPs.</span>
+              <button onClick={reopen} className="h-7 rounded-[7px] px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--ochre)' }}>Reopen</button>
+              <button onClick={() => setConfirmReopen(false)} className="h-7 rounded-[7px] border border-border2 bg-s1 px-2.5 text-[12.5px] font-semibold text-dim hover:bg-s2">Keep it locked</button>
+            </span>
           )}
         </div>
       </div>
@@ -104,6 +115,11 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
             )
           })}
         </div>
+        {me?.rsvpAuto && (
+          <span className="text-[12.5px] text-faint">
+            {myRsvp === 'attending' ? 'Marked going from your times. Change it if that’s wrong.' : 'Marked from your reply that no days worked. Change it if that’s wrong.'}
+          </span>
+        )}
       </div>
     </div>
   )

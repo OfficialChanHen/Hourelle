@@ -62,7 +62,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
   function persist(patch: Partial<AppEvent>) { if (!event.demo) patchEvent(event.id, patch) }
   function changeRsvp(r: Rsvp) {
     if (r === 'attending' && full) return // no sneaking past a disabled button
-    setParticipants((ps) => ps.map((p) => (p.you ? { ...p, rsvp: r } : p)))
+    setParticipants((ps) => ps.map((p) => (p.you ? { ...p, rsvp: r, rsvpAuto: undefined } : p)))
     if (!event.demo) setMyRsvp(event.id, r)
   }
   function changeQuorum(q: number | null) {
