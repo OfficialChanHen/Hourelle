@@ -623,6 +623,49 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     if (locked) { setMode('view'); setSel(null) }
   }, [locked]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // drag-to-grow: the corner grip stretches the panel between its default height (the
+  // floor) and just tall enough to show every row (the ceiling — no dead space past it).
+  // Page scroll folds into the math, and holding the pointer at the viewport's edge
+  // auto-scrolls so the drag can keep going past the fold.
+  const rootRef = useRef<HTMLDivElement>(null)
+  const baseHRef = useRef<number | null>(null)
+  const [panelH, setPanelH] = useState<number | null>(null)
+  function onResizeDown(e: React.PointerEvent) {
+    e.preventDefault()
+    const el = rootRef.current
+    if (!el) return
+    const startH = el.getBoundingClientRect().height
+    if (baseHRef.current === null && panelH === null) baseHRef.current = startH
+    const minH = baseHRef.current ?? startH
+    const sc = scroller.current
+    const maxH = startH + (sc ? Math.max(0, sc.scrollHeight - sc.clientHeight) : 0)
+    const startY = e.clientY
+    const startScroll = window.scrollY
+    let lastY = e.clientY
+    let raf = 0
+    const apply = () => {
+      const dy = (lastY - startY) + (window.scrollY - startScroll)
+      setPanelH(Math.round(Math.max(minH, Math.min(maxH, startH + dy))))
+    }
+    const EDGE = 56
+    const tick = () => {
+      const vh = window.innerHeight
+      if (lastY > vh - EDGE) window.scrollBy(0, Math.min(18, (lastY - (vh - EDGE)) / 2))
+      else if (lastY < EDGE + 60) window.scrollBy(0, -Math.min(18, (EDGE + 60 - lastY) / 2))
+      apply()
+      raf = requestAnimationFrame(tick)
+    }
+    const move = (ev: PointerEvent) => { lastY = ev.clientY; apply() }
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      cancelAnimationFrame(raf)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    raf = requestAnimationFrame(tick)
+  }
+
   // the winning stretch's days, for the header indicator (only when answering in days)
   const blockKeys = useMemo(() => {
     if (!block || blockLen < 2) return null
@@ -682,7 +725,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
 
   return (
     // a day poll is one short row, so the panel hugs its content instead of filling the viewport
-    <div className={`relative flex flex-col rounded-2xl border border-border bg-s1 lg:flex-row ${dayPoll ? '' : 'lg:h-[calc(100dvh-300px)] lg:max-h-[820px] lg:min-h-[480px]'}`}>
+    <div
+      ref={rootRef}
+      className={`relative flex flex-col rounded-2xl border border-border bg-s1 lg:flex-row ${dayPoll || panelH !== null ? '' : 'lg:h-[calc(100dvh-300px)] lg:max-h-[820px] lg:min-h-[480px]'}`}
+      style={!dayPoll && panelH !== null ? { height: panelH } : undefined}
+    >
       <div ref={colRef} className="relative flex min-w-0 flex-1 flex-col p-4">
         {/* toolbar — first row pairs the mode toggle with Settings (always right-aligned);
             the week nav and time controls flow on their own row below */}
@@ -1114,13 +1161,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                             )
                           })()}
                         </div>
-                        {/* one uniform count in every cell: theme ink on a faint paper
-                            backplate, so no band — pale, full, or straddled — changes its look */}
+                        {/* one uniform count in every cell — the theme's ink, no backplate */}
                         {n > 0 && (
-                          <span
-                            className="pointer-events-none absolute bottom-[2px] right-[3px] z-[1] rounded-[4px] px-[3px] py-px text-[9.5px] font-bold"
-                            style={{ color: 'var(--heat-count)', background: 'color-mix(in srgb, var(--s1) 78%, transparent)' }}
-                          >
+                          <span className="pointer-events-none absolute bottom-[3px] right-1 z-[1] text-[9.5px] font-bold" style={{ color: 'var(--heat-count)' }}>
                             {n}/{viewTotal}
                           </span>
                         )}
@@ -1330,6 +1373,23 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           onApply={applyImport}
           onClose={() => setImporting(null)}
         />
+      )}
+
+      {/* corner grip: drag to stretch the grid toward showing every row at once.
+          Wears the same diagonal mark as a resizable textarea. Desktop only —
+          phones scroll; day polls have nothing to expand. */}
+      {!dayPoll && (
+        <div
+          role="separator"
+          aria-label="Drag to resize the grid"
+          title="Drag to resize the grid"
+          onPointerDown={onResizeDown}
+          className="absolute bottom-0 right-0 z-[20] hidden h-6 w-6 cursor-ns-resize touch-none place-items-center rounded-tl-[8px] text-faint hover:bg-s2 hover:text-dim lg:grid"
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
+            <path d="M9 1 1 9M9 5 5 9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none" />
+          </svg>
+        </div>
       )}
     </div>
   )
