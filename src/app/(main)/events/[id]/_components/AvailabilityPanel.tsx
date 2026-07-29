@@ -297,17 +297,25 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     // grid editing is driven by a window key listener, not element focus — drop any lingering
     // focus on a toolbar button so arrow-key nudging doesn't paint a stray focus ring on it
     if (document.activeElement instanceof HTMLElement && document.activeElement.tagName === 'BUTTON') document.activeElement.blur()
+    // day polls have no partial times and no handles: a day is on or off, one click each way
+    if (dayPoll) {
+      commitDay(day, (mine[day] ?? []).length ? [] : [{ s: 0, e: gridMax }])
+      setSel(null)
+      return
+    }
     const r = e.currentTarget.getBoundingClientRect()
     const gridMin = Math.max(0, Math.min(gridMax, ti * step + ((e.clientY - r.top) / r.height) * step))
     const hit = (mine[day] ?? []).find((iv) => gridMin >= iv.s && gridMin <= iv.e)
     if (hit) { setSel({ day, s: hit.s, e: hit.e, edge: 'bottom' }); return } // click a block → select, never toggle off
-    // a slot holding a hand-tuned partial never floods to full on a click — that would
-    // swallow the partial. Select it instead; the handles carve out the second stretch.
+    // a slot already holding a partial never floods to full — a click in its empty
+    // stretch drops a 5-minute band right there instead (a second partial), and the
+    // normalize pass coalesces it into anything it touches
     const w0 = ti * step, w1 = w0 + step
     const touching = (mine[day] ?? []).filter((iv) => iv.s < w1 && iv.e > w0)
-    if (touching.length > 0 && !touching.some((iv) => iv.s <= w0 && iv.e >= w1)) {
-      const b = touching[0]
-      setSel({ day, s: b.s, e: b.e, edge: 'bottom' })
+    if (touching.length > 0) {
+      const s = Math.max(0, Math.min(gridMax - MIN_LEN, snap5(gridMin - MIN_LEN / 2)))
+      const norm = commitDay(day, [...(mine[day] ?? []), { s, e: s + MIN_LEN }])
+      selectMerged(day, norm, s + MIN_LEN / 2, 'bottom')
       return
     }
     const a = rowStart(gridMin)
@@ -320,11 +328,26 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const t = tapRef.current; tapRef.current = null
     if (!t || t.day !== day || t.ti !== ti) return
     if (Math.abs(e.clientY - t.y) > 8 || Math.abs(e.clientX - t.x) > 8) return // was a scroll, not a tap
-    // any of my time already in the slot — full or partial — means tap selects it
-    // (a partial must never coalesce into a full box); only a truly empty slot fills
+    // day polls have no partial times and no handles: a day is on or off, one tap each way
+    if (dayPoll) {
+      commitDay(day, (mine[day] ?? []).length ? [] : [{ s: 0, e: gridMax }])
+      setSel(null)
+      return
+    }
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const gridMin = Math.max(0, Math.min(gridMax, ti * step + ((e.clientY - r.top) / r.height) * step))
+    const hit = (mine[day] ?? []).find((iv) => gridMin >= iv.s && gridMin <= iv.e)
+    if (hit) { setSel({ day, s: hit.s, e: hit.e, edge: 'bottom' }); return } // tap a block → select (edit/remove via the bar)
+    // same rule as the mouse: a slot with a partial takes a 5-minute band at the tap
+    // spot (coalescing with anything it touches); only a truly empty slot fills whole
     const w0 = ti * step, w1 = w0 + step
     const touching = (mine[day] ?? []).filter((iv) => iv.s < w1 && iv.e > w0)
-    if (touching.length > 0) { const b = touching[0]; setSel({ day, s: b.s, e: b.e, edge: 'bottom' }); return }
+    if (touching.length > 0) {
+      const s = Math.max(0, Math.min(gridMax - MIN_LEN, snap5(gridMin - MIN_LEN / 2)))
+      const norm = commitDay(day, [...(mine[day] ?? []), { s, e: s + MIN_LEN }])
+      selectMerged(day, norm, s + MIN_LEN / 2, 'bottom')
+      return
+    }
     const a = rowStart(ti * step + step / 2)
     const norm = commitDay(day, [...(mine[day] ?? []), { s: a, e: a + step }]) // tap empty → fill this slot
     selectMerged(day, norm, a + step / 2, 'bottom')
