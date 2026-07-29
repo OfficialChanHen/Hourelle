@@ -23,8 +23,9 @@
   --grid-dash:#A89D86;
   /* best-day header fill — must be opaque: it's a sticky surface content scrolls under */
   --best-head:#F4EBD9;
-  /* the n/N count in a heat cell: partial cells vs the saturated full cell */
-  --heat-count:#46604F; --heat-count-full:#F4F1EA;
+  /* the n/N count in a heat cell: the theme's own ink, so it holds up on the cell
+     background and every heat band short of full; the saturated full band flips to cream */
+  --heat-count:#1B1815; --heat-count-full:#F4F1EA;
 }
 
 /* Dark — warm charcoal */
@@ -44,7 +45,7 @@
   --grid-edge:rgba(244,236,214,.22);
   --grid-dash:rgba(244,236,214,.38);
   --best-head:#352C1D;
-  --heat-count:#9FD3BB; --heat-count-full:#F4F1EA;
+  --heat-count:#F1ECE0; --heat-count-full:#F4F1EA;
 }
 
 /* ── Appearances — optional palettes layered over the same tokens ──
