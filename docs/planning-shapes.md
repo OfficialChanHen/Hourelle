@@ -57,7 +57,8 @@ lifecycle strip starts at "Lock in", and the only question left is who is coming
 - `'vote'` — live ballot; the place question is **open**
 - `'set'` — the host picked the venue as fact; no voting UI (answered)
 - `'remote'` — online event; there is no place question (answered)
-- `'later'` — deliberately deferred; no ballot to run (answered)
+- `'later'` — deliberately deferred; no ballot to run (answered for planning, but the
+  lock-in guard still requires a real place or an online link before the plan can lock)
 
 Older stored events used `mode: 'vote'` plus a `settled: true` flag for the chosen-venue
 case; `readAll()` in `src/lib/events.ts` folds those into `mode: 'set'` on read.

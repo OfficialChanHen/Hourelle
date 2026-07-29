@@ -8,7 +8,7 @@ import { TimeSelect } from '@/components/ui/TimeSelect'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import {
-  availIvOf, bestWindow, confirmedSlotText, confirmEvent, fmtMinute, gridStartMinOf,
+  availIvOf, bestWindow, confirmedSlotText, confirmEvent, fmtMinute, gridStartMinOf, respondedCount,
   type AppEvent, type ConfirmedSlot,
 } from '@/lib/events'
 
@@ -22,8 +22,8 @@ import {
 // prefill + openNonce let other surfaces hand the modal an answer: the grid's
 // "Lock these days" shortcut opens it with the winning run already picked
 export type LockPrefill = { dayKey: string; endDayKey?: string }
-export function ConfirmBar({ event, onChanged, onGoToDetails, prefill, openNonce, runLen }: {
-  event: AppEvent; onChanged: () => void; onGoToDetails?: () => void
+export function ConfirmBar({ event, onChanged, onGoToDetails, onGoToLocation, prefill, openNonce, runLen }: {
+  event: AppEvent; onChanged: () => void; onGoToDetails?: () => void; onGoToLocation?: () => void
   prefill?: LockPrefill | null; openNonce?: number
   // the grid dial's days-in-a-row, so the modal offers a time (1) or a first-to-last run (2+)
   runLen?: number
@@ -39,12 +39,12 @@ export function ConfirmBar({ event, onChanged, onGoToDetails, prefill, openNonce
       >
         <Lock size={15} /> {event.confirmed ? 'Lock in the place' : 'Lock it in'}
       </button>
-      {open && <ConfirmModal event={event} close={() => setOpen(false)} onChanged={onChanged} onGoToDetails={onGoToDetails} prefill={prefill} runLen={runLen} />}
+      {open && <ConfirmModal event={event} close={() => setOpen(false)} onChanged={onChanged} onGoToDetails={onGoToDetails} onGoToLocation={onGoToLocation} prefill={prefill} runLen={runLen} />}
     </>
   )
 }
 
-function ConfirmModal({ event, close, onChanged, onGoToDetails, prefill, runLen }: { event: AppEvent; close: () => void; onChanged: () => void; onGoToDetails?: () => void; prefill?: LockPrefill | null; runLen?: number }) {
+function ConfirmModal({ event, close, onChanged, onGoToDetails, onGoToLocation, prefill, runLen }: { event: AppEvent; close: () => void; onChanged: () => void; onGoToDetails?: () => void; onGoToLocation?: () => void; prefill?: LockPrefill | null; runLen?: number }) {
   const root = useRef<HTMLDivElement>(null)
   const card = useRef<HTMLDivElement>(null)
   useGSAP(() => {
@@ -77,14 +77,14 @@ function ConfirmModal({ event, close, onChanged, onGoToDetails, prefill, runLen 
           </button>
         </div>
         <div className="scroll-slim min-h-0 flex-1 overflow-auto px-5 py-4">
-          <ConfirmForm event={event} close={close} onChanged={onChanged} onGoToDetails={onGoToDetails} prefill={prefill} runLen={runLen} />
+          <ConfirmForm event={event} close={close} onChanged={onChanged} onGoToDetails={onGoToDetails} onGoToLocation={onGoToLocation} prefill={prefill} runLen={runLen} />
         </div>
       </div>
     </div>
   )
 }
 
-function ConfirmForm({ event, close, onChanged, onGoToDetails, prefill, runLen }: { event: AppEvent; close: () => void; onChanged: () => void; onGoToDetails?: () => void; prefill?: LockPrefill | null; runLen?: number }) {
+function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, prefill, runLen }: { event: AppEvent; close: () => void; onChanged: () => void; onGoToDetails?: () => void; onGoToLocation?: () => void; prefill?: LockPrefill | null; runLen?: number }) {
   const loc = event.location
   const gridStart = gridStartMinOf(event)
   const duration = event.durationMin ?? 60
@@ -149,6 +149,22 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, prefill, runLen }
   const hasItin = loc.mode === 'vote' && stops.length > 0
   const [source, setSource] = useState<'votes' | 'itin'>(loc.planMode === 'itinerary' && hasItin ? 'itin' : 'votes')
 
+  // the guard on planning → confirmed: a plan only locks with a real when AND a real
+  // where. Online counts as a place; "decide later" and an empty or unchecked ballot
+  // don't — the host adds or picks one first.
+  const placeReady = loc.mode === 'remote'
+    || settled
+    || (source === 'itin' ? hasItin : hasBallot && placeIds.length > 0)
+  const timeReady = !!dayKey && (dayPoll || runMode || endMin > startMin)
+  const blockedReason = !timeReady
+    ? 'Pick a day and time first.'
+    : !placeReady
+      ? hasBallot ? 'Pick at least one place.' : 'Add a place before locking in.'
+      : null
+  // not a blocker, but worth a pause: locking with zero replies means the "best" day
+  // is a guess
+  const noReplies = respondedCount(event.avail, event.unavailableIds) === 0
+
   function togglePlace(id: string) {
     setPlaceIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]))
   }
@@ -157,6 +173,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, prefill, runLen }
     setEndMin((e) => (e <= v ? Math.min(v + duration, 24 * 60 - 5) : e))
   }
   function lockIn() {
+    if (blockedReason) return
     // a run of days (or any day-poll lock) is all-day; only a single-day lock on a
     // minute poll carries clock times
     const allDay = dayPoll || runMode
@@ -254,11 +271,14 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, prefill, runLen }
             <MapPin size={15} className="flex-none text-accent-text" /> <span className="min-w-0 truncate">{loc.places.map((p) => p.name).join(' · ')}</span> <span className="flex-none text-faint">already set</span>
           </div>
         ) : !hasBallot ? (
-          <div className="flex items-center gap-2 rounded-[9px] border border-border bg-s2 px-3 py-2 text-[13px] text-dim">
+          <div className="flex flex-wrap items-center gap-2 rounded-[9px] border border-ochre-border bg-ochre-bg px-3 py-2 text-[13px] text-ochre-text">
             <MapPin size={15} className="flex-none" />
-            {timeSet
-              ? 'Nothing on the ballot yet. Confirming now closes the place question as "to be decided".'
-              : 'Place still open. You can lock the time now and settle the place later.'}
+            <span className="min-w-0 flex-1">No place yet. The plan needs one before it can lock.</span>
+            {onGoToLocation && (
+              <button onClick={() => { close(); onGoToLocation() }} className="flex-none text-[12.5px] font-semibold underline underline-offset-2">
+                Add one on the Location tab
+              </button>
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -316,9 +336,16 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, prefill, runLen }
 
       <div className="border-t border-border pt-2.5">
         <p className="mb-2.5 text-[12.5px] leading-[1.5] text-faint">Everyone with the link sees this as the final plan. You can reopen planning later.</p>
+        {blockedReason && (
+          <p className="mb-2 text-[12.5px] font-medium text-brick-text">{blockedReason}</p>
+        )}
+        {!blockedReason && noReplies && (
+          <p className="mb-2 text-[12.5px] font-medium text-ochre-text">No one has marked availability yet, so this is a guess. You can still lock it in.</p>
+        )}
         <button
           onClick={lockIn}
-          className="flex h-9 w-full items-center justify-center gap-1.5 rounded-[9px] bg-accent text-[14px] font-semibold text-on-accent"
+          disabled={!!blockedReason}
+          className="flex h-9 w-full items-center justify-center gap-1.5 rounded-[9px] bg-accent text-[14px] font-semibold text-on-accent disabled:opacity-40"
         >
           <Check size={16} /> {timeSet ? 'Confirm the place' : 'Confirm the plan'}
         </button>
