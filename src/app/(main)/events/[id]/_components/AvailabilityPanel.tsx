@@ -301,6 +301,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const gridMin = Math.max(0, Math.min(gridMax, ti * step + ((e.clientY - r.top) / r.height) * step))
     const hit = (mine[day] ?? []).find((iv) => gridMin >= iv.s && gridMin <= iv.e)
     if (hit) { setSel({ day, s: hit.s, e: hit.e, edge: 'bottom' }); return } // click a block → select, never toggle off
+    // a slot holding a hand-tuned partial never floods to full on a click — that would
+    // swallow the partial. Select it instead; the handles carve out the second stretch.
+    const w0 = ti * step, w1 = w0 + step
+    const touching = (mine[day] ?? []).filter((iv) => iv.s < w1 && iv.e > w0)
+    if (touching.length > 0 && !touching.some((iv) => iv.s <= w0 && iv.e >= w1)) {
+      const b = touching[0]
+      setSel({ day, s: b.s, e: b.e, edge: 'bottom' })
+      return
+    }
     const a = rowStart(gridMin)
     const d: Drag = { kind: 'paint', day, anchorClientY: e.clientY, anchorScrollTop: scroller.current?.scrollTop ?? 0, anchorMin: gridMin, block: { s: a, e: a + step } }
     dragRef.current = d; setDrag(d); setSel(null)
@@ -311,10 +320,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const t = tapRef.current; tapRef.current = null
     if (!t || t.day !== day || t.ti !== ti) return
     if (Math.abs(e.clientY - t.y) > 8 || Math.abs(e.clientX - t.x) > 8) return // was a scroll, not a tap
-    const mid = ti * step + step / 2
-    const hit = (mine[day] ?? []).find((iv) => mid >= iv.s && mid <= iv.e)
-    if (hit) { setSel({ day, s: hit.s, e: hit.e, edge: 'bottom' }); return } // tap a block → select (edit/remove via the bar)
-    const a = rowStart(mid)
+    // any of my time already in the slot — full or partial — means tap selects it
+    // (a partial must never coalesce into a full box); only a truly empty slot fills
+    const w0 = ti * step, w1 = w0 + step
+    const touching = (mine[day] ?? []).filter((iv) => iv.s < w1 && iv.e > w0)
+    if (touching.length > 0) { const b = touching[0]; setSel({ day, s: b.s, e: b.e, edge: 'bottom' }); return }
+    const a = rowStart(ti * step + step / 2)
     const norm = commitDay(day, [...(mine[day] ?? []), { s: a, e: a + step }]) // tap empty → fill this slot
     selectMerged(day, norm, a + step / 2, 'bottom')
   }
