@@ -1114,13 +1114,16 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                             )
                           })()}
                         </div>
-                        {n > 0 && (() => {
-                          // the corner sits on the cell's BOTTOM band, not its peak — with a
-                          // partial up top, the bottom can be pale while the peak is full, so
-                          // the color keys off what's actually behind the number
-                          const bottomN = paint[paint.length - 1]?.ids.length ?? n
-                          return <span className="pointer-events-none absolute bottom-[3px] right-1 z-[1] text-[9.5px] font-bold" style={{ color: bottomN >= viewTotal ? 'var(--heat-count-full)' : 'var(--heat-count)' }}>{n}/{viewTotal}</span>
-                        })()}
+                        {/* one uniform count in every cell: theme ink on a faint paper
+                            backplate, so no band — pale, full, or straddled — changes its look */}
+                        {n > 0 && (
+                          <span
+                            className="pointer-events-none absolute bottom-[2px] right-[3px] z-[1] rounded-[4px] px-[3px] py-px text-[9.5px] font-bold"
+                            style={{ color: 'var(--heat-count)', background: 'color-mix(in srgb, var(--s1) 78%, transparent)' }}
+                          >
+                            {n}/{viewTotal}
+                          </span>
+                        )}
                       </div>
                     )
                   }
