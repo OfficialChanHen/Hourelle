@@ -1114,7 +1114,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                             )
                           })()}
                         </div>
-                        {n > 0 && <span className="pointer-events-none absolute bottom-[3px] right-1 z-[1] text-[9.5px] font-bold" style={{ color: n >= viewTotal ? 'var(--heat-count-full)' : 'var(--heat-count)' }}>{n}/{viewTotal}</span>}
+                        {n > 0 && (() => {
+                          // the corner sits on the cell's BOTTOM band, not its peak — with a
+                          // partial up top, the bottom can be pale while the peak is full, so
+                          // the color keys off what's actually behind the number
+                          const bottomN = paint[paint.length - 1]?.ids.length ?? n
+                          return <span className="pointer-events-none absolute bottom-[3px] right-1 z-[1] text-[9.5px] font-bold" style={{ color: bottomN >= viewTotal ? 'var(--heat-count-full)' : 'var(--heat-count)' }}>{n}/{viewTotal}</span>
+                        })()}
                       </div>
                     )
                   }
@@ -1153,7 +1159,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                       })}
                       {/* slot line redrawn above the heat fills so saturated cells can't wash it out */}
                       <div className="pointer-events-none absolute z-[1] border-b border-r border-grid-line" style={{ inset: '0 -1px -1px 0' }} />
-                      {cnt > 0 && <span className="pointer-events-none absolute bottom-[2px] right-1 z-[2] text-[9px] font-bold" style={{ color: cnt >= editTotal ? 'var(--heat-count-full)' : 'var(--you-text)' }}>{cnt}/{editTotal}</span>}
+                      {cnt > 0 && (() => {
+                        // color for the surface under the corner: my clay block reaching the
+                        // cell's bottom edge wants dark clay text; a full dark heat wants cream;
+                        // anything paler (partials included) reads best in dark text
+                        const clayAtCorner = ivs.some((iv) => iv.e >= w1 && iv.s < w1)
+                        const onDarkHeat = !clayAtCorner && oCount >= editTotal
+                        return <span className="pointer-events-none absolute bottom-[2px] right-1 z-[2] text-[9px] font-bold" style={{ color: onDarkHeat ? 'var(--heat-count-full)' : 'var(--you-text)' }}>{cnt}/{editTotal}</span>
+                      })()}
                       {/* full-cell hit zone: empty → paint, over a block → select */}
                       <div className="absolute inset-0 z-[5] touch-auto" onPointerDown={(e) => onCellDown(e, d.key, ti)} onPointerUp={(e) => onCellTap(e, d.key, ti)} onPointerCancel={() => { tapRef.current = null }} />
                       {/* time handles + delete for the selected block */}
