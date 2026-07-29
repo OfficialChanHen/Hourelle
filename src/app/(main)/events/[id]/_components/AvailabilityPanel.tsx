@@ -31,10 +31,12 @@ const CELL = 50 // px per grid row — must match the h-[50px] cell height below
 const MIN_LEN = 5 // smallest block, in minutes
 const OVERSCAN = 6 // rows rendered beyond the viewport each side, so scrolling doesn't flash blank
 
-export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0, onLockDays }: {
+export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0, onLockDays, onRunChange }: {
   event: AppEvent; locked?: boolean; initialFilter?: string[] | string | null; focusBest?: number
   // host-only shortcut on day polls: hand the footer's winning run straight to the confirm modal
   onLockDays?: (startKey: string, endKey: string) => void
+  // reports the days-in-a-row dial, so the lock-in modal matches what's being answered
+  onRunChange?: (n: number) => void
 }) {
   const total = event.participants.length
   const pById = new Map(event.participants.map((p) => [p.id, p]))
@@ -564,6 +566,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // The longest pickable run is the longest stretch of touching calendar days in the poll.
   const maxRun = useMemo(() => longestRun(event.days), [event.days])
   const [blockLen, setBlockLen] = useState(() => (dayPoll && maxRun >= 2 ? 2 : 1))
+  // keep the lock-in modal in step with the dial
+  useEffect(() => { onRunChange?.(blockLen) }, [blockLen]) // eslint-disable-line react-hooks/exhaustive-deps
   const block = useMemo(
     () => bestBlock(viewCombinedByDay, event.days, blockLen, bestMode),
     [viewCombinedByDay, blockLen, bestMode], // eslint-disable-line react-hooks/exhaustive-deps

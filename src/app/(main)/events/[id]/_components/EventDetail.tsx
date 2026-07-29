@@ -112,6 +112,9 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   // and opens it (nonce bumps so a repeat ask reopens). Lives above the early returns —
   // hooks must run on every render.
   const [lockAsk, setLockAsk] = useState<{ dayKey: string; endDayKey?: string; nonce: number } | null>(null)
+  // the grid dial's days-in-a-row, reported by the availability panel so the lock-in
+  // modal offers a time (1) or a first-to-last run (2+). Null until the grid reports.
+  const [runLen, setRunLen] = useState<number | null>(null)
 
   function handleDelete() {
     const title = event?.title
@@ -197,7 +200,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         </div>
         {/* ml-auto keeps the actions hugging the right edge when the header wraps */}
         <div className="ml-auto flex min-w-0 items-center gap-2">
-          {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToDetails={() => setTab('details')} prefill={lockAsk} openNonce={lockAsk?.nonce} />}
+          {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToDetails={() => setTab('details')} prefill={lockAsk} openNonce={lockAsk?.nonce} runLen={runLen ?? undefined} />}
           {/* discussion lives in the floating bubble alone — one entry point, less header */}
           {/* share button opens a dropdown with the URL and a one-tap copy; on phones it
               folds into the ⋯ menu so the title and lock-in keep the row */}
@@ -285,6 +288,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           onLockDays={event.hostedByYou && phase === 'planning'
             ? (startKey, endKey) => setLockAsk((p) => ({ dayKey: startKey, endDayKey: endKey !== startKey ? endKey : undefined, nonce: (p?.nonce ?? 0) + 1 }))
             : undefined}
+          onRunChange={setRunLen}
         />
       )}
       {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} />}

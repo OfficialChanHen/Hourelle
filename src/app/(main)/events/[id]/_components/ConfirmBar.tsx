@@ -22,9 +22,11 @@ import {
 // prefill + openNonce let other surfaces hand the modal an answer: the grid's
 // "Lock these days" shortcut opens it with the winning run already picked
 export type LockPrefill = { dayKey: string; endDayKey?: string }
-export function ConfirmBar({ event, onChanged, onGoToDetails, prefill, openNonce }: {
+export function ConfirmBar({ event, onChanged, onGoToDetails, prefill, openNonce, runLen }: {
   event: AppEvent; onChanged: () => void; onGoToDetails?: () => void
   prefill?: LockPrefill | null; openNonce?: number
+  // the grid dial's days-in-a-row, so the modal offers a time (1) or a first-to-last run (2+)
+  runLen?: number
 }) {
   const [open, setOpen] = useState(false)
   useEffect(() => { if (openNonce) setOpen(true) }, [openNonce])
@@ -37,12 +39,12 @@ export function ConfirmBar({ event, onChanged, onGoToDetails, prefill, openNonce
       >
         <Lock size={15} /> {event.confirmed ? 'Lock in the place' : 'Lock it in'}
       </button>
-      {open && <ConfirmModal event={event} close={() => setOpen(false)} onChanged={onChanged} onGoToDetails={onGoToDetails} prefill={prefill} />}
+      {open && <ConfirmModal event={event} close={() => setOpen(false)} onChanged={onChanged} onGoToDetails={onGoToDetails} prefill={prefill} runLen={runLen} />}
     </>
   )
 }
 
-function ConfirmModal({ event, close, onChanged, onGoToDetails, prefill }: { event: AppEvent; close: () => void; onChanged: () => void; onGoToDetails?: () => void; prefill?: LockPrefill | null }) {
+function ConfirmModal({ event, close, onChanged, onGoToDetails, prefill, runLen }: { event: AppEvent; close: () => void; onChanged: () => void; onGoToDetails?: () => void; prefill?: LockPrefill | null; runLen?: number }) {
   const root = useRef<HTMLDivElement>(null)
   const card = useRef<HTMLDivElement>(null)
   useGSAP(() => {
@@ -75,14 +77,14 @@ function ConfirmModal({ event, close, onChanged, onGoToDetails, prefill }: { eve
           </button>
         </div>
         <div className="scroll-slim min-h-0 flex-1 overflow-auto px-5 py-4">
-          <ConfirmForm event={event} close={close} onChanged={onChanged} onGoToDetails={onGoToDetails} prefill={prefill} />
+          <ConfirmForm event={event} close={close} onChanged={onChanged} onGoToDetails={onGoToDetails} prefill={prefill} runLen={runLen} />
         </div>
       </div>
     </div>
   )
 }
 
-function ConfirmForm({ event, close, onChanged, onGoToDetails, prefill }: { event: AppEvent; close: () => void; onChanged: () => void; onGoToDetails?: () => void; prefill?: LockPrefill | null }) {
+function ConfirmForm({ event, close, onChanged, onGoToDetails, prefill, runLen }: { event: AppEvent; close: () => void; onChanged: () => void; onGoToDetails?: () => void; prefill?: LockPrefill | null; runLen?: number }) {
   const loc = event.location
   const gridStart = gridStartMinOf(event)
   const duration = event.durationMin ?? 60
@@ -92,13 +94,9 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, prefill }: { even
   const timeSet = event.confirmed ?? null
   // a day poll locks a whole day: no clock times to pick
   const dayPoll = event.granularity === 'day'
-
-  // best window for everyone, cut to the event length; a handed-in prefill (the grid's
-  // "Lock these days" shortcut) beats the computed default
-  const [dayKey, setDayKey] = useState(() => prefill?.dayKey ?? timeSet?.dayKey ?? bw?.dayKey ?? event.days[0]?.key ?? event.startDate)
-  // day polls can lock a run of days: the last day runs through the consecutive
-  // calendar days that follow the first (a gap in the poll ends the run)
-  const [lastDay, setLastDay] = useState(prefill?.endDayKey ?? prefill?.dayKey ?? dayKey)
+  // the grid's days-in-a-row dial decides what gets locked: 1 day locks a time (or a
+  // single day on day polls), 2+ locks a first-to-last run of whole days
+  const wantRun = runLen ?? (dayPoll ? 2 : 1)
   const runFrom = (start: string): string[] => {
     const i = event.days.findIndex((d) => d.key === start)
     if (i < 0) return [start]
@@ -112,11 +110,22 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, prefill }: { even
     }
     return out
   }
-  const lastOptions = dayPoll ? runFrom(dayKey) : []
+  const runMode = wantRun >= 2
+
+  // best window for everyone, cut to the event length; a handed-in prefill (the grid's
+  // "Lock these days" shortcut) beats the computed default
+  const [dayKey, setDayKey] = useState(() => prefill?.dayKey ?? timeSet?.dayKey ?? bw?.dayKey ?? event.days[0]?.key ?? event.startDate)
+  // a run defaults to the full wanted length; the guard below never offers more
+  const [lastDay, setLastDay] = useState(() => prefill?.endDayKey ?? (runMode ? runFrom(prefill?.dayKey ?? dayKey).slice(0, wantRun).at(-1)! : (prefill?.dayKey ?? dayKey)))
+  // the guard: last-day choices stop at the dialed N days in a row (and at any gap)
+  const lastOptions = runMode ? runFrom(dayKey).slice(0, wantRun) : []
   function changeDay(v: string) {
     setDayKey(v)
-    // keep the run valid: the last day follows the first
-    setLastDay((l) => (runFrom(v).includes(l) && l >= v ? l : v))
+    // keep the run valid and inside the wanted length
+    setLastDay((l) => {
+      const opts = runFrom(v).slice(0, wantRun)
+      return opts.includes(l) && l >= v ? l : opts[opts.length - 1]
+    })
   }
   const [startMin, setStartMin] = useState(() => timeSet?.startMin ?? (dayPoll ? 0 : bw ? gridStart + bw.s : 18 * 60))
   const [endMin, setEndMin] = useState(() => {
@@ -148,11 +157,14 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, prefill }: { even
     setEndMin((e) => (e <= v ? Math.min(v + duration, 24 * 60 - 5) : e))
   }
   function lockIn() {
+    // a run of days (or any day-poll lock) is all-day; only a single-day lock on a
+    // minute poll carries clock times
+    const allDay = dayPoll || runMode
     const slot: ConfirmedSlot = {
       dayKey,
-      ...(dayPoll && lastDay !== dayKey ? { endDayKey: lastDay } : {}),
-      startMin,
-      endMin,
+      ...(runMode && lastDay !== dayKey ? { endDayKey: lastDay } : {}),
+      startMin: allDay ? 0 : startMin,
+      endMin: allDay ? 24 * 60 : endMin,
       // a set venue locks in as-is even though it never ran as a ballot
       placeIds: settled ? placeIds : !hasBallot ? [] : source === 'itin' ? stops : placeIds,
     }
@@ -176,7 +188,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, prefill }: { even
       ) : (
         <>
           <div>
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">{dayPoll ? 'First day' : 'Day'}</div>
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">{runMode ? 'First day' : 'Day'}</div>
             <div className="relative">
               <select
                 value={dayKey}
@@ -191,7 +203,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, prefill }: { even
             </div>
           </div>
 
-          {dayPoll && lastOptions.length > 1 && (
+          {runMode && lastOptions.length > 1 && (
             <div>
               <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Last day</div>
               <div className="relative">
@@ -207,10 +219,11 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, prefill }: { even
                 </select>
                 <ChevronDown size={15} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-faint" />
               </div>
+              <p className="mt-1.5 text-[12px] text-faint">Up to {wantRun} days, matching days in a row on the grid.</p>
             </div>
           )}
 
-          {!dayPoll && <div>
+          {!dayPoll && !runMode && <div>
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Time</div>
             <div className="flex items-center gap-2">
               <TimeSelect value={startMin} onChange={changeStart} step={15} />
