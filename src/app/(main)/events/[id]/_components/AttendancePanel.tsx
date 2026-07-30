@@ -128,7 +128,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
       {/* "are you coming" is a locked-stage question; while planning, the ask is your times */}
       {locked
         ? me?.rsvp === 'pending' && <YourRsvpStrip onPick={changeRsvp} full={full} />
-        : !markedIds.has('JM') && !unavailSet.has('JM') && <YourTimesStrip onGo={() => onGoToTab?.('availability')} />}
+        : !!me && !markedIds.has(me.id) && !unavailSet.has(me.id) && <YourTimesStrip onGo={() => onGoToTab?.('availability')} />}
 
       {/* header — friendly summary, share button, and (only when relevant) the model switch */}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
@@ -772,7 +772,7 @@ function CopyReminder({ event }: { event: AppEvent }) {
   const [copied, setCopied] = useState(false)
   function copy() {
     const deadline = event.voteDeadline ? ` Voting closes ${fmtDeadline(event.voteDeadline)}.` : ''
-    const msg = `Quick reminder about ${event.title}! Please mark when you're free and vote on a place: https://aline.app/e/${event.id}${deadline}`
+    const msg = `Quick reminder about ${event.title}! Please mark when you're free and vote on a place: ${window.location.origin}/events/${event.id}/join${deadline}`
     navigator.clipboard?.writeText(msg).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
   return (

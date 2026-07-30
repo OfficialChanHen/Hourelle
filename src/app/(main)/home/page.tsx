@@ -79,8 +79,10 @@ export default function HomePage() {
       <SectionHeader icon={Zap} iconColor="var(--accent-text)" title="Up next" count={heroes.length > 1 ? heroes.length : undefined} />
       {heroes.length > 1 ? (
         <Swiper modules={[Navigation, Pagination, A11y]} slidesPerView={1} spaceBetween={18} navigation pagination={{ clickable: true }} className="upnext-swiper !pb-9">
+          {/* !h-auto lets the flex wrapper stretch every slide to the tallest one,
+              and the card fills it — otherwise each slide sizes to its own content */}
           {heroes.map((x) => (
-            <SwiperSlide key={x.e.id}>
+            <SwiperSlide key={x.e.id} className="!h-auto">
               <HeroCard e={x.e} phase={x.phase} sameDay={sameDay(x.e)} />
             </SwiperSlide>
           ))}
@@ -207,15 +209,17 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
     : { label: 'See the plan', href: `/events/${e.id}` }
   function copyLink(ev: React.MouseEvent) {
     ev.stopPropagation()
-    navigator.clipboard?.writeText(`https://aline.app/e/${e.id}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
+    navigator.clipboard?.writeText(`${window.location.origin}/events/${e.id}/join`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
   return (
     <div
       onClick={() => router.push(dest)}
-      className="cursor-pointer overflow-hidden rounded-2xl border border-border bg-s1 transition-colors hover:border-border2"
+      className="flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-s1 transition-colors hover:border-border2"
       style={tint.border ? { borderColor: tint.border } : undefined}
     >
-      <Cover src={e.image} from={coverFrom} to={coverTo} className={e.image ? 'h-[110px]' : 'h-[64px]'} />
+      {/* the cover soaks up any height difference between carousel siblings, so the
+          text block reads the same on every slide */}
+      <Cover src={e.image} from={coverFrom} to={coverTo} className={`flex-1 ${e.image ? 'min-h-[110px]' : 'min-h-[64px]'}`} />
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 p-5">
         {/* real min width: on phones the CTAs wrap below instead of crushing the title */}
         <div className="min-w-[220px] flex-1">
@@ -243,6 +247,18 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
                 <span className="text-accent-text">your reply is waiting</span>
               </>
             )}
+            {/* the host's side of the RSVP round: how many answers are still out */}
+            {(() => {
+              const n = e.hostedByYou && phase !== 'planning' && phase !== 'past'
+                ? e.participants.filter((p) => p.rsvp === 'pending').length
+                : 0
+              return n > 0 && (
+                <>
+                  <span className="text-faint">·</span>
+                  <span>waiting on {n} {n === 1 ? 'reply' : 'replies'}</span>
+                </>
+              )
+            })()}
           </div>
           <Link href={dest} onClick={(ev) => ev.stopPropagation()} className="block font-serif text-[27px] leading-[1.08] tracking-[-0.01em] hover:underline">{e.title}</Link>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[13px] text-dim">

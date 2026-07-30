@@ -5,12 +5,13 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import type { Phase } from '@/lib/events'
 
-// how each phase reads on cards and headers — one badge, strict role colors
+// how each phase reads on cards and headers — one badge, strict role colors.
+// Labels echo the strip steps (Plan/RSVP/Soon/Event/Done) so the two never disagree.
 export const PHASE_BADGE: Record<Phase, { label: string; variant: 'teal' | 'ochre' | 'brick' | 'accent' | 'neutral' }> = {
   planning: { label: 'Planning', variant: 'ochre' },
-  upcoming: { label: 'Confirmed', variant: 'teal' },
-  soon: { label: 'Confirmed', variant: 'teal' },
-  today: { label: 'Today', variant: 'accent' },
+  upcoming: { label: 'RSVPs open', variant: 'teal' },
+  soon: { label: 'Coming up', variant: 'teal' },
+  today: { label: 'Event day', variant: 'accent' },
   past: { label: 'Past', variant: 'neutral' },
 }
 
@@ -24,9 +25,11 @@ export const PHASE_TINT: Record<Phase, { dot: string; border?: string }> = {
   past: { dot: 'var(--faint)' },
 }
 
-// five states of the event, all in one voice — "Lock in" only lights up once BOTH
-// the time and the place are answered (a fixed date with a live place vote is still Plan)
-const STEPS = ['Plan', 'Lock in', 'Soon', 'Event', 'Done'] as const
+// five states of the event, all in one voice. "RSVP" is the stretch the lock-in
+// button opens — going/not-going answers coming in — and only starts once BOTH the
+// time and the place are answered (a fixed date with a live place vote is still Plan).
+// It ends on its own: the host's RSVP deadline or the day before, whichever first.
+const STEPS = ['Plan', 'RSVP', 'Soon', 'Event', 'Done'] as const
 const PHASE_STEP: Record<Phase, number> = { planning: 0, upcoming: 1, soon: 2, today: 3, past: 4 }
 
 // a quiet hint at where the event sits in its life: hairline + dots, only the

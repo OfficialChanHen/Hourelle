@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Check, HelpCircle, MapPin, Route, Undo2, Video, X } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { TimezonePill } from '@/components/ui/TimezonePill'
-import { daysUntil, daysUntilLabel, fmtMinute, reopenEvent, setMyRsvp, type AppEvent, type Rsvp } from '@/lib/events'
+import { dateRangeText, daysUntil, daysUntilLabel, fmtMinute, reopenEvent, setMyRsvp, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 
 // your answer to the locked-in plan — strict role colors: teal going, ochre maybe, brick out
@@ -115,11 +115,18 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
             )
           })}
         </div>
-        {me?.rsvpAuto && (
+        {me?.rsvpAuto ? (
           <span className="text-[12.5px] text-faint">
             {myRsvp === 'attending' ? 'Marked going from your times. Change it if that’s wrong.' : 'Marked from your reply that no days worked. Change it if that’s wrong.'}
           </span>
-        )}
+        ) : event.rsvpDeadline ? (
+          // the deadline nudges, it never locks: past due, answers still change freely
+          <span className="text-[12.5px] text-faint">
+            {(daysUntil(event.rsvpDeadline) ?? 0) < 0
+              ? `RSVPs were due ${dateRangeText({ startDate: event.rsvpDeadline, endDate: event.rsvpDeadline })}. You can still change your answer.`
+              : `RSVP by ${dateRangeText({ startDate: event.rsvpDeadline, endDate: event.rsvpDeadline })}.`}
+          </span>
+        ) : null}
       </div>
     </div>
   )

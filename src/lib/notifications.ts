@@ -5,7 +5,7 @@ import { daysUntil, listEvents, phaseOf, youReplied, type AppEvent } from './eve
    counts unseen keys, opening the page marks everything seen, and a key that changes
    (a re-lock, a fresh reopen) counts as new again. */
 
-export type NotificationKind = 'event' | 'votes' | 'availability' | 'reopened' | 'plan-deadline' | 'rsvp-deadline'
+export type NotificationKind = 'event' | 'votes' | 'availability' | 'reopened' | 'plan-deadline' | 'rsvp-deadline' | 'rsvp-closed'
 export type NotificationItem = { e: AppEvent; du: number; kind: NotificationKind; key: string }
 
 // deadline reminders fire the day before and the day of; the band is part of the key,
@@ -25,6 +25,9 @@ export function deriveNotifications(events: AppEvent[]): NotificationItem[] {
         if (e.rsvpDeadline) {
           const rdu = daysUntil(e.rsvpDeadline)
           if (rdu !== null && rdu >= 0 && rdu <= 1) out.push({ e, du: rdu, kind: 'rsvp-deadline', key: `${e.id}:rsvp:${e.rsvpDeadline}:${band(rdu)}` })
+          // the soft close gets its moment: once the deadline passes, the host hears
+          // how the round ended (answers stay open — this is a tally, not a lock)
+          if (rdu !== null && rdu < 0 && e.hostedByYou) out.push({ e, du, kind: 'rsvp-closed', key: `${e.id}:rsvp-closed:${e.rsvpDeadline}` })
         }
         return out
       }

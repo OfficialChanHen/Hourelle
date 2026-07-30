@@ -71,6 +71,7 @@ type Form = {
   fixedDay: string
   fixedStart: string
   fixedEnd: string
+  rsvpBy: string // optional RSVP deadline — set-date events open the RSVP round at birth
   startDate: string
   endDate: string
   excludedDows: number[]  // weekdays turned off across the whole range (0=Sun … 6=Sat)
@@ -96,7 +97,7 @@ type Form = {
 
 const initialForm: Form = {
   title: '', description: '',
-  scheduleMode: 'find', fixedDay: '', fixedStart: '18:00', fixedEnd: '21:00',
+  scheduleMode: 'find', fixedDay: '', fixedStart: '18:00', fixedEnd: '21:00', rsvpBy: '',
   startDate: '', endDate: '', excludedDows: [], excludedDays: [], granularity: '30', windowPreset: 'any', windowStart: '', windowEnd: '', durationMin: 60,
   timezone: '', budget: '', budgetMode: 'total', capacity: '', // timezone deliberately unset: picking it is a required, conscious step
   locMode: 'vote', planMode: 'vote', locSettled: false, picked: [], platform: 'Google Meet', meetingLink: '',
@@ -262,6 +263,10 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
       // speaks one enum, where a chosen place is its own mode
       locMode: form.locMode === 'vote' && form.locSettled ? 'set' : form.locMode,
       fixed: form.scheduleMode === 'set' ? { day: form.fixedDay, start: form.fixedStart, end: form.fixedEnd } : undefined,
+      // only a deadline that still makes sense travels: between today and the event day
+      rsvpDeadline: form.scheduleMode === 'set' && form.rsvpBy && (!today || form.rsvpBy >= today) && form.rsvpBy <= form.fixedDay
+        ? form.rsvpBy
+        : undefined,
       // only pass an explicit day list when days were actually turned off
       pickedDays: finding && (form.excludedDows.length || form.excludedDays.length) ? selKeys ?? undefined : undefined,
     }))
@@ -470,8 +475,28 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
               </div>
             </div>
             {show(errs.fixed) && <FieldError>{errs.fixed}</FieldError>}
+            <div className="mt-3">
+              <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint">
+                <Check size={13} /> RSVP by <span className="normal-case tracking-normal">(Optional)</span>
+              </span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={form.rsvpBy}
+                  min={today || undefined}
+                  max={form.fixedDay || undefined}
+                  onChange={(e) => update({ rsvpBy: e.target.value })}
+                  className={`${inputCls(false)} max-w-[220px] cursor-pointer !bg-s1`}
+                />
+                {form.rsvpBy && (
+                  <button type="button" onClick={() => update({ rsvpBy: '' })} className="flex-none text-[12.5px] font-semibold text-dim hover:text-brick-text hover:underline">
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
             <p className="mt-2.5 border-t border-border pt-2.5 text-[12.5px] leading-[1.5] text-faint">
-              The plan starts out locked in. Invites skip the scheduling and go straight to yes or no.
+              The plan starts out locked in. Invites skip the scheduling and go straight to yes or no{form.rsvpBy ? ', with a reminder before the RSVP date' : ''}.
             </p>
           </div>
         ) : (
@@ -904,7 +929,8 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
 function Created({ event }: { event: AppEvent }) {
   const total = event.participants.filter((p) => !p.you).length
   const slug = event.id
-  const link = `aline.app/e/${slug}`
+  // the real join URL — a guest opens it, adds their name, and is in
+  const link = `${typeof window === 'undefined' ? '' : window.location.host}/events/${slug}/join`
   const toast = useRef<HTMLDivElement>(null)
   const card = useRef<HTMLDivElement>(null)
   const [copied, setCopied] = useState(false)
@@ -919,7 +945,7 @@ function Created({ event }: { event: AppEvent }) {
   }, [])
 
   function copy() {
-    navigator.clipboard?.writeText(`https://${link}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800) }).catch(() => {})
+    navigator.clipboard?.writeText(`${window.location.origin}/events/${slug}/join`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800) }).catch(() => {})
   }
 
   return (

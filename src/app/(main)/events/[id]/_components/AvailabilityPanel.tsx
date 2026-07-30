@@ -53,6 +53,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     return { initials: p?.initials ?? id, name: p?.name ?? id, color: p?.color ?? ('gray' as Participant['color']) }
   }
 
+  // whose cells "Edit mine" writes: wherever the `you` marker sits — the stubbed
+  // account normally, the guest when this browser joined via the share link
+  const meId = event.participants.find((p) => p.you)?.id ?? 'JM'
+
   const step = stepOf(event.granularity)
   const rows = event.times.length
   const gridMax = rows * step
@@ -67,14 +71,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const src = availIvOf(event)
     return Object.fromEntries(event.days.map((d) => {
       const byPid = { ...(src[d.key] ?? {}) }
-      delete byPid.JM
+      delete byPid[meId]
       return [d.key, byPid]
     }))
   })
   // mine: minute-interval ranges per day (5-min precision, mergeable)
   const [mine, setMine] = useState<Record<string, Iv[]>>(() => {
     const src = availIvOf(event)
-    return Object.fromEntries(event.days.map((d) => [d.key, normalizeIv(src[d.key]?.JM ?? [])]))
+    return Object.fromEntries(event.days.map((d) => [d.key, normalizeIv(src[d.key]?.[meId] ?? [])]))
   })
 
   const youAny = event.days.some((d) => (mine[d.key]?.length ?? 0) > 0)
@@ -84,7 +88,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const otherIds = new Set<string>()
   for (const d of event.days) for (const [id, ivs] of Object.entries(others[d.key] ?? {})) if (ivs.length) otherIds.add(id)
   const respondedIdSet = new Set(otherIds)
-  if (youAny) respondedIdSet.add('JM')
+  if (youAny) respondedIdSet.add(meId)
   for (const id of unavail) respondedIdSet.add(id) // an explicit "none work" is a reply
   const responded = respondedIdSet.size
 
@@ -179,9 +183,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
 
   function persist(m: Record<string, Iv[]>) {
     // marking any time takes back an earlier "none of these days work"
-    if (Object.values(m).some((ivs) => ivs.length) && unavail.has('JM')) {
-      setUnavail((prev) => { const next = new Set(prev); next.delete('JM'); return next })
-      if (!event.demo) patchEvent(event.id, { unavailableIds: (event.unavailableIds ?? []).filter((id) => id !== 'JM') })
+    if (Object.values(m).some((ivs) => ivs.length) && unavail.has(meId)) {
+      setUnavail((prev) => { const next = new Set(prev); next.delete(meId); return next })
+      if (!event.demo) patchEvent(event.id, { unavailableIds: (event.unavailableIds ?? []).filter((id) => id !== meId) })
     }
     if (event.demo) return
     // start from every stored day, not just the current window — replies on days a
@@ -189,8 +193,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const availIv: AvailIntervals = { ...fullAvailIvOf(event) }
     for (const d of event.days) {
       availIv[d.key] = { ...(others[d.key] ?? {}) }
-      if (m[d.key]?.length) availIv[d.key].JM = m[d.key]
-      else delete availIv[d.key].JM
+      if (m[d.key]?.length) availIv[d.key][meId] = m[d.key]
+      else delete availIv[d.key][meId]
     }
     patchEvent(event.id, { availIv, avail: { ...event.avail, ...intervalsToGrid(availIv, event.days, rows, step) } })
   }
@@ -198,8 +202,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   function toggleNoneWork() {
     setUnavail((prev) => {
       const next = new Set(prev)
-      if (next.has('JM')) next.delete('JM')
-      else next.add('JM')
+      if (next.has(meId)) next.delete(meId)
+      else next.add(meId)
       if (!event.demo) patchEvent(event.id, { unavailableIds: [...next] })
       return next
     })
@@ -277,10 +281,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     if (merged) setSel({ day, s: merged.s, e: merged.e, edge })
   }
 
-  // everyone's intervals for a day (mine folded in as 'JM'), with the live drag applied
+  // everyone's intervals for a day (mine folded in under my id), with the live drag applied
   function combinedFor(day: string, liveMine?: Iv[], source: AvailIntervals = others): Record<string, Iv[]> {
     const m = liveMine ?? mine[day] ?? []
-    return m.length ? { ...(source[day] ?? {}), JM: m } : { ...(source[day] ?? {}) }
+    return m.length ? { ...(source[day] ?? {}), [meId]: m } : { ...(source[day] ?? {}) }
   }
 
   // ── coordinate + snapping helpers ──
@@ -561,7 +565,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     ]))
   }, [others, filter, filterOnEarly])
   // in edit mode the denominator is the selected people plus you (you always show)
-  const editTotal = filterOnEarly ? filter.size + (filter.has('JM') ? 0 : 1) : total
+  const editTotal = filterOnEarly ? filter.size + (filter.has(meId) ? 0 : 1) : total
 
   // live per-day intervals while editing (folds in the current drag); only the dragged day changes
   const editIvsByDay = useMemo<Record<string, Iv[]>>(
@@ -858,7 +862,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           {/* the explicit empty reply: with nothing marked, "none of these days work"
               is one tap — and marking any time takes it back */}
           {mode === 'edit' && !locked && !youAny && (
-            unavail.has('JM') ? (
+            unavail.has(meId) ? (
               <span className="flex items-center gap-1.5 rounded-full border border-brick-border bg-brick-bg px-2.5 py-1 text-[11.5px] font-semibold text-brick-text">
                 Marked as not free on any of these days
                 <button type="button" onClick={toggleNoneWork} className="underline underline-offset-2">Undo</button>

@@ -15,7 +15,6 @@ import { Popover } from '@/components/ui/Popover'
 
 const MODE_ICON: Record<TravelMode, typeof Car> = { walk: Footprints, bus: Bus, drive: Car, train: TrainFront, flight: Plane }
 
-const YOU = 'JM'
 // a stop references a place but has its own id (so a venue can repeat) and a dwell time
 type ItinStop = { uid: string; placeId: string; dwell: number }
 
@@ -32,6 +31,9 @@ function osmUrl(p: EventPlace): string {
 }
 
 export function LocationPanel({ event, locked = false, confirmed, onPatch }: { event: AppEvent; locked?: boolean; confirmed?: ConfirmedSlot; onPatch?: (patch: Partial<AppEvent>) => void }) {
+  // who votes and suggests: the `you` participant — the guest when this browser
+  // joined via the share link, the stubbed account otherwise
+  const YOU = event.participants.find((p) => p.you)?.id ?? 'JM'
   const loc = event.location
   // once the host locks in, voting and editing close; the chosen place(s) get the highlight
   const confirmedIds = new Set(confirmed?.placeIds ?? [])

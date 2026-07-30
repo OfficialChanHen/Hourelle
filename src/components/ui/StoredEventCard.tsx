@@ -50,9 +50,13 @@ export function StoredEventCard({ e, reuseHref, sameDay }: { e: AppEvent; reuseH
   const youPending = phase !== 'past' && e.participants.some((p) => p.you && p.rsvp === 'pending')
   const replied = e.hostedByYou && phase === 'planning' ? respondedCount(e.avail, e.unavailableIds) : null
   const voteDays = phase === 'planning' && e.voteDeadline ? daysUntil(e.voteDeadline) : null
+  // the locked-stage mirror of `replied`: RSVPs the host is still waiting on
+  const rsvpWaiting = e.hostedByYou && phase !== 'planning' && phase !== 'past'
+    ? e.participants.filter((p) => p.rsvp === 'pending').length
+    : 0
 
   const copyLink = asAction(() => {
-    navigator.clipboard?.writeText(`https://aline.app/e/${e.id}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
+    navigator.clipboard?.writeText(`${window.location.origin}/events/${e.id}/join`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   })
   const goDelete = asAction(() => router.push(`/events/${e.id}?tab=details&focus=delete`))
   const goReuse = asAction(() => { if (reuseHref) router.push(reuseHref) })
@@ -113,6 +117,12 @@ export function StoredEventCard({ e, reuseHref, sameDay }: { e: AppEvent; reuseH
             <span className="truncate">
               {replied >= e.participants.length ? 'Everyone has replied' : `${replied} of ${e.participants.length} replied so far`}
             </span>
+          </div>
+        )}
+        {rsvpWaiting > 0 && (
+          <div className="flex items-center gap-1.5">
+            <UsersRound size={14} className="flex-none" />
+            <span className="truncate">Waiting on {rsvpWaiting} {rsvpWaiting === 1 ? 'reply' : 'replies'}</span>
           </div>
         )}
         {voteDays !== null && voteDays >= 0 && (

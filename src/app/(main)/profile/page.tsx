@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { LogOut } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -29,9 +30,10 @@ export default function ProfilePage() {
             <AppearancePicker />
           </div>
         </div>
-        <button className="flex w-full items-center justify-between border-t border-border px-5 py-4 text-left text-brick-text hover:bg-brick-bg/50">
+        {/* no real session to end yet — signing out just lands on the sign-in shell */}
+        <Link href="/auth/signin" className="flex w-full items-center justify-between border-t border-border px-5 py-4 text-left text-brick-text hover:bg-brick-bg/50">
           <span className="flex items-center gap-2 text-[14px] font-medium"><LogOut size={16} /> Sign out</span>
-        </button>
+        </Link>
       </div>
     </div>
   )

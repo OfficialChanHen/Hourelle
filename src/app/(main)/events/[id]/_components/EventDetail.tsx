@@ -18,7 +18,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, maxPollDays, phaseOf, removeParticipantPatch, respondedCount, selectedDayKeys, stepOf, type AppEvent, type Rsvp } from '@/lib/events'
+import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, leaveGuestSession, maxPollDays, phaseOf, removeParticipantPatch, respondedCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -83,7 +83,10 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   // re-read on tab change too: panels persist edits to storage as they happen, and
   // remounting them from a page-load-time snapshot would drop those edits until reload
   useEffect(() => {
-    const ev = getEvent(id)
+    // viewOf: with a guest session this browser sees the event as that guest —
+    // `you` markers on them, host powers off. Raw storage is untouched.
+    const raw = getEvent(id)
+    const ev = raw ? viewOf(raw) : raw
     setEvent(ev)
     // no tab in the URL: planning opens on the grid, a settled event on who's coming
     if (!tabResolved.current) {
@@ -146,13 +149,19 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   const phase = phaseOf(event)
   const badge = PHASE_BADGE[phase]
   const locked = phase !== 'planning'
-  const shareLink = `aline.app/e/${event.id}`
+  // the viewer, wherever the `you` marker sits — the guest when a session is active
+  const me = event.participants.find((p) => p.you)
+  // a real, working URL: the join page asks for a name, then everything just works.
+  // `event` only exists after the mount effect, so window is safe to read here.
+  const joinUrl = `${window.location.origin}/events/${event.id}/join`
+  const shareLink = `${window.location.host}/events/${event.id}/join`
 
   function copy() {
-    navigator.clipboard?.writeText(`https://${shareLink}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
+    navigator.clipboard?.writeText(joinUrl).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
   function refresh() {
-    setEvent(getEvent(id))
+    const raw = getEvent(id)
+    setEvent(raw ? viewOf(raw) : raw)
   }
   // persist a field and update the in-memory event in one move, so everything reading
   // `event` (the header, an open lock-in dropdown) reflects the edit immediately
@@ -175,9 +184,15 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   }
   function sendMessage(text: string) {
     if (!event) return
-    const next = [...event.messages, { id: 'JM', name: 'You', time: 'now', text, you: true }]
-    if (!event.demo) patchEvent(event.id, { messages: next })
-    setEvent({ ...event, messages: next })
+    const sender = event.participants.find((p) => p.you)
+    const msg = { id: sender?.id ?? 'JM', name: sender?.guest ? sender.name : 'You', time: 'now', text, you: true }
+    if (!event.demo) {
+      // append to raw storage, not the view: stored `you` always means the stubbed
+      // account, so a guest's message carries only their id and viewOf remaps it
+      const raw = getEvent(event.id)
+      if (raw) patchEvent(event.id, { messages: [...raw.messages, { ...msg, you: !sender?.guest }] })
+    }
+    setEvent({ ...event, messages: [...event.messages, msg] })
   }
 
   return (
@@ -196,6 +211,19 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
               {(event.hostKind ?? (event.hostedByYou ? 'person' : 'org')) === 'org' ? <Building2 size={15} /> : <User size={15} />} Hosted by {event.hostName}
             </span>
             <Badge variant={badge.variant}>{badge.label}</Badge>
+            {/* the join flow put a name on this browser — say whose answers these are,
+                and offer the way out (back to viewing as yourself) */}
+            {me?.guest && (
+              <span className="flex items-center gap-1.5 rounded-lg border border-accent-border bg-accent-bg px-2 py-0.5 text-[12px] font-medium text-accent-text">
+                You&apos;re here as {me.name}
+                <button
+                  onClick={() => { leaveGuestSession(event.id); refresh() }}
+                  className="font-semibold underline underline-offset-2 hover:opacity-80"
+                >
+                  Leave
+                </button>
+              </span>
+            )}
           </div>
         </div>
         {/* ml-auto keeps the actions hugging the right edge when the header wraps */}
@@ -374,10 +402,10 @@ function DetailsTab({ event, onDelete, onGoToTab, onGoToBestWindow, onPatch, onV
         {/* optional deadlines — each reminds everyone the day before and the day of.
             Plan-by belongs to planning, RSVP-by to the locked plan. */}
         {!locked && (isHost || event.planDeadline) && (
-          <DetailRow k="Plan by" v={<DeadlineValue value={event.planDeadline} editable={isHost} onChange={(v) => onPatch({ planDeadline: v })} hint="Reminders go out the day before and the day of." />} />
+          <DetailRow k="Plan by" v={<DeadlineValue value={event.planDeadline} editable={isHost} onChange={(v) => onPatch({ planDeadline: v })} hint="Reminders go out the day before and the day of." max={event.endDate} />} />
         )}
         {locked && (isHost || event.rsvpDeadline) && (
-          <DetailRow k="RSVP by" v={<DeadlineValue value={event.rsvpDeadline} editable={isHost} onChange={(v) => onPatch({ rsvpDeadline: v })} hint="Everyone gets a reminder the day before and the day of." />} />
+          <DetailRow k="RSVP by" v={<DeadlineValue value={event.rsvpDeadline} editable={isHost} onChange={(v) => onPatch({ rsvpDeadline: v })} hint="Everyone gets a reminder the day before and the day of. Late answers still count." max={event.confirmed?.dayKey} />} />
         )}
         <DetailRow k="Spots" v={<CapacityValue event={event} editable={isHost} onPatch={onPatch} />} />
         <DetailRow
@@ -766,10 +794,15 @@ function FixedWhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch:
   )
 }
 
-/* an optional deadline date: the host sets or clears it, everyone else reads it as fact */
-function DeadlineValue({ value, editable, onChange, hint }: {
-  value?: string; editable: boolean; onChange: (v?: string) => void; hint: string
+/* an optional deadline date: the host sets or clears it, everyone else reads it as fact.
+   Bounded to [today, max] — a deadline in the past or after the event decides nothing */
+function DeadlineValue({ value, editable, onChange, hint, max }: {
+  value?: string; editable: boolean; onChange: (v?: string) => void; hint: string; max?: string
 }) {
+  const d0 = new Date()
+  const todayKey = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`
+  // ISO day keys compare as strings, so the clamp is a pair of bounds checks
+  const clamp = (v: string) => (v < todayKey ? todayKey : max && v > max ? max : v)
   if (!editable) return <span>{value ? dateRangeText({ startDate: value, endDate: value }) : 'Not set'}</span>
   return (
     <div className="flex flex-col gap-1">
@@ -777,7 +810,9 @@ function DeadlineValue({ value, editable, onChange, hint }: {
         <input
           type="date"
           value={value ?? ''}
-          onChange={(e) => onChange(e.target.value || undefined)}
+          min={todayKey}
+          max={max}
+          onChange={(e) => onChange(e.target.value ? clamp(e.target.value) : undefined)}
           className="h-9 cursor-pointer rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-border2"
         />
         {value && (

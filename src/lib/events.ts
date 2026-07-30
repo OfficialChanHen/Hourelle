@@ -23,6 +23,9 @@ export type Participant = {
   // they answer themselves, so the UI can say "marked going from your times"
   rsvpAuto?: boolean
   you?: boolean; host?: boolean; guest?: boolean
+  // a guest's opt-in at join: reminders now, and the cross-device claim (magic link)
+  // once the backend exists — never required to participate
+  email?: string
 }
 export type EventPlace = { id: string; name: string; place: string; addedBy?: string } // addedBy: participant id who suggested it
 export type EventExpense = { id: string; label: string; amount: number; paidBy: string } // amount in whole dollars; paidBy: participant id
@@ -114,6 +117,8 @@ export type CreateInput = {
   // date already set ('YYYY-MM-DD' + 'HH:MM'): the time is a fact from birth. The event
   // is only born confirmed if the place is also answered — a live ballot keeps it planning.
   fixed?: { day: string; start: string; end: string }
+  rsvpDeadline?: string // optional, fixed-date events only: the RSVP round opens at birth
+
   picked: { id: string; name: string; place: string }[]
   platform: string
   meetingLink: string
@@ -514,7 +519,7 @@ export function openQuestions(ev: Pick<AppEvent, 'status' | 'confirmed' | 'locat
 // 'planning'/'confirmed' split lives on the event.
 export type Phase = 'planning' | 'upcoming' | 'soon' | 'today' | 'past'
 
-export function phaseOf(ev: Pick<AppEvent, 'status' | 'confirmed' | 'endDate'>): Phase {
+export function phaseOf(ev: Pick<AppEvent, 'status' | 'confirmed' | 'endDate' | 'rsvpDeadline'>): Phase {
   // a multi-day lock ends on its last day, and counts as "today" for its whole run
   const endRef = ev.confirmed?.endDayKey ?? ev.confirmed?.dayKey ?? ev.endDate
   const untilEnd = daysUntil(endRef)
@@ -523,7 +528,12 @@ export function phaseOf(ev: Pick<AppEvent, 'status' | 'confirmed' | 'endDate'>):
   const du = daysUntil(ev.confirmed.dayKey)
   if (du === null) return 'upcoming'
   if (du <= 0) return 'today'
-  return du <= 7 ? 'soon' : 'upcoming'
+  if (du <= 1) return 'soon'
+  // 'upcoming' is the RSVP stretch, and it closes itself — the host's RSVP deadline
+  // (or the day-before mark above) advances the event to 'soon' with no close button.
+  // The deadline is soft: answers stay editable right up to the day.
+  const rdu = ev.rsvpDeadline ? daysUntil(ev.rsvpDeadline) : null
+  return rdu !== null && rdu < 0 ? 'soon' : 'upcoming'
 }
 
 export function daysUntilLabel(du: number | null): string {
@@ -701,8 +711,12 @@ export function removeParticipantPatch(ev: AppEvent, pid: string): Partial<AppEv
 export function setMyRsvp(id: string, rsvp: Rsvp): void {
   const ev = getEvent(id)
   if (!ev) return
+  // "my" is whoever this browser acts as: the guest session when one exists, else
+  // the stubbed account (the stored `you` participant)
+  const gid = guestSessionId(id)
+  const meId = gid && ev.participants.some((p) => p.id === gid) ? gid : ev.participants.find((p) => p.you)?.id
   // answering yourself retires the availability-based assumption
-  patchEvent(id, { participants: ev.participants.map((p) => (p.you ? { ...p, rsvp, rsvpAuto: undefined } : p)) })
+  patchEvent(id, { participants: ev.participants.map((p) => (p.id === meId ? { ...p, rsvp, rsvpAuto: undefined } : p)) })
 }
 
 // does this person's availability cover the locked slot in full? A run of days needs
@@ -827,6 +841,75 @@ function guestFromEmail(email: string, i: number): Participant {
   return { id: `g:${email}`, initials, name, color: GUEST_COLORS[i % GUEST_COLORS.length], rsvp: 'pending', guest: true }
 }
 
+/* ── guest sessions (share-link joins — a name is all it takes, no account) ──
+   The join flow adds a participant and remembers, per event, that this browser acts
+   as them. Everything else keeps working through the `you` markers: viewOf() moves
+   them onto the guest at read time, and writers re-read raw storage so the remapped
+   flags are never persisted — `you` in storage always means the stubbed account. */
+const meKey = (eventId: string) => `aline.me.${eventId}`
+
+export function guestSessionId(eventId: string): string | null {
+  if (typeof window === 'undefined') return null
+  try { return localStorage.getItem(meKey(eventId)) } catch { return null }
+}
+
+export function leaveGuestSession(eventId: string): void {
+  try { localStorage.removeItem(meKey(eventId)) } catch { /* private mode */ }
+}
+
+// resume an existing guest entry instead of creating a new one — the caller must
+// have proof it's really them (today: their email matches the entry's; later: the
+// magic link). This is what keeps repeat joins from piling up work for the host.
+export function claimGuestSession(eventId: string, pid: string): void {
+  try { localStorage.setItem(meKey(eventId), pid) } catch { /* private mode */ }
+}
+
+// how this browser sees an event: normally exactly as stored, but with a guest
+// session the `you` markers move onto the guest and host powers switch off. Views
+// are for rendering only — never write a view's participants or messages back.
+export function viewOf(ev: AppEvent): AppEvent {
+  const gid = guestSessionId(ev.id)
+  if (!gid || !ev.participants.some((p) => p.id === gid)) return ev
+  return {
+    ...ev,
+    hostedByYou: false,
+    // pin the host icon before the flip: without this, events stored before hostKind
+    // existed would show the host as an organization to every guest
+    hostKind: ev.hostKind ?? (ev.hostedByYou ? 'person' : 'org'),
+    participants: ev.participants.map((p) => ({ ...p, you: p.id === gid || undefined, host: p.host })),
+    messages: ev.messages.map((m) => ({ ...m, you: m.id === gid })),
+  }
+}
+
+export function joinEvent(id: string, name: string, email?: string): Participant | null {
+  const ev = getEvent(id)
+  const clean = name.trim().replace(/\s+/g, ' ')
+  if (!ev || !clean) return null
+  const initials = (clean.split(' ').map((w) => w[0]).join('').slice(0, 2) || 'G').toUpperCase()
+  const guestCount = ev.participants.filter((p) => p.guest).length
+  // an existing name is never claimable from here — a repeat name joins as a new
+  // participant (g:sam-2), which blocks impersonation by construction. Reclaiming an
+  // identity across devices is what the email/magic-link layer is for (see roadmap).
+  const base = `g:${slugify(clean)}`
+  let pid = base
+  for (let n = 2; ev.participants.some((p) => p.id === pid); n++) pid = `${base}-${n}`
+  const cleanEmail = email?.trim().toLowerCase()
+  const guest: Participant = {
+    id: pid, initials, name: clean, color: GUEST_COLORS[guestCount % GUEST_COLORS.length], rsvp: 'pending', guest: true,
+    ...(cleanEmail ? { email: cleanEmail } : {}),
+  }
+  if (ev.demo) {
+    // a demo only lives in code, and patchEvent skips ids it can't find — materialize
+    // a live copy first so the guest's marks persist. Same id: the stored copy wins
+    // on every read and the built-in steps aside.
+    writeAll([...readAll(), { ...ev, demo: undefined, participants: [...ev.participants, guest] }])
+  } else {
+    patchEvent(id, { participants: [...ev.participants, guest] })
+  }
+  try { localStorage.setItem(meKey(id), pid) } catch { /* private mode */ }
+  return guest
+}
+
 /* ── create ── */
 export function createEvent(input: CreateInput): AppEvent {
   const id = uniqueSlug(slugify(input.title))
@@ -921,6 +1004,9 @@ export function createEvent(input: CreateInput): AppEvent {
     ...(fixed ? {
       confirmed: { dayKey: fixed.day, startMin: fixed.s, endMin: fixed.e, placeIds: fixedPlaceIds },
       ...(placeOpen ? {} : { confirmedAt: Date.now() }),
+      // the deadline rides along even while a ballot keeps the event planning — it
+      // starts mattering the moment the place locks
+      ...(input.rsvpDeadline ? { rsvpDeadline: input.rsvpDeadline } : {}),
     } : {}),
   }
 
@@ -1388,11 +1474,12 @@ const SENDOFF: AppEvent = {
   confirmed: { dayKey: '2026-08-07', startMin: 19 * 60, endMin: 22 * 60, placeIds: [] },
 }
 
-// 4 · both answered: born confirmed, straight to the RSVP round
-const TRIVIA_DAYS = buildDays('2026-07-30', '2026-07-30')
+// 4 · both answered: born confirmed, straight to the RSVP round — with an RSVP
+// deadline ahead, so the RSVPs-open stretch (and its "RSVP by" note) has a demo
+const TRIVIA_DAYS = buildDays('2026-08-27', '2026-08-27')
 const TRIVIA_TIMES = buildTimes('30', 19 * 60, 21 * 60 + 30)
 const TRIVIA_IV: AvailIntervals = {
-  '2026-07-30': { JM: [{ s: 0, e: 150 }], RW: [{ s: 0, e: 150 }], TC: [{ s: 30, e: 150 }] },
+  '2026-08-27': { JM: [{ s: 0, e: 150 }], RW: [{ s: 0, e: 150 }], TC: [{ s: 30, e: 150 }] },
 }
 const TRIVIA: AppEvent = {
   id: 'trivia-night-anchor',
@@ -1400,10 +1487,10 @@ const TRIVIA: AppEvent = {
   hostName: 'Jordan Miller',
   hostedByYou: true,
   hostKind: 'person',
-  description: 'Same bar, same table, last Thursday of the month. July edition is locked in, just say if you are in.',
+  description: 'Same bar, same table, last Thursday of the month. August edition is locked in, just say if you are in.',
   timezone: 'America/Los_Angeles',
-  startDate: '2026-07-30',
-  endDate: '2026-07-30',
+  startDate: '2026-08-27',
+  endDate: '2026-08-27',
   granularity: '30',
   budget: '',
   location: {
@@ -1434,7 +1521,8 @@ const TRIVIA: AppEvent = {
   createdAt: 0,
   demo: true,
   status: 'confirmed',
-  confirmed: { dayKey: '2026-07-30', startMin: 19 * 60, endMin: 21 * 60 + 30, placeIds: ['anchor'] },
+  confirmed: { dayKey: '2026-08-27', startMin: 19 * 60, endMin: 21 * 60 + 30, placeIds: ['anchor'] },
+  rsvpDeadline: '2026-08-20',
 }
 
 /* ── the day-poll demo: a trip asks which days, weekends only, best-run answer ── */

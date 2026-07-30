@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Bell, CalendarClock, CalendarRange, ChevronRight, Hourglass, MapPin, Undo2, UserCheck, Video, Vote } from 'lucide-react'
 import { TimezonePill } from '@/components/ui/TimezonePill'
-import { fmtMinute, listEvents, respondedCount, type AppEvent } from '@/lib/events'
+import { dateRangeText, fmtMinute, listEvents, respondedCount, type AppEvent } from '@/lib/events'
 import { deriveNotifications, markAllNotificationsSeen, seenNotificationKeys, type NotificationItem } from '@/lib/notifications'
 
 type Bucket = { title: string; items: NotificationItem[] }
@@ -84,7 +84,30 @@ export default function NotificationsPage() {
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[14.5px] font-semibold">{e.title}</div>
-                        <div className="mt-0.5 text-[12.5px] text-dim">RSVPs close {du <= 0 ? 'today' : 'tomorrow'}</div>
+                        <div className="mt-0.5 text-[12.5px] text-dim">RSVPs are due {du <= 0 ? 'today' : 'tomorrow'}</div>
+                      </div>
+                      <ChevronRight size={17} className="flex-none text-faint" />
+                    </Link>
+                  )
+                }
+                if (kind === 'rsvp-closed') {
+                  // the host's tally once the soft deadline passes — a wrap-up, not a lock
+                  const counts = { attending: 0, maybe: 0, not_going: 0, pending: 0 }
+                  for (const p of e.participants) counts[p.rsvp]++
+                  const tally = [
+                    `${counts.attending} going`,
+                    counts.maybe > 0 && `${counts.maybe} maybe`,
+                    counts.not_going > 0 && `${counts.not_going} can’t go`,
+                    counts.pending > 0 && `${counts.pending} no reply`,
+                  ].filter(Boolean).join(', ')
+                  return (
+                    <Link key={key} href={`/events/${e.id}?tab=attendance`} className={cardCls(key)}>
+                      <span className="grid h-[38px] w-[38px] flex-none place-items-center rounded-[10px] border border-teal-border bg-teal-bg text-teal-text">
+                        <UserCheck size={19} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[14.5px] font-semibold">{e.title}</div>
+                        <div className="mt-0.5 text-[12.5px] text-dim">RSVPs were due {dateRangeText({ startDate: e.rsvpDeadline!, endDate: e.rsvpDeadline! })}: {tally}</div>
                       </div>
                       <ChevronRight size={17} className="flex-none text-faint" />
                     </Link>

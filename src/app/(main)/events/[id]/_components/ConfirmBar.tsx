@@ -8,7 +8,7 @@ import { TimeSelect } from '@/components/ui/TimeSelect'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import {
-  availIvOf, bestWindow, confirmedSlotText, confirmEvent, fmtMinute, gridStartMinOf, respondedCount,
+  availIvOf, bestWindow, confirmedSlotText, confirmEvent, fmtMinute, gridStartMinOf, patchEvent, respondedCount,
   type AppEvent, type ConfirmedSlot,
 } from '@/lib/events'
 
@@ -165,6 +165,12 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
   // is a guess
   const noReplies = respondedCount(event.avail, event.unavailableIds) === 0
 
+  // locking in opens the RSVP round, so the deadline for it is asked here — optional,
+  // and soft: it nudges and shifts emphasis, late answers still count
+  const [rsvpBy, setRsvpBy] = useState(event.rsvpDeadline ?? '')
+  const d0 = new Date()
+  const todayKey = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`
+
   function togglePlace(id: string) {
     setPlaceIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]))
   }
@@ -186,6 +192,9 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
       placeIds: settled ? placeIds : !hasBallot ? [] : source === 'itin' ? stops : placeIds,
     }
     confirmEvent(event.id, slot)
+    // clamp a stale pick (the chosen day may have moved under it) before storing
+    const deadline = rsvpBy && rsvpBy >= todayKey && rsvpBy <= dayKey ? rsvpBy : undefined
+    if (deadline !== event.rsvpDeadline) patchEvent(event.id, { rsvpDeadline: deadline })
     close()
     onChanged()
   }
@@ -313,6 +322,26 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
             )}
           </div>
         )}
+      </div>
+
+      <div>
+        <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">RSVP by <span className="normal-case tracking-normal text-faint">(Optional)</span></div>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={rsvpBy}
+            min={todayKey}
+            max={dayKey}
+            onChange={(e) => setRsvpBy(e.target.value)}
+            className="h-9 flex-1 cursor-pointer rounded-[9px] border border-border bg-s1 px-3 text-[13.5px] font-medium outline-none focus:border-accent-border"
+          />
+          {rsvpBy && (
+            <button type="button" onClick={() => setRsvpBy('')} className="flex-none text-[12.5px] font-semibold text-dim hover:text-brick-text hover:underline">
+              Clear
+            </button>
+          )}
+        </div>
+        <p className="mt-1.5 text-[12px] text-faint">Everyone gets a reminder the day before and the day of. Late answers still count.</p>
       </div>
 
       <div>
