@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { CalendarDays, Plus, Bell } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { useNotificationCount } from '@/hooks/useNotificationCount'
+import { useGuestMode } from '@/hooks/useGuestMode'
 
 const TABS = [
   { href: '/home', label: 'Home' },
@@ -15,6 +16,35 @@ const TABS = [
 export function Header() {
   const pathname = usePathname()
   const notifCount = useNotificationCount()
+  const guestEventId = useGuestMode()
+
+  // a guest's header: the wordmark leads back to their event, and the one action
+  // is the account the rest of the app is asking for
+  if (guestEventId) {
+    return (
+      <header className="sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md">
+        <div className="mx-auto flex h-[54px] max-w-[1240px] items-center gap-3 px-[22px]">
+          <Link href={`/events/${guestEventId}`} className="flex items-center gap-[9px]">
+            <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-accent text-on-accent">
+              <CalendarDays size={17} />
+            </span>
+            <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Aline</span>
+          </Link>
+          <div className="flex-1" />
+          <ThemeToggle />
+          <Link
+            href={`/events/${guestEventId}`}
+            className="hidden h-[34px] items-center rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13.5px] font-semibold text-dim hover:bg-s2 hover:text-text sm:flex"
+          >
+            Your event
+          </Link>
+          <Link href="/auth/signin" className="flex h-[34px] items-center rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent">
+            Sign in
+          </Link>
+        </div>
+      </header>
+    )
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md">

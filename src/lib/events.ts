@@ -853,8 +853,29 @@ export function guestSessionId(eventId: string): string | null {
   try { return localStorage.getItem(meKey(eventId)) } catch { return null }
 }
 
+/* while this is set, the browser belongs to a guest: the event they joined is the
+   whole app. The account surfaces (home, lists, create, alerts, profile) show a
+   sign-in gate instead of their content, and the header shrinks to match. Holds
+   the joined event id so every gate can lead back. */
+const GUEST_MODE_KEY = 'aline.guest-mode'
+export const GUEST_MODE_CHANGED = 'aline:guest-mode'
+
+export function guestModeEventId(): string | null {
+  if (typeof window === 'undefined') return null
+  try { return localStorage.getItem(GUEST_MODE_KEY) } catch { return null }
+}
+function setGuestMode(eventId: string | null): void {
+  if (typeof window === 'undefined') return
+  try {
+    if (eventId) localStorage.setItem(GUEST_MODE_KEY, eventId)
+    else localStorage.removeItem(GUEST_MODE_KEY)
+  } catch { /* private mode */ }
+  window.dispatchEvent(new Event(GUEST_MODE_CHANGED))
+}
+
 export function leaveGuestSession(eventId: string): void {
   try { localStorage.removeItem(meKey(eventId)) } catch { /* private mode */ }
+  setGuestMode(null)
 }
 
 // resume an existing guest entry instead of creating a new one — the caller must
@@ -862,6 +883,7 @@ export function leaveGuestSession(eventId: string): void {
 // magic link). This is what keeps repeat joins from piling up work for the host.
 export function claimGuestSession(eventId: string, pid: string): void {
   try { localStorage.setItem(meKey(eventId), pid) } catch { /* private mode */ }
+  setGuestMode(eventId)
 }
 
 // how this browser sees an event: normally exactly as stored, but with a guest
@@ -907,6 +929,7 @@ export function joinEvent(id: string, name: string, email?: string): Participant
     patchEvent(id, { participants: [...ev.participants, guest] })
   }
   try { localStorage.setItem(meKey(id), pid) } catch { /* private mode */ }
+  setGuestMode(id)
   return guest
 }
 

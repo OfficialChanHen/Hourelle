@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { ArrowRight, Calendar, MapPin, User, UsersRound } from 'lucide-react'
+import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { TimezonePill } from '@/components/ui/TimezonePill'
@@ -135,18 +136,23 @@ export function JoinFlow({ id }: { id: string }) {
   const [coverFrom, coverTo] = coverFor(event.id)
   const past = phase === 'past'
 
+  const host = event.participants.find((p) => p.host)
+
   return (
-    <div ref={root} className="mx-auto max-w-[560px] px-4 pb-[104px] pt-[34px] sm:px-[26px] sm:pt-[56px]">
+    <div ref={root} className="mx-auto max-w-[600px] px-4 pb-[104px] pt-[34px] sm:px-[26px] sm:pt-[52px]">
       {/* the event as a teaser — enough to know what this is, none of the answers */}
       <div className="overflow-hidden rounded-2xl border border-border bg-s1 shadow-soft">
-        <Cover src={event.image} from={coverFrom} to={coverTo} className="h-[110px]" />
-        <div className="p-6">
+        <Cover src={event.image} from={coverFrom} to={coverTo} className="h-[120px] sm:h-[150px]" />
+        <div className="p-6 sm:p-7">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <Badge variant={badge.variant}>{badge.label}</Badge>
           </div>
-          <h1 className="font-serif text-[31px] leading-[1.06] tracking-[-0.01em]">{event.title}</h1>
-          <div className="mt-3 flex flex-col gap-[7px] text-[13.5px] text-dim">
-            <span className="flex items-center gap-1.5"><User size={14} className="flex-none" /> Hosted by {event.hostName}</span>
+          <h1 className="font-serif text-[31px] leading-[1.06] tracking-[-0.01em] sm:text-[34px]">{event.title}</h1>
+          <div className="mt-3.5 flex flex-col gap-[9px] text-[13.5px] text-dim">
+            <span className="flex items-center gap-2">
+              {host ? <Avatar initials={host.initials} color={host.color} size={22} /> : <User size={14} className="flex-none" />}
+              Hosted by {event.hostName}
+            </span>
             <span className="flex flex-wrap items-center gap-1.5">
               <Calendar size={14} className="flex-none" />
               {slot ?? dateRangeText(event)} <TimezonePill tz={event.timezone} />
@@ -237,37 +243,43 @@ export function JoinFlow({ id }: { id: string }) {
               </>
             ) : (
               <>
-                <label htmlFor="join-name" className="text-[14px] font-semibold">
+                <p className="text-[14.5px] font-semibold">
                   {locked ? 'Add your name to see the plan and say if you are coming.' : 'Add your name to say when you are free and help pick the place.'}
-                </label>
-                <div className="mt-2.5 flex flex-col gap-2 sm:flex-row">
+                </p>
+                <div className="mt-3.5 flex flex-col gap-1.5">
+                  <label htmlFor="join-name" className="text-[12.5px] font-semibold text-dim">Your name</label>
                   <input
                     id="join-name"
+                    autoComplete="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') join() }}
-                    placeholder="Your name"
-                    className="h-11 min-w-0 flex-1 rounded-[10px] border border-border bg-s0 px-3.5 text-[14.5px] outline-none placeholder:text-faint focus:border-accent-border"
+                    placeholder="Sam Rivera"
+                    className="h-11 w-full rounded-[10px] border border-border bg-s0 px-3.5 text-[14.5px] outline-none placeholder:text-faint focus:border-accent-border"
                   />
-                  <button
-                    onClick={join}
-                    disabled={!name.trim() || joining}
-                    className="flex h-11 flex-none items-center justify-center gap-1.5 rounded-[10px] bg-accent px-5 text-[14px] font-semibold text-on-accent disabled:opacity-40"
-                  >
-                    Join in <ArrowRight size={15} />
-                  </button>
                 </div>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email (Recommended)"
-                  aria-label="Email, recommended but optional"
-                  className="mt-2 h-10 w-full rounded-[10px] border border-border bg-s0 px-3.5 text-[13.5px] outline-none placeholder:text-faint focus:border-accent-border"
-                />
-                <p className="mt-2.5 text-[12.5px] leading-[1.55] text-faint">
-                  No account needed, and the email is optional. With it you&apos;ll get reminders, and your answers can find you again on another device.
-                </p>
+                <div className="mt-3 flex flex-col gap-1.5">
+                  <label htmlFor="join-email" className="text-[12.5px] font-semibold text-dim">Email (Recommended)</label>
+                  <input
+                    id="join-email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') join() }}
+                    placeholder="you@example.com"
+                    className="h-11 w-full rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none placeholder:text-faint focus:border-accent-border"
+                  />
+                  <p className="text-[12px] leading-[1.55] text-faint">Gets you reminders, and your answers can find you again on another device.</p>
+                </div>
+                <button
+                  onClick={join}
+                  disabled={!name.trim() || joining}
+                  className="mt-4 flex h-11 w-full items-center justify-center gap-1.5 rounded-[10px] bg-accent text-[14.5px] font-semibold text-on-accent disabled:opacity-40"
+                >
+                  Join event <ArrowRight size={15} />
+                </button>
+                <p className="mt-2.5 text-center text-[12px] leading-[1.55] text-faint">No account needed, and the email is optional.</p>
 
                 {/* returning from a new device: how the email brings your answers back */}
                 <button
