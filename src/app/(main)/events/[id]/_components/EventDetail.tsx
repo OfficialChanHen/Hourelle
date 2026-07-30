@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Building2, User, Link2, Users, Copy, MessageCircle, Pencil, EllipsisVertical, CopyPlus,
-  CalendarRange, MapPin, UsersRound, Settings, Check, Trash2, TriangleAlert, Receipt, Plus, X, ImagePlus, Video,
+  Building2, User, Link2, Copy, MessageCircle, Pencil, EllipsisVertical, CopyPlus,
+  Check, Trash2, TriangleAlert, Receipt, Plus, X, ImagePlus, Video,
 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -29,10 +29,10 @@ import { ConfirmedHero } from './ConfirmedHero'
 import { ChatDrawer } from './ChatDrawer'
 
 const TABS = [
-  { key: 'availability', label: 'Availability', short: 'Availability', icon: CalendarRange },
-  { key: 'location', label: 'Location', short: 'Location', icon: MapPin },
-  { key: 'attendance', label: 'Attendance', short: 'Attendance', icon: UsersRound },
-  { key: 'details', label: 'Event details', short: 'Details', icon: Settings },
+  { key: 'availability', label: 'Availability', short: 'Availability' },
+  { key: 'location', label: 'Location', short: 'Location' },
+  { key: 'attendance', label: 'Attendance', short: 'Attendance' },
+  { key: 'details', label: 'Event details', short: 'Details' },
 ] as const
 type TabKey = (typeof TABS)[number]['key']
 
@@ -291,11 +291,9 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         <div ref={tabsRef} onScroll={checkTabFade} className="scroll-slim flex items-center gap-1 overflow-x-auto pb-1 sm:gap-1.5">
           {TABS.map((t) => {
             const active = tab === t.key
-            const Icon = t.icon
             return (
-              // phones drop the icons and long labels so all four tabs fit without scrolling
-              <button key={t.key} data-active={active} onClick={() => setTab(t.key)} className={`flex flex-none items-center gap-1.5 whitespace-nowrap rounded-[10px] px-2.5 py-2 text-[13.5px] transition-colors sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
-                <Icon size={16} className="hidden sm:block" />
+              // words alone carry the tabs — the filled box says which one is active
+              <button key={t.key} data-active={active} onClick={() => setTab(t.key)} className={`flex flex-none items-center whitespace-nowrap rounded-[10px] px-2.5 py-2 text-[13.5px] transition-colors sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
                 <span className="sm:hidden">{t.short}</span>
                 <span className="hidden sm:inline">{t.label}</span>
               </button>
@@ -394,7 +392,7 @@ function DetailsTab({ event, onDelete, onGoToTab, onGoToBestWindow, onPatch, onV
     <div className="grid items-start gap-3.5 lg:grid-cols-[1.5fr_1fr]">
       <div className="grid min-w-0 gap-3.5">
       <div className="rounded-2xl border border-border bg-s1 p-5">
-        <div className="mb-1 flex items-center gap-2 text-[14.5px] font-semibold"><Settings size={17} className="text-dim" /> Details</div>
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Details</div>
         {isHost && <DetailRow k="Cover" v={<CoverPicker event={event} onPatch={onPatch} />} />}
         <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} onPatch={onPatch} />} />
         <DetailRow k="When" v={<WhenValue event={event} editable={isHost && !locked} onGoToAvailability={() => onGoToTab('availability')} onGoToBestWindow={onGoToBestWindow} onPatch={onPatch} />} />
@@ -472,9 +470,9 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
 
   return (
     <div className="min-w-0 rounded-2xl border border-border bg-s1 p-5">
-      <div className="mb-3 flex flex-wrap items-center gap-2 text-[14.5px] font-semibold">
-        <Users size={17} className="text-dim" /> Participants
-        <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[12px] text-dim">{event.participants.length}</span>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Participants</span>
+        <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[11.5px] text-dim">{event.participants.length}</span>
         <span className="ml-auto text-[12.5px] font-normal text-dim">
           {locked
             ? <>{going} going{noReply > 0 && <span className="text-faint"> · {noReply} no reply</span>}</>

@@ -6,8 +6,9 @@ import {
   Check, ChevronDown, ChevronUp, Search, Plus, X, MapPin, Video, Clock,
   Info, Vote, ArrowRight, Mail, CalendarRange, Route, GripVertical,
   Loader2, Link2, Copy, UserPlus, Users, PartyPopper, AlignLeft, Wallet,
-  Map, Presentation, Repeat, Utensils, type LucideIcon,
+  Map, Presentation, Repeat, Utensils, Dices, CookingPot, type LucideIcon,
 } from 'lucide-react'
+import { personColors, type PersonColor } from '@/lib/colors'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
@@ -115,16 +116,21 @@ const TEMPLATE_PRESETS: Record<string, Partial<Form>> = {
   conference: { title: 'Conference', granularity: '60', locMode: 'vote', planMode: 'itinerary' },
   'one-on-one': { title: 'Weekly 1:1', granularity: '15', durationMin: 30, locMode: 'remote' },
   dinner: { title: 'Dinner and drinks', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 120, locMode: 'vote', planMode: 'vote' },
+  'game-night': { title: 'Game night', description: 'Bring a game or just show up.', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 180, locMode: 'vote', planMode: 'vote' },
+  potluck: { title: 'Potluck', description: 'Everyone brings a dish.', granularity: '30', durationMin: 180, locMode: 'vote', planMode: 'vote' },
 }
 
 // the same presets, as tappable chips on the wizard's first step
-const WIZ_TEMPLATES: { key: string; label: string; icon: LucideIcon }[] = [
-  { key: 'offsite', label: 'Team offsite', icon: Route },
-  { key: 'trip', label: 'Weekend trip', icon: Map },
-  { key: 'birthday', label: 'Birthday', icon: PartyPopper },
-  { key: 'conference', label: 'Conference', icon: Presentation },
-  { key: 'one-on-one', label: '1:1', icon: Repeat },
-  { key: 'dinner', label: 'Dinner', icon: Utensils },
+// same order and identity hues as the templates page — keep the two in step
+const WIZ_TEMPLATES: { key: string; label: string; icon: LucideIcon; chip: PersonColor }[] = [
+  { key: 'dinner', label: 'Dinner', icon: Utensils, chip: 'coral' },
+  { key: 'game-night', label: 'Game night', icon: Dices, chip: 'purple' },
+  { key: 'birthday', label: 'Birthday', icon: PartyPopper, chip: 'pink' },
+  { key: 'potluck', label: 'Potluck', icon: CookingPot, chip: 'amber' },
+  { key: 'trip', label: 'Weekend trip', icon: Map, chip: 'green' },
+  { key: 'offsite', label: 'Team offsite', icon: Route, chip: 'blue' },
+  { key: 'one-on-one', label: '1:1', icon: Repeat, chip: 'teal' },
+  { key: 'conference', label: 'Conference', icon: Presentation, chip: 'gray' },
 ]
 
 export default function CreatePage({ searchParams }: { searchParams: Promise<{ template?: string; from?: string; created?: string }> }) {
@@ -305,13 +311,17 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
           {WIZ_TEMPLATES.map((t) => {
             const Icon = t.icon
             const on = tpl === t.key
+            const c = personColors[t.chip]
             return (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => applyTemplate(t.key)}
                 aria-pressed={on}
-                className={`flex h-8 flex-none items-center gap-1.5 rounded-[9px] border px-3 text-[13px] font-medium ${on ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}
+                // each chip wears its template's identity hue from the templates page;
+                // the picked one steps forward with the accent ring
+                className={`flex h-8 flex-none items-center gap-1.5 rounded-[9px] border px-3 text-[13px] font-medium transition-shadow ${on ? 'border-accent ring-1 ring-accent' : 'border-transparent hover:brightness-[.97]'}`}
+                style={{ background: c.bg, color: c.text }}
               >
                 <Icon size={14} /> {t.label}
               </button>

@@ -8,9 +8,25 @@ import {
   longestRun, respondedCount, type AppEvent, type Phase,
 } from '@/lib/events'
 
-/* ── one quiet line that says where planning stands ──
-   Replaces the old always-on stat strip; the confirmed phases skip it because
-   the ConfirmedHero carries the answer instead. */
+/* ── where planning stands, as an open stat strip ──
+   Borderless columns — eyebrow, serif value, muted caption — instead of one cramped
+   line. The confirmed phases skip it because the ConfirmedHero carries the answer. */
+
+function Stat({ label, value, caption, onClick }: { label: string; value: React.ReactNode; caption?: React.ReactNode; onClick?: () => void }) {
+  const val = (
+    <div className={`mt-1 font-serif text-[22px] leading-[1.12] tracking-[-0.01em] ${onClick ? 'cursor-pointer decoration-[1.5px] underline-offset-4 hover:underline' : ''}`}>
+      {value}
+    </div>
+  )
+  return (
+    <div className="min-w-0">
+      <div className="text-[10.5px] font-semibold uppercase tracking-[.13em] text-faint">{label}</div>
+      {onClick ? <button type="button" onClick={onClick} className="block text-left">{val}</button> : val}
+      {caption && <div className="mt-1 text-[12.5px] text-dim">{caption}</div>}
+    </div>
+  )
+}
+
 export function StageSummary({ event, phase, onGoToAvailability }: { event: AppEvent; phase: Phase; onGoToAvailability?: () => void }) {
   if (phase === 'past') {
     const went = event.participants.filter((p) => p.rsvp === 'attending').length
@@ -41,8 +57,8 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
   }
   const gridStart = gridStartMinOf(event)
 
-  // the venue currently winning the vote, so the one line reports both fronts —
-  // unless the host set the place, which reads as fact instead
+  // the venue currently winning the vote — unless the host set the place, which
+  // reads as fact instead
   const settledPlace = event.location.mode === 'set' ? event.location.places[0] : undefined
   const votesOf = (id: string) => event.votes?.[id] ?? []
   const top = !settledPlace && event.location.mode === 'vote'
@@ -50,34 +66,55 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
     : undefined
   const leading = top && votesOf(top.id).length > 0 ? top : null
 
-  // a date fixed at creation flips the line around: the time reads as fact and the
-  // place vote carries the progress — the mirror of a settled place with an open time
+  // the place column, whatever answers the "where" question right now
+  const placeStat = settledPlace ? (
+    <Stat label="Place" value={settledPlace.name} caption="set by the host" />
+  ) : event.location.mode === 'remote' ? (
+    <Stat label="Place" value="Online" caption={`on ${event.location.platform || 'a call'}`} />
+  ) : leading ? (
+    <Stat label="Place" value={leading.name} caption={`leading with ${votesOf(leading.id).length} vote${votesOf(leading.id).length === 1 ? '' : 's'}`} />
+  ) : event.location.mode === 'vote' && event.location.places.length > 0 ? (
+    <Stat label="Place" value={String(event.location.places.length)} caption={`place${event.location.places.length === 1 ? '' : 's'} on the ballot, no votes yet`} />
+  ) : null
+
+  // a date fixed at creation flips the strip: the time reads as fact and the place
+  // vote carries the progress
   if (event.confirmed) {
     const voted = new Set(Object.values(event.votes ?? {}).flat()).size
-    const hasBallot = event.location.places.length > 0
     return (
-      <p className="text-[13.5px] text-dim">
-        <span className="font-semibold text-text">{confirmedSlotText(event)}</span> <TimezonePill tz={event.timezone} /> is the time
-        {settledPlace
-          ? <> · <span className="font-semibold text-text">{settledPlace.name}</span> is the place</>
-          : !hasBallot
-            ? <> · still collecting place ideas</>
-            : voted === 0
-              ? <> · waiting on the place vote</>
-              : <> · {voted} of {total} voted{leading && <> · <span className="font-semibold text-text">{leading.name}</span> leading</>}</>}
-      </p>
+      <div className="flex flex-wrap items-start gap-x-9 gap-y-3.5">
+        <Stat label="When" value={confirmedSlotText(event)} caption={<>already set <TimezonePill tz={event.timezone} /></>} />
+        {placeStat ?? <Stat label="Place" value="Open" caption="still collecting ideas" />}
+        {event.location.mode === 'vote' && event.location.places.length > 0 && (
+          <Stat label="Votes" value={`${voted} of ${total}`} caption={voted === 0 ? 'waiting on the first one' : 'have had their say'} />
+        )}
+      </div>
     )
   }
 
   return (
-    <p className="text-[13.5px] text-dim">
-      {responded === 0
-        ? 'Waiting on availability'
-        : <>{responded} of {total} responded
-          {best && <> · best so far <button type="button" onClick={onGoToAvailability} className="font-semibold text-ochre hover:underline">{best.dayLabel} · {fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)}</button> <TimezonePill tz={event.timezone} /></>}
-          {bestDays && <> · best so far <button type="button" onClick={onGoToAvailability} className="font-semibold text-ochre hover:underline">{bestDays.startKey === bestDays.endKey ? dayLabelOf(bestDays.startKey) : <>{dayLabelOf(bestDays.startKey)} – {dayLabelOf(bestDays.endKey)}</>}</button></>}</>}
-      {settledPlace && <> · <span className="font-semibold text-text">{settledPlace.name}</span> is the place</>}
-      {leading && <> · <span className="font-semibold text-text">{leading.name}</span> leading the vote</>}
-    </p>
+    <div className="flex flex-wrap items-start gap-x-9 gap-y-3.5">
+      <Stat
+        label="Replies"
+        value={`${responded} of ${total}`}
+        caption={responded === 0 ? 'waiting on availability' : 'have marked their times'}
+      />
+      {best && (
+        <Stat
+          label="Best so far"
+          value={best.dayLabel}
+          caption={<>{fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)} <TimezonePill tz={event.timezone} /></>}
+          onClick={onGoToAvailability}
+        />
+      )}
+      {bestDays && (
+        <Stat
+          label="Best so far"
+          value={bestDays.startKey === bestDays.endKey ? dayLabelOf(bestDays.startKey) : `${dayLabelOf(bestDays.startKey)} – ${dayLabelOf(bestDays.endKey)}`}
+          onClick={onGoToAvailability}
+        />
+      )}
+      {placeStat}
+    </div>
   )
 }
