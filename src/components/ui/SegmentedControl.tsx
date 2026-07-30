@@ -56,7 +56,10 @@ export function SegmentedControl({ value, onChange, options, size = 'md', stretc
 
   return (
     <div ref={wrap} className={`relative flex rounded-[9px] bg-s2 p-0.5 ${className ?? ''}`}>
-      <span ref={pill} className="pointer-events-none absolute left-0 top-0 rounded-[7px] bg-s0 shadow-soft" style={{ width: 0, height: 0 }} />
+      {/* bg-raised, not bg-s0: dark surfaces ascend the other way, and an s0 pill
+          there sat below its track — the active chip read as a dent, so a hovered
+          neighbor looked more active than the real one */}
+      <span ref={pill} className="pointer-events-none absolute left-0 top-0 rounded-[7px] bg-raised shadow-raised" style={{ width: 0, height: 0 }} />
       {options.map((o, i) => {
         const on = o.v === value
         const Icon = o.icon

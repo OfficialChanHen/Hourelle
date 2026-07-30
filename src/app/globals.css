@@ -26,6 +26,13 @@
   /* the n/N count in a heat cell: the theme's own ink, so it holds up on the cell
      background and every heat band short of full; the saturated full band flips to cream */
   --heat-count:#1B1815; --heat-count-full:#F4F1EA;
+
+  /* the surface that reads as LIFTED off an s2 track (active segment pills). Light
+     surfaces get lighter going up (s0), dark ones too — but dark's scale ascends the
+     other way through the tokens, so the raised step is s3 there. The shadow is
+     chip-scale — the big soft card shadow smudges at this size. */
+  --raised:var(--s0);
+  --raised-shadow:0 1px 2px rgba(60,45,20,.10);
 }
 
 /* Dark — warm charcoal */
@@ -46,6 +53,12 @@
   --grid-dash:rgba(244,236,214,.38);
   --best-head:#352C1D;
   --heat-count:#F1ECE0; --heat-count-full:#F4F1EA;
+
+  /* charcoal ascends s0→s3, so the pill that floats above an s2 track is s3 here —
+     with s0 it sat BELOW the track and the active chip read as a dent. The lift
+     shadow stays chip-tight: the card shadow's big blur smeared at this size. */
+  --raised:var(--s3);
+  --raised-shadow:0 1px 2px rgba(0,0,0,.45);
 }
 
 /* ── Appearances — optional palettes layered over the same tokens ──
@@ -240,6 +253,8 @@
      Tailwind and silently fell back to the global border-color */
   --color-grid-line:var(--grid-line);
   --color-grid-edge:var(--grid-edge);
+  --color-raised:var(--raised);
+  --shadow-raised:var(--raised-shadow);
 
   --font-serif:var(--font-instrument-serif), serif;
   --font-sans:var(--font-instrument-sans), system-ui, sans-serif;

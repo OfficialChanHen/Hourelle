@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ThemeToggle } from '@/components/ThemeToggle'
+import { useTheme } from 'next-themes'
 import { AppearancePicker } from '@/components/AppearancePicker'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { prefH24, setPrefH24, prefNotify, setPrefNotify, type NotifyPrefs } from '@/lib/prefs'
@@ -22,7 +22,7 @@ function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
       className={`relative h-[22px] w-[38px] flex-none rounded-full border transition-colors ${on ? 'border-accent bg-accent' : 'border-border2 bg-s2'}`}
     >
       <span
-        className="absolute top-1/2 h-[16px] w-[16px] -translate-y-1/2 rounded-full bg-s1 shadow-soft transition-all"
+        className="absolute top-1/2 h-[16px] w-[16px] -translate-y-1/2 rounded-full bg-s1 shadow-raised transition-all"
         style={{ left: on ? 18 : 2 }}
       />
     </button>
@@ -30,6 +30,7 @@ function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
 }
 
 export default function SettingsPage() {
+  const { theme, setTheme } = useTheme()
   // read after mount so the server render never disagrees with this device
   const [h24, setH24] = useState(false)
   const [notify, setNotify] = useState<NotifyPrefs>({ eventDay: true, deadlines: true, replies: false })
@@ -63,10 +64,20 @@ export default function SettingsPage() {
 
       <Eyebrow>Appearance</Eyebrow>
       <div className="rounded-2xl border border-border bg-s1 px-5 py-4">
-        {/* the sun/moon flips light and dark; the cards pick which look the app wears */}
-        <div className="flex items-center justify-between">
-          <span className="text-[14px] font-medium">Theme</span>
-          <ThemeToggle />
+        {/* light, dark, or whatever the device says; the cards below pick the palette */}
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="min-w-0">
+            <div className="text-[14px] font-medium">Theme</div>
+            <div className="mt-0.5 text-[12.5px] text-dim">System follows your device.</div>
+          </div>
+          {ready && (
+            <SegmentedControl
+              size="sm"
+              value={theme ?? 'light'}
+              onChange={setTheme}
+              options={[{ v: 'light', l: 'Light' }, { v: 'dark', l: 'Dark' }, { v: 'system', l: 'System' }]}
+            />
+          )}
         </div>
         <div className="mt-3">
           <AppearancePicker />
@@ -77,14 +88,14 @@ export default function SettingsPage() {
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-2xl border border-border bg-s1 px-5 py-4">
         <div className="min-w-0">
           <div className="text-[14px] font-medium">Clock style</div>
-          <div className="mt-0.5 text-[12.5px] text-dim">How times read on grids and pickers.</div>
+          <div className="mt-0.5 text-[12.5px] text-dim">How times read on grids and pickers. 12-hour shows 2:30 PM, 24-hour shows 14:30.</div>
         </div>
         {ready && (
           <SegmentedControl
             size="sm"
             value={h24 ? '24' : '12'}
             onChange={changeClock}
-            options={[{ v: '12', l: '2:30 PM' }, { v: '24', l: '14:30' }]}
+            options={[{ v: '12', l: '12-hour' }, { v: '24', l: '24-hour' }]}
           />
         )}
       </div>

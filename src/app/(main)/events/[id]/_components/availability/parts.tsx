@@ -445,7 +445,7 @@ export function Segment({ value, onChange, options, compact }: { value: string; 
   return (
     <div className="inline-flex w-fit rounded-[9px] bg-s2 p-0.5">
       {options.map((o) => (
-        <button key={o.v} onClick={() => onChange(o.v)} className={`flex h-7 items-center rounded-[7px] font-semibold transition-colors ${compact ? 'px-2.5 text-[12.5px]' : 'px-3 text-[13px]'} ${value === o.v ? 'bg-s0 text-text shadow-soft' : 'text-dim hover:text-text'}`}>
+        <button key={o.v} onClick={() => onChange(o.v)} className={`flex h-7 items-center rounded-[7px] font-semibold transition-colors ${compact ? 'px-2.5 text-[12.5px]' : 'px-3 text-[13px]'} ${value === o.v ? 'bg-raised text-text shadow-raised' : 'text-dim hover:text-text'}`}>
           {o.l}
         </button>
       ))}
