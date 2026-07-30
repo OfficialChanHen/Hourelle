@@ -3,10 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import {
-  Calendar, Zap, CalendarCheck, CalendarPlus, CalendarClock, Mail, Check, Link2,
-  ArrowRight, type LucideIcon,
-} from 'lucide-react'
+import { Calendar, CalendarPlus, CalendarClock, Check, Link2, ArrowRight } from 'lucide-react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Navigation, Pagination, A11y } from 'swiper/modules'
 import 'swiper/css'
@@ -76,7 +73,8 @@ export default function HomePage() {
       <QuickCreate />
 
       {/* Up next — the closest confirmed plans, one card at a time */}
-      <SectionHeader icon={Zap} iconColor="var(--accent-text)" title="Up next" count={heroes.length > 1 ? heroes.length : undefined} />
+      {/* accent: the spotlight — what's asking for you now */}
+      <SectionHeader color="var(--accent-text)" title="Up next" count={heroes.length > 1 ? heroes.length : undefined} />
       {heroes.length > 1 ? (
         <Swiper modules={[Navigation, Pagination, A11y]} slidesPerView={1} spaceBetween={18} navigation pagination={{ clickable: true }} className="upnext-swiper !pb-9">
           {/* !h-auto lets the flex wrapper stretch every slide to the tallest one,
@@ -101,7 +99,8 @@ export default function HomePage() {
       {/* Your events — everything you host that isn't over */}
       {yours.length > 0 && (
         <>
-          <SectionHeader icon={CalendarCheck} title="Your events" count={yours.length} className="mt-[26px]" />
+          {/* teal: plans you're running */}
+          <SectionHeader color="var(--teal-text)" title="Your events" count={yours.length} className="mt-[26px]" />
           <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
             {yours.map((x) => <StoredEventCard key={x.e.id} e={x.e} sameDay={sameDay(x.e)} />)}
           </div>
@@ -111,7 +110,8 @@ export default function HomePage() {
       {/* You're invited — events someone else is hosting */}
       {invited.length > 0 && (
         <>
-          <SectionHeader icon={Mail} title="You're invited" count={invited.length} className="mt-[26px]" />
+          {/* ochre: asks from other people, waiting on your answer */}
+          <SectionHeader color="var(--ochre-text)" title="You're invited" count={invited.length} className="mt-[26px]" />
           <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
             {invited.map((x) => <StoredEventCard key={x.e.id} e={x.e} sameDay={sameDay(x.e)} />)}
           </div>
@@ -295,13 +295,14 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
   )
 }
 
-function SectionHeader({ icon: Icon, title, count, iconColor, className = '' }: { icon: LucideIcon; title: string; count?: number; iconColor?: string; className?: string }) {
+// editorial section start: a color-coded eyebrow — the kicker itself carries the
+// section's hue, no icons and no extra marks (the cards already speak in dots)
+function SectionHeader({ title, count, color, className = '' }: { title: string; count?: number; color?: string; className?: string }) {
   return (
-    <div className={`flex items-center justify-between ${className} mb-[11px]`}>
-      <div className="flex items-center gap-2 text-[14.5px] font-semibold">
-        <Icon size={16} style={{ color: iconColor ?? 'var(--dim)' }} />
-        {title}
-        {count != null && <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[12px] text-dim">{count}</span>}
+    <div className={`flex items-center justify-between ${className} mb-[12px]`}>
+      <div className="flex items-center gap-2.5">
+        <span className="text-[11.5px] font-semibold uppercase tracking-[.13em]" style={{ color: color ?? 'var(--faint)' }}>{title}</span>
+        {count != null && <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[11.5px] text-dim">{count}</span>}
       </div>
     </div>
   )

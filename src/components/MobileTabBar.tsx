@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { Home, CalendarDays, Plus, Bell, User } from 'lucide-react'
 import { useNotificationCount } from '@/hooks/useNotificationCount'
 import { useGuestMode } from '@/hooks/useGuestMode'
+import { getEvent } from '@/lib/events'
 
 // Mobile bottom navigation — Home · Events · center + (create) · Notifications · Profile.
 // Fixed to the viewport bottom (the one place fixed positioning is right); pages reserve
@@ -24,8 +25,10 @@ export function MobileTabBar() {
   // two items, the raised create FAB, then two more
   const [left, right] = [ITEMS.slice(0, 2), ITEMS.slice(2)]
 
-  // a guest's bar: their event and the door to an account — nothing else to tab to
+  // a guest's bar: the event they joined, by name, and the door to an account —
+  // nothing else to tab to
   if (guestEventId) {
+    const title = getEvent(guestEventId)?.title ?? 'Event'
     return (
       <nav
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-s0/95 backdrop-blur-md md:hidden"
@@ -33,7 +36,7 @@ export function MobileTabBar() {
         aria-label="Primary"
       >
         <div className="mx-auto flex h-[64px] max-w-[560px] items-stretch">
-          <TabItem href={`/events/${guestEventId}`} label="Your event" icon={CalendarDays} active={pathname.startsWith('/events/')} />
+          <TabItem href={`/events/${guestEventId}`} label={title} icon={CalendarDays} active={pathname.startsWith('/events/')} />
           <TabItem href="/auth/signin" label="Sign in" icon={User} active={false} />
         </div>
       </nav>
@@ -81,7 +84,7 @@ function TabItem({ href, label, icon: Icon, active, count = 0 }: { href: string;
           </span>
         )}
       </span>
-      {label}
+      <span className="max-w-[120px] truncate">{label}</span>
     </Link>
   )
 }

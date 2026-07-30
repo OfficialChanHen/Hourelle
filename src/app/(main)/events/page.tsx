@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { History, CalendarX2 } from 'lucide-react'
+import { CalendarX2 } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StoredEventCard } from '@/components/ui/StoredEventCard'
 import { listEvents, phaseOf, sameDayLabelFor, type AppEvent, type Phase } from '@/lib/events'
@@ -76,9 +76,10 @@ function EventsList() {
 
       {showPastSection && past.length > 0 && (
         <>
-          <div className="mb-3 mt-7 flex items-center gap-2 text-[14.5px] font-semibold">
-            <History size={16} className="text-dim" /> Past events
-            <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[12px] text-dim">{past.length}</span>
+          {/* same eyebrow section start as home — faint, because past is over */}
+          <div className="mb-3 mt-7 flex items-center gap-2.5">
+            <span className="text-[11.5px] font-semibold uppercase tracking-[.13em] text-faint">Past events</span>
+            <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[11.5px] text-dim">{past.length}</span>
           </div>
           <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
             {past.map((x) => <StoredEventCard key={x.e.id} e={x.e} reuseHref={`/create?from=${x.e.id}`} />)}
