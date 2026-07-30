@@ -73,6 +73,21 @@ export default function HomePage() {
       <QuickCreate />
 
       {/* Up next — the closest confirmed plans, one card at a time */}
+      {/* localStorage only exists after mount — pulse shapes, never a flash of "empty" */}
+      {events === null && (
+        <>
+          <SectionHeader color="var(--accent-text)" title="Up next" />
+          <div className="h-[240px] animate-pulse rounded-2xl bg-s2" />
+          <div className="mt-[26px] grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }, (_, i) => (
+              <div key={i} className="h-[220px] animate-pulse rounded-[13px] bg-s2" />
+            ))}
+          </div>
+        </>
+      )}
+
+      {events !== null && (
+      <>
       {/* accent: the spotlight — what's asking for you now */}
       <SectionHeader color="var(--accent-text)" title="Up next" count={heroes.length > 1 ? heroes.length : undefined} />
       {heroes.length > 1 ? (
@@ -93,6 +108,7 @@ export default function HomePage() {
           title="Nothing going on yet"
           body="Create an event and it takes over this spot."
           action={{ label: 'Create an event', href: '/create' }}
+          secondary={{ label: 'Or poke around the demo events', href: '/demos' }}
         />
       )}
 
@@ -116,6 +132,8 @@ export default function HomePage() {
             {invited.map((x) => <StoredEventCard key={x.e.id} e={x.e} sameDay={sameDay(x.e)} />)}
           </div>
         </>
+      )}
+      </>
       )}
     </div>
   )

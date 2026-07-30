@@ -6,12 +6,15 @@ export function EmptyState({
   title,
   body,
   action,
+  secondary,
   compact = false,
 }: {
   icon: LucideIcon
   title: string
   body: string
   action?: { label: string; href: string }
+  // a quieter second way out (e.g. the demo shelf), under the primary button
+  secondary?: { label: string; href: string }
   compact?: boolean
 }) {
   return (
@@ -33,6 +36,13 @@ export function EmptyState({
           >
             <Plus size={17} /> {action.label}
           </Link>
+        )}
+        {secondary && (
+          <div className="mt-3">
+            <Link href={secondary.href} className="text-[13px] font-semibold text-accent-text hover:underline">
+              {secondary.label}
+            </Link>
+          </div>
         )}
       </div>
     </div>

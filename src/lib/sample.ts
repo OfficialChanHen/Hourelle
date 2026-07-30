@@ -21,34 +21,36 @@ export const notGoingIds = ['DW']
 
 // ─── Availability grid ───
 export const gridTimes = ['9 AM', '10 AM', '11 AM', '12 PM', '1 PM']
+// ISO day keys, like every real event — the demo has to speak the current data
+// dialect (lock-in date math, phase derivation) or it drifts behind the app
 export const gridDays = [
-  { key: 'mon', dow: 'Mon', date: 'Jun 30', best: false },
-  { key: 'tue', dow: 'Tue', date: 'Jul 1', best: false },
-  { key: 'wed', dow: 'Wed', date: 'Jul 2', best: true },
-  { key: 'thu', dow: 'Thu', date: 'Jul 3', best: false },
-  { key: 'fri', dow: 'Fri', date: 'Jul 4', best: false },
+  { key: '2026-08-24', dow: 'Mon', date: 'Aug 24', best: false },
+  { key: '2026-08-25', dow: 'Tue', date: 'Aug 25', best: false },
+  { key: '2026-08-26', dow: 'Wed', date: 'Aug 26', best: true },
+  { key: '2026-08-27', dow: 'Thu', date: 'Aug 27', best: false },
+  { key: '2026-08-28', dow: 'Fri', date: 'Aug 28', best: false },
 ] as const
 
 // avail[dayKey][timeIndex] = ids of everyone free in that slot
 export const avail: Record<string, string[][]> = {
-  mon: [['JM', 'SR', 'KL'], ['JM', 'AT'], [], ['SR', 'PR', 'CL'], ['JM', 'SR', 'AT', 'KL']],
-  tue: [['JM', 'SR', 'AT', 'KL', 'PR'], ['JM', 'SR', 'KL'], ['AT', 'PR'], [], ['SR', 'KL', 'MN', 'CL']],
-  wed: [
+  '2026-08-24': [['JM', 'SR', 'KL'], ['JM', 'AT'], [], ['SR', 'PR', 'CL'], ['JM', 'SR', 'AT', 'KL']],
+  '2026-08-25': [['JM', 'SR', 'AT', 'KL', 'PR'], ['JM', 'SR', 'KL'], ['AT', 'PR'], [], ['SR', 'KL', 'MN', 'CL']],
+  '2026-08-26': [
     ['JM', 'SR', 'AT', 'KL', 'PR', 'DW', 'MN', 'CL'],
     ['JM', 'SR', 'AT', 'KL', 'PR'],
     ['JM', 'SR', 'KL', 'PR', 'MN'],
     ['SR', 'AT', 'MN'],
     ['JM', 'SR', 'AT'],
   ],
-  thu: [['JM', 'AT'], ['JM', 'AT', 'KL', 'PR'], [], ['AT', 'MN'], ['SR', 'KL']],
-  fri: [[], [], [], ['KL'], []],
+  '2026-08-27': [['JM', 'AT'], ['JM', 'AT', 'KL', 'PR'], [], ['AT', 'MN'], ['SR', 'KL']],
+  '2026-08-28': [[], [], [], ['KL'], []],
 }
 
 // ─── Chat ───
 export type ChatMessage = { id: string; name: string; time: string; text: string; you: boolean }
 export const messages: ChatMessage[] = [
-  { id: 'SR', name: 'Sarah R', time: '2h ago', text: 'Can we avoid Thu Jul 3? Long weekend travel might be tricky', you: false },
-  { id: 'KL', name: 'Kyle L', time: '1h ago', text: '+1. Wed Jul 2 looks strongest on the grid', you: false },
-  { id: 'JM', name: 'You', time: '45m ago', text: "Good call — lock Jul 2? Budget's at $4.2k", you: true },
+  { id: 'SR', name: 'Sarah R', time: '2h ago', text: 'Can we avoid Thu Aug 27? Travel might be tricky that week', you: false },
+  { id: 'KL', name: 'Kyle L', time: '1h ago', text: '+1. Wed Aug 26 looks strongest on the grid', you: false },
+  { id: 'JM', name: 'You', time: '45m ago', text: "Good call, lock Aug 26? Budget's at $4.2k", you: true },
   { id: 'PR', name: 'Priya R', time: '30m ago', text: 'Works! Morning slot so people can travel same day?', you: false },
 ]

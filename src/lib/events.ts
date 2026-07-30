@@ -161,11 +161,15 @@ function writeAll(list: AppEvent[]) {
 }
 
 export function listEvents(): AppEvent[] {
-  // include the built-in demos (createdAt 0 sorts them last) so new users have something to explore
+  // real events only — the built-in demos live on /demos, not mixed into your lists
+  return readAll().sort((a, b) => b.createdAt - a.createdAt)
+}
+
+// the built-in example events, for the /demos shelf. A demo someone joined has a
+// live copy in storage (see joinEvent) — that copy wins, so edits show through.
+export function listDemos(): AppEvent[] {
   const stored = readAll()
-  const all = [...stored]
-  for (const demo of DEMOS) if (!stored.some((e) => e.id === demo.id)) all.push(demo)
-  return all.sort((a, b) => b.createdAt - a.createdAt)
+  return DEMOS.map((d) => stored.find((e) => e.id === d.id) ?? d)
 }
 export function getEvent(id: string): AppEvent | null {
   return readAll().find((e) => e.id === id) ?? DEMOS.find((d) => d.id === id) ?? null
@@ -1045,15 +1049,20 @@ const DEMO: AppEvent = {
   title: 'Q3 Team Offsite Planning',
   hostName: 'Jordan Miller',
   hostedByYou: true,
+  hostKind: 'person',
   description: 'Two days of strategy, workshops, and a team dinner to align on Q3 goals. Travel is reimbursed for out-of-town folks.',
   timezone: 'America/Los_Angeles',
-  startDate: '2026-06-30',
-  endDate: '2026-07-04',
+  startDate: '2026-08-24',
+  endDate: '2026-08-28',
   granularity: '60',
   budget: '4200',
+  planDeadline: '2026-08-20',
+  image: 'preset:dusk',
   location: {
     mode: 'vote',
-    planMode: 'vote',
+    // the offsite runs as a route, not a single room — the demo that shows the
+    // itinerary builder off: three stops in order, each with its own dwell time
+    planMode: 'itinerary',
     places: [
       { id: 'cavallo', name: 'Cavallo Point Lodge', place: 'Sausalito, CA', addedBy: 'SR' },
       { id: 'terrapin', name: 'Terrapin Crossroads', place: 'San Rafael, CA', addedBy: 'JM' },
@@ -1071,7 +1080,10 @@ const DEMO: AppEvent = {
   maxVotes: 2,
   durationMin: 120,
   itinStartMin: 9 * 60,
-  itinDwell: [],
+  // morning workshops in Sausalito, lunch and music in San Rafael, evening wrap at
+  // the Presidio — stop order follows the route, dwell minutes align by index
+  itinStops: ['cavallo', 'terrapin', 'presidio'],
+  itinDwell: [180, 120, 90],
   participants: demoIds.map((id) => ({
     id,
     initials: id,
@@ -1176,6 +1188,7 @@ const BIG_DEMO: AppEvent = {
   title: 'Fall Harvest Fair',
   hostName: 'Jordan Miller',
   hostedByYou: true,
+  hostKind: 'person',
   description: 'The whole crew, one afternoon outdoors. Twelve venues on the ballot, three votes each — may the best park win.',
   timezone: 'America/Los_Angeles',
   startDate: '2026-09-14',
@@ -1222,12 +1235,12 @@ const BIG_DEMO: AppEvent = {
 
 /* ── invited demos: events someone else is hosting, so home has a "You're invited" lane.
    Both land on the same Saturday on purpose — the same-day flag needs something to show. ── */
-const HW_DAYS = buildDays('2026-07-24', '2026-07-27')
+const HW_DAYS = buildDays('2026-08-21', '2026-08-24')
 const HW_TIMES = buildTimes('60', 12 * 60, 22 * 60)
 // grid minutes measured from noon (times[0]); Sarah is free all day, others trickle in
 const HW_IV: AvailIntervals = {
-  '2026-07-25': { SR: [{ s: 0, e: 600 }], AT: [{ s: 240, e: 600 }], MN: [{ s: 300, e: 540 }] },
-  '2026-07-26': { SR: [{ s: 0, e: 600 }], AT: [{ s: 300, e: 600 }], MN: [{ s: 300, e: 540 }], CL: [{ s: 360, e: 600 }] },
+  '2026-08-22': { SR: [{ s: 0, e: 600 }], AT: [{ s: 240, e: 600 }], MN: [{ s: 300, e: 540 }] },
+  '2026-08-23': { SR: [{ s: 0, e: 600 }], AT: [{ s: 300, e: 600 }], MN: [{ s: 300, e: 540 }], CL: [{ s: 360, e: 600 }] },
 }
 const HOUSEWARMING: AppEvent = {
   id: 'sarahs-housewarming',
@@ -1237,8 +1250,8 @@ const HOUSEWARMING: AppEvent = {
   hostKind: 'person',
   description: 'New place, first party. Come see the balcony everyone is going to fight over.',
   timezone: 'America/Los_Angeles',
-  startDate: '2026-07-24',
-  endDate: '2026-07-27',
+  startDate: '2026-08-21',
+  endDate: '2026-08-24',
   granularity: '60',
   budget: '',
   location: {
@@ -1270,7 +1283,8 @@ const HOUSEWARMING: AppEvent = {
   createdAt: 0,
   demo: true,
   status: 'confirmed',
-  confirmed: { dayKey: '2026-07-25', startMin: 17 * 60, endMin: 21 * 60, placeIds: ['sr-place'] },
+  confirmed: { dayKey: '2026-08-22', startMin: 17 * 60, endMin: 21 * 60, placeIds: ['sr-place'] },
+  rsvpDeadline: '2026-08-19',
 }
 
 const TRAIL_DAYS = buildDays('2026-07-25', '2026-07-25')
@@ -1349,6 +1363,7 @@ const DESIGN_DINNER: AppEvent = {
   granularity: '30',
   budget: '450',
   budgetMode: 'total',
+  planDeadline: '2026-08-02',
   location: {
     mode: 'vote',
     planMode: 'vote',

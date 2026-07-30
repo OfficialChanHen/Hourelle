@@ -48,7 +48,14 @@ export default function NotificationsPage() {
       <h1 className="font-serif text-[33.5px] leading-[1.04] tracking-[-0.01em]">Notifications</h1>
       <p className="mt-1.5 text-[13.5px] text-dim">Locked-in plans, reopened plans, open votes, and polls waiting on you.</p>
 
-      {buckets.length === 0 ? (
+      {events === null ? (
+        /* localStorage only exists after mount — pulse rows, never a flash of "caught up" */
+        <div className="mt-6 flex flex-col gap-2">
+          {Array.from({ length: 3 }, (_, i) => (
+            <div key={i} className="h-[68px] animate-pulse rounded-xl bg-s2" />
+          ))}
+        </div>
+      ) : buckets.length === 0 ? (
         <div className="mt-6 grid min-h-[300px] place-items-center rounded-2xl border border-dashed border-border2 bg-s1 px-6 text-center">
           <div className="max-w-sm">
             <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl border border-border bg-s2 text-dim"><Bell size={22} /></span>

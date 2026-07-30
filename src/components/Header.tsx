@@ -13,6 +13,7 @@ const TABS = [
   { href: '/home', label: 'Home' },
   { href: '/events', label: 'Events' },
   { href: '/templates', label: 'Templates' },
+  { href: '/demos', label: 'Demos' },
 ]
 
 export function Header() {
