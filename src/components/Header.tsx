@@ -7,6 +7,7 @@ import { ThemeToggle } from './ThemeToggle'
 import { Popover } from './ui/Popover'
 import { useNotificationCount } from '@/hooks/useNotificationCount'
 import { useGuestMode } from '@/hooks/useGuestMode'
+import { useHideOnScroll } from '@/hooks/useHideOnScroll'
 import { getEvent, YOU } from '@/lib/events'
 
 const TABS = [
@@ -20,13 +21,17 @@ export function Header() {
   const pathname = usePathname()
   const notifCount = useNotificationCount()
   const guestEventId = useGuestMode()
+  // phones: reading scrolls the header away, scrolling back up recalls it.
+  // Desktop keeps it planted (md:translate-y-0 outranks the hide).
+  const hidden = useHideOnScroll()
+  const chrome = `sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md transition-transform duration-300 md:translate-y-0 ${hidden ? '-translate-y-full' : 'translate-y-0'}`
 
   // a guest's header: their event by name, the theme (profile is gated), and the
   // one action the rest of the app is asking for
   if (guestEventId) {
     const title = getEvent(guestEventId)?.title ?? 'Back to the event'
     return (
-      <header className="sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md">
+      <header className={chrome}>
         <div className="mx-auto flex h-[54px] max-w-[1240px] items-center gap-3 px-[22px]">
           <Link href={`/events/${guestEventId}`} className="flex items-center gap-[9px]">
             <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-accent text-on-accent">
@@ -51,7 +56,7 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md">
+    <header className={chrome}>
       <div className="mx-auto flex h-[54px] max-w-[1240px] items-center gap-[22px] px-[22px]">
         {/* logo — icon box + serif wordmark */}
         <Link href="/home" className="flex items-center gap-[9px]">

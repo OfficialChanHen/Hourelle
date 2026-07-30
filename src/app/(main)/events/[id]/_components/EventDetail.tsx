@@ -27,6 +27,7 @@ import { StageSummary } from './StageSummary'
 import { ConfirmBar } from './ConfirmBar'
 import { ConfirmedHero } from './ConfirmedHero'
 import { ChatDrawer } from './ChatDrawer'
+import { useIsIOS } from '@/hooks/useIsIOS'
 
 const TABS = [
   { key: 'availability', label: 'Availability', short: 'Availability' },
@@ -79,6 +80,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   const tabsRef = useRef<HTMLDivElement>(null)
   const [tabFade, setTabFade] = useState({ l: false, r: false })
   const tabResolved = useRef(false)
+  const isIOS = useIsIOS()
 
   // re-read on tab change too: panels persist edits to storage as they happen, and
   // remounting them from a page-load-time snapshot would drop those edits until reload
@@ -335,7 +337,8 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         <button
           onClick={() => setChatOpen(true)}
           aria-label={unread > 0 ? `Open discussion, ${unread} unread` : 'Open discussion'}
-          className="fixed bottom-[84px] right-4 z-40 grid h-12 w-12 place-items-center rounded-full bg-accent text-on-accent shadow-soft md:bottom-6 md:right-6"
+          // on iOS the bubble goes frosted like the native chrome; elsewhere it stays solid
+          className={`fixed bottom-[84px] right-4 z-40 grid h-12 w-12 place-items-center rounded-full text-on-accent shadow-soft md:bottom-6 md:right-6 ${isIOS ? 'bg-accent/75 backdrop-blur-md backdrop-saturate-150' : 'bg-accent'}`}
         >
           <MessageCircle size={21} />
           {unread > 0 && (
