@@ -20,10 +20,11 @@ const PERKS = [
 export function GuestBoundary({ children }: { children: React.ReactNode }) {
   const guestEventId = useGuestMode()
   const pathname = usePathname()
-  // event detail pages (and the join flow) are the guest's territory; note that
-  // the bare /events list is not — that's the account's filing cabinet
-  const inEvent = /^\/events\/[^/]+/.test(pathname)
-  if (!guestEventId || inEvent) return <>{children}</>
+  // event detail pages (and the join flow) are the guest's territory, and the
+  // help/about pages hold nothing personal — the bare /events list is neither:
+  // that's the account's filing cabinet
+  const open = /^\/events\/[^/]+/.test(pathname) || pathname === '/help' || pathname === '/about'
+  if (!guestEventId || open) return <>{children}</>
 
   const ev = getEvent(guestEventId)
   const back = `/events/${guestEventId}`

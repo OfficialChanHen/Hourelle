@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CalendarDays, Plus, Bell, UserRound, LogOut } from 'lucide-react'
+import { CalendarDays, Plus, Bell, UserRound, LogOut, Settings, CircleHelp, Info } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { Popover } from './ui/Popover'
 import { useNotificationCount } from '@/hooks/useNotificationCount'
@@ -138,9 +138,16 @@ export function Header() {
                 <Link href="/profile" onClick={close} className="mt-1 flex items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-[13px] font-medium hover:bg-s2">
                   <UserRound size={15} className="text-dim" /> Profile
                 </Link>
-                <div className="flex items-center justify-between rounded-[7px] px-2.5 py-1.5 text-[13px] font-medium">
-                  <span>Theme</span>
-                  <ThemeToggle />
+                <Link href="/settings" onClick={close} className="flex items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-[13px] font-medium hover:bg-s2">
+                  <Settings size={15} className="text-dim" /> Settings
+                </Link>
+                <div className="mt-1 border-t border-border pt-1">
+                  <Link href="/help" onClick={close} className="flex items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-[13px] font-medium hover:bg-s2">
+                    <CircleHelp size={15} className="text-dim" /> Help &amp; contact
+                  </Link>
+                  <Link href="/about" onClick={close} className="flex items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-[13px] font-medium hover:bg-s2">
+                    <Info size={15} className="text-dim" /> About Aline
+                  </Link>
                 </div>
                 <div className="mt-1 border-t border-border pt-1">
                   <Link href="/auth/signin" onClick={close} className="flex items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-[13px] font-medium text-brick-text hover:bg-brick-bg/50">

@@ -9,6 +9,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Popover } from '@/components/ui/Popover'
 import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, ImportPreview, MissingPopover, PresetFills, Segment } from './availability/parts'
 import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, subtract, type Band, type GDay } from './availability/grid-lib'
+import { prefH24 } from '@/lib/prefs'
 import {
   patchEvent, availIvOf, fullAvailIvOf, intervalsToGrid, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
@@ -99,7 +100,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // person filter — view mode reads the heat map against just the selected people;
   // seeded with one person or a whole availability group from other tabs
   const [filter, setFilter] = useState<Set<string>>(() => new Set(Array.isArray(initialFilter) ? initialFilter : initialFilter ? [initialFilter] : []))
-  const [h24, setH24] = useState(false)
+  // clock style follows the device preference from Settings; the grid's own
+  // toggle still overrides it for the visit
+  const [h24, setH24] = useState(() => prefH24())
   const [myTime, setMyTime] = useState(false) // show times in the viewer's local zone
   const [durationMin, setDurationMin] = useState(event.durationMin ?? 60)
   const [bestMode, setBestMode] = useState<BestMode>(event.bestMode ?? 'full')

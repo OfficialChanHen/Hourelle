@@ -1,14 +1,20 @@
 import Link from 'next/link'
-import { LogOut } from 'lucide-react'
+import { ChevronRight, CircleHelp, Info, LogOut, Settings } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
-import { ThemeToggle } from '@/components/ThemeToggle'
-import { AppearancePicker } from '@/components/AppearancePicker'
 
 // eyebrow labels give the page the sectioned shape settings pages are expected to
-// have — account first, preferences after, the exit on its own at the end
+// have — account first, the rest of the account surface after, the exit at the end
 const Eyebrow = ({ children }: { children: React.ReactNode }) => (
   <p className="mb-2 mt-7 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{children}</p>
 )
+
+// on phones this page is the account menu (the header avatar is desktop-only),
+// so everything behind the avatar dropdown is reachable here too
+const LINKS = [
+  { href: '/settings', label: 'Settings', sub: 'Theme, clock style, reminders', icon: Settings },
+  { href: '/help', label: 'Help & contact', sub: 'Common questions, and where to reach us', icon: CircleHelp },
+  { href: '/about', label: 'About Aline', sub: 'What this is and where your data lives', icon: Info },
+]
 
 export default function ProfilePage() {
   return (
@@ -24,16 +30,23 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <Eyebrow>Preferences</Eyebrow>
-      <div className="rounded-2xl border border-border bg-s1 px-5 py-4">
-        {/* the sun/moon flips light and dark; the cards pick which look the app wears */}
-        <div className="flex items-center justify-between">
-          <span className="text-[14px] font-medium">Appearance</span>
-          <ThemeToggle />
-        </div>
-        <div className="mt-3">
-          <AppearancePicker />
-        </div>
+      <Eyebrow>More</Eyebrow>
+      <div className="overflow-hidden rounded-2xl border border-border bg-s1">
+        {LINKS.map((l, i) => {
+          const Icon = l.icon
+          return (
+            <Link key={l.href} href={l.href} className={`flex items-center gap-3.5 px-5 py-4 hover:bg-s2 ${i > 0 ? 'border-t border-border' : ''}`}>
+              <span className="grid h-9 w-9 flex-none place-items-center rounded-[10px] border border-border bg-s2 text-dim">
+                <Icon size={17} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14px] font-medium">{l.label}</span>
+                <span className="block truncate text-[12.5px] text-dim">{l.sub}</span>
+              </span>
+              <ChevronRight size={16} className="flex-none text-faint" />
+            </Link>
+          )
+        })}
       </div>
 
       {/* no real session to end yet — signing out just lands on the sign-in shell */}
