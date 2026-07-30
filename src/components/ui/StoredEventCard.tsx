@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Calendar, CalendarClock, Check, Link2, MapPin, Reply, RotateCcw, Trash2, UserRound, UsersRound, Vote } from 'lucide-react'
+import { Calendar, CalendarClock, Check, Link2, MapPin, Reply, RotateCcw, Trash2, UserRound, UserRoundX, UsersRound, Vote } from 'lucide-react'
 import { AvatarRow } from './AvatarRow'
 import { TimezonePill } from './TimezonePill'
 import { Cover } from './Cover'
@@ -45,6 +45,9 @@ export function StoredEventCard({ e, reuseHref, sameDay }: { e: AppEvent; reuseH
   const [from, to] = coverFor(e.id)
   const canShare = e.hostedByYou && phase !== 'past'
   const canDelete = e.hostedByYou && !e.demo
+  // someone else's event on your lists (joined via a link): removable on your side
+  // only — the same shortcut route, landing on the leave zone instead of delete
+  const canLeave = !e.hostedByYou && !e.demo
   // the three glance cues that call for action: your missing reply, how many the
   // host is still waiting on, and a voting deadline that hasn't passed
   const youPending = phase !== 'past' && e.participants.some((p) => p.you && p.rsvp === 'pending')
@@ -184,6 +187,15 @@ export function StoredEventCard({ e, reuseHref, sameDay }: { e: AppEvent; reuseH
               className="grid h-8 w-8 place-items-center rounded-md text-faint hover:bg-brick-bg hover:text-brick-text"
             >
               <Trash2 size={15} />
+            </span>
+          )}
+          {canLeave && (
+            <span
+              role="button" tabIndex={0} onClick={goDelete} onKeyDown={goDelete}
+              title="Remove from my events"
+              className="grid h-8 w-8 place-items-center rounded-md text-faint hover:bg-brick-bg hover:text-brick-text"
+            >
+              <UserRoundX size={15} />
             </span>
           )}
         </div>

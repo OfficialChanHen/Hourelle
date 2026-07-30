@@ -177,6 +177,13 @@ export function getEvent(id: string): AppEvent | null {
 export function deleteEvent(id: string): void {
   writeAll(readAll().filter((e) => e.id !== id))
 }
+// the non-host mirror of delete: take someone else's event off your own lists.
+// Only this device's copy goes — the host's plan is untouched, and the invite
+// link can always bring it back. Any guest session for it ends too.
+export function leaveEvent(id: string): void {
+  writeAll(readAll().filter((e) => e.id !== id))
+  leaveGuestSession(id)
+}
 export function patchEvent(id: string, patch: Partial<AppEvent>): void {
   const list = readAll()
   const i = list.findIndex((e) => e.id === id)

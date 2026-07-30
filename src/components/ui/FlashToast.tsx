@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Check, Trash2 } from 'lucide-react'
@@ -18,6 +19,9 @@ export function pushFlash(text: string, tone: Flash['tone'] = 'accent') {
 export function FlashToast() {
   const [flash, setFlash] = useState<Flash | null>(null)
   const box = useRef<HTMLDivElement>(null)
+  // mounted once in the layout, which client-side navigation never remounts — so
+  // the queue is checked again on every route change, not just on page load
+  const pathname = usePathname()
 
   useEffect(() => {
     try {
@@ -26,7 +30,7 @@ export function FlashToast() {
       sessionStorage.removeItem(KEY)
       setFlash(JSON.parse(raw) as Flash)
     } catch { /* private mode / bad payload */ }
-  }, [])
+  }, [pathname])
 
   useGSAP(() => {
     if (!flash || !box.current) return

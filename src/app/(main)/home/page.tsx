@@ -10,7 +10,6 @@ import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/pagination'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { FlashToast } from '@/components/ui/FlashToast'
 import { coverFor, StoredEventCard } from '@/components/ui/StoredEventCard'
 import { Cover } from '@/components/ui/Cover'
 import { TimezonePill } from '@/components/ui/TimezonePill'
@@ -60,7 +59,6 @@ export default function HomePage() {
 
   return (
     <div className="relative mx-auto max-w-[1240px] px-[26px] pb-[104px] pt-[34px]">
-      <FlashToast />
       {/* greeting */}
       <div className="mb-5">
         <h1 className="mb-[9px] font-serif text-[37px] leading-[1.02] tracking-[-0.01em]" suppressHydrationWarning>{greeting}, Jordan</h1>

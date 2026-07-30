@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Building2, User, Link2, Copy, MessageCircle, Pencil, EllipsisVertical, CopyPlus,
-  Check, Trash2, TriangleAlert, Receipt, Plus, X, ImagePlus, Video,
+  Check, Trash2, TriangleAlert, Receipt, Plus, X, ImagePlus, Video, UserRoundX,
 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -18,7 +18,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, patchEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, leaveGuestSession, maxPollDays, phaseOf, removeParticipantPatch, respondedCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
+import { getEvent, deleteEvent, leaveEvent, patchEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, leaveGuestSession, maxPollDays, phaseOf, removeParticipantPatch, respondedCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -124,6 +124,14 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     deleteEvent(id)
     pushFlash(title ? `${title} was deleted` : 'Event deleted', 'brick')
     // back to wherever they came from; a straight-to-URL visit falls back to home
+    if (typeof window !== 'undefined' && window.history.length > 1) router.back()
+    else router.push('/home')
+  }
+  // the non-host way out: this device's copy goes, the host's plan stays
+  function handleLeave() {
+    const title = event?.title
+    leaveEvent(id)
+    pushFlash(title ? `${title} was removed from your events` : 'Removed from your events', 'brick')
     if (typeof window !== 'undefined' && window.history.length > 1) router.back()
     else router.push('/home')
   }
@@ -319,7 +327,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       )}
       {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} />}
       {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={setTab} onViewAvailability={goToAvailabilityFor} onViewAvailabilityGroup={goToAvailabilityGroup} onGoToBestWindow={goToBestWindow} />}
-      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onGoToTab={setTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} />}
+      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onLeave={handleLeave} onGoToTab={setTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} />}
 
       {/* discussion follows you down the page — the classic chat bubble, above the
           mobile tab bar; it is the one and only way in, unread badge included */}
@@ -378,8 +386,8 @@ function EditableTitle({ title, editable, onSave }: { title: string; editable: b
 type DetailsGoTab = (t: 'availability' | 'location') => void
 
 /* ── Details tab ── */
-function DetailsTab({ event, onDelete, onGoToTab, onGoToBestWindow, onPatch, onViewAvailability, spotlightDelete = false }: {
-  event: AppEvent; onDelete: () => void; onGoToTab: DetailsGoTab; onGoToBestWindow: () => void
+function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onPatch, onViewAvailability, spotlightDelete = false }: {
+  event: AppEvent; onDelete: () => void; onLeave: () => void; onGoToTab: DetailsGoTab; onGoToBestWindow: () => void
   onPatch: (patch: Partial<AppEvent>) => void; onViewAvailability: (pid: string) => void; spotlightDelete?: boolean
 }) {
   const isHost = event.hostedByYou
@@ -431,6 +439,8 @@ function DetailsTab({ event, onDelete, onGoToTab, onGoToBestWindow, onPatch, onV
       <ParticipantsCard event={event} isHost={isHost} onPatch={onPatch} onViewAvailability={onViewAvailability} />
 
       {event.hostedByYou && !event.demo && <div className="min-w-0 lg:col-span-2"><DangerZone title={event.title} onDelete={onDelete} spotlight={spotlightDelete} /></div>}
+      {/* someone else's event: you can't delete it, but you can take it off your side */}
+      {!event.hostedByYou && !event.demo && <div className="min-w-0 lg:col-span-2"><LeaveZone title={event.title} onLeave={onLeave} spotlight={spotlightDelete} /></div>}
     </div>
   )
 }
@@ -1313,6 +1323,43 @@ function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boo
    with the explanation and confirm flow only unfolds when asked (or when a card's
    delete shortcut sends someone here with spotlight on) */
 // two clicks total: "Delete this event…" opens the full warning, "Yes, delete it" ends it
+/* the guest-side mirror of delete: one quiet expand, one plain sentence, no alarm —
+   leaving is reversible (the invite link brings it back) and touches nobody else */
+function LeaveZone({ title, onLeave, spotlight = false }: { title: string; onLeave: () => void; spotlight?: boolean }) {
+  const [open, setOpen] = useState(spotlight)
+  const zone = useRef<HTMLDivElement>(null)
+
+  // arriving via a card's remove shortcut: bring the zone into view
+  useGSAP(() => {
+    if (spotlight && zone.current) zone.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [])
+
+  if (!open) {
+    return (
+      <div className="w-full">
+        <button onClick={() => setOpen(true)} className="flex items-center gap-2 rounded-[9px] px-2.5 py-2 text-[13px] font-medium text-dim hover:bg-s2 hover:text-brick-text">
+          <UserRoundX size={15} /> Remove from my events…
+        </button>
+      </div>
+    )
+  }
+  return (
+    <div ref={zone} className="flex w-full flex-wrap items-center gap-x-4 gap-y-2.5 rounded-2xl border border-border bg-s1 p-4">
+      <p className="min-w-0 flex-1 text-[13px] leading-[1.55] text-dim">
+        This takes <span className="font-semibold text-text">{title}</span> off your lists. The host&apos;s plan isn&apos;t touched, and the invite link can bring you back.
+      </p>
+      <div className="flex flex-none items-center gap-2">
+        <button onClick={onLeave} className="h-8 rounded-[8px] px-3 text-[13px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
+          Remove
+        </button>
+        <button onClick={() => setOpen(false)} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2">
+          Keep it
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function DangerZone({ title, onDelete, spotlight = false }: { title: string; onDelete: () => void; spotlight?: boolean }) {
   const [open, setOpen] = useState(spotlight)
   const box = useRef<HTMLDivElement>(null)
