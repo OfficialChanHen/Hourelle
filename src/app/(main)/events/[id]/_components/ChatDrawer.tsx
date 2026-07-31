@@ -105,7 +105,7 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose }: {
     const p = pById.get(id)
     return { initials: p?.initials ?? id, name: p?.name ?? id, color: p?.color ?? ('gray' as Participant['color']) }
   }
-  const body = <ChatBody members={event.participants.length} messages={messages} unreadFrom={unreadFrom} onSend={onSend} onClose={close} avatarOf={avatarOf} />
+  const body = <ChatBody messages={messages} unreadFrom={unreadFrom} onSend={onSend} onClose={close} avatarOf={avatarOf} />
 
   return (
     <div ref={root} className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Event discussion">
@@ -137,7 +137,7 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose }: {
 }
 
 type ChatProps = {
-  members: number; messages: ChatMessage[]; unreadFrom?: number
+  messages: ChatMessage[]; unreadFrom?: number
   onSend: (t: string) => void; onClose: () => void
   avatarOf: (id: string) => { initials: string; name: string; color: Participant['color'] }
 }
@@ -148,7 +148,7 @@ type Row =
   | { kind: 'msg'; m: ChatMessage; key: string; first: boolean } // first: opens a sender run, so it wears the header
 
 // header + messages + composer, shared by the drawer and the sheet
-function ChatBody({ members, messages, unreadFrom, onSend, onClose, avatarOf }: ChatProps) {
+function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf }: ChatProps) {
   const zone = useRef<HTMLDivElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const ta = useRef<HTMLTextAreaElement>(null)
@@ -238,11 +238,8 @@ function ChatBody({ members, messages, unreadFrom, onSend, onClose, avatarOf }: 
 
   return (
     <div ref={zone} className="flex h-full min-h-0 w-full flex-col">
-      <div className="flex flex-none items-start justify-between border-b border-border px-4 pb-3 pt-[11px]">
-        <div>
-          <div className="font-serif text-[19px] leading-tight tracking-[-0.01em]">Discussion</div>
-          <div className="mt-0.5 text-[11.5px] text-dim">{members} {members === 1 ? 'person' : 'people'} can chat here</div>
-        </div>
+      <div className="flex flex-none items-center justify-between border-b border-border px-4 py-3">
+        <div className="font-serif text-[19px] leading-tight tracking-[-0.01em]">Discussion</div>
         <button onClick={onClose} aria-label="Close chat" className="-mr-1 grid h-[34px] w-[34px] place-items-center rounded-lg text-dim hover:text-text"><X size={18} /></button>
       </div>
 

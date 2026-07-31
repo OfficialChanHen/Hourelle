@@ -7,7 +7,7 @@ Aline is an event coordination app, built as a modern replacement for when2meet.
 ## What it does
 
 - **Availability grid** — mark when you're free by dragging, with minute-precise edge handles, quick fills, and a live heat map of the whole group. Day polls handle trips and multi-day plans.
-- **Calendar import** — pull free time straight from Google Calendar or Outlook (simulated for now), preview what it would add per day, apply in one tap, undo in one more.
+- **Calendar import** — pull free time straight from Google Calendar or Outlook (simulated for now). One tap fills your grid, a toast says how much landed, and Undo takes it right back.
 - **Location voting and itineraries** — suggest places on a map, run a ballot, or chain stops into a routed itinerary with travel-time estimates.
 - **Attendance** — see who can make the locked-in plan, who arrives late or leaves early, and where the headcount peaks across stops.
 - **Event chat** — a discussion drawer on every event, with unread tracking and read-marks per browser.
@@ -19,7 +19,7 @@ Aline is an event coordination app, built as a modern replacement for when2meet.
 | | |
 |---|---|
 | ![Home](docs/screenshots/home-light.png) Home, with the next event up front | ![Location](docs/screenshots/location-light.png) Location tab: map, ballot, itinerary |
-| ![Chat](docs/screenshots/chat-light.png) The discussion drawer | ![Calendar import](docs/screenshots/import-light.png) Calendar import preview |
+| ![Chat](docs/screenshots/chat-light.png) The discussion drawer | ![Calendar import](docs/screenshots/import-light.png) Calendar import, one tap with undo |
 | ![Dark theme](docs/screenshots/availability-dark.png) The same grid in dark | ![Mobile](docs/screenshots/home-mobile.png) On a phone |
 
 ## How it's built

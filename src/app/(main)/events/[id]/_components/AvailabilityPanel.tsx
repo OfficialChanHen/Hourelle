@@ -7,7 +7,7 @@ import { AvatarRow } from '@/components/ui/AvatarRow'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Popover } from '@/components/ui/Popover'
-import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, ImportPreview, MissingPopover, PresetFills, Segment } from './availability/parts'
+import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, MissingPopover, PresetFills, Segment } from './availability/parts'
 import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, subtract, type Band, type GDay } from './availability/grid-lib'
 import { prefH24 } from '@/lib/prefs'
 import {
@@ -118,8 +118,6 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const [scrollTop, setScrollTop] = useState(0)
   const [viewportH, setViewportH] = useState(460)
   const [viewportW, setViewportW] = useState(0)
-  // provider picked → preview of what would be imported (null data = unavailable for this event)
-  const [importing, setImporting] = useState<{ provider: string; data: Record<string, DayImport> | null } | null>(null)
 
   const WEEK = 7
   const paddedDays = useMemo<GDay[]>(() => padToWeeks(event.days), [event.days])
@@ -516,11 +514,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   }
 
   // bulk changes (clear, calendar import) are instant with an undo window instead
-  // of a scary confirm — the old times sit in state until the toast expires
-  const [undo, setUndo] = useState<{ times: Record<string, Iv[]>; label: string } | null>(null)
+  // of a scary confirm — the old times sit in state until the toast expires.
+  // times: null makes it a plain notice with no Undo button
+  const [undo, setUndo] = useState<{ times: Record<string, Iv[]> | null; label: string } | null>(null)
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (undoTimer.current) clearTimeout(undoTimer.current) }, [])
-  function stashUndo(times: Record<string, Iv[]>, label: string) {
+  function stashUndo(times: Record<string, Iv[]> | null, label: string) {
     setUndo({ times, label })
     if (undoTimer.current) clearTimeout(undoTimer.current)
     undoTimer.current = setTimeout(() => setUndo(null), 8000)
@@ -533,26 +532,39 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     stashUndo(snapshot, 'Your times were cleared')
   }
   function undoRestore() {
-    if (!undo) return
-    setMine(undo.times); persist(undo.times)
+    const times = undo?.times
+    if (!times) return
+    setMine(times); persist(times)
     setUndo(null)
     if (undoTimer.current) clearTimeout(undoTimer.current)
   }
 
-  // calendar import: fetch busy as UTC instants, convert to event-tz grid minutes, preview, apply
+  // calendar import: fetch busy as UTC instants, convert to event-tz grid minutes, and
+  // apply in one step. No preview modal — the action is additive-only and the grid
+  // shows the result right away, so the toast (what landed, Undo) is confirmation enough.
   function startImport(provider: string) {
-    if (!event.days.every((d) => ISO_DAY.test(d.key))) { setImporting({ provider, data: null }); return }
-    setImporting({ provider, data: buildImportPreview(mockBusyUtc(event.days), event.days, gridStartMin, gridMax, event.timezone) })
-  }
-  function applyImport() {
-    if (!importing?.data) return
+    if (!event.days.every((d) => ISO_DAY.test(d.key))) {
+      stashUndo(null, 'Calendar import works on events you create, not this sample.')
+      return
+    }
+    const data = buildImportPreview(mockBusyUtc(event.days), event.days, gridStartMin, gridMax, event.timezone)
     const snapshot = mineRef.current
     const next = { ...snapshot }
-    // merge, never remove: imported free times join whatever is already marked
-    for (const [day, di] of Object.entries(importing.data)) next[day] = normalizeIv([...(next[day] ?? []), ...di.free])
-    setMine(next); persist(next)
-    setSel(null); setImporting(null); setMode('edit')
-    stashUndo(snapshot, 'Calendar times added')
+    // merge, never remove: imported free times join whatever is already marked.
+    // `addedMin` counts only genuinely new minutes (free minus what's already there)
+    let addedMin = 0
+    for (const [day, di] of Object.entries(data)) {
+      let add = di.free
+      for (const iv of snapshot[day] ?? []) add = add.flatMap((a) => subtract(a, iv.s, iv.e))
+      addedMin += add.reduce((m, iv) => m + (iv.e - iv.s), 0)
+      next[day] = normalizeIv([...(next[day] ?? []), ...di.free])
+    }
+    if (addedMin === 0) {
+      stashUndo(null, `Nothing new to add from ${provider}`)
+      return
+    }
+    setMine(next); persist(next); setSel(null)
+    stashUndo(snapshot, `Added ${fmtDur(addedMin)} of free time from ${provider}`)
   }
 
   // Scalability: cell rendering must not be O(cells × people). Build each day's combined
@@ -1365,29 +1377,17 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       {/* undo toast — floats above the mobile tab bar, gone after 8s */}
       {undo && (
         <div className="pointer-events-none fixed inset-x-0 bottom-[84px] z-50 flex justify-center px-4 md:bottom-6">
-          <div className="pointer-events-auto flex items-center gap-2.5 rounded-full border border-border bg-s1 py-1.5 pl-4 pr-1.5 text-[13px] shadow-soft">
+          <div className={`pointer-events-auto flex items-center gap-2.5 rounded-full border border-border bg-s1 py-1.5 pl-4 text-[13px] shadow-soft ${undo.times ? 'pr-1.5' : 'pr-4'}`}>
             {undo.label}
-            <button type="button" onClick={undoRestore} className="flex h-8 items-center rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent">
-              Undo
-            </button>
+            {undo.times && (
+              <button type="button" onClick={undoRestore} className="flex h-8 items-center rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent">
+                Undo
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {importing && (
-        <ImportPreview
-          provider={importing.provider}
-          data={importing.data}
-          mine={mine}
-          days={event.days}
-          tz={event.timezone}
-          fmt={fmt}
-          gridStartMin={gridStartMin}
-          gridMax={gridMax}
-          onApply={applyImport}
-          onClose={() => setImporting(null)}
-        />
-      )}
 
       {/* corner grip: drag to stretch the grid toward showing every row at once.
           Wears the same diagonal mark as a resizable textarea. Desktop only —
