@@ -8,7 +8,7 @@ import { Bell, CalendarPlus, Check, ChevronDown, Eraser, GripHorizontal, Minus, 
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
-import { Popover } from '@/components/ui/Popover'
+import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import type { AppEvent, Iv, Participant } from '@/lib/events'
 import type { DayImport } from '@/lib/calendar-import'
@@ -221,42 +221,28 @@ export function ImportPreview({ provider, data, mine, days, tz, fmt, gridStartMi
 
 /* ── import from calendar (availability stage): connect a provider and auto-fill busy times ── */
 export function ImportFromCalendar({ onPick }: { onPick: (provider: string) => void }) {
-  const [open, setOpen] = useState(false)
-  const panelRef = useClampX(open)
-  const wrap = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false) }
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
-    window.addEventListener('pointerdown', onDown)
-    window.addEventListener('keydown', onKey)
-    return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
-  }, [open])
-
   return (
-    <div ref={wrap} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className={`flex h-11 sm:h-7 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2 ${open ? 'border-border2' : 'border-border'}`}
-      >
-        <CalendarPlus size={15} /> <span className="sm:hidden">Import</span><span className="hidden sm:inline">Import from calendar</span> <ChevronDown size={13} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <div ref={panelRef} className="absolute left-0 top-full z-[35] mt-1 w-[248px] max-w-[calc(100vw-16px)] rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
-          <p className="px-2.5 pb-1.5 pt-2 text-[12px] leading-[1.45] text-faint">
-            Connect a calendar and your free times fill in automatically, with a review before anything is saved.
-          </p>
-          {(['Google Calendar', 'Outlook'] as const).map((name) => (
-            <button key={name} type="button" onClick={() => { setOpen(false); onPick(name) }} className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left text-[13.5px] font-medium hover:bg-s2">
-              <CalendarPlus size={15} className="text-accent-text" /> {name}
-            </button>
-          ))}
-        </div>
+    <Popover
+      align="start"
+      width={248}
+      trigger={(open) => (
+        <span className={`flex h-11 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2 sm:h-7 ${open ? 'border-border2' : 'border-border'}`}>
+          <CalendarPlus size={15} /> <span className="sm:hidden">Import</span><span className="hidden sm:inline">Import from calendar</span> <ChevronDown size={13} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
+        </span>
       )}
-    </div>
+    >
+      {(close) => (
+        <>
+          {/* the import previews before saving anyway — the title is all the context needed */}
+          <PopoverTitle>Fills your free times</PopoverTitle>
+          {(['Google Calendar', 'Outlook'] as const).map((name) => (
+            <PopoverItem key={name} onClick={() => { close(); onPick(name) }} icon={<CalendarPlus size={15} className="text-accent-text" />}>
+              {name}
+            </PopoverItem>
+          ))}
+        </>
+      )}
+    </Popover>
   )
 }
 
@@ -333,17 +319,15 @@ export function PresetFills({ onFill, onFillAll }: { onFill: (startClock: number
       )}
     >
       {(close) => (
-        <div className="flex flex-col p-0.5">
+        <>
           {P.map((p) => (
-            <button key={p.l} onClick={() => { onFill(p.s, p.e); close() }} className="flex items-baseline gap-2 rounded-[7px] px-2 py-1.5 text-left text-[13px] font-medium hover:bg-s2">
-              {p.l} <span className="text-[11.5px] font-normal text-faint">{p.hint}</span>
-            </button>
+            <PopoverItem key={p.l} onClick={() => { onFill(p.s, p.e); close() }} trailing={p.hint}>
+              {p.l}
+            </PopoverItem>
           ))}
-          <div className="my-1 border-t border-border" />
-          <button onClick={() => { onFillAll(); close() }} title="Mark yourself free for every time on every day" className="rounded-[7px] px-2 py-1.5 text-left text-[13px] font-semibold text-accent-text hover:bg-accent-bg">
-            Free for all of it
-          </button>
-        </div>
+          <PopoverSep />
+          <PopoverItem tone="accent" onClick={() => { onFillAll(); close() }}>Free for all of it</PopoverItem>
+        </>
       )}
     </Popover>
   )

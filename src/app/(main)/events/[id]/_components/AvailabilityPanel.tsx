@@ -754,7 +754,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 )}
               >
                 {() => (
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3 p-1">
                     {!daysAnswer && <div>
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Event length</div>
                       <div className="flex flex-wrap gap-1.5">
@@ -896,7 +896,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               )}
             >
               {() => (
-                <div className="flex flex-col gap-2.5 p-0.5 text-[12px] leading-[1.5] text-dim">
+                <div className="flex flex-col gap-2.5 p-1 text-[12px] leading-[1.5] text-dim">
                   <div className="flex items-center gap-1 text-[11px] text-faint">
                     <span>No one</span>
                     {['var(--s2)', 'var(--heat-low)', 'var(--heat-mid)', 'var(--heat-high)', 'var(--heat-full)'].map((c) => (
@@ -1064,6 +1064,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 </button>
                 {weekDays.map((d, di) => {
                   // out-of-window cell: hatched, no data, no interactions
+
                   if (d.pad) {
                     return (
                       <div

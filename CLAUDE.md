@@ -3,13 +3,13 @@
 ## What this is
 Aline is a modern replacement for when2meet.com. It handles the full lifecycle of event coordination: scheduling via an availability grid, collaborative location voting on a map, itinerary building for multi-stop events, real-time chat per event, and attendance tracking (multi-stop itinerary **and** single-venue). Both authenticated users and guests (via share link) can participate.
 
-### Visual direction — match the design artifacts
-The current design is **editorial**: warm paper / warm-charcoal surfaces, a single deep-green signature accent, Instrument Serif display headlines over Hanken Grotesk body, hairline rules, restrained shadows, and generous whitespace — shipped in two equally-finished themes (light + dark). The exact look to recreate is captured in these HTML reference files in this project — open them and match spacing, type, color, and component treatment 1:1:
-- `Gatherly Editorial.dc.html` — full desktop app, light + dark
-- `Gatherly Mobile.dc.html` — mobile web version (bottom tab bar, status bar)
+### Visual direction — the editorial system, designed past its first draft
+The design is **editorial**: warm paper / warm-charcoal surfaces, a single deep-green signature accent, Instrument Serif display headlines over a grotesk body, hairline rules, restrained shadows, and generous whitespace — shipped in two equally-finished themes (light + dark). The HTML reference files in `public/examples/` were the **early iteration** of this design, not a 1:1 target — the built app is expected to exceed them:
+- `Gatherly Editorial.dc.html` — early full desktop app, light + dark
+- `Gatherly Mobile.dc.html` — early mobile version (bottom tab bar, status bar)
 - `Premium Directions.dc.html` — the side-by-side exploration the editorial direction (option 1a) came from
 
-Treat the editorial system below as the source of truth; the artifacts are the visual target.
+Treat the editorial system below (tokens, type, spacing, color roles) as the source of truth. Use the artifacts for their voice and vocabulary, then make premium judgment calls beyond them — when a mock detail and a better common web practice conflict, prefer the better practice and keep the editorial voice. Intentional departures already shipped include color-coded section kickers, the unified popover kit, the avatar account menu, liquid-glass mobile chrome, and the event header's open stat strip.
 
 ---
 

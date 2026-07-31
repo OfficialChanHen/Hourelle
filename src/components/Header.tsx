@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { CalendarDays, Plus, Bell, UserRound, LogOut, Settings, CircleHelp, Info } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
-import { Popover } from './ui/Popover'
+import { Popover, PopoverItem, PopoverSep } from './ui/Popover'
 import { useNotificationCount } from '@/hooks/useNotificationCount'
 import { useGuestMode } from '@/hooks/useGuestMode'
 import { useHideOnScroll } from '@/hooks/useHideOnScroll'
@@ -135,31 +135,20 @@ export function Header() {
             )}
           >
             {(close) => (
-              <div className="p-0.5">
-                <div className="border-b border-border px-2.5 pb-2.5 pt-2">
+              <>
+                {/* identity leads — the menu is "you", everything under it acts as you */}
+                <div className="mb-1 border-b border-border px-2.5 pb-2.5 pt-1.5">
                   <div className="text-[13.5px] font-semibold">{YOU.name}</div>
                   <div className="truncate text-[12px] text-dim">jordan@example.com</div>
                 </div>
-                <Link href="/profile" onClick={close} className="mt-1 flex items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-[13px] font-medium hover:bg-s2">
-                  <UserRound size={15} className="text-dim" /> Profile
-                </Link>
-                <Link href="/settings" onClick={close} className="flex items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-[13px] font-medium hover:bg-s2">
-                  <Settings size={15} className="text-dim" /> Settings
-                </Link>
-                <div className="mt-1 border-t border-border pt-1">
-                  <Link href="/help" onClick={close} className="flex items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-[13px] font-medium hover:bg-s2">
-                    <CircleHelp size={15} className="text-dim" /> Help &amp; contact
-                  </Link>
-                  <Link href="/about" onClick={close} className="flex items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-[13px] font-medium hover:bg-s2">
-                    <Info size={15} className="text-dim" /> About Aline
-                  </Link>
-                </div>
-                <div className="mt-1 border-t border-border pt-1">
-                  <Link href="/auth/signin" onClick={close} className="flex items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-[13px] font-medium text-brick-text hover:bg-brick-bg/50">
-                    <LogOut size={15} /> Sign out
-                  </Link>
-                </div>
-              </div>
+                <PopoverItem href="/profile" onClick={close} icon={<UserRound size={15} />}>Profile</PopoverItem>
+                <PopoverItem href="/settings" onClick={close} icon={<Settings size={15} />}>Settings</PopoverItem>
+                <PopoverSep />
+                <PopoverItem href="/help" onClick={close} icon={<CircleHelp size={15} />}>Help &amp; contact</PopoverItem>
+                <PopoverItem href="/about" onClick={close} icon={<Info size={15} />}>About Aline</PopoverItem>
+                <PopoverSep />
+                <PopoverItem href="/auth/signin" onClick={close} icon={<LogOut size={15} />} tone="brick">Sign out</PopoverItem>
+              </>
             )}
           </Popover>
         </div>

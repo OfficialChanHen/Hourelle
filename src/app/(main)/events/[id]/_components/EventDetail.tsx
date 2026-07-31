@@ -17,7 +17,7 @@ import { TimeSelect } from '@/components/ui/TimeSelect'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
-import { Popover } from '@/components/ui/Popover'
+import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
 import { getEvent, deleteEvent, leaveEvent, patchEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, leaveGuestSession, maxPollDays, phaseOf, removeParticipantPatch, respondedCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
@@ -253,15 +253,18 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             )}
           >
             {() => (
-              <div className="flex items-center gap-2 p-0.5">
-                <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-[9px] border border-border bg-s2 px-3">
-                  <Link2 size={15} className="flex-none text-dim" />
-                  <span className="truncate font-mono text-[12.5px] text-dim">{shareLink}</span>
+              <>
+                <PopoverTitle>Invite link</PopoverTitle>
+                <div className="flex items-center gap-2 p-1">
+                  <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-[9px] border border-border bg-s2 px-3">
+                    <Link2 size={15} className="flex-none text-dim" />
+                    <span className="truncate font-mono text-[12.5px] text-dim">{shareLink}</span>
+                  </div>
+                  <button onClick={copy} className={`flex h-9 flex-none items-center gap-1.5 rounded-[9px] px-3 text-[13px] font-semibold ${copied ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'}`}>
+                    {copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy</>}
+                  </button>
                 </div>
-                <button onClick={copy} className={`flex h-9 flex-none items-center gap-1.5 rounded-[9px] px-3 text-[13px] font-semibold ${copied ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'}`}>
-                  {copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy</>}
-                </button>
-              </div>
+              </>
             )}
           </Popover>
           <Popover
@@ -275,11 +278,9 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             )}
           >
             {() => (
-              <div className="flex flex-col p-0.5">
-                <button onClick={copy} className="flex items-center gap-2 rounded-[7px] px-2 py-2 text-left text-[13px] font-medium hover:bg-s2">
-                  {copied ? <><Check size={15} className="text-teal-text" /> Link copied</> : <><Link2 size={15} className="text-dim" /> Copy invite link</>}
-                </button>
-              </div>
+              <PopoverItem onClick={copy} icon={copied ? <Check size={15} className="text-teal-text" /> : <Link2 size={15} />}>
+                {copied ? 'Link copied' : 'Copy invite link'}
+              </PopoverItem>
             )}
           </Popover>
         </div>
@@ -553,18 +554,21 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
     close()
   }
   return (
-    <div className="flex flex-col p-0.5">
-      <div className="px-2 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">{locked ? 'Reply' : 'Mark'} for {first}</div>
+    <>
+      <PopoverTitle sub={p.name}>{locked ? 'Reply' : 'Mark'} for</PopoverTitle>
       {options.map((r) => (
-        <button key={r} onClick={() => markRsvp(r)} className={`flex items-center gap-2 rounded-[7px] px-2 py-1.5 text-left text-[13px] font-medium hover:bg-s2 ${p.rsvp === r ? 'bg-s2' : ''}`}>
-          <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: RSVP[r].color }} />
+        <PopoverItem
+          key={r}
+          onClick={() => markRsvp(r)}
+          icon={<span className="block h-1.5 w-1.5 rounded-full" style={{ background: RSVP[r].color }} />}
+          trailing={p.rsvp === r ? <Check size={13} /> : undefined}
+        >
           {rsvpLabel(r, locked)}
-          {p.rsvp === r && <Check size={13} className="ml-auto text-dim" />}
-        </button>
+        </PopoverItem>
       ))}
-      <div className="my-1 border-t border-border" />
+      <PopoverSep />
       {confirmRemove ? (
-        <div className="rounded-[7px] bg-brick-bg px-2 py-2">
+        <div className="rounded-[9px] bg-brick-bg px-2.5 py-2">
           <p className="mb-2 text-[12.5px] leading-[1.45] text-brick-text">Remove {first}? This clears their replies too.</p>
           <div className="flex items-center gap-1.5">
             <button onClick={remove} className="h-7 flex-1 rounded-[7px] text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
@@ -576,11 +580,9 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
           </div>
         </div>
       ) : (
-        <button onClick={() => setConfirmRemove(true)} className="rounded-[7px] px-2 py-1.5 text-left text-[13px] font-medium text-brick-text hover:bg-brick-bg">
-          Remove from event
-        </button>
+        <PopoverItem onClick={() => setConfirmRemove(true)} tone="brick">Remove from event</PopoverItem>
       )}
-    </div>
+    </>
   )
 }
 

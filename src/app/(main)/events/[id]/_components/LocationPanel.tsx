@@ -535,7 +535,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 )}
               >
                 {() => (
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3 p-1">
                     <div>
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Votes per person</div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -799,7 +799,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                           )}
                         >
                           {() => (
-                            <div>
+                            <div className="p-1">
                               <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">How people get between stops</div>
                               <div className="flex flex-wrap gap-1">
                                 {ALL_MODES.map((m) => { const on = travelModes.includes(m); const Icon = MODE_ICON[m]; return (

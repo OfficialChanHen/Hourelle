@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, TriangleAlert, Users } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
-import { Popover } from '@/components/ui/Popover'
+import { Popover, PopoverNote, PopoverTitle } from '@/components/ui/Popover'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import {
@@ -488,11 +488,11 @@ function BestWindowInfo({ mode }: { mode: BestMode }) {
   return (
     <Popover width={240} align="end" trigger={() => <Info size={13} className="text-faint hover:text-dim" />}>
       {() => (
-        <p className="p-1 text-[12.5px] leading-[1.55] text-dim">
+        <PopoverNote>
           {mode === 'crowd'
             ? <>Favoring <span className="font-semibold text-text">biggest crowd</span>: the slot with the most people around, even part-time.</>
             : <>Favoring <span className="font-semibold text-text">everyone stays</span>: the slot where the most people are free the whole time.</>}
-        </p>
+        </PopoverNote>
       )}
     </Popover>
   )
@@ -514,9 +514,8 @@ function QuorumControl({ quorum, onChange }: { quorum: number | null; onChange: 
     )}>
       {(close) => (
         <div className="p-1">
-          <div className="text-[13px] font-semibold">How many people make it worth it?</div>
-          <p className="mt-1 text-[12.5px] leading-[1.5] text-dim">This tab warns you when fewer than this can stay the whole time.</p>
-          <div className="mt-2.5 flex items-center gap-2">
+          <PopoverTitle sub="Warns when fewer can stay">Minimum headcount</PopoverTitle>
+          <div className="mt-2 flex items-center gap-2 px-1 pb-1">
             <input
               ref={ref} type="number" min={1} max={999} defaultValue={quorum ?? ''} placeholder="e.g. 8"
               className="h-9 w-[86px] rounded-[9px] border border-border bg-s0 px-3 text-[14px] outline-none focus:border-border2"
