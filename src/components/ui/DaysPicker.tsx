@@ -44,7 +44,7 @@ export function DaysPicker({ startDate, endDate, excludedDows, excludedDays, onC
     onChange({ excludedDays: exDay.has(k) ? excludedDays.filter((x) => x !== k) : [...excludedDays, k] })
 
   const chipCls = (on: boolean, disabled = false) =>
-    `rounded-[7px] border px-2 py-1 text-[12.5px] font-medium ${
+    `rounded-[7px] border px-2.5 py-[13px] text-[12.5px] font-medium sm:px-2 sm:py-1 ${
       on ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border bg-s1 text-faint'
     } ${disabled ? 'opacity-40' : 'hover:border-border2'}`
 
@@ -62,7 +62,7 @@ export function DaysPicker({ startDate, endDate, excludedDows, excludedDays, onC
             <button
               type="button"
               onClick={() => onChange(weekendsOnly ? { excludedDows: [] } : { excludedDows: weekdaysPresent })}
-              className="ml-0.5 text-[12.5px] font-semibold text-accent-text hover:underline"
+              className="-my-2 ml-0.5 py-2 text-[12.5px] font-semibold text-accent-text hover:underline"
             >
               {weekendsOnly ? 'Every day' : 'Weekends only'}
             </button>

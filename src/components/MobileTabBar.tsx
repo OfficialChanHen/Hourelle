@@ -117,7 +117,7 @@ function TabItem({ href, label, icon: Icon, active, count = 0, compact = false }
     <Link
       href={href}
       aria-current={active ? 'page' : undefined}
-      className={`flex flex-1 flex-col items-center justify-center text-[10.5px] font-semibold ${compact ? 'gap-0' : 'gap-1'} ${active ? 'text-accent-text' : 'text-faint'}`}
+      className={`flex flex-1 flex-col items-center justify-center text-[12px] font-semibold ${compact ? 'gap-0' : 'gap-1'} ${active ? 'text-accent-text' : 'text-faint'}`}
     >
       <span className="relative">
         <Icon size={22} strokeWidth={active ? 2.4 : 2} />

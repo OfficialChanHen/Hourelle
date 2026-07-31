@@ -241,12 +241,12 @@ function YourRsvpStrip({ onPick, full }: { onPick: (r: Rsvp) => void; full: bool
         <button
           onClick={() => onPick('attending')} disabled={full}
           title={full ? 'All spots are taken' : undefined}
-          className="h-8 rounded-[8px] bg-accent px-3 text-[13px] font-semibold text-on-accent disabled:opacity-40"
+          className="h-11 rounded-[8px] bg-accent px-3.5 text-[13px] font-semibold text-on-accent disabled:opacity-40 sm:h-8 sm:px-3"
         >
           Going
         </button>
-        <button onClick={() => onPick('maybe')} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2">Maybe</button>
-        <button onClick={() => onPick('not_going')} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2">Can&apos;t go</button>
+        <button onClick={() => onPick('maybe')} className="h-11 rounded-[8px] border border-border2 bg-s1 px-3.5 text-[13px] font-semibold text-dim hover:bg-s2 sm:h-8 sm:px-3">Maybe</button>
+        <button onClick={() => onPick('not_going')} className="h-11 rounded-[8px] border border-border2 bg-s1 px-3.5 text-[13px] font-semibold text-dim hover:bg-s2 sm:h-8 sm:px-3">Can&apos;t go</button>
       </div>
     </div>
   )
@@ -461,7 +461,7 @@ function SingleVenue({
           return (
             <button
               key={k} onClick={() => setShowGroup(k)}
-              className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] font-semibold ${on ? 'border-accent bg-accent text-on-accent' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}
+              className={`flex items-center gap-1 rounded-full border px-3 py-3 text-[12px] font-semibold sm:px-2.5 sm:py-1 ${on ? 'border-accent bg-accent text-on-accent' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}
             >
               {l} <span className={on ? 'opacity-80' : 'text-faint'}>{n}</span>
             </button>
@@ -508,7 +508,7 @@ function QuorumControl({ quorum, onChange }: { quorum: number | null; onChange: 
   }
   return (
     <Popover width={252} align="end" trigger={(open) => (
-      <span className={`flex h-7 items-center gap-1.5 rounded-[8px] border border-border2 px-2.5 text-[12px] font-semibold ${open ? 'bg-s2' : 'bg-s1 hover:bg-s2'}`}>
+      <span className={`flex h-11 sm:h-7 items-center gap-1.5 rounded-[8px] border border-border2 px-2.5 text-[12px] font-semibold ${open ? 'bg-s2' : 'bg-s1 hover:bg-s2'}`}>
         <Users size={13} /> {quorum != null ? `Need ${quorum}` : 'Set a minimum'}
       </span>
     )}>
@@ -776,7 +776,7 @@ function CopyReminder({ event }: { event: AppEvent }) {
     navigator.clipboard?.writeText(msg).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
   return (
-    <button onClick={copy} className={`flex h-7 items-center gap-1.5 rounded-[7px] border px-2 text-[12px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 text-dim hover:bg-s2'}`}>
+    <button onClick={copy} className={`flex h-11 sm:h-7 items-center gap-1.5 rounded-[7px] border px-2 text-[12px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 text-dim hover:bg-s2'}`}>
       {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy a reminder</>}
     </button>
   )

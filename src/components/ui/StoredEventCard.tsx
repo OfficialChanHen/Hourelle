@@ -175,7 +175,7 @@ export function StoredEventCard({ e, reuseHref, sameDay }: { e: AppEvent; reuseH
             <span
               role="button" tabIndex={0} onClick={copyLink} onKeyDown={copyLink}
               title={copied ? 'Link copied' : 'Copy the invite link'}
-              className={`grid h-8 w-8 place-items-center rounded-md ${copied ? 'text-accent-text' : 'text-faint hover:bg-s2 hover:text-text'}`}
+              className={`grid h-10 w-10 sm:h-8 sm:w-8 place-items-center rounded-md ${copied ? 'text-accent-text' : 'text-faint hover:bg-s2 hover:text-text'}`}
             >
               {copied ? <Check size={15} /> : <Link2 size={15} />}
             </span>
@@ -184,7 +184,7 @@ export function StoredEventCard({ e, reuseHref, sameDay }: { e: AppEvent; reuseH
             <span
               role="button" tabIndex={0} onClick={goDelete} onKeyDown={goDelete}
               title="Delete this event"
-              className="grid h-8 w-8 place-items-center rounded-md text-faint hover:bg-brick-bg hover:text-brick-text"
+              className="grid h-10 w-10 sm:h-8 sm:w-8 place-items-center rounded-md text-faint hover:bg-brick-bg hover:text-brick-text"
             >
               <Trash2 size={15} />
             </span>
@@ -193,7 +193,7 @@ export function StoredEventCard({ e, reuseHref, sameDay }: { e: AppEvent; reuseH
             <span
               role="button" tabIndex={0} onClick={goDelete} onKeyDown={goDelete}
               title="Remove from my events"
-              className="grid h-8 w-8 place-items-center rounded-md text-faint hover:bg-brick-bg hover:text-brick-text"
+              className="grid h-10 w-10 sm:h-8 sm:w-8 place-items-center rounded-md text-faint hover:bg-brick-bg hover:text-brick-text"
             >
               <UserRoundX size={15} />
             </span>

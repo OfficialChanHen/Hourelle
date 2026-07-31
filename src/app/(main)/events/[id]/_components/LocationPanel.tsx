@@ -409,7 +409,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                   <button
                     onClick={() => toggleVote(focusPlace.id)}
                     disabled={votingClosed || (!youVoted && maxVotes > 1 && votesLeft === 0)}
-                    className="mt-2 flex h-7 w-full items-center justify-center gap-1 rounded-[8px] text-[12px] font-semibold disabled:opacity-40"
+                    className="mt-2 flex h-11 sm:h-7 w-full items-center justify-center gap-1 rounded-[8px] text-[12px] font-semibold disabled:opacity-40"
                     style={youVoted ? { background: '#E7EEE8', color: '#2A4537', border: '1px solid #CBDCCE' } : { background: '#2E4A3C', color: '#F8F5EC' }}
                   >
                     {youVoted ? <><Check size={13} /> Voted</> : <><ArrowUp size={13} /> Vote</>}

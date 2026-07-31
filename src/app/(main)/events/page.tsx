@@ -52,7 +52,7 @@ function EventsList() {
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
-            className={`flex h-[30px] items-center rounded-full px-[13px] text-[13px] ${filter === f.key ? 'bg-accent font-semibold text-on-accent' : 'border border-border bg-s1 font-medium text-dim hover:border-border2'}`}
+            className={`flex h-11 sm:h-[30px] items-center rounded-full px-[13px] text-[13px] ${filter === f.key ? 'bg-accent font-semibold text-on-accent' : 'border border-border bg-s1 font-medium text-dim hover:border-border2'}`}
           >
             {f.label}
           </button>

@@ -231,7 +231,7 @@ export function JoinFlow({ id }: { id: string }) {
                 </div>
 
                 <div className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-                  <button onClick={() => setCollision(null)} className="text-[12.5px] font-semibold text-accent-text hover:underline">
+                  <button onClick={() => setCollision(null)} className="-my-2 py-2 text-[12.5px] font-semibold text-accent-text hover:underline">
                     Back
                   </button>
                   {!(collision.guest && collision.email) && (
@@ -285,7 +285,7 @@ export function JoinFlow({ id }: { id: string }) {
                 <button
                   type="button"
                   onClick={() => setClaimOpen((v) => !v)}
-                  className="mt-3 text-[12.5px] font-semibold text-accent-text hover:underline"
+                  className="-mb-2 mt-3 pb-2 pt-1 text-[12.5px] font-semibold text-accent-text hover:underline"
                 >
                   Answered before from another device?
                 </button>

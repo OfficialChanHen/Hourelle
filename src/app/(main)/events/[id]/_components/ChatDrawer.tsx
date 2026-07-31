@@ -139,8 +139,8 @@ function ChatBody({ members, messages, onSend, onClose, avatarOf }: ChatProps) {
       </div>
 
       <div className="flex flex-none items-center gap-2 border-t border-border p-[11px]">
-        <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} placeholder="Add a comment…" className="h-[38px] flex-1 rounded-[9px] border border-border bg-s1 px-[11px] text-[13.5px] outline-none placeholder:text-faint focus:border-accent-border" />
-        <button onClick={send} aria-label="Send" className="grid h-[38px] w-[38px] flex-none place-items-center rounded-[9px] bg-accent text-on-accent"><Send size={16} /></button>
+        <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} placeholder="Add a comment…" className="h-11 sm:h-[38px] flex-1 rounded-[9px] border border-border bg-s1 px-[11px] text-[13.5px] outline-none placeholder:text-faint focus:border-accent-border" />
+        <button onClick={send} aria-label="Send" className="grid h-11 w-11 sm:h-[38px] sm:w-[38px] flex-none place-items-center rounded-[9px] bg-accent text-on-accent"><Send size={16} /></button>
       </div>
     </div>
   )

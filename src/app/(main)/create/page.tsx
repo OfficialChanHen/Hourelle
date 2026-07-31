@@ -320,7 +320,7 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
                 aria-pressed={on}
                 // each chip wears its template's identity hue from the templates page;
                 // the picked one steps forward with the accent ring
-                className={`flex h-8 flex-none items-center gap-1.5 rounded-[9px] border px-3 text-[13px] font-medium transition-shadow ${on ? 'border-accent ring-1 ring-accent' : 'border-transparent hover:brightness-[.97]'}`}
+                className={`flex h-11 flex-none items-center gap-1.5 rounded-[9px] border px-3.5 text-[13px] font-medium transition-shadow sm:h-8 sm:px-3 ${on ? 'border-accent ring-1 ring-accent' : 'border-transparent hover:brightness-[.97]'}`}
                 style={{ background: c.bg, color: c.text }}
               >
                 <Icon size={14} /> {t.label}
@@ -376,10 +376,10 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
       </div>
 
       <div className="mt-4 flex items-center justify-between">
-        <Link href="/home" className="flex h-10 items-center rounded-[10px] border border-border2 bg-transparent px-4 text-[14px] font-semibold hover:bg-s2">
+        <Link href="/home" className="flex h-11 sm:h-10 items-center rounded-[10px] border border-border2 bg-transparent px-4 text-[14px] font-semibold hover:bg-s2">
           Cancel
         </Link>
-        <button onClick={create} className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-[18px] text-[14px] font-semibold text-on-accent">
+        <button onClick={create} className="flex h-11 sm:h-10 items-center gap-1.5 rounded-[10px] bg-accent px-[18px] text-[14px] font-semibold text-on-accent">
           <Check size={17} /> Create event
         </button>
       </div>
@@ -543,7 +543,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
                 ? 'Full days · people tap the days they can make'
                 : <>{WIN_PRESETS.find((p) => p.v === form.windowPreset)?.l ?? 'All day'} · {{ '15': '15 min', '30': '30 min', '60': '1 hour' }[form.granularity] ?? form.granularity} slots · {fmtDur(form.durationMin)} long</>}
             </span>
-            <button type="button" onClick={() => setTune((t) => !t)} className="flex-none text-[12.5px] font-semibold text-accent-text hover:underline">
+            <button type="button" onClick={() => setTune((t) => !t)} className="-my-2 flex-none py-2 text-[12.5px] font-semibold text-accent-text hover:underline">
               {openTune ? 'Hide options' : 'Change'}
             </button>
           </div>
@@ -620,7 +620,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           <select
             value={form.timezone}
             onChange={(e) => update({ timezone: e.target.value })}
-            className={`h-9 cursor-pointer appearance-none rounded-[9px] border ${show(errs.tz) ? 'border-brick-border' : 'border-border'} bg-s2 pl-3 pr-8 text-[13.5px] font-medium outline-none focus:border-accent-border`}
+            className={`h-11 sm:h-9 cursor-pointer appearance-none rounded-[9px] border ${show(errs.tz) ? 'border-brick-border' : 'border-border'} bg-s2 pl-3 pr-8 text-[13.5px] font-medium outline-none focus:border-accent-border`}
             style={form.timezone ? undefined : { color: 'var(--faint)' }}
           >
             <option value="" disabled>Choose a time zone…</option>
@@ -998,7 +998,8 @@ function Created({ event }: { event: AppEvent }) {
 
 /* ── shared bits ── */
 function inputCls(err = false) {
-  return `w-full h-10 rounded-[10px] border ${err ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[14.5px] outline-none placeholder:text-faint focus:border-accent-border`
+  // 44px tall on phones, the tighter 40 from sm up
+  return `w-full h-11 sm:h-10 rounded-[10px] border ${err ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[14.5px] outline-none placeholder:text-faint focus:border-accent-border`
 }
 /* custom time picker: the whole field opens the popover (native inputs only open on the
    clock icon), and the columns clip mid-row with a visible scrollbar so scrolling is obvious */
@@ -1086,7 +1087,7 @@ function Segmented({ value, onChange, options }: { value: string; onChange: (v: 
   return (
     <div className="flex flex-wrap rounded-[9px] border border-border bg-s1 p-0.5">
       {options.map((o) => (
-        <button key={o.v} type="button" onClick={() => onChange(o.v)} className="flex h-7 items-center rounded-[7px] px-3 text-[13px] font-semibold transition-colors" style={value === o.v ? { background: 'var(--accent)', color: 'var(--on-accent)' } : { color: 'var(--dim)' }}>
+        <button key={o.v} type="button" onClick={() => onChange(o.v)} className="flex h-11 sm:h-7 items-center rounded-[7px] px-3 text-[13px] font-semibold transition-colors" style={value === o.v ? { background: 'var(--accent)', color: 'var(--on-accent)' } : { color: 'var(--dim)' }}>
           {o.l}
         </button>
       ))}

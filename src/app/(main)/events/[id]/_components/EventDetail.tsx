@@ -303,7 +303,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             const active = tab === t.key
             return (
               // words alone carry the tabs — the filled box says which one is active
-              <button key={t.key} data-active={active} onClick={() => setTab(t.key)} className={`flex flex-none items-center whitespace-nowrap rounded-[10px] px-2.5 py-2 text-[13.5px] transition-colors sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
+              <button key={t.key} data-active={active} onClick={() => setTab(t.key)} className={`flex flex-none items-center whitespace-nowrap rounded-[10px] px-3 py-3 text-[13.5px] transition-colors sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
                 <span className="sm:hidden">{t.short}</span>
                 <span className="hidden sm:inline">{t.label}</span>
               </button>
@@ -828,7 +828,7 @@ function DeadlineValue({ value, editable, onChange, hint, max }: {
           className="h-9 cursor-pointer rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-border2"
         />
         {value && (
-          <button onClick={() => onChange(undefined)} className="text-[12.5px] font-semibold text-dim hover:text-brick-text hover:underline">
+          <button onClick={() => onChange(undefined)} className="-my-2 py-2 text-[12.5px] font-semibold text-dim hover:text-brick-text hover:underline">
             Clear
           </button>
         )}

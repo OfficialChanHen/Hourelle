@@ -240,7 +240,7 @@ export function ImportFromCalendar({ onPick }: { onPick: (provider: string) => v
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className={`flex h-7 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2 ${open ? 'border-border2' : 'border-border'}`}
+        className={`flex h-11 sm:h-7 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2 ${open ? 'border-border2' : 'border-border'}`}
       >
         <CalendarPlus size={15} /> <span className="sm:hidden">Import</span><span className="hidden sm:inline">Import from calendar</span> <ChevronDown size={13} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -281,7 +281,7 @@ export function ClearTimes({ onClear }: { onClear: () => void }) {
     <button
       type="button"
       onClick={onClear}
-      className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[13px] font-medium text-dim hover:border-border2 hover:text-brick-text"
+      className="flex h-11 sm:h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[13px] font-medium text-dim hover:border-border2 hover:text-brick-text"
     >
       <Eraser size={15} /> <span className="sm:hidden">Clear</span><span className="hidden sm:inline">Clear my times</span>
     </button>
@@ -327,7 +327,7 @@ export function PresetFills({ onFill, onFillAll }: { onFill: (startClock: number
     <Popover
       width={216}
       trigger={(open) => (
-        <span className={`flex h-7 items-center gap-1.5 rounded-lg border px-[10px] text-[12.5px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
+        <span className={`flex h-11 sm:h-7 items-center gap-1.5 rounded-lg border px-[10px] text-[12.5px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
           <Zap size={13} /> Quick fill <ChevronDown size={12} className={open ? 'rotate-180' : ''} />
         </span>
       )}
@@ -445,7 +445,7 @@ export function Segment({ value, onChange, options, compact }: { value: string; 
   return (
     <div className="inline-flex w-fit rounded-[9px] bg-s2 p-0.5">
       {options.map((o) => (
-        <button key={o.v} onClick={() => onChange(o.v)} className={`flex h-7 items-center rounded-[7px] font-semibold transition-colors ${compact ? 'px-2.5 text-[12.5px]' : 'px-3 text-[13px]'} ${value === o.v ? 'bg-raised text-text shadow-raised' : 'text-dim hover:text-text'}`}>
+        <button key={o.v} onClick={() => onChange(o.v)} className={`flex h-11 items-center rounded-[7px] font-semibold transition-colors sm:h-7 ${compact ? 'px-2.5 text-[12.5px]' : 'px-3 text-[13px]'} ${value === o.v ? 'bg-raised text-text shadow-raised' : 'text-dim hover:text-text'}`}>
           {o.l}
         </button>
       ))}
@@ -466,5 +466,5 @@ export function EdgeNudge({ label, value, onLess, onMore }: { label: string; val
   )
 }
 export function IconBtn({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) {
-  return <button type="button" onClick={onClick} disabled={disabled} className="grid h-7 w-7 place-items-center rounded-[7px] border border-border bg-s1 text-dim enabled:hover:text-text disabled:opacity-40">{children}</button>
+  return <button type="button" onClick={onClick} disabled={disabled} className="grid h-11 w-11 place-items-center rounded-[7px] border border-border bg-s1 text-dim enabled:hover:text-text disabled:opacity-40 sm:h-7 sm:w-7">{children}</button>
 }

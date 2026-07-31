@@ -48,8 +48,9 @@ export function SegmentedControl({ value, onChange, options, size = 'md', stretc
     return () => ro.disconnect()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // min-height (not fixed) so a segment grows and keeps its padding when the label wraps
-  const h = size === 'sm' ? 'min-h-7' : 'min-h-[34px]'
+  // min-height (not fixed) so a segment grows and keeps its padding when the label wraps.
+  // Phones get thumb-sized segments; the compact desktop heights return at sm.
+  const h = size === 'sm' ? 'min-h-11 sm:min-h-7' : 'min-h-11 sm:min-h-[34px]'
   const txt = size === 'sm' ? 'text-[13px]' : 'text-[13.5px]'
   const pad = size === 'sm' ? 'px-3 py-1' : 'px-3.5 py-1.5'
   const iconSize = size === 'sm' ? 13 : 14

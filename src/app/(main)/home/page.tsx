@@ -174,7 +174,7 @@ function QuickCreate() {
     // every new event ends on the same created page, share link front and center
     router.push(`/create?created=${ev.id}`)
   }
-  const dateCls = 'h-10 rounded-[10px] border border-border bg-s2 px-2.5 text-[13.5px] outline-none focus:border-accent-border'
+  const dateCls = 'h-11 sm:h-10 rounded-[10px] border border-border bg-s2 px-2.5 text-[13.5px] outline-none focus:border-accent-border'
   return (
     <div className="mb-6 rounded-2xl border border-border bg-s1 p-4">
       <div className="flex flex-wrap items-center gap-2.5">
@@ -183,7 +183,7 @@ function QuickCreate() {
           onChange={(e) => { setTitle(e.target.value); setNeed(false) }}
           onKeyDown={(e) => { if (e.key === 'Enter') go() }}
           placeholder="What are you planning?"
-          className={`h-10 min-w-[200px] flex-1 rounded-[10px] border ${need ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[14.5px] outline-none placeholder:text-faint focus:border-accent-border`}
+          className={`h-11 sm:h-10 min-w-[200px] flex-1 rounded-[10px] border ${need ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[14.5px] outline-none placeholder:text-faint focus:border-accent-border`}
         />
         <div className="flex flex-none items-center gap-2">
           <input type="date" value={start} aria-label="Earliest day" className={dateCls}
@@ -191,7 +191,7 @@ function QuickCreate() {
           <span className="text-faint">→</span>
           <input type="date" value={end} min={start} aria-label="Latest day" className={dateCls} onChange={(e) => setEnd(e.target.value)} />
         </div>
-        <button onClick={go} className="flex h-10 flex-none items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent">
+        <button onClick={go} className="flex h-11 sm:h-10 flex-none items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent">
           <CalendarPlus size={16} /> Create
         </button>
       </div>
@@ -203,7 +203,7 @@ function QuickCreate() {
               ? 'Over four weeks, so this asks which days work instead of times.'
               : 'Uses your time zone. Share the link and people mark when they are free.'}
         </span>
-        <Link href="/create" className="font-semibold text-accent-text hover:underline">More options</Link>
+        <Link href="/create" className="-my-2 py-2 font-semibold text-accent-text hover:underline">More options</Link>
       </div>
     </div>
   )
@@ -294,13 +294,13 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
           <LifecycleStrip phase={phase} className="mt-4 max-w-[380px]" />
         </div>
         <div className="flex w-full flex-none flex-col gap-2 sm:w-auto sm:flex-row-reverse sm:items-center">
-          <Link href={action.href} onClick={(ev) => ev.stopPropagation()} className="flex h-10 w-full flex-none items-center justify-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent sm:w-auto">
+          <Link href={action.href} onClick={(ev) => ev.stopPropagation()} className="flex h-11 sm:h-10 w-full flex-none items-center justify-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent sm:w-auto">
             {action.label} <ArrowRight size={15} />
           </Link>
           {e.hostedByYou && (
             <button
               type="button" onClick={copyLink}
-              className={`flex h-10 w-full flex-none items-center justify-center gap-1.5 rounded-[10px] border px-4 text-[14px] font-semibold sm:w-auto ${copied ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border2 bg-s1 text-text hover:bg-s2'}`}
+              className={`flex h-11 sm:h-10 w-full flex-none items-center justify-center gap-1.5 rounded-[10px] border px-4 text-[14px] font-semibold sm:w-auto ${copied ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border2 bg-s1 text-text hover:bg-s2'}`}
             >
               {copied ? <><Check size={15} /> Link copied</> : <><Link2 size={15} /> Share link</>}
             </button>

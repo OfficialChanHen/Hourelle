@@ -82,7 +82,7 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
           <AddToCalendar event={event} slot={{ dayKey: c.dayKey, endDayKey: c.endDayKey, startMin: c.startMin, endMin: c.endMin }} />
           {/* reopening is consequential — everyone's RSVPs reset — so it asks once */}
           {event.hostedByYou && !confirmReopen && (
-            <button onClick={() => setConfirmReopen(true)} className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-dim hover:bg-s2 hover:text-text">
+            <button onClick={() => setConfirmReopen(true)} className="flex h-11 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-dim hover:bg-s2 hover:text-text sm:h-8">
               <Undo2 size={14} /> Reopen planning
             </button>
           )}
@@ -108,7 +108,7 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
                 key={o.v}
                 onClick={() => answer(o.v)}
                 aria-pressed={on}
-                className={`flex h-8 items-center gap-1.5 rounded-[9px] border px-3 text-[13px] font-semibold ${on ? o.on : 'border-border2 bg-s1 text-dim hover:bg-s2 hover:text-text'}`}
+                className={`flex h-11 items-center gap-1.5 rounded-[9px] border px-3.5 text-[13px] font-semibold sm:h-8 sm:px-3 ${on ? o.on : 'border-border2 bg-s1 text-dim hover:bg-s2 hover:text-text'}`}
               >
                 <Icon size={14} /> {o.label}
               </button>
