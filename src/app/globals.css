@@ -33,6 +33,12 @@
      chip-scale — the big soft card shadow smudges at this size. */
   --raised:var(--s0);
   --raised-shadow:0 1px 2px rgba(60,45,20,.10);
+
+  /* liquid glass (iOS chrome): a near-clear tint, rim light, and sheen */
+  --glass-tint:rgba(255,253,246,.26);
+  --glass-rim:rgba(255,255,255,.5);
+  --glass-rim-weak:rgba(255,255,255,.18);
+  --glass-sheen:rgba(255,255,255,.22);
 }
 
 /* Dark — warm charcoal */
@@ -59,6 +65,12 @@
      shadow stays chip-tight: the card shadow's big blur smeared at this size. */
   --raised:var(--s3);
   --raised-shadow:0 1px 2px rgba(0,0,0,.45);
+
+  /* glass in the dark: deeper tint so text still reads, rim light turned way down */
+  --glass-tint:rgba(24,21,15,.34);
+  --glass-rim:rgba(255,255,255,.14);
+  --glass-rim-weak:rgba(255,255,255,.06);
+  --glass-sheen:rgba(255,255,255,.08);
 }
 
 /* ── Appearances — optional palettes layered over the same tokens ──
@@ -260,6 +272,35 @@
   --font-sans:var(--font-instrument-sans), system-ui, sans-serif;
 
   --shadow-soft:var(--shadow);
+}
+
+/* ── liquid glass, the iOS chrome finish: frost + rim light + sheen ──
+   The true bending refraction needs an SVG displacement filter that only Chromium
+   ships, and this renders on Safari — so it gets the layered-light recipe, which is
+   what the native bar reads as at this size anyway: a heavy saturating frost, a
+   near-clear tint, inset rim lighting on the edges, and a diagonal specular sheen. */
+.liquid-glass {
+  /* no `position` here: this is unlayered CSS, so it would OUTRANK Tailwind's
+     layered `fixed` utility on the same element and knock the bar out of the
+     viewport. Callers position themselves (fixed/absolute both anchor ::after). */
+  isolation: isolate;
+  background: var(--glass-tint);
+  -webkit-backdrop-filter: blur(18px) saturate(180%) brightness(1.08);
+  backdrop-filter: blur(18px) saturate(180%) brightness(1.08);
+  box-shadow:
+    inset 0 1px 1px var(--glass-rim),
+    inset 0 -1px 1px var(--glass-rim-weak),
+    inset 1px 0 1px var(--glass-rim-weak),
+    inset -1px 0 1px var(--glass-rim-weak);
+}
+.liquid-glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(135deg, var(--glass-sheen), transparent 45%);
+  mix-blend-mode: screen;
 }
 
 /* default border color — inside @layer base so border-color utilities can win;
