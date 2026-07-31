@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
+import { prefPalette, setPrefPalette } from '@/lib/prefs'
 
 /* Which look the whole app wears. data-palette on <html> picks the family;
    the sun/moon toggle keeps switching light and dark inside whichever is chosen.
@@ -25,7 +26,7 @@ const KNOWN: Palette[] = ['gcal', 'drain', 'pride', 'pro', 'contrast']
 function apply(p: Palette) {
   if (p === 'aline') document.documentElement.removeAttribute('data-palette')
   else document.documentElement.setAttribute('data-palette', p)
-  try { localStorage.setItem('aline.palette', p) } catch { /* private mode */ }
+  setPrefPalette(p)
 }
 
 function Swatches({ p, size = 14 }: { p: (typeof PALETTES)[number]; size?: number }) {
@@ -42,10 +43,8 @@ export function AppearancePicker() {
   const [palette, setPalette] = useState<Palette | null>(null)
   const [open, setOpen] = useState(false)
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('aline.palette')
-      setPalette(KNOWN.includes(saved as Palette) ? (saved as Palette) : 'aline')
-    } catch { setPalette('aline') }
+    const saved = prefPalette()
+    setPalette(KNOWN.includes(saved as Palette) ? (saved as Palette) : 'aline')
   }, [])
 
   const current = PALETTES.find((p) => p.key === palette) ?? PALETTES[0]

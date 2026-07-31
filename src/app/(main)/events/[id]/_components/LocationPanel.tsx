@@ -5,6 +5,7 @@ import { gsap } from 'gsap'
 import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, SlidersHorizontal, Info, ExternalLink } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { patchEvent, fmtMinute, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
+import { hintDismissed as isHintDismissed, dismissHint as markHintDismissed } from '@/lib/prefs'
 import { fmtDuration, MODE_LABEL, ALL_MODES, type TravelMode, type ModeEstimate } from '@/lib/travel'
 import { computeItinerary, slotFor as slotForOf } from '@/lib/itinerary'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
@@ -76,7 +77,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   const [hideVoters, setHideVoters] = useState(!!event.hideVoters)
   // the tab's one-line how-it-works, shown until dismissed (this page never SSRs — the
   // event itself loads from localStorage first, so reading it in the initializer is safe)
-  const [hintDismissed, setHintDismissed] = useState(() => typeof window !== 'undefined' && localStorage.getItem('aline.hint.location') === '1')
+  const [hintDismissed, setHintDismissed] = useState(() => isHintDismissed('location'))
   // custom mode: host sets an arbitrary votes-per-person beyond the 1/2/3 presets
   const [customVotes, setCustomVotes] = useState(() => (event.maxVotes ?? 1) > 3)
   const stopUid = useRef(0)
@@ -123,7 +124,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   }
   function dismissHint() {
     setHintDismissed(true)
-    try { localStorage.setItem('aline.hint.location', '1') } catch { /* private mode */ }
+    markHintDismissed('location')
   }
   function toggleGuestsCanSuggest() {
     const next = !guestsCanSuggest

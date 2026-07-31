@@ -40,5 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# local planning notes
-/docs/
+# local planning notes stay private, but the README's screenshots ship
+/docs/*
+!/docs/screenshots/

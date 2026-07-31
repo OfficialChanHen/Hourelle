@@ -18,7 +18,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, leaveEvent, patchEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, leaveGuestSession, maxPollDays, phaseOf, removeParticipantPatch, respondedCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
+import { getEvent, deleteEvent, leaveEvent, patchEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, leaveGuestSession, markMessagesSeen, maxPollDays, phaseOf, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -67,16 +67,17 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   // unread discussion count: what arrived since the drawer was last open, not the
   // lifetime total. Read after mount (localStorage), marked seen while the drawer is up
   const [seenMsgs, setSeenMsgs] = useState<number | null>(null)
-  useEffect(() => {
-    try { setSeenMsgs(Number(localStorage.getItem(`aline.seen.${id}`) ?? 0) || 0) } catch { setSeenMsgs(0) }
-  }, [id])
+  useEffect(() => { setSeenMsgs(seenMessageCount(id)) }, [id])
   const msgCount = event?.messages.length ?? 0
   useEffect(() => {
     if (!chatOpen) return
     setSeenMsgs(msgCount)
-    try { localStorage.setItem(`aline.seen.${id}`, String(msgCount)) } catch { /* private mode */ }
+    markMessagesSeen(id, msgCount)
   }, [chatOpen, msgCount, id])
   const unread = seenMsgs === null ? 0 : Math.max(0, msgCount - seenMsgs)
+  // frozen at the moment the drawer opens, so the "New" rule inside it holds
+  // still even as reading marks everything seen
+  const [unreadMark, setUnreadMark] = useState<number | undefined>(undefined)
   const tabsRef = useRef<HTMLDivElement>(null)
   const [tabFade, setTabFade] = useState({ l: false, r: false })
   const tabResolved = useRef(false)
@@ -195,7 +196,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   function sendMessage(text: string) {
     if (!event) return
     const sender = event.participants.find((p) => p.you)
-    const msg = { id: sender?.id ?? 'JM', name: sender?.guest ? sender.name : 'You', time: 'now', text, you: true }
+    const msg = { id: sender?.id ?? 'JM', name: sender?.guest ? sender.name : 'You', time: 'now', at: Date.now(), text, you: true }
     if (!event.demo) {
       // append to raw storage, not the view: stored `you` always means the stubbed
       // account, so a guest's message carries only their id and viewOf remaps it
@@ -336,7 +337,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           mobile tab bar; it is the one and only way in, unread badge included */}
       {!chatOpen && (
         <button
-          onClick={() => setChatOpen(true)}
+          onClick={() => { setUnreadMark(unread > 0 ? seenMsgs ?? 0 : undefined); setChatOpen(true) }}
           aria-label={unread > 0 ? `Open discussion, ${unread} unread` : 'Open discussion'}
           // on iOS the bubble is clear liquid glass (frost, rim, sheen — no fill);
           // elsewhere it stays the solid accent dot
@@ -351,7 +352,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         </button>
       )}
 
-      {chatOpen && <ChatDrawer event={event} messages={event.messages} onSend={sendMessage} onClose={() => setChatOpen(false)} />}
+      {chatOpen && <ChatDrawer event={event} messages={event.messages} unreadFrom={unreadMark} onSend={sendMessage} onClose={() => setChatOpen(false)} />}
     </div>
   )
 }

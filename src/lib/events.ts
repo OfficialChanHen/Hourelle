@@ -772,7 +772,7 @@ export function reopenEvent(id: string): void {
   // guests who saw "confirmed" find out why it reads "planning" again
   const host = ev?.participants.find((p) => p.host)
   const note: ChatMessage | null = ev && host
-    ? { id: host.id, name: host.name, time: 'just now', text: 'Reopened the plan. RSVPs are cleared until it locks in again.', you: !!host.you }
+    ? { id: host.id, name: host.name, time: 'just now', at: Date.now(), text: 'Reopened the plan. RSVPs are cleared until it locks in again.', you: !!host.you }
     : null
   patchEvent(id, {
     status: 'planning', confirmed: undefined, confirmedAt: undefined, reopenedAt: Date.now(),
@@ -862,6 +862,19 @@ const meKey = (eventId: string) => `aline.me.${eventId}`
 export function guestSessionId(eventId: string): string | null {
   if (typeof window === 'undefined') return null
   try { return localStorage.getItem(meKey(eventId)) } catch { return null }
+}
+
+/* ── discussion read marks: how many messages this browser has seen, per event ──
+   Feeds the unread badge on the chat bubble. Per browser today; becomes per-person
+   read state on the server once the backend exists. */
+const seenKey = (eventId: string) => `aline.seen.${eventId}`
+
+export function seenMessageCount(eventId: string): number {
+  if (typeof window === 'undefined') return 0
+  try { return Number(localStorage.getItem(seenKey(eventId)) ?? 0) || 0 } catch { return 0 }
+}
+export function markMessagesSeen(eventId: string, count: number): void {
+  try { localStorage.setItem(seenKey(eventId), String(count)) } catch { /* private mode */ }
 }
 
 /* while this is set, the browser belongs to a guest: the event they joined is the

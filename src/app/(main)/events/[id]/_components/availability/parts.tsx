@@ -3,7 +3,7 @@
 /* the availability panel's satellite components: people filter (strip + modal),
    calendar import (menu + preview), clear-times, drag handles, quick fills,
    the who's-missing popover, the cell breakdown, and small controls */
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Bell, CalendarPlus, Check, ChevronDown, Eraser, GripHorizontal, Minus, Plus, Search, Users, X, Zap } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -12,7 +12,7 @@ import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import type { AppEvent, Iv, Participant } from '@/lib/events'
 import type { DayImport } from '@/lib/calendar-import'
-import { subtract, type Band } from './grid-lib'
+import { fmtDur, subtract, type Band } from './grid-lib'
 
 /* ── clickable participant strip: tap a person to filter the grid to their free times.
    Capped at 8 avatars; the +N chip opens a modal with EVERYONE, filtered people marked. ── */
@@ -139,8 +139,10 @@ export function FilterModal({ participants, filter, onToggle, onClear, onSelectA
   )
 }
 
-/* ── import preview: confirm what the calendar import will mark before it lands ── */
-export function ImportPreview({ provider, data, mine, days, tz, fmt, gridStartMin, onApply, onClose }: {
+/* ── import preview: confirm what the calendar import will mark before it lands.
+   Each day is a miniature of the grid window: busy blocks, times already marked,
+   and the stretches the import would add, so the result is visible before it lands. ── */
+export function ImportPreview({ provider, data, mine, days, tz, fmt, gridStartMin, gridMax, onApply, onClose }: {
   provider: string
   data: Record<string, DayImport> | null
   mine: Record<string, Iv[]>
@@ -148,24 +150,44 @@ export function ImportPreview({ provider, data, mine, days, tz, fmt, gridStartMi
   tz: string
   fmt: (min: number) => string
   gridStartMin: number
+  gridMax: number
   onApply: () => void
   onClose: () => void
 }) {
   const card = useRef<HTMLDivElement>(null)
-  useGSAP(() => { gsap.fromTo(card.current, { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: 'power3.out' }) }, { scope: card })
-  const totalBusy = data ? Object.values(data).reduce((n, d) => n + d.busy.length, 0) : 0
+  useGSAP(() => {
+    gsap.fromTo(card.current, { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: 'power3.out' })
+    gsap.from('.ip-row', { y: 6, opacity: 0, duration: 0.25, stagger: 0.035, ease: 'power2.out', delay: 0.08 })
+  }, { scope: card })
 
-  // only what the import would ADD — everything already marked stays untouched
-  const addedFor = (dayKey: string): Iv[] => {
-    let added = data?.[dayKey]?.free ?? []
-    for (const iv of mine[dayKey] ?? []) added = added.flatMap((a) => subtract(a, iv.s, iv.e))
-    return added.filter((a) => a.e > a.s)
-  }
-  const anyAdded = !!data && days.some((d) => addedFor(d.key).length > 0)
+  // one pass over the data: what the import would ADD per day (free minus what is
+  // already marked), plus totals — a busy calendar can carry dozens of blocks a day,
+  // so this runs once, not once per row
+  const { addedByDay, anyAdded, totalAdded } = useMemo(() => {
+    const byDay: Record<string, Iv[]> = {}
+    let total = 0
+    for (const d of days) {
+      let added = data?.[d.key]?.free ?? []
+      for (const iv of mine[d.key] ?? []) added = added.flatMap((a) => subtract(a, iv.s, iv.e))
+      byDay[d.key] = added.filter((a) => a.e > a.s)
+      total += byDay[d.key].reduce((m, iv) => m + (iv.e - iv.s), 0)
+    }
+    return { addedByDay: byDay, anyAdded: !!data && total > 0, totalAdded: total }
+  }, [data, mine, days])
+
+  const pct = (m: number) => `${(m / Math.max(gridMax, 1)) * 100}%`
+  const seg = (iv: Iv, i: number, bg: string, title?: string) => (
+    <span key={`${bg}-${i}`} className="absolute inset-y-0" style={{ left: pct(iv.s), width: pct(iv.e - iv.s), background: bg }} title={title} />
+  )
+  const range = (iv: Iv) => `${fmt(gridStartMin + iv.s)} – ${fmt(gridStartMin + iv.e)}`
 
   return (
-    <div className="absolute inset-0 z-40 grid place-items-center bg-[rgba(0,0,0,.25)] p-4" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div ref={card} className="flex max-h-full w-full max-w-[460px] flex-col rounded-2xl border border-border bg-s1 shadow-soft">
+    // viewport overlay, same pattern as the chat drawer: the availability panel runs
+    // far taller than the screen, so an in-panel overlay would center the card (and
+    // its Apply button) somewhere off screen
+    <div className="fixed inset-0 z-50 bg-[rgba(0,0,0,.25)]" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="pointer-events-none grid h-full place-items-center p-4">
+        <div ref={card} className="pointer-events-auto flex max-h-full w-full max-w-[480px] flex-col rounded-2xl border border-border bg-s1 shadow-soft">
         <div className="border-b border-border px-5 py-4">
           <div className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint">Import preview</div>
           <div className="mt-1 flex items-center gap-2 text-[15.5px] font-semibold">{provider} <TimezonePill tz={tz} /></div>
@@ -173,28 +195,35 @@ export function ImportPreview({ provider, data, mine, days, tz, fmt, gridStartMi
 
         {data ? (
           <>
-            <div className="scroll-slim min-h-0 flex-1 overflow-auto px-5 py-3">
-              <p className="mb-2.5 text-[13px] leading-[1.5] text-dim">
-                We found {totalBusy} busy {totalBusy === 1 ? 'block' : 'blocks'} on your calendar. They came in as exact moments and are shown here in event time, so they line up even if your calendar uses a different timezone. Applying only adds the times below — nothing you&apos;ve already marked is changed or removed.
+            <div className="scroll-slim min-h-0 flex-1 overflow-auto px-5 py-3.5">
+              <p className="text-[13px] leading-[1.5] text-dim">
+                {anyAdded
+                  ? <>This would add <span className="font-semibold text-text">{fmtDur(totalAdded)}</span> of free time to your grid, shown in event time. Times you already marked stay exactly as they are.</>
+                  : <>Nothing new to add. Your marked times already cover every free stretch on this calendar.</>}
               </p>
+              <div className="mb-3 mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-dim">
+                <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: 'var(--teal)' }} /> Will be added</span>
+                <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: 'var(--you-some)' }} /> Already marked</span>
+                <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[3px] border border-brick-border" style={{ background: 'var(--brick-bg)' }} /> Busy</span>
+              </div>
               {days.filter((d) => data[d.key]).map((d) => {
                 const di = data[d.key]
-                const added = addedFor(d.key)
+                const added = addedByDay[d.key] ?? []
+                const allBusy = di.free.length === 0
+                const dayAdded = added.reduce((m, iv) => m + (iv.e - iv.s), 0)
                 return (
-                  <div key={d.key} className="flex gap-3 border-t border-border py-2 text-[13px] first:border-t-0">
-                    <span className="w-[76px] flex-none font-semibold text-dim">{d.dow} {d.date}</span>
-                    <span className="min-w-0 flex-1 leading-[1.55]">
-                      {di.free.length === 0
-                        ? <span className="font-semibold text-brick-text">Busy the whole day</span>
-                        : added.length === 0
-                          ? <span className="text-faint">Already covered by your times</span>
-                          : added.map((iv, i) => (
-                              <span key={i} className="mr-1.5 inline-block whitespace-nowrap rounded-[6px] border border-teal-border bg-teal-bg px-1.5 py-px text-[12px] font-semibold text-teal-text">
-                                {fmt(gridStartMin + iv.s)} – {fmt(gridStartMin + iv.e)}
-                              </span>
-                            ))}
-                      {di.busy.length > 0 && <span className="text-[12px] text-faint">· {di.busy.length} busy</span>}
-                    </span>
+                  <div key={d.key} className="ip-row border-t border-border py-2.5 first:border-t-0">
+                    <div className="flex items-center gap-3">
+                      <span className="w-[72px] flex-none text-[12.5px] font-semibold text-dim">{d.dow} {d.date}</span>
+                      <div className="relative h-4 min-w-0 flex-1 overflow-hidden rounded-[5px] border border-border bg-s2">
+                        {di.busy.map((iv, i) => seg(iv, i, 'var(--brick-bg)', `Busy ${range(iv)}`))}
+                        {(mine[d.key] ?? []).map((iv, i) => seg(iv, i, 'var(--you-some)', `Marked ${range(iv)}`))}
+                        {added.map((iv, i) => seg(iv, i, 'var(--teal)', `Adds ${range(iv)}`))}
+                      </div>
+                      <span className={`w-[62px] flex-none text-right text-[12px] font-semibold ${allBusy ? 'text-brick-text' : dayAdded ? 'text-teal-text' : 'text-faint'}`}>
+                        {allBusy ? 'Busy' : dayAdded ? `+${fmtDur(dayAdded)}` : 'Covered'}
+                      </span>
+                    </div>
                   </div>
                 )
               })}
@@ -214,6 +243,7 @@ export function ImportPreview({ provider, data, mine, days, tz, fmt, gridStartMi
             </div>
           </>
         )}
+        </div>
       </div>
     </div>
   )

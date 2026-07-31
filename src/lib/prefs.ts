@@ -39,3 +39,25 @@ export function setPrefNotify(patch: Partial<NotifyPrefs>): void {
   try { localStorage.setItem(NOTIFY_KEY, JSON.stringify({ ...prefNotify(), ...patch })) } catch { /* private mode */ }
   announce()
 }
+
+// color palette override ('gcal', 'pride', …) — null means the house editorial look.
+// The raw key is also read by the inline script in app/layout.tsx, which runs before
+// hydration and can't import this module; keep the key in sync with it.
+const PALETTE_KEY = 'aline.palette'
+export function prefPalette(): string | null {
+  if (typeof window === 'undefined') return null
+  try { return localStorage.getItem(PALETTE_KEY) } catch { return null }
+}
+export function setPrefPalette(p: string): void {
+  try { localStorage.setItem(PALETTE_KEY, p) } catch { /* private mode */ }
+}
+
+// one-time UI hints ("drag to reorder", …): shown until dismissed, per browser
+const hintKey = (name: string) => `aline.hint.${name}`
+export function hintDismissed(name: string): boolean {
+  if (typeof window === 'undefined') return false
+  try { return localStorage.getItem(hintKey(name)) === '1' } catch { return false }
+}
+export function dismissHint(name: string): void {
+  try { localStorage.setItem(hintKey(name), '1') } catch { /* private mode */ }
+}

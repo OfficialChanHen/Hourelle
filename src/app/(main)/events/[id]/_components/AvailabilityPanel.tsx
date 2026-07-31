@@ -515,24 +515,27 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     return mine[day] ?? []
   }
 
-  // clearing is instant with an undo window instead of a scary confirm — the old
-  // times sit in state until the toast expires
-  const [undoTimes, setUndoTimes] = useState<Record<string, Iv[]> | null>(null)
+  // bulk changes (clear, calendar import) are instant with an undo window instead
+  // of a scary confirm — the old times sit in state until the toast expires
+  const [undo, setUndo] = useState<{ times: Record<string, Iv[]>; label: string } | null>(null)
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (undoTimer.current) clearTimeout(undoTimer.current) }, [])
+  function stashUndo(times: Record<string, Iv[]>, label: string) {
+    setUndo({ times, label })
+    if (undoTimer.current) clearTimeout(undoTimer.current)
+    undoTimer.current = setTimeout(() => setUndo(null), 8000)
+  }
   function clearAllMine() {
     const snapshot = mine
     const next = Object.fromEntries(event.days.map((d) => [d.key, [] as Iv[]]))
     setMine(next); persist(next)
     setSel(null)
-    setUndoTimes(snapshot)
-    if (undoTimer.current) clearTimeout(undoTimer.current)
-    undoTimer.current = setTimeout(() => setUndoTimes(null), 8000)
+    stashUndo(snapshot, 'Your times were cleared')
   }
-  function undoClear() {
-    if (!undoTimes) return
-    setMine(undoTimes); persist(undoTimes)
-    setUndoTimes(null)
+  function undoRestore() {
+    if (!undo) return
+    setMine(undo.times); persist(undo.times)
+    setUndo(null)
     if (undoTimer.current) clearTimeout(undoTimer.current)
   }
 
@@ -543,11 +546,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   }
   function applyImport() {
     if (!importing?.data) return
-    const next = { ...mineRef.current }
+    const snapshot = mineRef.current
+    const next = { ...snapshot }
     // merge, never remove: imported free times join whatever is already marked
     for (const [day, di] of Object.entries(importing.data)) next[day] = normalizeIv([...(next[day] ?? []), ...di.free])
     setMine(next); persist(next)
     setSel(null); setImporting(null); setMode('edit')
+    stashUndo(snapshot, 'Calendar times added')
   }
 
   // Scalability: cell rendering must not be O(cells × people). Build each day's combined
@@ -1358,11 +1363,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       </div>
 
       {/* undo toast — floats above the mobile tab bar, gone after 8s */}
-      {undoTimes && (
+      {undo && (
         <div className="pointer-events-none fixed inset-x-0 bottom-[84px] z-50 flex justify-center px-4 md:bottom-6">
           <div className="pointer-events-auto flex items-center gap-2.5 rounded-full border border-border bg-s1 py-1.5 pl-4 pr-1.5 text-[13px] shadow-soft">
-            Your times were cleared
-            <button type="button" onClick={undoClear} className="flex h-8 items-center rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent">
+            {undo.label}
+            <button type="button" onClick={undoRestore} className="flex h-8 items-center rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent">
               Undo
             </button>
           </div>
@@ -1378,6 +1383,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           tz={event.timezone}
           fmt={fmt}
           gridStartMin={gridStartMin}
+          gridMax={gridMax}
           onApply={applyImport}
           onClose={() => setImporting(null)}
         />

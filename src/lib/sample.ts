@@ -47,7 +47,9 @@ export const avail: Record<string, string[][]> = {
 }
 
 // ─── Chat ───
-export type ChatMessage = { id: string; name: string; time: string; text: string; you: boolean }
+// `at` (epoch ms) is the source of truth for when it was sent; `time` is the
+// display fallback for demo seeds and messages stored before timestamps existed
+export type ChatMessage = { id: string; name: string; time: string; text: string; you: boolean; at?: number }
 export const messages: ChatMessage[] = [
   { id: 'SR', name: 'Sarah R', time: '2h ago', text: 'Can we avoid Thu Aug 27? Travel might be tricky that week', you: false },
   { id: 'KL', name: 'Kyle L', time: '1h ago', text: '+1. Wed Aug 26 looks strongest on the grid', you: false },
