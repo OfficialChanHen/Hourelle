@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Instrument_Serif, Instrument_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { BackendSync } from "@/components/BackendSync";
 
 const instrumentSerif = Instrument_Serif({
   variable: "--font-instrument-serif",
@@ -41,7 +42,10 @@ export default function RootLayout({
             __html: `try{var p=localStorage.getItem("aline.palette");if(["gcal","drain","pride","pro","contrast"].indexOf(p)>=0)document.documentElement.setAttribute("data-palette",p)}catch(e){}`,
           }}
         />
-        <Providers>{children}</Providers>
+        <Providers>
+          <BackendSync />
+          {children}
+        </Providers>
       </body>
     </html>
   );

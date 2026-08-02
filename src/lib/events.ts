@@ -1,5 +1,6 @@
 import type { PersonColor } from './colors'
 import { av } from './people'
+import { pushDelete, pushEvent } from './remote'
 import {
   avail as demoAvail,
   gridDays as demoDays,
@@ -176,6 +177,7 @@ export function getEvent(id: string): AppEvent | null {
 }
 export function deleteEvent(id: string): void {
   writeAll(readAll().filter((e) => e.id !== id))
+  pushDelete(id) // the host deleting removes it for everyone
 }
 // the non-host mirror of delete: take someone else's event off your own lists.
 // Only this device's copy goes — the host's plan is untouched, and the invite
@@ -190,6 +192,7 @@ export function patchEvent(id: string, patch: Partial<AppEvent>): void {
   if (i < 0) return // demo / unknown events are not persisted
   list[i] = { ...list[i], ...patch }
   writeAll(list)
+  pushEvent(list[i]) // background sync; no-op without a backend
 }
 
 /* ── slug ── */
@@ -948,7 +951,9 @@ export function joinEvent(id: string, name: string, email?: string): Participant
     // a demo only lives in code, and patchEvent skips ids it can't find — materialize
     // a live copy first so the guest's marks persist. Same id: the stored copy wins
     // on every read and the built-in steps aside.
-    writeAll([...readAll(), { ...ev, demo: undefined, participants: [...ev.participants, guest] }])
+    const live = { ...ev, demo: undefined, participants: [...ev.participants, guest] }
+    writeAll([...readAll(), live])
+    pushEvent(live)
   } else {
     patchEvent(id, { participants: [...ev.participants, guest] })
   }
@@ -1060,6 +1065,7 @@ export function createEvent(input: CreateInput): AppEvent {
   const list = readAll()
   list.push(ev)
   writeAll(list)
+  pushEvent(ev) // background sync; no-op without a backend
   return ev
 }
 
