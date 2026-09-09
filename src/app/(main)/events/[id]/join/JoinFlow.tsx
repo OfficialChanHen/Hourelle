@@ -13,6 +13,7 @@ import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Cover } from '@/components/ui/Cover'
 import { coverFor } from '@/components/ui/StoredEventCard'
 import { PHASE_BADGE } from '@/components/ui/LifecycleStrip'
+import { identityForJoin } from '@/lib/session'
 import { claimGuestSession, confirmedSlotText, dateRangeText, getEvent, guestSessionId, joinEvent, leadingPlaceOf, phaseOf, type AppEvent, type Participant } from '@/lib/events'
 
 // names compare loosely — case and stray spaces shouldn't decide whether two
@@ -58,10 +59,15 @@ export function JoinFlow({ id }: { id: string }) {
     { dependencies: [event === undefined] },
   )
 
-  function doJoin(n: string) {
+  async function doJoin(n: string) {
     if (joining) return
     setJoining(true)
-    const guest = joinEvent(id, n, email)
+    // ask the database who this guest is first: signed in, that is their account;
+    // otherwise an anonymous session, which is a real verifiable uid rather than a
+    // string this browser made up. Without a backend it returns null and the join
+    // falls back to the device-local id it has always used.
+    const uid = await identityForJoin(n)
+    const guest = joinEvent(id, n, email, uid)
     if (guest) router.replace(`/events/${id}`)
     else setJoining(false)
   }

@@ -11,7 +11,7 @@ import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, 
 import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, subtract, type Band, type GDay } from './availability/grid-lib'
 import { prefH24 } from '@/lib/prefs'
 import {
-  patchEvent, availIvOf, fullAvailIvOf, intervalsToGrid, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
+  addMeToEvent, patchEvent, availIvOf, fullAvailIvOf, intervalsToGrid, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
 import { buildImportPreview, mockBusyUtc, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport } from '@/lib/calendar-import'
@@ -32,8 +32,10 @@ const CELL = 50 // px per grid row — must match the h-[50px] cell height below
 const MIN_LEN = 5 // smallest block, in minutes
 const OVERSCAN = 6 // rows rendered beyond the viewport each side, so scrolling doesn't flash blank
 
-export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0, onLockDays, onRunChange }: {
+export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0, onLockDays, onRunChange, onPatch }: {
   event: AppEvent; locked?: boolean; initialFilter?: string[] | string | null; focusBest?: number
+  // lets a change made here (adding yourself to the list) reach the always-mounted surfaces
+  onPatch?: (patch: Partial<AppEvent>) => void
   // host-only shortcut on day polls: hand the footer's winning run straight to the confirm modal
   onLockDays?: (startKey: string, endKey: string) => void
   // reports the days-in-a-row dial, so the lock-in modal matches what's being answered
@@ -55,8 +57,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   }
 
   // whose cells "Edit mine" writes: wherever the `you` marker sits — the stubbed
-  // account normally, the guest when this browser joined via the share link
-  const meId = event.participants.find((p) => p.you)?.id ?? 'JM'
+  // account normally, the guest when this browser joined via the share link. It can
+  // be missing: signed in and not on this event's list, nobody here is you, and
+  // editing has to stay off rather than quietly write to someone else's row.
+  const mePart = event.participants.find((p) => p.you)
+  const meId = mePart?.id ?? ''
+  const notListed = !mePart
 
   const step = stepOf(event.granularity)
   const rows = event.times.length
@@ -96,7 +102,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // once the plan is locked the grid is reference only; otherwise open in edit
   // until you've marked something — the page's one ask of a new participant.
   // Arriving with a person to focus (clicked from another tab) always opens in view.
-  const [mode, setMode] = useState<Mode>(locked || initialFilter ? 'view' : !youAny ? 'edit' : 'view')
+  const [mode, setMode] = useState<Mode>(locked || initialFilter || notListed ? 'view' : !youAny ? 'edit' : 'view')
+  // there is nobody to write to — stay in view no matter what else says otherwise
+  const editable = !locked && !notListed
+  if (notListed && mode === 'edit') setMode('view')
   // person filter — view mode reads the heat map against just the selected people;
   // seeded with one person or a whole availability group from other tabs
   const [filter, setFilter] = useState<Set<string>>(() => new Set(Array.isArray(initialFilter) ? initialFilter : initialFilter ? [initialFilter] : []))
@@ -758,7 +767,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         {/* toolbar — first row pairs the mode toggle with Settings (always right-aligned);
             the week nav and time controls flow on their own row below */}
         <div className="border-b border-border pb-[13px]">
-          {!locked && (
+          {editable && (
             <div className="mb-2.5 flex items-center justify-between gap-[9px]">
               <SegmentedControl size="sm" value={mode} onChange={(v) => { setMode(v as Mode); setSel(null); setDetail(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
               <Popover
@@ -900,6 +909,18 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             </span>
           )}
           {locked && <span className="text-[12.5px] text-faint">Planning is locked. The grid stays for reference.</span>}
+          {notListed && !locked && (
+            <span className="flex flex-wrap items-center gap-2 text-[12.5px] text-dim">
+              You are not on this event yet, so the grid is read only.
+              <button
+                type="button"
+                onClick={() => { const added = addMeToEvent(event.id); if (added) onPatch?.({ participants: [...event.participants, added] }) }}
+                className="flex h-8 items-center rounded-[9px] bg-accent px-3 text-[12.5px] font-semibold text-on-accent"
+              >
+                Add me
+              </button>
+            </span>
+          )}
           {/* the legend is teaching UI — it waits behind a small info icon instead of
               sitting in the strip forever */}
           <span className="ml-auto">

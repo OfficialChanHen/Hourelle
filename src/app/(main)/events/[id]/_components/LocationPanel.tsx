@@ -34,7 +34,10 @@ function osmUrl(p: EventPlace): string {
 export function LocationPanel({ event, locked = false, confirmed, onPatch }: { event: AppEvent; locked?: boolean; confirmed?: ConfirmedSlot; onPatch?: (patch: Partial<AppEvent>) => void }) {
   // who votes and suggests: the `you` participant — the guest when this browser
   // joined via the share link, the stubbed account otherwise
-  const YOU = event.participants.find((p) => p.you)?.id ?? 'JM'
+  // empty when nobody here is you (signed in, not on this event's list) — voting and
+  // suggesting then do nothing rather than acting as somebody else. The availability
+  // tab is where the "Add me" way out lives.
+  const YOU = event.participants.find((p) => p.you)?.id ?? ''
   const loc = event.location
   // once the host locks in, voting and editing close; the chosen place(s) get the highlight
   const confirmedIds = new Set(confirmed?.placeIds ?? [])
@@ -173,7 +176,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // vote budget: everyone gets `maxVotes`. With 1, voting moves your single pick (radio);
   // with more, extra votes are blocked once you're out.
   function toggleVote(placeId: string) {
-    if (votingClosed) return
+    if (votingClosed || !YOU) return
     const has = votesOf(placeId).includes(YOU)
     if (!has && maxVotes > 1 && votesLeft === 0) return // out of votes
     voteFlip.capture()

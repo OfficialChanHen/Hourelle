@@ -215,13 +215,25 @@ export function patchEvent(id: string, patch: Partial<AppEvent>): void {
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'event'
 }
+/* Share links are the whole permission model: anyone holding one can read the event,
+   so the id has to be unguessable. A title-derived slug ("summer-trip") was not —
+   it could be typed at by hand. New ids keep the readable stem for the address bar
+   and append 12 random characters, which is about 60 bits: not worth guessing at.
+   Old events keep the ids they were born with; nothing here rewrites them. */
+const TOKEN_ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789' // no l/o/0/1 to misread aloud
+function linkToken(len = 12): string {
+  const bytes = new Uint8Array(len)
+  crypto.getRandomValues(bytes)
+  // 256 is an exact multiple of the 32-character alphabet, so the modulo stays uniform
+  return Array.from(bytes, (b) => TOKEN_ALPHABET[b % TOKEN_ALPHABET.length]).join('')
+}
+
 function uniqueSlug(base: string): string {
   const taken = new Set(readAll().map((e) => e.id))
   for (const d of DEMOS) taken.add(d.id)
-  let slug = base
-  let n = 2
-  while (taken.has(slug)) slug = `${base}-${n++}`
-  return slug
+  let id = `${base}-${linkToken()}`
+  while (taken.has(id)) id = `${base}-${linkToken()}` // collision is theoretical, handled anyway
+  return id
 }
 
 /* ── date/time helpers ── */
@@ -936,19 +948,57 @@ export function claimGuestSession(eventId: string, pid: string): void {
 // are for rendering only — never write a view's participants or messages back.
 export function viewOf(ev: AppEvent): AppEvent {
   const gid = guestSessionId(ev.id)
-  if (!gid || !ev.participants.some((p) => p.id === gid)) return ev
+  if (gid && ev.participants.some((p) => p.id === gid)) {
+    return {
+      ...ev,
+      hostedByYou: false,
+      // pin the host icon before the flip: without this, events stored before hostKind
+      // existed would show the host as an organization to every guest
+      hostKind: ev.hostKind ?? (ev.hostedByYou ? 'person' : 'org'),
+      participants: ev.participants.map((p) => ({ ...p, you: p.id === gid || undefined, host: p.host })),
+      messages: ev.messages.map((m) => ({ ...m, you: m.id === gid })),
+    }
+  }
+
+  // Signed in as a real account, the stored `you` marker cannot be trusted: events
+  // made before signing in (and the demos) carry it on the stubbed person, and
+  // following it would let you edit their availability and vote as them. You are
+  // only "you" where a participant actually carries your account id.
+  const acc = currentAccount()
+  if (!acc.signedIn || ev.demo) return ev // the stub and the samples keep the stored markers
+  if (ev.participants.some((p) => p.id === acc.id)) return ev
   return {
     ...ev,
-    hostedByYou: false,
-    // pin the host icon before the flip: without this, events stored before hostKind
-    // existed would show the host as an organization to every guest
-    hostKind: ev.hostKind ?? (ev.hostedByYou ? 'person' : 'org'),
-    participants: ev.participants.map((p) => ({ ...p, you: p.id === gid || undefined, host: p.host })),
-    messages: ev.messages.map((m) => ({ ...m, you: m.id === gid })),
+    // hostedByYou is deliberately left alone: this browser may still host an event
+    // it created before signing in. You keep the host's controls, you are just not
+    // one of the people being counted.
+    participants: ev.participants.map((p) => (p.you ? { ...p, you: undefined } : p)),
+    messages: ev.messages.map((m) => (m.you ? { ...m, you: false } : m)),
   }
 }
 
-export function joinEvent(id: string, name: string, email?: string): Participant | null {
+/* Put the signed-in account on an event's list. The way out of "you are looking at
+   this event but nobody here is you" — one tap instead of a dead end. */
+export function addMeToEvent(id: string): Participant | null {
+  const ev = getEvent(id)
+  const acc = currentAccount()
+  if (!ev || ev.demo || ev.participants.some((p) => p.id === acc.id)) return null
+  const me: Participant = {
+    id: acc.id,
+    initials: initialsOf(acc.name),
+    name: acc.name,
+    color: acc.color,
+    rsvp: 'pending',
+    you: true,
+  }
+  patchEvent(id, { participants: [...ev.participants, me] })
+  return me
+}
+
+// `uid` is the identity the database issued for this guest (see identityForJoin).
+// When there is none — no backend, or anonymous sign-ins switched off — the old
+// device-local id is used instead, and everything still works on this browser.
+export function joinEvent(id: string, name: string, email?: string, uid?: string | null): Participant | null {
   const ev = getEvent(id)
   const clean = name.trim().replace(/\s+/g, ' ')
   if (!ev || !clean) return null
@@ -958,8 +1008,8 @@ export function joinEvent(id: string, name: string, email?: string): Participant
   // participant (g:sam-2), which blocks impersonation by construction. Reclaiming an
   // identity across devices is what the email/magic-link layer is for (see roadmap).
   const base = `g:${slugify(clean)}`
-  let pid = base
-  for (let n = 2; ev.participants.some((p) => p.id === pid); n++) pid = `${base}-${n}`
+  let pid = uid ?? base
+  if (!uid) for (let n = 2; ev.participants.some((p) => p.id === pid); n++) pid = `${base}-${n}`
   const cleanEmail = email?.trim().toLowerCase()
   const guest: Participant = {
     id: pid, initials, name: clean, color: GUEST_COLORS[guestCount % GUEST_COLORS.length], rsvp: 'pending', guest: true,

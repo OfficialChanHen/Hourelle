@@ -19,6 +19,7 @@ import {
   createEvent, eventTabFor, listEvents, phaseOf, daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, sameDayLabelFor,
   type AppEvent, type Phase, type SameDayInfo,
 } from '@/lib/events'
+import { useLiveEvents } from '@/hooks/useLiveEvents'
 
 // what part of the day it is, by the reader's clock
 function greetingFor(hour: number): string {
@@ -37,6 +38,8 @@ export default function HomePage() {
     setEvents(listEvents())
     setGreeting(greetingFor(new Date().getHours()))
   }, [])
+  // someone else's change arrived from the cloud: re-read so the page follows it live
+  useLiveEvents(() => setEvents(listEvents()))
 
   const withPhase = (events ?? []).map((e) => ({ e, phase: phaseOf(e) }))
   const active = withPhase.filter((x) => x.phase !== 'past')

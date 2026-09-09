@@ -6,6 +6,7 @@ import { CalendarX2 } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StoredEventCard } from '@/components/ui/StoredEventCard'
 import { listEvents, phaseOf, sameDayLabelFor, type AppEvent, type Phase } from '@/lib/events'
+import { useLiveEvents } from '@/hooks/useLiveEvents'
 
 // real filters over the derived lifecycle phase — Confirmed covers everything locked in
 const FILTERS: { key: string; label: string; match: (p: Phase) => boolean }[] = [
@@ -32,6 +33,8 @@ function EventsList() {
   const filter = useSearchParams().get('filter') ?? 'all'
   const setFilter = (k: string) => router.replace(k === 'all' ? '/events' : `/events?filter=${k}`, { scroll: false })
   useEffect(() => { setEvents(listEvents()) }, [])
+  // someone else's change arrived from the cloud: re-read so the list follows it live
+  useLiveEvents(() => setEvents(listEvents()))
 
   const withPhase = (events ?? []).map((e) => ({ e, phase: phaseOf(e) }))
   const match = FILTERS.find((f) => f.key === filter) ?? FILTERS[0]

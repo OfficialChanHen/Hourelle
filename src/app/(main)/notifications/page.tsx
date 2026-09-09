@@ -6,6 +6,7 @@ import { Bell, CalendarClock, CalendarRange, ChevronRight, Hourglass, MapPin, Un
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { dateRangeText, fmtMinute, listEvents, respondedCount, type AppEvent } from '@/lib/events'
 import { deriveNotifications, markAllNotificationsSeen, seenNotificationKeys, type NotificationItem } from '@/lib/notifications'
+import { useLiveEvents } from '@/hooks/useLiveEvents'
 
 type Bucket = { title: string; items: NotificationItem[] }
 
@@ -17,6 +18,8 @@ export default function NotificationsPage() {
   const [fresh, setFresh] = useState<Set<string>>(new Set())
   const [fading, setFading] = useState<Set<string>>(new Set())
   useEffect(() => { setEvents(listEvents()) }, [])
+  // new replies and votes from other people should raise alerts without a reload
+  useLiveEvents(() => setEvents(listEvents()))
   useEffect(() => {
     if (!events) return
     const seen = seenNotificationKeys()

@@ -28,6 +28,7 @@ import { ConfirmBar } from './ConfirmBar'
 import { ConfirmedHero } from './ConfirmedHero'
 import { ChatDrawer } from './ChatDrawer'
 import { useIsIOS } from '@/hooks/useIsIOS'
+import { useLiveEvents } from '@/hooks/useLiveEvents'
 
 const TABS = [
   { key: 'availability', label: 'Availability', short: 'Availability' },
@@ -148,6 +149,12 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     if (typeof window !== 'undefined' && window.history.length > 1) router.back()
     else router.push('/home')
   }
+
+  // Step 7: a change from anyone else lands in the cache and is announced, so the open
+  // event follows it live — new chat messages, votes and availability appear without a
+  // reload. The panels keep their own in-progress edits in local state, so a message
+  // arriving mid-drag updates the page around you rather than under you.
+  useLiveEvents(refresh)
 
   if (event === undefined) {
     return (
@@ -337,6 +344,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             ? (startKey, endKey) => setLockAsk((p) => ({ dayKey: startKey, endDayKey: endKey !== startKey ? endKey : undefined, nonce: (p?.nonce ?? 0) + 1 }))
             : undefined}
           onRunChange={setRunLen}
+          onPatch={patchLive}
         />
       )}
       {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} />}
