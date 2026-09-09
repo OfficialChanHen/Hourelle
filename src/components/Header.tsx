@@ -2,13 +2,17 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CalendarDays, Plus, Bell, UserRound, LogOut, Settings, CircleHelp, Info } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { CalendarDays, Plus, Bell, UserRound, LogIn, LogOut, Settings, CircleHelp, Info } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { Popover, PopoverItem, PopoverSep } from './ui/Popover'
 import { useNotificationCount } from '@/hooks/useNotificationCount'
 import { useGuestMode } from '@/hooks/useGuestMode'
 import { useHideOnScroll } from '@/hooks/useHideOnScroll'
-import { getEvent, YOU } from '@/lib/events'
+import { getEvent, initialsOf } from '@/lib/events'
+import { useAccount } from '@/hooks/useAccount'
+import { signOut } from '@/lib/session'
+import { personColors } from '@/lib/colors'
 
 const TABS = [
   { href: '/home', label: 'Home' },
@@ -19,8 +23,12 @@ const TABS = [
 
 export function Header() {
   const pathname = usePathname()
+  const router = useRouter()
   const notifCount = useNotificationCount()
   const guestEventId = useGuestMode()
+  // the account behind the avatar: the signed-in user, or the stub when nobody is
+  const account = useAccount()
+  const avatar = personColors[account.color] ?? personColors.gray
   // phones: reading scrolls the header away, scrolling back up recalls it.
   // Desktop keeps it planted (md:translate-y-0 outranks the hide).
   const hidden = useHideOnScroll()
@@ -128,9 +136,9 @@ export function Header() {
                 aria-label="Account menu"
                 title="Account"
                 className={`grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-full text-[12.5px] font-semibold ring-2 transition-shadow ${open ? 'ring-accent-border' : 'ring-transparent hover:ring-border2'}`}
-                style={{ background: '#F3EAD9', color: '#5A431C' }}
+                style={{ background: avatar.bg, color: avatar.text }}
               >
-                JM
+                {initialsOf(account.name)}
               </span>
             )}
           >
@@ -138,8 +146,10 @@ export function Header() {
               <>
                 {/* identity leads — the menu is "you", everything under it acts as you */}
                 <div className="mb-1 border-b border-border px-2.5 pb-2.5 pt-1.5">
-                  <div className="text-[13.5px] font-semibold">{YOU.name}</div>
-                  <div className="truncate text-[12px] text-dim">jordan@example.com</div>
+                  <div className="text-[13.5px] font-semibold">{account.name}</div>
+                  <div className="truncate text-[12px] text-dim">
+                    {account.signedIn ? account.email : 'Not signed in'}
+                  </div>
                 </div>
                 <PopoverItem href="/profile" onClick={close} icon={<UserRound size={15} />}>Profile</PopoverItem>
                 <PopoverItem href="/settings" onClick={close} icon={<Settings size={15} />}>Settings</PopoverItem>
@@ -147,7 +157,17 @@ export function Header() {
                 <PopoverItem href="/help" onClick={close} icon={<CircleHelp size={15} />}>Help &amp; contact</PopoverItem>
                 <PopoverItem href="/about" onClick={close} icon={<Info size={15} />}>About Aline</PopoverItem>
                 <PopoverSep />
-                <PopoverItem href="/auth/signin" onClick={close} icon={<LogOut size={15} />} tone="brick">Sign out</PopoverItem>
+                {account.signedIn ? (
+                  <PopoverItem
+                    onClick={() => { close(); void signOut().then(() => router.push('/home')) }}
+                    icon={<LogOut size={15} />}
+                    tone="brick"
+                  >
+                    Sign out
+                  </PopoverItem>
+                ) : (
+                  <PopoverItem href="/auth/signin" onClick={close} icon={<LogIn size={15} />}>Sign in</PopoverItem>
+                )}
               </>
             )}
           </Popover>

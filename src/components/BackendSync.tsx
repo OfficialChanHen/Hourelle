@@ -7,11 +7,16 @@
 
 import { useEffect } from 'react'
 import { startRealtime, syncFromCloud } from '@/lib/remote'
+import { startAuth } from '@/lib/session'
 
 export function BackendSync() {
   useEffect(() => {
     void syncFromCloud()
-    return startRealtime()
+    const stopRealtime = startRealtime()
+    // one auth subscription for the visit: it fires on sign-in, sign-out, token
+    // refresh, and once at startup with whatever session was restored from storage
+    const stopAuth = startAuth()
+    return () => { stopRealtime(); stopAuth() }
   }, [])
   return null
 }

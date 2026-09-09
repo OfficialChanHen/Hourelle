@@ -1,6 +1,8 @@
 import type { PersonColor } from './colors'
 import { av } from './people'
 import { pushDelete, pushEvent } from './remote'
+import { currentAccount } from './session'
+import type { AccountKind } from './session'
 import {
   avail as demoAvail,
   gridDays as demoDays,
@@ -128,12 +130,26 @@ export type CreateInput = {
 }
 
 // how the hosting account reads: a person or an organization. Decided by the login
-// (Google workspace accounts read as org) once auth exists; stubbed as person for now.
-export type AccountKind = 'person' | 'org'
+// (Google workspace accounts read as org); every account is a person for now.
+export type { AccountKind } from './session'
 
-// the signed-in identity (stubbed until auth): rosters show the real name with a
-// "(You)" marker rendered from the `you` flag, never a participant literally named You
-export const YOU = { id: 'JM', name: 'Jordan Miller', color: 'purple' as PersonColor, kind: 'person' as AccountKind }
+// the identity the app is acting as. A function, not a constant: signing in and out
+// changes the answer mid-visit. Signed out (or with no backend) it is the stub the
+// app has always used, so nothing downstream has to care. Rosters show the real name
+// with a "(You)" marker rendered from the `you` flag, never a participant named You.
+export const me = currentAccount
+
+// who "I" am inside one event: the participant already marked `you` wins, so events
+// created before signing in keep working, and only new ones carry the account id
+function myIdIn(ev: Pick<AppEvent, 'participants'>): string {
+  return ev.participants.find((p) => p.you)?.id ?? currentAccount().id
+}
+
+// avatar letters for a display name. Signed-in ids are uuids, so initials have to be
+// read off the name rather than borrowed from the id the way the stub could
+export function initialsOf(name: string): string {
+  return (name.split(' ').filter(Boolean).map((w) => w[0]).join('').slice(0, 2) || 'A').toUpperCase()
+}
 
 /* ── storage ── */
 const KEY = 'aline.events.v1'
@@ -815,14 +831,16 @@ export function draftFromEvent(id: string): Partial<CreateInput> | null {
 
 // have you answered this poll at all — marked a time, or declared no days work
 export function youReplied(ev: AppEvent): boolean {
-  if (ev.unavailableIds?.includes(YOU.id)) return true
-  if (ev.availIv) return Object.values(ev.availIv).some((day) => (day[YOU.id] ?? []).length > 0)
-  return Object.values(ev.avail).some((rows) => rows.some((cell) => cell.includes(YOU.id)))
+  const my = myIdIn(ev)
+  if (ev.unavailableIds?.includes(my)) return true
+  if (ev.availIv) return Object.values(ev.availIv).some((day) => (day[my] ?? []).length > 0)
+  return Object.values(ev.avail).some((rows) => rows.some((cell) => cell.includes(my)))
 }
 
 // have you cast any location vote
 export function youVoted(ev: AppEvent): boolean {
-  return Object.values(ev.votes ?? {}).some((ids) => ids.includes(YOU.id))
+  const my = myIdIn(ev)
+  return Object.values(ev.votes ?? {}).some((ids) => ids.includes(my))
 }
 
 // where a card click should land: whatever the event is still waiting on YOU for —
@@ -966,8 +984,9 @@ export function joinEvent(id: string, name: string, email?: string): Participant
 export function createEvent(input: CreateInput): AppEvent {
   const id = uniqueSlug(slugify(input.title))
 
+  const host = currentAccount()
   const participants: Participant[] = [
-    { id: YOU.id, initials: YOU.id, name: YOU.name, color: YOU.color, rsvp: 'attending', you: true, host: true },
+    { id: host.id, initials: initialsOf(host.name), name: host.name, color: host.color, rsvp: 'attending', you: true, host: true },
     ...input.accounts.map((pid) => ({ id: pid, initials: pid, name: av(pid).name, color: av(pid).color, rsvp: 'pending' as Rsvp })),
     ...input.emails.map((email, i) => guestFromEmail(email, i)),
   ]
@@ -1005,7 +1024,7 @@ export function createEvent(input: CreateInput): AppEvent {
 
   // itinerary picks are an ordered stop list (a venue may repeat); the candidate list is the unique set
   const isItin = input.planMode === 'itinerary'
-  const pickedPlaces = input.picked.map((p) => ({ id: p.id, name: p.name, place: p.place, addedBy: YOU.id }))
+  const pickedPlaces = input.picked.map((p) => ({ id: p.id, name: p.name, place: p.place, addedBy: host.id }))
   const uniquePlaces = pickedPlaces.filter((p, i) => pickedPlaces.findIndex((x) => x.id === p.id) === i)
   const settled = input.locMode === 'set'
   // a fixed date locks the place(s) too, when they're known
@@ -1017,9 +1036,9 @@ export function createEvent(input: CreateInput): AppEvent {
   const ev: AppEvent = {
     id,
     title: input.title.trim() || 'Untitled event',
-    hostName: YOU.name,
+    hostName: host.name,
     hostedByYou: true,
-    hostKind: YOU.kind,
+    hostKind: host.kind,
     description: input.description.trim(),
     timezone: input.timezone || 'UTC', // wizard validation requires one; fallback for safety
     startDate: fixed ? fixed.day : sparse ? days[0].key : input.startDate,
