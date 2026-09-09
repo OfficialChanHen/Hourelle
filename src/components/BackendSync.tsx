@@ -8,6 +8,7 @@
 import { useEffect } from 'react'
 import { startRealtime, syncFromCloud } from '@/lib/remote'
 import { startAuth } from '@/lib/session'
+import { SyncNotice } from './SyncNotice'
 
 export function BackendSync() {
   useEffect(() => {
@@ -18,5 +19,6 @@ export function BackendSync() {
     const stopAuth = startAuth()
     return () => { stopRealtime(); stopAuth() }
   }, [])
-  return null
+  // the only thing this component ever draws: a refused write, when one happens
+  return <SyncNotice />
 }

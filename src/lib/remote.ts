@@ -20,15 +20,36 @@ function writeCache(list: AppEvent[], announce: boolean) {
   if (announce) window.dispatchEvent(new Event(EVENTS_SYNCED))
 }
 
+// fired when the database refuses a write, so the UI can say so instead of leaving
+// a local change that silently never reached anyone else
+export const PUSH_REJECTED = 'aline:push-rejected'
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// the host as a column, read off the document: the participant flagged `host`, but
+// only when their id is a real account id. Events hosted by the signed-out stub stay
+// ownerless, which is what keeps them editable by whoever holds the link.
+function hostIdOf(ev: AppEvent): string | null {
+  const id = ev.participants.find((p) => p.host)?.id
+  return id && UUID.test(id) ? id : null
+}
+
+function rejected(action: string, message: string) {
+  console.warn(`aline: ${action} refused by the database — ${message}`)
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(PUSH_REJECTED, { detail: { action, message } }))
+  }
+}
+
 /* ── push: local change → cloud, fire-and-forget ──
    Writes are optimistic: localStorage already has the change and the UI moved on.
-   A failed push only logs — an offline queue is a later refinement. */
+   Since row policies and the field trigger can now say no, a refusal is announced
+   rather than swallowed — an offline queue is still a later refinement. */
 export function pushEvent(ev: AppEvent): void {
   if (!backendOn) return
   void supabase!
     .from('events')
-    .upsert({ id: ev.id, data: ev })
-    .then(({ error }) => { if (error) console.warn('aline: push failed', error.message) })
+    .upsert({ id: ev.id, data: ev, host_id: hostIdOf(ev) })
+    .then(({ error }) => { if (error) rejected('save', error.message) })
 }
 
 export function pushDelete(id: string): void {
@@ -37,7 +58,7 @@ export function pushDelete(id: string): void {
     .from('events')
     .delete()
     .eq('id', id)
-    .then(({ error }) => { if (error) console.warn('aline: delete failed', error.message) })
+    .then(({ error }) => { if (error) rejected('delete', error.message) })
 }
 
 /* ── pull: cloud → local cache, once per page load ──
