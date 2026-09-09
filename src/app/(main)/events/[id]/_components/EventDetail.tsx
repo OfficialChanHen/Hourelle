@@ -54,6 +54,16 @@ const rsvpLabel = (r: Rsvp, locked: boolean) => (locked ? RSVP[r].label : PLAN_R
 export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: string; initialTab: TabKey | null; spotlightDelete?: boolean }) {
   const router = useRouter()
   const [tab, setTab] = useState<TabKey>(initialTab ?? 'availability')
+  // switching tabs writes ?tab= into the address bar, so a reload (or a copied URL)
+  // comes back to the tab you were on. replaceState rather than router.replace:
+  // it keeps the URL honest without a navigation or a re-render of the page.
+  const goTab = (next: TabKey) => {
+    setTab(next)
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    url.searchParams.set('tab', next)
+    window.history.replaceState(null, '', url)
+  }
   const [event, setEvent] = useState<AppEvent | null | undefined>(undefined)
   // clicking a person or group elsewhere jumps to the availability grid filtered to
   // them; cleared during render once the user moves off that tab
@@ -183,15 +193,15 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   }
   function goToAvailabilityFor(pid: string) {
     setAvailFocus([pid])
-    setTab('availability')
+    goTab('availability')
   }
   function goToAvailabilityGroup(pids: string[]) {
     setAvailFocus(pids.length ? pids : null)
-    setTab('availability')
+    goTab('availability')
   }
   function goToBestWindow() {
     setBestFocus((n) => n + 1)
-    setTab('availability')
+    goTab('availability')
   }
   function sendMessage(text: string) {
     if (!event) return
@@ -239,7 +249,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         </div>
         {/* ml-auto keeps the actions hugging the right edge when the header wraps */}
         <div className="ml-auto flex min-w-0 items-center gap-2">
-          {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToDetails={() => setTab('details')} onGoToLocation={() => setTab('location')} prefill={lockAsk} openNonce={lockAsk?.nonce} runLen={runLen ?? undefined} />}
+          {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToDetails={() => goTab('details')} onGoToLocation={() => goTab('location')} prefill={lockAsk} openNonce={lockAsk?.nonce} runLen={runLen ?? undefined} />}
           {/* discussion lives in the floating bubble alone — one entry point, less header */}
           {/* share button opens a dropdown with the URL and a one-tap copy; on phones it
               folds into the ⋯ menu so the title and lock-in keep the row */}
@@ -305,7 +315,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             const active = tab === t.key
             return (
               // words alone carry the tabs — the filled box says which one is active
-              <button key={t.key} data-active={active} onClick={() => setTab(t.key)} className={`flex flex-none items-center whitespace-nowrap rounded-[10px] px-3 py-3 text-[13.5px] transition-colors sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
+              <button key={t.key} data-active={active} onClick={() => goTab(t.key)} className={`flex flex-none items-center whitespace-nowrap rounded-[10px] px-3 py-3 text-[13.5px] transition-colors sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
                 <span className="sm:hidden">{t.short}</span>
                 <span className="hidden sm:inline">{t.label}</span>
               </button>
@@ -330,8 +340,8 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         />
       )}
       {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} />}
-      {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={setTab} onViewAvailability={goToAvailabilityFor} onViewAvailabilityGroup={goToAvailabilityGroup} onGoToBestWindow={goToBestWindow} />}
-      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onLeave={handleLeave} onGoToTab={setTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} />}
+      {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={goTab} onViewAvailability={goToAvailabilityFor} onViewAvailabilityGroup={goToAvailabilityGroup} onGoToBestWindow={goToBestWindow} />}
+      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onLeave={handleLeave} onGoToTab={goTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} />}
 
       {/* discussion follows you down the page — the classic chat bubble, above the
           mobile tab bar; it is the one and only way in, unread badge included */}

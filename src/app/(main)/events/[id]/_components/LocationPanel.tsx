@@ -177,19 +177,19 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
     const has = votesOf(placeId).includes(YOU)
     if (!has && maxVotes > 1 && votesLeft === 0) return // out of votes
     voteFlip.capture()
-    setVotes((v) => {
-      const next: Record<string, string[]> = { ...v }
-      if (has) {
-        next[placeId] = (v[placeId] ?? []).filter((x) => x !== YOU)
-      } else if (maxVotes === 1) {
-        for (const p of places) if ((v[p.id] ?? []).includes(YOU)) next[p.id] = v[p.id].filter((x) => x !== YOU)
-        next[placeId] = [...(v[placeId] ?? []), YOU]
-      } else {
-        next[placeId] = [...(v[placeId] ?? []), YOU]
-      }
-      persist({ votes: next })
-      return next
-    })
+    // build the next ballot first, then set and persist — persisting inside a state
+    // updater would run during render and update the parent mid-render
+    const next: Record<string, string[]> = { ...votes }
+    if (has) {
+      next[placeId] = (votes[placeId] ?? []).filter((x) => x !== YOU)
+    } else if (maxVotes === 1) {
+      for (const p of places) if ((votes[p.id] ?? []).includes(YOU)) next[p.id] = votes[p.id].filter((x) => x !== YOU)
+      next[placeId] = [...(votes[placeId] ?? []), YOU]
+    } else {
+      next[placeId] = [...(votes[placeId] ?? []), YOU]
+    }
+    setVotes(next)
+    persist({ votes: next })
   }
   // can't hand out more votes than there are places to vote on
   const voteCap = Math.max(1, places.length)
