@@ -27,7 +27,7 @@ export default function ProfilePage() {
   const router = useRouter()
   return (
     <div className="mx-auto max-w-[760px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
-      <h1 className="font-serif text-[33.5px] leading-[1.04] tracking-[-0.01em]">Profile</h1>
+      <h1 className="font-serif font-normal text-[33.5px] leading-[1.04] tracking-[-0.01em]">Profile</h1>
 
       <Eyebrow>Account</Eyebrow>
       <div className="flex items-center gap-3.5 rounded-2xl border border-border bg-s1 p-5">

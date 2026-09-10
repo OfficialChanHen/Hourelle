@@ -46,7 +46,7 @@ function EventsList() {
   return (
     <div className="mx-auto max-w-[1240px] px-[26px] pb-[104px] pt-[34px]">
       <div className="mb-4">
-        <h1 className="mb-1.5 font-serif text-[36px] leading-[1.02] tracking-[-0.01em]">Events</h1>
+        <h1 className="mb-1.5 font-serif font-normal text-[36px] leading-[1.02] tracking-[-0.01em]">Events</h1>
         <div className="text-[13.5px] text-dim">{withPhase.length > 0 ? `${withPhase.length} event${withPhase.length === 1 ? '' : 's'}` : 'No events yet'}</div>
       </div>
 

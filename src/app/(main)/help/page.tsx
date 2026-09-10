@@ -33,7 +33,7 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
 export default function HelpPage() {
   return (
     <div className="mx-auto max-w-[760px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
-      <h1 className="font-serif text-[33.5px] leading-[1.04] tracking-[-0.01em]">Help &amp; contact</h1>
+      <h1 className="font-serif font-normal text-[33.5px] leading-[1.04] tracking-[-0.01em]">Help &amp; contact</h1>
       <p className="mt-1.5 text-[13.5px] text-dim">Short answers first, a human after that.</p>
 
       <p className="mb-2 mt-7 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Common questions</p>

@@ -277,7 +277,7 @@ function RsvpSummary({ participants, capacity, locked, available, planningOut, p
     <div>
       <div className="flex items-baseline gap-2">
         {/* planning counts people actually free in the best window; going is RSVP-real only once locked */}
-        <span className="font-serif text-[42.5px] leading-none">{locked ? going : available}</span>
+        <span className="font-serif font-normal text-[42.5px] leading-none">{locked ? going : available}</span>
         <span className="text-[14.5px] text-dim">{locked ? 'going' : 'available'}</span>
         {/* spots are claimed by RSVPs, which only exist once the plan is locked —
             during planning the pill would count replies nobody has given yet */}

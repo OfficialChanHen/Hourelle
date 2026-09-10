@@ -53,7 +53,7 @@ export default function DemosPage() {
   return (
     <div className="mx-auto max-w-[1240px] px-[26px] pb-[104px] pt-[34px]">
       <div className="mb-8 max-w-[640px]">
-        <h1 className="mb-2 font-serif text-[36px] leading-[1.02] tracking-[-0.01em]">Demos</h1>
+        <h1 className="mb-2 font-serif font-normal text-[36px] leading-[1.02] tracking-[-0.01em]">Demos</h1>
         <p className="text-[14px] leading-[1.6] text-dim">
           Nine finished plans, full of people and answers, grouped by the question each one answers. Open any of them and walk through every tab.
         </p>

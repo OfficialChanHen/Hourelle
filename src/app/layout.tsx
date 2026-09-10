@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
-import { Instrument_Serif, Instrument_Sans } from "next/font/google";
+import { Fraunces, Instrument_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { BackendSync } from "@/components/BackendSync";
 
-const instrumentSerif = Instrument_Serif({
-  variable: "--font-instrument-serif",
-  weight: ["400"],
+// Fraunces is variable: real weights (400 for display, 500 for headings under 28px,
+// set in globals.css) and an optical-size axis, so the strokes stay sturdy at
+// heading sizes and only go fine where the size can carry it
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  axes: ["opsz"],
   style: ["normal", "italic"],
   subsets: ["latin"],
 });
@@ -32,7 +35,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${instrumentSerif.variable} ${instrumentSans.variable} h-full antialiased`}
+      className={`${fraunces.variable} ${instrumentSans.variable} h-full`}
     >
       <body className="min-h-full flex flex-col bg-bg text-text font-sans">
         {/* apply the saved appearance before anything paints, the same way next-themes

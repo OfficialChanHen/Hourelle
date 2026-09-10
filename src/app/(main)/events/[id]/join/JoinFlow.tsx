@@ -179,7 +179,7 @@ export function JoinFlow({ id }: { id: string }) {
   if (event === null) {
     return (
       <div className="mx-auto max-w-[560px] px-[26px] pb-[104px] pt-[72px] text-center">
-        <p className="font-serif text-[33.5px] tracking-[-0.01em]">This invite doesn&apos;t open here</p>
+        <p className="font-serif font-normal text-[33.5px] tracking-[-0.01em]">This invite doesn&apos;t open here</p>
         <p className="mx-auto mt-2 max-w-sm text-[14.5px] leading-[1.55] text-dim">
           The link may have a typo, or the event was deleted. Ask the host to send it again, or plan something of your own.
         </p>
@@ -207,7 +207,7 @@ export function JoinFlow({ id }: { id: string }) {
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <Badge variant={badge.variant}>{badge.label}</Badge>
           </div>
-          <h1 className="font-serif text-[31px] leading-[1.06] tracking-[-0.01em] sm:text-[34px]">{event.title}</h1>
+          <h1 className="font-serif font-normal text-[31px] leading-[1.06] tracking-[-0.01em] sm:text-[34px]">{event.title}</h1>
           <div className="mt-3.5 flex flex-col gap-[9px] text-[13.5px] text-dim">
             <span className="flex items-center gap-2">
               {host ? <Avatar initials={host.initials} color={host.color} size={22} /> : <User size={14} className="flex-none" />}

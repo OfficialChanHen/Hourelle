@@ -55,7 +55,7 @@ export function AccessBoundary({ children }: { children: React.ReactNode }) {
     <div className="mx-auto max-w-[480px] px-6 pb-[104px] pt-[64px]">
       <div className="text-center">
         <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">{visitor ? 'Members only' : 'Guest view'}</p>
-        <h1 className="mt-2 font-serif text-[33px] leading-[1.08] tracking-[-0.01em]">
+        <h1 className="mt-2 font-serif font-normal text-[33px] leading-[1.08] tracking-[-0.01em]">
           {visitor ? 'Sign in to keep going' : 'This part needs an account'}
         </h1>
         <p className="mx-auto mt-3 max-w-[400px] text-[14px] leading-[1.6] text-dim">

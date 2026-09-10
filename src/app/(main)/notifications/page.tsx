@@ -48,7 +48,7 @@ export default function NotificationsPage() {
 
   return (
     <div className="mx-auto max-w-[760px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
-      <h1 className="font-serif text-[33.5px] leading-[1.04] tracking-[-0.01em]">Notifications</h1>
+      <h1 className="font-serif font-normal text-[33.5px] leading-[1.04] tracking-[-0.01em]">Notifications</h1>
       <p className="mt-1.5 text-[13.5px] text-dim">Locked-in plans, reopened plans, open votes, and polls waiting on you.</p>
 
       {events === null ? (

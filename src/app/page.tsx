@@ -106,7 +106,7 @@ export default function Landing() {
         <section className="mx-auto w-full max-w-[1100px] px-6 pb-8 pt-12 sm:pt-20">
           <div className="ld-hero max-w-[720px]">
             <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">Plans, settled</p>
-            <h1 className="mt-3 font-serif text-[46px] leading-[1.0] tracking-[-0.015em] sm:text-[66px]">
+            <h1 className="mt-3 font-serif font-normal text-[46px] leading-[1.0] tracking-[-0.015em] sm:text-[66px]">
               Find the day everyone can make.
             </h1>
             <p className="mt-5 max-w-[560px] text-[16px] leading-[1.6] text-dim sm:text-[17.5px]">
@@ -135,7 +135,7 @@ export default function Landing() {
         <section id="how" className="mx-auto w-full max-w-[1100px] scroll-mt-20 px-6 pb-8 pt-20 sm:pt-28">
           <div className="ld-reveal max-w-[560px]">
             <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-accent-text">How it works</p>
-            <h2 className="mt-2.5 font-serif text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">Four steps, and most of them are other people&apos;s.</h2>
+            <h2 className="mt-2.5 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">Four steps, and most of them are other people&apos;s.</h2>
           </div>
           <ol className="ld-stagger mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map(({ icon: Icon, title, body }, i) => (
@@ -144,7 +144,7 @@ export default function Landing() {
                   <span className="grid h-9 w-9 place-items-center rounded-[10px] border border-accent-border bg-accent-bg text-accent-text">
                     <Icon size={17} />
                   </span>
-                  <span className="font-serif text-[30px] leading-none text-faint">{i + 1}</span>
+                  <span className="font-serif font-normal text-[30px] leading-none text-faint">{i + 1}</span>
                 </div>
                 <p className="mt-4 font-serif text-[22px] leading-tight tracking-[-0.01em]">{title}</p>
                 <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">{body}</p>
@@ -157,14 +157,14 @@ export default function Landing() {
         <section id="features" className="mx-auto w-full max-w-[1100px] scroll-mt-20 px-6 pt-20 sm:pt-28">
           <div className="ld-reveal max-w-[560px]">
             <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-accent-text">What it does</p>
-            <h2 className="mt-2.5 font-serif text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">The whole plan, in one place.</h2>
+            <h2 className="mt-2.5 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">The whole plan, in one place.</h2>
           </div>
           <div className="mt-6 flex flex-col gap-16 sm:gap-24">
             {FEATURES.map((f, i) => (
               <div key={f.eyebrow} className={`grid items-center gap-8 lg:grid-cols-12 lg:gap-12 ${i % 2 ? 'lg:[&>*:first-child]:order-2' : ''}`}>
                 <div className="ld-reveal lg:col-span-5">
                   <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">{f.eyebrow}</p>
-                  <h3 className="mt-2 font-serif text-[29px] leading-[1.08] tracking-[-0.01em] sm:text-[34px]">{f.title}</h3>
+                  <h3 className="mt-2 font-serif font-normal text-[29px] leading-[1.08] tracking-[-0.01em] sm:text-[34px]">{f.title}</h3>
                   <p className="mt-3.5 text-[15px] leading-[1.6] text-dim">{f.body}</p>
                   <ul className="ld-stagger mt-5 flex flex-col gap-2.5">
                     {f.points.map((pt) => (
@@ -199,7 +199,7 @@ export default function Landing() {
           <div className="ld-reveal flex flex-wrap items-end justify-between gap-4">
             <div className="max-w-[560px]">
               <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-accent-text">Demos</p>
-              <h2 className="mt-2.5 font-serif text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">Poke around before you commit to anything.</h2>
+              <h2 className="mt-2.5 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">Poke around before you commit to anything.</h2>
               <p className="mt-3 text-[15px] leading-[1.6] text-dim">Finished plans, full of people and answers, grouped by the question each one answers. Open one and walk through every tab.</p>
             </div>
             <Link href="/demos" className="flex h-10 items-center gap-1.5 rounded-[10px] border border-border2 bg-s1 px-4 text-[13.5px] font-semibold text-dim hover:bg-s2 hover:text-text">
@@ -230,7 +230,7 @@ export default function Landing() {
           <div className="ld-reveal grid gap-8 rounded-2xl bg-accent p-8 text-on-accent sm:p-12 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[.15em] opacity-70">Free to use</p>
-              <h2 className="mt-3 font-serif text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[44px]">The next plan takes a minute to start.</h2>
+              <h2 className="mt-3 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[44px]">The next plan takes a minute to start.</h2>
               <p className="mt-3 max-w-[480px] text-[15px] leading-[1.6] opacity-85">
                 Make an account, name the plan, share the link. Everything your guests answer as guests follows them if they ever make an account of their own.
               </p>

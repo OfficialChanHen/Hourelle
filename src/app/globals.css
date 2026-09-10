@@ -268,7 +268,7 @@
   --color-raised:var(--raised);
   --shadow-raised:var(--raised-shadow);
 
-  --font-serif:var(--font-instrument-serif), serif;
+  --font-serif:var(--font-fraunces), Georgia, serif;
   --font-sans:var(--font-instrument-sans), system-ui, sans-serif;
 
   --shadow-soft:var(--shadow);
@@ -316,7 +316,6 @@ body {
   font-size: 13px;
   line-height: 1.5;
   letter-spacing: 0;
-  -webkit-font-smoothing: antialiased;
 }
 
 ::selection { background: var(--accent-bg); color: var(--accent-text); }
@@ -423,3 +422,11 @@ input[type="date"]::-webkit-date-and-time-value {
 [data-theme="dark"] .only-dark { display: block; }
 [data-theme="dark"] .only-light { display: none; }
 
+
+/* the serif: 500 by default (headings, card titles, stat figures), 400 only where the
+   markup says `font-normal` (display sizes, 28px and up). Optical sizing follows the
+   font size on its own — Fraunces carries an opsz axis for exactly this. Lives in the
+   base layer so the weight utilities, which come later, can still override it. */
+@layer base {
+  .font-serif { font-weight: 500; font-optical-sizing: auto; }
+}

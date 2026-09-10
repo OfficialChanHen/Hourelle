@@ -300,7 +300,7 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
   return (
     <div className="mx-auto max-w-[760px] px-4 pb-[104px] pt-6 sm:px-[26px] sm:pt-[34px]">
       <div className="mb-4 text-center sm:mb-[22px]">
-        <h1 className="font-serif text-[27px] leading-[1.04] tracking-[-0.01em] sm:text-[33.5px]">Create event</h1>
+        <h1 className="font-serif sm:font-normal text-[27px] leading-[1.04] tracking-[-0.01em] sm:text-[33.5px]">Create event</h1>
         <p className="mt-1.5 hidden text-[13.5px] text-dim sm:block">Name it, check the days, create. Everything else can wait.</p>
       </div>
 
@@ -963,7 +963,7 @@ function Created({ event }: { event: AppEvent }) {
       <div className="mx-auto max-w-[560px] px-[26px] pb-[104px] pt-[64px]">
         <div ref={card} className="rounded-2xl border border-border bg-s1 px-7 py-9 text-center shadow-soft">
           <span className="created-check mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full border border-teal-border bg-teal-bg text-teal-text"><Check size={34} /></span>
-          <h1 className="font-serif text-[33.5px] leading-[1.05] tracking-[-0.01em]">Your event is live</h1>
+          <h1 className="font-serif font-normal text-[33.5px] leading-[1.05] tracking-[-0.01em]">Your event is live</h1>
           <p className="mx-auto mt-2 max-w-[380px] text-[14.5px] leading-[1.55] text-dim">
             <span className="font-semibold text-text">{event.title}</span> has been created{total > 0 ? ` and ${total} ${total === 1 ? 'invite is' : 'invites are'} on the way` : ''}. Share the link below so anyone can join, say when they&apos;re free, and chat.
           </p>

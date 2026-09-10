@@ -6,7 +6,7 @@ export default function AboutPage() {
   return (
     <div className="mx-auto max-w-[680px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
       <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">About</p>
-      <h1 className="mt-2 font-serif text-[40px] leading-[1.06] tracking-[-0.01em]">
+      <h1 className="mt-2 font-serif font-normal text-[40px] leading-[1.06] tracking-[-0.01em]">
         Find the day everyone can make.
       </h1>
       <p className="mt-4 text-[15px] leading-[1.65] text-dim">

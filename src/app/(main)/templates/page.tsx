@@ -21,7 +21,7 @@ export default function TemplatesPage() {
   return (
     <div className="mx-auto max-w-[1240px] px-[26px] pb-[104px] pt-[34px]">
       <div className="mb-[18px]">
-        <h1 className="mb-1.5 font-serif text-[36px] leading-[1.02] tracking-[-0.01em]">Templates</h1>
+        <h1 className="mb-1.5 font-serif font-normal text-[36px] leading-[1.02] tracking-[-0.01em]">Templates</h1>
         <div className="text-[13.5px] text-dim">
           Pick one to get a head start, then change the details, invites, and dates to fit.
         </div>

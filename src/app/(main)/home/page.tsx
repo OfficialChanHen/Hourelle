@@ -64,7 +64,7 @@ export default function HomePage() {
     <div className="relative mx-auto max-w-[1240px] px-[26px] pb-[104px] pt-[34px]">
       {/* greeting */}
       <div className="mb-5">
-        <h1 className="mb-[9px] font-serif text-[37px] leading-[1.02] tracking-[-0.01em]" suppressHydrationWarning>{greeting}, Jordan</h1>
+        <h1 className="mb-[9px] font-serif font-normal text-[37px] leading-[1.02] tracking-[-0.01em]" suppressHydrationWarning>{greeting}, Jordan</h1>
         <div className="flex items-center gap-1.5 text-[13.5px] text-dim">
           <Calendar size={15} /> {active.length > 0 ? `${active.length} event${active.length === 1 ? '' : 's'} in motion` : 'No events yet'}
         </div>

@@ -137,7 +137,7 @@ function SignInForm() {
               <span className="font-serif text-[21px] tracking-[-0.01em]">Aline</span>
             </Link>
 
-            <h1 className="mt-7 font-serif text-[31px] leading-[1.05] tracking-[-0.01em]">{copy.title}</h1>
+            <h1 className="mt-7 font-serif font-normal text-[31px] leading-[1.05] tracking-[-0.01em]">{copy.title}</h1>
             <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">{copy.sub}</p>
 
             <form onSubmit={submit} className="mt-6 flex flex-col gap-2">
@@ -264,7 +264,7 @@ function SignInForm() {
           <div className="hidden flex-col justify-between bg-accent p-9 text-on-accent md:flex">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[.15em] opacity-70">Why an account</p>
-              <p className="mt-3 font-serif text-[30px] leading-[1.12] tracking-[-0.01em]">
+              <p className="mt-3 font-serif font-normal text-[30px] leading-[1.12] tracking-[-0.01em]">
                 Find the day everyone can make.
               </p>
             </div>

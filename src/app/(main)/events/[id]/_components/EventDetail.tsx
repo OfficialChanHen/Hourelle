@@ -170,7 +170,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   if (event === null) {
     return (
       <div className="mx-auto max-w-[560px] px-[26px] pt-[72px] text-center">
-        <p className="font-serif text-[33.5px] tracking-[-0.01em]">Event not found</p>
+        <p className="font-serif font-normal text-[33.5px] tracking-[-0.01em]">Event not found</p>
         <p className="mx-auto mt-2 max-w-sm text-[14.5px] text-dim">This event doesn&apos;t exist on this device, or the link is wrong.</p>
         <Link href="/create" className="mt-5 inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent">Create an event</Link>
       </div>
