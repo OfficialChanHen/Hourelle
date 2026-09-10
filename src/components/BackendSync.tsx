@@ -25,7 +25,7 @@ export function BackendSync() {
       const acc = currentAccount()
       if (acc.id === lastId) return
       lastId = acc.id
-      if (acc.signedIn) void syncFromCloud()
+      if (acc.signedIn) { adoptMine(); void syncFromCloud() } // guest entries on this browser become the account's now
       else forgetCloudEvents()
     }
     // after every pull, guest entries made with the account's email become the

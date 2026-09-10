@@ -10,7 +10,7 @@ import { Popover, PopoverItem, PopoverSep } from './ui/Popover'
 import { useNotificationCount } from '@/hooks/useNotificationCount'
 import { useAccess } from '@/hooks/useAccess'
 import { useHideOnScroll } from '@/hooks/useHideOnScroll'
-import { getEvent, initialsOf } from '@/lib/events'
+import { initialsOf } from '@/lib/events'
 import { signOut } from '@/lib/session'
 import { personColors } from '@/lib/colors'
 
@@ -36,10 +36,9 @@ export function Header() {
   // never drift. Until the browser knows who this is, the same bar minus the doors.
   if (visitor || !ready) return <VisitorHeader ready={ready} />
 
-  // a guest's header: their event by name, the theme (profile is gated), and the
-  // one action the rest of the app is asking for
+  // a guest's header: the logo leads back to their event, then the theme (profile
+  // is gated) and the one action the rest of the app is asking for
   if (guestEventId) {
-    const title = getEvent(guestEventId)?.title ?? 'Back to the event'
     return (
       <header className={chrome}>
         <div className="mx-auto flex h-[54px] max-w-[1240px] items-center gap-3 px-[22px]">
@@ -51,12 +50,6 @@ export function Header() {
           </Link>
           <div className="flex-1" />
           <ThemeToggle />
-          <Link
-            href={`/events/${guestEventId}`}
-            className="hidden h-[34px] max-w-[220px] items-center rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13.5px] font-semibold text-dim hover:bg-s2 hover:text-text sm:flex"
-          >
-            <span className="truncate">{title}</span>
-          </Link>
           <Link href="/auth/signin" className="flex h-[34px] items-center rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent">
             Sign in
           </Link>

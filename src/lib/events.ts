@@ -194,14 +194,26 @@ export function listEvents(): AppEvent[] {
    every pull and every sign-in; a no-op once everything is adopted. */
 export function adoptMine(): number {
   const acc = currentAccount()
+  if (!acc.signedIn) return 0
   const email = acc.email?.toLowerCase()
-  if (!acc.signedIn || !email) return 0
+  const as = { name: acc.name, initials: initialsOf(acc.name), color: acc.color }
   let n = 0
   for (const ev of readAll()) {
-    if (ev.participants.some((p) => p.id === acc.id)) continue
+    // an entry this browser joined as a guest belongs to whoever just signed in here:
+    // it becomes the account's, and the guest session ends — the account is the
+    // identity from now on, not the name typed on the invite page
+    const gid = guestSessionId(ev.id)
+    if (gid && ev.participants.some((p) => p.id === gid)) {
+      if (!ev.participants.some((p) => p.id === acc.id)) adoptParticipant(ev.id, gid, acc.id, as)
+      else patchEvent(ev.id, mergeParticipantsPatch(getEvent(ev.id)!, gid, acc.id)) // both exist: fold the guest in
+      leaveGuestSession(ev.id)
+      n++
+      continue
+    }
+    if (!email || ev.participants.some((p) => p.id === acc.id)) continue
     const mine = ev.participants.find((p) => p.guest && p.email?.toLowerCase() === email)
     if (!mine) continue
-    adoptParticipant(ev.id, mine.id, acc.id, { name: acc.name, initials: initialsOf(acc.name), color: acc.color })
+    adoptParticipant(ev.id, mine.id, acc.id, as)
     n++
   }
   return n
