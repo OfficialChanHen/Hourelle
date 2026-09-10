@@ -909,9 +909,6 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             </span>
           )}
           {locked && <span className="text-[12.5px] text-faint">Planning is locked. The grid stays for reference.</span>}
-          {notListed && !locked && event.demo && (
-            <span className="text-[12.5px] text-dim">This is a demo, so the grid is read only. Create an event to mark your own times.</span>
-          )}
           {notListed && !locked && !event.demo && (
             <span className="flex flex-wrap items-center gap-2 text-[12.5px] text-dim">
               You are not on this event yet, so the grid is read only.

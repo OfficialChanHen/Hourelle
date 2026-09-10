@@ -311,11 +311,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly }:
         )}
       </div>
 
-      {readOnly ? (
-        <div className="flex-none border-t border-border px-4 py-3.5 text-[12.5px] leading-[1.5] text-faint">
-          This is a demo, so the chat is read only. Create an event to talk with your own people.
-        </div>
-      ) : (
+      {readOnly ? null : (
       <div className="flex flex-none items-end gap-2 border-t border-border p-[11px]">
         <textarea
           ref={ta}

@@ -1,14 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Eye } from 'lucide-react'
 import { StoredEventCard } from '@/components/ui/StoredEventCard'
+import { rich } from '@/components/ui/rich'
 import { listDemos, sameDayLabelFor, type AppEvent } from '@/lib/events'
 
 /* ── the demo shelf: example events, grouped by the question they answer ──
-   Every demo is a finished plan you can walk through but not change: the grid,
-   the ballot, the roster and the chat are all there, read only. Each card says
-   what it is for and what to look at once inside. */
+   Every demo is a finished plan to walk through: the grid, the ballot, the roster
+   and the chat are all there. Each card says what it is for and what to look at. */
 
 type Group = { key: string; eyebrow: string; title: string; sub: string; tone: string; picks: Record<string, string> }
 
@@ -18,9 +17,9 @@ const GROUPS: Group[] = [
     title: 'When can everyone make it?',
     sub: 'The availability grid in its three shapes: hours, half hours, and whole days.',
     picks: {
-      'design-team-dinner': 'A 30-minute grid with a deadline to settle by. Look for the best window, and who has not replied yet.',
-      'cabin-trip': 'A day poll: whole days are the question, not hours. Look for the longest run everyone can make.',
-      'brunch-at-mamas': 'The place is already set, so only the time is open. Look for how the plan narrows to one question.',
+      'design-team-dinner': 'A **30-minute grid** with a **deadline** to settle by. Look for the **best window**, and who has not replied yet.',
+      'cabin-trip': 'A **day poll**: whole days are the question, not hours. Look for the **longest run** everyone can make.',
+      'brunch-at-mamas': 'The **place is already set**, so only the time is open. Look for how the plan narrows to one question.',
     },
   },
   {
@@ -28,9 +27,9 @@ const GROUPS: Group[] = [
     title: 'Where should it happen?',
     sub: 'A ballot on a map, and what a vote turns into once it is won.',
     picks: {
-      'harvest-fair': 'Three votes each and a closing date, with a cap on spots and a minimum to go ahead. Look for the ballot and the capacity note.',
-      'priyas-send-off': 'One vote each, closing soon. Look for how the leader changes as the votes move.',
-      'q3-offsite': 'Votes turned into a three-stop route with travel time between them. Look for the itinerary, and who makes every stop.',
+      'harvest-fair': '**Three votes each** and a **closing date**, with a **cap on spots** and a **minimum to go ahead**. Look for the ballot and the capacity note.',
+      'priyas-send-off': '**One vote each**, closing soon. Look for how the **leader** changes as the votes move.',
+      'q3-offsite': 'Votes turned into a **three-stop route** with **travel time** between them. Look for the **itinerary**, and who makes every stop.',
     },
   },
   {
@@ -38,9 +37,9 @@ const GROUPS: Group[] = [
     title: 'Once the plan is locked, who is in?',
     sub: 'The RSVP round, the roster, and the headcount through the day.',
     picks: {
-      'sarahs-housewarming': 'Time and place locked in, replies due. Look for the roster grouped by who is in, unsure, or out.',
-      'trivia-night-anchor': 'A fixed date and place from the start. Look for the RSVP round and the headcount.',
-      'shoreline-cleanup': 'A vote that settled into a plan. Look for attendance, and who arrives late or leaves early.',
+      'sarahs-housewarming': 'Time and place **locked in**, replies due by an **RSVP deadline**. Look for the **roster** grouped by who is in, unsure, or out.',
+      'trivia-night-anchor': 'A **fixed date and place** from the start. Look for the **RSVP round** and the **headcount**.',
+      'shoreline-cleanup': 'A vote that **settled into a plan**. Look for **attendance**, and who **arrives late or leaves early**.',
     },
   },
 ]
@@ -57,9 +56,6 @@ export default function DemosPage() {
         <h1 className="mb-2 font-serif text-[36px] leading-[1.02] tracking-[-0.01em]">Demos</h1>
         <p className="text-[14px] leading-[1.6] text-dim">
           Nine finished plans, full of people and answers, grouped by the question each one answers. Open any of them and walk through every tab.
-        </p>
-        <p className="mt-2 flex items-center gap-1.5 text-[12.5px] text-faint">
-          <Eye size={13} /> Demos are read only. To try things for yourself, create an event.
         </p>
       </div>
 
@@ -80,7 +76,7 @@ export default function DemosPage() {
                   ) : (
                     <div className="h-[240px] animate-pulse rounded-[13px] bg-s2" />
                   )}
-                  <p className="px-1 text-[12.5px] leading-[1.55] text-dim">{look}</p>
+                  <p className="px-1 text-[12.5px] leading-[1.55] text-dim">{rich(look)}</p>
                 </div>
               )
             })}

@@ -11,8 +11,9 @@ import { useRouter } from 'next/navigation'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useGSAP } from '@gsap/react'
-import { ArrowRight, CalendarDays, CalendarRange, Link2, Lock, MapPin, MessageCircle, Users, Vote } from 'lucide-react'
-import { ThemeToggle } from '@/components/ThemeToggle'
+import { ArrowRight, CalendarRange, Link2, Lock, MapPin, MessageCircle, Users, Vote } from 'lucide-react'
+import { VisitorHeader } from '@/components/VisitorHeader'
+import { rich } from '@/components/ui/rich'
 import { Cover } from '@/components/ui/Cover'
 import { coverFor } from '@/components/ui/StoredEventCard'
 import { useAccess } from '@/hooks/useAccess'
@@ -52,9 +53,9 @@ const FEATURES = [
 ]
 
 const DEMO_PICKS: Record<string, string> = {
-  'q3-offsite': 'Eight people, a week of options, and votes turned into a three-stop route.',
-  'cabin-trip': 'A day poll for a long weekend, where whole days are the question.',
-  'trivia-night-anchor': 'A fixed date and place. The only question left is who is in.',
+  'q3-offsite': 'Eight people, a week on the **availability grid**, and votes turned into a **three-stop route**.',
+  'cabin-trip': 'A **day poll** for a long weekend, where whole days are the question.',
+  'trivia-night-anchor': 'A **fixed date and place**. The only question left is the **RSVP round**.',
 }
 
 export default function Landing() {
@@ -98,31 +99,7 @@ export default function Landing() {
 
   return (
     <div ref={root} className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-40 border-b border-border/70 bg-bg/85 backdrop-blur-md">
-        <div className="mx-auto flex h-[60px] w-full max-w-[1100px] items-center px-6">
-          <Link href="/" className="flex items-center gap-[9px]">
-            <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-accent text-on-accent">
-              <CalendarDays size={17} />
-            </span>
-            <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Aline</span>
-          </Link>
-          <nav className="ml-8 hidden items-center gap-1 text-[13.5px] font-medium text-dim md:flex">
-            <a href="#how" className="rounded-[8px] px-3 py-1.5 hover:bg-s3 hover:text-text">How it works</a>
-            <a href="#features" className="rounded-[8px] px-3 py-1.5 hover:bg-s3 hover:text-text">What it does</a>
-            <a href="#demos" className="rounded-[8px] px-3 py-1.5 hover:bg-s3 hover:text-text">Demos</a>
-          </nav>
-          <div className="flex-1" />
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Link href="/auth/signin" className="hidden h-[34px] items-center rounded-[9px] px-[13px] text-[14px] font-medium text-dim hover:bg-s3 hover:text-text sm:flex">
-              Sign in
-            </Link>
-            <Link href="/auth/signin" className="flex h-[34px] items-center rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent">
-              Create an account
-            </Link>
-          </div>
-        </div>
-      </header>
+      <VisitorHeader />
 
       <main className="flex-1">
         {/* ── hero ── */}
@@ -136,7 +113,7 @@ export default function Landing() {
               One link for the whole plan. People mark when they are free, vote on where to go, say if they are coming, and talk it over. No app to install, and your guests never need an account.
             </p>
             <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
-              <Link href="/auth/signin" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-accent px-6 text-[15px] font-semibold text-on-accent">
+              <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-accent px-6 text-[15px] font-semibold text-on-accent">
                 Create an account <ArrowRight size={16} />
               </Link>
               <Link href="/demos" className="flex h-12 items-center justify-center rounded-[11px] border border-border2 bg-s1 px-6 text-[15px] font-semibold text-dim hover:bg-s2 hover:text-text">
@@ -223,7 +200,7 @@ export default function Landing() {
             <div className="max-w-[560px]">
               <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-accent-text">Demos</p>
               <h2 className="mt-2.5 font-serif text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">Poke around before you commit to anything.</h2>
-              <p className="mt-3 text-[15px] leading-[1.6] text-dim">Finished plans, full of people and answers, grouped by the question each one answers. Walk through every tab; nothing you do there changes anything.</p>
+              <p className="mt-3 text-[15px] leading-[1.6] text-dim">Finished plans, full of people and answers, grouped by the question each one answers. Open one and walk through every tab.</p>
             </div>
             <Link href="/demos" className="flex h-10 items-center gap-1.5 rounded-[10px] border border-border2 bg-s1 px-4 text-[13.5px] font-semibold text-dim hover:bg-s2 hover:text-text">
               All demos <ArrowRight size={14} />
@@ -237,7 +214,7 @@ export default function Landing() {
                   <Cover src={d.image} from={from} to={to} className="h-[110px]" />
                   <div className="p-5">
                     <p className="font-serif text-[21px] leading-tight tracking-[-0.01em]">{d.title}</p>
-                    <p className="mt-1.5 text-[13px] leading-[1.55] text-dim">{DEMO_PICKS[d.id]}</p>
+                    <p className="mt-1.5 text-[13px] leading-[1.55] text-dim">{rich(DEMO_PICKS[d.id])}</p>
                     <p className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-accent-text">
                       <Users size={13} /> {d.participants.length} people <ArrowRight size={13} className="ml-auto transition-transform group-hover:translate-x-0.5" />
                     </p>
@@ -259,7 +236,7 @@ export default function Landing() {
               </p>
             </div>
             <div className="flex flex-col gap-2.5 lg:items-end">
-              <Link href="/auth/signin" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-on-accent px-6 text-[15px] font-semibold text-accent">
+              <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-on-accent px-6 text-[15px] font-semibold text-accent">
                 Create an account <ArrowRight size={16} />
               </Link>
               <Link href="/auth/signin" className="flex h-12 items-center justify-center rounded-[11px] border border-[rgba(248,245,236,.4)] px-6 text-[15px] font-semibold text-on-accent hover:bg-[rgba(248,245,236,.1)]">

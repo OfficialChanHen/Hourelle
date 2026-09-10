@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useRouter } from 'next/navigation'
 import { CalendarDays, Plus, Bell, UserRound, LogIn, LogOut, Settings, CircleHelp, Info } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
+import { VisitorHeader } from './VisitorHeader'
 import { Popover, PopoverItem, PopoverSep } from './ui/Popover'
 import { useNotificationCount } from '@/hooks/useNotificationCount'
 import { useAccess } from '@/hooks/useAccess'
@@ -31,35 +32,9 @@ export function Header() {
   const hidden = useHideOnScroll()
   const chrome = `sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md transition-transform duration-300 md:translate-y-0 ${hidden ? '-translate-y-full' : 'translate-y-0'}`
 
-  // a visitor's header: the landing page behind the logo, the demos, and the door in.
-  // Until the browser knows who this is, the same bar minus the door — nothing
-  // account-shaped is decided on the server.
-  if (visitor || !ready) {
-    return (
-      <header className={chrome}>
-        <div className="mx-auto flex h-[54px] max-w-[1240px] items-center gap-[22px] px-[22px]">
-          <Link href="/" className="flex items-center gap-[9px]">
-            <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-accent text-on-accent">
-              <CalendarDays size={17} />
-            </span>
-            <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Aline</span>
-          </Link>
-          <nav className="hidden items-center gap-[3px] text-[14px] md:flex">
-            <Link href="/demos" className={`rounded-[9px] px-[13px] py-2 font-medium transition-colors ${pathname.startsWith('/demos') ? 'bg-accent text-on-accent' : 'text-dim hover:bg-s3 hover:text-text'}`}>
-              Demos
-            </Link>
-          </nav>
-          <div className="flex-1" />
-          <ThemeToggle />
-          {ready && (
-            <Link href="/auth/signin" className="flex h-[34px] items-center rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent">
-              Sign in
-            </Link>
-          )}
-        </div>
-      </header>
-    )
-  }
+  // a visitor's header is the landing page's header — one component, so the two
+  // never drift. Until the browser knows who this is, the same bar minus the doors.
+  if (visitor || !ready) return <VisitorHeader ready={ready} />
 
   // a guest's header: their event by name, the theme (profile is gated), and the
   // one action the rest of the app is asking for

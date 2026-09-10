@@ -1,8 +1,8 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { ArrowLeft, CalendarRange, Check, Loader2, MailCheck, TriangleAlert } from 'lucide-react'
@@ -43,10 +43,22 @@ const COPY: Record<Mode, { title: string; sub: string; action: string }> = {
   forgot: { title: 'Reset your password', sub: 'We will email you a link to set a new one.', action: 'Send the link' },
 }
 
+// useSearchParams on a statically rendered page needs a Suspense boundary above it,
+// or the whole page bails out of prerendering; the boundary is the page's only job
 export default function SignInPage() {
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-bg" />}>
+      <SignInForm />
+    </Suspense>
+  )
+}
+
+function SignInForm() {
   const root = useRef<HTMLDivElement>(null)
   const router = useRouter()
-  const [mode, setMode] = useState<Mode>('in')
+  // ?mode=up lands straight on the create-account form — the header's door goes there
+  const wanted = useSearchParams().get('mode')
+  const [mode, setMode] = useState<Mode>(wanted === 'up' ? 'up' : 'in')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
