@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       `— from: ${email ?? 'no email given'}`,
       `— page: ${page ?? 'unknown'}`,
       `— browser: ${userAgent ?? 'unknown'}`,
-      `— account: ${body.accountId ?? 'not signed in'}`,
+      `— account: ${body.accountId ?? 'not included'}`,
     ].join('\n')
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',

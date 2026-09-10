@@ -26,7 +26,12 @@ export function FeedbackForm() {
   const [busy, setBusy] = useState(false)
   const [state, setState] = useState<'idle' | 'sent' | 'stored' | 'nowhere' | 'error'>('idle')
   const current = KINDS.find((k) => k.key === kind)!
-  const from = email.trim() || (account.signedIn ? account.email ?? '' : '')
+  // signed in, the account's email is offered for a reply, not assumed: the toggle is
+  // on by default and switching it off sends nothing that identifies the account.
+  // Signed out, the field below is the only email there is, and it is optional.
+  const [includeAccount, setIncludeAccount] = useState(true)
+  const identified = account.signedIn && includeAccount
+  const from = account.signedIn ? (identified ? account.email ?? '' : '') : email.trim()
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -36,7 +41,7 @@ export function FeedbackForm() {
       const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind, message: message.trim(), email: from, page: pathname, accountId: account.signedIn ? account.id : undefined }),
+        body: JSON.stringify({ kind, message: message.trim(), email: from, page: pathname, accountId: identified ? account.id : undefined }),
       })
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; emailed?: boolean; stored?: boolean }
       if (res.status === 503) setState('nowhere')
@@ -71,13 +76,28 @@ export function FeedbackForm() {
       />
       <p className="mt-1 text-[12px] text-faint">The page you were on is included automatically, so you do not need to describe where.</p>
 
-      <label htmlFor="fb-email" className="mt-3.5 block text-[12.5px] font-semibold text-dim">Email (Optional)</label>
-      <input
-        id="fb-email" type="email" autoComplete="email" inputMode="email" value={email}
-        onChange={(e) => setEmail(e.target.value)} placeholder={account.signedIn && account.email ? account.email : 'you@example.com'}
-        className={`${field} mt-1.5 h-11`}
-      />
-      <p className="mt-1 text-[12px] text-faint">Only used to reply to you about this.</p>
+      {account.signedIn && account.email ? (
+        <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-[13px] leading-[1.5]">
+          <input
+            type="checkbox" checked={includeAccount} onChange={(e) => setIncludeAccount(e.target.checked)}
+            className="mt-0.5 h-4 w-4 flex-none accent-[var(--accent)]"
+          />
+          <span>
+            <span className="font-semibold">Include my email so you can reply</span>
+            <span className="block text-[12px] text-faint">{account.email}. Switch this off to send the report with nothing that identifies your account.</span>
+          </span>
+        </label>
+      ) : (
+        <>
+          <label htmlFor="fb-email" className="mt-3.5 block text-[12.5px] font-semibold text-dim">Email (Optional)</label>
+          <input
+            id="fb-email" type="email" autoComplete="email" inputMode="email" value={email}
+            onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com"
+            className={`${field} mt-1.5 h-11`}
+          />
+          <p className="mt-1 text-[12px] text-faint">Only used to reply to you about this. No account needed to send a report.</p>
+        </>
+      )}
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button
