@@ -2,6 +2,7 @@ import { Header } from '@/components/Header'
 import { MobileTabBar } from '@/components/MobileTabBar'
 import { AccessBoundary } from '@/components/AccessBoundary'
 import { FlashToast } from '@/components/ui/FlashToast'
+import { SiteFooter } from '@/components/SiteFooter'
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -14,6 +15,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <FlashToast />
         <AccessBoundary>{children}</AccessBoundary>
       </main>
+      <SiteFooter />
       <MobileTabBar />
     </div>
   )

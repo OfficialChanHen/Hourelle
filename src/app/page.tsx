@@ -11,8 +11,9 @@ import { useRouter } from 'next/navigation'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useGSAP } from '@gsap/react'
-import { ArrowRight, CalendarRange, Link2, Lock, MapPin, MessageCircle, Users, Vote } from 'lucide-react'
+import { ArrowRight, CalendarRange, Link2, Lock, Users, Vote } from 'lucide-react'
 import { VisitorHeader } from '@/components/VisitorHeader'
+import { SiteFooter } from '@/components/SiteFooter'
 import { rich } from '@/components/ui/rich'
 import { Cover } from '@/components/ui/Cover'
 import { coverFor } from '@/components/ui/StoredEventCard'
@@ -247,15 +248,7 @@ export default function Landing() {
         </section>
       </main>
 
-      <footer className="border-t border-border">
-        <div className="mx-auto flex w-full max-w-[1100px] flex-wrap items-center gap-x-5 gap-y-2 px-6 py-6 text-[12.5px] text-faint">
-          <span className="flex items-center gap-1.5"><MapPin size={12} /> Aline</span>
-          <Link href="/about" className="hover:text-dim">About</Link>
-          <Link href="/help" className="hover:text-dim">Help</Link>
-          <Link href="/demos" className="hover:text-dim">Demos</Link>
-          <span className="ml-auto flex items-center gap-1.5"><MessageCircle size={12} /> Guests never need an account.</span>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }
