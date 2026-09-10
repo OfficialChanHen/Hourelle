@@ -102,7 +102,9 @@ export function pushMessage(eventId: string, m: ChatMessage): void {
   if (!backendOn) return
   void supabase!
     .from('messages')
-    .insert({ id: m.mid, event_id: eventId, participant_id: m.id, name: m.name, body: m.text, system: !!m.system, at: m.at ?? Date.now() })
+    // a message id is minted once and never changes, so a second push of the same
+    // line (a re-sync, a retry) is a no-op rather than a duplicate-key refusal
+    .upsert({ id: m.mid, event_id: eventId, participant_id: m.id, name: m.name, body: m.text, system: !!m.system, at: m.at ?? Date.now() }, { onConflict: 'id', ignoreDuplicates: true })
     .then(({ error }) => { if (error) rejected('message', error.message) })
 }
 
@@ -208,8 +210,11 @@ export async function syncFromCloud(): Promise<void> {
   }
   writeCache(merged, true)
 
-  // events this device made before the backend existed go up whole, chat included
-  for (const e of local) if (!cloud.has(e.id)) {
+  // events this device made before the backend existed go up whole, chat included.
+  // "Not in the pull" is not enough to mean "born here": a visitor who opened an
+  // invite has that event cached and is part of nothing, so the pull brings nothing —
+  // only an event this identity is actually part of can be one of its own.
+  for (const e of local) if (!cloud.has(e.id) && isMine(e)) {
     void supabase!.from('events').upsert({ id: e.id, data: docOf(e), host_id: hostIdOf(e) }).then(({ error }) => { if (error) rejected('save', error.message) })
     for (const m of e.messages) pushMessage(e.id, { ...m, mid: m.mid ?? crypto.randomUUID() })
   }
