@@ -45,14 +45,47 @@ function rejected(action: string, message: string) {
    Writes are optimistic: localStorage already has the change and the UI moved on.
    Since row policies and the field trigger can now say no, a refusal is announced
    rather than swallowed — an offline queue is still a later refinement. */
+// messages travel as their own rows (see pushMessage), never inside the document —
+// otherwise every save would carry the whole chat and overwrite everyone else's
+const docOf = (ev: AppEvent) => ({ ...ev, messages: [] })
+
+/* An existing event is UPDATED, never upserted. An upsert is an insert first, and
+   the insert policy only admits the host — so a guest marking availability on
+   someone else's event would be refused before the update policy ever saw it. */
 export function pushEvent(ev: AppEvent): void {
   if (!backendOn) return
   void supabase!
     .from('events')
-    // messages travel as their own rows (see pushMessage), never inside the document —
-    // otherwise every save would carry the whole chat and overwrite everyone else's
-    .upsert({ id: ev.id, data: { ...ev, messages: [] }, host_id: hostIdOf(ev) })
+    .update({ data: docOf(ev), host_id: hostIdOf(ev) })
+    .eq('id', ev.id)
     .then(({ error }) => { if (error) rejected('save', error.message) })
+}
+
+/* A brand-new event is inserted: the one path the insert policy is for. */
+export function pushNewEvent(ev: AppEvent): void {
+  if (!backendOn) return
+  void supabase!
+    .from('events')
+    .insert({ id: ev.id, data: docOf(ev), host_id: hostIdOf(ev) })
+    .then(({ error }) => { if (error) rejected('create', error.message) })
+}
+
+/* ── one event, by id, for whoever holds its link ──
+   The identity-scoped pull deliberately asks for nothing on behalf of a visitor —
+   but an invite is a visitor holding a link, and reads are open at the database
+   for exactly that reason. Fetches the event and its chat into the cache. */
+export async function fetchEvent(id: string): Promise<boolean> {
+  if (!backendOn) return false
+  const { data, error } = await supabase!.from('events').select('id, data').eq('id', id).maybeSingle()
+  if (error || !data) return false
+  const ev = data.data as AppEvent
+  const list = readCache()
+  const i = list.findIndex((e) => e.id === id)
+  let merged = i >= 0 ? list.map((e, k) => (k === i ? { ...ev, messages: e.messages } : e)) : [...list, { ...ev, messages: [] }]
+  const { data: rows } = await supabase!.from('messages').select('*').eq('event_id', id).order('at', { ascending: true })
+  if (rows) merged = mergeMessages(merged, rows as MessageRow[])
+  writeCache(merged, true)
+  return true
 }
 
 /* ── chat: one row per message ──
@@ -177,7 +210,7 @@ export async function syncFromCloud(): Promise<void> {
 
   // events this device made before the backend existed go up whole, chat included
   for (const e of local) if (!cloud.has(e.id)) {
-    pushEvent(e)
+    void supabase!.from('events').upsert({ id: e.id, data: docOf(e), host_id: hostIdOf(e) }).then(({ error }) => { if (error) rejected('save', error.message) })
     for (const m of e.messages) pushMessage(e.id, { ...m, mid: m.mid ?? crypto.randomUUID() })
   }
 }

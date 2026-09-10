@@ -15,7 +15,7 @@ import { coverFor } from '@/components/ui/StoredEventCard'
 import { PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { currentAccount, sendMagicLink } from '@/lib/session'
 import { backendOn } from '@/lib/db'
-import { cloudSynced } from '@/lib/remote'
+import { cloudSynced, fetchEvent } from '@/lib/remote'
 import { useAccount } from '@/hooks/useAccount'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import {
@@ -59,11 +59,17 @@ export function JoinFlow({ id }: { id: string }) {
 
   const go = useCallback(() => router.replace(`/events/${id}`), [router, id])
 
+  // the invited event is fetched by id exactly once; the pull on its own would not
+  // bring it, since a visitor is part of nothing yet
+  const fetched = useRef(false)
   const resolve = useCallback(() => {
     const ev = getEvent(id)
-    // someone else's event only reaches this browser once the first cloud pull lands;
-    // until then keep the skeleton rather than declaring the invite broken
-    if (!ev && !cloudSynced()) return
+    if (!ev && !cloudSynced()) return // keep the skeleton until the first pull lands
+    if (!ev && backendOn && !fetched.current) {
+      fetched.current = true
+      void fetchEvent(id).then((found) => { if (!found) setEvent(null) }) // found → EVENTS_SYNCED → resolve again
+      return
+    }
     if (!ev) { setEvent(null); return }
     // demos are read only for everyone — nothing to join, just look
     if (ev.demo) { go(); return }

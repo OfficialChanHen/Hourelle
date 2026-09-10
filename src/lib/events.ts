@@ -1,6 +1,6 @@
 import type { PersonColor } from './colors'
 import { av } from './people'
-import { isMine, pushDelete, pushEvent, pushMessage } from './remote'
+import { isMine, pushDelete, pushEvent, pushMessage, pushNewEvent } from './remote'
 import { currentAccount } from './session'
 import type { AccountKind } from './session'
 import {
@@ -1113,7 +1113,7 @@ export function joinEvent(id: string, name: string, email?: string): Participant
     // on every read and the built-in steps aside.
     const live = { ...ev, demo: undefined, participants: [...ev.participants, guest] }
     writeAll([...readAll(), live])
-    pushEvent(live)
+    pushNewEvent(live)
   } else {
     patchEvent(id, { participants: [...ev.participants, guest] })
   }
@@ -1233,7 +1233,7 @@ export function createEvent(input: CreateInput): AppEvent {
   const list = readAll()
   list.push(ev)
   writeAll(list)
-  pushEvent(ev) // background sync; no-op without a backend
+  pushNewEvent(ev) // background sync; no-op without a backend
   return ev
 }
 

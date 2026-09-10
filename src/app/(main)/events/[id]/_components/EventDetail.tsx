@@ -624,7 +624,7 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
 function CopyInviteLink({ id }: { id: string }) {
   const [copied, setCopied] = useState(false)
   function copy() {
-    navigator.clipboard?.writeText(`https://aline.app/e/${id}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
+    navigator.clipboard?.writeText(`${window.location.origin}/events/${id}/join`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
   return (
     <button onClick={copy} className={`mt-3 flex h-9 w-full items-center justify-center gap-1.5 rounded-[9px] border text-[13px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
