@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Building2, User, Link2, Copy, MessageCircle, Pencil, EllipsisVertical, CopyPlus,
+  Building2, User, Link2, Copy, Merge, MessageCircle, Pencil, EllipsisVertical, CopyPlus,
   Check, Trash2, TriangleAlert, Receipt, Plus, X, ImagePlus, Video, UserRoundX,
 } from 'lucide-react'
 import { gsap } from 'gsap'
@@ -18,7 +18,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, leaveEvent, patchEvent, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, leaveGuestSession, markMessagesSeen, maxPollDays, phaseOf, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
+import { getEvent, deleteEvent, leaveEvent, patchEvent, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -240,17 +240,12 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
               {(event.hostKind ?? (event.hostedByYou ? 'person' : 'org')) === 'org' ? <Building2 size={15} /> : <User size={15} />} Hosted by {event.hostName}
             </span>
             <Badge variant={badge.variant}>{badge.label}</Badge>
-            {/* the join flow put a name on this browser — say whose answers these are,
-                and offer the way out (back to viewing as yourself) */}
+            {/* the join flow put a name on this browser — say whose answers these are.
+                Leaving lives on the Event details tab, with the other rare actions */}
             {me?.guest && (
               <span className="flex items-center gap-1.5 rounded-lg border border-accent-border bg-accent-bg px-2 py-0.5 text-[12px] font-medium text-accent-text">
-                You&apos;re here as {me.name}
-                <button
-                  onClick={() => { leaveGuestSession(event.id); refresh() }}
-                  className="font-semibold underline underline-offset-2 hover:opacity-80"
-                >
-                  Leave
-                </button>
+                <Avatar initials={me.initials} color={me.color} size={16} font={7.5} />
+                Joined as {me.name}
               </span>
             )}
           </div>
@@ -573,6 +568,14 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
     onPatch(removeParticipantPatch(event, p.id))
     close()
   }
+  // two entries for one person (joined by name before an account, or from two devices):
+  // fold this one into the other — free time, votes and messages all carry over
+  const [merging, setMerging] = useState(false)
+  const others = event.participants.filter((x) => x.id !== p.id)
+  function mergeInto(intoId: string) {
+    onPatch(mergeParticipantsPatch(event, p.id, intoId))
+    close()
+  }
   // an email invitee has a link of their own: opening it lands them already named
   const [linkCopied, setLinkCopied] = useState(false)
   function copyPersonalLink() {
@@ -601,7 +604,19 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
         </PopoverItem>
       ))}
       <PopoverSep />
-      {confirmRemove ? (
+      {merging ? (
+        <div className="px-1 pb-1">
+          <p className="mb-1.5 px-1.5 text-[12px] leading-[1.45] text-dim">Fold {first} into which entry? Their answers move over and this one goes away.</p>
+          <div className="scroll-slim max-h-[190px] overflow-auto">
+            {others.map((o) => (
+              <PopoverItem key={o.id} onClick={() => mergeInto(o.id)} icon={<Avatar initials={o.initials} color={o.color} size={18} font={8} />}>
+                {o.name}{o.you ? <span className="text-faint"> (You)</span> : null}
+              </PopoverItem>
+            ))}
+          </div>
+          <button onClick={() => setMerging(false)} className="mt-1 w-full rounded-[7px] py-1.5 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
+        </div>
+      ) : confirmRemove ? (
         <div className="rounded-[9px] bg-brick-bg px-2.5 py-2">
           <p className="mb-2 text-[12.5px] leading-[1.45] text-brick-text">Remove {first}? This clears their replies too.</p>
           <div className="flex items-center gap-1.5">
@@ -614,7 +629,12 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
           </div>
         </div>
       ) : (
-        <PopoverItem onClick={() => setConfirmRemove(true)} tone="brick">Remove from event</PopoverItem>
+        <>
+          {others.length > 0 && (
+            <PopoverItem onClick={() => setMerging(true)} icon={<Merge size={15} />}>Merge into someone else</PopoverItem>
+          )}
+          <PopoverItem onClick={() => setConfirmRemove(true)} tone="brick">Remove from event</PopoverItem>
+        </>
       )}
     </>
   )

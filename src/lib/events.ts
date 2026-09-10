@@ -762,6 +762,38 @@ export function sortByAttendance(ev: AppEvent): Participant[] {
 
 // everything that references a participant, minus that participant — their availability,
 // votes, and roster row go together so no tab is left pointing at a ghost
+/* ── the host's escape hatch: two entries that are one person ──
+   Someone joined by name before they had an account, or twice from two devices,
+   and now the roster counts them twice. Merging folds one entry into another:
+   free time is the union of both, votes and marks are combined, messages and
+   suggested places follow, and the duplicate disappears. Nothing they answered is
+   lost, which is why this beats "remove" for a double. */
+export function mergeParticipantsPatch(ev: AppEvent, fromId: string, intoId: string): Partial<AppEvent> {
+  if (fromId === intoId) return {}
+  const swap = (id: string) => (id === fromId ? intoId : id)
+  const dedupe = (ids: string[]) => Array.from(new Set(ids.map(swap)))
+  const availIv = ev.availIv
+    ? Object.fromEntries(Object.entries(ev.availIv).map(([day, byPid]) => {
+        const merged = normalizeIv([...(byPid[intoId] ?? []), ...(byPid[fromId] ?? [])])
+        const rest = Object.fromEntries(Object.entries(byPid).filter(([pid]) => pid !== fromId && pid !== intoId))
+        return [day, merged.length ? { ...rest, [intoId]: merged } : rest]
+      }))
+    : ev.availIv
+  const avail = Object.fromEntries(Object.entries(ev.avail).map(([day, rows]) => [day, rows.map(dedupe)]))
+  const votes = ev.votes ? Object.fromEntries(Object.entries(ev.votes).map(([place, ids]) => [place, dedupe(ids)])) : ev.votes
+  const from = ev.participants.find((p) => p.id === fromId)
+  return {
+    participants: ev.participants
+      .filter((p) => p.id !== fromId)
+      // a reply beats no reply: the surviving entry keeps its answer unless it had none
+      .map((p) => (p.id === intoId && p.rsvp === 'pending' && from && from.rsvp !== 'pending' ? { ...p, rsvp: from.rsvp, rsvpAuto: from.rsvpAuto } : p)),
+    availIv, avail, votes,
+    unavailableIds: ev.unavailableIds ? dedupe(ev.unavailableIds) : ev.unavailableIds,
+    messages: ev.messages.map((m) => (m.id === fromId ? { ...m, id: intoId } : m)),
+    location: { ...ev.location, places: ev.location.places.map((pl) => (pl.addedBy === fromId ? { ...pl, addedBy: intoId } : pl)) },
+  }
+}
+
 export function removeParticipantPatch(ev: AppEvent, pid: string): Partial<AppEvent> {
   return {
     participants: ev.participants.filter((p) => p.id !== pid),
