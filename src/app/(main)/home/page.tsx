@@ -20,6 +20,7 @@ import {
   type AppEvent, type Phase, type SameDayInfo,
 } from '@/lib/events'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
+import { useAccount } from '@/hooks/useAccount'
 
 // what part of the day it is, by the reader's clock
 function greetingFor(hour: number): string {
@@ -34,6 +35,9 @@ export default function HomePage() {
   // greeting settles after mount so the server-rendered HTML never disagrees
   // with a visitor in another timezone
   const [greeting, setGreeting] = useState('Good afternoon')
+  // the greeting names whoever is signed in (the stub, when nobody is)
+  const account = useAccount()
+  const firstName = account.name.split(' ')[0]
   useEffect(() => {
     setEvents(listEvents())
     setGreeting(greetingFor(new Date().getHours()))
@@ -64,7 +68,7 @@ export default function HomePage() {
     <div className="relative mx-auto max-w-[1240px] px-[26px] pb-[104px] pt-[34px]">
       {/* greeting */}
       <div className="mb-5">
-        <h1 className="mb-[9px] font-serif font-normal text-[37px] leading-[1.02] tracking-[-0.01em]" suppressHydrationWarning>{greeting}, Jordan</h1>
+        <h1 className="mb-[9px] font-serif font-normal text-[37px] leading-[1.02] tracking-[-0.01em]" suppressHydrationWarning>{greeting}, {firstName}</h1>
         <div className="flex items-center gap-1.5 text-[13.5px] text-dim">
           <Calendar size={15} /> {active.length > 0 ? `${active.length} event${active.length === 1 ? '' : 's'} in motion` : 'No events yet'}
         </div>

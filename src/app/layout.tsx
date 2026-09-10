@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
-import { Fraunces, Instrument_Sans } from "next/font/google";
+import { Lora, Instrument_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { BackendSync } from "@/components/BackendSync";
 
-// Fraunces is variable: real weights (400 for display, 500 for headings under 28px,
-// set in globals.css) and an optical-size axis, so the strokes stay sturdy at
-// heading sizes and only go fine where the size can carry it
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
-  axes: ["opsz"],
+// Lora is the display serif: soft, rounded strokes with conventional letterforms,
+// and real weights — 400 for display sizes, 500 for headings under 28px (set in
+// globals.css). Variable, so every weight in between is one file.
+const lora = Lora({
+  variable: "--font-lora",
   style: ["normal", "italic"],
   subsets: ["latin"],
 });
@@ -35,7 +34,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${fraunces.variable} ${instrumentSans.variable} h-full`}
+      className={`${lora.variable} ${instrumentSans.variable} h-full`}
     >
       <body className="min-h-full flex flex-col bg-bg text-text font-sans">
         {/* apply the saved appearance before anything paints, the same way next-themes
