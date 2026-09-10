@@ -1,6 +1,6 @@
 import type { PersonColor } from './colors'
 import { av } from './people'
-import { pushDelete, pushEvent } from './remote'
+import { pushDelete, pushEvent, pushMessage } from './remote'
 import { currentAccount } from './session'
 import type { AccountKind } from './session'
 import {
@@ -26,9 +26,12 @@ export type Participant = {
   // they answer themselves, so the UI can say "marked going from your times"
   rsvpAuto?: boolean
   you?: boolean; host?: boolean; guest?: boolean
-  // a guest's opt-in at join: reminders now, and the cross-device claim (magic link)
-  // once the backend exists — never required to participate
+  // a guest's opt-in at join: reminders, and the cross-device claim by magic link —
+  // never required to participate
   email?: string
+  // set when the host invited them by email: a secret in their personal link, so
+  // opening it lands them already named. Possession of the link is the identity.
+  inviteToken?: string
 }
 export type EventPlace = { id: string; name: string; place: string; addedBy?: string } // addedBy: participant id who suggested it
 export type EventExpense = { id: string; label: string; amount: number; paidBy: string } // amount in whole dollars; paidBy: participant id
@@ -221,7 +224,7 @@ function slugify(s: string): string {
    and append 12 random characters, which is about 60 bits: not worth guessing at.
    Old events keep the ids they were born with; nothing here rewrites them. */
 const TOKEN_ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789' // no l/o/0/1 to misread aloud
-function linkToken(len = 12): string {
+export function linkToken(len = 12): string {
   const bytes = new Uint8Array(len)
   crypto.getRandomValues(bytes)
   // 256 is an exact multiple of the 32-character alphabet, so the modulo stays uniform
@@ -802,14 +805,11 @@ export function reopenEvent(id: string): void {
   // reopening changes what everyone agreed to, so it announces itself in the chat —
   // guests who saw "confirmed" find out why it reads "planning" again
   const host = ev?.participants.find((p) => p.host)
-  const note: ChatMessage | null = ev && host
-    ? { id: host.id, name: host.name, time: 'just now', at: Date.now(), text: 'Reopened the plan. RSVPs are cleared until it locks in again.', you: !!host.you }
-    : null
   patchEvent(id, {
     status: 'planning', confirmed: undefined, confirmedAt: undefined, reopenedAt: Date.now(),
     ...(participants ? { participants } : {}),
-    ...(note ? { messages: [...(ev!.messages ?? []), note] } : {}),
   })
+  if (ev && host) appendMessage(id, { id: host.id, name: host.name, time: 'just now', text: 'Reopened the plan. RSVPs are cleared until it locks in again.', you: !!host.you, system: true })
 }
 
 // seed the create wizard from an existing event: structure carries over, dates and
@@ -882,8 +882,62 @@ function guestFromEmail(email: string, i: number): Participant {
   const local = email.split('@')[0] || email
   const name = local.replace(/[._-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).trim() || email
   const initials = (name.split(' ').filter(Boolean).map((w) => w[0]).join('').slice(0, 2) || email[0] || 'G').toUpperCase()
-  return { id: `g:${email}`, initials, name, color: GUEST_COLORS[i % GUEST_COLORS.length], rsvp: 'pending', guest: true }
+  return { id: `g:${email}`, initials, name, color: GUEST_COLORS[i % GUEST_COLORS.length], rsvp: 'pending', guest: true, email, inviteToken: linkToken(16) }
 }
+
+/* ── one way to add a line to the discussion ──
+   Messages leave the event document here: the local copy is updated for the UI,
+   and the message goes to the cloud as its own row, so two people chatting at once
+   append instead of overwriting each other. Demo events keep it local. */
+export function appendMessage(eventId: string, msg: ChatMessage): ChatMessage {
+  const full: ChatMessage = { ...msg, mid: msg.mid ?? crypto.randomUUID(), at: msg.at ?? Date.now() }
+  const list = readAll()
+  const i = list.findIndex((e) => e.id === eventId)
+  if (i >= 0) {
+    list[i] = { ...list[i], messages: [...list[i].messages, full] }
+    writeAll(list)
+    pushMessage(eventId, full)
+  }
+  return full
+}
+
+/* ── identity continuity: one participant becomes another id ──
+   Used when an account takes over an entry that was made without one: the guest
+   who joined by name, the email invitee, the stubbed host of an event created
+   before signing in. Every reference in the document follows the id — marks,
+   votes, messages, suggested places — so nothing they did is lost or orphaned. */
+export function adoptParticipant(eventId: string, fromId: string, toId: string, as?: Partial<Participant>): void {
+  const ev = getEvent(eventId)
+  if (!ev || fromId === toId || ev.participants.some((p) => p.id === toId)) return
+  const swap = (id: string) => (id === fromId ? toId : id)
+  const availIv = ev.availIv
+    ? Object.fromEntries(Object.entries(ev.availIv).map(([day, byPid]) => [day, Object.fromEntries(Object.entries(byPid).map(([pid, ivs]) => [swap(pid), ivs]))]))
+    : ev.availIv
+  const avail = Object.fromEntries(Object.entries(ev.avail).map(([day, rows]) => [day, rows.map((cell) => cell.map(swap))]))
+  const votes = ev.votes ? Object.fromEntries(Object.entries(ev.votes).map(([place, ids]) => [place, ids.map(swap)])) : ev.votes
+  patchEvent(eventId, {
+    participants: ev.participants.map((p) => (p.id === fromId ? { ...p, ...as, id: toId, you: true, guest: undefined } : { ...p, you: undefined })),
+    availIv, avail, votes,
+    unavailableIds: ev.unavailableIds?.map(swap),
+    messages: ev.messages.map((m) => (m.id === fromId ? { ...m, id: toId } : m)),
+    location: { ...ev.location, places: ev.location.places.map((pl) => (pl.addedBy === fromId ? { ...pl, addedBy: toId } : pl)) },
+  })
+}
+
+/* An event this browser hosts but nobody owns: created before signing in, so its
+   host is the stub. Once a real account is here, the host becomes that account and
+   the row gains a host_id — the "adopt" left open at the end of the step 5 doc. */
+export function claimEvent(eventId: string): boolean {
+  const ev = getEvent(eventId)
+  const acc = currentAccount()
+  if (!ev || ev.demo || !acc.signedIn || !ev.hostedByYou) return false
+  const host = ev.participants.find((p) => p.host)
+  if (!host || host.id === acc.id || UUID_RE.test(host.id)) return false
+  adoptParticipant(eventId, host.id, acc.id, { name: acc.name, initials: initialsOf(acc.name), color: acc.color })
+  patchEvent(eventId, { hostName: acc.name, hostKind: acc.kind })
+  return true
+}
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /* ── guest sessions (share-link joins — a name is all it takes, no account) ──
    The join flow adds a participant and remembers, per event, that this browser acts
@@ -995,10 +1049,10 @@ export function addMeToEvent(id: string): Participant | null {
   return me
 }
 
-// `uid` is the identity the database issued for this guest (see identityForJoin).
-// When there is none — no backend, or anonymous sign-ins switched off — the old
-// device-local id is used instead, and everything still works on this browser.
-export function joinEvent(id: string, name: string, email?: string, uid?: string | null): Participant | null {
+// A guest joins under a device-local id: no account, nothing minted on the server.
+// Their claim to the entry is this browser (aline.me.<eventId>) and, if they gave
+// one, their email — proven by magic link when they return on another device.
+export function joinEvent(id: string, name: string, email?: string): Participant | null {
   const ev = getEvent(id)
   const clean = name.trim().replace(/\s+/g, ' ')
   if (!ev || !clean) return null
@@ -1008,8 +1062,8 @@ export function joinEvent(id: string, name: string, email?: string, uid?: string
   // participant (g:sam-2), which blocks impersonation by construction. Reclaiming an
   // identity across devices is what the email/magic-link layer is for (see roadmap).
   const base = `g:${slugify(clean)}`
-  let pid = uid ?? base
-  if (!uid) for (let n = 2; ev.participants.some((p) => p.id === pid); n++) pid = `${base}-${n}`
+  let pid = base
+  for (let n = 2; ev.participants.some((p) => p.id === pid); n++) pid = `${base}-${n}`
   const cleanEmail = email?.trim().toLowerCase()
   const guest: Participant = {
     id: pid, initials, name: clean, color: GUEST_COLORS[guestCount % GUEST_COLORS.length], rsvp: 'pending', guest: true,
@@ -1027,7 +1081,14 @@ export function joinEvent(id: string, name: string, email?: string, uid?: string
   }
   try { localStorage.setItem(meKey(id), pid) } catch { /* private mode */ }
   setGuestMode(id)
+  // visibility over gates: everyone in the chat sees who arrived
+  appendMessage(id, { id: pid, name: clean, time: 'now', text: 'joined the event', you: false, system: true })
   return guest
+}
+
+// the participant a personal invite link points at, if the token is real
+export function participantByInvite(ev: AppEvent, token: string): Participant | undefined {
+  return token ? ev.participants.find((p) => p.inviteToken === token) : undefined
 }
 
 /* ── create ── */

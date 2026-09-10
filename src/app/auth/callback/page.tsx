@@ -14,7 +14,11 @@ export default function AuthCallbackPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!backendOn) { router.replace('/home'); return }
+    // a magic link from an invite carries ?next=/events/<id>/join so the join page
+    // can finish what the email started; everything else lands on home
+    const raw = new URLSearchParams(window.location.search).get('next') ?? ''
+    const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/home'
+    if (!backendOn) { router.replace(next); return }
     let done = false
     // the browser client is configured to detect the code in the URL and exchange
     // it on load, so the session usually exists by the time this effect runs —
@@ -22,7 +26,7 @@ export default function AuthCallbackPage() {
     const finish = async () => {
       for (let i = 0; i < 20 && !done; i++) {
         const { data } = await supabase!.auth.getSession()
-        if (data.session) { router.replace('/home'); return }
+        if (data.session) { router.replace(next); return }
         await new Promise((r) => setTimeout(r, 150))
       }
       if (!done) setError('That sign-in link did not go through. Try again from the sign-in page.')

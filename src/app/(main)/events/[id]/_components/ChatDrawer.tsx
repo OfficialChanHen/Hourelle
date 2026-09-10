@@ -171,7 +171,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf }: ChatProps
         out.push({ kind: 'new', key: 'new' })
         broke = true
       }
-      const sameRun = !broke && !!prev && prev.id === m.id && prev.you === m.you
+      const sameRun = !broke && !!prev && !m.system && !prev.system && prev.id === m.id && prev.you === m.you
         && (m.at && prev.at ? m.at - prev.at < 5 * 60_000 : m.time === prev?.time)
       out.push({ kind: 'msg', m, key: `m-${i}`, first: !sameRun })
       prev = m
@@ -266,6 +266,15 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf }: ChatProps
               )
               const { m, first } = r
               const a = avatarOf(m.id)
+              // a line the app wrote ("Sam joined", "reopened the plan"): a quiet
+              // centered note, never a bubble, so it reads as the room, not a person
+              if (m.system) return (
+                <div key={r.key} className="mt-3 flex items-center justify-center gap-2 text-[11.5px] text-faint">
+                  <Avatar initials={a.initials} color={a.color} size={16} font={7.5} />
+                  <span><span className="font-semibold text-dim">{m.name}</span> {m.text}</span>
+                  <span>· {whenLabel(m, h24)}</span>
+                </div>
+              )
               return (
                 <div key={r.key} className={`cd-msg flex flex-col ${first ? 'mt-3.5 first:mt-1' : 'mt-1'} ${m.you ? 'items-end' : 'items-start'}`}>
                   {first && (

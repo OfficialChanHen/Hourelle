@@ -2,9 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, CalendarDays, Plus, Bell, User } from 'lucide-react'
+import { Home, CalendarDays, Plus, Bell, User, LayoutGrid, LogIn } from 'lucide-react'
 import { useNotificationCount } from '@/hooks/useNotificationCount'
-import { useGuestMode } from '@/hooks/useGuestMode'
+import { useAccess } from '@/hooks/useAccess'
 import { useIsIOS } from '@/hooks/useIsIOS'
 import { useHideOnScroll } from '@/hooks/useHideOnScroll'
 import { getEvent } from '@/lib/events'
@@ -23,12 +23,30 @@ export function MobileTabBar() {
   const pathname = usePathname()
   const notifCount = useNotificationCount()
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
-  const guestEventId = useGuestMode()
+  const { ready, guestEventId, visitor } = useAccess()
   const ios = useIsIOS()
   // reading compresses the bar, scrolling back up regrows it (the Reddit move)
   const compressed = useHideOnScroll()
   // two items, the raised create FAB, then two more
   const [left, right] = [ITEMS.slice(0, 2), ITEMS.slice(2)]
+
+  // a visitor's bar: the demos and the door in — and nothing at all until the
+  // browser knows who this is
+  if (!ready) return null
+  if (visitor) {
+    return (
+      <nav
+        className={`fixed inset-x-0 bottom-0 z-40 md:hidden ${ios ? 'liquid-glass' : 'border-t border-border bg-s0/95 backdrop-blur-md'}`}
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        aria-label="Primary"
+      >
+        <div className="mx-auto flex h-[64px] max-w-[560px] items-stretch">
+          <TabItem href="/demos" label="Demos" icon={LayoutGrid} active={pathname.startsWith('/demos') || pathname.startsWith('/events/')} />
+          <TabItem href="/auth/signin" label="Sign in" icon={LogIn} active={false} />
+        </div>
+      </nav>
+    )
+  }
 
   // iOS wears the native look: frosted glass, one flat row (create sits inline,
   // nothing pokes above the bar), shrinking as you scroll down and growing back up

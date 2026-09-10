@@ -49,7 +49,10 @@ export const avail: Record<string, string[][]> = {
 // ─── Chat ───
 // `at` (epoch ms) is the source of truth for when it was sent; `time` is the
 // display fallback for demo seeds and messages stored before timestamps existed
-export type ChatMessage = { id: string; name: string; time: string; text: string; you: boolean; at?: number }
+// id: who sent it (a participant id). mid: the message's own id, stable across devices
+// once messages live in their own table. system: a line the app wrote ("Sam joined"),
+// rendered as a quiet centered note instead of a bubble.
+export type ChatMessage = { id: string; name: string; time: string; text: string; you: boolean; at?: number; mid?: string; system?: boolean }
 export const messages: ChatMessage[] = [
   { id: 'SR', name: 'Sarah R', time: '2h ago', text: 'Can we avoid Thu Aug 27? Travel might be tricky that week', you: false },
   { id: 'KL', name: 'Kyle L', time: '1h ago', text: '+1. Wed Aug 26 looks strongest on the grid', you: false },

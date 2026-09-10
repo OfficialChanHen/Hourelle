@@ -5,7 +5,7 @@
 // When `backendOn` is false every function here is a silent no-op.
 
 import { supabase, backendOn } from './db'
-import type { AppEvent } from './events'
+import type { AppEvent, ChatMessage } from './events'
 
 // fired on window whenever the cloud changed the local cache, so any open page
 // can re-read if it wants live updates (roadmap step 7 wires the listeners)
@@ -48,8 +48,46 @@ export function pushEvent(ev: AppEvent): void {
   if (!backendOn) return
   void supabase!
     .from('events')
-    .upsert({ id: ev.id, data: ev, host_id: hostIdOf(ev) })
+    // messages travel as their own rows (see pushMessage), never inside the document —
+    // otherwise every save would carry the whole chat and overwrite everyone else's
+    .upsert({ id: ev.id, data: { ...ev, messages: [] }, host_id: hostIdOf(ev) })
     .then(({ error }) => { if (error) rejected('save', error.message) })
+}
+
+/* ── chat: one row per message ──
+   Appending a row cannot clobber anyone, which a whole-document write could. The
+   client mints the row id (mid) so the realtime echo of our own insert is recognised
+   and not shown twice. */
+type MessageRow = { id: string; event_id: string; participant_id: string; name: string; body: string; system: boolean; at: number }
+
+function rowToMessage(r: MessageRow): ChatMessage {
+  return { mid: r.id, id: r.participant_id, name: r.name, text: r.body, at: Number(r.at), time: '', you: false, system: r.system || undefined }
+}
+
+export function pushMessage(eventId: string, m: ChatMessage): void {
+  if (!backendOn) return
+  void supabase!
+    .from('messages')
+    .insert({ id: m.mid, event_id: eventId, participant_id: m.id, name: m.name, body: m.text, system: !!m.system, at: m.at ?? Date.now() })
+    .then(({ error }) => { if (error) rejected('message', error.message) })
+}
+
+// merge a batch of rows into the cached events, newest last, without duplicates
+function mergeMessages(list: AppEvent[], rows: MessageRow[]): AppEvent[] {
+  const byEvent = new Map<string, ChatMessage[]>()
+  for (const r of rows) {
+    const arr = byEvent.get(r.event_id) ?? []
+    arr.push(rowToMessage(r))
+    byEvent.set(r.event_id, arr)
+  }
+  return list.map((e) => {
+    const incoming = byEvent.get(e.id)
+    if (!incoming) return e
+    const have = new Set(e.messages.map((m) => m.mid).filter(Boolean))
+    const merged = [...e.messages, ...incoming.filter((m) => !have.has(m.mid))]
+    merged.sort((a, b) => (a.at ?? 0) - (b.at ?? 0))
+    return { ...e, messages: merged }
+  })
 }
 
 export function pushDelete(id: string): void {
@@ -64,18 +102,39 @@ export function pushDelete(id: string): void {
 /* ── pull: cloud → local cache, once per page load ──
    The cloud copy wins for any event it knows about; events that exist only on
    this device (created while offline or before the backend) get pushed up. */
+let pulledOnce = false
+/** Has the first pull of this visit finished (well or badly)? Pages that would
+ *  otherwise declare an event missing wait for this before deciding. */
+export function cloudSynced(): boolean {
+  return !backendOn || pulledOnce
+}
+
 export async function syncFromCloud(): Promise<void> {
   if (!backendOn) return
   const { data, error } = await supabase!.from('events').select('id, data')
-  if (error || !data) { if (error) console.warn('aline: pull failed', error.message); return }
+  if (error || !data) {
+    if (error) console.warn('aline: pull failed', error.message)
+    pulledOnce = true
+    window.dispatchEvent(new Event(EVENTS_SYNCED)) // let waiting pages stop waiting
+    return
+  }
+  pulledOnce = true
 
   const cloud = new Map(data.map((r) => [r.id as string, r.data as AppEvent]))
   const local = readCache()
-  const merged = local.map((e) => cloud.get(e.id) ?? e)
-  for (const [id, ev] of cloud) if (!local.some((e) => e.id === id)) merged.push(ev)
+  // the cloud document carries no chat; keep whatever this browser already holds,
+  // then lay the message rows over it
+  let merged = local.map((e) => { const c = cloud.get(e.id); return c ? { ...c, messages: e.messages } : e })
+  for (const [id, ev] of cloud) if (!local.some((e) => e.id === id)) merged.push({ ...ev, messages: [] })
+  const { data: rows } = await supabase!.from('messages').select('*').order('at', { ascending: true })
+  if (rows) merged = mergeMessages(merged, rows as MessageRow[])
   writeCache(merged, true)
 
-  for (const e of local) if (!cloud.has(e.id)) pushEvent(e)
+  // events this device made before the backend existed go up whole, chat included
+  for (const e of local) if (!cloud.has(e.id)) {
+    pushEvent(e)
+    for (const m of e.messages) pushMessage(e.id, { ...m, mid: m.mid ?? crypto.randomUUID() })
+  }
 }
 
 /* ── realtime: someone else's write lands in this browser's cache ──
@@ -94,9 +153,13 @@ export function startRealtime(): () => void {
       }
       const ev = (payload.new as { data: AppEvent }).data
       const i = list.findIndex((e) => e.id === ev.id)
-      if (i >= 0) list[i] = ev
-      else list.push(ev)
+      // the document arrives without its chat: keep the messages this browser has
+      if (i >= 0) list[i] = { ...ev, messages: list[i].messages }
+      else list.push({ ...ev, messages: [] })
       writeCache(list, true)
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+      writeCache(mergeMessages(readCache(), [payload.new as MessageRow]), true)
     })
     .subscribe()
   return () => { void supabase!.removeChannel(channel) }

@@ -1,6 +1,6 @@
 import { Header } from '@/components/Header'
 import { MobileTabBar } from '@/components/MobileTabBar'
-import { GuestBoundary } from '@/components/GuestBoundary'
+import { AccessBoundary } from '@/components/AccessBoundary'
 import { FlashToast } from '@/components/ui/FlashToast'
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -12,7 +12,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           redirect (delete, leave, create) lands wherever the visitor does */}
       <main className="relative flex-1">
         <FlashToast />
-        <GuestBoundary>{children}</GuestBoundary>
+        <AccessBoundary>{children}</AccessBoundary>
       </main>
       <MobileTabBar />
     </div>

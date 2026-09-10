@@ -17,8 +17,7 @@ export type Account = {
   color: PersonColor
   kind: AccountKind
   email?: string
-  signedIn: boolean   // a real account, with an email and a way back in
-  anonymous?: boolean // a guest session: a genuine uid, but no account behind it
+  signedIn: boolean
 }
 
 // the stubbed identity: what the app is when nobody has signed in
@@ -45,8 +44,7 @@ function writeCache(next: Account) {
   cached = next
   if (typeof window === 'undefined') return
   try {
-    // guests are cached too: their uid is the participant id their edits travel under
-    if (next.signedIn || next.anonymous) localStorage.setItem(CACHE_KEY, JSON.stringify(next))
+    if (next.signedIn) localStorage.setItem(CACHE_KEY, JSON.stringify(next))
     else localStorage.removeItem(CACHE_KEY)
   } catch { /* private mode */ }
   window.dispatchEvent(new Event(ACCOUNT_CHANGED))
@@ -60,7 +58,7 @@ export function currentAccount(): Account {
 /* ── the account behind a signed-in session ──
    auth.users holds the credentials; profiles holds the name and color the UI shows.
    One read of profiles turns a session into an Account. */
-async function accountFromSession(userId: string, email: string | undefined, anonymous: boolean): Promise<Account> {
+async function accountFromSession(userId: string, email: string | undefined): Promise<Account> {
   const { data } = await supabase!.from('profiles').select('name, color').eq('id', userId).single()
   return {
     id: userId,
@@ -68,10 +66,7 @@ async function accountFromSession(userId: string, email: string | undefined, ano
     color: (data?.color as PersonColor) ?? 'purple',
     kind: 'person',
     email,
-    // an anonymous session is a real identity to the database but not an account to
-    // the person holding it, so the UI keeps saying "not signed in"
-    signedIn: !anonymous,
-    anonymous,
+    signedIn: true,
   }
 }
 
@@ -83,12 +78,10 @@ export function startAuth(): () => void {
   if (!backendOn) return () => {}
   const { data } = supabase!.auth.onAuthStateChange((_event, session) => {
     if (!session?.user) {
-      const held = readCache()
-      if (held.signedIn || held.anonymous) writeCache(STUB)
+      if (readCache().signedIn) writeCache(STUB)
       return
     }
-    const anon = !!(session.user as { is_anonymous?: boolean }).is_anonymous
-    void accountFromSession(session.user.id, session.user.email ?? undefined, anon).then(writeCache)
+    void accountFromSession(session.user.id, session.user.email ?? undefined).then(writeCache)
   })
   return () => data.subscription.unsubscribe()
 }
@@ -125,26 +118,19 @@ export async function signInWithEmail(email: string, password: string): Promise<
   return error?.message ?? null
 }
 
-/* ── the identity a guest joins under ──
-   Step 6 of the roadmap: a guest's claim on a participant stops being a string in
-   their own localStorage and becomes a uid the database issued and can verify.
-   Signed-in visitors join as themselves; everyone else gets an anonymous session,
-   which is a real auth user (with a uid, a token, and a profile row) that simply
-   has no email or password behind it. Without a backend this returns null and the
-   caller falls back to the old device-local id. */
-export async function identityForJoin(name: string): Promise<string | null> {
-  if (!backendOn) return null
-  const held = currentAccount()
-  if (held.signedIn) return held.id // already someone: join as them, not as a stranger
-  const { data, error } = await supabase!.auth.signInAnonymously()
-  if (error || !data.user) {
-    // the likeliest cause is the provider being switched off in the dashboard
-    console.warn('aline: anonymous sign-in unavailable —', error?.message)
-    return null
-  }
-  // the trigger already made a profile; give it the name they just typed
-  await supabase!.from('profiles').update({ name: name.trim() }).eq('id', data.user.id)
-  return data.user.id
+/* ── the magic link: how a guest proves an email is theirs ──
+   A guest who gave an email can return on any device by proving they own it. The
+   link signs them in — passwordless, and creating the account if it is their first
+   time — and `next` brings them back to the invite, where the join page sees a
+   signed-in visitor whose email matches an entry and hands it over. Same wording
+   whether or not the address is known, so this reveals nothing about who joined. */
+export async function sendMagicLink(email: string, next: string): Promise<string | null> {
+  if (!backendOn) return 'Email links need a backend. Add your Supabase keys to .env.local.'
+  const { error } = await supabase!.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
+  })
+  return error?.message ?? null
 }
 
 /* Forgotten passwords. The email carries a recovery link; opening it signs the

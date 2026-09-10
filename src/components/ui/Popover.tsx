@@ -74,7 +74,7 @@ export function Popover({
       {open && (
         <div
           ref={panel}
-          className={`absolute top-full z-40 mt-1.5 max-w-[calc(100vw-16px)] rounded-[14px] border border-border bg-s1 p-1.5 shadow-soft ${align === 'end' ? 'right-0' : 'left-0'}`}
+          className={`absolute top-full z-30 mt-1.5 max-w-[calc(100vw-16px)] rounded-[14px] border border-border bg-s1 p-1.5 shadow-soft ${align === 'end' ? 'right-0' : 'left-0'}`}
           style={{ width, transformOrigin: align === 'end' ? 'top right' : 'top left' }}
         >
           {children(() => setOpen(false))}

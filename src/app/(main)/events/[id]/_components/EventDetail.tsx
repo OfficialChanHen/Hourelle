@@ -18,7 +18,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, leaveEvent, patchEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, leaveGuestSession, markMessagesSeen, maxPollDays, phaseOf, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
+import { getEvent, deleteEvent, leaveEvent, patchEvent, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, leaveGuestSession, markMessagesSeen, maxPollDays, phaseOf, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -99,6 +99,9 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   useEffect(() => {
     // viewOf: with a guest session this browser sees the event as that guest —
     // `you` markers on them, host powers off. Raw storage is untouched.
+    // an event this browser hosts but nobody owns, opened by a real account: it is
+    // yours now — the host entry takes your identity and the row gains a host_id
+    if (claimEvent(id)) pushFlash('This event is now on your account', 'accent')
     const raw = getEvent(id)
     const ev = raw ? viewOf(raw) : raw
     setEvent(ev)
@@ -213,14 +216,12 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   function sendMessage(text: string) {
     if (!event) return
     const sender = event.participants.find((p) => p.you)
-    const msg = { id: sender?.id ?? 'JM', name: sender?.guest ? sender.name : 'You', time: 'now', at: Date.now(), text, you: true }
-    if (!event.demo) {
-      // append to raw storage, not the view: stored `you` always means the stubbed
-      // account, so a guest's message carries only their id and viewOf remaps it
-      const raw = getEvent(event.id)
-      if (raw) patchEvent(event.id, { messages: [...raw.messages, { ...msg, you: !sender?.guest }] })
-    }
-    setEvent({ ...event, messages: [...event.messages, msg] })
+    if (!sender) return // nobody here is you — the grid's "Add me" is the way in
+    const msg = { id: sender.id, name: sender.name, time: 'now', at: Date.now(), text, you: true }
+    // stored `you` means the stubbed account; a guest's line carries only their id and
+    // viewOf remaps it. Messages go out as their own rows, so nobody's chat is overwritten.
+    const saved = event.demo ? msg : appendMessage(event.id, { ...msg, you: !sender.guest })
+    setEvent({ ...event, messages: [...event.messages, { ...saved, you: true }] })
   }
 
   return (
@@ -572,9 +573,23 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
     onPatch(removeParticipantPatch(event, p.id))
     close()
   }
+  // an email invitee has a link of their own: opening it lands them already named
+  const [linkCopied, setLinkCopied] = useState(false)
+  function copyPersonalLink() {
+    const url = `${window.location.origin}/events/${event.id}/join?invite=${p.inviteToken}`
+    navigator.clipboard?.writeText(url).then(() => { setLinkCopied(true); setTimeout(close, 900) }).catch(() => {})
+  }
   return (
     <>
       <PopoverTitle sub={p.name}>{locked ? 'Reply' : 'Mark'} for</PopoverTitle>
+      {p.guest && p.inviteToken && (
+        <>
+          <PopoverItem onClick={copyPersonalLink} icon={linkCopied ? <Check size={15} /> : <Link2 size={15} />}>
+            {linkCopied ? 'Link copied' : 'Copy their personal link'}
+          </PopoverItem>
+          <PopoverSep />
+        </>
+      )}
       {options.map((r) => (
         <PopoverItem
           key={r}

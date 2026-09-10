@@ -72,6 +72,7 @@ export default function SettingsPage() {
             <div className="text-[14px] font-medium">Theme</div>
             <div className="mt-0.5 text-[12.5px] text-dim">System follows your device.</div>
           </div>
+          {!ready && <span className="h-8 w-[196px] animate-pulse rounded-[9px] bg-s2" aria-hidden />}
           {ready && (
             <SegmentedControl
               size="sm"
@@ -92,6 +93,7 @@ export default function SettingsPage() {
           <div className="text-[14px] font-medium">Clock style</div>
           <div className="mt-0.5 text-[12.5px] text-dim">How times read on grids and pickers. 12-hour shows 2:30 PM, 24-hour shows 14:30.</div>
         </div>
+        {!ready && <span className="h-8 w-[150px] animate-pulse rounded-[9px] bg-s2" aria-hidden />}
         {ready && (
           <SegmentedControl
             size="sm"
@@ -110,6 +112,7 @@ export default function SettingsPage() {
               <div className="text-[14px] font-medium">{r.label}</div>
               <div className="mt-0.5 text-[12.5px] text-dim">{r.sub}</div>
             </div>
+            {!ready && <span className="h-6 w-11 animate-pulse rounded-full bg-s2" aria-hidden />}
             {ready && <Switch on={notify[r.key]} onChange={(v) => changeNotify({ [r.key]: v })} label={r.label} />}
           </div>
         ))}

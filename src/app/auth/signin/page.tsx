@@ -54,9 +54,9 @@ export default function SignInPage() {
   const [busy, setBusy] = useState<'google' | 'email' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null) // check your mail, in both senses
-  // a guest's way back is their event, not the (gated) home page
   const guestEventId = useGuestMode()
-  const backHref = guestEventId ? `/events/${guestEventId}` : '/home'
+  // a guest's way back is their event; everyone else came from the front door
+  const backHref = guestEventId ? `/events/${guestEventId}` : '/'
 
   useGSAP(() => {
     gsap.fromTo(root.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' })
