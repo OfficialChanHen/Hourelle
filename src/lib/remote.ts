@@ -182,11 +182,17 @@ export async function syncFromCloud(): Promise<void> {
   const events = () => supabase!.from('events').select('id, data')
   if (acc.signedIn) {
     asks.push(events().eq('host_id', acc.id))
-    asks.push(events().contains('data->participants', [{ id: acc.id }]))
-    if (acc.email) asks.push(events().contains('data->participants', [{ email: acc.email.toLowerCase() }]))
+    // jsonb containment (@>) on the participants array. The value has to be JSON text:
+    // handed a JS array, the client would write a Postgres array literal instead and
+    // the database answers "invalid input syntax for type json"
+    asks.push(events().filter('data->participants', 'cs', JSON.stringify([{ id: acc.id }])))
+    if (acc.email) asks.push(events().filter('data->participants', 'cs', JSON.stringify([{ email: acc.email.toLowerCase() }])))
   }
   if (guestIds.length) asks.push(events().in('id', guestIds))
   const results = await Promise.all(asks)
+  // the identity may have changed while the network was out — a sign-out mid-pull
+  // must not land the old account's events in the new cache
+  if (currentAccount().id !== acc.id) return
   const failed = results.find((r) => r.error)
   if (failed?.error) {
     console.warn('aline: pull failed', failed.error.message)
