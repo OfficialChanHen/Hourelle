@@ -36,13 +36,14 @@ export function Header() {
   // never drift. Until the browser knows who this is, the same bar minus the doors.
   if (visitor || !ready) return <VisitorHeader ready={ready} />
 
-  // a guest's header: the logo leads back to their event, then the theme (profile
-  // is gated) and the one action the rest of the app is asking for
+  // a guest's header: the logo goes to the front door like everyone else's (the
+  // tab bar and the event page itself are the way back to their event), then the
+  // theme (profile is gated) and the one action the rest of the app is asking for
   if (guestEventId) {
     return (
       <header className={chrome}>
         <div className="mx-auto flex h-[54px] max-w-[1240px] items-center gap-3 px-[22px]">
-          <Link href={`/events/${guestEventId}`} className="flex items-center gap-[9px]">
+          <Link href="/" className="flex items-center gap-[9px]">
             <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-accent text-on-accent">
               <CalendarDays size={17} />
             </span>
