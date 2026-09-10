@@ -1,6 +1,6 @@
 import type { PersonColor } from './colors'
 import { av } from './people'
-import { pushDelete, pushEvent, pushMessage } from './remote'
+import { isMine, pushDelete, pushEvent, pushMessage } from './remote'
 import { currentAccount } from './session'
 import type { AccountKind } from './session'
 import {
@@ -181,8 +181,30 @@ function writeAll(list: AppEvent[]) {
 }
 
 export function listEvents(): AppEvent[] {
-  // real events only — the built-in demos live on /demos, not mixed into your lists
-  return readAll().sort((a, b) => b.createdAt - a.createdAt)
+  // real events only — the built-in demos live on /demos, not mixed into your lists —
+  // and only the ones this identity is part of (see isMine): the cache can hold
+  // more than that for a moment around sign-in and sign-out
+  return readAll().filter(isMine).sort((a, b) => b.createdAt - a.createdAt)
+}
+
+/* ── your earlier answers find you ──
+   Someone who joined events by name and email, then made an account with that
+   email, should find those events waiting — with their marks, votes and messages
+   as theirs. Each matching guest entry is adopted into the account id. Runs after
+   every pull and every sign-in; a no-op once everything is adopted. */
+export function adoptMine(): number {
+  const acc = currentAccount()
+  const email = acc.email?.toLowerCase()
+  if (!acc.signedIn || !email) return 0
+  let n = 0
+  for (const ev of readAll()) {
+    if (ev.participants.some((p) => p.id === acc.id)) continue
+    const mine = ev.participants.find((p) => p.guest && p.email?.toLowerCase() === email)
+    if (!mine) continue
+    adoptParticipant(ev.id, mine.id, acc.id, { name: acc.name, initials: initialsOf(acc.name), color: acc.color })
+    n++
+  }
+  return n
 }
 
 // the built-in example events, for the /demos shelf. A demo someone joined has a
@@ -878,7 +900,8 @@ export function respondedCount(avail: Record<string, string[][]>, unavailableIds
 
 /* ── guests from emails ── */
 const GUEST_COLORS: PersonColor[] = ['coral', 'blue', 'amber', 'pink', 'green', 'gray', 'teal', 'purple']
-function guestFromEmail(email: string, i: number): Participant {
+function guestFromEmail(raw: string, i: number): Participant {
+  const email = raw.trim().toLowerCase() // the key everything later matches on
   const local = email.split('@')[0] || email
   const name = local.replace(/[._-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).trim() || email
   const initials = (name.split(' ').filter(Boolean).map((w) => w[0]).join('').slice(0, 2) || email[0] || 'G').toUpperCase()
@@ -1018,14 +1041,29 @@ export function viewOf(ev: AppEvent): AppEvent {
   // made before signing in (and the demos) carry it on the stubbed person, and
   // following it would let you edit their availability and vote as them. You are
   // only "you" where a participant actually carries your account id.
+  // a demo is a finished plan to walk through, not to change: nobody is "you" in
+  // it and nobody hosts it, so every control that writes stays hidden
+  if (ev.demo) {
+    return {
+      ...ev,
+      hostedByYou: false,
+      participants: ev.participants.map((p) => (p.you ? { ...p, you: undefined } : p)),
+      messages: ev.messages.map((m) => (m.you ? { ...m, you: false } : m)),
+    }
+  }
   const acc = currentAccount()
-  if (!acc.signedIn || ev.demo) return ev // the stub and the samples keep the stored markers
-  if (ev.participants.some((p) => p.id === acc.id)) return ev
+  if (!acc.signedIn) return ev // the stub keeps the stored markers
+  // `hostedByYou` was written by whichever browser created the event; once documents
+  // travel between accounts it has to be read off the roster instead. An owner with
+  // a real account id is the host only in their own browser; the stub host of an
+  // ownerless event keeps the stored flag (claimEvent turns that into ownership).
+  const host = ev.participants.find((p) => p.host)
+  const hostIsAccount = !!host && UUID_RE.test(host.id)
+  const hostedByYou = hostIsAccount ? host!.id === acc.id : ev.hostedByYou
+  if (ev.participants.some((p) => p.id === acc.id)) return hostedByYou === ev.hostedByYou ? ev : { ...ev, hostedByYou }
   return {
     ...ev,
-    // hostedByYou is deliberately left alone: this browser may still host an event
-    // it created before signing in. You keep the host's controls, you are just not
-    // one of the people being counted.
+    hostedByYou,
     participants: ev.participants.map((p) => (p.you ? { ...p, you: undefined } : p)),
     messages: ev.messages.map((m) => (m.you ? { ...m, you: false } : m)),
   }

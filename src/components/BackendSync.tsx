@@ -6,8 +6,9 @@
 // configured both calls are no-ops and this component does nothing at all.
 
 import { useEffect } from 'react'
-import { startRealtime, syncFromCloud } from '@/lib/remote'
-import { startAuth } from '@/lib/session'
+import { EVENTS_SYNCED, forgetCloudEvents, startRealtime, syncFromCloud } from '@/lib/remote'
+import { ACCOUNT_CHANGED, currentAccount, startAuth } from '@/lib/session'
+import { adoptMine } from '@/lib/events'
 import { SyncNotice } from './SyncNotice'
 
 export function BackendSync() {
@@ -17,7 +18,26 @@ export function BackendSync() {
     // one auth subscription for the visit: it fires on sign-in, sign-out, token
     // refresh, and once at startup with whatever session was restored from storage
     const stopAuth = startAuth()
-    return () => { stopRealtime(); stopAuth() }
+    // the identity decides which events are pulled, so a change in identity pulls
+    // again: signing in brings the account's events, signing out takes them away
+    let lastId = currentAccount().id
+    const onAccount = () => {
+      const acc = currentAccount()
+      if (acc.id === lastId) return
+      lastId = acc.id
+      if (acc.signedIn) void syncFromCloud()
+      else forgetCloudEvents()
+    }
+    // after every pull, guest entries made with the account's email become the
+    // account's — how events answered before sign-up follow the person in
+    const onSynced = () => { adoptMine() }
+    window.addEventListener(ACCOUNT_CHANGED, onAccount)
+    window.addEventListener(EVENTS_SYNCED, onSynced)
+    return () => {
+      stopRealtime(); stopAuth()
+      window.removeEventListener(ACCOUNT_CHANGED, onAccount)
+      window.removeEventListener(EVENTS_SYNCED, onSynced)
+    }
   }, [])
   // the only thing this component ever draws: a refused write, when one happens
   return <SyncNotice />

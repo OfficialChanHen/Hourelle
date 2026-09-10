@@ -41,12 +41,13 @@ function whenLabel(m: ChatMessage, h24: boolean): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose }: {
+export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readOnly = false }: {
   event: AppEvent
   messages: ChatMessage[]
   unreadFrom?: number // index of the first message that arrived since the drawer was last open
   onSend: (text: string) => void
   onClose: () => void
+  readOnly?: boolean // a demo, or nobody here is you: the room can be read, not written
 }) {
   const root = useRef<HTMLDivElement>(null)
   const sheet = useRef<HTMLDivElement>(null)
@@ -105,7 +106,7 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose }: {
     const p = pById.get(id)
     return { initials: p?.initials ?? id, name: p?.name ?? id, color: p?.color ?? ('gray' as Participant['color']) }
   }
-  const body = <ChatBody messages={messages} unreadFrom={unreadFrom} onSend={onSend} onClose={close} avatarOf={avatarOf} />
+  const body = <ChatBody messages={messages} unreadFrom={unreadFrom} onSend={onSend} onClose={close} avatarOf={avatarOf} readOnly={readOnly} />
 
   return (
     <div ref={root} className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Event discussion">
@@ -140,6 +141,7 @@ type ChatProps = {
   messages: ChatMessage[]; unreadFrom?: number
   onSend: (t: string) => void; onClose: () => void
   avatarOf: (id: string) => { initials: string; name: string; color: Participant['color'] }
+  readOnly: boolean
 }
 
 type Row =
@@ -148,7 +150,7 @@ type Row =
   | { kind: 'msg'; m: ChatMessage; key: string; first: boolean } // first: opens a sender run, so it wears the header
 
 // header + messages + composer, shared by the drawer and the sheet
-function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf }: ChatProps) {
+function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly }: ChatProps) {
   const zone = useRef<HTMLDivElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const ta = useRef<HTMLTextAreaElement>(null)
@@ -309,6 +311,11 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf }: ChatProps
         )}
       </div>
 
+      {readOnly ? (
+        <div className="flex-none border-t border-border px-4 py-3.5 text-[12.5px] leading-[1.5] text-faint">
+          This is a demo, so the chat is read only. Create an event to talk with your own people.
+        </div>
+      ) : (
       <div className="flex flex-none items-end gap-2 border-t border-border p-[11px]">
         <textarea
           ref={ta}
@@ -331,6 +338,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf }: ChatProps
           <Send size={16} />
         </button>
       </div>
+      )}
     </div>
   )
 }

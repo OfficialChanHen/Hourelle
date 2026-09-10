@@ -416,3 +416,10 @@ input[type="date"]::-webkit-date-and-time-value {
 .upnext-swiper .swiper-pagination-bullet-active {
   background: var(--accent);
 }
+
+/* theme-paired imagery (the landing page's product shots): one for each theme,
+   the other stays out of the document flow entirely */
+.only-dark { display: none; }
+[data-theme="dark"] .only-dark { display: block; }
+[data-theme="dark"] .only-light { display: none; }
+

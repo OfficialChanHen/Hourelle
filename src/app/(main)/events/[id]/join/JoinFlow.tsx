@@ -65,6 +65,8 @@ export function JoinFlow({ id }: { id: string }) {
     // until then keep the skeleton rather than declaring the invite broken
     if (!ev && !cloudSynced()) return
     if (!ev) { setEvent(null); return }
+    // demos are read only for everyone — nothing to join, just look
+    if (ev.demo) { go(); return }
 
     // already joined on this browser → straight in, as that guest
     const gid = guestSessionId(id)

@@ -68,7 +68,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   const votingClosed = deadlineDu !== null && deadlineDu < 0
   // a set venue is a fact the host stated — no voting, no guest suggestions
   const settled = mode === 'set'
-  const canAddPlaces = !locked && !votingClosed && (event.hostedByYou || (guestsCanSuggest && !settled))
+  const canAddPlaces = !locked && !votingClosed && !!YOU && (event.hostedByYou || (guestsCanSuggest && !settled))
   const pById = new Map(event.participants.map((p) => [p.id, p]))
   const avatarOf = (id: string) => {
     const p = pById.get(id)
@@ -113,7 +113,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   function changeMode(m: AppEvent['location']['mode']) { setMode(m); persistLoc({ mode: m }) }
   function changeLink(v: string) { setMeetingLink(v); persistLoc({ meetingLink: v }) }
   function addPlace(p: EventPlace) {
-    if (places.some((x) => x.id === p.id)) return
+    if (!YOU || places.some((x) => x.id === p.id)) return
     // a set venue is singular — picking another swaps it out (same as the wizard);
     // on a ballot, new places join the list. addedBy remembers who suggested it.
     const entry = { ...p, addedBy: p.addedBy ?? YOU }

@@ -371,7 +371,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         </button>
       )}
 
-      {chatOpen && <ChatDrawer event={event} messages={event.messages} unreadFrom={unreadMark} onSend={sendMessage} onClose={() => setChatOpen(false)} />}
+      {chatOpen && <ChatDrawer event={event} messages={event.messages} unreadFrom={unreadMark} onSend={sendMessage} onClose={() => setChatOpen(false)} readOnly={!!event.demo} />}
     </div>
   )
 }

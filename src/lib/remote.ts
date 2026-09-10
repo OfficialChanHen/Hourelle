@@ -5,6 +5,7 @@
 // When `backendOn` is false every function here is a silent no-op.
 
 import { supabase, backendOn } from './db'
+import { currentAccount } from './session'
 import type { AppEvent, ChatMessage } from './events'
 
 // fired on window whenever the cloud changed the local cache, so any open page
@@ -99,7 +100,33 @@ export function pushDelete(id: string): void {
     .then(({ error }) => { if (error) rejected('delete', error.message) })
 }
 
-/* ── pull: cloud → local cache, once per page load ──
+/* ── whose events are these ──
+   Reads are open at the database (the link is the permission), so scoping has to
+   happen here: only events this identity is part of are pulled, listed, or accepted
+   from realtime. "Part of" means: host, a participant by account id, a participant
+   by the email the account signed up with (a guest entry made before the account
+   existed — this is how those events follow you in), or an event this browser
+   holds a guest session for. Without a backend the browser owns everything in it. */
+const GUEST_KEY_PREFIX = 'aline.me.'
+export function guestSessionEventIds(): string[] {
+  if (typeof window === 'undefined') return []
+  try {
+    return Object.keys(localStorage).filter((k) => k.startsWith(GUEST_KEY_PREFIX)).map((k) => k.slice(GUEST_KEY_PREFIX.length))
+  } catch { return [] }
+}
+export function isMine(ev: AppEvent): boolean {
+  if (!backendOn) return true
+  try {
+    const gid = localStorage.getItem(GUEST_KEY_PREFIX + ev.id)
+    if (gid && ev.participants.some((p) => p.id === gid)) return true
+  } catch { /* private mode */ }
+  const acc = currentAccount()
+  if (!acc.signedIn) return false
+  const email = acc.email?.toLowerCase()
+  return ev.participants.some((p) => p.id === acc.id || (!!email && p.email?.toLowerCase() === email))
+}
+
+/* ── pull: cloud → local cache, once per page load and again on every sign-in ──
    The cloud copy wins for any event it knows about; events that exist only on
    this device (created while offline or before the backend) get pushed up. */
 let pulledOnce = false
@@ -111,23 +138,41 @@ export function cloudSynced(): boolean {
 
 export async function syncFromCloud(): Promise<void> {
   if (!backendOn) return
-  const { data, error } = await supabase!.from('events').select('id, data')
-  if (error || !data) {
-    if (error) console.warn('aline: pull failed', error.message)
+  const acc = currentAccount()
+  const guestIds = guestSessionEventIds()
+  type Row = { id: string; data: AppEvent }
+  // four narrow questions instead of "everything": mine as host, mine by account
+  // id, mine by email, and the events this browser joined as a guest
+  const asks: PromiseLike<{ data: Row[] | null; error: { message: string } | null }>[] = []
+  const events = () => supabase!.from('events').select('id, data')
+  if (acc.signedIn) {
+    asks.push(events().eq('host_id', acc.id))
+    asks.push(events().contains('data->participants', [{ id: acc.id }]))
+    if (acc.email) asks.push(events().contains('data->participants', [{ email: acc.email.toLowerCase() }]))
+  }
+  if (guestIds.length) asks.push(events().in('id', guestIds))
+  const results = await Promise.all(asks)
+  const failed = results.find((r) => r.error)
+  if (failed?.error) {
+    console.warn('aline: pull failed', failed.error.message)
     pulledOnce = true
     window.dispatchEvent(new Event(EVENTS_SYNCED)) // let waiting pages stop waiting
     return
   }
   pulledOnce = true
 
-  const cloud = new Map(data.map((r) => [r.id as string, r.data as AppEvent]))
+  const cloud = new Map<string, AppEvent>()
+  for (const r of results) for (const row of r.data ?? []) cloud.set(row.id, row.data)
   const local = readCache()
   // the cloud document carries no chat; keep whatever this browser already holds,
   // then lay the message rows over it
   let merged = local.map((e) => { const c = cloud.get(e.id); return c ? { ...c, messages: e.messages } : e })
   for (const [id, ev] of cloud) if (!local.some((e) => e.id === id)) merged.push({ ...ev, messages: [] })
-  const { data: rows } = await supabase!.from('messages').select('*').order('at', { ascending: true })
-  if (rows) merged = mergeMessages(merged, rows as MessageRow[])
+  const ids = merged.map((e) => e.id)
+  if (ids.length) {
+    const { data: rows } = await supabase!.from('messages').select('*').in('event_id', ids).order('at', { ascending: true })
+    if (rows) merged = mergeMessages(merged, rows as MessageRow[])
+  }
   writeCache(merged, true)
 
   // events this device made before the backend existed go up whole, chat included
@@ -153,14 +198,30 @@ export function startRealtime(): () => void {
       }
       const ev = (payload.new as { data: AppEvent }).data
       const i = list.findIndex((e) => e.id === ev.id)
-      // the document arrives without its chat: keep the messages this browser has
+      // the document arrives without its chat: keep the messages this browser has.
+      // Reads are open, so the channel carries everyone's events — only the ones
+      // already here, or that belong to this identity, are allowed into the cache
       if (i >= 0) list[i] = { ...ev, messages: list[i].messages }
-      else list.push({ ...ev, messages: [] })
+      else if (isMine(ev)) list.push({ ...ev, messages: [] })
+      else return
       writeCache(list, true)
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-      writeCache(mergeMessages(readCache(), [payload.new as MessageRow]), true)
+      const row = payload.new as MessageRow
+      const list = readCache()
+      if (!list.some((e) => e.id === row.event_id)) return // not a room this browser is in
+      writeCache(mergeMessages(list, [row]), true)
     })
     .subscribe()
   return () => { void supabase!.removeChannel(channel) }
+}
+
+/* ── sign-out: the account's events leave with it ──
+   Everything pulled for the account is dropped; only events this browser joined
+   as a guest stay, since those were never the account's to begin with. Without
+   this, the next person at the keyboard would find the last one's plans. */
+export function forgetCloudEvents(): void {
+  if (!backendOn) return
+  const keep = new Set(guestSessionEventIds())
+  writeCache(readCache().filter((e) => keep.has(e.id)), true)
 }

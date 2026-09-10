@@ -1,101 +1,283 @@
 'use client'
 
-// The front door. Signed in, it is just a hallway to /home; for everyone else it
-// says what Aline is and offers the two ways in — an account, or the demos.
-// Outside the (main) layout on purpose: no app chrome, the page is the pitch.
+// The front door. Signed in, it is a hallway to /home. For everyone else it is
+// the pitch, top to bottom: what Aline is, how a plan comes together, what each
+// part looks like, three demos to try, and the two ways in. Outside the (main)
+// layout on purpose — no app chrome, this page sells rather than serves.
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { gsap } from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useGSAP } from '@gsap/react'
-import { ArrowRight, CalendarDays, CalendarRange, MapPin, MessageCircle, Users } from 'lucide-react'
+import { ArrowRight, CalendarDays, CalendarRange, Link2, Lock, MapPin, MessageCircle, Users, Vote } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { Cover } from '@/components/ui/Cover'
+import { coverFor } from '@/components/ui/StoredEventCard'
 import { useAccess } from '@/hooks/useAccess'
+import { listDemos, type AppEvent } from '@/lib/events'
 
-const PILLARS = [
-  { icon: CalendarRange, title: 'Find the day', body: 'Everyone marks when they are free. The best window shows itself.' },
-  { icon: MapPin, title: 'Pick the place', body: 'Suggest spots on a map, vote, or build a route with stops.' },
-  { icon: Users, title: 'Know who is coming', body: 'RSVPs, who arrives late, and the headcount at every stop.' },
-  { icon: MessageCircle, title: 'Talk it over', body: 'One chat per event, with the people who are actually in it.' },
+gsap.registerPlugin(ScrollTrigger)
+
+const STEPS = [
+  { icon: CalendarRange, title: 'Name the plan', body: 'A title and a stretch of days. Thirty seconds, no settings to get right first.' },
+  { icon: Link2, title: 'Share one link', body: 'Send it anywhere. Whoever opens it adds their name and they are in, no account needed.' },
+  { icon: Vote, title: 'Everyone answers', body: 'People mark when they are free, suggest places, vote, and say if they are coming.' },
+  { icon: Lock, title: 'Lock it in', body: 'The best window shows itself. One tap makes it the plan, and everyone gets the details.' },
 ]
+
+const FEATURES = [
+  {
+    eyebrow: 'When',
+    title: 'See the day everyone can make.',
+    body: 'Drag across the times you are free. The grid turns green where people overlap, and the best window is worked out for you, in every timezone at the table.',
+    points: ['Minute-precise edges, not just half-hour boxes', 'Day polls for trips and weekends', 'Import free time from your calendar in one tap'],
+    img: '/landing/availability-light.png', dark: '/landing/availability-dark.png', alt: 'The availability grid with the best window highlighted',
+  },
+  {
+    eyebrow: 'Where',
+    title: 'Pick the place together.',
+    body: 'Suggest spots on a map and vote. For a whole day out, chain the winners into a route with stops and travel time between them.',
+    points: ['One vote or several, your call as host', 'A route that knows how long each leg takes', 'Remote events get a link instead of a pin'],
+    img: '/landing/location-light.png', alt: 'The location tab with a map, a ballot, and an itinerary',
+  },
+  {
+    eyebrow: 'Who',
+    title: 'Know who is coming, and talk it over.',
+    body: 'RSVPs, who arrives late, and the headcount at every stop. One chat per event, with the people who are actually in it.',
+    points: ['Going, maybe, and not yet, at a glance', 'A quiet note in the chat when someone joins', 'Nothing to install, and it works on any phone'],
+    img: '/landing/chat-light.png', alt: 'The event discussion drawer open beside the plan',
+  },
+]
+
+const DEMO_PICKS: Record<string, string> = {
+  'q3-offsite': 'Eight people, a week of options, and votes turned into a three-stop route.',
+  'cabin-trip': 'A day poll for a long weekend, where whole days are the question.',
+  'trivia-night-anchor': 'A fixed date and place. The only question left is who is in.',
+}
 
 export default function Landing() {
   const router = useRouter()
   const { ready, signedIn } = useAccess()
   const root = useRef<HTMLDivElement>(null)
+  const [demos, setDemos] = useState<AppEvent[]>([])
 
   // an account has a home; this page is for people who do not have one yet
   useEffect(() => { if (ready && signedIn) router.replace('/home') }, [ready, signedIn, router])
+  useEffect(() => { setDemos(listDemos().filter((d) => d.id in DEMO_PICKS)) }, [])
 
   useGSAP(() => {
     if (!ready || signedIn) return
-    gsap.timeline()
-      .fromTo('.ld-hero > *', { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.07, ease: 'power3.out' })
-      .fromTo('.ld-pillar', { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, stagger: 0.06, ease: 'power2.out' }, '-=0.2')
+    const mm = gsap.matchMedia()
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      // the hero settles in as one gesture
+      gsap.timeline()
+        .fromTo('.ld-hero > *', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.55, stagger: 0.07, ease: 'power3.out' })
+        .fromTo('.ld-shot', { opacity: 0, y: 28, scale: 0.985 }, { opacity: 1, y: 0, scale: 1, duration: 0.8, ease: 'power3.out' }, '-=0.35')
+      // the product shot drifts against the scroll — the one parallax on the page
+      gsap.to('.ld-shot-inner', { yPercent: -7, ease: 'none', scrollTrigger: { trigger: '.ld-shot', start: 'top bottom', end: 'bottom top', scrub: 0.6 } })
+      // everything below the fold rises into place as it arrives
+      gsap.utils.toArray<HTMLElement>('.ld-reveal').forEach((el) => {
+        gsap.from(el, { opacity: 0, y: 26, duration: 0.7, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 86%', once: true } })
+      })
+      gsap.utils.toArray<HTMLElement>('.ld-stagger').forEach((group) => {
+        gsap.from(group.children, { opacity: 0, y: 18, duration: 0.55, stagger: 0.08, ease: 'power2.out', scrollTrigger: { trigger: group, start: 'top 84%', once: true } })
+      })
+      // feature shots move a touch slower than the page, in alternating directions
+      gsap.utils.toArray<HTMLElement>('.ld-feature-img').forEach((el, i) => {
+        gsap.fromTo(el, { yPercent: i % 2 ? -4 : 4 }, { yPercent: i % 2 ? 4 : -4, ease: 'none', scrollTrigger: { trigger: el, start: 'top bottom', end: 'bottom top', scrub: 0.8 } })
+      })
+    })
+    return () => mm.revert()
   }, { scope: root, dependencies: [ready, signedIn] })
 
   if (!ready || signedIn) return <div className="min-h-dvh bg-bg" />
 
+  const frame = 'overflow-hidden rounded-2xl border border-border bg-s1 shadow-soft'
+
   return (
     <div ref={root} className="flex min-h-dvh flex-col">
-      <header className="mx-auto flex h-[64px] w-full max-w-[1100px] items-center px-6">
-        <Link href="/" className="flex items-center gap-[9px]">
-          <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-accent text-on-accent">
-            <CalendarDays size={17} />
-          </span>
-          <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Aline</span>
-        </Link>
-        <div className="flex-1" />
-        <nav className="flex items-center gap-2">
-          <Link href="/demos" className="hidden h-[34px] items-center rounded-[9px] px-[13px] text-[14px] font-medium text-dim hover:bg-s3 hover:text-text sm:flex">
-            Demos
+      <header className="sticky top-0 z-40 border-b border-border/70 bg-bg/85 backdrop-blur-md">
+        <div className="mx-auto flex h-[60px] w-full max-w-[1100px] items-center px-6">
+          <Link href="/" className="flex items-center gap-[9px]">
+            <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-accent text-on-accent">
+              <CalendarDays size={17} />
+            </span>
+            <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Aline</span>
           </Link>
-          <ThemeToggle />
-          <Link href="/auth/signin" className="flex h-[34px] items-center rounded-[9px] border border-border2 bg-s1 px-[14px] text-[14px] font-semibold hover:bg-s2">
-            Sign in
-          </Link>
-        </nav>
-      </header>
-
-      <main className="mx-auto w-full max-w-[1100px] flex-1 px-6 pb-16 pt-10 sm:pt-16">
-        <div className="ld-hero max-w-[680px]">
-          <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">Plans, settled</p>
-          <h1 className="mt-3 font-serif text-[44px] leading-[1.02] tracking-[-0.015em] sm:text-[60px]">
-            Find the day everyone can make.
-          </h1>
-          <p className="mt-5 max-w-[540px] text-[16px] leading-[1.6] text-dim sm:text-[17px]">
-            One link for the whole plan. People mark when they are free, vote on where to go, say if they are coming, and talk it over. No app to install, and your guests never need an account.
-          </p>
-          <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
-            <Link href="/auth/signin" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-accent px-6 text-[15px] font-semibold text-on-accent">
-              Create an account <ArrowRight size={16} />
+          <nav className="ml-8 hidden items-center gap-1 text-[13.5px] font-medium text-dim md:flex">
+            <a href="#how" className="rounded-[8px] px-3 py-1.5 hover:bg-s3 hover:text-text">How it works</a>
+            <a href="#features" className="rounded-[8px] px-3 py-1.5 hover:bg-s3 hover:text-text">What it does</a>
+            <a href="#demos" className="rounded-[8px] px-3 py-1.5 hover:bg-s3 hover:text-text">Demos</a>
+          </nav>
+          <div className="flex-1" />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link href="/auth/signin" className="hidden h-[34px] items-center rounded-[9px] px-[13px] text-[14px] font-medium text-dim hover:bg-s3 hover:text-text sm:flex">
+              Sign in
             </Link>
-            <Link href="/demos" className="flex h-12 items-center justify-center rounded-[11px] border border-border2 bg-s1 px-6 text-[15px] font-semibold text-dim hover:bg-s2 hover:text-text">
-              Try a demo first
+            <Link href="/auth/signin" className="flex h-[34px] items-center rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent">
+              Create an account
             </Link>
           </div>
-          <p className="mt-4 text-[12.5px] text-faint">Invited to something? Open the link you were sent. That is all it takes.</p>
         </div>
+      </header>
 
-        <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {PILLARS.map(({ icon: Icon, title, body }) => (
-            <div key={title} className="ld-pillar rounded-2xl border border-border bg-s1 p-5">
-              <span className="grid h-9 w-9 place-items-center rounded-[10px] border border-accent-border bg-accent-bg text-accent-text">
-                <Icon size={17} />
-              </span>
-              <p className="mt-4 font-serif text-[21px] leading-tight tracking-[-0.01em]">{title}</p>
-              <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">{body}</p>
+      <main className="flex-1">
+        {/* ── hero ── */}
+        <section className="mx-auto w-full max-w-[1100px] px-6 pb-8 pt-12 sm:pt-20">
+          <div className="ld-hero max-w-[720px]">
+            <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">Plans, settled</p>
+            <h1 className="mt-3 font-serif text-[46px] leading-[1.0] tracking-[-0.015em] sm:text-[66px]">
+              Find the day everyone can make.
+            </h1>
+            <p className="mt-5 max-w-[560px] text-[16px] leading-[1.6] text-dim sm:text-[17.5px]">
+              One link for the whole plan. People mark when they are free, vote on where to go, say if they are coming, and talk it over. No app to install, and your guests never need an account.
+            </p>
+            <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+              <Link href="/auth/signin" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-accent px-6 text-[15px] font-semibold text-on-accent">
+                Create an account <ArrowRight size={16} />
+              </Link>
+              <Link href="/demos" className="flex h-12 items-center justify-center rounded-[11px] border border-border2 bg-s1 px-6 text-[15px] font-semibold text-dim hover:bg-s2 hover:text-text">
+                Try a demo first
+              </Link>
             </div>
-          ))}
-        </div>
+            <p className="mt-4 text-[12.5px] text-faint">Invited to something? Open the link you were sent. That is all it takes.</p>
+          </div>
+
+          <div className={`ld-shot mt-12 ${frame}`}>
+            <div className="ld-shot-inner">
+              <img src="/landing/availability-light.png" width={1280} height={860} alt="The availability grid: a week of days, everyone's free time layered into a green heat map" className="only-light block w-full" />
+              <img src="/landing/availability-dark.png" width={1280} height={860} alt="" aria-hidden className="only-dark w-full" />
+            </div>
+          </div>
+        </section>
+
+        {/* ── how it works ── */}
+        <section id="how" className="mx-auto w-full max-w-[1100px] scroll-mt-20 px-6 pb-8 pt-20 sm:pt-28">
+          <div className="ld-reveal max-w-[560px]">
+            <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-accent-text">How it works</p>
+            <h2 className="mt-2.5 font-serif text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">Four steps, and most of them are other people&apos;s.</h2>
+          </div>
+          <ol className="ld-stagger mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {STEPS.map(({ icon: Icon, title, body }, i) => (
+              <li key={title} className="rounded-2xl border border-border bg-s1 p-5">
+                <div className="flex items-center justify-between">
+                  <span className="grid h-9 w-9 place-items-center rounded-[10px] border border-accent-border bg-accent-bg text-accent-text">
+                    <Icon size={17} />
+                  </span>
+                  <span className="font-serif text-[30px] leading-none text-faint">{i + 1}</span>
+                </div>
+                <p className="mt-4 font-serif text-[22px] leading-tight tracking-[-0.01em]">{title}</p>
+                <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">{body}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        {/* ── features, alternating ── */}
+        <section id="features" className="mx-auto w-full max-w-[1100px] scroll-mt-20 px-6 pt-20 sm:pt-28">
+          <div className="ld-reveal max-w-[560px]">
+            <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-accent-text">What it does</p>
+            <h2 className="mt-2.5 font-serif text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">The whole plan, in one place.</h2>
+          </div>
+          <div className="mt-6 flex flex-col gap-16 sm:gap-24">
+            {FEATURES.map((f, i) => (
+              <div key={f.eyebrow} className={`grid items-center gap-8 lg:grid-cols-12 lg:gap-12 ${i % 2 ? 'lg:[&>*:first-child]:order-2' : ''}`}>
+                <div className="ld-reveal lg:col-span-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">{f.eyebrow}</p>
+                  <h3 className="mt-2 font-serif text-[29px] leading-[1.08] tracking-[-0.01em] sm:text-[34px]">{f.title}</h3>
+                  <p className="mt-3.5 text-[15px] leading-[1.6] text-dim">{f.body}</p>
+                  <ul className="ld-stagger mt-5 flex flex-col gap-2.5">
+                    {f.points.map((pt) => (
+                      <li key={pt} className="flex items-start gap-2.5 text-[13.5px] leading-[1.5] text-dim">
+                        <span className="mt-[7px] h-1.5 w-1.5 flex-none rounded-full bg-accent" />
+                        {pt}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="ld-reveal lg:col-span-7">
+                  <div className={frame}>
+                    <div className="ld-feature-img">
+                      {f.dark ? (
+                        <>
+                          <img src={f.img} width={1280} height={860} alt={f.alt} loading="lazy" className="only-light block w-full" />
+                          <img src={f.dark} width={1280} height={860} alt="" aria-hidden loading="lazy" className="only-dark w-full" />
+                        </>
+                      ) : (
+                        <img src={f.img} width={1280} height={860} alt={f.alt} loading="lazy" className="block w-full" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── demos ── */}
+        <section id="demos" className="mx-auto w-full max-w-[1100px] scroll-mt-20 px-6 pt-20 sm:pt-28">
+          <div className="ld-reveal flex flex-wrap items-end justify-between gap-4">
+            <div className="max-w-[560px]">
+              <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-accent-text">Demos</p>
+              <h2 className="mt-2.5 font-serif text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">Poke around before you commit to anything.</h2>
+              <p className="mt-3 text-[15px] leading-[1.6] text-dim">Finished plans, full of people and answers, grouped by the question each one answers. Walk through every tab; nothing you do there changes anything.</p>
+            </div>
+            <Link href="/demos" className="flex h-10 items-center gap-1.5 rounded-[10px] border border-border2 bg-s1 px-4 text-[13.5px] font-semibold text-dim hover:bg-s2 hover:text-text">
+              All demos <ArrowRight size={14} />
+            </Link>
+          </div>
+          <div className="ld-stagger mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {demos.map((d) => {
+              const [from, to] = coverFor(d.id)
+              return (
+                <Link key={d.id} href={`/events/${d.id}`} className={`group ${frame} transition-transform hover:-translate-y-0.5`}>
+                  <Cover src={d.image} from={from} to={to} className="h-[110px]" />
+                  <div className="p-5">
+                    <p className="font-serif text-[21px] leading-tight tracking-[-0.01em]">{d.title}</p>
+                    <p className="mt-1.5 text-[13px] leading-[1.55] text-dim">{DEMO_PICKS[d.id]}</p>
+                    <p className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-accent-text">
+                      <Users size={13} /> {d.participants.length} people <ArrowRight size={13} className="ml-auto transition-transform group-hover:translate-x-0.5" />
+                    </p>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* ── closing ── */}
+        <section className="mx-auto w-full max-w-[1100px] px-6 pb-16 pt-20 sm:pb-24 sm:pt-28">
+          <div className="ld-reveal grid gap-8 rounded-2xl bg-accent p-8 text-on-accent sm:p-12 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[.15em] opacity-70">Free to use</p>
+              <h2 className="mt-3 font-serif text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[44px]">The next plan takes a minute to start.</h2>
+              <p className="mt-3 max-w-[480px] text-[15px] leading-[1.6] opacity-85">
+                Make an account, name the plan, share the link. Everything your guests answer as guests follows them if they ever make an account of their own.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2.5 lg:items-end">
+              <Link href="/auth/signin" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-on-accent px-6 text-[15px] font-semibold text-accent">
+                Create an account <ArrowRight size={16} />
+              </Link>
+              <Link href="/auth/signin" className="flex h-12 items-center justify-center rounded-[11px] border border-[rgba(248,245,236,.4)] px-6 text-[15px] font-semibold text-on-accent hover:bg-[rgba(248,245,236,.1)]">
+                I already have one
+              </Link>
+            </div>
+          </div>
+        </section>
       </main>
 
-      <footer className="mx-auto flex w-full max-w-[1100px] flex-wrap items-center gap-x-5 gap-y-2 px-6 pb-8 text-[12.5px] text-faint">
-        <span>Aline</span>
-        <Link href="/about" className="hover:text-dim">About</Link>
-        <Link href="/help" className="hover:text-dim">Help</Link>
-        <Link href="/demos" className="hover:text-dim">Demos</Link>
+      <footer className="border-t border-border">
+        <div className="mx-auto flex w-full max-w-[1100px] flex-wrap items-center gap-x-5 gap-y-2 px-6 py-6 text-[12.5px] text-faint">
+          <span className="flex items-center gap-1.5"><MapPin size={12} /> Aline</span>
+          <Link href="/about" className="hover:text-dim">About</Link>
+          <Link href="/help" className="hover:text-dim">Help</Link>
+          <Link href="/demos" className="hover:text-dim">Demos</Link>
+          <span className="ml-auto flex items-center gap-1.5"><MessageCircle size={12} /> Guests never need an account.</span>
+        </div>
       </footer>
     </div>
   )
