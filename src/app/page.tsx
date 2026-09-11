@@ -11,8 +11,12 @@ import { useRouter } from 'next/navigation'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useGSAP } from '@gsap/react'
-import { ArrowRight, CalendarRange, Link2, Lock, Users, Vote } from 'lucide-react'
+import { ArrowRight, Users } from 'lucide-react'
 import { VisitorHeader } from '@/components/VisitorHeader'
+import { HowItWorks } from '@/components/landing/HowItWorks'
+import { DayPollDemo } from '@/components/landing/DayPollDemo'
+import { BallotDemo } from '@/components/landing/BallotDemo'
+import { ChatDemo } from '@/components/landing/ChatDemo'
 import { SiteFooter } from '@/components/SiteFooter'
 import { rich } from '@/components/ui/rich'
 import { Cover } from '@/components/ui/Cover'
@@ -22,36 +26,29 @@ import { listDemos, type AppEvent } from '@/lib/events'
 
 gsap.registerPlugin(ScrollTrigger)
 
-const STEPS = [
-  { icon: CalendarRange, title: 'Name the plan', body: 'A title and a stretch of days. Thirty seconds, no settings to get right first.' },
-  { icon: Link2, title: 'Share one link', body: 'Send it anywhere. Whoever opens it adds their name and they are in, no account needed.' },
-  { icon: Vote, title: 'Everyone answers', body: 'People mark when they are free, suggest places, vote, and say if they are coming.' },
-  { icon: Lock, title: 'Lock it in', body: 'The best window shows itself. One tap makes it the plan, and everyone gets the details.' },
-]
-
 const FEATURES = [
   {
     eyebrow: 'When',
     title: 'See the day everyone can make.',
     body: 'Drag across the times you are free. The grid turns green where people overlap, and the best window is worked out for you, in every timezone at the table.',
     points: ['Minute-precise edges, not just half-hour boxes', 'Day polls for trips and weekends', 'Import free time from your calendar in one tap'],
-    img: '/landing/availability-light.png', dark: '/landing/availability-dark.png', alt: 'The availability grid with the best window highlighted',
+    demo: 'daypoll',
   },
   {
     eyebrow: 'Where',
     title: 'Pick the place together.',
     body: 'Suggest spots on a map and vote. For a whole day out, chain the winners into a route with stops and travel time between them.',
     points: ['One vote or several, your call as host', 'A route that knows how long each leg takes', 'Remote events get a link instead of a pin'],
-    img: '/landing/location-light.png', alt: 'The location tab with a map, a ballot, and an itinerary',
+    demo: 'ballot',
   },
   {
     eyebrow: 'Who',
     title: 'Know who is coming, and talk it over.',
     body: 'RSVPs, who arrives late, and the headcount at every stop. One chat per event, with the people who are actually in it.',
     points: ['Going, maybe, and not yet, at a glance', 'A quiet note in the chat when someone joins', 'Nothing to install, and it works on any phone'],
-    img: '/landing/chat-light.png', alt: 'The event discussion drawer open beside the plan',
+    demo: 'chat',
   },
-]
+] as const
 
 const DEMO_PICKS: Record<string, string> = {
   'q3-offsite': 'Eight people, a week on the **availability grid**, and votes turned into a **three-stop route**.',
@@ -138,20 +135,7 @@ export default function Landing() {
             <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-accent-text">How it works</p>
             <h2 className="mt-2.5 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">Four steps, and most of them are other people&apos;s.</h2>
           </div>
-          <ol className="ld-stagger mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {STEPS.map(({ icon: Icon, title, body }, i) => (
-              <li key={title} className="rounded-2xl border border-border bg-s1 p-5">
-                <div className="flex items-center justify-between">
-                  <span className="grid h-9 w-9 place-items-center rounded-[10px] border border-accent-border bg-accent-bg text-accent-text">
-                    <Icon size={17} />
-                  </span>
-                  <span className="font-serif font-normal text-[30px] leading-none text-faint">{i + 1}</span>
-                </div>
-                <p className="mt-4 font-serif text-[22px] leading-tight tracking-[-0.01em]">{title}</p>
-                <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">{body}</p>
-              </li>
-            ))}
-          </ol>
+          <HowItWorks />
         </section>
 
         {/* ── features, alternating ── */}
@@ -163,7 +147,7 @@ export default function Landing() {
           <div className="mt-6 flex flex-col gap-16 sm:gap-24">
             {FEATURES.map((f, i) => (
               <div key={f.eyebrow} className={`grid items-center gap-8 lg:grid-cols-12 lg:gap-12 ${i % 2 ? 'lg:[&>*:first-child]:order-2' : ''}`}>
-                <div className="ld-reveal lg:col-span-5">
+                <div className="ld-reveal min-w-0 lg:col-span-5">
                   <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">{f.eyebrow}</p>
                   <h3 className="mt-2 font-serif font-normal text-[29px] leading-[1.08] tracking-[-0.01em] sm:text-[34px]">{f.title}</h3>
                   <p className="mt-3.5 text-[15px] leading-[1.6] text-dim">{f.body}</p>
@@ -176,19 +160,10 @@ export default function Landing() {
                     ))}
                   </ul>
                 </div>
-                <div className="ld-reveal lg:col-span-7">
-                  <div className={frame}>
-                    <div className="ld-feature-img">
-                      {f.dark ? (
-                        <>
-                          <img src={f.img} width={1280} height={860} alt={f.alt} loading="lazy" className="only-light block w-full" />
-                          <img src={f.dark} width={1280} height={860} alt="" aria-hidden loading="lazy" className="only-dark w-full" />
-                        </>
-                      ) : (
-                        <img src={f.img} width={1280} height={860} alt={f.alt} loading="lazy" className="block w-full" />
-                      )}
-                    </div>
-                  </div>
+                {/* the feature itself, live: a script plays as it arrives, and it is
+                    yours the moment you touch it */}
+                <div className="ld-reveal min-w-0 lg:col-span-7">
+                  {f.demo === 'daypoll' ? <DayPollDemo /> : f.demo === 'ballot' ? <BallotDemo /> : <ChatDemo />}
                 </div>
               </div>
             ))}
