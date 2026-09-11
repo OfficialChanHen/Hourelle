@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Building2, User, Link2, Copy, Merge, MessageCircle, Pencil, EllipsisVertical, CopyPlus,
-  Check, Trash2, TriangleAlert, Receipt, Plus, X, ImagePlus, Video, UserRoundX,
+  Check, Trash2, TriangleAlert, Receipt, Plus, X, ImagePlus, Video, UserRoundX, Mail,
 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -28,6 +28,8 @@ import { ConfirmBar } from './ConfirmBar'
 import { ConfirmedHero } from './ConfirmedHero'
 import { ChatDrawer } from './ChatDrawer'
 import { useIsIOS } from '@/hooks/useIsIOS'
+import { useAccount } from '@/hooks/useAccount'
+import { canEmail, sendInvites } from '@/lib/mail'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 
 const TABS = [
@@ -505,8 +507,8 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
         <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[11.5px] text-dim">{event.participants.length}</span>
         <span className="ml-auto text-[12.5px] font-normal text-dim">
           {locked
-            ? <>{going} going{noReply > 0 && <span className="text-faint"> · {noReply} no reply</span>}</>
-            : <>{nAvail} available{nCant > 0 && <> · {nCant} can&rsquo;t make it</>}{nNone > 0 && <span className="text-faint"> · {nNone} no reply</span>}</>}
+            ? <>{going} going{noReply > 0 && <span className="text-faint">, {noReply} no reply</span>}</>
+            : <>{nAvail} available{nCant > 0 && <>, {nCant} can&rsquo;t make it</>}{nNone > 0 && <span className="text-faint">, {nNone} no reply</span>}</>}
         </span>
       </div>
       <div className="flex flex-col">
@@ -582,11 +584,28 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
     const url = `${window.location.origin}/events/${event.id}/join?invite=${p.inviteToken}`
     navigator.clipboard?.writeText(url).then(() => { setLinkCopied(true); setTimeout(close, 900) }).catch(() => {})
   }
+  // or send it: the host, logged in, may email an invitee their link (again)
+  const account = useAccount()
+  const mayEmail = !!p.guest && !!p.email && !!event.hostedByYou && canEmail(account.signedIn)
+  const [mail, setMail] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [mailErr, setMailErr] = useState<string | null>(null)
+  async function emailInvite() {
+    if (mail === 'sending') return
+    setMail('sending')
+    const r = await sendInvites(event.id, [p.id], true)
+    if (r.ok && r.data.failed === 0 && r.data.total > 0) { setMail('sent'); setTimeout(close, 1100) }
+    else { setMail('error'); setMailErr(r.ok ? 'The message could not be sent.' : r.error) }
+  }
   return (
     <>
       <PopoverTitle sub={p.name}>{locked ? 'Reply' : 'Mark'} for</PopoverTitle>
       {p.guest && p.inviteToken && (
         <>
+          {mayEmail && (
+            <PopoverItem onClick={() => void emailInvite()} icon={mail === 'sent' ? <Check size={15} /> : <Mail size={15} />}>
+              {mail === 'sending' ? 'Sending…' : mail === 'sent' ? 'Invite emailed' : mail === 'error' ? (mailErr ?? 'Could not send') : 'Email their invite'}
+            </PopoverItem>
+          )}
           <PopoverItem onClick={copyPersonalLink} icon={linkCopied ? <Check size={15} /> : <Link2 size={15} />}>
             {linkCopied ? 'Link copied' : 'Copy their personal link'}
           </PopoverItem>
@@ -673,7 +692,7 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
     const dayPart = `${d ? `${d.dow}, ${d.date}` : c.dayKey}${endD ? ` – ${endD.dow}, ${endD.date}` : ''}, ${year}`
     return (
       <span className="flex flex-wrap items-center gap-1.5">
-        {allDay ? dayPart : `${dayPart} · ${fmtMinute(c.startMin)} – ${fmtMinute(c.endMin)}`}
+        {allDay ? dayPart : `${dayPart}, ${fmtMinute(c.startMin)} – ${fmtMinute(c.endMin)}`}
         {!allDay && <TimezonePill tz={event.timezone} />}
         {editable && (
           <button onClick={() => setEditing(true)} title="Change the day or time" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
@@ -705,7 +724,7 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
           <>
             Best time so far
             <button onClick={onGoToBestWindow} title="See it on the Availability tab" className="font-medium text-accent-text hover:underline">
-              {best.dayLabel} · {fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)}
+              {best.dayLabel}, {fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)}
             </button>
           </>
         ) : (
@@ -751,7 +770,7 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
 
   const endEff = end < start ? start : end
   const selKeys = selectedDayKeys(start, endEff, excluded.dows, excluded.days)
-  const dayCap = maxPollDays(event.granularity)
+  const dayCap = maxPollDays(event.granularity, start)
   const selErr = selKeys.length === 0
     ? 'Every day is turned off. Turn at least one back on.'
     : selKeys.length > dayCap
@@ -942,7 +961,7 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
   if (loc.mode === 'remote') {
     return (
       <div className="flex flex-col gap-1.5">
-        <span>Online · {loc.platform || 'platform to be decided'}</span>
+        <span>Online on {loc.platform || 'a platform to be decided'}</span>
         {link ? linkRow : event.hostedByYou ? (
           <button onClick={onGoToLocation} className="text-left text-[12.5px] font-medium text-accent-text hover:underline">
             Add a meeting link on the Location tab so it lands in every reminder
@@ -956,19 +975,19 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
 
   const itineraryLink = (n: number) => (
     <button onClick={onGoToLocation} className="text-left font-medium text-accent-text hover:underline">
-      {n}-stop itinerary · see it on the Location tab
+      {n}-stop itinerary, see it on the Location tab
     </button>
   )
   // a set of simultaneous venues (art walk, split-activity picnic), not a route
   const spotsLink = (n: number) => (
     <button onClick={onGoToLocation} className="text-left font-medium text-accent-text hover:underline">
-      Happening across {n} spots · see them on the Location tab
+      Happening across {n} spots, see them on the Location tab
     </button>
   )
   const placeLink = (name: string, caption?: string) => (
     <span className="flex flex-wrap items-center gap-1.5">
       <button onClick={onGoToLocation} title="Open it on the Location tab" className="text-left font-medium text-accent-text hover:underline">{name}</button>
-      {caption && <span className="text-dim">· {caption}</span>}
+      {caption && <span className="text-dim">({caption})</span>}
     </span>
   )
 

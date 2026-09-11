@@ -83,8 +83,8 @@ export function AccessBoundary({ children }: { children: React.ReactNode }) {
       </ul>
 
       <div className="mt-7 flex flex-col items-center gap-2.5">
-        <Link href="/auth/signin" className="flex h-11 w-full max-w-[300px] items-center justify-center rounded-[10px] bg-accent text-[14px] font-semibold text-on-accent">
-          Create an account
+        <Link href="/auth/signin?mode=up" className="flex h-11 w-full max-w-[300px] items-center justify-center rounded-[10px] bg-accent text-[14px] font-semibold text-on-accent">
+          Sign up
         </Link>
         <Link href={back} className="flex h-11 w-full max-w-[300px] items-center justify-center gap-1.5 rounded-[10px] border border-border2 bg-s1 text-[14px] font-semibold text-dim hover:bg-s2 hover:text-text">
           <ArrowLeft size={15} /> {ev ? `Back to ${ev.title}` : 'Back to your event'}

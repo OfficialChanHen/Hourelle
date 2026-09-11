@@ -1,8 +1,8 @@
-// Multimodal travel-time estimates between two stops. Distances come from the map
-// for now (real deployments swap in Mapbox/Directions per mode); the model is
-// overhead + distance/speed per mode, with each mode gated to the ranges where it's
-// realistic. The "quickest route" picks the fastest feasible mode on every leg
-// independently, which is the shortest total when legs don't share transfers.
+// Travel-time estimates between two stops. Driving is the only mode offered today:
+// its minutes come from OSRM's free road router (see lib/geo.ts), whose public
+// server only routes cars, and the model below only fills in when the router is
+// unavailable. The other modes stay in the model, gated to the ranges where they
+// make sense, for the day a walking/transit router is added — OFFERED is the switch.
 
 export type TravelMode = 'walk' | 'bus' | 'drive' | 'train' | 'flight'
 export type ModeEstimate = { mode: TravelMode; minutes: number }
@@ -20,7 +20,9 @@ export const MODE_LABEL: Record<TravelMode, string> = {
   walk: 'Walk', bus: 'Bus', drive: 'Drive', train: 'Train', flight: 'Flight',
 }
 
-export const ALL_MODES: TravelMode[] = MODEL.map((m) => m.mode)
+// the modes the app offers right now (see the note at the top)
+const OFFERED: TravelMode[] = ['drive']
+export const ALL_MODES: TravelMode[] = MODEL.map((m) => m.mode).filter((m) => OFFERED.includes(m))
 
 // `allowed` limits which modes may be used (e.g. no flights, transit only). Omit for all.
 export function estimateModes(distanceKm: number, allowed?: TravelMode[]): ModeEstimate[] {

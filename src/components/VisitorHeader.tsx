@@ -2,7 +2,7 @@
 
 // The one header a visitor ever sees — on the landing page and on every page the
 // app lets a visitor into (the demos, an invite, help, about). One component so
-// the two can never drift: same logo, same three links, same two doors.
+// the two can never drift: same logo, same three links, same two doors (both on every width: a phone still needs both).
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -46,11 +46,11 @@ export function VisitorHeader({ ready = true }: { ready?: boolean }) {
           {/* nothing account-shaped until the browser knows who this is */}
           {ready && (
             <>
-              <Link href="/auth/signin" className="hidden h-[34px] items-center rounded-[9px] px-[13px] text-[14px] font-medium text-dim hover:bg-s3 hover:text-text sm:flex">
-                Sign in
+              <Link href="/auth/signin" className="flex h-[34px] items-center whitespace-nowrap rounded-[9px] px-[13px] text-[14px] font-medium text-dim hover:bg-s3 hover:text-text">
+                Log in
               </Link>
-              <Link href="/auth/signin?mode=up" className="flex h-[34px] items-center rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent">
-                Create an account
+              <Link href="/auth/signin?mode=up" className="flex h-[34px] items-center whitespace-nowrap rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent">
+                Sign up
               </Link>
             </>
           )}

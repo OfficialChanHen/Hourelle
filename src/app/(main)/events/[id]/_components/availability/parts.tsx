@@ -28,7 +28,7 @@ export function FilterAvatars({ participants, filter, onToggle, onClear, onSelec
         return (
           <button
             key={p.id} type="button" onClick={() => onToggle(p.id)}
-            title={on ? `${p.name} · click to unfilter` : `${p.name} · see when they are free`}
+            title={on ? `${p.name}: click to unfilter` : `${p.name}: see when they are free`}
             className={`relative rounded-full transition-opacity ${i > 0 ? '-ml-[5px]' : ''}`}
             style={{ boxShadow: on ? '0 0 0 1.5px var(--s1), 0 0 0 3.5px var(--accent)' : undefined, opacity: active && !on ? 0.35 : 1, zIndex: on ? 1 : undefined }}
           >
@@ -138,7 +138,7 @@ export function FilterModal({ participants, filter, onToggle, onClear, onSelectA
 }
 
 /* ── import from calendar (availability stage): connect a provider and auto-fill busy times ── */
-export function ImportFromCalendar({ onPick }: { onPick: (provider: string) => void }) {
+export function ImportFromCalendar({ onPick, providers = ['Google Calendar', 'Outlook'], note }: { onPick: (provider: string) => void; providers?: string[]; note?: string }) {
   return (
     <Popover
       align="start"
@@ -153,7 +153,8 @@ export function ImportFromCalendar({ onPick }: { onPick: (provider: string) => v
         <>
           {/* applies instantly; the toast afterward says what landed and offers Undo */}
           <PopoverTitle>Fills your free times</PopoverTitle>
-          {(['Google Calendar', 'Outlook'] as const).map((name) => (
+          {note && <p className="mb-1.5 px-2.5 text-[12px] leading-[1.45] text-dim">{note}</p>}
+          {providers.map((name) => (
             <PopoverItem key={name} onClick={() => { close(); onPick(name) }} icon={<CalendarPlus size={15} className="text-accent-text" />}>
               {name}
             </PopoverItem>
@@ -251,8 +252,8 @@ export function PresetFills({ onFill, onFillAll }: { onFill: (startClock: number
   )
 }
 
-/* ── who hasn't responded, with a (stub) nudge ── */
-export function MissingPopover({ missing, nudged, onNudge, onNudgeAll, onClose }: { missing: Participant[]; nudged: Set<string>; onNudge: (id: string) => void; onNudgeAll: () => void; onClose: () => void }) {
+/* ── who hasn't responded, and a nudge by email when the host can send one ── */
+export function MissingPopover({ missing, nudged, canNudge = false, note = null, onNudge, onNudgeAll, onClose }: { missing: Participant[]; nudged: Set<string>; canNudge?: boolean; note?: string | null; onNudge: (id: string) => void; onNudgeAll: () => void; onClose: () => void }) {
   const wrap = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const onDown = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) onClose() }
@@ -265,8 +266,9 @@ export function MissingPopover({ missing, nudged, onNudge, onNudgeAll, onClose }
     <div ref={wrap} className="absolute left-0 top-full z-[35] mt-1 w-[244px] rounded-[10px] border border-border bg-s1 p-2 shadow-soft">
       <div className="flex items-center justify-between px-1 pb-1.5">
         <span className="text-[12px] font-semibold uppercase tracking-[.1em] text-faint">Waiting on {missing.length}</span>
-        <button onClick={onNudgeAll} disabled={allNudged} className="flex items-center gap-1 text-[12px] font-semibold text-accent-text disabled:text-faint"><Bell size={12} /> Nudge all</button>
+        {canNudge && <button onClick={onNudgeAll} disabled={allNudged} className="flex items-center gap-1 text-[12px] font-semibold text-accent-text disabled:text-faint"><Bell size={12} /> Nudge all</button>}
       </div>
+      {note && <p className="px-1 pb-1.5 text-[12px] leading-[1.45] text-dim">{note}</p>}
       <div className="scroll-slim flex max-h-[220px] flex-col gap-0.5 overflow-auto">
         {missing.map((p) => {
           const done = nudged.has(p.id)
@@ -274,9 +276,11 @@ export function MissingPopover({ missing, nudged, onNudge, onNudgeAll, onClose }
             <div key={p.id} className="flex items-center gap-2 rounded-[7px] px-1 py-1">
               <Avatar initials={p.initials} color={p.color} size={25} font={10} />
               <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}</span>
-              <button onClick={() => onNudge(p.id)} disabled={done} className={`flex h-6 items-center gap-1 rounded-[6px] px-2 text-[12px] font-semibold ${done ? 'text-teal-text' : 'border border-border2 hover:bg-s2'}`}>
-                {done ? <><Check size={12} /> Nudged</> : <><Bell size={12} /> Nudge</>}
-              </button>
+              {canNudge && (
+                <button onClick={() => onNudge(p.id)} disabled={done} className={`flex h-6 items-center gap-1 rounded-[6px] px-2 text-[12px] font-semibold ${done ? 'text-teal-text' : 'border border-border2 hover:bg-s2'}`}>
+                  {done ? <><Check size={12} /> Nudged</> : <><Bell size={12} /> Nudge</>}
+                </button>
+              )}
             </div>
           )
         })}

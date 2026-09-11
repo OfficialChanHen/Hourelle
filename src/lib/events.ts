@@ -33,7 +33,8 @@ export type Participant = {
   // opening it lands them already named. Possession of the link is the identity.
   inviteToken?: string
 }
-export type EventPlace = { id: string; name: string; place: string; addedBy?: string } // addedBy: participant id who suggested it
+// lat/lng: where it is on the map (absent on custom places typed by hand, and on events saved before the real map)
+export type EventPlace = { id: string; name: string; place: string; addedBy?: string; lat?: number; lng?: number } // addedBy: participant id who suggested it
 export type EventExpense = { id: string; label: string; amount: number; paidBy: string } // amount in whole dollars; paidBy: participant id
 export type GridDay = { key: string; dow: string; date: string; best?: boolean }
 // minute-precise availability: grid-minutes from the top of the grid, block covers [s, e)
@@ -125,12 +126,15 @@ export type CreateInput = {
   fixed?: { day: string; start: string; end: string }
   rsvpDeadline?: string // optional, fixed-date events only: the RSVP round opens at birth
 
-  picked: { id: string; name: string; place: string }[]
+  picked: { id: string; name: string; place: string; lat?: number; lng?: number }[]
   platform: string
   meetingLink: string
   emails: string[]
-  accounts: string[]
+  accounts: AccountInvitee[]
 }
+
+// someone with an account, invited by id: their name and colour come with them
+export type AccountInvitee = { id: string; name: string; color: PersonColor; email?: string }
 
 // how the hosting account reads: a person or an organization. Decided by the login
 // (Google workspace accounts read as org); every account is a person for now.
@@ -150,8 +154,12 @@ function myIdIn(ev: Pick<AppEvent, 'participants'>): string {
 
 // avatar letters for a display name. Signed-in ids are uuids, so initials have to be
 // read off the name rather than borrowed from the id the way the stub could
+// the two letters on an avatar: first name + last name when there are two words or
+// more, the first two letters of the name when there is only one
 export function initialsOf(name: string): string {
-  return (name.split(' ').filter(Boolean).map((w) => w[0]).join('').slice(0, 2) || 'A').toUpperCase()
+  const words = name.trim().split(/\s+/).filter(Boolean)
+  const raw = words.length >= 2 ? words[0][0] + words[words.length - 1][0] : (words[0] ?? '').slice(0, 2)
+  return (raw || 'A').toUpperCase()
 }
 
 /* ── storage ── */
@@ -214,6 +222,19 @@ export function adoptMine(): number {
     const mine = ev.participants.find((p) => p.guest && p.email?.toLowerCase() === email)
     if (!mine) continue
     adoptParticipant(ev.id, mine.id, acc.id, as)
+    n++
+  }
+  return n
+}
+
+/* The account changed its name or colour: every event it sits on shows the new
+   one. Only this browser's copies are touched directly; each patch syncs up. */
+export function restampMe(as: { name: string; color: PersonColor }): number {
+  const acc = currentAccount()
+  let n = 0
+  for (const ev of readAll()) {
+    if (!ev.participants.some((p) => p.id === acc.id)) continue
+    patchEvent(ev.id, { participants: ev.participants.map((p) => (p.id === acc.id ? { ...p, name: as.name, initials: initialsOf(as.name), color: as.color } : p)) })
     n++
   }
   return n
@@ -291,8 +312,19 @@ export function dayLabel(d: Date): string {
 // how many days one poll may ask about. The limit protects the person replying, not
 // the grid — so it tracks the effort per day: an hour grid is a real ask per day,
 // a day poll is one tap, which is why trips get to stretch to a season.
-export function maxPollDays(gran: string): number {
-  return gran === 'day' ? 90 : 28
+/* How many days a poll may hold. Two things decide it: the slot size (time slots
+   need a bigger grid than whole days) and where the range starts. A range that
+   starts on the first of a month may run to the end of a month — one month for
+   time slots, three for whole days (Sep 1 to Nov 30) — so a whole calendar month
+   is always allowed. Any other start gets the flat 4 weeks, or 12 for whole days. */
+export function maxPollDays(gran: string, startDate?: string): number {
+  const wholeDays = gran === 'day'
+  const s = startDate ? parseLocal(startDate) : null
+  if (s && s.getDate() === 1) {
+    const last = new Date(s.getFullYear(), s.getMonth() + (wholeDays ? 3 : 1), 0) // day 0 of the month after: the last day
+    return Math.round((last.getTime() - s.getTime()) / 86_400_000) + 1
+  }
+  return wholeDays ? 84 : 28
 }
 
 export function buildDays(start: string, end: string, cap = 28): GridDay[] {
@@ -416,6 +448,12 @@ export function intervalsToGrid(availIv: AvailIntervals, days: GridDay[], rows: 
   }
   return out
 }
+// the same clock time, marked when the minute count has run past midnight — the
+// itinerary schedules one day, so a stop landing on the next day must say so
+export function fmtMinuteDay(min: number, h24 = false): string {
+  return min >= 24 * 60 ? `${fmtMinute(min, h24)} next day` : fmtMinute(min, h24)
+}
+
 export function fmtMinute(min: number, h24 = false): string {
   const h = Math.floor(min / 60) % 24
   const mm = ((min % 60) + 60) % 60
@@ -573,7 +611,7 @@ export function dateRangeText(ev: { startDate: string; endDate: string; days?: G
   // about, so a two-month span doesn't read as a two-month marathon
   const span = Math.round((e.getTime() - s.getTime()) / 86400000) + 1
   const n = ev.days?.length ?? 0
-  return n > 1 && n < span ? `${range} · ${n} days` : range
+  return n > 1 && n < span ? `${range} (${n} days)` : range
 }
 
 /* ── lifecycle ── */
@@ -622,7 +660,7 @@ export function daysUntilLabel(du: number | null): string {
   return `${du} day${du === 1 ? '' : 's'}`
 }
 
-// the locked-in slot as one glanceable line: "Sat, Jul 26 · 5:00 PM – 9:00 PM".
+// the locked-in slot as one glanceable line: "Sat, Jul 26, 5:00 PM – 9:00 PM".
 // An all-day slot (a day poll's lock) skips the clock times; a run of days reads
 // as "Fri, Aug 14 – Sun, Aug 16".
 export function confirmedSlotText(ev: Pick<AppEvent, 'confirmed'>): string | null {
@@ -633,7 +671,7 @@ export function confirmedSlotText(ev: Pick<AppEvent, 'confirmed'>): string | nul
   const e = ev.confirmed.endDayKey ? parseLocal(ev.confirmed.endDayKey) : null
   if (e) return `${day} – ${DOW[e.getDay()]}, ${dayLabel(e)}`
   const allDay = ev.confirmed.startMin === 0 && ev.confirmed.endMin === 24 * 60
-  return allDay ? day : `${day} · ${fmtMinute(ev.confirmed.startMin)} – ${fmtMinute(ev.confirmed.endMin)}`
+  return allDay ? day : `${day}, ${fmtMinute(ev.confirmed.startMin)} – ${fmtMinute(ev.confirmed.endMin)}`
 }
 
 // the longest stretch of touching calendar days in a poll — the ceiling for any
@@ -899,11 +937,11 @@ export function draftFromEvent(id: string): Partial<CreateInput> | null {
     budgetMode: ev.budgetMode,
     locMode: ev.location.mode,
     planMode: ev.location.planMode,
-    picked: picked.map((p) => ({ id: p.id, name: p.name, place: p.place })),
+    picked: picked.map((p) => ({ id: p.id, name: p.name, place: p.place, lat: p.lat, lng: p.lng })),
     platform: ev.location.platform,
     meetingLink: ev.location.meetingLink,
     emails: ev.participants.filter((p) => p.guest).map((p) => p.id.replace(/^g:/, '')),
-    accounts: ev.participants.filter((p) => !p.guest && !p.you).map((p) => p.id),
+    accounts: ev.participants.filter((p) => !p.guest && !p.you).map((p) => ({ id: p.id, name: p.name, color: p.color, email: p.email })),
   }
 }
 
@@ -1180,7 +1218,7 @@ export function createEvent(input: CreateInput): AppEvent {
   const host = currentAccount()
   const participants: Participant[] = [
     { id: host.id, initials: initialsOf(host.name), name: host.name, color: host.color, rsvp: 'attending', you: true, host: true },
-    ...input.accounts.map((pid) => ({ id: pid, initials: pid, name: av(pid).name, color: av(pid).color, rsvp: 'pending' as Rsvp })),
+    ...input.accounts.map((a) => ({ id: a.id, initials: initialsOf(a.name), name: a.name, color: a.color, rsvp: 'pending' as Rsvp, ...(a.email ? { email: a.email } : {}) })),
     ...input.emails.map((email, i) => guestFromEmail(email, i)),
   ]
 
@@ -1200,7 +1238,7 @@ export function createEvent(input: CreateInput): AppEvent {
         : '30'
 
   // an explicit day list (weekends only, hand-picked dates) beats the plain range
-  const dayCap = maxPollDays(gran)
+  const dayCap = maxPollDays(gran, fixed ? fixed.day : input.startDate)
   const sparseList = !fixed && input.pickedDays?.length ? buildDaysFrom(input.pickedDays, dayCap) : null
   const sparse = sparseList?.length ? sparseList : null
   const days = sparse ?? buildDays(fixed ? fixed.day : input.startDate, fixed ? fixed.day : input.endDate, dayCap)
@@ -1290,11 +1328,11 @@ const DEMO: AppEvent = {
   hostKind: 'person',
   description: 'Two days of strategy, workshops, and a team dinner to align on Q3 goals. Travel is reimbursed for out-of-town folks.',
   timezone: 'America/Los_Angeles',
-  startDate: '2026-08-24',
-  endDate: '2026-08-28',
+  startDate: '2029-08-20',
+  endDate: '2029-08-24',
   granularity: '60',
   budget: '4200',
-  planDeadline: '2026-08-20',
+  planDeadline: '2029-08-16',
   image: 'preset:dusk',
   location: {
     mode: 'vote',
@@ -1302,9 +1340,9 @@ const DEMO: AppEvent = {
     // itinerary builder off: three stops in order, each with its own dwell time
     planMode: 'itinerary',
     places: [
-      { id: 'cavallo', name: 'Cavallo Point Lodge', place: 'Sausalito, CA', addedBy: 'SR' },
-      { id: 'terrapin', name: 'Terrapin Crossroads', place: 'San Rafael, CA', addedBy: 'JM' },
-      { id: 'presidio', name: 'Odeum at the Presidio', place: 'San Francisco, CA', addedBy: 'DW' },
+      { id: 'cavallo', name: 'Cavallo Point Lodge', place: 'Sausalito, CA', addedBy: 'SR', lat: 37.8339, lng: -122.478 },
+      { id: 'terrapin', name: 'Terrapin Crossroads', place: 'San Rafael, CA', addedBy: 'JM', lat: 37.9647, lng: -122.505 },
+      { id: 'presidio', name: 'Odeum at the Presidio', place: 'San Francisco, CA', addedBy: 'DW', lat: 37.7989, lng: -122.4662 },
     ],
     platform: 'Google Meet',
     meetingLink: '',
@@ -1351,18 +1389,18 @@ const BIG_NAMES: [string, string][] = [
   ['OD', 'Omar Diaz'], ['NV', 'Nora Vance'], ['YS', 'Yuki Sato'],
 ]
 const BIG_PLACES: EventPlace[] = [
-  { id: 'bandshell', name: 'Golden Gate Park Bandshell', place: 'San Francisco, CA', addedBy: 'JM' },
-  { id: 'dolores', name: 'Dolores Park', place: 'San Francisco, CA', addedBy: 'AT' },
-  { id: 'presidio-picnic', name: 'Presidio Picnic Grounds', place: 'San Francisco, CA', addedBy: 'SR' },
-  { id: 'fort-mason', name: 'Fort Mason Center', place: 'San Francisco, CA', addedBy: 'JM' },
-  { id: 'crissy', name: 'Crissy Field East Beach', place: 'San Francisco, CA', addedBy: 'DW' },
-  { id: 'lands-end', name: 'Lands End Lookout', place: 'San Francisco, CA', addedBy: 'KL' },
-  { id: 'ocean-firepits', name: 'Ocean Beach Firepits', place: 'San Francisco, CA', addedBy: 'MT' },
-  { id: 'stern-grove', name: 'Stern Grove', place: 'San Francisco, CA', addedBy: 'ZC' },
-  { id: 'alamo', name: 'Alamo Square', place: 'San Francisco, CA', addedBy: 'RP' },
-  { id: 'mission-rock', name: 'Mission Rock Terrace', place: 'San Francisco, CA', addedBy: 'IC' },
-  { id: 'treasure', name: 'Treasure Island Winery', place: 'San Francisco, CA', addedBy: 'FW' },
-  { id: 'berkeley-marina', name: 'Berkeley Marina', place: 'Berkeley, CA', addedBy: 'OD' },
+  { id: 'bandshell', name: 'Golden Gate Park Bandshell', place: 'San Francisco, CA', addedBy: 'JM', lat: 37.7702, lng: -122.4669 },
+  { id: 'dolores', name: 'Dolores Park', place: 'San Francisco, CA', addedBy: 'AT', lat: 37.7596, lng: -122.4269 },
+  { id: 'presidio-picnic', name: 'Presidio Picnic Grounds', place: 'San Francisco, CA', addedBy: 'SR', lat: 37.8007, lng: -122.4569 },
+  { id: 'fort-mason', name: 'Fort Mason Center', place: 'San Francisco, CA', addedBy: 'JM', lat: 37.8065, lng: -122.4318 },
+  { id: 'crissy', name: 'Crissy Field East Beach', place: 'San Francisco, CA', addedBy: 'DW', lat: 37.8047, lng: -122.457 },
+  { id: 'lands-end', name: 'Lands End Lookout', place: 'San Francisco, CA', addedBy: 'KL', lat: 37.7804, lng: -122.5115 },
+  { id: 'ocean-firepits', name: 'Ocean Beach Firepits', place: 'San Francisco, CA', addedBy: 'MT', lat: 37.7595, lng: -122.5107 },
+  { id: 'stern-grove', name: 'Stern Grove', place: 'San Francisco, CA', addedBy: 'ZC', lat: 37.7362, lng: -122.4771 },
+  { id: 'alamo', name: 'Alamo Square', place: 'San Francisco, CA', addedBy: 'RP', lat: 37.7764, lng: -122.4346 },
+  { id: 'mission-rock', name: 'Mission Rock Terrace', place: 'San Francisco, CA', addedBy: 'IC', lat: 37.7717, lng: -122.3874 },
+  { id: 'treasure', name: 'Treasure Island Winery', place: 'San Francisco, CA', addedBy: 'FW', lat: 37.8235, lng: -122.3712 },
+  { id: 'berkeley-marina', name: 'Berkeley Marina', place: 'Berkeley, CA', addedBy: 'OD', lat: 37.8654, lng: -122.3149 },
 ]
 // venue ids repeated by expected popularity, so the ballot has a clear leader and a real race
 const BIG_WEIGHTED = [
@@ -1380,7 +1418,7 @@ const BIG_PARTICIPANTS: Participant[] = [
     id: ini, initials: ini, name, color: GUEST_COLORS[i % GUEST_COLORS.length], rsvp: bigRsvp(i),
   })),
 ]
-const BIG_DAYS = buildDays('2026-09-14', '2026-09-25') // two work weeks, Monday in and Friday out
+const BIG_DAYS = buildDays('2029-09-10', '2029-09-21') // two work weeks, Monday in and Friday out
 const BIG_TIMES = buildTimes('60', 9 * 60, 18 * 60)    // 9 AM – 6 PM
 const BIG_GRID_MAX = BIG_TIMES.length * 60
 // three people said yes and never opened the grid — the honest "no times yet" group
@@ -1401,7 +1439,7 @@ const BIG_AVAIL_IV: AvailIntervals = Object.fromEntries(BIG_DAYS.map((d, di) => 
 // one hour where everyone who responded lines up (Thu of week two, 12–1) — but only an hour,
 // so a 3-hour event's best window still lives elsewhere. The grid shows it full dark.
 {
-  const day = '2026-09-24'
+  const day = '2029-09-20'
   const everyone = new Set<string>()
   for (const byPid of Object.values(BIG_AVAIL_IV)) for (const id of Object.keys(byPid)) everyone.add(id)
   const byPid = (BIG_AVAIL_IV[day] ??= {})
@@ -1429,8 +1467,8 @@ const BIG_DEMO: AppEvent = {
   hostKind: 'person',
   description: 'The whole crew, one afternoon outdoors. Twelve venues on the ballot, three votes each — may the best park win.',
   timezone: 'America/Los_Angeles',
-  startDate: '2026-09-14',
-  endDate: '2026-09-25',
+  startDate: '2029-09-10',
+  endDate: '2029-09-21',
   granularity: '60',
   budget: '6000',
   budgetMode: 'total',
@@ -1444,7 +1482,7 @@ const BIG_DEMO: AppEvent = {
   },
   votes: BIG_VOTES,
   maxVotes: 3,
-  voteDeadline: '2026-09-10',
+  voteDeadline: '2029-09-06',
   participants: BIG_PARTICIPANTS,
   days: BIG_DAYS,
   times: BIG_TIMES,
@@ -1473,12 +1511,12 @@ const BIG_DEMO: AppEvent = {
 
 /* ── invited demos: events someone else is hosting, so home has a "You're invited" lane.
    Both land on the same Saturday on purpose — the same-day flag needs something to show. ── */
-const HW_DAYS = buildDays('2026-08-21', '2026-08-24')
+const HW_DAYS = buildDays('2029-08-17', '2029-08-20')
 const HW_TIMES = buildTimes('60', 12 * 60, 22 * 60)
 // grid minutes measured from noon (times[0]); Sarah is free all day, others trickle in
 const HW_IV: AvailIntervals = {
-  '2026-08-22': { SR: [{ s: 0, e: 600 }], AT: [{ s: 240, e: 600 }], MN: [{ s: 300, e: 540 }] },
-  '2026-08-23': { SR: [{ s: 0, e: 600 }], AT: [{ s: 300, e: 600 }], MN: [{ s: 300, e: 540 }], CL: [{ s: 360, e: 600 }] },
+  '2029-08-18': { SR: [{ s: 0, e: 600 }], AT: [{ s: 240, e: 600 }], MN: [{ s: 300, e: 540 }] },
+  '2029-08-19': { SR: [{ s: 0, e: 600 }], AT: [{ s: 300, e: 600 }], MN: [{ s: 300, e: 540 }], CL: [{ s: 360, e: 600 }] },
 }
 const HOUSEWARMING: AppEvent = {
   id: 'sarahs-housewarming',
@@ -1488,14 +1526,14 @@ const HOUSEWARMING: AppEvent = {
   hostKind: 'person',
   description: 'New place, first party. Come see the balcony everyone is going to fight over.',
   timezone: 'America/Los_Angeles',
-  startDate: '2026-08-21',
-  endDate: '2026-08-24',
+  startDate: '2029-08-17',
+  endDate: '2029-08-20',
   granularity: '60',
   budget: '',
   location: {
     mode: 'set',
     planMode: 'vote',
-    places: [{ id: 'sr-place', name: 'Sarah’s new apartment', place: 'Oakland, CA', addedBy: 'SR' }],
+    places: [{ id: 'sr-place', name: 'Sarah’s new apartment', place: 'Oakland, CA', addedBy: 'SR', lat: 37.8044, lng: -122.2712 }],
     platform: '',
     meetingLink: '',
   },
@@ -1521,8 +1559,8 @@ const HOUSEWARMING: AppEvent = {
   createdAt: 0,
   demo: true,
   status: 'confirmed',
-  confirmed: { dayKey: '2026-08-22', startMin: 17 * 60, endMin: 21 * 60, placeIds: ['sr-place'] },
-  rsvpDeadline: '2026-08-19',
+  confirmed: { dayKey: '2029-08-18', startMin: 17 * 60, endMin: 21 * 60, placeIds: ['sr-place'] },
+  rsvpDeadline: '2029-08-15',
 }
 
 const TRAIL_DAYS = buildDays('2026-07-25', '2026-07-25')
@@ -1545,7 +1583,7 @@ const TRAIL_DAY: AppEvent = {
   location: {
     mode: 'vote',
     planMode: 'vote',
-    places: [{ id: 'pt-isabel', name: 'Point Isabel Shoreline', place: 'Richmond, CA', addedBy: 'OB' }],
+    places: [{ id: 'pt-isabel', name: 'Point Isabel Shoreline', place: 'Richmond, CA', addedBy: 'OB', lat: 37.8985, lng: -122.3273 }],
     platform: '',
     meetingLink: '',
   },
@@ -1581,12 +1619,12 @@ const TRAIL_DAY: AppEvent = {
    4. both answered    → Trivia Night         (born confirmed, straight to RSVPs) ── */
 
 // 1 · both questions open
-const DINNER_DAYS = buildDays('2026-08-03', '2026-08-09')
+const DINNER_DAYS = buildDays('2029-07-30', '2029-08-05')
 const DINNER_TIMES = buildTimes('30', 17 * 60, 22 * 60)
 const DINNER_IV: AvailIntervals = {
-  '2026-08-05': { JM: [{ s: 60, e: 300 }], AT: [{ s: 0, e: 240 }], SR: [{ s: 120, e: 300 }] },
-  '2026-08-06': { JM: [{ s: 0, e: 300 }], AT: [{ s: 60, e: 300 }] },
-  '2026-08-07': { SR: [{ s: 0, e: 180 }] },
+  '2029-08-01': { JM: [{ s: 60, e: 300 }], AT: [{ s: 0, e: 240 }], SR: [{ s: 120, e: 300 }] },
+  '2029-08-02': { JM: [{ s: 0, e: 300 }], AT: [{ s: 60, e: 300 }] },
+  '2029-08-03': { SR: [{ s: 0, e: 180 }] },
 }
 const DESIGN_DINNER: AppEvent = {
   id: 'design-team-dinner',
@@ -1596,19 +1634,19 @@ const DESIGN_DINNER: AppEvent = {
   hostKind: 'person',
   description: 'End of quarter dinner for the design crew. Mark the evenings you can do and vote on where we eat.',
   timezone: 'America/Los_Angeles',
-  startDate: '2026-08-03',
-  endDate: '2026-08-09',
+  startDate: '2029-07-30',
+  endDate: '2029-08-05',
   granularity: '30',
   budget: '450',
   budgetMode: 'total',
-  planDeadline: '2026-08-02',
+  planDeadline: '2029-07-29',
   location: {
     mode: 'vote',
     planMode: 'vote',
     places: [
-      { id: 'luna', name: 'Luna Trattoria', place: 'San Francisco, CA', addedBy: 'AT' },
-      { id: 'golden-lotus', name: 'Golden Lotus', place: 'San Francisco, CA', addedBy: 'JM' },
-      { id: 'fable-fern', name: 'Fable & Fern', place: 'San Francisco, CA', addedBy: 'SR' },
+      { id: 'luna', name: 'Luna Trattoria', place: 'San Francisco, CA', addedBy: 'AT', lat: 37.7987, lng: -122.4078 },
+      { id: 'golden-lotus', name: 'Golden Lotus', place: 'San Francisco, CA', addedBy: 'JM', lat: 37.7941, lng: -122.4078 },
+      { id: 'fable-fern', name: 'Fable & Fern', place: 'San Francisco, CA', addedBy: 'SR', lat: 37.7648, lng: -122.4225 },
     ],
     platform: '',
     meetingLink: '',
@@ -1639,12 +1677,12 @@ const DESIGN_DINNER: AppEvent = {
 }
 
 // 2 · place answered, time open
-const BRUNCH_DAYS = buildDays('2026-08-08', '2026-08-16')
+const BRUNCH_DAYS = buildDays('2029-08-04', '2029-08-12')
 const BRUNCH_TIMES = buildTimes('60', 9 * 60, 15 * 60)
 const BRUNCH_IV: AvailIntervals = {
-  '2026-08-08': { JM: [{ s: 0, e: 240 }], PR: [{ s: 60, e: 300 }], DW: [{ s: 0, e: 120 }] },
-  '2026-08-09': { JM: [{ s: 0, e: 360 }], PR: [{ s: 0, e: 180 }], EM: [{ s: 60, e: 240 }], GH: [{ s: 0, e: 240 }] },
-  '2026-08-15': { GH: [{ s: 120, e: 360 }] },
+  '2029-08-04': { JM: [{ s: 0, e: 240 }], PR: [{ s: 60, e: 300 }], DW: [{ s: 0, e: 120 }] },
+  '2029-08-05': { JM: [{ s: 0, e: 360 }], PR: [{ s: 0, e: 180 }], EM: [{ s: 60, e: 240 }], GH: [{ s: 0, e: 240 }] },
+  '2029-08-11': { GH: [{ s: 120, e: 360 }] },
 }
 const BRUNCH: AppEvent = {
   id: 'brunch-at-mamas',
@@ -1654,14 +1692,14 @@ const BRUNCH: AppEvent = {
   hostKind: 'person',
   description: 'The place is set, we just need the right morning. Mark the days you could make it.',
   timezone: 'America/Los_Angeles',
-  startDate: '2026-08-08',
-  endDate: '2026-08-16',
+  startDate: '2029-08-04',
+  endDate: '2029-08-12',
   granularity: '60',
   budget: '',
   location: {
     mode: 'set',
     planMode: 'vote',
-    places: [{ id: 'mamas', name: 'Mama’s on Washington Square', place: 'San Francisco, CA', addedBy: 'JM' }],
+    places: [{ id: 'mamas', name: 'Mama’s on Washington Square', place: 'San Francisco, CA', addedBy: 'JM', lat: 37.8008, lng: -122.41 }],
     platform: '',
     meetingLink: '',
   },
@@ -1690,10 +1728,10 @@ const BRUNCH: AppEvent = {
 
 // 3 · time answered, place open: the slot is a fact on a status:'planning' event,
 // so the place ballot stays live and the lock-in only asks for the venue
-const SENDOFF_DAYS = buildDays('2026-08-07', '2026-08-07')
+const SENDOFF_DAYS = buildDays('2029-08-03', '2029-08-03')
 const SENDOFF_TIMES = buildTimes('30', 19 * 60, 22 * 60)
 const SENDOFF_IV: AvailIntervals = {
-  '2026-08-07': {
+  '2029-08-03': {
     JM: [{ s: 0, e: 180 }], PR: [{ s: 0, e: 180 }], AT: [{ s: 0, e: 180 }],
     MN: [{ s: 60, e: 180 }], EM: [{ s: 0, e: 120 }],
   },
@@ -1706,17 +1744,17 @@ const SENDOFF: AppEvent = {
   hostKind: 'person',
   description: 'Friday night is booked for Priya’s last week. Vote on the restaurant so we can reserve a table.',
   timezone: 'America/Los_Angeles',
-  startDate: '2026-08-07',
-  endDate: '2026-08-07',
+  startDate: '2029-08-03',
+  endDate: '2029-08-03',
   granularity: '30',
   budget: '',
   location: {
     mode: 'vote',
     planMode: 'vote',
     places: [
-      { id: 'trestle', name: 'Trestle', place: 'San Francisco, CA', addedBy: 'JM' },
-      { id: 'zuni', name: 'Zuni Café', place: 'San Francisco, CA', addedBy: 'EM' },
-      { id: 'copita', name: 'Copita', place: 'Sausalito, CA', addedBy: 'AT' },
+      { id: 'trestle', name: 'Trestle', place: 'San Francisco, CA', addedBy: 'JM', lat: 37.7973, lng: -122.4074 },
+      { id: 'zuni', name: 'Zuni Café', place: 'San Francisco, CA', addedBy: 'EM', lat: 37.7738, lng: -122.4218 },
+      { id: 'copita', name: 'Copita', place: 'Sausalito, CA', addedBy: 'AT', lat: 37.8592, lng: -122.4854 },
     ],
     platform: '',
     meetingLink: '',
@@ -1724,7 +1762,7 @@ const SENDOFF: AppEvent = {
   },
   votes: { trestle: ['JM', 'MN'], zuni: ['EM', 'KL'], copita: ['AT'] },
   maxVotes: 1,
-  voteDeadline: '2026-08-03',
+  voteDeadline: '2029-07-30',
   participants: [
     { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'attending', you: true, host: true },
     { id: 'PR', initials: 'PR', name: av('PR').name, color: av('PR').color, rsvp: 'attending' },
@@ -1747,15 +1785,15 @@ const SENDOFF: AppEvent = {
   createdAt: 0,
   demo: true,
   status: 'planning',
-  confirmed: { dayKey: '2026-08-07', startMin: 19 * 60, endMin: 22 * 60, placeIds: [] },
+  confirmed: { dayKey: '2029-08-03', startMin: 19 * 60, endMin: 22 * 60, placeIds: [] },
 }
 
 // 4 · both answered: born confirmed, straight to the RSVP round — with an RSVP
 // deadline ahead, so the RSVPs-open stretch (and its "RSVP by" note) has a demo
-const TRIVIA_DAYS = buildDays('2026-08-27', '2026-08-27')
+const TRIVIA_DAYS = buildDays('2029-08-23', '2029-08-23')
 const TRIVIA_TIMES = buildTimes('30', 19 * 60, 21 * 60 + 30)
 const TRIVIA_IV: AvailIntervals = {
-  '2026-08-27': { JM: [{ s: 0, e: 150 }], RW: [{ s: 0, e: 150 }], TC: [{ s: 30, e: 150 }] },
+  '2029-08-23': { JM: [{ s: 0, e: 150 }], RW: [{ s: 0, e: 150 }], TC: [{ s: 30, e: 150 }] },
 }
 const TRIVIA: AppEvent = {
   id: 'trivia-night-anchor',
@@ -1765,14 +1803,14 @@ const TRIVIA: AppEvent = {
   hostKind: 'person',
   description: 'Same bar, same table, last Thursday of the month. August edition is locked in, just say if you are in.',
   timezone: 'America/Los_Angeles',
-  startDate: '2026-08-27',
-  endDate: '2026-08-27',
+  startDate: '2029-08-23',
+  endDate: '2029-08-23',
   granularity: '30',
   budget: '',
   location: {
     mode: 'set',
     planMode: 'vote',
-    places: [{ id: 'anchor', name: 'The Anchor', place: 'Oakland, CA', addedBy: 'JM' }],
+    places: [{ id: 'anchor', name: 'The Anchor', place: 'Oakland, CA', addedBy: 'JM', lat: 37.808, lng: -122.268 }],
     platform: '',
     meetingLink: '',
   },
@@ -1797,24 +1835,24 @@ const TRIVIA: AppEvent = {
   createdAt: 0,
   demo: true,
   status: 'confirmed',
-  confirmed: { dayKey: '2026-08-27', startMin: 19 * 60, endMin: 21 * 60 + 30, placeIds: ['anchor'] },
-  rsvpDeadline: '2026-08-20',
+  confirmed: { dayKey: '2029-08-23', startMin: 19 * 60, endMin: 21 * 60 + 30, placeIds: ['anchor'] },
+  rsvpDeadline: '2029-08-16',
 }
 
 /* ── the day-poll demo: a trip asks which days, weekends only, best-run answer ── */
 const CABIN_DAYS = buildDaysFrom([
-  '2026-09-04', '2026-09-05', '2026-09-06',
-  '2026-09-11', '2026-09-12', '2026-09-13',
-  '2026-09-18', '2026-09-19', '2026-09-20',
+  '2029-08-31', '2029-09-01', '2029-09-02',
+  '2029-09-07', '2029-09-08', '2029-09-09',
+  '2029-09-14', '2029-09-15', '2029-09-16',
 ])
 const CABIN_FULL: Iv[] = [{ s: 0, e: 24 * 60 }]
 const CABIN_IV: AvailIntervals = {
-  '2026-09-04': { JM: CABIN_FULL, AT: CABIN_FULL, SR: CABIN_FULL, MN: CABIN_FULL },
-  '2026-09-05': { JM: CABIN_FULL, AT: CABIN_FULL, SR: CABIN_FULL, MN: CABIN_FULL, KL: CABIN_FULL },
-  '2026-09-06': { JM: CABIN_FULL, AT: CABIN_FULL, SR: CABIN_FULL, KL: CABIN_FULL },
-  '2026-09-11': { JM: CABIN_FULL, KL: CABIN_FULL },
-  '2026-09-12': { JM: CABIN_FULL, MN: CABIN_FULL, KL: CABIN_FULL },
-  '2026-09-19': { AT: CABIN_FULL, SR: CABIN_FULL },
+  '2029-08-31': { JM: CABIN_FULL, AT: CABIN_FULL, SR: CABIN_FULL, MN: CABIN_FULL },
+  '2029-09-01': { JM: CABIN_FULL, AT: CABIN_FULL, SR: CABIN_FULL, MN: CABIN_FULL, KL: CABIN_FULL },
+  '2029-09-02': { JM: CABIN_FULL, AT: CABIN_FULL, SR: CABIN_FULL, KL: CABIN_FULL },
+  '2029-09-07': { JM: CABIN_FULL, KL: CABIN_FULL },
+  '2029-09-08': { JM: CABIN_FULL, MN: CABIN_FULL, KL: CABIN_FULL },
+  '2029-09-15': { AT: CABIN_FULL, SR: CABIN_FULL },
 }
 const CABIN_TRIP: AppEvent = {
   id: 'cabin-trip',
@@ -1824,8 +1862,8 @@ const CABIN_TRIP: AppEvent = {
   hostKind: 'person',
   description: 'Three weekends on the table, one cabin at the end. Tap the days you could go.',
   timezone: 'America/Los_Angeles',
-  startDate: '2026-09-04',
-  endDate: '2026-09-20',
+  startDate: '2029-08-31',
+  endDate: '2029-09-16',
   granularity: 'day',
   budget: '900',
   budgetMode: 'person',
@@ -1833,8 +1871,8 @@ const CABIN_TRIP: AppEvent = {
     mode: 'vote',
     planMode: 'vote',
     places: [
-      { id: 'tahoe-cabin', name: 'Donner Lake Cabin', place: 'Truckee, CA', addedBy: 'JM' },
-      { id: 'sea-ranch', name: 'Sea Ranch House', place: 'Sea Ranch, CA', addedBy: 'SR' },
+      { id: 'tahoe-cabin', name: 'Donner Lake Cabin', place: 'Truckee, CA', addedBy: 'JM', lat: 39.3236, lng: -120.2542 },
+      { id: 'sea-ranch', name: 'Sea Ranch House', place: 'Sea Ranch, CA', addedBy: 'SR', lat: 38.715, lng: -123.43 },
     ],
     platform: '',
     meetingLink: '',
@@ -1858,7 +1896,7 @@ const CABIN_TRIP: AppEvent = {
   image: 'preset:coast',
   messages: [
     { id: 'SR', name: 'Sarah R', time: 'Wed', text: 'First September weekend looks strong so far', you: false },
-    { id: 'KL', name: 'Kyle L', time: 'Wed', text: 'I can do any of them except the 19th', you: false },
+    { id: 'KL', name: 'Kyle L', time: 'Wed', text: 'I can do any of them except the 15th', you: false },
   ],
   createdAt: 0,
   demo: true,

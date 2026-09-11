@@ -51,8 +51,8 @@ export function Header() {
           </Link>
           <div className="flex-1" />
           <ThemeToggle />
-          <Link href="/auth/signin" className="flex h-[34px] items-center rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent">
-            Sign in
+          <Link href="/auth/signin" className="flex h-[34px] items-center whitespace-nowrap rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent">
+            Log in
           </Link>
         </div>
       </header>
@@ -144,7 +144,7 @@ export function Header() {
                 <div className="mb-1 border-b border-border px-2.5 pb-2.5 pt-1.5">
                   <div className="text-[13.5px] font-semibold">{account.name}</div>
                   <div className="truncate text-[12px] text-dim">
-                    {account.signedIn ? account.email : 'Not signed in'}
+                    {account.signedIn ? account.email : 'Not logged in'}
                   </div>
                 </div>
                 <PopoverItem href="/profile" onClick={close} icon={<UserRound size={15} />}>Profile</PopoverItem>
@@ -159,10 +159,10 @@ export function Header() {
                     icon={<LogOut size={15} />}
                     tone="brick"
                   >
-                    Sign out
+                    Log out
                   </PopoverItem>
                 ) : (
-                  <PopoverItem href="/auth/signin" onClick={close} icon={<LogIn size={15} />}>Sign in</PopoverItem>
+                  <PopoverItem href="/auth/signin" onClick={close} icon={<LogIn size={15} />}>Log in</PopoverItem>
                 )}
               </>
             )}

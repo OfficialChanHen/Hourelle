@@ -39,7 +39,7 @@ export function MobileTabBar() {
       >
         <div className="mx-auto flex h-[64px] max-w-[560px] items-stretch">
           <TabItem href="/demos" label="Demos" icon={LayoutGrid} active={pathname.startsWith('/demos') || pathname.startsWith('/events/')} />
-          <TabItem href="/auth/signin" label="Sign in" icon={LogIn} active={false} />
+          <TabItem href="/auth/signin" label="Log in" icon={LogIn} active={false} />
         </div>
       </nav>
     )
@@ -57,7 +57,7 @@ export function MobileTabBar() {
       >
         <div className="mx-auto flex h-[64px] max-w-[560px] items-stretch">
           <TabItem href={`/events/${guestEventId}`} label={title} icon={CalendarDays} active={pathname.startsWith('/events/')} />
-          <TabItem href="/auth/signin" label="Sign in" icon={User} active={false} />
+          <TabItem href="/auth/signin" label="Log in" icon={User} active={false} />
         </div>
       </nav>
     )

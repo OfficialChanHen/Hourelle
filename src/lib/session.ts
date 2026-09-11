@@ -151,6 +151,61 @@ export async function updatePassword(password: string): Promise<string | null> {
   return error?.message ?? null
 }
 
+/* ── the account edits itself ── */
+export async function updateProfile(patch: { name?: string; color?: PersonColor }): Promise<string | null> {
+  const acc = readCache()
+  if (!acc.signedIn) return 'Log in first.'
+  const name = patch.name?.trim()
+  if (patch.name !== undefined && (!name || name.length < 2)) return 'A name needs at least two characters.'
+  if (backendOn) {
+    const { error } = await supabase!.from('profiles').update({ ...(name ? { name } : {}), ...(patch.color ? { color: patch.color } : {}) }).eq('id', acc.id)
+    if (error) return error.message
+  }
+  writeCache({ ...acc, ...(name ? { name } : {}), ...(patch.color ? { color: patch.color } : {}) })
+  return null
+}
+
+/* ── Google Calendar: the same Google login, asked for one more thing ──
+   Supabase hands back Google's own access token (provider_token) when the sign-in
+   asked for a scope, and only then. So an import is a short round trip: leave for
+   Google with the free/busy scope, come back to the event, read the token, ask
+   Google for busy blocks. The token lasts about an hour and is never refreshed;
+   the next import simply makes the trip again. */
+export async function connectGoogleCalendar(next: string): Promise<string | null> {
+  if (!backendOn) return 'Calendar import needs a backend. Add your Supabase keys to .env.local.'
+  const { error } = await supabase!.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      scopes: 'https://www.googleapis.com/auth/calendar.freebusy',
+      redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+    },
+  })
+  return error?.message ?? null
+}
+export async function googleProviderToken(): Promise<string | null> {
+  if (!backendOn) return null
+  const { data } = await supabase!.auth.getSession()
+  return data.session?.provider_token ?? null
+}
+
+/* ── the end of an account ── */
+export async function deleteAccount(): Promise<string | null> {
+  if (!backendOn) return 'Deleting an account needs a backend.'
+  const { data } = await supabase!.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) return 'Log in first.'
+  try {
+    const res = await fetch('/api/account/delete', { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+    const body = (await res.json().catch(() => ({}))) as { error?: string }
+    if (!res.ok) return body.error || `The server said no (${res.status}).`
+  } catch {
+    return 'Could not reach the server.'
+  }
+  await supabase!.auth.signOut()
+  writeCache(STUB)
+  return null
+}
+
 export async function signOut(): Promise<void> {
   if (!backendOn) return
   await supabase!.auth.signOut()

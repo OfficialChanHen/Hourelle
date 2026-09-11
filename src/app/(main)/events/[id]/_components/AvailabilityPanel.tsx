@@ -10,11 +10,15 @@ import { Popover } from '@/components/ui/Popover'
 import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, MissingPopover, PresetFills, Segment } from './availability/parts'
 import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, subtract, type Band, type GDay } from './availability/grid-lib'
 import { prefH24 } from '@/lib/prefs'
+import { useAccount } from '@/hooks/useAccount'
+import { canEmail, sendNudges } from '@/lib/mail'
 import {
   addMeToEvent, patchEvent, availIvOf, fullAvailIvOf, intervalsToGrid, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
-import { buildImportPreview, mockBusyUtc, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport } from '@/lib/calendar-import'
+import { buildImportPreview, googleBusyUtc, mockBusyUtc, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport, type UtcBusy } from '@/lib/calendar-import'
+import { backendOn } from '@/lib/db'
+import { connectGoogleCalendar, googleProviderToken } from '@/lib/session'
 
 type Mode = 'view' | 'edit'
 type Edge = 'top' | 'bottom'
@@ -118,6 +122,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const [detail, setDetail] = useState<{ day: string; ti: number; cx: number; cyTop: number; cyBottom: number; below: boolean } | null>(null) // view-mode cell breakdown
   const [showMissing, setShowMissing] = useState(false)
   const [nudged, setNudged] = useState<Set<string>>(new Set())
+  // nudges are emails from the host: only the host, logged in, with a backend
+  const account = useAccount()
+  const canNudge = !!event.hostedByYou && canEmail(account.signedIn)
+  const [nudgeNote, setNudgeNote] = useState<string | null>(null)
   const [sel, setSel] = useState<Sel | null>(null)
   const [nudgeStep, setNudgeStep] = useState(5) // minutes the − / + buttons move an edge
   const [drag, setDrag] = useState<Drag | null>(null)
@@ -246,9 +254,22 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     persist(next)
     setSel(null)
   }
-  function nudge(id: string) {
-    setNudged((prev) => new Set(prev).add(id)) // stub: real build sends a reminder email
+  // one call for one person or the whole missing list; the note under the popover
+  // says exactly what happened, since an email is a real thing to have sent
+  async function nudgeMany(ids: string[]) {
+    if (!canNudge || !ids.length) return
+    const r = await sendNudges(event.id, ids)
+    if (!r.ok) { setNudgeNote(r.error); return }
+    const done = [...r.data.sent, ...r.data.already]
+    setNudged((prev) => { const n = new Set(prev); done.forEach((id) => n.add(id)); return n })
+    const parts: string[] = []
+    if (r.data.sent.length) parts.push(`${r.data.sent.length} emailed`)
+    if (r.data.already.length) parts.push(`${r.data.already.length} already nudged today`)
+    if (r.data.noEmail.length) parts.push(`${r.data.noEmail.length} with no email to reach`)
+    if (r.data.failed.length) parts.push(`${r.data.failed.length} could not be sent`)
+    setNudgeNote(parts.length ? parts.join(', ') + '.' : null)
   }
+  function nudge(id: string) { void nudgeMany([id]) }
   // toggle a person in the filter; from edit mode this jumps to view, where the filter reads
   function toggleFilter(pid: string) {
     setFilter((prev) => {
@@ -267,7 +288,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     setDetail(null)
     if (mode === 'edit') { setMode('view'); setSel(null) }
   }
-  function nudgeAll() { setNudged(new Set(missing.map((p) => p.id))) }
+  function nudgeAll() { void nudgeMany(missing.filter((p) => !nudged.has(p.id)).map((p) => p.id)) }
 
   // open the view-mode breakdown, anchored to the clicked cell but rendered outside the
   // scroller so overflow can't clip it
@@ -551,12 +572,27 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // calendar import: fetch busy as UTC instants, convert to event-tz grid minutes, and
   // apply in one step. No preview modal — the action is additive-only and the grid
   // shows the result right away, so the toast (what landed, Undo) is confirmation enough.
-  function startImport(provider: string) {
+  async function startImport(provider: string) {
     if (!event.days.every((d) => ISO_DAY.test(d.key))) {
       stashUndo(null, 'Calendar import works on events you create, not this sample.')
       return
     }
-    const data = buildImportPreview(mockBusyUtc(event.days), event.days, gridStartMin, gridMax, event.timezone)
+    // with a backend, Google is real: no token yet means a trip to Google that lands
+    // back here with ?import=google (see the effect below); otherwise the sample
+    // calendar stands in so the flow can be tried without any keys
+    let busy: UtcBusy[]
+    if (provider === 'Google Calendar' && backendOn) {
+      const back = `/events/${event.id}?tab=availability&import=google`
+      const token = await googleProviderToken()
+      if (!token) { const err = await connectGoogleCalendar(back); if (err) stashUndo(null, err); return }
+      const r = await googleBusyUtc(token, event.days, gridStartMin, gridMax, event.timezone)
+      if (r.error === 'auth') { const err = await connectGoogleCalendar(back); if (err) stashUndo(null, err); return }
+      if (r.error) { stashUndo(null, r.error); return }
+      busy = r.busy
+    } else {
+      busy = mockBusyUtc(event.days)
+    }
+    const data = buildImportPreview(busy, event.days, gridStartMin, gridMax, event.timezone)
     const snapshot = mineRef.current
     const next = { ...snapshot }
     // merge, never remove: imported free times join whatever is already marked.
@@ -575,6 +611,22 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     setMine(next); persist(next); setSel(null)
     stashUndo(snapshot, `Added ${fmtDur(addedMin)} of free time from ${provider}`)
   }
+
+  // back from Google with the free/busy permission: finish the import that started
+  // it, once, and take the marker off the address bar
+  const importOnce = useRef(false)
+  useEffect(() => {
+    if (importOnce.current || typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('import') !== 'google') return
+    importOnce.current = true
+    url.searchParams.delete('import')
+    window.history.replaceState(window.history.state, '', url.toString())
+    // a tick later, so the import's own state changes land after this render
+    const t = setTimeout(() => { void startImport('Google Calendar') }, 0)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Scalability: cell rendering must not be O(cells × people). Build each day's combined
   // intervals ONCE per render (not once per cell), so the grid scales with days, not
@@ -832,7 +884,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             <IconBtn onClick={() => goWeek(-1)} disabled={page === 0}><ChevronLeft size={17} /></IconBtn>
             <span className="px-1 text-center text-[13.5px] font-semibold leading-tight">
               {rangeLabel}
-              {pageCount > 1 && <span className="ml-1 font-medium text-faint">· Week {page + 1}/{pageCount}</span>}
+              {pageCount > 1 && <> <span className="font-medium text-faint">(week {page + 1} of {pageCount})</span></>}
             </span>
             <IconBtn onClick={() => goWeek(1)} disabled={page >= pageCount - 1}><ChevronRight size={17} /></IconBtn>
           </div>
@@ -859,7 +911,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={event.timezone} /></span>
           )}
           {/* importing fills YOUR times, so it rides with edit mode — view stays lean */}
-          {!locked && mode === 'edit' && <ImportFromCalendar onPick={startImport} />}
+          {!locked && mode === 'edit' && <ImportFromCalendar onPick={(p) => void startImport(p)} providers={backendOn ? ['Google Calendar'] : ['Google Calendar', 'Outlook']} note={backendOn ? 'Free/busy only. Google asks once, then your free times land here.' : 'A sample calendar stands in until a backend is set up.'} />}
           </div>
         </div>
 
@@ -884,7 +936,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               {responded} of {total} responded{missing.length > 0 && <ChevronDown size={13} className={showMissing ? 'rotate-180' : ''} />}
             </button>
             {showMissing && missing.length > 0 && (
-              <MissingPopover missing={missing} nudged={nudged} onNudge={nudge} onNudgeAll={nudgeAll} onClose={() => setShowMissing(false)} />
+              <MissingPopover missing={missing} nudged={nudged} canNudge={canNudge} note={nudgeNote} onNudge={nudge} onNudgeAll={nudgeAll} onClose={() => setShowMissing(false)} />
             )}
           </div>
           {mode === 'edit' && !dayPoll && <PresetFills onFill={fillPreset} onFillAll={fillAllDays} />}
@@ -962,9 +1014,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           return (
             <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-[10px] border border-border bg-s0 px-3 py-2">
               <span className="text-[13px] text-dim">{label} {verb} marked any times yet.</span>
-              {unmarkedNudgees.length > 0 && (
+              {unmarkedNudgees.length > 0 && canNudge && (
                 <button
-                  onClick={() => unmarkedNudgees.forEach((p) => nudge(p.id))}
+                  onClick={() => void nudgeMany(unmarkedNudgees.filter((p) => !nudged.has(p.id)).map((p) => p.id))}
                   disabled={allNudged}
                   className={`flex items-center gap-1 text-[12.5px] font-semibold ${allNudged ? 'text-teal-text' : 'text-accent-text hover:underline'}`}
                 >
@@ -1344,20 +1396,20 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               {blockLen === 1 && !dayPoll ? (
                 bw ? (
                   <>
-                    <span className="text-[14px] font-semibold text-ochre">{bw.dayLabel} · {fmt(gridStartMin + bw.s)} – {fmt(gridStartMin + bw.e)}</span>
+                    <span className="text-[14px] font-semibold text-ochre">{bw.dayLabel}, {fmt(gridStartMin + bw.s)} – {fmt(gridStartMin + bw.e)}</span>
                     <TimezonePill tz={myTime && canConvert ? localTz : event.timezone} />
                     {bestMode === 'crowd'
                       // never round a partial attendee away: below one person on average,
                       // count everyone who shows up at all instead
                       ? Math.round(bw.avg) >= 1
-                        ? <span className="text-[12.5px] font-semibold text-teal-text">around {Math.round(bw.avg)} of {viewTotal} there{bw.count > 0 && <span className="font-normal text-dim"> · {bw.count} the whole time</span>}</span>
+                        ? <span className="text-[12.5px] font-semibold text-teal-text">around {Math.round(bw.avg)} of {viewTotal} there{bw.count > 0 && <span className="font-normal text-dim">, {bw.count} the whole time</span>}</span>
                         : <span className="text-[12.5px] font-semibold text-teal-text">{bw.anyIds.length} of {viewTotal} there for part of it</span>
                       : <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {viewTotal} free</span>}
                     <div className="ml-auto"><AvatarRow people={byRoster(bestMode === 'crowd' ? bw.anyIds : bw.ids).map(avatarOf)} size={22} max={8} overlap={5} /></div>
                     {bwAllShown && (
                       <span className="flex w-full items-center gap-1.5 text-[12.5px] text-dim">
                         <span className="inline-block h-0 w-[18px] border-t-2 border-dashed border-ochre" aria-hidden />
-                        Everyone&apos;s best stays marked for comparison: <span className="font-semibold text-text">{bwAllShown.dayLabel} · {fmt(gridStartMin + bwAllShown.s)} – {fmt(gridStartMin + bwAllShown.e)}</span>
+                        Everyone&apos;s best stays marked for comparison: <span className="font-semibold text-text">{bwAllShown.dayLabel}, {fmt(gridStartMin + bwAllShown.s)} – {fmt(gridStartMin + bwAllShown.e)}</span>
                       </span>
                     )}
                   </>

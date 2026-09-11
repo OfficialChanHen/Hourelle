@@ -115,7 +115,7 @@ export default function Landing() {
             </p>
             <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
               <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-accent px-6 text-[15px] font-semibold text-on-accent">
-                Create an account <ArrowRight size={16} />
+                Sign up <ArrowRight size={16} />
               </Link>
               <Link href="/demos" className="flex h-12 items-center justify-center rounded-[11px] border border-border2 bg-s1 px-6 text-[15px] font-semibold text-dim hover:bg-s2 hover:text-text">
                 Try a demo first
@@ -238,10 +238,10 @@ export default function Landing() {
             </div>
             <div className="flex flex-col gap-2.5 lg:items-end">
               <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-on-accent px-6 text-[15px] font-semibold text-accent">
-                Create an account <ArrowRight size={16} />
+                Sign up <ArrowRight size={16} />
               </Link>
               <Link href="/auth/signin" className="flex h-12 items-center justify-center rounded-[11px] border border-[rgba(248,245,236,.4)] px-6 text-[15px] font-semibold text-on-accent hover:bg-[rgba(248,245,236,.1)]">
-                I already have one
+                Log in
               </Link>
             </div>
           </div>

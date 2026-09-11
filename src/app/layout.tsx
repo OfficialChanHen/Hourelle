@@ -36,7 +36,9 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${lora.variable} ${instrumentSans.variable} h-full`}
     >
-      <body className="min-h-full flex flex-col bg-bg text-text font-sans">
+      {/* suppressHydrationWarning: browser extensions (Grammarly and friends) stamp
+          attributes on body before React loads; that is not a mismatch of ours */}
+      <body className="min-h-full flex flex-col bg-bg text-text font-sans" suppressHydrationWarning>
         {/* apply the saved appearance before anything paints, the same way next-themes
             applies data-theme — otherwise non-default palettes flash the Aline look */}
         <script

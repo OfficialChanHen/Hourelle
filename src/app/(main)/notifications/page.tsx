@@ -80,7 +80,7 @@ export default function NotificationsPage() {
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[14.5px] font-semibold">{e.title}</div>
-                        <div className="mt-0.5 text-[12.5px] text-dim">Planning wraps up {du <= 0 ? 'today' : 'tomorrow'}{e.hostedByYou ? ' · time to lock it in' : ''}</div>
+                        <div className="mt-0.5 text-[12.5px] text-dim">Planning wraps up {du <= 0 ? 'today' : 'tomorrow'}{e.hostedByYou ? ', time to lock it in' : ''}</div>
                       </div>
                       <ChevronRight size={17} className="flex-none text-faint" />
                     </Link>
@@ -147,7 +147,7 @@ export default function NotificationsPage() {
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[14.5px] font-semibold">{e.title}</div>
                         <div className="mt-0.5 text-[12.5px] text-dim">
-                          Waiting on your availability · {replied} of {e.participants.length} replied so far
+                          Waiting on your availability, {replied} of {e.participants.length} have replied so far
                         </div>
                       </div>
                       <ChevronRight size={17} className="flex-none text-faint" />
@@ -163,7 +163,7 @@ export default function NotificationsPage() {
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[14.5px] font-semibold">{e.title}</div>
                         <div className="mt-0.5 text-[12.5px] text-dim">
-                          Voting closes {du <= 0 ? 'today' : `in ${du} day${du === 1 ? '' : 's'}`} · {e.location.places.length} place{e.location.places.length === 1 ? '' : 's'} on the ballot
+                          Voting closes {du <= 0 ? 'today' : `in ${du} day${du === 1 ? '' : 's'}`}, with {e.location.places.length} place{e.location.places.length === 1 ? '' : 's'} on the ballot
                         </div>
                       </div>
                       <ChevronRight size={17} className="flex-none text-faint" />
@@ -175,7 +175,7 @@ export default function NotificationsPage() {
                 const remote = e.location.mode === 'remote'
                 const place = remote
                   ? `Online on ${e.location.platform}`
-                  : c.placeIds.map((id) => e.location.places.find((p) => p.id === id)?.name).filter(Boolean).join(' · ') || 'Place still open'
+                  : c.placeIds.map((id) => e.location.places.find((p) => p.id === id)?.name).filter(Boolean).join(', ') || 'Place still open'
                 return (
                   <Link key={key} href={`/events/${e.id}?tab=details`} className={cardCls(key)}>
                     <span className={`grid h-[38px] w-[38px] flex-none place-items-center rounded-[10px] border ${du <= 0 ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-teal-border bg-teal-bg text-teal-text'}`}>
@@ -185,10 +185,10 @@ export default function NotificationsPage() {
                       <div className="truncate text-[14.5px] font-semibold">{e.title}</div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12.5px] text-dim">
                         <span>
-                          Locked in · {du <= 0 ? 'today' : `in ${du} day${du === 1 ? '' : 's'}`}
-                          {day ? ` · ${day.dow}, ${day.date}` : ''}
+                          {du <= 0 ? 'Today' : `In ${du} day${du === 1 ? '' : 's'}`}, locked in
+                          {day ? ` for ${day.dow}, ${day.date}` : ''}
                           {c.endDayKey && (() => { const ed = e.days.find((d) => d.key === c.endDayKey); return ed ? ` – ${ed.dow}, ${ed.date}` : '' })()}
-                          {c.startMin === 0 && c.endMin === 24 * 60 ? '' : ` · ${fmtMinute(c.startMin)}`}
+                          {c.startMin === 0 && c.endMin === 24 * 60 ? '' : ` at ${fmtMinute(c.startMin)}`}
                         </span>
                         {!(c.startMin === 0 && c.endMin === 24 * 60) && <TimezonePill tz={e.timezone} />}
                         <span className="flex items-center gap-1">{remote ? <Video size={12} /> : <MapPin size={12} />} {place}</span>

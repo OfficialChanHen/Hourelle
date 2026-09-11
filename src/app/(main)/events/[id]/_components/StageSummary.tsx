@@ -32,7 +32,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
     const went = event.participants.filter((p) => p.rsvp === 'attending').length
     return (
       <p className="text-[13.5px] text-dim">
-        Happened {dateRangeText(event)} · {went} went ·{' '}
+        Happened {dateRangeText(event)} with {went} there.{' '}
         <Link href={`/create?from=${event.id}`} className="inline-flex items-center gap-1 font-semibold text-accent-text hover:underline">
           <RotateCcw size={13} /> Reuse for a new event
         </Link>

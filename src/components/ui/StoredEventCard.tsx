@@ -78,7 +78,7 @@ export function StoredEventCard({ e, reuseHref, sameDay }: { e: AppEvent; reuseH
         <span>{badge.label}</span>
         {phase !== 'past' && du !== null && (
           <>
-            <span className="text-faint">·</span>
+            <span className="h-3 w-px flex-none bg-border2" aria-hidden />
             <span className={du >= 0 && du <= 14 ? 'text-accent-text' : ''}>{daysUntilLabel(du)}</span>
           </>
         )}

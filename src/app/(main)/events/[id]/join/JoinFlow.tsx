@@ -133,9 +133,15 @@ export function JoinFlow({ id }: { id: string }) {
     setSent(addr)
   }
 
+  // two characters is the floor; a first and last name is what the roster and the
+  // chat avatars want, so the field says so without insisting
+  const cleanName = name.trim().replace(/\s+/g, ' ')
+  const nameOk = cleanName.length >= 2
+  const nameWords = cleanName.split(' ').length
+
   function join() {
-    const clean = name.trim().replace(/\s+/g, ' ')
-    if (!clean || joining || !event) return
+    const clean = cleanName
+    if (!nameOk || joining || !event) return
     const cleanEmail = email.trim().toLowerCase()
     // the email is the identity key: same email as an earlier entry means the same
     // person — prove it and resume, instead of creating a double
@@ -336,6 +342,13 @@ export function JoinFlow({ id }: { id: string }) {
                     onKeyDown={(e) => { if (e.key === 'Enter') join() }}
                     className={field}
                   />
+                  <p className={`text-[12px] leading-[1.55] ${cleanName.length === 1 ? 'text-brick-text' : 'text-faint'}`}>
+                    {cleanName.length === 1
+                      ? 'At least two characters.'
+                      : nameOk && nameWords < 2
+                        ? 'Add a last name too, so people can tell who you are.'
+                        : 'First and last name is best, so people can tell who you are.'}
+                  </p>
                 </div>
                 <div className="mt-3 flex flex-col gap-1.5">
                   <label htmlFor="join-email" className="text-[12.5px] font-semibold text-dim">Email (Recommended)</label>
@@ -354,7 +367,7 @@ export function JoinFlow({ id }: { id: string }) {
                 </div>
                 <button
                   onClick={join}
-                  disabled={!name.trim() || joining}
+                  disabled={!nameOk || joining}
                   className="mt-5 flex h-11 w-full items-center justify-center gap-1.5 rounded-[10px] bg-accent text-[14.5px] font-semibold text-on-accent disabled:opacity-40"
                 >
                   Join event <ArrowRight size={15} />

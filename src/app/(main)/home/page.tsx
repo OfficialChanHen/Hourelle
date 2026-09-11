@@ -254,19 +254,19 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
             </span>
             {du !== null && (
               <>
-                <span className="text-faint">·</span>
+                <span className="h-3 w-px flex-none bg-border2" aria-hidden />
                 <span className={du >= 0 && du <= 14 ? 'text-accent-text' : ''}>{daysUntilLabel(du)}</span>
               </>
             )}
             {!e.hostedByYou && (
               <>
-                <span className="text-faint">·</span>
+                <span className="h-3 w-px flex-none bg-border2" aria-hidden />
                 <span>Hosted by {e.hostName}</span>
               </>
             )}
             {e.participants.some((p) => p.you && p.rsvp === 'pending') && (
               <>
-                <span className="text-faint">·</span>
+                <span className="h-3 w-px flex-none bg-border2" aria-hidden />
                 <span className="text-accent-text">your reply is waiting</span>
               </>
             )}
@@ -277,7 +277,7 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
                 : 0
               return n > 0 && (
                 <>
-                  <span className="text-faint">·</span>
+                  <span className="h-3 w-px flex-none bg-border2" aria-hidden />
                   <span>waiting on {n} {n === 1 ? 'reply' : 'replies'}</span>
                 </>
               )

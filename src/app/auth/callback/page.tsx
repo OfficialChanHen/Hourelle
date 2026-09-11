@@ -29,7 +29,7 @@ export default function AuthCallbackPage() {
         if (data.session) { router.replace(next); return }
         await new Promise((r) => setTimeout(r, 150))
       }
-      if (!done) setError('That sign-in link did not go through. Try again from the sign-in page.')
+      if (!done) setError('That log-in link did not go through. Try again from the log-in page.')
     }
     void finish()
     return () => { done = true }
@@ -39,10 +39,10 @@ export default function AuthCallbackPage() {
     <div className="grid min-h-dvh place-items-center px-6 text-center">
       {error ? (
         <div className="max-w-[320px]">
-          <p className="font-serif text-[22px] leading-tight">Sign-in didn&apos;t finish</p>
+          <p className="font-serif text-[22px] leading-tight">Log-in didn&apos;t finish</p>
           <p className="mt-2 text-[13px] leading-[1.55] text-dim">{error}</p>
           <a href="/auth/signin" className="mt-4 inline-flex h-10 items-center rounded-[10px] bg-accent px-4 text-[13.5px] font-semibold text-on-accent">
-            Back to sign in
+            Back to log in
           </a>
         </div>
       ) : (

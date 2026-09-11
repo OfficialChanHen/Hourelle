@@ -56,10 +56,10 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
             {/* an all-day lock (day polls) has no clock times to show; a run of days
                 reads as the range alone */}
             {c.startMin === 0 && c.endMin === 24 * 60 ? (
-              <span className="font-serif text-[27px] leading-[1.05] tracking-[-0.01em]">{dayText}{endDay ? '' : ' · all day'}</span>
+              <span className="font-serif text-[27px] leading-[1.05] tracking-[-0.01em]">{dayText}{endDay ? '' : ', all day'}</span>
             ) : (
               <>
-                <span className="font-serif text-[27px] leading-[1.05] tracking-[-0.01em]">{dayText} · {fmtMinute(c.startMin)} – {fmtMinute(c.endMin)}</span>
+                <span className="font-serif text-[27px] leading-[1.05] tracking-[-0.01em]">{dayText}, {fmtMinute(c.startMin)} – {fmtMinute(c.endMin)}</span>
                 <TimezonePill tz={event.timezone} />
               </>
             )}
@@ -70,9 +70,9 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
             ) : itinLocked ? (
               <><Route size={15} className="flex-none text-accent-text" /> {itin.length}-stop itinerary, on the Location tab</>
             ) : placeNames.length > 1 ? (
-              <><MapPin size={15} className="flex-none text-accent-text" /> <span className="min-w-0">Happening across {placeNames.length} spots: {placeNames.join(' · ')}</span></>
+              <><MapPin size={15} className="flex-none text-accent-text" /> <span className="min-w-0">Happening across {placeNames.length} spots: {placeNames.join(', ')}</span></>
             ) : placeNames.length > 0 ? (
-              <><MapPin size={15} className="flex-none text-accent-text" /> <span className="min-w-0">{placeNames.join(' · ')}</span></>
+              <><MapPin size={15} className="flex-none text-accent-text" /> <span className="min-w-0">{placeNames.join(', ')}</span></>
             ) : (
               <><MapPin size={15} className="flex-none" /> Place still open</>
             )}

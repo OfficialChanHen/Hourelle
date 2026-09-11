@@ -222,7 +222,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
                 className="h-9 w-full appearance-none rounded-[9px] border border-border bg-s1 pl-3 pr-8 text-[13.5px] font-medium outline-none focus:border-accent-border"
               >
                 {event.days.map((d) => (
-                  <option key={d.key} value={d.key}>{d.dow}, {d.date}{bw?.dayKey === d.key ? ' · most are free' : ''}</option>
+                  <option key={d.key} value={d.key}>{d.dow}, {d.date}{bw?.dayKey === d.key ? ' (most are free)' : ''}</option>
                 ))}
               </select>
               <ChevronDown size={15} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-faint" />
@@ -240,7 +240,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
                 >
                   {lastOptions.map((k) => {
                     const d = event.days.find((x) => x.key === k)
-                    return <option key={k} value={k}>{d ? `${d.dow}, ${d.date}` : k}{k === dayKey ? ' · one day' : ''}</option>
+                    return <option key={k} value={k}>{d ? `${d.dow}, ${d.date}` : k}{k === dayKey ? ' (one day)' : ''}</option>
                   })}
                 </select>
                 <ChevronDown size={15} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-faint" />
@@ -277,7 +277,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
           </div>
         ) : settled ? (
           <div className="flex items-center gap-2 rounded-[9px] border border-border bg-s2 px-3 py-2 text-[13px] text-dim">
-            <MapPin size={15} className="flex-none text-accent-text" /> <span className="min-w-0 truncate">{loc.places.map((p) => p.name).join(' · ')}</span> <span className="flex-none text-faint">already set</span>
+            <MapPin size={15} className="flex-none text-accent-text" /> <span className="min-w-0 truncate">{loc.places.map((p) => p.name).join(', ')}</span> <span className="flex-none text-faint">already set</span>
           </div>
         ) : !hasBallot ? (
           <div className="flex flex-wrap items-center gap-2 rounded-[9px] border border-ochre-border bg-ochre-bg px-3 py-2 text-[13px] text-ochre-text">
@@ -314,7 +314,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
                     <label key={p.id} className={`flex cursor-pointer items-center gap-2 rounded-[9px] border px-2.5 py-2 ${on ? 'border-accent-border bg-accent-bg/40' : 'border-border bg-s1 hover:bg-s2'}`}>
                       <input type="checkbox" checked={on} onChange={() => togglePlace(p.id)} className="h-3.5 w-3.5 flex-none" style={{ accentColor: 'var(--accent)' }} />
                       <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}</span>
-                      <span className="flex-none text-[12px] text-faint">{n} vote{n === 1 ? '' : 's'}{i === 0 && n > 0 ? ' · leading' : ''}</span>
+                      <span className="flex-none text-[12px] text-faint">{n} vote{n === 1 ? '' : 's'}{i === 0 && n > 0 ? ', leading' : ''}</span>
                     </label>
                   )
                 })}

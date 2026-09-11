@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useEffect, useRef, useState, type RefObject } from 'react'
+import { use, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import Link from 'next/link'
 import {
   Check, ChevronDown, ChevronUp, Search, Plus, X, MapPin, Video, Clock,
@@ -12,24 +12,16 @@ import { personColors, type PersonColor } from '@/lib/colors'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
-import { av } from '@/lib/people'
-import { createEvent, draftFromEvent, getEvent, maxPollDays, parseHM, fmtMinute, selectedDayKeys, type AppEvent } from '@/lib/events'
+import { createEvent, draftFromEvent, getEvent, initialsOf, maxPollDays, parseHM, fmtMinute, selectedDayKeys, type AppEvent, type AccountInvitee } from '@/lib/events'
+import { lookupProfileByEmail, recentInvitees, type Invitee } from '@/lib/invitees'
+import { centroidOf, searchPlaces } from '@/lib/geo'
+import { canEmail, sendInvites } from '@/lib/mail'
+import { useAccount } from '@/hooks/useAccount'
+import { OverflowText } from '@/components/ui/OverflowText'
 import { DaysPicker } from '@/components/ui/DaysPicker'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-
-const USER_NAME = 'Jordan Miller'
-
-// people with existing accounts you've invited before (hard-coded for now)
-const RECENT_ACCOUNTS: { id: string; email: string }[] = [
-  { id: 'SR', email: 'sarah.reyes@acme.co' },
-  { id: 'AT', email: 'alex.tan@acme.co' },
-  { id: 'KL', email: 'kyle.lee@acme.co' },
-  { id: 'PR', email: 'priya.rao@acme.co' },
-  { id: 'MN', email: 'mia.nakamura@acme.co' },
-  { id: 'CL', email: 'chris.lopez@acme.co' },
-]
 
 const TZ = [
   { v: 'America/Los_Angeles', l: 'Pacific Time (PT)' },
@@ -39,7 +31,7 @@ const TZ = [
   { v: 'Europe/London', l: 'London (GMT/BST)' },
   { v: 'UTC', l: 'UTC' },
 ]
-type Loc = { id: string; name: string; place: string }
+type Loc = { id: string; name: string; place: string; lat?: number; lng?: number }
 type Stop = Loc & { uid: string }
 type LocMode = 'vote' | 'remote' | 'later'
 type PlanMode = 'vote' | 'itinerary'
@@ -93,7 +85,7 @@ type Form = {
   platform: string
   meetingLink: string
   emails: string[]
-  accounts: string[]
+  accounts: AccountInvitee[]
 }
 
 const initialForm: Form = {
@@ -222,8 +214,8 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
       ? ''
       : selKeys.length === 0
         ? 'Every day is turned off. Turn at least one back on.'
-        : selKeys.length > maxPollDays(form.granularity)
-          ? `That's ${selKeys.length} days to poll. Keep it to ${maxPollDays(form.granularity)} or fewer by turning off the days that don't apply${form.granularity === 'day' ? '' : ', or switch to whole days'}.`
+        : selKeys.length > maxPollDays(form.granularity, form.startDate)
+          ? `That's ${selKeys.length} days to poll. Keep it to ${maxPollDays(form.granularity, form.startDate)} or fewer by turning off the days that don't apply${form.granularity === 'day' ? '' : ', or switch to whole days'}. A range that starts on the 1st of a month may run to the end of ${form.granularity === 'day' ? 'the third month' : 'that month'}.`
           : '',
     win:
       finding && form.granularity !== 'day' && form.windowPreset === 'custom' && (parseHM(form.windowStart) === null || parseHM(form.windowEnd) === null)
@@ -245,6 +237,8 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
               : '',
   }
   const basicsOk = !basicsErr.title && !basicsErr.start && !basicsErr.end && !basicsErr.days && !basicsErr.win && !basicsErr.tz && !basicsErr.fixed
+  // the first thing still missing, in the order the form asks for it
+  const firstMissing = [basicsErr.title, basicsErr.fixed, basicsErr.start, basicsErr.end, basicsErr.days, basicsErr.win, basicsErr.tz].find(Boolean) ?? ''
 
   // tap a template to seed the form; tap it again to start blank. The detected
   // defaults (dates, zone) survive the reset.
@@ -281,7 +275,7 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
   // one-line summaries so each closed drawer still says where it stands
   const inviteTotal = form.emails.length + form.accounts.length
   const placeSummary = form.locMode === 'remote'
-    ? `Online · ${form.platform}`
+    ? `Online on ${form.platform}`
     : form.locMode === 'later'
       ? 'Decide later'
       : form.locSettled
@@ -295,7 +289,7 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
   const moneySummary = [
     form.budget ? `$${Number(form.budget).toLocaleString()} ${form.budgetMode === 'person' ? 'per person' : 'total'}` : '',
     form.capacity ? `${form.capacity} spots` : '',
-  ].filter(Boolean).join(' · ') || 'No budget, no spot limit'
+  ].filter(Boolean).join(', ') || 'No budget, no spot limit'
 
   return (
     <div className="mx-auto max-w-[760px] px-4 pb-[104px] pt-6 sm:px-[26px] sm:pt-[34px]">
@@ -335,7 +329,7 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
 
         {/* everything optional lives in drawers — open what you need, skip the rest */}
         <div className="mt-5 border-t border-border pt-4">
-          <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">More options · all of it editable on the event page too</div>
+          <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">More options, all editable on the event page too</div>
           <Collapse icon={AlignLeft} title="Description" summary={form.description || 'What is it about?'}>
             <textarea
               value={form.description}
@@ -379,12 +373,16 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
         <Link href="/home" className="flex h-11 sm:h-10 items-center rounded-[10px] border border-border2 bg-transparent px-4 text-[14px] font-semibold hover:bg-s2">
           Cancel
         </Link>
-        <button onClick={create} className="flex h-11 sm:h-10 items-center gap-1.5 rounded-[10px] bg-accent px-[18px] text-[14px] font-semibold text-on-accent">
-          <Check size={17} /> Create event
-        </button>
+        {/* faded until every field is right; a tap on the faded button lights up the
+            fields that still need something, since a disabled button says nothing */}
+        <span onClick={() => { if (!basicsOk) setAttempted(true) }} className={basicsOk ? '' : 'cursor-not-allowed'}>
+          <button onClick={create} disabled={!basicsOk} title={basicsOk ? undefined : firstMissing} className="flex h-11 sm:h-10 items-center gap-1.5 rounded-[10px] bg-accent px-[18px] text-[14px] font-semibold text-on-accent disabled:pointer-events-none disabled:opacity-40">
+            <Check size={17} /> Create event
+          </button>
+        </span>
       </div>
-      {attempted && !basicsOk && (
-        <p className="mt-2 text-right text-[12.5px] text-brick-text">Fix the highlighted fields above first.</p>
+      {!basicsOk && (
+        <p className={`mt-2 text-right text-[12.5px] ${attempted ? 'text-brick-text' : 'text-dim'}`}>{attempted ? 'Fix the highlighted fields above first.' : firstMissing}</p>
       )}
     </div>
   )
@@ -410,6 +408,8 @@ function Collapse({ icon: Icon, title, summary, children }: {
 
 /* ── Step 1: Basics ── */
 function StepBasics({ form, update, today, attempted, errs }: { form: Form; update: Update; today: string; attempted: boolean; errs: BasicsErrs }) {
+  // events are hosted by whoever is logged in, so the field only shows the name
+  const hostName = useAccount().name
   function onStart(v: string) {
     const clamped = today && v && v < today ? today : v
     update((f) => ({ startDate: clamped, endDate: f.endDate && clamped && f.endDate < clamped ? clamped : f.endDate }))
@@ -458,7 +458,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
       {/* events are hosted by the signed-in account — nothing to choose, the name is locked */}
       <div>
         <Label>Hosted by</Label>
-        <input value={USER_NAME} readOnly disabled className={`${inputCls(false)} max-w-[320px] cursor-not-allowed opacity-60`} />
+        <input value={hostName} readOnly disabled className={`${inputCls(false)} max-w-[320px] cursor-not-allowed opacity-60`} />
       </div>
 
       <div>
@@ -540,8 +540,8 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           <div className="mt-3.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border pt-3">
             <span className="min-w-0 text-[12.5px] leading-[1.5] text-dim">
               {form.granularity === 'day'
-                ? 'Full days · people tap the days they can make'
-                : <>{WIN_PRESETS.find((p) => p.v === form.windowPreset)?.l ?? 'All day'} · {{ '15': '15 min', '30': '30 min', '60': '1 hour' }[form.granularity] ?? form.granularity} slots · {fmtDur(form.durationMin)} long</>}
+                ? 'Full days, people tap the days they can make'
+                : <>{WIN_PRESETS.find((p) => p.v === form.windowPreset)?.l ?? 'All day'}, {{ '15': '15 min', '30': '30 min', '60': '1 hour' }[form.granularity] ?? form.granularity} slots, {fmtDur(form.durationMin)} long</>}
             </span>
             <button type="button" onClick={() => setTune((t) => !t)} className="-my-2 flex-none py-2 text-[12.5px] font-semibold text-accent-text hover:underline">
               {openTune ? 'Hide options' : 'Change'}
@@ -663,17 +663,13 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
     const ctrl = new AbortController()
     const t = setTimeout(async () => {
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=10&q=${encodeURIComponent(term)}`, { signal: ctrl.signal, headers: { Accept: 'application/json' } })
-        const data: { place_id: number; name?: string; display_name: string }[] = await res.json()
-        setResults(data.map((d) => {
-          const parts = d.display_name.split(', ')
-          return { id: String(d.place_id), name: d.name && d.name.trim() ? d.name : parts[0], place: (d.name ? parts : parts.slice(1)).slice(0, 3).join(', ') }
-        }))
+        setResults(await searchPlaces(term, ctrl.signal, centroidOf(form.picked)))
       } catch (err) {
         if ((err as Error).name !== 'AbortError') setResults([])
       } finally { setSearching(false) }
     }, 350)
     return () => { ctrl.abort(); clearTimeout(t) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [term])
 
   // a settled place is singular — picking another swaps it out
@@ -740,7 +736,7 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
                       return (
                         <button key={l.id} type="button" onClick={() => add(l)} className="flex w-full items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-left hover:bg-s2">
                           <MapPin size={16} className="flex-none text-dim" />
-                          <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{l.name} <span className="font-normal text-faint">· {l.place}</span></span>
+                          <span className="min-w-0 flex-1"><OverflowText className="text-[14px] font-medium">{l.name}</OverflowText><OverflowText className="text-[12px] text-faint">{l.place}</OverflowText></span>
                           {count > 0 && <span className="flex-none text-[12px] text-faint">{count === 1 ? 'already a stop' : `${count} stops`}</span>}
                           <span className="flex flex-none items-center gap-1 text-[12.5px] font-semibold text-accent-text"><Plus size={16} /> {count > 0 ? 'Again' : ''}</span>
                         </button>
@@ -792,7 +788,7 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
                         <MapPin size={17} className="text-accent-text" />
                       )}
                       {itin && <span className="grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[12.5px] font-bold text-on-accent">{i + 1}</span>}
-                      <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{l.name} <span className="font-normal text-faint">· {l.place}</span></span>
+                      <span className="min-w-0 flex-1"><OverflowText className="text-[14px] font-medium">{l.name}</OverflowText><OverflowText className="text-[12px] text-faint">{l.place}</OverflowText></span>
                       {itin && (
                         <div className="flex flex-none items-center">
                           <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move up"><ChevronUp size={17} /></button>
@@ -865,26 +861,54 @@ const PLATFORMS: { name: string; img?: string }[] = [
 /* ── Step 3: Invite ── */
 function StepInvite({ form, update }: { form: Form; update: Update }) {
   const [draft, setDraft] = useState('')
-  function addEmail() {
-    const e = draft.trim()
+  const [checking, setChecking] = useState(false)
+  const [note, setNote] = useState<string | null>(null)
+  // the people from this host's earlier events, read once: the list should not
+  // reshuffle while someone is picking from it
+  const recent = useMemo(() => recentInvitees(), [])
+  const hasAccount = (id: string) => form.accounts.some((a) => a.id === id)
+  const hasEmail = (e: string) => form.emails.includes(e)
+
+  // an address that belongs to an account is invited as that person, so their name
+  // and colour come with them and they need no personal link; any other address
+  // becomes an email invite with a link of its own
+  async function addEmail() {
+    const e = draft.trim().toLowerCase()
     if (!e) return
-    update((f) => ({ emails: f.emails.includes(e) ? f.emails : [...f.emails, e] }))
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { setNote('That does not look like an email address.'); return }
+    setNote(null)
+    setChecking(true)
+    const found = await lookupProfileByEmail(e)
+    setChecking(false)
+    if (found) update((f) => ({ accounts: f.accounts.some((a) => a.id === found.id) ? f.accounts : [...f.accounts, { id: found.id, name: found.name, color: found.color, email: found.email }] }))
+    else update((f) => ({ emails: f.emails.includes(e) ? f.emails : [...f.emails, e] }))
     setDraft('')
   }
-  function toggleAccount(id: string) {
-    update((f) => ({ accounts: f.accounts.includes(id) ? f.accounts.filter((x) => x !== id) : [...f.accounts, id] }))
+  function toggleRecent(r: Invitee) {
+    if (r.account) update((f) => ({ accounts: hasAccount(r.id) ? f.accounts.filter((a) => a.id !== r.id) : [...f.accounts, { id: r.id, name: r.name, color: r.color, email: r.email }] }))
+    else if (r.email) { const e = r.email; update((f) => ({ emails: hasEmail(e) ? f.emails.filter((x) => x !== e) : [...f.emails, e] })) }
   }
+  const isOn = (r: Invitee) => (r.account ? hasAccount(r.id) : !!r.email && hasEmail(r.email))
   const total = form.emails.length + form.accounts.length
 
   return (
     <div className="flex flex-col gap-5">
       <Field label="Invite by email">
         <div className="flex gap-2">
-          <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addEmail())} placeholder="name@company.com" className={inputCls()} />
-          <button type="button" onClick={addEmail} className="h-10 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent">Add</button>
+          <input value={draft} onChange={(e) => { setDraft(e.target.value); setNote(null) }} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), void addEmail())} placeholder="name@company.com" className={inputCls()} />
+          <button type="button" onClick={() => void addEmail()} disabled={checking} className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-60">
+            {checking ? <Loader2 size={15} className="animate-spin" /> : null} Add
+          </button>
         </div>
-        {form.emails.length > 0 && (
+        {note && <FieldError>{note}</FieldError>}
+        {(form.emails.length > 0 || form.accounts.length > 0) && (
           <div className="mt-2.5 flex flex-wrap gap-2">
+            {form.accounts.map((a) => (
+              <span key={a.id} className="flex h-[30px] items-center gap-1.5 rounded-full border border-accent-border bg-accent-bg py-0 pl-1.5 pr-2 text-[13.5px]" title={a.email ? `${a.email} (has an account)` : 'Has an account'}>
+                <Avatar initials={initialsOf(a.name)} color={a.color} size={20} font={8.5} /> {a.name}
+                <button type="button" onClick={() => update((f) => ({ accounts: f.accounts.filter((x) => x.id !== a.id) }))} aria-label="Remove"><X size={15} className="text-faint hover:text-brick-text" /></button>
+              </span>
+            ))}
             {form.emails.map((e) => (
               <span key={e} className="flex h-[30px] items-center gap-1.5 rounded-full border border-border bg-s2 py-0 pl-2.5 pr-2 text-[13.5px]">
                 <Mail size={13} className="text-dim" /> {e}
@@ -895,37 +919,37 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
         )}
       </Field>
 
-      {/* recently-invited accounts */}
-      <div>
-        <div className="mb-2 flex items-center gap-2">
-          <UserPlus size={16} className="text-dim" />
-          <span className="text-[13px] font-semibold text-dim">Add people you&apos;ve invited before</span>
-          <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[11px] text-faint">has an account</span>
+      {/* people from earlier events, one tap each */}
+      {recent.length > 0 && (
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <UserPlus size={16} className="text-dim" />
+            <span className="text-[13px] font-semibold text-dim">People from your other events</span>
+          </div>
+          <div className="overflow-hidden rounded-xl border border-border">
+            {recent.map((r, i) => {
+              const on = isOn(r)
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => toggleRecent(r)}
+                  className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-s2 ${i > 0 ? 'border-t border-border' : ''} ${on ? 'bg-accent-bg/50' : 'bg-s1'}`}
+                >
+                  <Avatar initials={initialsOf(r.name)} color={r.color} size={34} font={12.5} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 text-[14px] font-semibold">{r.name}{r.account && <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[11px] font-medium text-faint">has an account</span>}</div>
+                    <div className="truncate text-[12.5px] text-faint">{r.email ?? 'joined by link'}</div>
+                  </div>
+                  <span className={`flex h-[26px] items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold ${on ? 'bg-accent text-on-accent' : 'border border-border2 text-dim'}`}>
+                    {on ? <><Check size={15} /> Added</> : <><Plus size={15} /> Add</>}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
         </div>
-        <div className="overflow-hidden rounded-xl border border-border">
-          {RECENT_ACCOUNTS.map((a, i) => {
-            const p = av(a.id)
-            const on = form.accounts.includes(a.id)
-            return (
-              <button
-                key={a.id}
-                type="button"
-                onClick={() => toggleAccount(a.id)}
-                className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-s2 ${i > 0 ? 'border-t border-border' : ''} ${on ? 'bg-accent-bg/50' : 'bg-s1'}`}
-              >
-                <Avatar initials={a.id} color={p.color} size={34} font={12.5} />
-                <div className="min-w-0 flex-1">
-                  <div className="text-[14px] font-semibold">{p.name}</div>
-                  <div className="truncate text-[12.5px] text-faint">{a.email}</div>
-                </div>
-                <span className={`flex h-[26px] items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold ${on ? 'bg-accent text-on-accent' : 'border border-border2 text-dim'}`}>
-                  {on ? <><Check size={15} /> Added</> : <><Plus size={15} /> Add</>}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
+      )}
 
       <div className="flex items-center gap-1.5 text-[13px] text-dim">
         <Users size={15} />
@@ -939,6 +963,21 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
 function Created({ event }: { event: AppEvent }) {
   const total = event.participants.filter((p) => !p.you).length
   const slug = event.id
+  // the email invitees get their personal links by email, once, as soon as the
+  // browser knows it is a logged-in host with a backend to send from
+  const emailCount = event.participants.filter((p) => p.guest && p.email).length
+  const account = useAccount()
+  const [invites, setInvites] = useState<{ state: 'off' | 'sending' | 'sent' | 'failed'; sent: number; error?: string }>({ state: 'off', sent: 0 })
+  const asked = useRef(false)
+  useEffect(() => {
+    if (asked.current || emailCount === 0 || !canEmail(account.signedIn)) return
+    asked.current = true
+    setInvites({ state: 'sending', sent: 0 })
+    void sendInvites(event.id).then((r) => {
+      if (!r.ok) setInvites({ state: 'failed', sent: 0, error: r.error })
+      else setInvites({ state: r.data.failed > 0 && r.data.sent + r.data.already === 0 ? 'failed' : 'sent', sent: r.data.sent + r.data.already, error: r.data.failed > 0 ? `${r.data.failed} could not be sent.` : undefined })
+    })
+  }, [account.signedIn, emailCount, event.id])
   // the real join URL — a guest opens it, adds their name, and is in
   const link = `${typeof window === 'undefined' ? '' : window.location.host}/events/${slug}/join`
   const toast = useRef<HTMLDivElement>(null)
@@ -965,7 +1004,7 @@ function Created({ event }: { event: AppEvent }) {
           <span className="created-check mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full border border-teal-border bg-teal-bg text-teal-text"><Check size={34} /></span>
           <h1 className="font-serif font-normal text-[33.5px] leading-[1.05] tracking-[-0.01em]">Your event is live</h1>
           <p className="mx-auto mt-2 max-w-[380px] text-[14.5px] leading-[1.55] text-dim">
-            <span className="font-semibold text-text">{event.title}</span> has been created{total > 0 ? ` and ${total} ${total === 1 ? 'invite is' : 'invites are'} on the way` : ''}. Share the link below so anyone can join, say when they&apos;re free, and chat.
+            <span className="font-semibold text-text">{event.title}</span> has been created. Share the link below so anyone can join, say when they&apos;re free, and chat.
           </p>
 
           <div className="mx-auto mt-6 flex h-11 w-full max-w-[420px] items-center gap-2 rounded-[11px] border border-border2 bg-s2 py-0 pl-3.5 pr-2">
@@ -975,6 +1014,16 @@ function Created({ event }: { event: AppEvent }) {
               {copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy</>}
             </button>
           </div>
+
+          {/* what happened to the email invites, in one honest line */}
+          {emailCount > 0 && (
+            <p className={`mx-auto mt-3 max-w-[420px] text-[12.5px] leading-[1.5] ${invites.state === 'failed' ? 'text-brick-text' : 'text-dim'}`}>
+              {invites.state === 'sending' && `Emailing ${emailCount} ${emailCount === 1 ? 'invite' : 'invites'}…`}
+              {invites.state === 'sent' && `${invites.sent} ${invites.sent === 1 ? 'invite' : 'invites'} emailed with a personal link.${invites.error ? ` ${invites.error}` : ''}`}
+              {invites.state === 'failed' && `The invites could not be emailed${invites.error ? `: ${invites.error}` : '.'} Their personal links are on the event page.`}
+              {invites.state === 'off' && `${emailCount} ${emailCount === 1 ? 'person has' : 'people have'} a personal link waiting on the event page. Log in to email invites.`}
+            </p>
+          )}
 
           <div className="mt-6 flex items-center justify-center gap-2.5">
             <Link href={`/events/${slug}?tab=availability`} className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-5 text-[14px] font-semibold text-on-accent">
@@ -989,7 +1038,7 @@ function Created({ event }: { event: AppEvent }) {
       <div ref={toast} className="pointer-events-none absolute left-1/2 top-4 w-max max-w-[calc(100vw-24px)] -translate-x-1/2 opacity-0">
         <div className="flex items-center gap-2.5 rounded-xl border border-border2 bg-s1 px-4 py-3 shadow-soft">
           <span className="grid h-7 w-7 place-items-center rounded-full bg-accent-bg text-accent-text"><PartyPopper size={17} /></span>
-          <span className="text-[14px] font-semibold">Event created{total > 0 ? ` · ${total} ${total === 1 ? 'invite' : 'invites'} sent` : ''}</span>
+          <span className="text-[14px] font-semibold">Event created</span>
         </div>
       </div>
     </div>

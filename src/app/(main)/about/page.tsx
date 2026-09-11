@@ -32,7 +32,7 @@ export default function AboutPage() {
           <li><span className="font-semibold text-text">What is stored.</span> Your account (name, email), the events you host or take part in, and what you answered in them: free time, votes, RSVPs, messages.</li>
           <li><span className="font-semibold text-text">Who can see it.</span> Anyone holding an event’s link can see that event. Only the host can change its details or lock it in; the database enforces this, not just the screen.</li>
           <li><span className="font-semibold text-text">Guests.</span> A guest gives a name and, if they choose, an email. Nothing is created on the server for them beyond their place on that event.</li>
-          <li><span className="font-semibold text-text">Signed out.</span> Nothing you do leaves this browser. The demos are samples and are never uploaded.</li>
+          <li><span className="font-semibold text-text">Logged out.</span> Nothing you do leaves this browser. The demos are samples and are never uploaded.</li>
           <li><span className="font-semibold text-text">Removal.</span> Hosts can delete an event for everyone; anyone can leave one. To delete an account, write through the <Link href="/help" className="font-semibold text-accent-text hover:underline">Help page</Link>.</li>
           <li><span className="font-semibold text-text">No tracking.</span> No analytics, no advertising, no third-party scripts. Map tiles are fetched from OpenStreetMap when the Location tab is open.</li>
         </ul>

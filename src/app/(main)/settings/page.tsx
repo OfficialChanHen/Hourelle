@@ -5,6 +5,9 @@ import { useTheme } from 'next-themes'
 import { AppearancePicker } from '@/components/AppearancePicker'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { prefH24, setPrefH24, prefNotify, setPrefNotify, type NotifyPrefs } from '@/lib/prefs'
+import { useAccount } from '@/hooks/useAccount'
+import { backendOn } from '@/lib/db'
+import { loadReminderPrefs, saveReminderPrefs } from '@/lib/mail'
 
 const Eyebrow = ({ children }: { children: React.ReactNode }) => (
   <p className="mb-2 mt-7 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{children}</p>
@@ -42,6 +45,13 @@ export default function SettingsPage() {
     setNotify(prefNotify())
     setReady(true)
   }, [])
+  // logged in, the reminder switches live on the account: that is where the
+  // reminder job reads them. The device copy is kept in step for the offline case.
+  const account = useAccount()
+  useEffect(() => {
+    if (!account.signedIn) return
+    void loadReminderPrefs(account.id).then((p) => { if (p) { setNotify(p); setPrefNotify(p) } })
+  }, [account.signedIn, account.id])
 
   function changeClock(v: string) {
     const on = v === '24'
@@ -49,8 +59,10 @@ export default function SettingsPage() {
     setPrefH24(on)
   }
   function changeNotify(patch: Partial<NotifyPrefs>) {
-    setNotify((n) => ({ ...n, ...patch }))
+    const next = { ...notify, ...patch }
+    setNotify(next)
     setPrefNotify(patch)
+    if (account.signedIn) void saveReminderPrefs(account.id, next)
   }
 
   const notifyRows: { key: keyof NotifyPrefs; label: string; sub: string }[] = [
@@ -117,7 +129,11 @@ export default function SettingsPage() {
           </div>
         ))}
         <p className="border-t border-border bg-s0 px-5 py-3 text-[12.5px] leading-[1.55] text-faint">
-          Your choices are saved now. The emails themselves start going out once accounts exist.
+          {!backendOn
+            ? 'Saved on this device. Emails go out once a backend is set up.'
+            : account.signedIn
+              ? `Reminders go to ${account.email ?? 'the email on your account'}. Guests on your events get theirs at the address they gave when they joined.`
+              : 'Log in and these choices follow your account. Reminders go out by email.'}
         </p>
       </div>
     </div>

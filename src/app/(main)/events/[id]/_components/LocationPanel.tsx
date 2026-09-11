@@ -1,18 +1,26 @@
 'use client'
 
 import { Fragment, useEffect, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { gsap } from 'gsap'
 import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, SlidersHorizontal, Info, ExternalLink } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
-import { patchEvent, fmtMinute, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
+import { patchEvent, fmtMinute, fmtMinuteDay, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
 import { hintDismissed as isHintDismissed, dismissHint as markHintDismissed } from '@/lib/prefs'
 import { fmtDuration, MODE_LABEL, ALL_MODES, type TravelMode, type ModeEstimate } from '@/lib/travel'
-import { computeItinerary, slotFor as slotForOf } from '@/lib/itinerary'
+import { computeItinerary, legKm } from '@/lib/itinerary'
+import { centroidOf, coordsOf, searchPlaces, type LatLng } from '@/lib/geo'
+import { useRoute } from '@/hooks/useRoute'
+import type { MapPin as MapPinData, PanRequest } from '@/components/EventMap'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { OverflowText } from '@/components/ui/OverflowText'
 import { TimeSelect } from '@/components/ui/TimeSelect'
 import { Popover } from '@/components/ui/Popover'
+
+// Leaflet reads `window` when it loads, so the map only ever renders in the browser
+const EventMap = dynamic(() => import('@/components/EventMap').then((m) => m.EventMap), { ssr: false, loading: () => <div className="absolute inset-0 animate-pulse bg-s2" /> })
 
 const MODE_ICON: Record<TravelMode, typeof Car> = { walk: Footprints, bus: Bus, drive: Car, train: TrainFront, flight: Plane }
 
@@ -94,6 +102,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   const [builtRank, setBuiltRank] = useState<string[]>(() => event.itinRank ?? [])
   const [sub, setSub] = useState<'vote' | 'itin'>(loc.planMode === 'itinerary' ? 'itin' : 'vote')
   const [focusPin, setFocusPin] = useState<string | null>(null)
+  // a tap on a place in the list: focus its pin and bring the map to it
+  const [panReq, setPanReq] = useState<PanRequest | null>(null)
+  const goToPin = (id: string) => { setFocusPin(id); setPanReq((r) => ({ id, n: (r?.n ?? 0) + 1 })) }
   const [copied, setCopied] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null) // placeId pending delete confirm
   const [confirmClear, setConfirmClear] = useState<'places' | 'stops' | null>(null) // clear-all pending confirm
@@ -241,19 +252,16 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   }
 
   // votes decide WHICH places make the itinerary; geometry decides the SEQUENCE.
-  // Nearest-neighbor over the map coordinates stands in for real route optimization
-  // (Mapbox Directions later) — raw vote order would zigzag the route.
+  // Nearest-neighbor over straight-line distance — raw vote order would zigzag the route.
   function routeOrder(ids: string[]): string[] {
     if (ids.length < 3) return ids
-    const pos = (id: string) => { const s = slotFor(id); return { x: parseFloat(s.left), y: parseFloat(s.top) } }
     const remaining = [...ids]
     const route = [remaining.shift()!] // start at the top-voted place
     while (remaining.length) {
-      const cur = pos(route[route.length - 1])
+      const cur = route[route.length - 1]
       let best = 0, bestD = Infinity
       remaining.forEach((id, i) => {
-        const p = pos(id)
-        const d = (p.x - cur.x) ** 2 + (p.y - cur.y) ** 2
+        const d = legKm(places, cur, id)
         if (d < bestD) { bestD = d; best = i }
       })
       route.push(remaining.splice(best, 1)[0])
@@ -312,15 +320,62 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   const rankChanged = stops.length > 0 && builtRank.length > 0 && JSON.stringify(builtRank) !== JSON.stringify(rankIds)
 
   const placeAt = (id: string) => places.find((p) => p.id === id)
-  const slotFor = (id: string) => slotForOf(places, id)
+  // the stops' coordinates in order; one stop without a location and the road route is
+  // off (legs fall back to straight-line estimates, the map draws a dashed line)
+  const stopPoints = stops.map((s) => coordsOf(placeAt(s.placeId)))
+  const routable: LatLng[] = stopPoints.every((p): p is LatLng => !!p) ? stopPoints : []
+  const road = useRoute(routable)
   // schedule + per-leg travel, shared with the Attendance tab so both clocks agree
-  const { schedule, legs, routeMinutes, anyUnreachable, endMin } = computeItinerary(places, stops, itinStartMin, travelModes)
+  const { schedule, legs, routeMinutes, anyUnreachable, endMin } = computeItinerary(places, stops, itinStartMin, travelModes, road?.legs)
   // how long the built itinerary actually runs vs. the time set aside for the event
   const itinDuration = endMin - itinStartMin
   const overDuration = stops.length > 0 && itinDuration > eventDuration
   const overWindow = winEnd != null && stops.length > 0 && endMin > winEnd
+  // the schedule covers one day; a route that runs past midnight has to say so
+  const pastMidnight = stops.length > 0 && endMin >= 24 * 60
   const blurred = mode === 'remote' || places.length === 0
   const focusPlace = focusPin ? placeAt(focusPin) : (leadingId ? placeAt(leadingId) : null)
+  // what the map draws: on the ballot, one pin per located place with its vote count;
+  // on the itinerary, one numbered pin per stop
+  const mapPins: MapPinData[] = sub === 'vote'
+    ? places.flatMap((p) => { const c = coordsOf(p); return c ? [{ id: p.id, label: String(votesOf(p.id).length), lead: locked ? confirmedIds.has(p.id) : p.id === leadingId, ...c }] : [] })
+    : stops.flatMap((s, i) => { const c = coordsOf(placeAt(s.placeId)); return c ? [{ id: s.uid, label: String(i + 1), lead: true, ...c }] : [] })
+  const unmapped = places.filter((p) => !coordsOf(p)).length
+  // searches look near the places the event already has
+  const near = centroidOf(places)
+  // the pin popup: name, votes, and a vote button — fixed light colors like the map itself
+  const renderPopup = (id: string) => {
+    const fp = placeAt(id)
+    if (!fp) return null
+    return (
+      <div>
+              <div className="text-[13.5px] font-semibold text-[#1b1b19]">{fp.name}</div>
+              <div className="mb-1.5 mt-0.5 text-[12px] text-[#6b7280]">{fp.place}</div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[12px] font-bold text-teal-text">{votesOf(fp.id).length} vote{votesOf(fp.id).length === 1 ? '' : 's'}</span>
+                {!hideVoters && (
+                  <div className="flex">
+                    {votesOf(fp.id).slice(0, 5).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={19} font={8.5} title={a.name} /></span> })}
+                  </div>
+                )}
+              </div>
+              {/* vote right from the map — the popup uses fixed light colors like the map itself */}
+              {!locked && !settled && (() => {
+                const youVoted = votesOf(fp.id).includes(YOU)
+                return (
+                  <button
+                    onClick={() => toggleVote(fp.id)}
+                    disabled={votingClosed || (!youVoted && maxVotes > 1 && votesLeft === 0)}
+                    className="mt-2 flex h-11 sm:h-7 w-full items-center justify-center gap-1 rounded-[8px] text-[12px] font-semibold disabled:opacity-40"
+                    style={youVoted ? { background: '#E7EEE8', color: '#2A4537', border: '1px solid #CBDCCE' } : { background: '#2E4A3C', color: '#F8F5EC' }}
+                  >
+                    {youVoted ? <><Check size={13} /> Voted</> : <><ArrowUp size={13} /> Vote</>}
+                  </button>
+                )
+              })()}
+      </div>
+    )
+  }
 
   // Flip animations: vote list re-ranks smoothly on each vote; itinerary rows slide on reorder
   const voteFlip = useFlipReorder(rankIds.join('|'))
@@ -357,78 +412,26 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
       {/* map */}
       <div className="relative flex min-w-0 flex-1">
         <div
-          className="relative min-h-[54dvh] flex-1 overflow-hidden rounded-[13px] border border-border transition-[filter] duration-300 lg:min-h-[580px]"
-          style={{
-            filter: blurred ? 'blur(4px) saturate(.85)' : 'none',
-            background: 'repeating-linear-gradient(0deg,transparent 0 43px,rgba(120,118,104,.13) 43px 45px),repeating-linear-gradient(90deg,transparent 0 52px,rgba(120,118,104,.13) 52px 54px),#E7E6DF',
-          }}
+          className="relative min-h-[54dvh] flex-1 overflow-hidden rounded-[13px] border border-border bg-s2 transition-[filter] duration-300 lg:min-h-[580px]"
+          style={{ filter: blurred ? 'blur(4px) saturate(.85)' : 'none' }}
         >
-          {/* fake terrain: water, parks, roads */}
-          <div className="absolute rounded-[50px]" style={{ left: '-8%', top: '-12%', width: '26%', height: '128%', background: '#AEC9E3', transform: 'rotate(9deg)' }} />
-          <div className="absolute rounded-[40px]" style={{ left: '2%', top: '55%', width: '15%', height: '48%', background: '#AEC9E3', transform: 'rotate(-6deg)' }} />
-          <div className="absolute rounded-xl" style={{ left: '39%', top: '17%', width: 92, height: 66, background: '#C2D9A7' }} />
-          <div className="absolute rounded-xl" style={{ left: '58%', top: '62%', width: 80, height: 58, background: '#C2D9A7' }} />
-          <div className="absolute rounded-md" style={{ left: '8%', top: '38%', width: '78%', height: 6, background: '#FAFAF6', transform: 'rotate(-14deg)' }} />
-          <div className="absolute rounded-md" style={{ left: '30%', top: '-5%', width: 6, height: '110%', background: '#FAFAF6', transform: 'rotate(7deg)' }} />
-
-          {/* itinerary route line */}
-          {!blurred && sub === 'itin' && stops.length > 1 && (
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 z-[2] h-full w-full">
-              <polyline
-                points={stops.map((s) => { const sl = slotFor(s.placeId); return `${parseFloat(sl.left)},${parseFloat(sl.top)}` }).join(' ')}
-                fill="none" stroke="#3E6B54" strokeWidth="0.9" strokeDasharray="2.2 1.7" strokeLinecap="round"
-              />
-            </svg>
+          {!blurred && (
+            <EventMap
+              pins={mapPins}
+              route={sub === 'itin' && stops.length > 1 ? (road?.line ?? routable) : undefined}
+              dashed={sub === 'itin' && !road}
+              focusId={sub === 'vote' ? (focusPlace?.id ?? null) : null}
+              panTo={panReq}
+              onFocus={sub === 'vote' ? setFocusPin : undefined}
+              renderPopup={sub === 'vote' ? renderPopup : undefined}
+            />
           )}
-
-          {/* pins */}
-          {!blurred && sub === 'vote' && places.map((p) => {
-            const n = votesOf(p.id).length
-            const lead = locked ? confirmedIds.has(p.id) : p.id === leadingId
-            return (
-              <MapPinMarker key={p.id} left={slotFor(p.id).left} top={slotFor(p.id).top} color={lead ? '#2E4A3C' : '#5E7B69'} label={String(n)} onClick={() => setFocusPin(p.id)} />
-            )
-          })}
-          {!blurred && sub === 'itin' && stops.map((s, i) => (
-            <MapPinMarker key={s.uid} left={slotFor(s.placeId).left} top={slotFor(s.placeId).top} color="#2E4A3C" label={String(i + 1)} onClick={() => setFocusPin(s.placeId)} />
-          ))}
-
-          {/* popup for the focused (or leading) place */}
-          {!blurred && sub === 'vote' && focusPlace && (
-            <div className="absolute z-[5] min-w-[158px] rounded-[11px] bg-white px-3 py-2.5" style={{ left: slotFor(focusPlace.id).left, top: slotFor(focusPlace.id).top, transform: 'translate(-50%, calc(-100% - 32px))', boxShadow: '0 10px 28px rgba(0,0,0,.28)' }}>
-              <div className="text-[13.5px] font-semibold text-[#1b1b19]">{focusPlace.name}</div>
-              <div className="mb-1.5 mt-0.5 text-[12px] text-[#6b7280]">{focusPlace.place}</div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[12px] font-bold text-teal-text">{votesOf(focusPlace.id).length} vote{votesOf(focusPlace.id).length === 1 ? '' : 's'}</span>
-                {!hideVoters && (
-                  <div className="flex">
-                    {votesOf(focusPlace.id).slice(0, 5).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={19} font={8.5} title={a.name} /></span> })}
-                  </div>
-                )}
-              </div>
-              {/* vote right from the map — the popup uses fixed light colors like the map itself */}
-              {!locked && !settled && (() => {
-                const youVoted = votesOf(focusPlace.id).includes(YOU)
-                return (
-                  <button
-                    onClick={() => toggleVote(focusPlace.id)}
-                    disabled={votingClosed || (!youVoted && maxVotes > 1 && votesLeft === 0)}
-                    className="mt-2 flex h-11 sm:h-7 w-full items-center justify-center gap-1 rounded-[8px] text-[12px] font-semibold disabled:opacity-40"
-                    style={youVoted ? { background: '#E7EEE8', color: '#2A4537', border: '1px solid #CBDCCE' } : { background: '#2E4A3C', color: '#F8F5EC' }}
-                  >
-                    {youVoted ? <><Check size={13} /> Voted</> : <><ArrowUp size={13} /> Vote</>}
-                  </button>
-                )
-              })()}
-              <div className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 bg-white" />
+          {/* places the map cannot show: custom ones typed by hand, or saved before the real map */}
+          {!blurred && unmapped > 0 && (
+            <div className="absolute left-2.5 top-2.5 z-[6] rounded-lg border border-[rgba(0,0,0,.12)] bg-white/95 px-2.5 py-1.5 text-[12px] text-[#4A463C]">
+              {unmapped === 1 ? '1 place has no map location' : `${unmapped} places have no map location`}
             </div>
           )}
-
-          {/* zoom control (decorative) */}
-          <div className="absolute bottom-2.5 right-2.5 z-[6] flex flex-col overflow-hidden rounded-lg border border-[rgba(0,0,0,.12)]">
-            <span className="grid h-[30px] w-[30px] place-items-center border-b border-[rgba(0,0,0,.1)] bg-white text-[18px] text-[#1b1b19]">+</span>
-            <span className="grid h-[30px] w-[30px] place-items-center bg-white text-[18px] text-[#1b1b19]">−</span>
-          </div>
         </div>
 
         {/* overlay when the map is blurred */}
@@ -525,7 +528,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                   </span>
                 )}
               >
-                {() => <AddStopList places={places} stops={stops} canAdd={canAddPlaces} onExisting={addStop} onNew={addNewPlaceAsStop} />}
+                {() => <AddStopList near={near} places={places} stops={stops} canAdd={canAddPlaces} onExisting={addStop} onNew={addNewPlaceAsStop} />}
               </Popover>
             )}
             {sub === 'vote' && event.hostedByYou && places.length > 0 && !locked && !settled && (
@@ -610,7 +613,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
 
           {sub === 'vote' && (
             <div className="flex min-h-0 flex-1 flex-col gap-2">
-              {canAddPlaces && <AddPlaceSearch onAdd={addPlace} taken={new Set(places.map((p) => p.id))} placeholder={settled ? 'Add or change the place…' : undefined} />}
+              {canAddPlaces && <AddPlaceSearch near={near} onAdd={addPlace} taken={new Set(places.map((p) => p.id))} placeholder={settled ? 'Add or change the place…' : undefined} />}
               {places.length === 0 ? (
                 <EmptyNote icon={Vote} text={settled ? 'No place set yet. The host adds it above.' : canAddPlaces ? 'No places on the ballot yet. Search above to add the first one.' : 'No places to vote on yet. The host can add some, or allow guests to.'} />
               ) : locked || settled ? null : (
@@ -618,12 +621,12 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 px-0.5 text-[12.5px] text-dim">
                   <Vote size={15} className="flex-none text-accent-text" />
                   {maxVotes > 1 ? (
-                    <span>{maxVotes} votes each · <span className={`font-semibold ${votesLeft ? 'text-accent-text' : 'text-brick-text'}`}>{votesLeft} left</span></span>
+                    <span>{maxVotes} votes each, <span className={`font-semibold ${votesLeft ? 'text-accent-text' : 'text-brick-text'}`}>{votesLeft} left</span></span>
                   ) : (() => {
                     const mine = places.find((p) => votesOf(p.id).includes(YOU))
                     return mine
-                      ? <span>1 vote each · yours is on <span className="font-semibold text-text">{mine.name}</span></span>
-                      : <span>1 vote each · you haven&apos;t voted yet</span>
+                      ? <span>1 vote each, yours is on <span className="font-semibold text-text">{mine.name}</span></span>
+                      : <span>1 vote each, and you haven&apos;t voted yet</span>
                   })()}
                   {voteDeadline && (
                     votingClosed
@@ -656,7 +659,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                   const lead = locked ? isLocked : !settled && p.id === leadingId
                   const adder = p.addedBy ? avatarOf(p.addedBy) : null
                   return (
-                    <div key={p.id} data-flip-id={p.id} onClick={() => setFocusPin(p.id)} className={`relative flex cursor-pointer items-start gap-2.5 rounded-xl border p-2.5 ${isLocked || isSet ? 'border-teal-border bg-teal-bg/40' : lead ? 'border-accent-border bg-accent-bg/40' : 'border-border bg-s0'}`}>
+                    <div key={p.id} data-flip-id={p.id} onClick={() => goToPin(p.id)} className={`relative flex cursor-pointer items-start gap-2.5 rounded-xl border p-2.5 ${isLocked || isSet ? 'border-teal-border bg-teal-bg/40' : lead ? 'border-accent-border bg-accent-bg/40' : 'border-border bg-s0'}`}>
                       <span className={`grid h-[30px] w-[30px] flex-none place-items-center rounded-full text-[13.5px] font-bold ${isLocked || isSet ? 'bg-teal-bg text-teal-text' : lead ? 'bg-accent text-on-accent' : 'bg-s2 text-dim'}`}>{isSet ? <MapPin size={15} /> : i + 1}</span>
                       <div className="min-w-0 flex-1">
                         <div className="mb-0.5 flex items-center gap-1.5">
@@ -667,13 +670,13 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                         </div>
                         {/* address wraps in full — no truncation */}
                         <div className="mb-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12px] leading-[1.45] text-dim">
-                          <span>{p.place}{settled ? '' : ` · ${ids.length} vote${ids.length === 1 ? '' : 's'}`}</span>
+                          <span>{p.place}{settled ? '' : ` (${ids.length} vote${ids.length === 1 ? '' : 's'})`}</span>
                           <a href={osmUrl(p)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-0.5 text-[11.5px] font-medium text-accent-text hover:underline">
                             <ExternalLink size={11} /> Map
                           </a>
                           {adder && (
                             <span className="inline-flex items-center gap-1 text-faint" title={`Added by ${adder.name}`}>
-                              · <Avatar initials={adder.initials} color={adder.color} size={14} font={7} /> added by {adder.you ? 'you' : adder.name.split(' ')[0]}
+                              <Avatar initials={adder.initials} color={adder.color} size={14} font={7} /> added by {adder.you ? 'you' : adder.name.split(' ')[0]}
                             </span>
                           )}
                         </div>
@@ -751,7 +754,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                       </button>
                     )}
                   </div>
-                  {!locked && <AddStopList places={places} stops={stops} canAdd={canAddPlaces} onExisting={addStop} onNew={addNewPlaceAsStop} />}
+                  {!locked && <AddStopList near={near} places={places} stops={stops} canAdd={canAddPlaces} onExisting={addStop} onNew={addNewPlaceAsStop} />}
                 </div>
               ) : (
                 <>
@@ -778,8 +781,8 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                         : <TimeSelect value={itinStartMin} onChange={changeStart} min={minStart} max={maxStart} title={`When the itinerary begins${bw ? ` — best free window ${fmtMinute(winStart!)} to ${fmtMinute(winEnd!)}, ${bw.count} of ${event.participants.length} free` : ''}`} />}
                     </span>
                     <span className="text-[12.5px] text-dim">
-                      Ends ~{fmtMinute(endMin)} · <span className={overDuration ? 'font-semibold text-ochre-text' : ''}>{fmtDuration(itinDuration)}</span>
-                      {legs.length > 0 && <> · {fmtDuration(routeMinutes)} travel</>}
+                      Ends ~{fmtMinuteDay(endMin)}, <span className={overDuration ? 'font-semibold text-ochre-text' : ''}>{fmtDuration(itinDuration)}</span>
+                      {legs.length > 0 && <> with {fmtDuration(routeMinutes)} of travel</>}
                     </span>
                     <span className="ml-auto">
                       {locked ? (
@@ -805,6 +808,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                           {() => (
                             <div className="p-1">
                               <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">How people get between stops</div>
+                              <p className="mb-2 text-[12px] leading-[1.5] text-dim">Driving for now, with times from the road network. Walking and transit are coming.</p>
                               <div className="flex flex-wrap gap-1">
                                 {ALL_MODES.map((m) => { const on = travelModes.includes(m); const Icon = MODE_ICON[m]; return (
                                   <button key={m} onClick={() => toggleMode(m)} title={MODE_LABEL[m]} className={`flex items-center gap-1 rounded-full border px-2 py-1 text-[11.5px] font-medium ${on ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-faint hover:text-text'}`}>
@@ -817,12 +821,14 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                         </Popover>
                       )}
                     </span>
-                    {(anyUnreachable || overDuration || overWindow) && (
-                      <div className={`flex w-full items-start gap-1.5 text-[12px] leading-[1.4] ${anyUnreachable ? 'text-brick-text' : 'text-ochre-text'}`}>
+                    {(anyUnreachable || pastMidnight || overDuration || overWindow) && (
+                      <div className={`flex w-full items-start gap-1.5 text-[12px] leading-[1.4] ${anyUnreachable || pastMidnight ? 'text-brick-text' : 'text-ochre-text'}`}>
                         <TriangleAlert size={12} className="mt-px flex-none" />
                         <span>
                           {anyUnreachable
                             ? 'Some legs have no route with the modes you allow.'
+                            : pastMidnight
+                              ? `Runs past midnight, ending ${fmtMinuteDay(endMin)}. An itinerary covers one day, so start earlier or trim a stop.`
                             : overDuration
                               ? `Runs ${fmtDuration(itinDuration)}, longer than the ${fmtDuration(eventDuration)} set aside. Trim a stop or shorten time at a venue.`
                               : `Runs past the best free window (ends ~${fmtMinute(endMin)}, window closes ${fmtMinute(winEnd!)}).`}
@@ -847,13 +853,13 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                             <span className="mt-px grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[12.5px] font-bold text-on-accent">{i + 1}</span>
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="text-[14px] font-semibold">{p.name}</span>
+                                <span onClick={() => goToPin(s.uid)} className="cursor-pointer text-[14px] font-semibold hover:underline">{p.name}</span>
                                 {stops.filter((x) => x.placeId === s.placeId).length > 1 && <span className="flex-none rounded-[5px] border border-border2 bg-s2 px-[5px] py-px text-[9.5px] font-semibold text-dim">revisit</span>}
                               </div>
-                              <div className="text-[12px] leading-[1.45] text-dim">{p.place} · {votesOf(s.placeId).length} vote{votesOf(s.placeId).length === 1 ? '' : 's'}</div>
+                              <div className="text-[12px] leading-[1.45] text-dim">{p.place} ({votesOf(s.placeId).length} vote{votesOf(s.placeId).length === 1 ? '' : 's'})</div>
                               {/* scheduled arrive–depart + dwell stepper */}
                               <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                                <span className="flex items-center gap-1 text-[12px] font-semibold text-accent-text"><Clock size={12} /> {fmtMinute(schedule[i].arrive)} – {fmtMinute(schedule[i].depart)}</span>
+                                <span className="flex items-center gap-1 text-[12px] font-semibold text-accent-text"><Clock size={12} /> {fmtMinuteDay(schedule[i].arrive)} – {fmtMinuteDay(schedule[i].depart)}</span>
                                 <span className="flex items-center gap-1 text-[12px] text-dim">
                                   {!locked && <button onClick={() => changeDwell(i, s.dwell - 15)} disabled={s.dwell <= 15} className="grid h-[15px] w-[15px] place-items-center rounded border border-border enabled:hover:bg-s2 disabled:opacity-30" aria-label="Less time"><Minus size={10} /></button>}
                                   {fmtDuration(s.dwell)} here
@@ -898,12 +904,13 @@ function TravelLeg({ est, fastest }: { est: ModeEstimate[]; fastest: ModeEstimat
           <span className="flex items-center gap-1 rounded-full border border-brick-border bg-brick-bg px-2 py-0.5 text-[12px] text-brick-text"><TriangleAlert size={11} /> No allowed route</span>
         ) : est.map((e) => {
           const Icon = MODE_ICON[e.mode]
-          const best = !!fastest && e.mode === fastest.mode
+          // "fastest" only means something when there was a choice
+          const best = est.length > 1 && !!fastest && e.mode === fastest.mode
           return (
             <span
               key={e.mode}
-              title={`${MODE_LABEL[e.mode]} · ${fmtDuration(e.minutes)}${best ? ' · fastest' : ''}`}
-              className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px] ${best ? 'border-accent bg-accent text-on-accent font-semibold' : 'border-border bg-s1 text-dim'}`}
+              title={`${MODE_LABEL[e.mode]}, ${fmtDuration(e.minutes)}${best ? ' (fastest)' : ''}`}
+              className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px] ${best ? 'border-accent bg-accent text-on-accent font-semibold' : est.length === 1 ? 'border-accent-border bg-accent-bg font-medium text-accent-text' : 'border-border bg-s1 text-dim'}`}
             >
               <Icon size={12} /> {fmtDuration(e.minutes)}
             </span>
@@ -914,21 +921,8 @@ function TravelLeg({ est, fastest }: { est: ModeEstimate[]; fastest: ModeEstimat
   )
 }
 
-function MapPinMarker({ left, top, color, label, onClick }: { left: string; top: string; color: string; label: string; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} className="absolute z-[3]" style={{ left, top, transform: 'translate(-50%, -100%)' }} aria-label={`Map pin ${label}`}>
-      <span
-        className="flex h-[27px] w-[27px] items-center justify-center border-2 border-white"
-        style={{ borderRadius: '50% 50% 50% 0', transform: 'rotate(-45deg)', background: color, boxShadow: '0 3px 9px rgba(0,0,0,.38)' }}
-      >
-        <span className="text-[12.5px] font-bold text-white" style={{ transform: 'rotate(45deg)' }}>{label}</span>
-      </span>
-    </button>
-  )
-}
-
-/* search-to-add for the ballot (host, or guests once allowed) — same Nominatim flow as the wizard */
-function AddPlaceSearch({ onAdd, taken, placeholder = 'Add a place to the ballot…' }: { onAdd: (p: EventPlace) => void; taken: Set<string>; placeholder?: string }) {
+/* search-to-add for the ballot (host, or guests once allowed) — same Photon/Nominatim flow as the wizard */
+function AddPlaceSearch({ onAdd, taken, near, placeholder = 'Add a place to the ballot…' }: { onAdd: (p: EventPlace) => void; taken: Set<string>; near?: LatLng; placeholder?: string }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<EventPlace[]>([])
   const [searching, setSearching] = useState(false)
@@ -940,18 +934,14 @@ function AddPlaceSearch({ onAdd, taken, placeholder = 'Add a place to the ballot
     const ctrl = new AbortController()
     const t = setTimeout(async () => {
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=10&q=${encodeURIComponent(term)}`, { signal: ctrl.signal, headers: { Accept: 'application/json' } })
-        const data: { place_id: number; name?: string; display_name: string }[] = await res.json()
-        setResults(data.map((d) => {
-          const parts = d.display_name.split(', ')
-          return { id: String(d.place_id), name: d.name && d.name.trim() ? d.name : parts[0], place: (d.name ? parts : parts.slice(1)).slice(0, 3).join(', ') }
-        }))
+        setResults(await searchPlaces(term, ctrl.signal, near))
       } catch (err) {
         if ((err as Error).name !== 'AbortError') setResults([])
       } finally { setSearching(false) }
     }, 350)
     return () => { ctrl.abort(); clearTimeout(t) }
-  }, [term])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [term, near?.lat, near?.lng])
 
   const shown = results.filter((r) => !taken.has(r.id))
   function pick(p: EventPlace) { onAdd(p); setQuery('') }
@@ -972,7 +962,7 @@ function AddPlaceSearch({ onAdd, taken, placeholder = 'Add a place to the ballot
               {!searching && shown.map((r) => (
                 <button key={r.id} type="button" onClick={() => pick(r)} className="flex w-full items-center gap-2 rounded-[7px] px-2.5 py-2 text-left hover:bg-s2">
                   <MapPin size={15} className="flex-none text-dim" />
-                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{r.name} <span className="font-normal text-faint">· {r.place}</span></span>
+                  <span className="min-w-0 flex-1"><OverflowText className="text-[13.5px] font-medium">{r.name}</OverflowText><OverflowText className="text-[12px] text-faint">{r.place}</OverflowText></span>
                   <Plus size={15} className="flex-none text-accent-text" />
                 </button>
               ))}
@@ -992,10 +982,11 @@ function AddPlaceSearch({ onAdd, taken, placeholder = 'Add a place to the ballot
 }
 
 /* candidates + a search, shared by the Add stop dropdown and the empty itinerary */
-function AddStopList({ places, stops, canAdd, onExisting, onNew }: {
+function AddStopList({ places, stops, canAdd, near, onExisting, onNew }: {
   places: EventPlace[]
   stops: ItinStop[]
   canAdd: boolean
+  near?: LatLng
   onExisting: (placeId: string) => void
   onNew: (p: EventPlace) => void
 }) {
@@ -1008,15 +999,15 @@ function AddStopList({ places, stops, canAdd, onExisting, onNew }: {
             return (
               <button key={p.id} onClick={() => onExisting(p.id)} className="flex items-start gap-2 rounded-[9px] border border-border bg-s1 px-2.5 py-1.5 text-left hover:border-border2">
                 <MapPin size={15} className="mt-0.5 flex-none text-dim" />
-                <span className="min-w-0 flex-1 text-[13.5px] font-medium leading-[1.4]">{p.name} <span className="font-normal text-faint">· {p.place}</span></span>
-                <span className="mt-0.5 flex flex-none items-center gap-1 text-[12.5px] font-semibold text-accent-text"><Plus size={15} /> {count > 0 ? `Again${count > 1 ? ` · ${count}` : ''}` : 'Add'}</span>
+                <span className="min-w-0 flex-1"><OverflowText className="text-[13.5px] font-medium leading-[1.4]">{p.name}</OverflowText><OverflowText className="text-[12px] text-faint">{p.place}</OverflowText></span>
+                <span className="mt-0.5 flex flex-none items-center gap-1 text-[12.5px] font-semibold text-accent-text"><Plus size={15} /> {count > 0 ? `Again${count > 1 ? ` (${count})` : ''}` : 'Add'}</span>
               </button>
             )
           })}
         </div>
       )}
       {canAdd
-        ? <AddPlaceSearch onAdd={onNew} taken={new Set(places.map((p) => p.id))} placeholder="Search a new place to add…" />
+        ? <AddPlaceSearch near={near} onAdd={onNew} taken={new Set(places.map((p) => p.id))} placeholder="Search a new place to add…" />
         : places.length === 0 && <EmptyNote icon={MapPin} text="No places to add yet. The host can add candidate places." />}
     </div>
   )

@@ -274,7 +274,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly }:
                 <div key={r.key} className="mt-3 flex items-center justify-center gap-2 text-[11.5px] text-faint">
                   <Avatar initials={a.initials} color={a.color} size={16} font={7.5} />
                   <span><span className="font-semibold text-dim">{m.name}</span> {m.text}</span>
-                  <span>· {whenLabel(m, h24)}</span>
+                  <span>{whenLabel(m, h24)}</span>
                 </div>
               )
               return (

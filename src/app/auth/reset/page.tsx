@@ -73,7 +73,7 @@ export default function ResetPasswordPage() {
               Reset links only work once, and not for long. Ask for a new one and it will land in your inbox.
             </p>
             <Link href="/auth/signin" className="mt-5 flex h-11 items-center justify-center rounded-[10px] bg-accent text-[14px] font-semibold text-on-accent">
-              Back to sign in
+              Back to log in
             </Link>
           </>
         )}
@@ -127,7 +127,7 @@ export default function ResetPasswordPage() {
         {done && (
           <>
             <h1 className="mt-7 font-serif text-[27px] leading-[1.08] tracking-[-0.01em]">Password saved</h1>
-            <p className="mt-2 text-[13.5px] leading-[1.55] text-dim">You are signed in. Taking you back to your events.</p>
+            <p className="mt-2 text-[13.5px] leading-[1.55] text-dim">You are logged in. Taking you back to your events.</p>
           </>
         )}
       </div>

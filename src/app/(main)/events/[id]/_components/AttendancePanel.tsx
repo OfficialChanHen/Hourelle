@@ -7,10 +7,12 @@ import { Popover, PopoverNote, PopoverTitle } from '@/components/ui/Popover'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import {
-  availIvOf, bestWindow, byYouFirst, dayLabel, gridStartMinOf, fmtMinute, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
+  availIvOf, bestWindow, byYouFirst, dayLabel, gridStartMinOf, fmtMinute, fmtMinuteDay, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
   type AppEvent, type AvailIntervals, type BestMode, type GridDay, type Iv, type Participant, type Rsvp,
 } from '@/lib/events'
 import { computeItinerary } from '@/lib/itinerary'
+import { coordsOf, type LatLng } from '@/lib/geo'
+import { useRoute } from '@/hooks/useRoute'
 import { ALL_MODES, type TravelMode } from '@/lib/travel'
 
 type GoTab = (t: 'availability' | 'location') => void
@@ -283,13 +285,13 @@ function RsvpSummary({ participants, capacity, locked, available, planningOut, p
             during planning the pill would count replies nobody has given yet */}
         {locked && capacity != null && (
           <span className={`rounded-[6px] border px-1.5 py-px text-[11px] font-semibold ${full ? 'border-ochre-border bg-ochre-bg text-ochre-text' : 'border-teal-border bg-teal-bg text-teal-text'}`}>
-            {full ? `full · ${capacity} spots` : `${capacity - going} of ${capacity} spots left`}
+            {full ? `full, ${capacity} spots` : `${capacity - going} of ${capacity} spots left`}
           </span>
         )}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-dim">
         <span>{total} invited</span>
-        {rest.map((r, i) => <span key={i} className="flex items-center gap-1.5"><span className="text-faint">·</span>{r}</span>)}
+        {rest.map((r, i) => <span key={i} className="flex items-center gap-1.5"><span className="h-3 w-px flex-none bg-border2" aria-hidden />{r}</span>)}
       </div>
     </div>
   )
@@ -304,7 +306,7 @@ function CopySummaryButton({ event, win, locked, gridStart, available }: { event
     if (win) parts.push(`${locked ? 'confirmed for' : 'best window'} ${win.dayLabel}, ${fmtMinute(gridStart + win.s)}–${fmtMinute(gridStart + win.e)} ${tzAbbr(event.timezone)}`)
     const lead = leadingPlaceOf(event)
     if (lead) parts.push(lead.confirmed ? `at ${lead.place.name}` : `leading place: ${lead.place.name}`)
-    navigator.clipboard?.writeText(parts.join(' · ')).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
+    navigator.clipboard?.writeText(parts.join(', ')).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
   return (
     <button onClick={copy} className={`flex h-9 items-center gap-1.5 rounded-[9px] border px-3 text-[13px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
@@ -416,7 +418,7 @@ function SingleVenue({
             const allDay = gridStart + winS === 0 && gridStart + winE === 24 * 60
             return (
               <div className="flex items-center gap-1.5 text-[12.5px] text-dim">
-                {locked ? (allDay ? 'Confirmed day' : 'Confirmed time') : 'Best window'} ·{' '}
+                {locked ? (allDay ? 'Confirmed day' : 'Confirmed time') : 'Best window'}:{' '}
                 {locked
                   ? <span>{win.dayLabel}{allDay ? '' : `, ${fmtMinute(gridStart + winS)}–${fmtMinute(gridStart + winE)}`}</span>
                   : <button type="button" onClick={() => (onGoToBestWindow ? onGoToBestWindow() : onGoToTab?.('availability'))} className="font-semibold text-ochre hover:underline">{win.dayLabel}, {fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</button>}
@@ -598,10 +600,9 @@ function LeadingPlace({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab
         </span>
         {/* a settled or confirmed venue was never voted on — the address alone says it */}
         <span className="block truncate text-[12.5px] text-dim">
-          {lead.place.place}{!(event.location.mode === 'set' || (lead.confirmed && voters.length === 0)) && <> · {voters.length} {voters.length === 1 ? 'vote' : 'votes'}</>}
-          {lead.margin != null && lead.margin > 0 && <span> · ahead by {lead.margin}</span>}
-          {lead.margin === 0 && <span className="text-ochre-text"> · tied for first</span>}
-        </span>
+          {lead.place.place}{!(event.location.mode === 'set' || (lead.confirmed && voters.length === 0)) && <> ({voters.length} {voters.length === 1 ? 'vote' : 'votes'}
+          {lead.margin != null && lead.margin > 0 && <span>, ahead by {lead.margin}</span>}{lead.margin === 0 && <span className="text-ochre-text">, tied for first</span>})</>}
+                  </span>
       </span>
       {!event.hideVoters && <AvatarPile people={voters} cap={5} />}
       <ChevronRight size={16} className="flex-none text-faint" />
@@ -636,7 +637,7 @@ function HeadcountBars({
             className="pointer-events-none absolute -top-1.5 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-[8px] border border-border bg-s1 px-2.5 py-1.5 text-[12px] shadow-soft"
             style={{ left: `${Math.min(88, Math.max(12, ((sel + 0.5) / spanRows) * 100))}%` }}
           >
-            <span className="font-semibold">{fmtMinute(gridStart + winS + sel * step)}</span> · {counts[sel]} of {total} free
+            <span className="font-semibold">{fmtMinute(gridStart + winS + sel * step)}</span>: {counts[sel]} of {total} free
           </div>
         )}
         <div className="flex h-16 items-end gap-[2px]">
@@ -649,7 +650,7 @@ function HeadcountBars({
                 aria-label={`${fmtMinute(gridStart + winS + i * step)}, ${c} of ${total} free`}
                 className={`flex-1 rounded-t-[2px] ${sel === i ? 'outline outline-1 outline-[--accent]' : ''}`}
                 style={{ height: `${Math.max(6, (c / peak) * 100)}%`, background: bg }}
-                title={`${fmtMinute(gridStart + winS + i * step)} · ${c} free`}
+                title={`${fmtMinute(gridStart + winS + i * step)}: ${c} free`}
               />
             )
           })}
@@ -789,13 +790,17 @@ function ItineraryAttendance({
   const stops = event.itinStops ?? []
   const dwell = event.itinDwell ?? []
   const startMin = event.itinStartMin ?? 9 * 60
+  // the same road route the Location tab uses (shared cache), so travel minutes agree
+  const stopPoints = stops.map((id) => coordsOf(event.location.places.find((p) => p.id === id)))
+  const routable: LatLng[] = stopPoints.every((p): p is LatLng => !!p) ? stopPoints : []
+  const road = useRoute(routable)
 
   // schedule + per-stop attendance, computed once (O(stops × people)). The schedule comes from
   // the shared helper, so these clock times match the Location tab exactly.
   const stopData = useMemo(() => {
     const inputStops = stops.map((placeId, i) => ({ placeId, dwell: dwell[i] ?? 60 }))
     const modes = ((event.travelModes as TravelMode[] | undefined) ?? []).filter((m) => ALL_MODES.includes(m))
-    const { schedule } = computeItinerary(event.location.places, inputStops, startMin, modes)
+    const { schedule } = computeItinerary(event.location.places, inputStops, startMin, modes, road?.legs)
     return schedule.map((s, i) => {
       const sG = s.arrive - gridStart, eG = s.depart - gridStart
       const present: Participant[] = [], partial: Participant[] = [], absent: Participant[] = []
@@ -806,7 +811,7 @@ function ItineraryAttendance({
       }
       return { placeId: s.placeId, name: placeName(s.placeId), i, arrive: s.arrive, depart: s.depart, present, partial, absent }
     })
-  }, [stops, dwell, startMin, gridStart, attendees, dayIv, event.location.places, event.travelModes]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [stops, dwell, startMin, gridStart, attendees, dayIv, event.location.places, event.travelModes, road]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // people missing at least one stop → the exceptions list (never an O(people × stops) grid)
   const exceptions = useMemo(() => attendees
@@ -850,7 +855,7 @@ function ItineraryAttendance({
             <div className="mb-2 flex items-center gap-2">
               <span className="grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[12.5px] font-bold text-on-accent">{s.i + 1}</span>
               <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{s.name}</span>
-              <span className="flex flex-none items-center gap-1 text-[12px] text-faint"><Clock size={11} /> {fmtMinute(s.arrive)}</span>
+              <span className="flex flex-none items-center gap-1 text-[12px] text-faint"><Clock size={11} /> {fmtMinuteDay(s.arrive)}</span>
             </div>
             <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-s2">
               <div className="h-full rounded-full bg-teal" style={{ width: `${(s.present.length / Math.max(1, attendees.length)) * 100}%` }} />

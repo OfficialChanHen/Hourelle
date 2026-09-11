@@ -11,7 +11,7 @@ import { backendOn } from '@/lib/db'
 import { hasSession, sendPasswordReset, signInWithEmail, signInWithGoogle, signUpWithEmail } from '@/lib/session'
 import { PasswordField } from '../_components/PasswordField'
 
-/* ── sign in, create an account, or ask for a new password ──
+/* ── log in, sign up, or ask for a new password ──
    Split like the sign-in pages people know: the form on the left, the pitch on the
    right in the signature green. The Aline account leads because it finishes without
    leaving the page; Google sits under the divider. Guests never need this screen at
@@ -38,8 +38,8 @@ const GoogleG = () => (
 type Mode = 'in' | 'up' | 'forgot'
 
 const COPY: Record<Mode, { title: string; sub: string; action: string }> = {
-  in: { title: 'Welcome back', sub: 'Sign in to keep planning together.', action: 'Sign in' },
-  up: { title: 'Create your account', sub: 'It takes a minute, and your events follow you everywhere.', action: 'Create account' },
+  in: { title: 'Welcome back', sub: 'Log in to keep planning together.', action: 'Log in' },
+  up: { title: 'Sign up', sub: 'It takes a minute, and your events follow you everywhere.', action: 'Sign up' },
   forgot: { title: 'Reset your password', sub: 'We will email you a link to set a new one.', action: 'Send the link' },
 }
 
@@ -204,11 +204,11 @@ function SignInForm() {
 
             <p className="mt-3.5 text-[13px] text-dim">
               {mode === 'forgot' ? (
-                <>Remembered it? <button type="button" onClick={() => go('in')} className="font-semibold text-accent-text hover:underline">Back to sign in</button></>
+                <>Remembered it? <button type="button" onClick={() => go('in')} className="font-semibold text-accent-text hover:underline">Back to log in</button></>
               ) : mode === 'in' ? (
-                <>New here? <button type="button" onClick={() => go('up')} className="font-semibold text-accent-text hover:underline">Create an account</button></>
+                <>New here? <button type="button" onClick={() => go('up')} className="font-semibold text-accent-text hover:underline">Sign up</button></>
               ) : (
-                <>Already have an account? <button type="button" onClick={() => go('in')} className="font-semibold text-accent-text hover:underline">Sign in</button></>
+                <>Already have an account? <button type="button" onClick={() => go('in')} className="font-semibold text-accent-text hover:underline">Log in</button></>
               )}
             </p>
 

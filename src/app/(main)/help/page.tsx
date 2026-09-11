@@ -10,7 +10,7 @@ const GROUPS: { title: string; items: QA[] }[] = [
   {
     title: 'Getting started',
     items: [
-      { q: 'How do I plan something?', a: 'Sign in, name the plan, and pick a stretch of days. That is enough to get a link. Everything else, the place, the budget, the time window, can be added later or never.' },
+      { q: 'How do I plan something?', a: 'Log in, name the plan, and pick a stretch of days. That is enough to get a link. Everything else, the place, the budget, the time window, can be added later or never.' },
       { q: 'How do people join?', a: 'Copy the invite link from the event page or its card and send it anywhere. Whoever opens it adds their name and they are in. They can mark when they are free, vote on places, say if they are coming, and chat.' },
       { q: 'What does "Lock it in" do?', a: 'It turns the plan into fact: the chosen day, time, and place go out to everyone, and the event moves to the RSVP stretch where people say if they are coming. You can reopen planning later, which clears the RSVPs.' },
       { q: 'What is the difference between a time poll and a day poll?', a: 'A time poll asks when during the day people are free, in slots. A day poll asks which whole days work, one tap each. Ranges longer than four weeks become day polls on their own, since trips are picked by day, not by hour.' },
@@ -28,7 +28,7 @@ const GROUPS: { title: string; items: QA[] }[] = [
   {
     title: 'Your account and your data',
     items: [
-      { q: 'Where does my data live?', a: 'With an account, your events are stored on Aline’s servers so they follow you between devices. Signed out, everything stays in this browser only. Demos are samples and never leave your device.' },
+      { q: 'Where does my data live?', a: 'With an account, your events are stored on Aline’s servers so they follow you between devices. Logged out, everything stays in this browser only. Demos are samples and never leave your device.' },
       { q: 'Who can see my event?', a: 'Anyone with its link. Links are long and random, so they cannot be guessed, but they can be forwarded. Share them the way you would share a private document.' },
       { q: 'How do I delete an event?', a: 'The host deletes it from the Event details tab, and it is gone for everyone. Anyone else can leave, which only removes it from their own list.' },
       { q: 'How do I delete my account?', a: 'Send a note through the form below from the email on the account. The account, its profile, and the events it hosts are removed.' },
