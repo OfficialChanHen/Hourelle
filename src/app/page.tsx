@@ -117,8 +117,8 @@ export default function Landing() {
 
           <div className={`ld-shot mt-12 ${frame}`}>
             <div className="ld-shot-inner">
-              <img src="/landing/availability-light.png" width={1280} height={860} alt="The availability grid: a week of days, everyone's free time layered into a green heat map" className="only-light block w-full" />
-              <img src="/landing/availability-dark.png" width={1280} height={860} alt="" aria-hidden className="only-dark w-full" />
+              <img src="/landing/availability-light.png" width={1188} height={700} alt="The availability grid: a week of days, twenty-four people's free time layered into a green heat map, with the best day marked" className="only-light block w-full" />
+              <img src="/landing/availability-dark.png" width={1188} height={700} alt="" aria-hidden className="only-dark w-full" />
             </div>
           </div>
         </section>
