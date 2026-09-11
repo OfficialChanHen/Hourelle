@@ -74,18 +74,12 @@ export default function Landing() {
       gsap.timeline()
         .fromTo('.ld-hero > *', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.55, stagger: 0.07, ease: 'power3.out' })
         .fromTo('.ld-shot', { opacity: 0, y: 28, scale: 0.985 }, { opacity: 1, y: 0, scale: 1, duration: 0.8, ease: 'power3.out' }, '-=0.35')
-      // the product shot drifts against the scroll — the one parallax on the page
-      gsap.to('.ld-shot-inner', { yPercent: -7, ease: 'none', scrollTrigger: { trigger: '.ld-shot', start: 'top bottom', end: 'bottom top', scrub: 0.6 } })
       // everything below the fold rises into place as it arrives
       gsap.utils.toArray<HTMLElement>('.ld-reveal').forEach((el) => {
         gsap.from(el, { opacity: 0, y: 26, duration: 0.7, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 86%', once: true } })
       })
       gsap.utils.toArray<HTMLElement>('.ld-stagger').forEach((group) => {
         gsap.from(group.children, { opacity: 0, y: 18, duration: 0.55, stagger: 0.08, ease: 'power2.out', scrollTrigger: { trigger: group, start: 'top 84%', once: true } })
-      })
-      // feature shots move a touch slower than the page, in alternating directions
-      gsap.utils.toArray<HTMLElement>('.ld-feature-img').forEach((el, i) => {
-        gsap.fromTo(el, { yPercent: i % 2 ? -4 : 4 }, { yPercent: i % 2 ? 4 : -4, ease: 'none', scrollTrigger: { trigger: el, start: 'top bottom', end: 'bottom top', scrub: 0.8 } })
       })
     })
     return () => mm.revert()
