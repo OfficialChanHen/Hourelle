@@ -1,6 +1,6 @@
 import type { PersonColor } from './colors'
 import { av } from './people'
-import { isMine, pushDelete, pushEvent, pushMessage, pushNewEvent } from './remote'
+import { isMine, pushAnswers, pushDelete, pushEvent, pushMessage, pushNewEvent } from './remote'
 import { currentAccount } from './session'
 import type { AccountKind } from './session'
 import {
@@ -267,9 +267,14 @@ export function patchEvent(id: string, patch: Partial<AppEvent>): void {
   const list = readAll()
   const i = list.findIndex((e) => e.id === id)
   if (i < 0) return // demo / unknown events are not persisted
-  list[i] = { ...list[i], ...patch }
+  const before = list[i]
+  list[i] = { ...before, ...patch }
   writeAll(list)
-  pushEvent(list[i]) // background sync; no-op without a backend
+  // availability and the ballot travel as their own rows, one per person, so two
+  // people answering at the same moment never overwrite each other. Everything else
+  // is the document. Both are background sync; no-ops without a backend.
+  pushAnswers(before, list[i])
+  pushEvent(list[i])
 }
 
 /* ── slug ── */
@@ -388,9 +393,17 @@ export function parseHM(v: string | undefined): number | null {
   const m = /^(\d{1,2}):(\d{2})$/.exec(v ?? '')
   return m ? Number(m[1]) * 60 + Number(m[2]) : null
 }
-// day polls have one row covering the whole day — the label is a marker other code
-// checks (gridStartMinOf), so it stays a single constant
-export const ALL_DAY = 'All day'
+/* ── minute-precision availability ──
+   The pure interval maths lives in lib/availability, where the sync layer can reach
+   it without importing this module (it imports this one). Re-exported here so every
+   caller keeps the single import it already had.
+   ALL_DAY: day polls have one row covering the whole day, and the label is a marker
+   other code checks (gridStartMinOf), so it stays a single constant. */
+export {
+  ALL_DAY, stepOf, parseClockLabel, gridStartMinOf, normalizeIv, gridToIntervals,
+  intervalsToGrid, availIvOf, fullAvailIvOf, byParticipant, byDay, type PersonAnswer,
+} from './availability'
+import { ALL_DAY, stepOf, normalizeIv, intervalsToGrid, availIvOf, gridStartMinOf } from './availability'
 export function buildTimes(gran: string, fromMin = 0, toMin = 24 * 60): string[] {
   if (gran === 'day') return [ALL_DAY]
   const step = gran === '15' ? 15 : gran === '60' ? 60 : 30
@@ -399,58 +412,6 @@ export function buildTimes(gran: string, fromMin = 0, toMin = 24 * 60): string[]
   return out
 }
 
-/* ── minute-precision availability ── */
-export function stepOf(gran: string): number {
-  return gran === 'day' ? 24 * 60 : gran === '15' ? 15 : gran === '60' ? 60 : 30
-}
-export function parseClockLabel(s: string): number | null {
-  const m = /^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i.exec(s.trim())
-  if (!m) return null
-  let h = Number(m[1])
-  const mm = m[2] ? Number(m[2]) : 0
-  const ap = m[3]?.toUpperCase()
-  if (ap === 'PM' && h !== 12) h += 12
-  if (ap === 'AM' && h === 12) h = 0
-  return h * 60 + mm
-}
-export function gridStartMinOf(ev: Pick<AppEvent, 'times'>): number {
-  if (ev.times[0] === ALL_DAY) return 0
-  return parseClockLabel(ev.times[0] ?? '') ?? 8 * 60
-}
-export function normalizeIv(list: Iv[]): Iv[] {
-  const xs = list.filter((iv) => iv.e > iv.s).sort((a, b) => a.s - b.s)
-  const out: Iv[] = []
-  for (const iv of xs) {
-    const last = out[out.length - 1]
-    if (last && iv.s <= last.e) last.e = Math.max(last.e, iv.e)
-    else out.push({ s: iv.s, e: iv.e })
-  }
-  return out
-}
-// legacy per-cell grid → per-participant intervals (each marked cell becomes a full slot)
-export function gridToIntervals(avail: Record<string, string[][]>, days: Pick<GridDay, 'key'>[], step: number): AvailIntervals {
-  const out: AvailIntervals = {}
-  for (const d of days) {
-    const byPid: Record<string, Iv[]> = {}
-    ;(avail[d.key] ?? []).forEach((ids, ti) => {
-      for (const id of ids) (byPid[id] ??= []).push({ s: ti * step, e: (ti + 1) * step })
-    })
-    out[d.key] = Object.fromEntries(Object.entries(byPid).map(([id, ivs]) => [id, normalizeIv(ivs)]))
-  }
-  return out
-}
-// intervals → per-cell view (any overlap counts); keeps lists/stats working off `avail`
-export function intervalsToGrid(availIv: AvailIntervals, days: GridDay[], rows: number, step: number): Record<string, string[][]> {
-  const out: Record<string, string[][]> = {}
-  for (const d of days) {
-    const byPid = availIv[d.key] ?? {}
-    out[d.key] = Array.from({ length: rows }, (_, ti) => {
-      const w0 = ti * step, w1 = (ti + 1) * step
-      return Object.keys(byPid).filter((id) => byPid[id].some((iv) => iv.s < w1 && iv.e > w0))
-    })
-  }
-  return out
-}
 // the same clock time, marked when the minute count has run past midnight — the
 // itinerary schedules one day, so a stop landing on the next day must say so
 export function fmtMinuteDay(min: number, h24 = false): string {
@@ -587,14 +548,6 @@ export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: nu
   return best
 }
 
-export function availIvOf(ev: AppEvent): AvailIntervals {
-  return ev.availIv ?? gridToIntervals(ev.avail, ev.days, stepOf(ev.granularity))
-}
-// same, but over every stored day — including dormant ones dropped from the current
-// range — so writers never lose the replies a later window change should bring back
-export function fullAvailIvOf(ev: Pick<AppEvent, 'avail' | 'availIv' | 'granularity'>): AvailIntervals {
-  return ev.availIv ?? gridToIntervals(ev.avail, Object.keys(ev.avail).map((key) => ({ key })), stepOf(ev.granularity))
-}
 
 export function daysUntil(startDate: string): number | null {
   const s = parseLocal(startDate)

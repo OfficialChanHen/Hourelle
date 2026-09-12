@@ -12,6 +12,7 @@ import { useGSAP } from '@gsap/react'
 import { Cover, COVER_PRESETS } from '@/components/ui/Cover'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { lastListPage } from '@/lib/nav'
+import { useEventRoom } from '@/hooks/useEventRoom'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { DaysPicker } from '@/components/ui/DaysPicker'
 import { TimeSelect } from '@/components/ui/TimeSelect'
@@ -162,6 +163,12 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   // arriving mid-drag updates the page around you rather than under you.
   useLiveEvents(refresh)
 
+  // who else has this event open, and who is typing. Presence is not a fact about
+  // the event, so it lives on a channel and never in a table; with no backend the
+  // room is simply empty and nothing below it changes.
+  const meNow = event?.participants.find((p) => p.you)
+  const room = useEventRoom(id, meNow ? { id: meNow.id, name: meNow.name, initials: meNow.initials, color: meNow.color } : null)
+
   if (event === undefined) {
     return (
       <div className="mx-auto max-w-[1240px] px-[26px] pt-[64px]">
@@ -257,6 +264,20 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
               {(event.hostKind ?? (event.hostedByYou ? 'person' : 'org')) === 'org' ? <Building2 size={15} /> : <User size={15} />} Hosted by {event.hostName}
             </span>
             <Badge variant={badge.variant}>{badge.label}</Badge>
+            {/* someone else is looking at this right now. A live dot, not a stat:
+                it appears when they arrive and goes when they leave */}
+            {room.here.length > 0 && (
+              <span
+                className="flex items-center gap-1.5 text-[12.5px] text-dim"
+                title={`${room.here.map((p) => p.name).join(', ')} ${room.here.length === 1 ? 'has' : 'have'} this open`}
+              >
+                <span className="relative flex h-[7px] w-[7px] flex-none">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal opacity-60" />
+                  <span className="relative inline-flex h-[7px] w-[7px] rounded-full bg-teal" />
+                </span>
+                {room.here.length === 1 ? `${room.here[0].name.split(' ')[0]} is here now` : `${room.here.length} others here now`}
+              </span>
+            )}
             {/* the join flow put a name on this browser — say whose answers these are.
                 Leaving lives on the Event details tab, with the other rare actions */}
             {me?.guest && (
@@ -383,7 +404,13 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         </button>
       )}
 
-      {chatOpen && <ChatDrawer event={event} messages={event.messages} unreadFrom={unreadMark} onSend={sendMessage} onClose={() => setChatOpen(false)} readOnly={!!event.demo} />}
+      {chatOpen && (
+        <ChatDrawer
+          event={event} messages={event.messages} unreadFrom={unreadMark}
+          onSend={sendMessage} onClose={() => setChatOpen(false)} readOnly={!!event.demo}
+          here={room.here} typing={room.typing} onType={room.onType} onStopTyping={room.onStopTyping}
+        />
+      )}
     </div>
   )
 }
