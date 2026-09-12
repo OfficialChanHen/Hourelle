@@ -152,13 +152,13 @@ export default function SettingsPage() {
             {ready && <Switch on={notify[r.key]} onChange={(v) => changeNotify({ [r.key]: v })} label={r.label} />}
           </div>
         ))}
-        <p className="border-t border-border bg-s0 px-5 py-3 text-[12.5px] leading-[1.55] text-faint">
-          {!backendOn
-            ? 'Saved on this device. Emails go out once a backend is set up.'
-            : account.signedIn
-              ? `Reminders go to ${account.email ?? 'the email on your account'}. Guests on your events get theirs at the address they gave when they joined.`
+        {(!backendOn || !account.signedIn) && (
+          <p className="border-t border-border bg-s0 px-5 py-3 text-[12.5px] leading-[1.55] text-faint">
+            {!backendOn
+              ? 'Saved on this device. Emails go out once a backend is set up.'
               : 'Log in and these choices follow your account. Reminders go out by email.'}
-        </p>
+          </p>
+        )}
       </div>
     </div>
   )

@@ -88,7 +88,7 @@ export function SignInMethods({ account }: { account: Account }) {
           <div className="min-w-0">
             <div className="text-[14px] font-medium">Email and password</div>
             <div className="mt-0.5 truncate text-[12.5px] text-dim">
-              {hasPassword ? account.email ?? 'Set up' : 'Not set up. Add one in Settings, under Security.'}
+              {hasPassword ? account.email ?? 'Set up' : 'Not set up'}
             </div>
           </div>
           {hasPassword && <span className="flex h-7 flex-none items-center gap-1.5 rounded-[8px] border border-teal-border bg-teal-bg px-2.5 text-[12px] font-semibold text-teal-text"><Check size={13} /> On</span>}
@@ -102,7 +102,7 @@ export function SignInMethods({ account }: { account: Account }) {
             <div className="min-w-0">
               <div className="text-[14px] font-medium">Google</div>
               <div className="mt-0.5 truncate text-[12.5px] text-dim">
-                {identities === null ? 'Checking…' : google ? google.email ?? 'Connected' : 'Log in with one tap, from any device.'}
+                {identities === null ? 'Checking…' : google ? google.email ?? 'Connected' : 'Not connected'}
               </div>
             </div>
           </div>
@@ -129,11 +129,7 @@ export function SignInMethods({ account }: { account: Account }) {
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
             <div className="text-[14px] font-medium">Another account of yours</div>
-            <div className="mt-0.5 text-[12.5px] text-dim">
-              {open
-                ? 'Its events, answers and messages move here, and it is closed for good.'
-                : 'Signed up twice? Bring the other one in and keep everything.'}
-            </div>
+            {open && <div className="mt-0.5 text-[12.5px] text-dim">Its events, answers and messages move here, and it is closed for good.</div>}
           </div>
           <button
             type="button" onClick={() => { setOpen(!open); setErr(null) }} disabled={busy !== null}
@@ -152,9 +148,7 @@ export function SignInMethods({ account }: { account: Account }) {
               className="h-11 rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none placeholder:text-faint focus:border-accent-border"
             />
             <PasswordField id="merge-password" label="Its password" value={password} onChange={setPassword} autoComplete="off" />
-            <p className="mt-1 text-[12px] leading-[1.5] text-faint">
-              A Google-only account has no password to give. Log in to that one instead and bring this one in from there.
-            </p>
+            <p className="mt-1 text-[12px] leading-[1.5] text-faint">A Google-only account has no password to prove.</p>
             <button
               type="submit" disabled={!email.trim() || !password || busy !== null}
               className="mt-2 flex h-10 items-center justify-center gap-2 rounded-[10px] bg-accent text-[14px] font-semibold text-on-accent disabled:opacity-40"

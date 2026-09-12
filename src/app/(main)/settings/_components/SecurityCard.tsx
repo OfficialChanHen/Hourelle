@@ -8,7 +8,6 @@
    sets a first one instead of changing an existing one. */
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { Check, Loader2, ShieldCheck } from 'lucide-react'
 import { PasswordField } from '@/components/ui/PasswordField'
 import { changePassword, signInProviders, signOutEverywhere, updatePassword, type Account } from '@/lib/session'
@@ -68,9 +67,7 @@ export function SecurityCard({ account }: { account: Account }) {
           <div className="min-w-0">
             <div className="text-[14px] font-medium">Password</div>
             <div className="mt-0.5 text-[12.5px] text-dim">
-              {googleOnly
-                ? 'You log in with Google. Add a password to log in by email as well.'
-                : `Logs you in as ${account.email ?? 'your account'}.`}
+              {googleOnly ? 'You log in with Google.' : `Logs you in as ${account.email ?? 'your account'}.`}
             </div>
           </div>
           {done ? (
@@ -136,11 +133,7 @@ export function SecurityCard({ account }: { account: Account }) {
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
             <div className="text-[14px] font-medium">Where you are logged in</div>
-            <div className="mt-0.5 text-[12.5px] text-dim">
-              {confirmOut
-                ? 'This logs out every device, including this one.'
-                : 'Lost a phone, or left yourself logged in somewhere? End every session.'}
-            </div>
+            {confirmOut && <div className="mt-0.5 text-[12.5px] text-dim">This logs out every device, including this one.</div>}
           </div>
           {confirmOut ? (
             <div className="flex flex-none items-center gap-2">
@@ -169,11 +162,11 @@ export function SecurityCard({ account }: { account: Account }) {
         {outErr && <p role="alert" className="mt-2 text-[12.5px] font-medium text-brick-text">{outErr}</p>}
       </div>
 
-      <p className="border-t border-border bg-s0 px-5 py-3 text-[12.5px] leading-[1.55] text-faint">
-        {backendOn
-          ? <>Deleting your account, and everything on it, lives on your <Link href="/profile" className="font-semibold text-accent-text hover:underline">profile</Link>.</>
-          : 'These need a backend. Add your Supabase keys to .env.local and they start working.'}
-      </p>
+      {!backendOn && (
+        <p className="border-t border-border bg-s0 px-5 py-3 text-[12.5px] leading-[1.55] text-faint">
+          These need a backend. Add your Supabase keys to .env.local and they start working.
+        </p>
+      )}
     </div>
   )
 }
