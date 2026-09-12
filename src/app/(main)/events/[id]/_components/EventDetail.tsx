@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Building2, User, Link2, Copy, Merge, MessageCircle, Pencil, EllipsisVertical, CopyPlus,
-  Check, Trash2, TriangleAlert, Receipt, Plus, X, ImagePlus, Video, UserRoundX, Mail, ChevronLeft,
+  Check, Trash2, TriangleAlert, Receipt, Plus, X, ImagePlus, Video, UserRoundX, Mail,
 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -18,6 +18,7 @@ import { DaysPicker } from '@/components/ui/DaysPicker'
 import { TimeSelect } from '@/components/ui/TimeSelect'
 import { Avatar } from '@/components/ui/Avatar'
 import { AvatarRow } from '@/components/ui/AvatarRow'
+import { BackLink } from '@/components/ui/BackLink'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
@@ -245,12 +246,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
 
   return (
     <div className="mx-auto max-w-[1240px] px-4 pb-[104px] pt-5 sm:px-[26px] sm:pt-[34px]">
-      <Link
-        href={backTo.href}
-        className="-ml-1.5 mb-2 inline-flex h-11 items-center gap-1 rounded-[9px] pl-1.5 pr-2.5 text-[13.5px] font-medium text-dim hover:bg-s2 hover:text-text sm:mb-3 sm:h-9"
-      >
-        <ChevronLeft size={16} className="flex-none" />{backTo.label}
-      </Link>
+      <BackLink href={backTo.href} label={backTo.label} />
       {/* the host's cover, when one is set — photo or preset scene; shorter on phones
           so the tabs and content stay within the first screen */}
       {event.image && <Cover src={event.image} from="#E4EDE7" to="#CFE0D5" className="mb-4 h-[92px] border border-border sm:mb-5 sm:h-[170px]" rounded="rounded-2xl" />}

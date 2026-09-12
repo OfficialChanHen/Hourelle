@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { AppearancePicker } from '@/components/AppearancePicker'
+import { BackLink } from '@/components/ui/BackLink'
 import { SecurityCard } from './_components/SecurityCard'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { prefH24, setPrefH24, prefNotify, setPrefNotify, prefSound, setPrefSound, type NotifyPrefs } from '@/lib/prefs'
@@ -77,6 +78,7 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-[760px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
+      <BackLink href="/profile" label="Profile" />
       <h1 className="font-serif font-normal text-[33.5px] leading-[1.04] tracking-[-0.01em]">Settings</h1>
       <p className="mt-1.5 text-[13.5px] text-dim">Saved on this device.</p>
 
