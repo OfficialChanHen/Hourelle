@@ -531,7 +531,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 {() => <AddStopList near={near} places={places} stops={stops} canAdd={canAddPlaces} onExisting={addStop} onNew={addNewPlaceAsStop} />}
               </Popover>
             )}
-            {sub === 'vote' && event.hostedByYou && places.length > 0 && !locked && !settled && (
+            {sub === 'vote' && event.hostedByYou && !locked && !settled && (
               <Popover
                 align="end"
                 width={236}

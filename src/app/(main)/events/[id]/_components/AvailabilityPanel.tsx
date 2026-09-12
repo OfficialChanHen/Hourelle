@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { ChevronLeft, ChevronRight, ChevronDown, X, Check, Bell, Info, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { AvatarRow } from '@/components/ui/AvatarRow'
@@ -25,7 +25,13 @@ type Edge = 'top' | 'bottom'
 type Sel = { day: string; s: number; e: number; edge: Edge }
 
 type Drag =
-  | { kind: 'paint'; day: string; anchorClientY: number; anchorScrollTop: number; anchorMin: number; block: Iv | null }
+  // paint: a rectangle from the anchor cell to wherever the pointer is — any direction,
+  // across days as well as times. `days` are the real day keys the rectangle covers.
+  // Started on one of your blocks it erases instead (or, released without moving, selects it).
+  | {
+      kind: 'paint'; day: string; di: number; anchorClientY: number; anchorScrollTop: number; anchorScrollLeft: number; anchorMin: number
+      block: Iv | null; days: string[]; erase: boolean; moved: boolean; hit: Iv | null
+    }
   | {
       kind: 'resize'; day: string; edge: Edge; fixedMin: number
       anchorClientY: number; anchorScrollTop: number; anchorMin: number; origS: number; origE: number
@@ -34,6 +40,15 @@ type Drag =
 
 const CELL = 50 // px per grid row — must match the h-[50px] cell height below
 const MIN_LEN = 5 // smallest block, in minutes
+const TIME_COL = 54 // px — the sticky time column, must match the grid template below
+const HOLD_MS = 160 // touch: rest the finger this long to start painting; a quicker swipe scrolls
+const SLOP = 8 // px a touch may wander during the hold and still count as resting
+const COARSE = '(pointer: coarse)'
+function subscribeCoarse(cb: () => void) {
+  const mq = window.matchMedia(COARSE)
+  mq.addEventListener('change', cb)
+  return () => mq.removeEventListener('change', cb)
+}
 const OVERSCAN = 6 // rows rendered beyond the viewport each side, so scrolling doesn't flash blank
 
 export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0, onLockDays, onRunChange, onPatch }: {
@@ -168,9 +183,17 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const selRef = useRef(sel); useEffect(() => { selRef.current = sel }, [sel])
   const dragRef = useRef<Drag | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
+  const gridEl = useRef<HTMLDivElement>(null) // the grid itself — column math for cross-day drags
+  const weekDaysRef = useRef(weekDays); useEffect(() => { weekDaysRef.current = weekDays }, [weekDays])
   const colRef = useRef<HTMLDivElement>(null) // left column — cell popover anchors here, outside the scroller
   const lastYRef = useRef(0) // latest pointer Y, for the auto-scroll loop
-  const tapRef = useRef<{ day: string; ti: number; x: number; y: number } | null>(null) // touch: distinguish tap-to-mark from a scroll
+  const lastXRef = useRef(0)
+  // touch: where the finger landed, to tell a tap from a scroll and to start a hold-drag from
+  const tapRef = useRef<{ day: string; ti: number; x: number; y: number; top: number; height: number } | null>(null)
+  const holdRef = useRef<ReturnType<typeof setTimeout> | null>(null) // pending press-and-hold
+  const touchDragRef = useRef(false) // the live drag came from a finger: block the browser's scroll
+  // phones get a different hint — the gesture there starts with a short hold
+  const coarse = useSyncExternalStore(subscribeCoarse, () => window.matchMedia(COARSE).matches, () => false)
   const rafRef = useRef(0)
   const scrollRaf = useRef(0)
 
@@ -301,11 +324,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     setDetail({ day, ti, cx: cr.left - pr.left + cr.width / 2, cyTop: cr.top - pr.top, cyBottom: cr.bottom - pr.top, below })
   }
 
+  // set several days' intervals at once, normalized + persisted in one write
+  function commitDays(patch: Record<string, Iv[]>): Record<string, Iv[]> {
+    const norm = Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, normalizeIv(v)]))
+    setMine((pm) => { const next = { ...pm, ...norm }; persist(next); return next })
+    return norm
+  }
   // set a day's intervals, normalized + persisted; returns the merged result for re-selection
   function commitDay(day: string, ivs: Iv[]): Iv[] {
-    const norm = normalizeIv(ivs)
-    setMine((pm) => { const next = { ...pm, [day]: norm }; persist(next); return next })
-    return norm
+    return commitDays({ [day]: ivs })[day]
   }
   function selectMerged(day: string, ivs: Iv[], probe: number, edge: Edge) {
     const merged = ivs.find((iv) => probe >= iv.s && probe <= iv.e)
@@ -322,47 +349,93 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const snap5 = (m: number) => Math.max(0, Math.min(gridMax, Math.round(m / 5) * 5))
   const rowStart = (m: number) => Math.max(0, Math.min(gridMax - step, Math.floor(m / step) * step))
 
+  // which grid column sits under a pointer X (the sticky time column maps to column 0)
+  function colAt(clientX: number) {
+    const g = gridEl.current
+    const n = weekDaysRef.current.length
+    if (!g || !n) return 0
+    const r = g.getBoundingClientRect()
+    const cw = (r.width - TIME_COL) / n
+    return Math.max(0, Math.min(n - 1, Math.floor((clientX - r.left - TIME_COL) / cw)))
+  }
+  // the real days between two columns, in order — filler days are skipped, never painted
+  function daysBetween(a: number, b: number) {
+    return weekDaysRef.current.slice(Math.min(a, b), Math.max(a, b) + 1).filter((d) => !d.pad).map((d) => d.key)
+  }
+  // start a rectangle drag from a cell: shared by the mouse (on press) and touch (after the hold).
+  // Over one of your blocks it erases instead of paints; a release without moving selects that block.
+  function beginDrag(day: string, ti: number, clientX: number, clientY: number, top: number, height: number) {
+    const di = weekDaysRef.current.findIndex((d) => d.key === day)
+    if (di < 0) return
+    const gridMin = Math.max(0, Math.min(gridMax, ti * step + ((clientY - top) / height) * step))
+    let hit: Iv | null = null
+    if (dayPoll) hit = (mine[day] ?? []).length ? { s: 0, e: gridMax } : null
+    else {
+      hit = (mine[day] ?? []).find((iv) => gridMin >= iv.s && gridMin <= iv.e) ?? null
+      if (!hit) {
+        // a slot already holding a partial never floods to full — a press in its empty
+        // stretch drops a 5-minute band right there instead (a second partial), and the
+        // normalize pass coalesces it into anything it touches
+        const w0 = ti * step, w1 = w0 + step
+        const touching = (mine[day] ?? []).filter((iv) => iv.s < w1 && iv.e > w0)
+        if (touching.length > 0) {
+          const s = Math.max(0, Math.min(gridMax - MIN_LEN, snap5(gridMin - MIN_LEN / 2)))
+          const norm = commitDay(day, [...(mine[day] ?? []), { s, e: s + MIN_LEN }])
+          selectMerged(day, norm, s + MIN_LEN / 2, 'bottom')
+          return
+        }
+      }
+    }
+    const a = dayPoll ? 0 : rowStart(gridMin)
+    const d: Drag = {
+      kind: 'paint', day, di, anchorClientY: clientY, anchorMin: gridMin,
+      anchorScrollTop: scroller.current?.scrollTop ?? 0, anchorScrollLeft: scroller.current?.scrollLeft ?? 0,
+      block: dayPoll ? { s: 0, e: gridMax } : { s: a, e: a + step }, days: [day], erase: !!hit, moved: false, hit,
+    }
+    dragRef.current = d; setDrag(d)
+    lastXRef.current = clientX; lastYRef.current = clientY
+    if (!hit) setSel(null) // over a block the handles stay until the drag actually moves
+  }
+  function cancelHold() {
+    if (holdRef.current) { clearTimeout(holdRef.current); holdRef.current = null }
+  }
   function onCellDown(e: React.PointerEvent, day: string, ti: number) {
     if (mode !== 'edit') return
-    // Touch: don't hijack the gesture. Remember where it started and let the browser
-    // scroll the grid vertically; a stationary release is treated as a tap-to-mark (see
-    // onCellTap). Drag-to-paint stays a mouse/pen affordance.
-    if (e.pointerType === 'touch') { tapRef.current = { day, ti, x: e.clientX, y: e.clientY }; return }
+    const r = e.currentTarget.getBoundingClientRect()
+    // Touch: don't hijack the gesture outright. A finger that rests for a beat starts the
+    // same drag as the mouse (and the browser's scroll is held off from then on); a quick
+    // swipe scrolls the grid; a stationary release is a tap-to-mark (see onCellTap).
+    if (e.pointerType === 'touch') {
+      const t = { day, ti, x: e.clientX, y: e.clientY, top: r.top, height: r.height }
+      tapRef.current = t
+      cancelHold()
+      holdRef.current = setTimeout(() => {
+        holdRef.current = null
+        if (tapRef.current !== t) return
+        tapRef.current = null
+        touchDragRef.current = true
+        try { navigator.vibrate?.(8) } catch { /* not every phone hums */ }
+        beginDrag(day, ti, t.x, t.y, t.top, t.height)
+      }, HOLD_MS)
+      return
+    }
     e.preventDefault()
     // grid editing is driven by a window key listener, not element focus — drop any lingering
     // focus on a toolbar button so arrow-key nudging doesn't paint a stray focus ring on it
     if (document.activeElement instanceof HTMLElement && document.activeElement.tagName === 'BUTTON') document.activeElement.blur()
-    // day polls have no partial times and no handles: a day is on or off, one click each way
-    if (dayPoll) {
-      commitDay(day, (mine[day] ?? []).length ? [] : [{ s: 0, e: gridMax }])
-      setSel(null)
-      return
-    }
-    const r = e.currentTarget.getBoundingClientRect()
-    const gridMin = Math.max(0, Math.min(gridMax, ti * step + ((e.clientY - r.top) / r.height) * step))
-    const hit = (mine[day] ?? []).find((iv) => gridMin >= iv.s && gridMin <= iv.e)
-    if (hit) { setSel({ day, s: hit.s, e: hit.e, edge: 'bottom' }); return } // click a block → select, never toggle off
-    // a slot already holding a partial never floods to full — a click in its empty
-    // stretch drops a 5-minute band right there instead (a second partial), and the
-    // normalize pass coalesces it into anything it touches
-    const w0 = ti * step, w1 = w0 + step
-    const touching = (mine[day] ?? []).filter((iv) => iv.s < w1 && iv.e > w0)
-    if (touching.length > 0) {
-      const s = Math.max(0, Math.min(gridMax - MIN_LEN, snap5(gridMin - MIN_LEN / 2)))
-      const norm = commitDay(day, [...(mine[day] ?? []), { s, e: s + MIN_LEN }])
-      selectMerged(day, norm, s + MIN_LEN / 2, 'bottom')
-      return
-    }
-    const a = rowStart(gridMin)
-    const d: Drag = { kind: 'paint', day, anchorClientY: e.clientY, anchorScrollTop: scroller.current?.scrollTop ?? 0, anchorMin: gridMin, block: { s: a, e: a + step } }
-    dragRef.current = d; setDrag(d); setSel(null)
+    touchDragRef.current = false
+    beginDrag(day, ti, e.clientX, e.clientY, r.top, r.height)
   }
-  // touch release: a real tap (little movement) marks or selects the slot; a moved touch was a scroll
+  // touch release: a real tap (little movement) marks or selects the slot; a moved touch was a
+  // scroll; a held one became a drag, which the window-level release commits instead
   function onCellTap(e: React.PointerEvent, day: string, ti: number) {
-    if (mode !== 'edit' || e.pointerType !== 'touch') return
+    if (e.pointerType !== 'touch') return
+    cancelHold()
+    if (dragRef.current) { tapRef.current = null; return }
+    if (mode !== 'edit') return
     const t = tapRef.current; tapRef.current = null
     if (!t || t.day !== day || t.ti !== ti) return
-    if (Math.abs(e.clientY - t.y) > 8 || Math.abs(e.clientX - t.x) > 8) return // was a scroll, not a tap
+    if (Math.abs(e.clientY - t.y) > SLOP || Math.abs(e.clientX - t.x) > SLOP) return // was a scroll, not a tap
     // day polls have no partial times and no handles: a day is on or off, one tap each way
     if (dayPoll) {
       commitDay(day, (mine[day] ?? []).length ? [] : [{ s: 0, e: gridMax }])
@@ -404,14 +477,18 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // Scroll offset joins the pointer delta so the mapping stays correct while the grid
   // auto-scrolls under a stationary pointer near the container's edge.
   useEffect(() => {
-    function updateDrag(clientY: number) {
+    function updateDrag(clientX: number, clientY: number) {
       const d = dragRef.current; if (!d) return
       const scrollDelta = (scroller.current?.scrollTop ?? 0) - d.anchorScrollTop
       const cur = Math.max(0, Math.min(gridMax, d.anchorMin + (clientY - d.anchorClientY + scrollDelta) / pxPerMin))
       if (d.kind === 'paint') {
         const a = rowStart(d.anchorMin), c = rowStart(cur)
-        const nd: Drag = { ...d, block: { s: Math.min(a, c), e: Math.max(a, c) + step } }
+        const di = colAt(clientX)
+        const moved = d.moved || di !== d.di || (!dayPoll && c !== a)
+        const block = dayPoll ? { s: 0, e: gridMax } : { s: Math.min(a, c), e: Math.max(a, c) + step }
+        const nd: Drag = { ...d, block, days: daysBetween(d.di, di), moved }
         dragRef.current = nd; setDrag(nd)
+        if (moved && !d.moved && d.hit) setSel(null) // an erase drag left its block: the handles go
       } else {
         const m = snap5(cur)
         let block: Iv | null = null, del = false
@@ -430,32 +507,50 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       const r = el.getBoundingClientRect()
       const headerH = (el.querySelector('.sticky') as HTMLElement | null)?.offsetHeight ?? 56
       const EDGE = 30, MAX_SPEED = 16
-      const y = lastYRef.current
-      let dy = 0
+      const y = lastYRef.current, x = lastXRef.current
+      let dy = 0, dx = 0
       if (y < r.top + headerH + EDGE) dy = -Math.min(MAX_SPEED, (r.top + headerH + EDGE - y) / 3)
       else if (y > r.bottom - EDGE) dy = Math.min(MAX_SPEED, (y - (r.bottom - EDGE)) / 3)
-      if (dy) {
-        const before = el.scrollTop
-        el.scrollTop = before + dy
-        if (el.scrollTop !== before) updateDrag(y) // grid moved under the pointer — remap
+      // sideways too, past the sticky time column — a cross-day drag on a phone reaches every day
+      if (d.kind === 'paint') {
+        if (x < r.left + TIME_COL + EDGE) dx = -Math.min(MAX_SPEED, (r.left + TIME_COL + EDGE - x) / 3)
+        else if (x > r.right - EDGE) dx = Math.min(MAX_SPEED, (x - (r.right - EDGE)) / 3)
+      }
+      if (dy || dx) {
+        const beforeY = el.scrollTop, beforeX = el.scrollLeft
+        if (dy) el.scrollTop = beforeY + dy
+        if (dx) el.scrollLeft = beforeX + dx
+        if (el.scrollTop !== beforeY || el.scrollLeft !== beforeX) updateDrag(x, y) // grid moved under the pointer — remap
       }
       rafRef.current = requestAnimationFrame(tick)
     }
     function move(ev: PointerEvent) {
       if (!dragRef.current) return
-      lastYRef.current = ev.clientY
-      updateDrag(ev.clientY)
+      lastYRef.current = ev.clientY; lastXRef.current = ev.clientX
+      updateDrag(ev.clientX, ev.clientY)
       if (!rafRef.current) rafRef.current = requestAnimationFrame(tick)
     }
     function up() {
       if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = 0 }
       const d = dragRef.current; if (!d) return
-      dragRef.current = null
+      dragRef.current = null; touchDragRef.current = false
       if (d.kind === 'paint') {
-        if (d.block) {
-          const norm = commitDay(d.day, [...(mineRef.current[d.day] ?? []), d.block])
-          // day polls have no sub-slot precision, so a mark never opens the handle chip
-          if (!dayPoll) selectMerged(d.day, norm, (d.block.s + d.block.e) / 2, 'bottom')
+        if (dayPoll) {
+          // a press that never moved toggles its day; a drag sets the whole run on or off
+          if (!d.moved) commitDay(d.day, d.hit ? [] : [{ s: 0, e: gridMax }])
+          else commitDays(Object.fromEntries(d.days.map((k) => [k, d.erase ? [] : [{ s: 0, e: gridMax }]])))
+          setSel(null)
+        } else if (d.erase && !d.moved) {
+          if (d.hit) setSel({ day: d.day, s: d.hit.s, e: d.hit.e, edge: 'bottom' }) // press a block → select, never toggle off
+        } else if (d.block) {
+          const b = d.block
+          const norm = commitDays(Object.fromEntries(d.days.map((k) => {
+            const base = mineRef.current[k] ?? []
+            return [k, d.erase ? base.flatMap((iv) => subtract(iv, b.s, b.e)) : [...base, b]]
+          })))
+          // one day's fresh block opens the handle chip for fine-tuning; a swept rectangle doesn't
+          if (!d.erase && d.days.length === 1) selectMerged(d.days[0], norm[d.days[0]], (b.s + b.e) / 2, 'bottom')
+          else setSel(null)
         }
       } else {
         const base = (mineRef.current[d.day] ?? []).filter((iv) => !(iv.s === d.origS && iv.e === d.origE))
@@ -467,11 +562,31 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       }
       setDrag(null)
     }
+    // the browser took the gesture (a scroll won): drop the drag without writing anything
+    function cancel() {
+      if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = 0 }
+      if (!dragRef.current) return
+      dragRef.current = null; touchDragRef.current = false
+      setDrag(null)
+    }
+    // touch: once a hold has turned into a drag, the finger paints — the grid must not
+    // scroll under it. Before the hold lands, a real swipe cancels the hold and scrolls.
+    function touchMove(ev: TouchEvent) {
+      if (dragRef.current && touchDragRef.current) { if (ev.cancelable) ev.preventDefault(); return }
+      const t = tapRef.current, f = ev.touches[0]
+      if (t && holdRef.current && f && (Math.abs(f.clientX - t.x) > SLOP || Math.abs(f.clientY - t.y) > SLOP)) cancelHold()
+    }
+    const el = scroller.current
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', cancel)
+    el?.addEventListener('touchmove', touchMove, { passive: false })
     return () => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', cancel)
+      el?.removeEventListener('touchmove', touchMove)
+      cancelHold()
       if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = 0 }
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -536,11 +651,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // intervals to draw for a day, folding in the live drag so shrink/grow/merge shows immediately
   function renderIvsFor(day: string): Iv[] {
     const d = drag
-    if (d && d.day === day) {
-      if (d.kind === 'paint') return [...(mine[day] ?? []), ...(d.block ? [d.block] : [])]
-      return [...(mine[day] ?? []).filter((iv) => !(iv.s === d.origS && iv.e === d.origE)), ...(d.block ? [d.block] : [])]
+    const base = mine[day] ?? []
+    if (!d) return base
+    if (d.kind === 'paint') {
+      if (!d.block || !d.days.includes(day)) return base
+      if (d.erase) return d.moved ? base.flatMap((iv) => subtract(iv, d.block!.s, d.block!.e)) : base
+      return [...base, d.block]
     }
-    return mine[day] ?? []
+    if (d.day !== day) return base
+    return [...base.filter((iv) => !(iv.s === d.origS && iv.e === d.origE)), ...(d.block ? [d.block] : [])]
   }
 
   // bulk changes (clear, calendar import) are instant with an undo window instead
@@ -957,7 +1076,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           {/* first-time hint only — it earns its place until you've marked something */}
           {mode === 'edit' && !sel && !youAny && (
             <span className="text-[12.5px] text-faint">
-              {dayPoll ? 'Tap the days you can make it.' : 'Drag across the times you’re free. The checkmarks fill a whole day or row at once.'}
+              {dayPoll
+                ? (coarse ? 'Tap the days you can make it, or hold and drag across a few.' : 'Click the days you can make it, or drag across a few.')
+                : (coarse ? 'Hold a moment, then drag across the days and times you’re free. The checkmarks fill a whole day or row at once.' : 'Drag across the days and times you’re free. The checkmarks fill a whole day or row at once.')}
             </span>
           )}
           {locked && <span className="text-[12.5px] text-faint">Planning is locked. The grid stays for reference.</span>}
@@ -1061,15 +1182,23 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         )}
 
         {/* grid */}
-        <div ref={scroller} onScroll={onGridScroll} className="scroll-slim max-h-[58dvh] flex-1 overflow-auto rounded-[10px] border border-border lg:max-h-none">
+        <div
+          ref={scroller}
+          onScroll={onGridScroll}
+          // a held finger is how painting starts on a phone — it must not open the long-press menu
+          onContextMenu={(e) => { if (mode === 'edit') e.preventDefault() }}
+          className="scroll-slim max-h-[58dvh] flex-1 overflow-auto rounded-[10px] border border-border lg:max-h-none"
+          style={{ WebkitTouchCallout: 'none' } as React.CSSProperties}
+        >
           {/* width tracks the day count: a single day must fit the screen without a
               horizontal scroll, and shouldn't stretch into one huge column either */}
           <div
+            ref={gridEl}
             className="grid"
             style={{
-              gridTemplateColumns: `54px repeat(${weekDays.length}, minmax(72px, 1fr))`,
-              minWidth: 54 + weekDays.length * 72,
-              maxWidth: 54 + weekDays.length * 280,
+              gridTemplateColumns: `${TIME_COL}px repeat(${weekDays.length}, minmax(72px, 1fr))`,
+              minWidth: TIME_COL + weekDays.length * 72,
+              maxWidth: TIME_COL + weekDays.length * 280,
             }}
           >
             {/* header row — the corner cell stays pinned through both scroll directions */}
@@ -1312,7 +1441,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         return <span className="pointer-events-none absolute bottom-[2px] right-1 z-[2] text-[9px] font-bold" style={{ color: onDarkHeat ? 'var(--heat-count-full)' : 'var(--you-text)' }}>{cnt}/{editTotal}</span>
                       })()}
                       {/* full-cell hit zone: empty → paint, over a block → select */}
-                      <div className="absolute inset-0 z-[5] touch-auto" onPointerDown={(e) => onCellDown(e, d.key, ti)} onPointerUp={(e) => onCellTap(e, d.key, ti)} onPointerCancel={() => { tapRef.current = null }} />
+                      <div className="absolute inset-0 z-[5] touch-auto" onPointerDown={(e) => onCellDown(e, d.key, ti)} onPointerUp={(e) => onCellTap(e, d.key, ti)} onPointerCancel={() => { cancelHold(); tapRef.current = null }} />
                       {/* time handles + delete for the selected block */}
                       {isTopEdge && (
                         <>
