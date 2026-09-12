@@ -1038,11 +1038,16 @@ export function claimEvent(eventId: string): boolean {
   if (!ev || ev.demo || !acc.signedIn || !ev.hostedByYou) return false
   const host = ev.participants.find((p) => p.host)
   if (!host || host.id === acc.id || UUID_RE.test(host.id)) return false
+  // already on the list under your own id: you joined this event, you did not make it
+  if (ev.participants.some((p) => p.id === acc.id)) return false
   adoptParticipant(eventId, host.id, acc.id, { name: acc.name, initials: initialsOf(acc.name), color: acc.color })
   patchEvent(eventId, { hostName: acc.name, hostKind: acc.kind })
   return true
 }
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+// a participant id minted by the backend for a real account, as opposed to the
+// signed-out stub, a guest's g:name slug, or a demo's initials
+export const isAccountId = (id: string) => UUID_RE.test(id)
 
 /* ── guest sessions (share-link joins — a name is all it takes, no account) ──
    The join flow adds a participant and remembers, per event, that this browser acts
@@ -1142,12 +1147,16 @@ export function viewOf(ev: AppEvent): AppEvent {
   const host = ev.participants.find((p) => p.host)
   const hostIsAccount = !!host && UUID_RE.test(host.id)
   const hostedByYou = hostIsAccount ? host!.id === acc.id : ev.hostedByYou
-  if (ev.participants.some((p) => p.id === acc.id)) return hostedByYou === ev.hostedByYou ? ev : { ...ev, hostedByYou }
+  // `you` is the account's own entry and nothing else. A document that travelled
+  // through the cloud still carries the marker its author's browser put on the host,
+  // and the first `you` on the list is who the grid, the vote and the chat write as —
+  // so every other marker is cleared, not just the ones on a list you are missing from.
+  const mine = (id: string) => id === acc.id
   return {
     ...ev,
     hostedByYou,
-    participants: ev.participants.map((p) => (p.you ? { ...p, you: undefined } : p)),
-    messages: ev.messages.map((m) => (m.you ? { ...m, you: false } : m)),
+    participants: ev.participants.map((p) => (p.you === (mine(p.id) || undefined) ? p : { ...p, you: mine(p.id) || undefined })),
+    messages: ev.messages.map((m) => (m.you === mine(m.id) ? m : { ...m, you: mine(m.id) })),
   }
 }
 

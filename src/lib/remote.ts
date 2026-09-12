@@ -34,6 +34,34 @@ function hostIdOf(ev: AppEvent): string | null {
   return id && UUID.test(id) ? id : null
 }
 
+/* ── a document from the cloud is another browser's view of the event ──
+   Two fields in it are that browser's, not ours: `hostedByYou`, and the `you`
+   marker on whichever participant was them. Taken as-is they would hand an
+   invitee the host's powers, or make the host's entry read as "you" to whoever
+   opens the link. Both are rebuilt for this identity before the document lands in
+   the cache: `you` goes on the account's own entry (or the guest session's) and
+   nowhere else; the event is hosted by you only when the host entry carries your
+   account id. An ownerless event (stub host, made before signing in) keeps
+   whatever this browser already knew — only its own copy can say it was born
+   here — unless you are on its list as someone other than the host. */
+function localize(doc: AppEvent, prior?: AppEvent): AppEvent {
+  const acc = currentAccount()
+  let gid: string | null = null
+  try { gid = localStorage.getItem(GUEST_KEY_PREFIX + doc.id) } catch { /* private mode */ }
+  const meId = acc.signedIn ? acc.id : gid
+  const mine = (id: string) => meId !== null && id === meId
+  const host = doc.participants.find((p) => p.host)
+  const owned = !!host && UUID.test(host.id)
+  const hostedByYou = owned
+    ? acc.signedIn && host!.id === acc.id
+    : !!prior?.hostedByYou && !doc.participants.some((p) => !p.host && mine(p.id))
+  return {
+    ...doc,
+    hostedByYou,
+    participants: doc.participants.map((p) => ({ ...p, you: mine(p.id) || undefined })),
+  }
+}
+
 function rejected(action: string, message: string) {
   console.warn(`aline: ${action} refused by the database — ${message}`)
   if (typeof window !== 'undefined') {
@@ -81,7 +109,7 @@ export async function fetchEvent(id: string): Promise<boolean> {
   const ev = data.data as AppEvent
   const list = readCache()
   const i = list.findIndex((e) => e.id === id)
-  let merged = i >= 0 ? list.map((e, k) => (k === i ? { ...ev, messages: e.messages } : e)) : [...list, { ...ev, messages: [] }]
+  let merged = i >= 0 ? list.map((e, k) => (k === i ? { ...localize(ev, e), messages: e.messages } : e)) : [...list, { ...localize(ev), messages: [] }]
   const { data: rows } = await supabase!.from('messages').select('*').eq('event_id', id).order('at', { ascending: true })
   if (rows) merged = mergeMessages(merged, rows as MessageRow[])
   writeCache(merged, true)
@@ -207,8 +235,8 @@ export async function syncFromCloud(): Promise<void> {
   const local = readCache()
   // the cloud document carries no chat; keep whatever this browser already holds,
   // then lay the message rows over it
-  let merged = local.map((e) => { const c = cloud.get(e.id); return c ? { ...c, messages: e.messages } : e })
-  for (const [id, ev] of cloud) if (!local.some((e) => e.id === id)) merged.push({ ...ev, messages: [] })
+  let merged = local.map((e) => { const c = cloud.get(e.id); return c ? { ...localize(c, e), messages: e.messages } : e })
+  for (const [id, ev] of cloud) if (!local.some((e) => e.id === id)) merged.push({ ...localize(ev), messages: [] })
   const ids = merged.map((e) => e.id)
   if (ids.length) {
     const { data: rows } = await supabase!.from('messages').select('*').in('event_id', ids).order('at', { ascending: true })
@@ -245,8 +273,8 @@ export function startRealtime(): () => void {
       // the document arrives without its chat: keep the messages this browser has.
       // Reads are open, so the channel carries everyone's events — only the ones
       // already here, or that belong to this identity, are allowed into the cache
-      if (i >= 0) list[i] = { ...ev, messages: list[i].messages }
-      else if (isMine(ev)) list.push({ ...ev, messages: [] })
+      if (i >= 0) list[i] = { ...localize(ev, list[i]), messages: list[i].messages }
+      else if (isMine(ev)) list.push({ ...localize(ev), messages: [] })
       else return
       writeCache(list, true)
     })

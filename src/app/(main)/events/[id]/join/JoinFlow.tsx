@@ -19,7 +19,7 @@ import { cloudSynced, fetchEvent } from '@/lib/remote'
 import { useAccount } from '@/hooks/useAccount'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import {
-  addMeToEvent, adoptParticipant, claimGuestSession, confirmedSlotText, dateRangeText, getEvent, guestSessionId,
+  addMeToEvent, adoptParticipant, claimGuestSession, confirmedSlotText, dateRangeText, getEvent, guestSessionId, isAccountId,
   joinEvent, leadingPlaceOf, participantByInvite, phaseOf, type AppEvent, type Participant,
 } from '@/lib/events'
 
@@ -89,9 +89,15 @@ export function JoinFlow({ id }: { id: string }) {
       go(); return
     }
 
-    // signed in: you are who you are
+    // signed in: you are who you are. Being on the list under your account id is
+    // what counts; the stored "hosted by you" is this browser's word, and an
+    // invitee's copy came from the host's browser with the host's word in it. The
+    // one exception is an ownerless event this browser made before signing in
+    // (stub host) — that goes straight in, and the event page claims it.
     if (signedIn) {
-      if (ev.hostedByYou || ev.participants.some((p) => p.id === acc.id)) { go(); return }
+      const host = ev.participants.find((p) => p.host)
+      const ownerless = !!host && !isAccountId(host.id)
+      if (ev.participants.some((p) => p.id === acc.id) || (ownerless && ev.hostedByYou)) { go(); return }
       // an entry made with this email before there was an account: it becomes yours
       const mine = acc.email ? ev.participants.find((p) => p.guest && p.email === acc.email) : undefined
       if (mine) adoptParticipant(id, mine.id, acc.id, { name: acc.name })
