@@ -133,8 +133,9 @@ export type CreateInput = {
   accounts: AccountInvitee[]
 }
 
-// someone with an account, invited by id: their name and colour come with them
-export type AccountInvitee = { id: string; name: string; color: PersonColor; email?: string }
+// someone with an account, invited by id: their name comes with them, and their
+// colour too when they picked it themselves (otherwise the event deals a distinct one)
+export type AccountInvitee = { id: string; name: string; color: PersonColor; email?: string; colorChosen?: boolean }
 
 // how the hosting account reads: a person or an organization. Decided by the login
 // (Google workspace accounts read as org); every account is a person for now.
@@ -204,7 +205,9 @@ export function adoptMine(): number {
   const acc = currentAccount()
   if (!acc.signedIn) return 0
   const email = acc.email?.toLowerCase()
-  const as = { name: acc.name, initials: initialsOf(acc.name), color: acc.color }
+  // the adopted entry keeps the colour it was dealt on that event unless the
+  // account picked one for itself
+  const as = { name: acc.name, initials: initialsOf(acc.name), ...(acc.colorChosen ? { color: acc.color } : {}) }
   let n = 0
   for (const ev of readAll()) {
     // an entry this browser joined as a guest belongs to whoever just signed in here:
@@ -229,12 +232,12 @@ export function adoptMine(): number {
 
 /* The account changed its name or colour: every event it sits on shows the new
    one. Only this browser's copies are touched directly; each patch syncs up. */
-export function restampMe(as: { name: string; color: PersonColor }): number {
+export function restampMe(as: { name: string; color?: PersonColor }): number {
   const acc = currentAccount()
   let n = 0
   for (const ev of readAll()) {
     if (!ev.participants.some((p) => p.id === acc.id)) continue
-    patchEvent(ev.id, { participants: ev.participants.map((p) => (p.id === acc.id ? { ...p, name: as.name, initials: initialsOf(as.name), color: as.color } : p)) })
+    patchEvent(ev.id, { participants: ev.participants.map((p) => (p.id === acc.id ? { ...p, name: as.name, initials: initialsOf(as.name), ...(as.color ? { color: as.color } : {}) } : p)) })
     n++
   }
   return n
@@ -980,14 +983,37 @@ export function respondedCount(avail: Record<string, string[][]>, unavailableIds
   return ids.size
 }
 
-/* ── guests from emails ── */
+/* ── a new face gets a colour nobody near them wears ──
+   The palette cycles in a fixed order. A colour still unworn on the list is taken
+   first; once every colour is in use, the least-worn one comes round again, from
+   the front of the palette. Two people who would share initials or a name are kept
+   apart above all else, so an "SR" beside another "SR" is never the same chip. A
+   colour someone picked on their profile is theirs regardless (see restampMe). */
 const GUEST_COLORS: PersonColor[] = ['coral', 'blue', 'amber', 'pink', 'green', 'gray', 'teal', 'purple']
-function guestFromEmail(raw: string, i: number): Participant {
+export function pickColor(roster: Pick<Participant, 'color' | 'initials' | 'name'>[], who: { initials: string; name: string }): PersonColor {
+  const worn = new Map<PersonColor, number>()
+  const clash = new Set<PersonColor>()
+  const ini = who.initials.toUpperCase(), nm = who.name.trim().toLowerCase()
+  for (const p of roster) {
+    worn.set(p.color, (worn.get(p.color) ?? 0) + 1)
+    if (p.initials.toUpperCase() === ini || p.name.trim().toLowerCase() === nm) clash.add(p.color)
+  }
+  let best = GUEST_COLORS[0], bestScore = Infinity
+  GUEST_COLORS.forEach((c, i) => {
+    // a clash outranks everything, then how many already wear it, then palette order
+    const score = (clash.has(c) ? 1e6 : 0) + (worn.get(c) ?? 0) * 1e3 + i
+    if (score < bestScore) { best = c; bestScore = score }
+  })
+  return best
+}
+
+/* ── guests from emails ── */
+function guestFromEmail(raw: string, roster: Participant[]): Participant {
   const email = raw.trim().toLowerCase() // the key everything later matches on
   const local = email.split('@')[0] || email
   const name = local.replace(/[._-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).trim() || email
   const initials = (name.split(' ').filter(Boolean).map((w) => w[0]).join('').slice(0, 2) || email[0] || 'G').toUpperCase()
-  return { id: `g:${email}`, initials, name, color: GUEST_COLORS[i % GUEST_COLORS.length], rsvp: 'pending', guest: true, email, inviteToken: linkToken(16) }
+  return { id: `g:${email}`, initials, name, color: pickColor(roster, { initials, name }), rsvp: 'pending', guest: true, email, inviteToken: linkToken(16) }
 }
 
 /* ── one way to add a line to the discussion ──
@@ -1040,7 +1066,7 @@ export function claimEvent(eventId: string): boolean {
   if (!host || host.id === acc.id || UUID_RE.test(host.id)) return false
   // already on the list under your own id: you joined this event, you did not make it
   if (ev.participants.some((p) => p.id === acc.id)) return false
-  adoptParticipant(eventId, host.id, acc.id, { name: acc.name, initials: initialsOf(acc.name), color: acc.color })
+  adoptParticipant(eventId, host.id, acc.id, { name: acc.name, initials: initialsOf(acc.name), ...(acc.colorChosen ? { color: acc.color } : {}) })
   patchEvent(eventId, { hostName: acc.name, hostKind: acc.kind })
   return true
 }
@@ -1166,11 +1192,13 @@ export function addMeToEvent(id: string): Participant | null {
   const ev = getEvent(id)
   const acc = currentAccount()
   if (!ev || ev.demo || ev.participants.some((p) => p.id === acc.id)) return null
+  const initials = initialsOf(acc.name)
   const me: Participant = {
     id: acc.id,
-    initials: initialsOf(acc.name),
+    initials,
     name: acc.name,
-    color: acc.color,
+    // a colour you picked is yours; a dealt one gives way to whatever stands apart here
+    color: acc.colorChosen ? acc.color : pickColor(ev.participants, { initials, name: acc.name }),
     rsvp: 'pending',
     you: true,
   }
@@ -1186,7 +1214,6 @@ export function joinEvent(id: string, name: string, email?: string): Participant
   const clean = name.trim().replace(/\s+/g, ' ')
   if (!ev || !clean) return null
   const initials = (clean.split(' ').map((w) => w[0]).join('').slice(0, 2) || 'G').toUpperCase()
-  const guestCount = ev.participants.filter((p) => p.guest).length
   // an existing name is never claimable from here — a repeat name joins as a new
   // participant (g:sam-2), which blocks impersonation by construction. Reclaiming an
   // identity across devices is what the email/magic-link layer is for (see roadmap).
@@ -1195,7 +1222,7 @@ export function joinEvent(id: string, name: string, email?: string): Participant
   for (let n = 2; ev.participants.some((p) => p.id === pid); n++) pid = `${base}-${n}`
   const cleanEmail = email?.trim().toLowerCase()
   const guest: Participant = {
-    id: pid, initials, name: clean, color: GUEST_COLORS[guestCount % GUEST_COLORS.length], rsvp: 'pending', guest: true,
+    id: pid, initials, name: clean, color: pickColor(ev.participants, { initials, name: clean }), rsvp: 'pending', guest: true,
     ...(cleanEmail ? { email: cleanEmail } : {}),
   }
   if (ev.demo) {
@@ -1225,11 +1252,16 @@ export function createEvent(input: CreateInput): AppEvent {
   const id = uniqueSlug(slugify(input.title))
 
   const host = currentAccount()
+  // the list is built one person at a time so each colour is picked against
+  // everyone already on it
   const participants: Participant[] = [
     { id: host.id, initials: initialsOf(host.name), name: host.name, color: host.color, rsvp: 'attending', you: true, host: true },
-    ...input.accounts.map((a) => ({ id: a.id, initials: initialsOf(a.name), name: a.name, color: a.color, rsvp: 'pending' as Rsvp, ...(a.email ? { email: a.email } : {}) })),
-    ...input.emails.map((email, i) => guestFromEmail(email, i)),
   ]
+  for (const a of input.accounts) {
+    const initials = initialsOf(a.name)
+    participants.push({ id: a.id, initials, name: a.name, color: a.colorChosen ? a.color : pickColor(participants, { initials, name: a.name }), rsvp: 'pending' as Rsvp, ...(a.email ? { email: a.email } : {}) })
+  }
+  for (const email of input.emails) participants.push(guestFromEmail(email, participants))
 
   // the date is already set: the time is a fact from birth. If the place is answered
   // too the event is born confirmed and goes straight to the RSVP round; with a live

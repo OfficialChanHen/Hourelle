@@ -9,7 +9,7 @@ import { ArrowLeft, CalendarRange, Check, Loader2, MailCheck, TriangleAlert } fr
 import { useGuestMode } from '@/hooks/useGuestMode'
 import { backendOn } from '@/lib/db'
 import { hasSession, sendPasswordReset, signInWithEmail, signInWithGoogle, signUpWithEmail } from '@/lib/session'
-import { PasswordField } from '../_components/PasswordField'
+import { PasswordField } from '@/components/ui/PasswordField'
 
 /* ── log in, sign up, or ask for a new password ──
    Split like the sign-in pages people know: the form on the left, the pitch on the

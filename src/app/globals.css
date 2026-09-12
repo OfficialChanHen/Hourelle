@@ -1,64 +1,71 @@
 @import "tailwindcss";
 
 /* ───────────────────────── Themes — the only place hex lives ───────────────────────── */
-/* Light — warm paper (default) */
+/* Light — warm neutral (default).
+   The paper is warm without being tinted: a trace of red and yellow in the grays, not
+   the yellow wash the first draft carried. The character lives in the deep green, the
+   serif, the hairlines and the spacing, so it survives the cooler ground and sits
+   beside a work calendar without looking like a filter. */
 :root {
-  --bg:#F4F1EA; --s0:#FBF8F1; --s1:#FFFFFF; --s2:#F0ECE1; --s3:#E5DFD2;
-  --border:#E6E0D4; --border2:#D6CFBF;
-  --text:#1B1815; --dim:#6E6557; --faint:#A39A89;
-  --accent:#2E4A3C; --accent-text:#2A4537; --accent-bg:#E7EEE8; --accent-border:#CBDCCE; --on-accent:#F8F5EC;
-  --teal:#3E6B54; --teal-text:#2F5141; --teal-bg:#E7EFE8; --teal-border:#C7DBCB;
-  --ochre:#9A6B2E; --ochre-text:#7A531F; --ochre-bg:#F4EBD9; --ochre-border:#E6D4B8;
-  --brick:#A14A45; --brick-text:#883D38; --brick-bg:#F3E3E0; --brick-border:#E6C9C5;
-  --shadow:0 1px 2px rgba(60,45,20,.04), 0 10px 30px rgba(60,45,20,.06);
+  --bg:#F7F6F4; --s0:#FBFAF9; --s1:#FFFFFF; --s2:#EFEEEB; --s3:#E3E2DE;
+  --border:#E3E2DE; --border2:#CFCEC9;
+  --text:#1A1917; --dim:#67665F; --faint:#98978F;
+  --accent:#2E4A3C; --accent-text:#2A4537; --accent-bg:#E8EEE9; --accent-border:#CBD9CF; --on-accent:#F8F7F3;
+  --teal:#3F6B55; --teal-text:#31523F; --teal-bg:#E7EFE9; --teal-border:#C6DACC;
+  --ochre:#8F6A33; --ochre-text:#72521F; --ochre-bg:#F3ECDF; --ochre-border:#E3D6BF;
+  --brick:#9C4A46; --brick-text:#823C39; --brick-bg:#F3E4E2; --brick-border:#E4CBC8;
+  --shadow:0 1px 2px rgba(30,28,24,.04), 0 10px 30px rgba(30,28,24,.06);
+
+  /* the display face — a palette may swap it (see Studio) */
+  --display:var(--font-lora), Georgia, serif;
 
   /* availability heat ramp */
-  --heat-low:#EBF1EB; --heat-mid:#CFE0D2; --heat-high:#9DBBA4; --heat-full:#2E4A3C;
-  --you-only:#F3EAD9; --you-some:#EAD9BE; --you-many:#DCC8A2; --you-text:#6E5523;
+  --heat-low:#EBF0EC; --heat-mid:#D0DFD4; --heat-high:#9FBBA6; --heat-full:#2E4A3C;
+  --you-only:#F1EBDF; --you-some:#E6DCC6; --you-many:#D8CBAE; --you-text:#6A5527;
   /* grid slot lines — dark, so each time block reads instantly; redrawn above the
      heat fills so saturated cells can't wash them out */
-  --grid-line:#7E7460;
+  --grid-line:#7C7A73;
   /* grid chrome (header row + time column) — shared, softer than the slot lines */
-  --grid-edge:#A89D86;
-  --grid-dash:#A89D86;
+  --grid-edge:#A7A49D;
+  --grid-dash:#A7A49D;
   /* best-day header fill — must be opaque: it's a sticky surface content scrolls under */
-  --best-head:#F4EBD9;
+  --best-head:#F3ECDF;
   /* the n/N count in a heat cell: the theme's own ink, so it holds up on the cell
      background and every heat band short of full; the saturated full band flips to cream */
-  --heat-count:#1B1815; --heat-count-full:#F4F1EA;
+  --heat-count:#1A1917; --heat-count-full:#F7F6F4;
 
   /* the surface that reads as LIFTED off an s2 track (active segment pills). Light
      surfaces get lighter going up (s0), dark ones too — but dark's scale ascends the
      other way through the tokens, so the raised step is s3 there. The shadow is
      chip-scale — the big soft card shadow smudges at this size. */
   --raised:var(--s0);
-  --raised-shadow:0 1px 2px rgba(60,45,20,.10);
+  --raised-shadow:0 1px 2px rgba(30,28,24,.10);
 
   /* liquid glass (iOS chrome): a near-clear tint, rim light, and sheen */
-  --glass-tint:rgba(255,253,246,.26);
+  --glass-tint:rgba(253,252,250,.26);
   --glass-rim:rgba(255,255,255,.5);
   --glass-rim-weak:rgba(255,255,255,.18);
   --glass-sheen:rgba(255,255,255,.22);
 }
 
-/* Dark — warm charcoal */
+/* Dark — warm charcoal, the same warmth held at the same distance */
 [data-theme="dark"] {
-  --bg:#15130E; --s0:#1A1712; --s1:#201C15; --s2:#272219; --s3:#322C20;
-  --border:rgba(244,236,214,.10); --border2:rgba(244,236,214,.19);
-  --text:#F1ECE0; --dim:#B1A893; --faint:#7D7563;
-  --accent:#46815F; --accent-text:#9FD3BB; --accent-bg:rgba(127,183,154,.15); --accent-border:rgba(127,183,154,.38); --on-accent:#F8F5EC;
+  --bg:#151513; --s0:#1A1A18; --s1:#1F1F1C; --s2:#262622; --s3:#302F2A;
+  --border:rgba(240,238,230,.10); --border2:rgba(240,238,230,.19);
+  --text:#EFEDE8; --dim:#ACA99F; --faint:#78766E;
+  --accent:#4C8A66; --accent-text:#A3D6BE; --accent-bg:rgba(127,183,154,.15); --accent-border:rgba(127,183,154,.38); --on-accent:#F8F7F3;
   --teal:#5B9A7C; --teal-text:#9BD2B7; --teal-bg:rgba(111,181,151,.14); --teal-border:rgba(111,181,151,.36);
-  --ochre:#C49A52; --ochre-text:#E4C188; --ochre-bg:rgba(203,161,90,.15); --ochre-border:rgba(203,161,90,.38);
-  --brick:#C97F77; --brick-text:#E7ADA6; --brick-bg:rgba(208,138,130,.14); --brick-border:rgba(208,138,130,.36);
+  --ochre:#BD9A5E; --ochre-text:#E1C48F; --ochre-bg:rgba(200,165,100,.15); --ochre-border:rgba(200,165,100,.38);
+  --brick:#C57F78; --brick-text:#E5ACA6; --brick-bg:rgba(205,138,130,.14); --brick-border:rgba(205,138,130,.36);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
 
   --heat-low:rgba(127,183,154,.14); --heat-mid:rgba(127,183,154,.30); --heat-high:rgba(127,183,154,.55); --heat-full:#5B9A7C;
-  --you-only:rgba(203,161,90,.18); --you-some:rgba(203,161,90,.34); --you-many:rgba(203,161,90,.5); --you-text:#E4C188;
-  --grid-line:rgba(244,236,214,.38);
-  --grid-edge:rgba(244,236,214,.22);
-  --grid-dash:rgba(244,236,214,.38);
-  --best-head:#352C1D;
-  --heat-count:#F1ECE0; --heat-count-full:#F4F1EA;
+  --you-only:rgba(200,165,100,.18); --you-some:rgba(200,165,100,.34); --you-many:rgba(200,165,100,.5); --you-text:#E1C48F;
+  --grid-line:rgba(240,238,230,.38);
+  --grid-edge:rgba(240,238,230,.22);
+  --grid-dash:rgba(240,238,230,.38);
+  --best-head:#2E2A20;
+  --heat-count:#EFEDE8; --heat-count-full:#F7F6F4;
 
   /* charcoal ascends s0→s3, so the pill that floats above an s2 track is s3 here —
      with s0 it sat BELOW the track and the active chip read as a dent. The lift
@@ -67,19 +74,61 @@
   --raised-shadow:0 1px 2px rgba(0,0,0,.45);
 
   /* glass in the dark: deeper tint so text still reads, rim light turned way down */
-  --glass-tint:rgba(24,21,15,.34);
+  --glass-tint:rgba(22,21,19,.34);
   --glass-rim:rgba(255,255,255,.14);
   --glass-rim-weak:rgba(255,255,255,.06);
   --glass-sheen:rgba(255,255,255,.08);
 }
 
 /* ── Appearances — optional palettes layered over the same tokens ──
-   data-palette on <html> picks the family (absent = the Aline editorial look);
+   data-palette on <html> picks the family (absent = the house warm neutral);
    data-theme still picks light or dark inside it, so the sun/moon toggle keeps
-   working everywhere. Each block redefines the full token set. */
+   working everywhere. Each block redefines the full token set. Three of them, each
+   earning its place: a neutral, a bright one, and one for low vision. */
 
-/* Calendar — clean white and blue, after Google Calendar */
-[data-palette="gcal"] {
+/* Studio — cool neutral, ink as the accent, and the display face drops to the
+   grotesk. The quiet register for anyone who wants no warmth at all. The heat ramp
+   stays green: "free" has to read as free whatever the chrome is doing. Ink fills
+   (buttons, the selected tab) with a restrained blue for interactive TEXT — a pure
+   monochrome would make every link look like body copy. */
+[data-palette="studio"] {
+  --bg:#F7F7F8; --s0:#FBFBFC; --s1:#FFFFFF; --s2:#F0F0F2; --s3:#E4E4E8;
+  --border:#E6E6EA; --border2:#D2D2D8;
+  --text:#18181B; --dim:#63636B; --faint:#98989F;
+  --accent:#18181B; --accent-text:#34438A; --accent-bg:#EAECF3; --accent-border:#CCD2E5; --on-accent:#FFFFFF;
+  --teal:#2F7A5A; --teal-text:#256448; --teal-bg:#E5F2EB; --teal-border:#C3DFD0;
+  --ochre:#A16A1B; --ochre-text:#7F5314; --ochre-bg:#F6EEDD; --ochre-border:#E8D8B6;
+  --brick:#B2413B; --brick-text:#93342F; --brick-bg:#F8E5E3; --brick-border:#EBC8C5;
+  --shadow:0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+  --display:var(--font-instrument-sans), system-ui, sans-serif;
+  --heat-low:#E7F1EB; --heat-mid:#C6E0D1; --heat-high:#8FBEA3; --heat-full:#2F7A5A;
+  --you-only:#F6EEDD; --you-some:#EBDDBC; --you-many:#DCC894; --you-text:#6B5A2C;
+  --grid-line:#7E8087; --grid-edge:#AAACB2; --grid-dash:#AAACB2;
+  --best-head:#F6EEDD;
+  --heat-count:#18181B; --heat-count-full:#FFFFFF;
+  --raised-shadow:0 1px 2px rgba(0,0,0,.10);
+  --glass-tint:rgba(251,251,252,.26);
+}
+[data-palette="studio"][data-theme="dark"] {
+  --bg:#0F0F10; --s0:#141416; --s1:#19191C; --s2:#202024; --s3:#2A2A30;
+  --border:rgba(236,236,240,.10); --border2:rgba(236,236,240,.18);
+  --text:#ECECEE; --dim:#A1A1A9; --faint:#6E6E76;
+  --accent:#ECECEE; --accent-text:#A3B4EE; --accent-bg:rgba(163,180,238,.14); --accent-border:rgba(163,180,238,.36); --on-accent:#111113;
+  --teal:#5FAF89; --teal-text:#9AD6B9; --teal-bg:rgba(95,175,137,.14); --teal-border:rgba(95,175,137,.36);
+  --ochre:#C9A05A; --ochre-text:#E6C88E; --ochre-bg:rgba(201,160,90,.15); --ochre-border:rgba(201,160,90,.38);
+  --brick:#D2837C; --brick-text:#EBB0AA; --brick-bg:rgba(210,131,124,.14); --brick-border:rgba(210,131,124,.36);
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
+  --heat-low:rgba(95,175,137,.14); --heat-mid:rgba(95,175,137,.30); --heat-high:rgba(95,175,137,.55); --heat-full:#5FAF89;
+  --you-only:rgba(201,160,90,.18); --you-some:rgba(201,160,90,.34); --you-many:rgba(201,160,90,.5); --you-text:#E6C88E;
+  --grid-line:rgba(236,236,240,.36); --grid-edge:rgba(236,236,240,.2); --grid-dash:rgba(236,236,240,.36);
+  --best-head:#2A2820;
+  --heat-count:#ECECEE; --heat-count-full:#0F0F10;
+  --glass-tint:rgba(16,16,17,.34);
+}
+
+/* Daylight — bright white and a clear blue. The most familiar of the set, and the one
+   to pick if your whole day already happens in a scheduling grid. */
+[data-palette="daylight"] {
   --bg:#F8FAFD; --s0:#FFFFFF; --s1:#FFFFFF; --s2:#F1F3F4; --s3:#E8EAED;
   --border:#E0E3E7; --border2:#C4C7C5;
   --text:#1F1F1F; --dim:#5F6368; --faint:#9AA0A6;
@@ -94,7 +143,7 @@
   --best-head:#FEF7E0;
   --heat-count:#174EA6; --heat-count-full:#FFFFFF;
 }
-[data-palette="gcal"][data-theme="dark"] {
+[data-palette="daylight"][data-theme="dark"] {
   --bg:#131314; --s0:#1A1A1C; --s1:#1E1F21; --s2:#28292C; --s3:#333539;
   --border:rgba(232,234,237,.11); --border2:rgba(232,234,237,.20);
   --text:#E8EAED; --dim:#9AA0A6; --faint:#6C7176;
@@ -108,72 +157,6 @@
   --grid-line:rgba(232,234,237,.38); --grid-edge:rgba(232,234,237,.22); --grid-dash:rgba(232,234,237,.38);
   --best-head:#33301C;
   --heat-count:#A8C7FA; --heat-count-full:#0A2A5C;
-}
-
-/* Frost — icy silver, chrome, and a cold red. Certain listeners will feel at home. */
-[data-palette="drain"] {
-  --bg:#EDF1F6; --s0:#F5F8FB; --s1:#FCFDFF; --s2:#E5EBF2; --s3:#D7DFE9;
-  --border:#D7DFE8; --border2:#BECBD8;
-  --text:#161B23; --dim:#5B6675; --faint:#8F9CAB;
-  --accent:#C8102E; --accent-text:#A90E27; --accent-bg:#FAE7EA; --accent-border:#F0C6CD; --on-accent:#FFF6F6;
-  --teal:#2F7F8D; --teal-text:#266773; --teal-bg:#E0EFF2; --teal-border:#BEDDE3;
-  --ochre:#9A7B3D; --ochre-text:#7B6128; --ochre-bg:#F3ECDB; --ochre-border:#E3D5B3;
-  --brick:#96453D; --brick-text:#7D3831; --brick-bg:#F3E4E1; --brick-border:#E3C9C4;
-  --shadow:0 1px 2px rgba(15,35,65,.05), 0 10px 30px rgba(15,35,65,.08);
-  --heat-low:#E6EEF6; --heat-mid:#C3D8EB; --heat-high:#8DB3D8; --heat-full:#31608F;
-  --you-only:#EFE9F8; --you-some:#DCCFEF; --you-many:#C5B2E3; --you-text:#533E79;
-  --grid-line:#6D7B8B; --grid-edge:#98A6B5; --grid-dash:#98A6B5;
-  --best-head:#F3ECDB;
-  --heat-count:#3D5C7E; --heat-count-full:#EDF3FA;
-}
-/* Frost dark leans steel-blue with the cold red carrying through as the accent, so it
-   never reads as a rehash of the Calendar dark grays */
-[data-palette="drain"][data-theme="dark"] {
-  --bg:#0D1219; --s0:#121824; --s1:#161D2A; --s2:#1D2634; --s3:#263143;
-  --border:rgba(200,220,245,.11); --border2:rgba(200,220,245,.20);
-  --text:#E9F0F8; --dim:#9CACC0; --faint:#66788E;
-  --accent:#D63B54; --accent-text:#F58EA0; --accent-bg:rgba(214,59,84,.15); --accent-border:rgba(214,59,84,.4); --on-accent:#FFF5F6;
-  --teal:#5CA7B7; --teal-text:#97CDD9; --teal-bg:rgba(92,167,183,.14); --teal-border:rgba(92,167,183,.36);
-  --ochre:#C6A867; --ochre-text:#DFC791; --ochre-bg:rgba(198,168,103,.15); --ochre-border:rgba(198,168,103,.38);
-  --brick:#CE6A50; --brick-text:#EDA893; --brick-bg:rgba(206,106,80,.15); --brick-border:rgba(206,106,80,.36);
-  --shadow:0 1px 2px rgba(0,0,0,.55), 0 14px 36px rgba(0,0,0,.5);
-  --heat-low:rgba(143,182,228,.14); --heat-mid:rgba(143,182,228,.30); --heat-high:rgba(143,182,228,.55); --heat-full:#5E90CC;
-  --you-only:rgba(167,139,222,.18); --you-some:rgba(167,139,222,.34); --you-many:rgba(167,139,222,.5); --you-text:#CBB8F0;
-  --grid-line:rgba(200,220,245,.38); --grid-edge:rgba(200,220,245,.22); --grid-dash:rgba(200,220,245,.38);
-  --best-head:#2C2A1E;
-  --heat-count:#B4CFEF; --heat-count-full:#0B1826;
-}
-
-/* Professional — quiet cool grays and a navy accent; the one to screen-share at work */
-[data-palette="pro"] {
-  --bg:#F5F6F8; --s0:#FAFBFC; --s1:#FFFFFF; --s2:#EEF0F3; --s3:#E2E5EA;
-  --border:#E1E4E9; --border2:#C9CED6;
-  --text:#1C2430; --dim:#5A6472; --faint:#8D97A5;
-  --accent:#274A6D; --accent-text:#20405F; --accent-bg:#E6EDF4; --accent-border:#C4D4E3; --on-accent:#F5F9FD;
-  --teal:#2E7D5B; --teal-text:#256349; --teal-bg:#E2F1EA; --teal-border:#BFE0D0;
-  --ochre:#8F6B1E; --ochre-text:#74561A; --ochre-bg:#F5EDD8; --ochre-border:#E6D6AC;
-  --brick:#A94442; --brick-text:#8C3835; --brick-bg:#F6E4E3; --brick-border:#E8C8C6;
-  --shadow:0 1px 2px rgba(28,36,48,.06), 0 10px 30px rgba(28,36,48,.07);
-  --heat-low:#E9EEF4; --heat-mid:#C4D3E3; --heat-high:#8FA9C6; --heat-full:#274A6D;
-  --you-only:#F6EEDA; --you-some:#EAD9AE; --you-many:#DCC382; --you-text:#74561A;
-  --grid-line:#76808D; --grid-edge:#A2AAB6; --grid-dash:#A2AAB6;
-  --best-head:#F5EDD8;
-  --heat-count:#2C4A6B; --heat-count-full:#F2F6FA;
-}
-[data-palette="pro"][data-theme="dark"] {
-  --bg:#14181D; --s0:#191E24; --s1:#1E242B; --s2:#252C35; --s3:#303945;
-  --border:rgba(226,233,240,.10); --border2:rgba(226,233,240,.19);
-  --text:#E7ECF1; --dim:#A3ADB9; --faint:#6E7987;
-  --accent:#7FA6CC; --accent-text:#A7C4DF; --accent-bg:rgba(127,166,204,.14); --accent-border:rgba(127,166,204,.38); --on-accent:#0E1B29;
-  --teal:#5FAE8C; --teal-text:#98D1B8; --teal-bg:rgba(95,174,140,.14); --teal-border:rgba(95,174,140,.36);
-  --ochre:#BFA05C; --ochre-text:#DCC48B; --ochre-bg:rgba(191,160,92,.15); --ochre-border:rgba(191,160,92,.38);
-  --brick:#C97B72; --brick-text:#E5ABA3; --brick-bg:rgba(201,123,114,.14); --brick-border:rgba(201,123,114,.36);
-  --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
-  --heat-low:rgba(127,166,204,.14); --heat-mid:rgba(127,166,204,.30); --heat-high:rgba(127,166,204,.55); --heat-full:#6D96BE;
-  --you-only:rgba(191,160,92,.16); --you-some:rgba(191,160,92,.32); --you-many:rgba(191,160,92,.48); --you-text:#DCC48B;
-  --grid-line:rgba(226,233,240,.38); --grid-edge:rgba(226,233,240,.22); --grid-dash:rgba(226,233,240,.38);
-  --best-head:#312B1B;
-  --heat-count:#A7C4DF; --heat-count-full:#0E1B29;
 }
 
 /* High contrast — strong lines, saturated color, true black-and-white bases; built for
@@ -209,49 +192,6 @@
   --heat-count:#A9C6FF; --heat-count-full:#00123D;
 }
 
-/* Pride — the six-stripe flag, with every stripe on duty: red = danger, orange = your
-   own grid cells, yellow = caution, green = confirmed, blue = the heat map, violet =
-   the accent. Light is warm gallery white; dark goes deep plum. Accent-filled surfaces
-   (CTAs, selected tabs, the chat bubble) wear the flag itself as a gradient — deepened
-   stripes in light so the near-white label stays readable, bright stripes under the
-   dark plum label in dark. The solid --accent remains the fallback underneath. */
-[data-palette="pride"] .bg-accent {
-  background-image: linear-gradient(135deg, #B3221E, #B25E07 22%, #837000 40%, #007523 60%, #2547C4 79%, #6D2A7C);
-}
-[data-palette="pride"][data-theme="dark"] .bg-accent {
-  background-image: linear-gradient(135deg, #F26060, #FFA740 22%, #EDD34D 40%, #4CC96E 60%, #5D8AFF 79%, #C084FC);
-}
-[data-palette="pride"] {
-  --bg:#F8F5F1; --s0:#FDFBF8; --s1:#FFFFFF; --s2:#F1ECE7; --s3:#E7E0D9;
-  --border:#E7E0D8; --border2:#D5CCC2;
-  --text:#221C26; --dim:#6B6270; --faint:#9C93A2;
-  --accent:#732982; --accent-text:#632470; --accent-bg:#F3E6F5; --accent-border:#E0C4E4; --on-accent:#FDF7FE;
-  --teal:#008026; --teal-text:#00661E; --teal-bg:#E0F3E4; --teal-border:#B8E2C2;
-  --ochre:#C7A500; --ochre-text:#8F7600; --ochre-bg:#FBF6D5; --ochre-border:#EFE3A0;
-  --brick:#D21F1B; --brick-text:#A81613; --brick-bg:#FBE3E2; --brick-border:#F2C2C0;
-  --shadow:0 1px 2px rgba(60,30,70,.05), 0 10px 30px rgba(60,30,70,.08);
-  --heat-low:#E8EEFF; --heat-mid:#BCCEFF; --heat-high:#7D9BFA; --heat-full:#2E4FD8;
-  --you-only:#FFF0DC; --you-some:#FFDCAD; --you-many:#FFC475; --you-text:#8F5300;
-  --grid-line:#837589; --grid-edge:#A99DB0; --grid-dash:#A99DB0;
-  --best-head:#FBF6D5;
-  --heat-count:#2743A8; --heat-count-full:#F2F6FF;
-}
-[data-palette="pride"][data-theme="dark"] {
-  --bg:#171020; --s0:#1C1527; --s1:#211A2E; --s2:#2A2138; --s3:#352B46;
-  --border:rgba(240,225,250,.11); --border2:rgba(240,225,250,.20);
-  --text:#F0E9F6; --dim:#B4A7C2; --faint:#7D7090;
-  --accent:#C084FC; --accent-text:#D6B4FE; --accent-bg:rgba(192,132,252,.15); --accent-border:rgba(192,132,252,.4); --on-accent:#2A0A45;
-  --teal:#4CC96E; --teal-text:#8FE3A8; --teal-bg:rgba(76,201,110,.15); --teal-border:rgba(76,201,110,.38);
-  --ochre:#EDD34D; --ochre-text:#F5E48A; --ochre-bg:rgba(237,211,77,.14); --ochre-border:rgba(237,211,77,.36);
-  --brick:#F26060; --brick-text:#F9A0A0; --brick-bg:rgba(242,96,96,.15); --brick-border:rgba(242,96,96,.36);
-  --shadow:0 1px 2px rgba(0,0,0,.55), 0 14px 36px rgba(0,0,0,.5);
-  --heat-low:rgba(122,155,255,.15); --heat-mid:rgba(122,155,255,.32); --heat-high:rgba(122,155,255,.55); --heat-full:#5D8AFF;
-  --you-only:rgba(255,167,64,.16); --you-some:rgba(255,167,64,.32); --you-many:rgba(255,167,64,.48); --you-text:#FFC98F;
-  --grid-line:rgba(240,225,250,.38); --grid-edge:rgba(240,225,250,.22); --grid-dash:rgba(240,225,250,.38);
-  --best-head:#353018;
-  --heat-count:#A9C0FF; --heat-count-full:#0E2C7A;
-}
-
 /* ───────────────── Map semantic tokens → Tailwind utilities (switch per theme) ───────────────── */
 @theme inline {
   --color-bg:var(--bg); --color-s0:var(--s0); --color-s1:var(--s1); --color-s2:var(--s2); --color-s3:var(--s3);
@@ -268,7 +208,7 @@
   --color-raised:var(--raised);
   --shadow-raised:var(--raised-shadow);
 
-  --font-serif:var(--font-lora), Georgia, serif;
+  --font-serif:var(--display);
   --font-sans:var(--font-instrument-sans), system-ui, sans-serif;
 
   --shadow-soft:var(--shadow);
@@ -429,6 +369,10 @@ input[type="date"]::-webkit-date-and-time-value {
 @layer base {
   .font-serif { font-weight: 500; }
 }
+/* Studio swaps the display face for the grotesk, which reads thin at the weights the
+   serif wants. Unlayered on purpose: it has to beat the `font-normal` utility the
+   display sizes carry, which a base-layer rule could not. */
+[data-palette="studio"] .font-serif { font-weight: 600; letter-spacing: -0.02em; }
 
 /* ───────────────────────── Leaflet map (EventMap) ─────────────────────────
    The tiles are light in both themes (a dark theme dims them a touch rather than

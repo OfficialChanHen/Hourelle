@@ -43,7 +43,7 @@ export default function RootLayout({
             applies data-theme — otherwise non-default palettes flash the Aline look */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var p=localStorage.getItem("aline.palette");if(["gcal","drain","pride","pro","contrast"].indexOf(p)>=0)document.documentElement.setAttribute("data-palette",p)}catch(e){}`,
+            __html: `try{var m={gcal:"daylight",pro:"studio",drain:"aline",pride:"aline"};var p=localStorage.getItem("aline.palette");p=m[p]||p;if(["studio","daylight","contrast"].indexOf(p)>=0)document.documentElement.setAttribute("data-palette",p)}catch(e){}`,
           }}
         />
         <Providers>

@@ -40,13 +40,20 @@ export function setPrefNotify(patch: Partial<NotifyPrefs>): void {
   announce()
 }
 
-// color palette override ('gcal', 'pride', …) — null means the house editorial look.
-// The raw key is also read by the inline script in app/layout.tsx, which runs before
-// hydration and can't import this module; keep the key in sync with it.
+// color palette override ('studio', 'daylight', …) — null, or the house key 'aline',
+// means the house look. The raw key is also read by the inline script in
+// app/layout.tsx, which runs before hydration and can't import this module; keep the
+// key AND the moved-key table below in sync with it.
 const PALETTE_KEY = 'aline.palette'
+// appearances that were renamed or retired. A browser that picked one before lands on
+// its nearest survivor instead of on a palette the stylesheet no longer defines.
+const MOVED: Record<string, string> = { gcal: 'daylight', pro: 'studio', drain: 'aline', pride: 'aline' }
 export function prefPalette(): string | null {
   if (typeof window === 'undefined') return null
-  try { return localStorage.getItem(PALETTE_KEY) } catch { return null }
+  try {
+    const raw = localStorage.getItem(PALETTE_KEY)
+    return raw ? MOVED[raw] ?? raw : null
+  } catch { return null }
 }
 export function setPrefPalette(p: string): void {
   try { localStorage.setItem(PALETTE_KEY, p) } catch { /* private mode */ }

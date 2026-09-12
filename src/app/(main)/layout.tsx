@@ -2,6 +2,7 @@ import { Header } from '@/components/Header'
 import { MobileTabBar } from '@/components/MobileTabBar'
 import { AccessBoundary } from '@/components/AccessBoundary'
 import { FlashToast } from '@/components/ui/FlashToast'
+import { RouteTrail } from '@/components/RouteTrail'
 import { SiteFooter } from '@/components/SiteFooter'
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -16,6 +17,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           redirect (delete, leave, create) lands wherever the visitor does */}
       <main className="relative flex-1">
         <FlashToast />
+        <RouteTrail />
         <AccessBoundary>{children}</AccessBoundary>
       </main>
       <SiteFooter />

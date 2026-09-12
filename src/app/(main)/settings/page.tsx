@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { AppearancePicker } from '@/components/AppearancePicker'
+import { SecurityCard } from './_components/SecurityCard'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { prefH24, setPrefH24, prefNotify, setPrefNotify, type NotifyPrefs } from '@/lib/prefs'
 import { useAccount } from '@/hooks/useAccount'
@@ -115,6 +116,14 @@ export default function SettingsPage() {
           />
         )}
       </div>
+
+      {/* only an account has a password to change or sessions to end */}
+      {account.signedIn && (
+        <>
+          <Eyebrow>Security</Eyebrow>
+          <SecurityCard account={account} />
+        </>
+      )}
 
       <Eyebrow>Reminders</Eyebrow>
       <div className="overflow-hidden rounded-2xl border border-border bg-s1">

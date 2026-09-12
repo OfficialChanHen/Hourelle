@@ -43,11 +43,14 @@ export default function ProfilePage() {
   async function save() {
     if (!dirty || clean.length < 2) return
     setSaving(true); setSaveErr(null)
-    const err = await updateProfile({ name: clean, color })
+    // a colour the person changed here is a choice, and it follows them onto every
+    // event; a colour they merely kept stays whatever each event dealt them
+    const picked = color !== account.color || account.colorChosen
+    const err = await updateProfile({ name: clean, ...(picked ? { color } : {}) })
     setSaving(false)
     if (err) { setSaveErr(err); return }
-    // every event this account sits on shows the new name and colour
-    restampMe({ name: clean, color })
+    // every event this account sits on shows the new name (and the chosen colour)
+    restampMe({ name: clean, ...(picked ? { color } : {}) })
     setEditing(false); setSaved(true); setTimeout(() => setSaved(false), 1800)
   }
   function cancel() { setEditing(false); setName(account.name); setColor(account.color); setSaveErr(null) }
@@ -90,14 +93,14 @@ export default function ProfilePage() {
             <div className="flex items-center gap-3.5">
               <Avatar initials={initialsOf(clean || account.name)} color={color} size={52} font={19} />
               <div className="min-w-0 flex-1">
-                <label htmlFor="profile-name" className="text-[12.5px] font-semibold text-dim">Your name</label>
+                <label htmlFor="profile-name" className="block text-[12.5px] font-semibold text-dim">Your name</label>
                 <input
                   id="profile-name" value={name} autoFocus
                   onChange={(e) => setName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') void save(); if (e.key === 'Escape') cancel() }}
-                  className="mt-1 h-11 w-full max-w-[360px] rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none focus:border-accent-border"
+                  className="mt-2 h-11 w-full max-w-[360px] rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none focus:border-accent-border"
                 />
-                <p className="mt-1 text-[12px] text-faint">{clean.length < 2 ? 'At least two characters.' : 'Shows on every event you are part of.'}</p>
+                <p className="mt-1.5 text-[12px] text-faint">{clean.length < 2 ? 'At least two characters.' : 'Shows on every event you are part of.'}</p>
               </div>
             </div>
             <div>

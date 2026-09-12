@@ -4,7 +4,7 @@
 Aline is a modern replacement for when2meet.com. It handles the full lifecycle of event coordination: scheduling via an availability grid, collaborative location voting on a map, itinerary building for multi-stop events, real-time chat per event, and attendance tracking (multi-stop itinerary **and** single-venue). Both authenticated users and guests (via share link) can participate.
 
 ### Visual direction — the editorial system, designed past its first draft
-The design is **editorial**: warm paper / warm-charcoal surfaces, a single deep-green signature accent, Instrument Serif display headlines over a grotesk body, hairline rules, restrained shadows, and generous whitespace — shipped in two equally-finished themes (light + dark). The HTML reference files in `public/examples/` were the **early iteration** of this design, not a 1:1 target — the built app is expected to exceed them:
+The design is **editorial**: warm neutral / warm-charcoal surfaces, a single deep-green signature accent, Instrument Serif display headlines over a grotesk body, hairline rules, restrained shadows, and generous whitespace — shipped in two equally-finished themes (light + dark). The HTML reference files in `public/examples/` were the **early iteration** of this design, not a 1:1 target — the built app is expected to exceed them:
 - `Gatherly Editorial.dc.html` — early full desktop app, light + dark
 - `Gatherly Mobile.dc.html` — early mobile version (bottom tab bar, status bar)
 - `Premium Directions.dc.html` — the side-by-side exploration the editorial direction (option 1a) came from
@@ -51,32 +51,36 @@ Treat the editorial system below (tokens, type, spacing, color roles) as the sou
 
 ### Themes — CSS variables (drive everything from these)
 
-Two themes, switched via `data-theme` on the root element. Map Tailwind semantic tokens to these CSS custom properties; never hardcode hex in components. Light (warm paper) is the default; dark (warm charcoal) is equally finished.
+Two themes, switched via `data-theme` on the root element. Map Tailwind semantic tokens to these CSS custom properties; never hardcode hex in components. Light (warm neutral) is the default; dark (warm charcoal) is equally finished.
+
+The paper is warm without being tinted: a trace of red and yellow in the grays, not the yellow wash the first draft carried. The character lives in the deep green, the serif, the hairlines and the spacing, so it survives a cooler ground.
 
 ```css
-/* Light — warm paper (default) */
+/* Light — warm neutral (default) */
 :root {
-  --bg:#F4F1EA; --s0:#FBF8F1; --s1:#FFFFFF; --s2:#F0ECE1; --s3:#E5DFD2;
-  --border:#E6E0D4; --border2:#D6CFBF;
-  --text:#1B1815; --dim:#6E6557; --faint:#A39A89;
-  --accent:#2E4A3C; --accent-text:#2A4537; --accent-bg:#E7EEE8; --accent-border:#CBDCCE; --on-accent:#F8F5EC;
-  --teal:#3E6B54; --teal-text:#2F5141; --teal-bg:#E7EFE8; --teal-border:#C7DBCB;     /* going / confirmed / full */
-  --ochre:#9A6B2E; --ochre-text:#7A531F; --ochre-bg:#F4EBD9; --ochre-border:#E6D4B8; /* planning / partial / caution */
-  --brick:#A14A45; --brick-text:#883D38; --brick-bg:#F3E3E0; --brick-border:#E6C9C5; /* absent / conflict / not-going */
-  --shadow:0 1px 2px rgba(60,45,20,.04), 0 10px 30px rgba(60,45,20,.06);
+  --bg:#F7F6F4; --s0:#FBFAF9; --s1:#FFFFFF; --s2:#EFEEEB; --s3:#E3E2DE;
+  --border:#E3E2DE; --border2:#CFCEC9;
+  --text:#1A1917; --dim:#67665F; --faint:#98978F;
+  --accent:#2E4A3C; --accent-text:#2A4537; --accent-bg:#E8EEE9; --accent-border:#CBD9CF; --on-accent:#F8F7F3;
+  --teal:#3F6B55; --teal-text:#31523F; --teal-bg:#E7EFE9; --teal-border:#C6DACC;     /* going / confirmed / full */
+  --ochre:#8F6A33; --ochre-text:#72521F; --ochre-bg:#F3ECDF; --ochre-border:#E3D6BF; /* planning / partial / caution */
+  --brick:#9C4A46; --brick-text:#823C39; --brick-bg:#F3E4E2; --brick-border:#E4CBC8; /* absent / conflict / not-going */
+  --shadow:0 1px 2px rgba(30,28,24,.04), 0 10px 30px rgba(30,28,24,.06);
 }
 /* Dark — warm charcoal */
 [data-theme="dark"] {
-  --bg:#15130E; --s0:#1A1712; --s1:#201C15; --s2:#272219; --s3:#322C20;
-  --border:rgba(244,236,214,.10); --border2:rgba(244,236,214,.19);
-  --text:#F1ECE0; --dim:#B1A893; --faint:#7D7563;
-  --accent:#46815F; --accent-text:#9FD3BB; --accent-bg:rgba(127,183,154,.15); --accent-border:rgba(127,183,154,.38); --on-accent:#F8F5EC;
+  --bg:#151513; --s0:#1A1A18; --s1:#1F1F1C; --s2:#262622; --s3:#302F2A;
+  --border:rgba(240,238,230,.10); --border2:rgba(240,238,230,.19);
+  --text:#EFEDE8; --dim:#ACA99F; --faint:#78766E;
+  --accent:#4C8A66; --accent-text:#A3D6BE; --accent-bg:rgba(127,183,154,.15); --accent-border:rgba(127,183,154,.38); --on-accent:#F8F7F3;
   --teal:#5B9A7C; --teal-text:#9BD2B7; --teal-bg:rgba(111,181,151,.14); --teal-border:rgba(111,181,151,.36);
-  --ochre:#C49A52; --ochre-text:#E4C188; --ochre-bg:rgba(203,161,90,.15); --ochre-border:rgba(203,161,90,.38);
-  --brick:#C97F77; --brick-text:#E7ADA6; --brick-bg:rgba(208,138,130,.14); --brick-border:rgba(208,138,130,.36);
+  --ochre:#BD9A5E; --ochre-text:#E1C48F; --ochre-bg:rgba(200,165,100,.15); --ochre-border:rgba(200,165,100,.38);
+  --brick:#C57F78; --brick-text:#E5ACA6; --brick-bg:rgba(205,138,130,.14); --brick-border:rgba(205,138,130,.36);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
 }
 ```
+
+**Appearances.** Four, and only four, each with a job. The house warm neutral (no `data-palette`); **Studio** (`data-palette="studio"`), cool neutral with ink as the accent and the grotesk as the display face; **Daylight** (`data-palette="daylight"`), bright white and a clear blue; **High contrast** (`data-palette="contrast"`) for glare and low vision. Each redefines the whole token set in `globals.css`, and `data-theme` still picks light or dark inside it. Never add a novelty palette; a new one has to earn a job none of these does.
 
 ```ts
 // src/lib/colors.ts — person avatar colors: warm & muted, decorative identity ONLY.
@@ -100,15 +104,16 @@ export const personColors: Record<string, { bg: string; text: string }> = {
 ### Availability heat map — green ramp (5 steps)
 ```
 None:  var(--s2)   — no overlap
-Low:   #EBF1EB     — 1–2 people free
-Mid:   #CFE0D2     — 3–4 people
-High:  #9DBBA4     — 5–6 people
+Low:   #EBF0EC     — 1–2 people free
+Mid:   #D0DFD4     — 3–4 people
+High:  #9FBBA6     — 5–6 people
 Full:  #2E4A3C     — everyone free (cream count text)
 ```
 Your own cells overlay in **warm clay** (never purple):
 ```
-You only:    #F3EAD9     You + some: #EAD9BE     You + many: #DCC8A2   (count text #6E5523)
+You only:    #F1EBDF     You + some: #E6DCC6     You + many: #D8CBAE   (count text #6A5527)
 ```
+The ramp stays green in every appearance, Studio included: "free" has to read as free whatever the chrome is doing.
 
 ### Typography — serif display + grotesk body
 - **Display / headlines:** `Instrument Serif`, weight 400 (its only weight), tracking `-0.01em`. Page titles, event names, big stat values, the RSVP donut figure. Sizes 24–52px by context — be generous; this carries the editorial feel. Maps to Tailwind `font-serif`.
@@ -159,7 +164,7 @@ export default {
 } satisfies Config
 ```
 
-**3. Provider** — `next-themes`, writing **`data-theme`** (not the default `class`); default **light** (warm paper):
+**3. Provider** — `next-themes`, writing **`data-theme`** (not the default `class`); default **light** (warm neutral):
 ```tsx
 // app/providers.tsx
 'use client'

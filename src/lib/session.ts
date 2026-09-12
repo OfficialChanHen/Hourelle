@@ -18,6 +18,9 @@ export type Account = {
   kind: AccountKind
   email?: string
   signedIn: boolean
+  // the colour was picked on the profile page, not dealt at sign-up: it then wins
+  // over the distinct colour a new face is handed when joining an event
+  colorChosen?: boolean
 }
 
 // the stubbed identity: what the app is when nobody has signed in
@@ -59,14 +62,17 @@ export function currentAccount(): Account {
    auth.users holds the credentials; profiles holds the name and color the UI shows.
    One read of profiles turns a session into an Account. */
 async function accountFromSession(userId: string, email: string | undefined): Promise<Account> {
-  const { data } = await supabase!.from('profiles').select('name, color').eq('id', userId).single()
+  // every column, so a profile row from before a later migration still reads
+  const { data } = await supabase!.from('profiles').select('*').eq('id', userId).single()
+  const row = data as { name?: string; color?: string; color_set?: boolean } | null
   return {
     id: userId,
-    name: data?.name ?? email?.split('@')[0] ?? 'Someone',
-    color: (data?.color as PersonColor) ?? 'purple',
+    name: row?.name ?? email?.split('@')[0] ?? 'Someone',
+    color: (row?.color as PersonColor) ?? 'purple',
     kind: 'person',
     email,
     signedIn: true,
+    colorChosen: !!row?.color_set,
   }
 }
 
@@ -151,6 +157,39 @@ export async function updatePassword(password: string): Promise<string | null> {
   return error?.message ?? null
 }
 
+/* ── security: the password, and the sessions it protects ── */
+
+/** How this account gets in: 'email' for a password, 'google' for the OAuth button.
+ *  An account can carry both. Empty when there is no backend or no session. */
+export async function signInProviders(): Promise<string[]> {
+  if (!backendOn) return []
+  const { data } = await supabase!.auth.getUser()
+  return data.user?.identities?.map((i) => i.provider) ?? []
+}
+
+/** Change the password, proving the old one first. Supabase would let an open
+ *  session set a new password without asking, which is how a borrowed laptop
+ *  becomes a lockout — so the current one is checked before anything moves. */
+export async function changePassword(current: string, next: string): Promise<string | null> {
+  if (!backendOn) return 'Changing your password needs a backend. Add your Supabase keys to .env.local.'
+  const acc = readCache()
+  if (!acc.signedIn || !acc.email) return 'Log in first.'
+  const { error: wrong } = await supabase!.auth.signInWithPassword({ email: acc.email, password: current })
+  if (wrong) return 'That is not your current password.'
+  const { error } = await supabase!.auth.updateUser({ password: next })
+  return error?.message ?? null
+}
+
+/** End every session this account has anywhere, this browser included. The way back
+ *  from a lost phone or a machine you walked away from. */
+export async function signOutEverywhere(): Promise<string | null> {
+  if (!backendOn) return 'This needs a backend. Add your Supabase keys to .env.local.'
+  const { error } = await supabase!.auth.signOut({ scope: 'global' })
+  if (error) return error.message
+  writeCache(STUB)
+  return null
+}
+
 /* ── the account edits itself ── */
 export async function updateProfile(patch: { name?: string; color?: PersonColor }): Promise<string | null> {
   const acc = readCache()
@@ -160,8 +199,11 @@ export async function updateProfile(patch: { name?: string; color?: PersonColor 
   if (backendOn) {
     const { error } = await supabase!.from('profiles').update({ ...(name ? { name } : {}), ...(patch.color ? { color: patch.color } : {}) }).eq('id', acc.id)
     if (error) return error.message
+    // a picked colour is remembered as picked. Its own write, and a refusal is
+    // swallowed: a database still on the migration before color_set keeps working
+    if (patch.color) await supabase!.from('profiles').update({ color_set: true }).eq('id', acc.id)
   }
-  writeCache({ ...acc, ...(name ? { name } : {}), ...(patch.color ? { color: patch.color } : {}) })
+  writeCache({ ...acc, ...(name ? { name } : {}), ...(patch.color ? { color: patch.color, colorChosen: true } : {}) })
   return null
 }
 

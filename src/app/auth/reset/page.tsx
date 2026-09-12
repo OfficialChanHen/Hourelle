@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation'
 import { CalendarRange, Check, Loader2, TriangleAlert } from 'lucide-react'
 import { backendOn } from '@/lib/db'
 import { hasSession, updatePassword } from '@/lib/session'
-import { PasswordField } from '../_components/PasswordField'
+import { PasswordField } from '@/components/ui/PasswordField'
 
 const MIN_PASSWORD = 8
 

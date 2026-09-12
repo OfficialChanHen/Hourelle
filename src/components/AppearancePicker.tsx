@@ -8,20 +8,19 @@ import { prefPalette, setPrefPalette } from '@/lib/prefs'
    the sun/moon toggle keeps switching light and dark inside whichever is chosen.
    Collapsed by default: one row names the current look, the options stay hidden
    until asked for. Swatches are fixed previews, honest in any active theme. */
-export type Palette = 'aline' | 'gcal' | 'drain' | 'pride' | 'pro' | 'contrast'
+export type Palette = 'aline' | 'studio' | 'daylight' | 'contrast'
 
-// 'aline' and 'drain' keep their storage keys from earlier picks; the cards wear
-// the current names (Earthy, Frost)
-const PALETTES: { key: Palette; name: string; caption: string; swatches: string[]; gradient?: string }[] = [
-  { key: 'aline', name: 'Earthy', caption: 'Warm paper and deep green. The original look.', swatches: ['#F4F1EA', '#2E4A3C', '#15130E', '#9A6B2E'] },
-  { key: 'gcal', name: 'Calendar', caption: 'Clean white and blue, in the spirit of Google Calendar.', swatches: ['#FFFFFF', '#0B57D0', '#131314', '#8AB4F8'] },
-  { key: 'pro', name: 'Professional', caption: 'Quiet grays and navy. Safe to screen-share anywhere.', swatches: ['#F5F6F8', '#274A6D', '#14181D', '#7FA6CC'] },
-  { key: 'drain', name: 'Frost', caption: 'Icy silver and chrome with a cold red accent.', swatches: ['#EDF1F6', '#C8102E', '#0D1219', '#8FB6E4'] },
-  { key: 'pride', name: 'Pride', caption: 'The whole flag, all year round.', swatches: [], gradient: 'linear-gradient(90deg, #E40303, #FF8C00, #FFED00, #008026, #004CFF, #732982)' },
+// Four looks, each with a job: the house one, a neutral, a bright one, and one for
+// low vision. 'aline' is the house key and always has been — it means no
+// data-palette at all, so it follows whatever the house look currently is.
+const PALETTES: { key: Palette; name: string; caption: string; swatches: string[] }[] = [
+  { key: 'aline', name: 'Warm neutral', caption: 'Soft paper and deep green. The house look.', swatches: ['#F7F6F4', '#2E4A3C', '#151513', '#8F6A33'] },
+  { key: 'studio', name: 'Studio', caption: 'Cool grays and ink, no serif. The quiet one.', swatches: ['#F7F7F8', '#18181B', '#0F0F10', '#2F7A5A'] },
+  { key: 'daylight', name: 'Daylight', caption: 'Bright white and a clear blue. The most familiar of the four.', swatches: ['#FFFFFF', '#0B57D0', '#131314', '#8AB4F8'] },
   { key: 'contrast', name: 'High contrast', caption: 'Strong lines and bold color. Easy to read in glare or at a distance.', swatches: ['#FFFFFF', '#0033CC', '#000000', '#C40000'] },
 ]
 
-const KNOWN: Palette[] = ['gcal', 'drain', 'pride', 'pro', 'contrast']
+const KNOWN: Palette[] = ['studio', 'daylight', 'contrast']
 
 function apply(p: Palette) {
   if (p === 'aline') document.documentElement.removeAttribute('data-palette')
@@ -30,7 +29,6 @@ function apply(p: Palette) {
 }
 
 function Swatches({ p, size = 14 }: { p: (typeof PALETTES)[number]; size?: number }) {
-  if (p.gradient) return <span className="rounded-full border border-black/10" style={{ height: size, width: size * 4, background: p.gradient }} />
   return (
     <span className="flex items-center gap-1">
       {p.swatches.map((c) => <span key={c} className="rounded-full border border-black/10" style={{ height: size, width: size, background: c }} />)}
