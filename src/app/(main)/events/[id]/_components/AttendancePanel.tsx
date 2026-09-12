@@ -13,6 +13,7 @@ import {
 import { computeItinerary } from '@/lib/itinerary'
 import { coordsOf, type LatLng } from '@/lib/geo'
 import { useRoute } from '@/hooks/useRoute'
+import { useFollow } from '@/hooks/useFollow'
 import { ALL_MODES, type TravelMode } from '@/lib/travel'
 
 type GoTab = (t: 'availability' | 'location') => void
@@ -49,6 +50,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
   // works in memory, persisted for real events (same pattern as the Location tab)
   const [participants, setParticipants] = useState(event.participants)
   const [quorum, setQuorum] = useState<number | null>(event.quorum ?? null)
+  useFollow(event.quorum ?? null, setQuorum)
   // the event re-loads while this tab is open (confirm / reopen in the header) — adopt the
   // fresh participant list during render instead of via an effect
   const [seenParticipants, setSeenParticipants] = useState(event.participants)

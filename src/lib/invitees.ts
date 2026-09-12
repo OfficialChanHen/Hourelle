@@ -14,6 +14,7 @@ export type Invitee = {
   color: PersonColor
   email?: string
   account: boolean // a real account (invited by id) rather than a guest (invited by email)
+  colorChosen?: boolean // the account picked its colour, so the event keeps it
 }
 
 /** The people on this host's events, newest event first, one entry per person.
@@ -43,6 +44,7 @@ export async function lookupProfileByEmail(email: string): Promise<Invitee | nul
   if (!backendOn) return null
   const clean = email.trim().toLowerCase()
   if (!clean) return null
-  const { data } = await supabase!.from('profiles').select('id, name, color, email').eq('email', clean).maybeSingle()
-  return data ? { id: data.id, name: data.name, color: data.color as PersonColor, email: data.email ?? clean, account: true } : null
+  const { data } = await supabase!.from('profiles').select('*').eq('email', clean).maybeSingle()
+  const row = data as { id: string; name: string; color: string; email?: string; color_set?: boolean } | null
+  return row ? { id: row.id, name: row.name, color: row.color as PersonColor, email: row.email ?? clean, account: true, colorChosen: !!row.color_set } : null
 }

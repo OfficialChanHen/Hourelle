@@ -11,6 +11,7 @@ import { fmtDuration, MODE_LABEL, ALL_MODES, type TravelMode, type ModeEstimate 
 import { computeItinerary, legKm } from '@/lib/itinerary'
 import { centroidOf, coordsOf, searchPlaces, type LatLng } from '@/lib/geo'
 import { useRoute } from '@/hooks/useRoute'
+import { useFollow } from '@/hooks/useFollow'
 import type { MapPin as MapPinData, PanRequest } from '@/components/EventMap'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
@@ -108,6 +109,33 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   const [copied, setCopied] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null) // placeId pending delete confirm
   const [confirmClear, setConfirmClear] = useState<'places' | 'stops' | null>(null) // clear-all pending confirm
+
+  // the event changes under this tab too — someone else's vote, a place a guest
+  // suggested, an itinerary rebuilt on the host's other device — and every field
+  // follows it live. A panel's own edit comes back as the value it just set: a no-op.
+  useFollow(loc.places, setPlaces)
+  useFollow(!!loc.guestsCanSuggest, setGuestsCanSuggest)
+  useFollow(loc.meetingLink, setMeetingLink)
+  useFollow(loc.mode === 'later' ? 'vote' : loc.mode, (m) => { setMode(m); if (m === 'set' || m === 'vote') inPerson.current = m })
+  useFollow(event.votes ?? {}, setVotes)
+  useFollow(event.maxVotes ?? 1, (n) => { setMaxVotes(n); setCustomVotes((c) => c || n > 3) })
+  useFollow(!!event.hideVoters, setHideVoters)
+  useFollow(event.voteDeadline ?? '', setVoteDeadline)
+  useFollow(event.itinStartMin ?? minStart, setItinStartMin)
+  useFollow(event.travelModes ?? null, (tm) => setTravelModes((tm as TravelMode[] | null)?.filter((m) => ALL_MODES.includes(m)) ?? [...ALL_MODES]))
+  useFollow(event.itinRank ?? [], setBuiltRank)
+  // stops keep their uids where the place order still matches, so the list does not
+  // re-animate for a change that only echoed back
+  useFollow({ ids: event.itinStops ?? [], dwell: event.itinDwell ?? [] }, ({ ids, dwell }) => setStops((cur) => {
+    const real = ids.filter((id) => loc.places.some((p) => p.id === id))
+    if (real.length === cur.length && real.every((id, i) => id === cur[i].placeId && (dwell[i] ?? 60) === cur[i].dwell)) return cur
+    const used = new Set<string>()
+    return real.map((placeId, i) => {
+      const keep = cur.find((s) => s.placeId === placeId && !used.has(s.uid))
+      if (keep) used.add(keep.uid)
+      return { uid: keep?.uid ?? `s${stopUid.current++}`, placeId, dwell: dwell[i] ?? 60 }
+    })
+  }))
   const [sheetOpen, setSheetOpen] = useState(false) // mobile: venues/itinerary bottom sheet
 
   // route through the parent when it listens, so the always-mounted surfaces (the

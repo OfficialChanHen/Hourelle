@@ -11,6 +11,7 @@ import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, 
 import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, subtract, type Band, type GDay } from './availability/grid-lib'
 import { prefH24 } from '@/lib/prefs'
 import { useAccount } from '@/hooks/useAccount'
+import { useFollow } from '@/hooks/useFollow'
 import { canEmail, sendNudges } from '@/lib/mail'
 import {
   addMeToEvent, patchEvent, availIvOf, fullAvailIvOf, intervalsToGrid, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
@@ -41,6 +42,7 @@ type Drag =
 const CELL = 50 // px per grid row — must match the h-[50px] cell height below
 const MIN_LEN = 5 // smallest block, in minutes
 const TIME_COL = 54 // px — the sticky time column, must match the grid template below
+const PAD_W = 28 // px — a filler day on a phone: a thin hatched strip, not a column that hides the poll
 const HOLD_MS = 160 // touch: rest the finger this long to start painting; a quicker swipe scrolls
 const SLOP = 8 // px a touch may wander during the hold and still count as resting
 const COARSE = '(pointer: coarse)'
@@ -92,25 +94,34 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // and everything minute-shaped (handles, presets, clock settings) stays hidden
   const dayPoll = event.granularity === 'day'
 
-  // others: everyone but you, minute-interval ranges per participant (read-only context)
-  const [others] = useState<AvailIntervals>(() => {
+  // others: everyone but you, minute-interval ranges per participant (read-only context).
+  // Derived from the event, so a mark someone else makes lands here the moment the
+  // websocket delivers it — the grid never needs a reload to show the room filling in
+  const others = useMemo<AvailIntervals>(() => {
     const src = availIvOf(event)
     return Object.fromEntries(event.days.map((d) => {
       const byPid = { ...(src[d.key] ?? {}) }
       delete byPid[meId]
       return [d.key, byPid]
     }))
-  })
-  // mine: minute-interval ranges per day (5-min precision, mergeable)
-  const [mine, setMine] = useState<Record<string, Iv[]>>(() => {
+  }, [event, meId])
+  // my row as the event has it — the seed for `mine`, and what it follows afterwards
+  const remoteMine = useMemo<Record<string, Iv[]>>(() => {
     const src = availIvOf(event)
     return Object.fromEntries(event.days.map((d) => [d.key, normalizeIv(src[d.key]?.[meId] ?? [])]))
-  })
+  }, [event, meId])
+  // mine: minute-interval ranges per day (5-min precision, mergeable). Local while I
+  // edit; it adopts the event's copy only when that changed somewhere else (a calendar
+  // import on my other device, the host clearing my marks) — never for the echo of my
+  // own write, and never mid-drag
+  const [mine, setMine] = useState<Record<string, Iv[]>>(remoteMine)
+  const wroteRef = useRef<string[]>([]) // the last few rows this panel persisted, to know its own echo
 
   const youAny = event.days.some((d) => (mine[d.key]?.length ?? 0) > 0)
   // declared "none of these days work" — an explicit empty reply, held locally so the
   // demo works in memory and persisted for real events
   const [unavail, setUnavail] = useState<Set<string>>(() => new Set(event.unavailableIds ?? []))
+  useFollow(event.unavailableIds ?? [], (ids) => setUnavail(new Set(ids)))
   const otherIds = new Set<string>()
   for (const d of event.days) for (const [id, ivs] of Object.entries(others[d.key] ?? {})) if (ivs.length) otherIds.add(id)
   const respondedIdSet = new Set(otherIds)
@@ -144,6 +155,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const [sel, setSel] = useState<Sel | null>(null)
   const [nudgeStep, setNudgeStep] = useState(5) // minutes the − / + buttons move an edge
   const [drag, setDrag] = useState<Drag | null>(null)
+  useFollow(remoteMine, (rm) => {
+    const sig = JSON.stringify(rm)
+    if (drag || wroteRef.current.includes(sig) || sig === JSON.stringify(mine)) return
+    setMine(rm)
+  })
   const [page, setPage] = useState(0)
   // row virtualization: only the visible slice of time rows is mounted.
   // starts at 0 to match the un-scrolled DOM; the mount effect jumps to ~8 AM
@@ -162,9 +178,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // sparse poll; with a real neighbor (or the time column) the shared border does the job.
   const ownLeft = (di: number) => di > 0 && weekDays[di - 1].pad
 
+  // a phone shows three or four columns at a time, so the filler days that square a
+  // week off collapse to thin strips there — otherwise a poll starting on a Friday
+  // opens on nothing but hatching, which reads as "nothing to tap here"
+  const narrow = (viewportW || 999) < 600
+  const colTrack = (d: GDay) => (d.pad && narrow ? `${PAD_W}px` : 'minmax(72px, 1fr)')
   // avatar icons per cell stay scarce by design: at most 3 on wide screens, 2 on
   // phones — the "+N" chip and the n/N corner count carry the rest of the story
-  const avatarCap = (viewportW || 999) < 600 ? 2 : 3
+  const avatarCap = narrow ? 2 : 3
   // the pile still bows to the column width: 17px avatars + 2px gaps in a 5px-padded
   // cell, so narrow columns shrink the pile instead of spilling into cells below
   const colW = Math.max(72, ((viewportW || 0) - 54) / WEEK)
@@ -210,6 +231,20 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     ro.observe(el)
     return () => ro.disconnect()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // a week that begins before the poll does opens with the first real day at the left
+  // edge. On a phone the grid shows three or four columns, and a poll that starts on a
+  // Friday would otherwise open on nothing but hatched filler — which reads as "nothing
+  // to tap here". Re-applied on every week change.
+  useEffect(() => {
+    const el = scroller.current
+    if (!el) return
+    const first = weekDays.findIndex((d) => !d.pad)
+    const edges = colEdges()
+    // only when the first real day would otherwise be off screen; if it already fits,
+    // the week stays put with its filler in view
+    const inView = first <= 0 || edges[first] == null || edges[first] + 72 <= el.clientWidth
+    el.scrollLeft = inView ? 0 : edges[first] - TIME_COL
+  }, [page, narrow]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // scroll → recompute the visible row window (rAF-throttled; also fires during drag auto-scroll)
   function onGridScroll() {
@@ -229,6 +264,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       if (!event.demo) patchEvent(event.id, { unavailableIds: (event.unavailableIds ?? []).filter((id) => id !== meId) })
     }
     if (event.demo) return
+    wroteRef.current = [...wroteRef.current.slice(-19), JSON.stringify(m)]
     // start from every stored day, not just the current window — replies on days a
     // shrunken window dropped stay dormant and come back if the window re-grows
     const availIv: AvailIntervals = { ...fullAvailIvOf(event) }
@@ -349,14 +385,27 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const snap5 = (m: number) => Math.max(0, Math.min(gridMax, Math.round(m / 5) * 5))
   const rowStart = (m: number) => Math.max(0, Math.min(gridMax - step, Math.floor(m / step) * step))
 
+  // where each day column starts, in px from the grid's left edge — read off the
+  // resolved track sizes, since a phone's filler columns are narrower than the rest
+  function colEdges(): number[] {
+    const g = gridEl.current
+    if (!g) return []
+    const tracks = getComputedStyle(g).gridTemplateColumns.split(' ').map(parseFloat).filter((n) => !Number.isNaN(n))
+    const out: number[] = []
+    let x = tracks[0] || TIME_COL
+    for (let i = 1; i < tracks.length; i++) { out.push(x); x += tracks[i] }
+    return out
+  }
   // which grid column sits under a pointer X (the sticky time column maps to column 0)
   function colAt(clientX: number) {
     const g = gridEl.current
     const n = weekDaysRef.current.length
-    if (!g || !n) return 0
-    const r = g.getBoundingClientRect()
-    const cw = (r.width - TIME_COL) / n
-    return Math.max(0, Math.min(n - 1, Math.floor((clientX - r.left - TIME_COL) / cw)))
+    const edges = colEdges()
+    if (!g || !n || !edges.length) return 0
+    const x = clientX - g.getBoundingClientRect().left
+    let i = 0
+    for (let k = 0; k < edges.length; k++) if (x >= edges[k]) i = k
+    return Math.min(n - 1, i)
   }
   // the real days between two columns, in order — filler days are skipped, never painted
   function daysBetween(a: number, b: number) {
@@ -1196,9 +1245,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             ref={gridEl}
             className="grid"
             style={{
-              gridTemplateColumns: `${TIME_COL}px repeat(${weekDays.length}, minmax(72px, 1fr))`,
-              minWidth: TIME_COL + weekDays.length * 72,
-              maxWidth: TIME_COL + weekDays.length * 280,
+              gridTemplateColumns: `${TIME_COL}px ${weekDays.map(colTrack).join(' ')}`,
+              minWidth: TIME_COL + weekDays.reduce((w, d) => w + (d.pad && narrow ? PAD_W : 72), 0),
+              maxWidth: TIME_COL + weekDays.reduce((w, d) => w + (d.pad && narrow ? PAD_W : 280), 0),
             }}
           >
             {/* header row — the corner cell stays pinned through both scroll directions */}
@@ -1207,9 +1256,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               // filler day outside the event's window — labeled but inert
               if (d.pad) {
                 return (
-                  <div key={d.key} className="sticky top-0 z-20 border-b border-r border-border bg-s0 px-1.5 py-2 text-center">
+                  <div key={d.key} className={`sticky top-0 z-20 border-b border-r border-border bg-s0 py-2 text-center ${narrow ? 'px-0' : 'px-1.5'}`}>
                     <div className="text-[11px] text-faint">{d.dow}</div>
-                    <div className="text-[14px] font-semibold text-faint">{d.date}</div>
+                    {!narrow && <div className="text-[14px] font-semibold text-faint">{d.date}</div>}
                   </div>
                 )
               }
