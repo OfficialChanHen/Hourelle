@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Lora, Instrument_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { AlertSounds } from "@/components/AlertSounds";
 import { BackendSync } from "@/components/BackendSync";
 
 // Lora is the display serif: soft, rounded strokes with conventional letterforms,
@@ -48,6 +49,7 @@ export default function RootLayout({
         />
         <Providers>
           <BackendSync />
+          <AlertSounds />
           {children}
         </Providers>
       </body>

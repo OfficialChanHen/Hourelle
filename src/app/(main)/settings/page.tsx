@@ -5,7 +5,7 @@ import { useTheme } from 'next-themes'
 import { AppearancePicker } from '@/components/AppearancePicker'
 import { SecurityCard } from './_components/SecurityCard'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { prefH24, setPrefH24, prefNotify, setPrefNotify, type NotifyPrefs } from '@/lib/prefs'
+import { prefH24, setPrefH24, prefNotify, setPrefNotify, prefSound, setPrefSound, type NotifyPrefs } from '@/lib/prefs'
 import { useAccount } from '@/hooks/useAccount'
 import { backendOn } from '@/lib/db'
 import { loadReminderPrefs, saveReminderPrefs } from '@/lib/mail'
@@ -40,12 +40,15 @@ export default function SettingsPage() {
   // read after mount so the server render never disagrees with this device
   const [h24, setH24] = useState(false)
   const [notify, setNotify] = useState<NotifyPrefs>({ eventDay: true, deadlines: true, replies: false })
+  const [sound, setSound] = useState(true)
   const [ready, setReady] = useState(false)
   useEffect(() => {
     setH24(prefH24())
     setNotify(prefNotify())
+    setSound(prefSound())
     setReady(true)
   }, [])
+  function changeSound(v: boolean) { setSound(v); setPrefSound(v) }
   // logged in, the reminder switches live on the account: that is where the
   // reminder job reads them. The device copy is kept in step for the offline case.
   const account = useAccount()
@@ -115,6 +118,16 @@ export default function SettingsPage() {
             options={[{ v: '12', l: '12-hour' }, { v: '24', l: '24-hour' }]}
           />
         )}
+      </div>
+
+      <Eyebrow>Sounds</Eyebrow>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-2xl border border-border bg-s1 px-5 py-4">
+        <div className="min-w-0">
+          <div className="text-[14px] font-medium">Alert sounds</div>
+          <div className="mt-0.5 text-[12.5px] text-dim">A short tone for a new message, a different one for a notification.</div>
+        </div>
+        {!ready && <span className="h-6 w-11 animate-pulse rounded-full bg-s2" aria-hidden />}
+        {ready && <Switch on={sound} onChange={changeSound} label="Alert sounds" />}
       </div>
 
       {/* only an account has a password to change or sessions to end */}

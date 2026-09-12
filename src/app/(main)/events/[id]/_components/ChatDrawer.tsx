@@ -5,10 +5,10 @@ import { ArrowDown, Send, X } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
-import { AvatarRow } from '@/components/ui/AvatarRow'
 import { fmtMinute, type AppEvent, type ChatMessage, type Participant } from '@/lib/events'
 import { prefH24 } from '@/lib/prefs'
 import { typingLine, type Peer } from '@/lib/room'
+import { setWatchingChat } from '@/lib/sound'
 
 /* ── event discussion, reachable from every tab ──
    Desktop: a drawer sliding in from the right over a dimmed backdrop.
@@ -43,14 +43,15 @@ function whenLabel(m: ChatMessage, h24: boolean): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readOnly = false, here = [], typing = [], onType, onStopTyping }: {
+export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readOnly = false, typing = [], onType, onStopTyping }: {
   event: AppEvent
   messages: ChatMessage[]
   unreadFrom?: number // index of the first message that arrived since the drawer was last open
   onSend: (text: string) => void
   onClose: () => void
   readOnly?: boolean // a demo, or nobody here is you: the room can be read, not written
-  here?: Peer[]           // who else has this event open right now
+  // who is here now is said by the faces in the event header; in here the typing line
+  // is the live signal, and a second one would only be noise
   typing?: Peer[]         // who is mid-sentence right now
   onType?: () => void     // a keystroke; the room rate-limits the ping itself
   onStopTyping?: () => void
@@ -58,6 +59,12 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readO
   const root = useRef<HTMLDivElement>(null)
   const sheet = useRef<HTMLDivElement>(null)
   const closing = useRef(false)
+
+  // you are reading this room, so a message landing in it is not news to announce
+  useEffect(() => {
+    setWatchingChat(event.id)
+    return () => setWatchingChat(null)
+  }, [event.id])
 
   const { contextSafe } = useGSAP(() => {
     const tl = gsap.timeline()
@@ -112,7 +119,7 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readO
     const p = pById.get(id)
     return { initials: p?.initials ?? id, name: p?.name ?? id, color: p?.color ?? ('gray' as Participant['color']) }
   }
-  const body = <ChatBody messages={messages} unreadFrom={unreadFrom} onSend={onSend} onClose={close} avatarOf={avatarOf} readOnly={readOnly} here={here} typing={typing} onType={onType} onStopTyping={onStopTyping} />
+  const body = <ChatBody messages={messages} unreadFrom={unreadFrom} onSend={onSend} onClose={close} avatarOf={avatarOf} readOnly={readOnly} typing={typing} onType={onType} onStopTyping={onStopTyping} />
 
   return (
     <div ref={root} className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Event discussion">
@@ -146,7 +153,7 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readO
 type ChatProps = {
   messages: ChatMessage[]; unreadFrom?: number
   onSend: (t: string) => void; onClose: () => void
-  here: Peer[]; typing: Peer[]; onType?: () => void; onStopTyping?: () => void
+  typing: Peer[]; onType?: () => void; onStopTyping?: () => void
   avatarOf: (id: string) => { initials: string; name: string; color: Participant['color'] }
   readOnly: boolean
 }
@@ -157,7 +164,7 @@ type Row =
   | { kind: 'msg'; m: ChatMessage; key: string; first: boolean } // first: opens a sender run, so it wears the header
 
 // header + messages + composer, shared by the drawer and the sheet
-function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, here, typing, onType, onStopTyping }: ChatProps) {
+function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, typing, onType, onStopTyping }: ChatProps) {
   const zone = useRef<HTMLDivElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const ta = useRef<HTMLTextAreaElement>(null)
@@ -251,16 +258,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, h
     <div ref={zone} className="flex h-full min-h-0 w-full flex-col">
       <div className="flex flex-none items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0 font-serif text-[19px] leading-tight tracking-[-0.01em]">Discussion</div>
-        <div className="flex flex-none items-center gap-2">
-          {/* who else has the event open, right now. A live thing, so it is drawn
-              live: nothing about it is stored and it empties when they leave */}
-          {here.length > 0 && (
-            <span title={`${here.map((p) => p.name).join(', ')} ${here.length === 1 ? 'is' : 'are'} here now`}>
-              <AvatarRow people={here} size={20} max={4} />
-            </span>
-          )}
-          <button onClick={onClose} aria-label="Close chat" className="-mr-1 grid h-[34px] w-[34px] place-items-center rounded-lg text-dim hover:text-text"><X size={18} /></button>
-        </div>
+        <button onClick={onClose} aria-label="Close chat" className="-mr-1 grid h-[34px] w-[34px] place-items-center rounded-lg text-dim hover:text-text"><X size={18} /></button>
       </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col">

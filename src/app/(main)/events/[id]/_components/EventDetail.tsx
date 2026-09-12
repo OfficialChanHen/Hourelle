@@ -17,6 +17,7 @@ import { TimezonePill } from '@/components/ui/TimezonePill'
 import { DaysPicker } from '@/components/ui/DaysPicker'
 import { TimeSelect } from '@/components/ui/TimeSelect'
 import { Avatar } from '@/components/ui/Avatar'
+import { AvatarRow } from '@/components/ui/AvatarRow'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
@@ -264,18 +265,17 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
               {(event.hostKind ?? (event.hostedByYou ? 'person' : 'org')) === 'org' ? <Building2 size={15} /> : <User size={15} />} Hosted by {event.hostName}
             </span>
             <Badge variant={badge.variant}>{badge.label}</Badge>
-            {/* someone else is looking at this right now. A live dot, not a stat:
-                it appears when they arrive and goes when they leave */}
+            {/* who else has this open, right now — the faces say it, the way every
+                other pile in the app does: a hard cap, then "+N". The word in front
+                marks the pile as the present tense rather than another roster */}
             {room.here.length > 0 && (
               <span
-                className="flex items-center gap-1.5 text-[12.5px] text-dim"
-                title={`${room.here.map((p) => p.name).join(', ')} ${room.here.length === 1 ? 'has' : 'have'} this open`}
+                className="flex items-center gap-1.5"
+                title={`${room.here.map((p) => p.name).join(', ')} ${room.here.length === 1 ? 'has' : 'have'} this open right now`}
               >
-                <span className="relative flex h-[7px] w-[7px] flex-none">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal opacity-60" />
-                  <span className="relative inline-flex h-[7px] w-[7px] rounded-full bg-teal" />
-                </span>
-                {room.here.length === 1 ? `${room.here[0].name.split(' ')[0]} is here now` : `${room.here.length} others here now`}
+                <span className="flex-none text-[12.5px] font-medium text-dim">Active</span>
+                {/* the pile sits on the page, not on a card, so its separation rings take the page colour */}
+                <AvatarRow people={room.here} size={21} max={4} ringColor="var(--bg)" />
               </span>
             )}
             {/* the join flow put a name on this browser — say whose answers these are.
@@ -408,7 +408,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         <ChatDrawer
           event={event} messages={event.messages} unreadFrom={unreadMark}
           onSend={sendMessage} onClose={() => setChatOpen(false)} readOnly={!!event.demo}
-          here={room.here} typing={room.typing} onType={room.onType} onStopTyping={room.onStopTyping}
+          typing={room.typing} onType={room.onType} onStopTyping={room.onStopTyping}
         />
       )}
     </div>

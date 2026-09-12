@@ -40,6 +40,18 @@ export function setPrefNotify(patch: Partial<NotifyPrefs>): void {
   announce()
 }
 
+// alert sounds for a new message and a new notification. On by default: they are
+// short, quiet, and the only way the app can reach you while you are on another tab.
+const SOUND_KEY = 'aline.pref.sound'
+export function prefSound(): boolean {
+  if (typeof window === 'undefined') return false
+  try { return localStorage.getItem(SOUND_KEY) !== '0' } catch { return false }
+}
+export function setPrefSound(v: boolean): void {
+  try { v ? localStorage.removeItem(SOUND_KEY) : localStorage.setItem(SOUND_KEY, '0') } catch { /* private mode */ }
+  announce()
+}
+
 // color palette override ('studio', 'daylight', …) — null, or the house key 'aline',
 // means the house look. The raw key is also read by the inline script in
 // app/layout.tsx, which runs before hydration and can't import this module; keep the
