@@ -16,7 +16,7 @@ export function PasswordField({ id, label, value, onChange, autoComplete, invali
   label: string
   value: string
   onChange: (v: string) => void
-  autoComplete: 'current-password' | 'new-password'
+  autoComplete: 'current-password' | 'new-password' | 'off'
   invalid?: boolean
   hint?: React.ReactNode
   right?: React.ReactNode // e.g. the "Forgot password?" link, sitting on the label row

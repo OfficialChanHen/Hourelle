@@ -230,6 +230,76 @@ export async function googleProviderToken(): Promise<string | null> {
   return data.session?.provider_token ?? null
 }
 
+/* ── the two doors: an email and a password, and the Google button ──
+   One account can have both. Supabase calls each way in an "identity", and linking
+   adds one to the account already signed in rather than signing you in as someone
+   else — which is the whole difference between "connect Google" and "log in with
+   Google". Manual linking has to be switched on for the project (Authentication →
+   Advanced → Manual linking) or the link call comes back refused. */
+
+export type Identity = { provider: string; email?: string }
+
+export async function listIdentities(): Promise<Identity[]> {
+  if (!backendOn) return []
+  const { data, error } = await supabase!.auth.getUserIdentities()
+  if (error || !data) return []
+  return data.identities.map((i) => ({
+    provider: i.provider,
+    email: (i.identity_data?.email as string | undefined) ?? undefined,
+  }))
+}
+
+/** Add the Google button to this account. Comes back through /auth/callback. */
+export async function linkGoogle(next: string): Promise<string | null> {
+  if (!backendOn) return 'Connecting Google needs a backend. Add your Supabase keys to .env.local.'
+  if (!readCache().signedIn) return 'Log in first.'
+  const { error } = await supabase!.auth.linkIdentity({
+    provider: 'google',
+    options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
+  })
+  if (!error) return null
+  // the one refusal worth explaining: that Google account is already its own account
+  // here, and the way to put them together is the merge below
+  if (/already|exists|registered|taken/i.test(error.message)) {
+    return 'That Google account already belongs to another Aline account. Log in with Google, then bring this one in from your profile.'
+  }
+  return error.message
+}
+
+/** Take the Google button off this account. Refused if it is the only way in. */
+export async function unlinkGoogle(): Promise<string | null> {
+  if (!backendOn) return 'This needs a backend.'
+  const { data, error } = await supabase!.auth.getUserIdentities()
+  if (error || !data) return error?.message ?? 'Could not read this account.'
+  if (data.identities.length < 2) return 'This is the only way in to your account. Set a password first.'
+  const google = data.identities.find((i) => i.provider === 'google')
+  if (!google) return 'Google is not connected to this account.'
+  const { error: e2 } = await supabase!.auth.unlinkIdentity(google)
+  return e2?.message ?? null
+}
+
+/** Fold another account into this one: its events, its seats, its answers, its
+ *  messages. Proved by that account's own email and password; the server does the
+ *  moving and then closes it. Returns an error message, or null and a count. */
+export async function mergeAccount(email: string, password: string): Promise<{ error: string | null; events?: number }> {
+  if (!backendOn) return { error: 'Joining accounts needs a backend.' }
+  const { data } = await supabase!.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) return { error: 'Log in first.' }
+  try {
+    const res = await fetch('/api/account/merge', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+    const body = (await res.json().catch(() => ({}))) as { error?: string; events?: number }
+    if (!res.ok) return { error: body.error ?? 'That did not go through.' }
+    return { error: null, events: body.events ?? 0 }
+  } catch {
+    return { error: 'Could not reach the server.' }
+  }
+}
+
 /* ── the end of an account ── */
 export async function deleteAccount(): Promise<string | null> {
   if (!backendOn) return 'Deleting an account needs a backend.'

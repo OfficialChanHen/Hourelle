@@ -8,6 +8,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { useAccount } from '@/hooks/useAccount'
 import { deleteAccount, signOut, updateProfile } from '@/lib/session'
 import { initialsOf, restampMe } from '@/lib/events'
+import { SignInMethods } from './_components/SignInMethods'
 import { personColors, type PersonColor } from '@/lib/colors'
 
 // eyebrow labels give the page the sectioned shape settings pages are expected to
@@ -127,6 +128,14 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {/* both doors to this account, and the way out of having made two */}
+      {account.signedIn && (
+        <>
+          <Eyebrow>How you log in</Eyebrow>
+          <SignInMethods account={account} />
+        </>
+      )}
 
       <Eyebrow>More</Eyebrow>
       <div className="overflow-hidden rounded-2xl border border-border bg-s1">
