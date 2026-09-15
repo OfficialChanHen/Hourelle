@@ -444,12 +444,29 @@ export function startRealtime(): () => void {
       }
       const ev = (payload.new as { data: AppEvent }).data
       const i = list.findIndex((e) => e.id === ev.id)
-      // the document arrives without its chat: keep the messages this browser has.
-      // Reads are open, so the channel carries everyone's events — only the ones
-      // already here, or that belong to this identity, are allowed into the cache
-      if (i >= 0) list[i] = { ...localize(ev, list[i]), messages: list[i].messages }
-      else if (isMine(ev)) list.push({ ...localize(ev), messages: [] })
-      else return
+      /* The document arrives without the things that no longer live in it, and a
+         document echo must not take them away from the cache. Chat has always been
+         one; since 0008 so are availability, the ballot and the explicit empty reply,
+         which were folded in from their own rows and are nowhere in this payload.
+         Dropping them sent availability back to the per-cell `avail`, which is
+         whole-slot only — a time marked to 8:20 snapped back out to the whole 8:00
+         slot the moment this echo of your own write arrived. Keep what the cache has
+         unless the document actually carries a copy (a database without the rows).
+         Reads are open, so the channel carries everyone's events — only the ones
+         already here, or that belong to this identity, are allowed into the cache. */
+      if (i >= 0) {
+        const had = list[i]
+        list[i] = {
+          ...localize(ev, had),
+          messages: had.messages,
+          availIv: ev.availIv ?? had.availIv,
+          votes: ev.votes ?? had.votes,
+          unavailableIds: ev.unavailableIds ?? had.unavailableIds,
+        }
+      } else if (isMine(ev)) {
+        list.push({ ...localize(ev), messages: [] })
+        refreshAnswers(ev.id) // an event new to this browser has its answers in rows
+      } else return
       writeCache(list, true)
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
