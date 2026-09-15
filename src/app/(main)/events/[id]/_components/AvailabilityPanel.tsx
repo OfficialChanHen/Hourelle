@@ -9,7 +9,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Popover } from '@/components/ui/Popover'
 import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, MissingPopover, PadGrip, PresetFills, Segment } from './availability/parts'
 import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, subtract, type Band, type GDay } from './availability/grid-lib'
-import { prefH24 } from '@/lib/prefs'
+import { prefH24, prefWholeWeek } from '@/lib/prefs'
 import { useAccount } from '@/hooks/useAccount'
 import { useFollow } from '@/hooks/useFollow'
 import { canEmail, sendNudges } from '@/lib/mail'
@@ -184,8 +184,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const lastReal = weekDays.length - 1 - [...weekDays].reverse().findIndex((d) => !d.pad)
   const hasLead = firstReal > 0
   const hasTrail = lastReal >= 0 && lastReal < weekDays.length - 1
-  const [leadOpen, setLeadOpen] = useState(false)
-  const [trailOpen, setTrailOpen] = useState(false)
+  // the device preference decides where they start; the seam buttons still rule the visit
+  const [leadOpen, setLeadOpen] = useState(() => prefWholeWeek())
+  const [trailOpen, setTrailOpen] = useState(() => prefWholeWeek())
   const cols = useMemo(
     () => weekDays.filter((d, i) => !d.pad || (i < firstReal ? leadOpen : i > lastReal ? trailOpen : true)),
     [weekDays, firstReal, lastReal, leadOpen, trailOpen],
@@ -1256,7 +1257,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           // a held finger is how painting starts on a phone — it must not open the long-press menu
           onContextMenu={(e) => { if (mode === 'edit') e.preventDefault() }}
           className="scroll-slim max-h-[58dvh] flex-1 overflow-auto rounded-[10px] border border-border lg:max-h-none"
-          style={{ WebkitTouchCallout: 'none' } as React.CSSProperties}
+          // the seam button on the last day hangs half its width past the sheet's right
+          // edge, and a scroller clips whatever leaves it: weeks with days after the
+          // poll keep that half-width free so the button stays whole
+          style={{ WebkitTouchCallout: 'none', paddingRight: hasTrail ? 9 : undefined } as React.CSSProperties}
         >
           {/* width tracks the day count: a single day must fit the screen without a
               horizontal scroll, and shouldn't stretch into one huge column either */}
@@ -1269,13 +1273,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               maxWidth: TIME_COL + cols.reduce((w, d) => w + (d.pad && narrow ? PAD_W : 280), 0),
             }}
           >
-            {/* header row — the corner cell stays pinned through both scroll directions */}
-            <div className="sticky left-0 top-0 z-[30] border-b border-r border-grid-edge bg-s0"/>
+            {/* header row — every cell placed by hand, so the seam buttons below can
+                share a cell with the day they belong to instead of taking a column of
+                their own. The corner stays pinned through both scroll directions. */}
+            <div style={{ gridColumn: 1, gridRow: 1 }} className="sticky left-0 top-0 z-[30] border-b border-r border-grid-edge bg-s0"/>
             {cols.map((d, di) => {
               // filler day outside the event's window — labeled but inert
               if (d.pad) {
                 return (
-                  <div key={d.key} className={`sticky top-0 z-20 border-b border-r border-border bg-s0 py-2 text-center ${narrow ? 'px-0' : 'px-1.5'}`}>
+                  <div key={d.key} style={{ gridColumn: di + 2, gridRow: 1 }} className={`sticky top-0 z-20 border-b border-r border-border bg-s0 py-2 text-center ${narrow ? 'px-0' : 'px-1.5'}`}>
                     <div className="text-[11px] text-faint">{d.dow}</div>
                     {!narrow && <div className="text-[14px] font-semibold text-faint">{d.date}</div>}
                   </div>
@@ -1293,22 +1299,16 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   key={d.key}
                   type="button"
                   onClick={() => toggleDay(d.key)}
-                  className={`relative sticky top-0 z-20 border-b border-r border-grid-edge px-1.5 py-2 text-center ${ownLeft(di) ? 'border-l border-l-grid-edge' : ''}`}
+                  className={`sticky top-0 z-20 border-b border-r border-grid-edge px-1.5 py-2 text-center ${ownLeft(di) ? 'border-l border-l-grid-edge' : ''}`}
                   style={{
+                    gridColumn: di + 2,
+                    gridRow: 1,
                     background: isBestDay || inBlock ? 'var(--best-head)' : 'var(--s0)',
                     boxShadow: inBlock ? 'inset 0 2px 0 var(--ochre)' : undefined,
                     cursor: mode === 'edit' ? 'pointer' : 'default',
                   }}
                   title={mode === 'edit' ? 'Click to fill the whole day' : undefined}
                 >
-                  {/* the seam between the poll and the days that only square its week
-                      off, on this column's outer border */}
-                  {hasLead && d.key === weekDays[firstReal]?.key && (
-                    <PadGrip side="lead" open={leadOpen} n={firstReal} onClick={() => setLeadOpen((o) => !o)} />
-                  )}
-                  {hasTrail && d.key === weekDays[lastReal]?.key && (
-                    <PadGrip side="trail" open={trailOpen} n={weekDays.length - 1 - lastReal} onClick={() => setTrailOpen((o) => !o)} />
-                  )}
                   <div className="text-[11px] text-dim">{d.dow}</div>
                   <div className="text-[14px] font-semibold" style={{ color: isBestDay || inBlock ? 'var(--ochre-text)' : 'var(--text)' }}>{d.date}</div>
                   {mode === 'edit' && (
@@ -1324,6 +1324,24 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 </button>
               )
             })}
+
+            {/* the seam between the poll and the days that only square its week off:
+                its own cell on the header row, sharing the column of the day whose
+                border it rides, so it can straddle that line above every layer */}
+            {hasLead && (
+              <PadGrip
+                side="lead" open={leadOpen} n={firstReal}
+                column={cols.findIndex((d) => !d.pad) + 2}
+                onClick={() => setLeadOpen((o) => !o)}
+              />
+            )}
+            {hasTrail && (
+              <PadGrip
+                side="trail" open={trailOpen} n={weekDays.length - 1 - lastReal}
+                column={cols.length - [...cols].reverse().findIndex((d) => !d.pad) + 1}
+                onClick={() => setTrailOpen((o) => !o)}
+              />
+            )}
 
             {/* body rows — only the visible slice is mounted; spacers hold the scroll height */}
             {topPad > 0 && <div style={{ gridColumn: '1 / -1', height: topPad }} />}

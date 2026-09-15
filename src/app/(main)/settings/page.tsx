@@ -6,7 +6,7 @@ import { AppearancePicker } from '@/components/AppearancePicker'
 import { BackLink } from '@/components/ui/BackLink'
 import { SecurityCard } from './_components/SecurityCard'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { prefH24, setPrefH24, prefNotify, setPrefNotify, prefSound, setPrefSound, type NotifyPrefs } from '@/lib/prefs'
+import { prefH24, setPrefH24, prefNotify, setPrefNotify, prefSound, setPrefSound, prefWholeWeek, setPrefWholeWeek, type NotifyPrefs } from '@/lib/prefs'
 import { useAccount } from '@/hooks/useAccount'
 import { backendOn } from '@/lib/db'
 import { loadReminderPrefs, saveReminderPrefs } from '@/lib/mail'
@@ -42,14 +42,17 @@ export default function SettingsPage() {
   const [h24, setH24] = useState(false)
   const [notify, setNotify] = useState<NotifyPrefs>({ eventDay: true, deadlines: true, replies: false })
   const [sound, setSound] = useState(true)
+  const [wholeWeek, setWholeWeek] = useState(false)
   const [ready, setReady] = useState(false)
   useEffect(() => {
     setH24(prefH24())
     setNotify(prefNotify())
     setSound(prefSound())
+    setWholeWeek(prefWholeWeek())
     setReady(true)
   }, [])
   function changeSound(v: boolean) { setSound(v); setPrefSound(v) }
+  function changeWholeWeek(v: string) { const on = v === 'week'; setWholeWeek(on); setPrefWholeWeek(on) }
   // logged in, the reminder switches live on the account: that is where the
   // reminder job reads them. The device copy is kept in step for the offline case.
   const account = useAccount()
@@ -118,6 +121,23 @@ export default function SettingsPage() {
             value={h24 ? '24' : '12'}
             onChange={changeClock}
             options={[{ v: '12', l: '12-hour' }, { v: '24', l: '24-hour' }]}
+          />
+        )}
+      </div>
+
+      <Eyebrow>Preferences</Eyebrow>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-2xl border border-border bg-s1 px-5 py-4">
+        <div className="min-w-0">
+          <div className="text-[14px] font-medium">Availability grid</div>
+          <div className="mt-0.5 text-[12.5px] text-dim">An event that starts midweek is squared off with days it never asked about.</div>
+        </div>
+        {!ready && <span className="h-8 w-[170px] animate-pulse rounded-[9px] bg-s2" aria-hidden />}
+        {ready && (
+          <SegmentedControl
+            size="sm"
+            value={wholeWeek ? 'week' : 'event'}
+            onChange={changeWholeWeek}
+            options={[{ v: 'event', l: 'Event days' }, { v: 'week', l: 'Whole week' }]}
           />
         )}
       </div>

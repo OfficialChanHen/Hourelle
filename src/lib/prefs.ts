@@ -40,6 +40,19 @@ export function setPrefNotify(patch: Partial<NotifyPrefs>): void {
   announce()
 }
 
+// whether the availability grid shows the whole calendar week or only the days the
+// event actually asks about. Off by default: a poll that starts midweek opens on the
+// days being answered, and the seam buttons in the grid still open the rest.
+const WHOLE_WEEK_KEY = 'aline.pref.whole-week'
+export function prefWholeWeek(): boolean {
+  if (typeof window === 'undefined') return false
+  try { return localStorage.getItem(WHOLE_WEEK_KEY) === '1' } catch { return false }
+}
+export function setPrefWholeWeek(v: boolean): void {
+  try { v ? localStorage.setItem(WHOLE_WEEK_KEY, '1') : localStorage.removeItem(WHOLE_WEEK_KEY) } catch { /* private mode */ }
+  announce()
+}
+
 // alert sounds for a new message and a new notification. On by default: they are
 // short, quiet, and the only way the app can reach you while you are on another tab.
 const SOUND_KEY = 'aline.pref.sound'
