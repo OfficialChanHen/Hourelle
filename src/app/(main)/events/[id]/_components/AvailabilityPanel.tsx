@@ -486,11 +486,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       const a = Math.max(0, Math.min(gridMax - MIN_LEN, snap5(gridMin - MIN_LEN / 2)))
       const pm = { ...mineRef.current, [day]: normalizeIv([...(mine[day] ?? []), { s: a, e: a + MIN_LEN }]) }
       paintRef.current = pm; setMine(pm)
-      selectMerged(day, pm[day], a + MIN_LEN / 2, 'bottom')
       return
     }
-    const next = flipSlot(day, w0, w1)
-    selectMerged(day, next[day], (w0 + w1) / 2, 'bottom') // one slot filled opens its handles
+    flipSlot(day, w0, w1)
   }
   function cancelHold() {
     if (holdRef.current) { clearTimeout(holdRef.current); holdRef.current = null }
@@ -632,12 +630,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       const d = dragRef.current; if (!d) return
       dragRef.current = null; touchDragRef.current = false
       if (d.kind === 'paint') {
-        // pressed on your own block and let go without moving: that is a request to
-        // fine-tune it, not to clear it
-        if (d.hit && !d.moved) setSel({ day: d.day, s: d.hit.s, e: d.hit.e, edge: 'bottom' })
         const painted = paintRef.current
         paintRef.current = null
-        if (painted) commitDays(painted)
+        const norm = painted ? commitDays(painted) : null
+        /* a press that never left the cell it started in is a click, and a click is what
+           asks for the fine-tune bar — on your own block, or on one you just filled. A
+           sweep that crossed into another box was painting, and selects nothing. */
+        if (d.moved) setSel(null)
+        else selectMerged(d.day, norm?.[d.day] ?? mineRef.current[d.day] ?? [], d.anchorMin, 'bottom')
       } else {
         const base = (mineRef.current[d.day] ?? []).filter((iv) => !(iv.s === d.origS && iv.e === d.origE))
         if (d.del || !d.block) { commitDay(d.day, base); setSel(null) } // dragged to zero → remove

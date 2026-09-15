@@ -199,13 +199,13 @@ export function EdgeHandle({ pct, label, active, side, onDown }: { pct: number; 
   return (
     <div className="pointer-events-none absolute inset-x-0 z-[9]" style={{ top: `${pct}%` }}>
       {/* The whole edge is the handle, not just the grip in the middle of it. A band the
-          width of the cell, centred on the boundary, takes the press — otherwise grabbing
-          the bar itself falls straight through to the cell underneath and starts painting
-          instead of moving the time. */}
+          width of the cell and 22px deep, centred on the boundary, takes the press.
+          Without it the bar falls straight through to the cell underneath and starts
+          painting instead of moving the time, and a thin band is easy to miss. */}
       <div
         onPointerDown={onDown}
         className="pointer-events-auto absolute inset-x-0 top-0 -translate-y-1/2"
-        style={{ height: 15, ...grab }}
+        style={{ height: 22, ...grab }}
         aria-hidden
       />
       {/* boundary line */}
