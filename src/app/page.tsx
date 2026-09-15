@@ -14,6 +14,7 @@ import { useGSAP } from '@gsap/react'
 import { ArrowRight, Users } from 'lucide-react'
 import { VisitorHeader } from '@/components/VisitorHeader'
 import { HowItWorks } from '@/components/landing/HowItWorks'
+import { HeroGrid } from '@/components/landing/HeroGrid'
 import { DayPollDemo } from '@/components/landing/DayPollDemo'
 import { BallotDemo } from '@/components/landing/BallotDemo'
 import { ChatDemo } from '@/components/landing/ChatDemo'
@@ -115,11 +116,10 @@ export default function Landing() {
             <p className="mt-4 text-[12.5px] text-faint">Invited to something? Open the link you were sent. That is all it takes.</p>
           </div>
 
+          {/* built rather than photographed: a picture cannot follow the theme, and the
+              two it needed went stale every time the real grid moved */}
           <div className={`ld-shot mt-12 ${frame}`}>
-            <div className="ld-shot-inner">
-              <img src="/landing/availability-light.png" width={1188} height={700} alt="The availability grid: a week of days, twenty-four people's free time layered into a green heat map, with the best day marked" className="only-light block w-full" />
-              <img src="/landing/availability-dark.png" width={1188} height={700} alt="" aria-hidden className="only-dark w-full" />
-            </div>
+            <HeroGrid />
           </div>
         </section>
 
