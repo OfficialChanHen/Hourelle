@@ -7,7 +7,7 @@ import { AvatarRow } from '@/components/ui/AvatarRow'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Popover } from '@/components/ui/Popover'
-import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, MissingPopover, PresetFills, Segment } from './availability/parts'
+import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, MissingPopover, PadGrip, PresetFills, Segment } from './availability/parts'
 import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, subtract, type Band, type GDay } from './availability/grid-lib'
 import { prefH24 } from '@/lib/prefs'
 import { useAccount } from '@/hooks/useAccount'
@@ -173,10 +173,28 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const weekDays = paddedDays.slice(page * WEEK, page * WEEK + WEEK)
   const goWeek = (dir: -1 | 1) => { setPage((p) => Math.max(0, Math.min(pageCount - 1, p + dir))); setSel(null) }
 
+  /* ── the days outside the poll, folded away ──
+     A week is squared off with filler so the columns line up with a calendar, but
+     those days are not part of the question. They start folded, and the grip on the
+     first real day's outer border opens them: drag away from the poll to let them
+     back in, drag toward it to fold them again. Only the run before the first real
+     day and the run after the last fold; filler INSIDE a sparse poll (weekends only,
+     hand-picked dates) stays, because there it is holding two real days apart. */
+  const firstReal = weekDays.findIndex((d) => !d.pad)
+  const lastReal = weekDays.length - 1 - [...weekDays].reverse().findIndex((d) => !d.pad)
+  const hasLead = firstReal > 0
+  const hasTrail = lastReal >= 0 && lastReal < weekDays.length - 1
+  const [leadOpen, setLeadOpen] = useState(false)
+  const [trailOpen, setTrailOpen] = useState(false)
+  const cols = useMemo(
+    () => weekDays.filter((d, i) => !d.pad || (i < firstReal ? leadOpen : i > lastReal ? trailOpen : true)),
+    [weekDays, firstReal, lastReal, leadOpen, trailOpen],
+  )
+
   // a real day whose left neighbor is filler draws its own left border — the filler's
   // grayed edge is too weak to frame it. Covers a leading filler AND gaps inside a
   // sparse poll; with a real neighbor (or the time column) the shared border does the job.
-  const ownLeft = (di: number) => di > 0 && weekDays[di - 1].pad
+  const ownLeft = (di: number) => di > 0 && cols[di - 1].pad
 
   // a phone shows three or four columns at a time, so the filler days that square a
   // week off collapse to thin strips there — otherwise a poll starting on a Friday
@@ -205,7 +223,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const dragRef = useRef<Drag | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const gridEl = useRef<HTMLDivElement>(null) // the grid itself — column math for cross-day drags
-  const weekDaysRef = useRef(weekDays); useEffect(() => { weekDaysRef.current = weekDays }, [weekDays])
+  const weekDaysRef = useRef(cols); useEffect(() => { weekDaysRef.current = cols }, [cols])
   const colRef = useRef<HTMLDivElement>(null) // left column — cell popover anchors here, outside the scroller
   const lastYRef = useRef(0) // latest pointer Y, for the auto-scroll loop
   const lastXRef = useRef(0)
@@ -238,13 +256,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   useEffect(() => {
     const el = scroller.current
     if (!el) return
-    const first = weekDays.findIndex((d) => !d.pad)
+    const first = cols.findIndex((d) => !d.pad)
     const edges = colEdges()
     // only when the first real day would otherwise be off screen; if it already fits,
     // the week stays put with its filler in view
     const inView = first <= 0 || edges[first] == null || edges[first] + 72 <= el.clientWidth
     el.scrollLeft = inView ? 0 : edges[first] - TIME_COL
-  }, [page, narrow]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, narrow, leadOpen, trailOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // scroll → recompute the visible row window (rAF-throttled; also fires during drag auto-scroll)
   function onGridScroll() {
@@ -818,11 +836,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
 
   // live per-day intervals while editing (folds in the current drag); only the dragged day changes
   const editIvsByDay = useMemo<Record<string, Iv[]>>(
-    () => (mode === 'edit' ? Object.fromEntries(weekDays.map((d) => [d.key, renderIvsFor(d.key)])) : {}),
+    () => (mode === 'edit' ? Object.fromEntries(cols.map((d) => [d.key, renderIvsFor(d.key)])) : {}),
     [mode, mine, drag, page], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const editCombinedByDay = useMemo<Record<string, Record<string, Iv[]>>>(
-    () => (mode === 'edit' ? Object.fromEntries(weekDays.map((d) => [d.key, combinedFor(d.key, editIvsByDay[d.key], othersFiltered)])) : {}),
+    () => (mode === 'edit' ? Object.fromEntries(cols.map((d) => [d.key, combinedFor(d.key, editIvsByDay[d.key], othersFiltered)])) : {}),
     [mode, editIvsByDay, othersFiltered, page], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
@@ -940,7 +958,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     ? [...filter].filter((id) => !respondedIds.has(id)).map((id) => pById.get(id)).filter((p): p is Participant => !!p)
     : []
   const unmarkedNudgees = unmarked.filter((p) => !p.you)
-  const rangeLabel = weekDays.length ? (weekDays.length > 1 ? `${weekDays[0].date} – ${weekDays[weekDays.length - 1].date}` : weekDays[0].date) : ''
+  const labelDays = weekDays.filter((d) => !d.pad)
+  const rangeLabel = labelDays.length ? (labelDays.length > 1 ? `${labelDays[0].date} – ${labelDays[labelDays.length - 1].date}` : labelDays[0].date) : ''
 
   // virtualization window: mount only the visible rows (+ overscan), pad the rest with spacers
   const firstRow = Math.max(0, Math.floor(scrollTop / CELL) - OVERSCAN)
@@ -1245,14 +1264,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             ref={gridEl}
             className="grid"
             style={{
-              gridTemplateColumns: `${TIME_COL}px ${weekDays.map(colTrack).join(' ')}`,
-              minWidth: TIME_COL + weekDays.reduce((w, d) => w + (d.pad && narrow ? PAD_W : 72), 0),
-              maxWidth: TIME_COL + weekDays.reduce((w, d) => w + (d.pad && narrow ? PAD_W : 280), 0),
+              gridTemplateColumns: `${TIME_COL}px ${cols.map(colTrack).join(' ')}`,
+              minWidth: TIME_COL + cols.reduce((w, d) => w + (d.pad && narrow ? PAD_W : 72), 0),
+              maxWidth: TIME_COL + cols.reduce((w, d) => w + (d.pad && narrow ? PAD_W : 280), 0),
             }}
           >
             {/* header row — the corner cell stays pinned through both scroll directions */}
             <div className="sticky left-0 top-0 z-[30] border-b border-r border-grid-edge bg-s0"/>
-            {weekDays.map((d, di) => {
+            {cols.map((d, di) => {
               // filler day outside the event's window — labeled but inert
               if (d.pad) {
                 return (
@@ -1274,7 +1293,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   key={d.key}
                   type="button"
                   onClick={() => toggleDay(d.key)}
-                  className={`sticky top-0 z-20 border-b border-r border-grid-edge px-1.5 py-2 text-center ${ownLeft(di) ? 'border-l border-l-grid-edge' : ''}`}
+                  className={`relative sticky top-0 z-20 border-b border-r border-grid-edge px-1.5 py-2 text-center ${ownLeft(di) ? 'border-l border-l-grid-edge' : ''}`}
                   style={{
                     background: isBestDay || inBlock ? 'var(--best-head)' : 'var(--s0)',
                     boxShadow: inBlock ? 'inset 0 2px 0 var(--ochre)' : undefined,
@@ -1282,6 +1301,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   }}
                   title={mode === 'edit' ? 'Click to fill the whole day' : undefined}
                 >
+                  {/* the seam between the poll and the days that only square its week
+                      off, on this column's outer border */}
+                  {hasLead && d.key === weekDays[firstReal]?.key && (
+                    <PadGrip side="lead" open={leadOpen} n={firstReal} onClick={() => setLeadOpen((o) => !o)} />
+                  )}
+                  {hasTrail && d.key === weekDays[lastReal]?.key && (
+                    <PadGrip side="trail" open={trailOpen} n={weekDays.length - 1 - lastReal} onClick={() => setTrailOpen((o) => !o)} />
+                  )}
                   <div className="text-[11px] text-dim">{d.dow}</div>
                   <div className="text-[14px] font-semibold" style={{ color: isBestDay || inBlock ? 'var(--ochre-text)' : 'var(--text)' }}>{d.date}</div>
                   {mode === 'edit' && (
@@ -1308,7 +1335,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               const labelMain = h24 ? `${String(rowH).padStart(2, '0')}:${rowMm}` : `${rowH % 12 === 0 ? 12 : rowH % 12}:${rowMm}`
               const labelSub = h24 ? null : rowH < 12 ? 'AM' : 'PM'
               const w0 = ti * step, w1 = (ti + 1) * step
-              const rowFull = weekDays.every((d) => d.pad || (mine[d.key] ?? []).some((iv) => iv.s <= w0 && iv.e >= w1))
+              const rowFull = cols.every((d) => d.pad || (mine[d.key] ?? []).some((iv) => iv.s <= w0 && iv.e >= w1))
               return (
               <div key={ti} className="contents">
                 <button
@@ -1330,7 +1357,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     {!dayPoll && labelSub && <span className="text-[9.5px] font-semibold tracking-[.04em] text-faint">{labelSub}</span>}
                   </span>
                 </button>
-                {weekDays.map((d, di) => {
+                {cols.map((d, di) => {
                   // out-of-window cell: hatched, no data, no interactions
 
                   if (d.pad) {

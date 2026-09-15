@@ -374,3 +374,39 @@ export function EdgeNudge({ label, value, onLess, onMore }: { label: string; val
 export function IconBtn({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) {
   return <button type="button" onClick={onClick} disabled={disabled} className="grid h-11 w-11 place-items-center rounded-[7px] border border-border bg-s1 text-dim enabled:hover:text-text disabled:opacity-40 sm:h-7 sm:w-7">{children}</button>
 }
+
+/* The button on the seam between the poll and the days that only square its week off.
+   It rides the outer border of the poll's first (or last) day, inside the sticky
+   header row so a scroll down never takes it away, and flush to that border rather
+   than straddling it: the pinned corner cell to the left of the first column sits in
+   a higher layer, and anything hanging past the line disappears under it.
+   It is a span carrying a button's role and keys, because the day header it lives in
+   is itself a button and a button inside a button is neither. */
+export function PadGrip({ side, open, n, onClick }: {
+  side: 'lead' | 'trail'
+  open: boolean
+  n: number // how many days are folded behind it
+  onClick: () => void
+}) {
+  const label = `${open ? 'Hide' : 'Show'} the ${n} ${n === 1 ? 'day' : 'days'} ${side === 'lead' ? 'before' : 'after'} these`
+  // the chevron points where the days will go: out into the sheet, or back away
+  const out = side === 'lead' ? !open : open
+  const act = (e: React.SyntheticEvent) => { e.stopPropagation(); e.preventDefault(); onClick() }
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      aria-expanded={open}
+      aria-label={label}
+      title={label}
+      onClick={act}
+      onPointerDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') act(e) }}
+      className={`absolute inset-y-0 z-[5] my-auto grid h-[30px] w-[17px] cursor-pointer place-items-center rounded-full border border-border2 bg-s1 text-dim shadow-soft hover:bg-s2 hover:text-text ${side === 'lead' ? 'left-0' : 'right-0'}`}
+    >
+      <svg width="10" height="12" viewBox="0 0 10 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d={out ? 'M6.5 2 3 6l3.5 4' : 'M3.5 2 7 6l-3.5 4'} />
+      </svg>
+    </span>
+  )
+}
