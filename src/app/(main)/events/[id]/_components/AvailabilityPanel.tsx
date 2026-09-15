@@ -27,12 +27,15 @@ type Edge = 'top' | 'bottom'
 type Sel = { day: string; s: number; e: number; edge: Edge }
 
 type Drag =
-  // paint: the pointer flips each cell it crosses, on if it was off and off if it was on,
-  // and `visited` keeps it to once per cell so wandering back over one doesn't thrash it.
-  // Pressed on one of your blocks and released without moving, it selects that block instead.
+  /* paint: the pointer flips each cell it crosses, on if it was off and off if it was on.
+     `trail` is the cells it has crossed in order, and dragging back over one truncates the
+     trail there, so everything past it returns to how it was — an overshoot is corrected by
+     retreating rather than by a second sweep. `base` is what the day looked like before the
+     press, which is what "how it was" means. Pressed on one of your blocks and released
+     without moving, the whole thing selects that block instead. */
   | {
-      kind: 'paint'; day: string; di: number; anchorClientY: number; anchorScrollTop: number; anchorScrollLeft: number; anchorMin: number
-      visited: Set<string>; moved: boolean; hit: Iv | null
+      kind: 'paint'; day: string; di: number; ti: number; anchorClientY: number; anchorScrollTop: number; anchorScrollLeft: number; anchorMin: number
+      trail: string[]; base: Record<string, Iv[]>; moved: boolean; hit: Iv | null
     }
   | {
       kind: 'resize'; day: string; edge: Edge; fixedMin: number
@@ -50,6 +53,7 @@ const TICK_GAP = 6 // px of clear air between a time and the ticks either side o
 const PAD_W = 28 // px — a filler day on a phone: a thin hatched strip, not a column that hides the poll
 const COL_MIN = 84 // px — narrowest a real day column gets, so its pile and count both fit
 const GRAB_PX = 11 // half the depth of the bar along a selected block's edge
+const ECHO_MS = 4000 // how long a write of this panel's own stays recognisable as its echo
 const HOLD_MS = 160 // touch: rest the finger this long to start painting; a quicker swipe scrolls
 const SLOP = 8 // px a touch may wander during the hold and still count as resting
 const COARSE = '(pointer: coarse)'
@@ -122,7 +126,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // import on my other device, the host clearing my marks) — never for the echo of my
   // own write, and never mid-drag
   const [mine, setMine] = useState<Record<string, Iv[]>>(remoteMine)
-  const wroteRef = useRef<string[]>([]) // the last few rows this panel persisted, to know its own echo
+  // the rows this panel persisted lately, to tell its own echo from somebody else's news.
+  // They expire: an echo comes back in under a second, so anything older is not one, and a
+  // remembered signature that never aged out would make a later correcting update — one
+  // that happens to match something written before — invisible forever.
+  const wroteRef = useRef<{ sig: string; at: number }[]>([])
 
   const youAny = event.days.some((d) => (mine[d.key]?.length ?? 0) > 0)
   // declared "none of these days work" — an explicit empty reply, held locally so the
@@ -164,7 +172,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const [drag, setDrag] = useState<Drag | null>(null)
   useFollow(remoteMine, (rm) => {
     const sig = JSON.stringify(rm)
-    if (drag || wroteRef.current.includes(sig) || sig === JSON.stringify(mine)) return
+    const own = wroteRef.current.some((w) => w.sig === sig && Date.now() - w.at < ECHO_MS)
+    if (drag || own || sig === JSON.stringify(mine)) return
     setMine(rm)
   })
   const [page, setPage] = useState(0)
@@ -272,6 +281,18 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     ro.observe(el)
     return () => ro.disconnect()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // where each day column starts, in px from the grid's left edge — read off the
+  // resolved track sizes, since a phone's filler columns are narrower than the rest
+  function colEdges(): number[] {
+    const g = gridEl.current
+    if (!g) return []
+    const tracks = getComputedStyle(g).gridTemplateColumns.split(' ').map(parseFloat).filter((n) => !Number.isNaN(n))
+    const out: number[] = []
+    let x = tracks[0] || timeColRef.current
+    for (let i = 1; i < tracks.length; i++) { out.push(x); x += tracks[i] }
+    return out
+  }
+
   // a week that begins before the poll does opens with the first real day at the left
   // edge. On a phone the grid shows three or four columns, and a poll that starts on a
   // Friday would otherwise open on nothing but hatched filler — which reads as "nothing
@@ -305,7 +326,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       if (!event.demo) patchEvent(event.id, { unavailableIds: (event.unavailableIds ?? []).filter((id) => id !== meId) })
     }
     if (event.demo) return
-    wroteRef.current = [...wroteRef.current.slice(-19), JSON.stringify(m)]
+    const now = Date.now()
+    wroteRef.current = [...wroteRef.current.filter((w) => now - w.at < ECHO_MS).slice(-19), { sig: JSON.stringify(m), at: now }]
     // start from every stored day, not just the current window — replies on days a
     // shrunken window dropped stay dormant and come back if the window re-grows
     const availIv: AvailIntervals = { ...fullAvailIvOf(event) }
@@ -426,42 +448,38 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
      `paintRef` carries the working copy so a sweep over twenty cells is twenty repaints
      and one save, not twenty saves. */
   const paintRef = useRef<Record<string, Iv[]> | null>(null)
-  function flipSlot(day: string, w0: number, w1: number) {
-    const pm = paintRef.current ?? mineRef.current
-    const base = pm[day] ?? []
-    const on = base.some((iv) => iv.s <= w0 && iv.e >= w1)
-    const next = { ...pm, [day]: normalizeIv(on ? base.flatMap((iv) => subtract(iv, w0, w1)) : [...base, { s: w0, e: w1 }]) }
+  const cellId = (day: string, ti: number) => `${day}|${ti}`
+  // one slot turned over, on a working copy rather than on the stored answer
+  function flipIn(map: Record<string, Iv[]>, day: string, ti: number): Record<string, Iv[]> {
+    const w0 = ti * step, w1 = w0 + step
+    const cur = map[day] ?? []
+    const on = cur.some((iv) => iv.s <= w0 && iv.e >= w1)
+    return { ...map, [day]: normalizeIv(on ? cur.flatMap((iv) => subtract(iv, w0, w1)) : [...cur, { s: w0, e: w1 }]) }
+  }
+  function flipSlot(day: string, ti: number) {
+    const next = flipIn(paintRef.current ?? mineRef.current, day, ti)
     paintRef.current = next
     setMine(next)
     return next
+  }
+  /* The sweep rebuilt from scratch: everything the trail still holds, flipped away from
+     what the day looked like before the press. Recomputing rather than undoing in place is
+     what lets the trail shrink — a cell dropped off the end simply stops being applied. A
+     trail is as long as the cells the pointer crossed, so this stays cheap. */
+  function applyTrail(d: Extract<Drag, { kind: 'paint' }>) {
+    let next = d.base
+    for (const id of d.trail) {
+      const cut = id.lastIndexOf('|')
+      next = flipIn(next, id.slice(0, cut), Number(id.slice(cut + 1)))
+    }
+    paintRef.current = next
+    setMine(next)
   }
 
   // ── coordinate + snapping helpers ──
   const snap5 = (m: number) => Math.max(0, Math.min(gridMax, Math.round(m / 5) * 5))
   const rowStart = (m: number) => Math.max(0, Math.min(gridMax - step, Math.floor(m / step) * step))
 
-  // where each day column starts, in px from the grid's left edge — read off the
-  // resolved track sizes, since a phone's filler columns are narrower than the rest
-  function colEdges(): number[] {
-    const g = gridEl.current
-    if (!g) return []
-    const tracks = getComputedStyle(g).gridTemplateColumns.split(' ').map(parseFloat).filter((n) => !Number.isNaN(n))
-    const out: number[] = []
-    let x = tracks[0] || timeColRef.current
-    for (let i = 1; i < tracks.length; i++) { out.push(x); x += tracks[i] }
-    return out
-  }
-  // which grid column sits under a pointer X (the sticky time column maps to column 0)
-  function colAt(clientX: number) {
-    const g = gridEl.current
-    const n = weekDaysRef.current.length
-    const edges = colEdges()
-    if (!g || !n || !edges.length) return 0
-    const x = clientX - g.getBoundingClientRect().left
-    let i = 0
-    for (let k = 0; k < edges.length; k++) if (x >= edges[k]) i = k
-    return Math.min(n - 1, i)
-  }
   // start a paint sweep from a cell: shared by the mouse (on press) and touch (after the hold).
   // Pressed over one of your own blocks it only arms — a release without moving selects it.
   function beginDrag(day: string, ti: number, clientX: number, clientY: number, top: number, height: number) {
@@ -472,9 +490,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const w0 = ti * step, w1 = w0 + step
     paintRef.current = null
     const d: Drag = {
-      kind: 'paint', day, di, anchorClientY: clientY, anchorMin: gridMin,
+      kind: 'paint', day, di, ti, anchorClientY: clientY, anchorMin: gridMin,
       anchorScrollTop: scroller.current?.scrollTop ?? 0, anchorScrollLeft: scroller.current?.scrollLeft ?? 0,
-      visited: new Set([`${day}|${ti}`]), moved: false, hit,
+      trail: [], base: mineRef.current, moved: false, hit,
     }
     dragRef.current = d; setDrag(d)
     lastXRef.current = clientX; lastYRef.current = clientY
@@ -489,7 +507,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       paintRef.current = pm; setMine(pm)
       return
     }
-    flipSlot(day, w0, w1)
+    d.trail.push(cellId(day, ti))
+    flipSlot(day, ti)
   }
   function cancelHold() {
     if (holdRef.current) { clearTimeout(holdRef.current); holdRef.current = null }
@@ -585,17 +604,30 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       const scrollDelta = (scroller.current?.scrollTop ?? 0) - d.anchorScrollTop
       const cur = Math.max(0, Math.min(gridMax, d.anchorMin + (clientY - d.anchorClientY + scrollDelta) / pxPerMin))
       if (d.kind === 'paint') {
-        const di = colAt(clientX)
-        const day = weekDaysRef.current[di]
-        const ti = Math.max(0, Math.min(rows - 1, Math.floor(cur / step)))
-        if (!day || day.pad) return // filler days are not part of the question
-        const cellId = `${day.key}|${ti}`
-        if (d.visited.has(cellId)) return
-        d.visited.add(cellId)
+        /* which cell the pointer is over is asked of the page, not worked out from how far
+           it has travelled since the press. The arithmetic version drifts: it has to fold in
+           how far the sheet has scrolled underneath, and any layout shift on top of that, and
+           a few pixels of drift is a whole row wrongly swept. A filler day carries no label,
+           so it is skipped by having nothing to find. */
+        const under = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>('[data-cell]')
+        const id = under?.dataset.cell
+        if (!id) return
         // the drag has left the cell it started in: it is painting a stretch now, not
-        // fine-tuning one block, so the handles stand down
-        if (!d.moved) { d.moved = true; setSel(null); if (d.hit) flipSlot(d.day, Math.floor(d.anchorMin / step) * step, Math.floor(d.anchorMin / step) * step + step) }
-        flipSlot(day.key, ti * step, (ti + 1) * step)
+        // fine-tuning one block, so the handles stand down. The cell it started in joins
+        // the trail here — a press on your own block did not flip it, and a press in the
+        // empty stretch of a partial dropped a band the sweep now supersedes.
+        if (!d.moved) {
+          d.moved = true
+          setSel(null)
+          if (!d.trail.length) d.trail.push(cellId(d.day, d.ti))
+        }
+        const at = d.trail.indexOf(id)
+        if (at === d.trail.length - 1) return // still on the cell it last acted on
+        // back over a cell it has already crossed: the trail ends there and everything
+        // past it goes back to how the day was before the press
+        if (at >= 0) d.trail.length = at + 1
+        else d.trail.push(id)
+        applyTrail(d)
         dragRef.current = d
       } else {
         const m = snap5(cur)
@@ -611,9 +643,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     // clamped by the scroller itself at the first and last time slots
     function tick() {
       const d = dragRef.current, el = scroller.current
-      // only a paint sweep scrolls itself along: a handle drag stays put, or the grid
-      // would creep under a resting pointer and stretch the block to the whole day
-      if (!d || !el || d.kind !== 'paint') { rafRef.current = 0; return }
+      /* only a paint sweep scrolls itself along, and only once it is actually sweeping.
+         A handle drag never does, or the grid creeps under a resting pointer and stretches
+         the block to the whole day; and a sweep that has not moved yet never does either,
+         or pressing the top row — which sits inside the edge zone — starts the grid moving
+         before the pointer has asked for anything. */
+      if (!d || !el || d.kind !== 'paint' || !d.moved) { rafRef.current = 0; return }
       const r = el.getBoundingClientRect()
       const headerH = (el.querySelector('.sticky') as HTMLElement | null)?.offsetHeight ?? 56
       const EDGE = 30, MAX_SPEED = 16
@@ -738,13 +773,21 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     commitDay(day, full ? [] : [{ s: 0, e: gridMax }])
     setSel(null)
   }
-  /* a day poll's calendar paints the same way the timetable does: each day the pointer
-     crosses flips on the spot, and the whole sweep is saved once when it is let go. */
-  function flipDay(key: string) {
+  /* a day poll's calendar sweeps the same way the timetable does: the calendar keeps the
+     trail of days the pointer has crossed and hands the whole of it over on every change,
+     so dragging back over one shortens the trail and that day goes back to how it was.
+     The whole sweep is saved once, when it is let go. */
+  const dayBaseRef = useRef<Record<string, Iv[]> | null>(null)
+  function sweepDays(trail: string[]) {
     if (mode !== 'edit') return
-    flipSlot(key, 0, gridMax)
+    dayBaseRef.current ??= mineRef.current
+    let next = dayBaseRef.current
+    for (const key of trail) next = flipIn(next, key, 0)
+    paintRef.current = next
+    setMine(next)
   }
   function endDayDrag() {
+    dayBaseRef.current = null
     const painted = paintRef.current
     paintRef.current = null
     if (painted) commitDays(painted)
@@ -1367,7 +1410,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               cellW={Math.max(40, ((viewportW || 700) - (narrow ? 44 : 60)) / 7)}
               openKey={detail?.day ?? null}
               onToggleDays={toggleDays}
-              onFlipDay={flipDay}
+              onSweep={sweepDays}
               onDragEnd={endDayDrag}
               onOpenDetail={(e, key) => openDetail(e, key, 0)}
             />
@@ -1641,8 +1684,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                       </div>
                     )
                   }
-                  // edit mode — others' context tinted at their peak concurrency; my blocks in clay above
+                  // edit mode — others' availability as context under your own clay. It is
+                  // banded here exactly as it is in view mode: tinting the cell flat at its
+                  // busiest minute was the one place left that rounded somebody's partial
+                  // out to a whole slot, and everything around it had stopped doing that.
                   const oBands = cellBands(othersFiltered[d.key] ?? {}, w0, w1)
+                  const oPaint = mergeSlivers(oBands, minBandDur)
                   const oCount = peakOf(oBands).ids.length
                   const clay = clayFor(oCount)
                   const ivs = editIvsByDay[d.key] ?? []
@@ -1650,7 +1697,19 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   const isTopEdge = !!sel && !dragDel && sel.day === d.key && topCell === ti
                   const isBotEdge = !!sel && !dragDel && sel.day === d.key && botCell === ti
                   return (
-                    <div key={d.key} className={`relative h-[50px] select-none border-b border-r border-grid-line ${ownLeft(di) ? 'border-l border-l-grid-line' : ''}`} style={{ background: heat(oCount, editTotal), boxShadow: d.best ? 'inset 1px 0 0 0 var(--ochre-border), inset -1px 0 0 0 var(--ochre-border)' : undefined }}>
+                    <div key={d.key} data-cell={cellId(d.key, ti)} className={`relative h-[50px] select-none border-b border-r border-grid-line ${ownLeft(di) ? 'border-l border-l-grid-line' : ''}`} style={{ background: 'var(--s2)', boxShadow: d.best ? 'inset 1px 0 0 0 var(--ochre-border), inset -1px 0 0 0 var(--ochre-border)' : undefined }}>
+                      {oPaint.map((b, k) => (
+                        <div
+                          key={`o${k}`}
+                          className="pointer-events-none absolute inset-x-0"
+                          style={{
+                            top: `${((b.s - w0) / step) * 100}%`,
+                            height: `${((b.e - b.s) / step) * 100}%`,
+                            background: heat(b.ids.length, editTotal),
+                            borderTop: b.s > w0 ? '1px dashed var(--grid-dash)' : undefined,
+                          }}
+                        />
+                      ))}
                       {ivs.map((iv, k) => {
                         const cs = Math.max(iv.s, w0), ce = Math.min(iv.e, w1)
                         if (ce <= cs) return null

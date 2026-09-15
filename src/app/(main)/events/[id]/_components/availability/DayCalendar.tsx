@@ -72,7 +72,7 @@ export function buildWeeks(days: GridDay[]): Week[] {
 
 export function DayCalendar({
   days, mode, editable, marked, freeIds, otherIds, total, bestKeys, bestLabel,
-  avatarOf, byRoster, narrow, cellW, openKey, onToggleDays, onFlipDay, onDragEnd, onOpenDetail,
+  avatarOf, byRoster, narrow, cellW, openKey, onToggleDays, onSweep, onDragEnd, onOpenDetail,
 }: {
   days: GridDay[]
   mode: 'view' | 'edit'
@@ -89,7 +89,7 @@ export function DayCalendar({
   cellW: number // resolved width of one day column, for sizing the pile
   openKey: string | null // the day whose breakdown popover is open
   onToggleDays: (keys: string[]) => void
-  onFlipDay: (key: string) => void // one day, on the spot, without saving yet
+  onSweep: (trail: string[]) => void // the days crossed so far, in order, without saving yet
   onDragEnd: () => void // the sweep is over: save it
   onOpenDetail: (e: React.MouseEvent, key: string) => void
 }) {
@@ -118,14 +118,14 @@ export function DayCalendar({
   const HOLD_MS = 160
   const SLOP = 8
   const gridRef = useRef<HTMLDivElement>(null)
-  const dragRef = useRef<{ visited: Set<string>; painting: boolean; key: string; x: number; y: number; touch: boolean } | null>(null)
+  const dragRef = useRef<{ trail: string[]; painting: boolean; key: string; x: number; y: number; touch: boolean } | null>(null)
   const holdRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const cancelHold = () => { if (holdRef.current) { clearTimeout(holdRef.current); holdRef.current = null } }
 
   // the window listeners are bound once, so they reach the current callbacks through refs
-  const flipRef = useRef(onFlipDay)
+  const sweepRef = useRef(onSweep)
   const endRef = useRef(onDragEnd)
-  useEffect(() => { flipRef.current = onFlipDay; endRef.current = onDragEnd })
+  useEffect(() => { sweepRef.current = onSweep; endRef.current = onDragEnd })
 
   useEffect(() => {
     // the cell under a point, by the key stamped on it — works for a finger, which never
@@ -143,9 +143,12 @@ export function DayCalendar({
         return
       }
       const key = keyAt(ev.clientX, ev.clientY)
-      if (!key || d.visited.has(key)) return
-      d.visited.add(key)
-      flipRef.current(key)
+      if (!key) return
+      const at = d.trail.indexOf(key)
+      if (at === d.trail.length - 1) return // still on the day it last acted on
+      if (at >= 0) d.trail.length = at + 1 // dragged back: the sweep ends here
+      else d.trail.push(key)
+      sweepRef.current([...d.trail])
     }
     function up(ev: PointerEvent) {
       const d = dragRef.current
@@ -153,7 +156,7 @@ export function DayCalendar({
       cancelHold()
       dragRef.current = null
       // a finger that rested but never painted, and did not wander, is a plain tap
-      if (d.touch && !d.painting && Math.abs(ev.clientX - d.x) <= SLOP && Math.abs(ev.clientY - d.y) <= SLOP) flipRef.current(d.key)
+      if (d.touch && !d.painting && Math.abs(ev.clientX - d.x) <= SLOP && Math.abs(ev.clientY - d.y) <= SLOP) sweepRef.current([d.key])
       endRef.current()
     }
     function cancel() { cancelHold(); dragRef.current = null; endRef.current() }
@@ -178,7 +181,7 @@ export function DayCalendar({
   function onCellDown(e: React.PointerEvent, key: string) {
     if (!edit) return
     const touch = e.pointerType === 'touch'
-    dragRef.current = { visited: new Set(), painting: false, key, x: e.clientX, y: e.clientY, touch }
+    dragRef.current = { trail: [], painting: false, key, x: e.clientX, y: e.clientY, touch }
     if (touch) {
       cancelHold()
       holdRef.current = setTimeout(() => {
@@ -186,17 +189,17 @@ export function DayCalendar({
         const d = dragRef.current
         if (!d || d.key !== key) return
         d.painting = true
-        d.visited.add(key)
+        d.trail.push(key)
         try { navigator.vibrate?.(8) } catch { /* not every phone hums */ }
-        flipRef.current(key)
+        sweepRef.current([...d.trail])
       }, HOLD_MS)
       return
     }
     e.preventDefault()
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
     dragRef.current.painting = true
-    dragRef.current.visited.add(key)
-    onFlipDay(key)
+    dragRef.current.trail.push(key)
+    onSweep([key])
   }
 
   const boxCls = (on: boolean) =>
