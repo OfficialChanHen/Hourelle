@@ -49,6 +49,7 @@ const TIME_COL_NARROW = 62
 const TICK_GAP = 6 // px of clear air between a time and the ticks either side of it
 const PAD_W = 28 // px — a filler day on a phone: a thin hatched strip, not a column that hides the poll
 const COL_MIN = 84 // px — narrowest a real day column gets, so its pile and count both fit
+const GRAB_PX = 11 // half the depth of the bar along a selected block's edge
 const HOLD_MS = 160 // touch: rest the finger this long to start painting; a quicker swipe scrolls
 const SLOP = 8 // px a touch may wander during the hold and still count as resting
 const COARSE = '(pointer: coarse)'
@@ -496,6 +497,20 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   function onCellDown(e: React.PointerEvent, day: string, ti: number) {
     if (mode !== 'edit') return
     const r = e.currentTarget.getBoundingClientRect()
+    /* A press within reach of the selected block's own edge is a grab of that edge, never
+       the start of a paint. The bar along the edge already takes the press itself; this is
+       the backstop for wherever that bar's hit area does not reach, so the press can never
+       fall through and paint the box it was meant to trim. */
+    const cur = selRef.current
+    if (cur && cur.day === day) {
+      const min = ti * step + ((e.clientY - r.top) / r.height) * step
+      const reach = GRAB_PX / pxPerMin // the bar's half-height, in minutes
+      const dTop = Math.abs(min - cur.s), dBot = Math.abs(min - cur.e)
+      if (dTop <= reach || dBot <= reach) {
+        onHandleDown(e, dTop <= dBot ? 'top' : 'bottom')
+        return
+      }
+    }
     // Touch: don't hijack the gesture outright. A finger that rests for a beat starts the
     // same drag as the mouse (and the browser's scroll is held off from then on); a quick
     // swipe scrolls the grid; a stationary release is a tap-to-mark (see onCellTap).

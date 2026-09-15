@@ -75,17 +75,29 @@ function rejected(action: string, message: string) {
    Since row policies and the field trigger can now say no, a refusal is announced
    rather than swallowed — an offline queue is still a later refinement. */
 /* What of an event actually travels inside its document.
-   Three things are deliberately cut out, each for the same reason: they are written
-   by everyone at once, and a document write replaces the whole thing. Messages are
-   their own rows (pushMessage), and since migration 0008 so are availability and the
-   ballot (pushAnswers). `avail` stays — it is derived from the intervals, it is the
-   only copy of an answer on an event old enough to predate `availIv`, and every
-   client recomputes it from the same rows, so a stale one costs nothing. */
+   Three things are cut out, each for the same reason: they are written by everyone at
+   once, and a document write replaces the whole thing. Messages are their own rows
+   (pushMessage), and since migration 0008 so are availability and the ballot
+   (pushAnswers). `avail` stays — it is derived from the intervals, it is the only copy
+   of an answer on an event old enough to predate `availIv`, and every client recomputes
+   it from the same rows, so a stale one costs nothing.
+
+   They are only cut once the database has actually said the rows are there. "Not known
+   to be missing" is not the same fact: `rowsMissing` starts false, so cutting on that
+   alone throws the answers away on the very first write of the session, before the
+   failure that would have told us the tables are absent has even come back. On a
+   database without migration 0008 the document IS the storage, and cutting them loses
+   real data — availability falls back to the per-cell `avail`, so every minute-precise
+   answer snaps out to whole slots, and the ballot and the explicit "none of these days
+   work" have nowhere left to live at all. */
+let rowsReady = false // the database has answered about `availability` / `votes`
 const docOf = (ev: AppEvent) => {
   const doc: Partial<AppEvent> = { ...ev, messages: [] }
-  delete doc.availIv
-  delete doc.votes
-  delete doc.unavailableIds
+  if (rowsReady) {
+    delete doc.availIv
+    delete doc.votes
+    delete doc.unavailableIds
+  }
   return doc
 }
 
@@ -164,6 +176,7 @@ async function loadAnswers(ids: string[]): Promise<{ avail: AvailRow[]; votes: V
     console.warn('aline: answers pull failed', a.error?.message ?? v.error?.message)
     return null
   }
+  rowsReady = true
   return { avail: (a.data ?? []) as AvailRow[], votes: (v.data ?? []) as VoteRow[] }
 }
 
@@ -214,7 +227,8 @@ function mergeAnswers(list: AppEvent[], answers: { avail: AvailRow[]; votes: Vot
 export function pushAnswers(before: AppEvent, after: AppEvent): void {
   if (!backendOn || rowsMissing || after.demo) return
   const fail = (what: string) => ({ error }: { error: { message: string } | null }) => {
-    if (error && !noteMissing(error.message)) rejected(what, error.message)
+    if (!error) { rowsReady = true; return }
+    if (!noteMissing(error.message)) rejected(what, error.message)
   }
 
   // availability: your whole answer, upserted. An emptied answer is written as an
