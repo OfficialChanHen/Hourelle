@@ -78,6 +78,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // a set venue is a fact the host stated — no voting, no guest suggestions
   const settled = mode === 'set'
   const canAddPlaces = !locked && !votingClosed && !!YOU && (event.hostedByYou || (guestsCanSuggest && !settled))
+  // the itinerary is the host's to build: its stops, their order, how long each one
+  // takes and when the day starts. Everyone else reads it.
+  const canEditItin = event.hostedByYou && !locked
   const pById = new Map(event.participants.map((p) => [p.id, p]))
   const avatarOf = (id: string) => {
     const p = pById.get(id)
@@ -117,6 +120,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   useFollow(!!loc.guestsCanSuggest, setGuestsCanSuggest)
   useFollow(loc.meetingLink, setMeetingLink)
   useFollow(loc.mode === 'later' ? 'vote' : loc.mode, (m) => { setMode(m); if (m === 'set' || m === 'vote') inPerson.current = m })
+  useFollow<'vote' | 'itin'>(loc.planMode === 'itinerary' ? 'itin' : 'vote', (v) => { setSub(v); setFocusPin(null) })
   useFollow(event.votes ?? {}, setVotes)
   useFollow(event.maxVotes ?? 1, (n) => { setMaxVotes(n); setCustomVotes((c) => c || n > 3) })
   useFollow(!!event.hideVoters, setHideVoters)
@@ -536,15 +540,24 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
             <button onClick={() => setSheetOpen(false)} onPointerDown={(e) => e.stopPropagation()} aria-label="Close" className="absolute right-1 grid h-10 w-10 place-items-center rounded-lg text-dim hover:text-text"><X size={18} /></button>
           </div>
           <div className="mb-3 flex flex-none items-center gap-2">
-            <SegmentedControl
-              size="sm"
-              stretch
-              className="flex-1"
-              value={sub}
-              onChange={(v) => { setSub(v as 'vote' | 'itin'); setFocusPin(null) }}
-              options={[{ v: 'vote', l: settled ? 'Venue' : 'Venue vote' }, { v: 'itin', l: 'Itinerary' }]}
-            />
-            {sub === 'itin' && !locked && (
+            {/* whether the place is a ballot or a route is the host's decision, the
+                same as in person or remote above it. Everyone else is shown the one
+                that was chosen, and moves with it when the host changes their mind. */}
+            {event.hostedByYou ? (
+              <SegmentedControl
+                size="sm"
+                stretch
+                className="flex-1"
+                value={sub}
+                onChange={(v) => { setSub(v as 'vote' | 'itin'); setFocusPin(null); persistLoc({ planMode: v === 'itin' ? 'itinerary' : 'vote' }) }}
+                options={[{ v: 'vote', l: settled ? 'Venue' : 'Venue vote' }, { v: 'itin', l: 'Itinerary' }]}
+              />
+            ) : (
+              <span className="flex h-8 min-w-0 flex-1 items-center text-[13.5px] font-semibold">
+                {sub === 'itin' ? 'Itinerary' : settled ? 'Venue' : 'Venue vote'}
+              </span>
+            )}
+            {sub === 'itin' && canEditItin && (
               // adding lives in a dropdown so the stop list keeps the room
               <Popover
                 align="end"
@@ -749,7 +762,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
 
           {sub === 'itin' && (
             <div className="flex min-h-0 flex-1 flex-col gap-2">
-              {!locked && rankChanged && (
+              {canEditItin && rankChanged && (
                 <div className="rounded-[10px] border border-ochre-border bg-ochre-bg p-3">
                   <div className="flex items-start gap-2">
                     <RefreshCw size={15} className="mt-0.5 flex-none text-ochre-text" />
@@ -770,9 +783,11 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                     <p className="mx-auto mt-1 max-w-[250px] text-[13px] leading-[1.5] text-dim">
                       {locked
                         ? 'The plan was locked without stops. The host can reopen planning to build one.'
-                        : 'Build one from the top-voted places, or add stops one at a time below.'}
+                        : canEditItin
+                          ? 'Build one from the top-voted places, or add stops one at a time below.'
+                          : 'The host puts the route together. Voting on places is how you steer it.'}
                     </p>
-                    {!locked && (
+                    {canEditItin && (
                       <button
                         onClick={buildFromVotes}
                         disabled={places.length === 0}
@@ -782,7 +797,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                       </button>
                     )}
                   </div>
-                  {!locked && <AddStopList near={near} places={places} stops={stops} canAdd={canAddPlaces} onExisting={addStop} onNew={addNewPlaceAsStop} />}
+                  {canEditItin && <AddStopList near={near} places={places} stops={stops} canAdd={canAddPlaces} onExisting={addStop} onNew={addNewPlaceAsStop} />}
                 </div>
               ) : (
                 <>
@@ -804,7 +819,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                   <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-border bg-s0 px-2.5 py-2">
                     <span className="flex items-center gap-1.5 text-[12.5px] font-medium text-dim">
                       <Clock size={13} /> Starts
-                      {locked
+                      {!canEditItin
                         ? <span className="text-[12.5px] font-semibold text-text tabular-nums">{fmtMinute(itinStartMin)}</span>
                         : <TimeSelect value={itinStartMin} onChange={changeStart} min={minStart} max={maxStart} title={`When the itinerary begins${bw ? ` — best free window ${fmtMinute(winStart!)} to ${fmtMinute(winEnd!)}, ${bw.count} of ${event.participants.length} free` : ''}`} />}
                     </span>
@@ -813,7 +828,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                       {legs.length > 0 && <> with {fmtDuration(routeMinutes)} of travel</>}
                     </span>
                     <span className="ml-auto">
-                      {locked ? (
+                      {!canEditItin ? (
                         <span className="flex flex-wrap items-center gap-1">
                           {travelModes.map((m) => { const Icon = MODE_ICON[m]; return (
                             <span key={m} title={MODE_LABEL[m]} className="flex items-center gap-1 rounded-full border border-accent-border bg-accent-bg px-1.5 py-0.5 text-[11px] font-medium text-accent-text"><Icon size={11} /></span>
@@ -853,12 +868,14 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                       <div className={`flex w-full items-start gap-1.5 text-[12px] leading-[1.4] ${anyUnreachable || pastMidnight ? 'text-brick-text' : 'text-ochre-text'}`}>
                         <TriangleAlert size={12} className="mt-px flex-none" />
                         <span>
+                          {/* the fact is worth knowing either way; the fix only reads
+                              as help to the person who can actually make it */}
                           {anyUnreachable
                             ? 'Some legs have no route with the modes you allow.'
                             : pastMidnight
-                              ? `Runs past midnight, ending ${fmtMinuteDay(endMin)}. An itinerary covers one day, so start earlier or trim a stop.`
+                              ? `Runs past midnight, ending ${fmtMinuteDay(endMin)}.${canEditItin ? ' An itinerary covers one day, so start earlier or trim a stop.' : ''}`
                             : overDuration
-                              ? `Runs ${fmtDuration(itinDuration)}, longer than the ${fmtDuration(eventDuration)} set aside. Trim a stop or shorten time at a venue.`
+                              ? `Runs ${fmtDuration(itinDuration)}, longer than the ${fmtDuration(eventDuration)} set aside.${canEditItin ? ' Trim a stop or shorten time at a venue.' : ''}`
                               : `Runs past the best free window (ends ~${fmtMinute(endMin)}, window closes ${fmtMinute(winEnd!)}).`}
                         </span>
                       </div>
@@ -877,7 +894,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                             data-reorder-item
                             className={`flex items-start gap-2 rounded-xl border bg-s0 p-2.5 ${stopReorder.dragIndex === i ? 'border-accent-border opacity-60 shadow-soft' : 'border-border'}`}
                           >
-                            {!locked && <button {...stopReorder.handleProps(i)} aria-label="Drag to reorder" className="mt-0.5 flex-none text-faint hover:text-dim"><GripVertical size={17} /></button>}
+                            {canEditItin && <button {...stopReorder.handleProps(i)} aria-label="Drag to reorder" className="mt-0.5 flex-none text-faint hover:text-dim"><GripVertical size={17} /></button>}
                             <span className="mt-px grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[12.5px] font-bold text-on-accent">{i + 1}</span>
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-1.5">
@@ -889,13 +906,13 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                               <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
                                 <span className="flex items-center gap-1 text-[12px] font-semibold text-accent-text"><Clock size={12} /> {fmtMinuteDay(schedule[i].arrive)} – {fmtMinuteDay(schedule[i].depart)}</span>
                                 <span className="flex items-center gap-1 text-[12px] text-dim">
-                                  {!locked && <button onClick={() => changeDwell(i, s.dwell - 15)} disabled={s.dwell <= 15} className="grid h-[15px] w-[15px] place-items-center rounded border border-border enabled:hover:bg-s2 disabled:opacity-30" aria-label="Less time"><Minus size={10} /></button>}
+                                  {canEditItin && <button onClick={() => changeDwell(i, s.dwell - 15)} disabled={s.dwell <= 15} className="grid h-[15px] w-[15px] place-items-center rounded border border-border enabled:hover:bg-s2 disabled:opacity-30" aria-label="Less time"><Minus size={10} /></button>}
                                   {fmtDuration(s.dwell)} here
-                                  {!locked && <button onClick={() => changeDwell(i, s.dwell + 15)} className="grid h-[15px] w-[15px] place-items-center rounded border border-border hover:bg-s2" aria-label="More time"><Plus size={10} /></button>}
+                                  {canEditItin && <button onClick={() => changeDwell(i, s.dwell + 15)} className="grid h-[15px] w-[15px] place-items-center rounded border border-border hover:bg-s2" aria-label="More time"><Plus size={10} /></button>}
                                 </span>
                               </div>
                             </div>
-                            {!locked && (
+                            {canEditItin && (
                               <div className="flex flex-none items-center">
                                 <button onClick={() => moveStop(i, -1)} disabled={i === 0} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move up"><ChevronUp size={17} /></button>
                                 <button onClick={() => moveStop(i, 1)} disabled={i === stops.length - 1} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move down"><ChevronDown size={17} /></button>
