@@ -60,6 +60,10 @@ export function HowItWorks() {
   // a click on a step scrolls there; the scroll triggers stay quiet on the way
   const muted = useRef(false)
   const [pressing, setPressing] = useState(false)
+  // is the frame actually pinned to the top? Only then does the band below it have
+  // anything to hide, and only then may it paint — see the band's own note
+  const [stuck, setStuck] = useState(false)
+  const sentinel = useRef<HTMLDivElement>(null)
 
   // scene state, all driven by the timelines below
   const [typed, setTyped] = useState('')
@@ -73,6 +77,16 @@ export function HowItWorks() {
   const [best, setBest] = useState(false)
   const [locked, setLocked] = useState(false)
   const [lockPressed, setLockPressed] = useState(false)
+
+  // a hairline just above the frame: once it has passed the line the frame pins to,
+  // the frame is pinned. Cheaper and steadier than measuring on every scroll.
+  useEffect(() => {
+    const el = sentinel.current
+    if (!el) return
+    const io = new IntersectionObserver(([e]) => setStuck(!e.isIntersecting), { rootMargin: '-70px 0px 0px 0px', threshold: 0 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
 
   // where a step's text has to reach for its scene to play, in viewport pixels
   const wide = () => window.matchMedia('(min-width: 1024px)').matches
@@ -220,9 +234,14 @@ export function HowItWorks() {
       {/* the frame: sticky beside the steps on wide screens, above them on a phone.
           Sticky sits on the direct child so its containing block is the whole
           section (tall) on a phone and the full-height grid column on a desktop. */}
+      {/* the hairline that tells the frame it has been pinned */}
+      <div ref={sentinel} aria-hidden className="h-px lg:hidden" />
       {/* on a phone the header slides away on a downward scroll, which would leave the
-          steps showing through the gap above the pinned frame: the band fills it */}
-      <div className="relative sticky top-[70px] z-[5] mb-8 before:absolute before:inset-x-[-24px] before:-top-[70px] before:h-[70px] before:bg-bg lg:order-last lg:top-[96px] lg:mb-0 lg:self-start lg:before:hidden">
+          steps showing through the gap above the pinned frame: the band fills it.
+          Only once the frame is pinned, though — painted always, it travels above an
+          unpinned frame and slices whatever is behind it, which is how it used to cut
+          the last line off the section's own heading. */}
+      <div className={`relative sticky top-[70px] z-[5] mb-8 lg:order-last lg:top-[96px] lg:mb-0 lg:self-start ${stuck ? 'before:absolute before:inset-x-[-24px] before:-top-[70px] before:h-[70px] before:bg-bg lg:before:hidden' : ''}`}>
         <div>
           <div ref={frame} className="hiw-frame relative overflow-hidden rounded-2xl border border-border bg-s1 shadow-soft">
             {/* browser chrome */}
