@@ -92,3 +92,32 @@ export function padToWeeks(days: GridDay[]): GDay[] {
 /* ── how long the event needs — drives the best-window search (set in the Settings popover) ── */
 export function fmtDur(m: number) { return m < 60 ? `${m}m` : m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h` }
 
+
+/* ── the pile on a cell's bottom line ──
+   Faces stack the way the participant strip stacks them, then a +N chip of the same
+   size, and the whole run has to clear the n/total count in the other corner.
+
+   A phone carries no faces at all. Seven columns divide a small screen into cells around
+   37px wide, where a face is a smudge and a lone +N says nothing the count has not
+   already said — so a small screen passes a cap of nought and the heat and the count
+   carry the cell on their own. Both grids go through here, so both behave the same. */
+export const PILE_AV = 20 // face diameter inside a cell
+export const PILE_OVER = 4 // how far each tucks under the one before it — the participant strip's fifth
+export const PILE_FONT = 9 // initials stay readable at this diameter
+export function pileWidth(items: number) {
+  return items <= 0 ? 0 : PILE_AV + (items - 1) * (PILE_AV - PILE_OVER)
+}
+/* what the count needs, sized for the widest it can get: tabular digits at 9.5px bold
+   run about 5.4px, the slash about 3, and 6 more separates it from the pile. Measured
+   rather than rounded up, because an over-estimate here costs a face on a phone. */
+export function countWidth(total: number) {
+  return String(total).length * 2 * 5.4 + 3 + 6
+}
+export function pileFit(n: number, cap: number, colW: number, total: number): { shown: number; chip: number } {
+  if (cap <= 0) return { shown: 0, chip: 0 } // this screen does not carry faces at all
+  const avail = colW - 8 - countWidth(total)
+  let shown = Math.min(n, cap)
+  while (shown > 0 && pileWidth(shown + (n > shown ? 1 : 0)) > avail) shown--
+  // a lone +N says nothing a count does not already say, so below one face it all goes
+  return shown > 0 ? { shown, chip: n - shown } : { shown: 0, chip: 0 }
+}

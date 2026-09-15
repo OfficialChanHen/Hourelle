@@ -1,14 +1,15 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { ChevronLeft, ChevronRight, ChevronDown, X, Check, Bell, Info, SlidersHorizontal, Trash2 } from 'lucide-react'
-import { Avatar } from '@/components/ui/Avatar'
+import { ChevronLeft, ChevronRight, ChevronDown, X, Check, Bell, Info, SlidersHorizontal, Trash2, Zap } from 'lucide-react'
+
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Popover } from '@/components/ui/Popover'
 import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, MissingPopover, PadGrip, PresetFills, Segment } from './availability/parts'
-import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, subtract, type Band, type GDay } from './availability/grid-lib'
+import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, PILE_AV, PILE_FONT, PILE_OVER, subtract, type Band, type GDay } from './availability/grid-lib'
+import { DayCalendar } from './availability/DayCalendar'
 import { prefH24, prefWholeWeek } from '@/lib/prefs'
 import { useAccount } from '@/hooks/useAccount'
 import { useFollow } from '@/hooks/useFollow'
@@ -26,12 +27,12 @@ type Edge = 'top' | 'bottom'
 type Sel = { day: string; s: number; e: number; edge: Edge }
 
 type Drag =
-  // paint: a rectangle from the anchor cell to wherever the pointer is — any direction,
-  // across days as well as times. `days` are the real day keys the rectangle covers.
-  // Started on one of your blocks it erases instead (or, released without moving, selects it).
+  // paint: the pointer flips each cell it crosses, on if it was off and off if it was on,
+  // and `visited` keeps it to once per cell so wandering back over one doesn't thrash it.
+  // Pressed on one of your blocks and released without moving, it selects that block instead.
   | {
       kind: 'paint'; day: string; di: number; anchorClientY: number; anchorScrollTop: number; anchorScrollLeft: number; anchorMin: number
-      block: Iv | null; days: string[]; erase: boolean; moved: boolean; hit: Iv | null
+      visited: Set<string>; moved: boolean; hit: Iv | null
     }
   | {
       kind: 'resize'; day: string; edge: Edge; fixedMin: number
@@ -41,8 +42,13 @@ type Drag =
 
 const CELL = 50 // px per grid row — must match the h-[50px] cell height below
 const MIN_LEN = 5 // smallest block, in minutes
-const TIME_COL = 54 // px — the sticky time column, must match the grid template below
+// the time rail, wide enough for "12:30 AM" on one line beside its tick. A phone gives
+// up the slack: every pixel here is a pixel the days do not get.
+const TIME_COL = 82
+const TIME_COL_NARROW = 62
+const TICK_GAP = 6 // px of clear air between a time and the ticks either side of it
 const PAD_W = 28 // px — a filler day on a phone: a thin hatched strip, not a column that hides the poll
+const COL_MIN = 84 // px — narrowest a real day column gets, so its pile and count both fit
 const HOLD_MS = 160 // touch: rest the finger this long to start painting; a quicker swipe scrolls
 const SLOP = 8 // px a touch may wander during the hold and still count as resting
 const COARSE = '(pointer: coarse)'
@@ -196,20 +202,31 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // grayed edge is too weak to frame it. Covers a leading filler AND gaps inside a
   // sparse poll; with a real neighbor (or the time column) the shared border does the job.
   const ownLeft = (di: number) => di > 0 && cols[di - 1].pad
+  // true when this column opens a month the one before it was not in (or opens the week)
+  const monthTurn = (di: number) => {
+    const mine = cols[di]?.date.split(' ')[0]
+    for (let i = di - 1; i >= 0; i--) if (!cols[i].pad) return cols[i].date.split(' ')[0] !== mine
+    return true
+  }
 
   // a phone shows three or four columns at a time, so the filler days that square a
   // week off collapse to thin strips there — otherwise a poll starting on a Friday
   // opens on nothing but hatching, which reads as "nothing to tap here"
   const narrow = (viewportW || 999) < 600
-  const colTrack = (d: GDay) => (d.pad && narrow ? `${PAD_W}px` : 'minmax(72px, 1fr)')
-  // avatar icons per cell stay scarce by design: at most 3 on wide screens, 2 on
-  // phones — the "+N" chip and the n/N corner count carry the rest of the story
-  const avatarCap = narrow ? 2 : 3
+  const timeCol = narrow ? TIME_COL_NARROW : TIME_COL
+  const timeColRef = useRef(timeCol)
+  const colTrack = (d: GDay) => (d.pad && narrow ? `${PAD_W}px` : `minmax(${narrow ? 0 : COL_MIN}px, 1fr)`)
+  // faces per cell stay scarce by design: four on a wide screen, none at all on a small
+  // one, where the "+N" chip and the n/N corner count carry the story by themselves
+  const avatarCap = narrow ? 0 : 4
   // the pile still bows to the column width: 17px avatars + 2px gaps in a 5px-padded
   // cell, so narrow columns shrink the pile instead of spilling into cells below
-  const colW = Math.max(72, ((viewportW || 0) - 54) / WEEK)
-  const pileRow = Math.max(1, Math.floor((colW - 12) / 19))
-  const pileMax = Math.min(avatarCap + 1, pileRow * 2 - 1)
+  // the real resolved width of a day column — on a phone that is whatever a seventh of
+  // the sheet comes to, and the pile is sized against it rather than against a floor
+  const colW = (() => {
+    const each = ((viewportW || 0) - timeCol) / Math.max(1, cols.length)
+    return narrow ? Math.max(24, each) : Math.max(COL_MIN, each)
+  })()
 
   // timezone conversion: shift is 0 unless "my time" is on and the local zone differs
   const day0 = event.days[0]?.key ?? ''
@@ -219,6 +236,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const localTz = localTimeZone()
   const fmt = (min: number) => fmtMinute(min + shift, h24)
 
+  useEffect(() => { timeColRef.current = timeCol }, [timeCol])
   const mineRef = useRef(mine); useEffect(() => { mineRef.current = mine }, [mine])
   const selRef = useRef(sel); useEffect(() => { selRef.current = sel }, [sel])
   const dragRef = useRef<Drag | null>(null)
@@ -243,7 +261,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const el = scroller.current
     if (!el) return
     const target = (8 * 60 - gridStartMin) * pxPerMin
-    if (target > 0) { el.scrollTop = target; setScrollTop(target) }
+    // read the offset back rather than trusting the one asked for: a short grid (a
+    // handful of rows starting at midnight) cannot scroll that far, and a scrollTop
+    // past the end would window the virtualizer clean off the rows and draw nothing
+    if (!dayPoll && target > 0) { el.scrollTop = target; setScrollTop(el.scrollTop) }
     setViewportH(el.clientHeight)
     setViewportW(el.clientWidth)
     const ro = new ResizeObserver(() => { setViewportH(el.clientHeight); setViewportW(el.clientWidth) })
@@ -261,8 +282,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const edges = colEdges()
     // only when the first real day would otherwise be off screen; if it already fits,
     // the week stays put with its filler in view
-    const inView = first <= 0 || edges[first] == null || edges[first] + 72 <= el.clientWidth
-    el.scrollLeft = inView ? 0 : edges[first] - TIME_COL
+    const inView = first <= 0 || edges[first] == null || edges[first] + COL_MIN <= el.clientWidth
+    el.scrollLeft = inView ? 0 : edges[first] - timeCol
   }, [page, narrow, leadOpen, trailOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // scroll → recompute the visible row window (rAF-throttled; also fires during drag auto-scroll)
@@ -400,6 +421,20 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     return m.length ? { ...(source[day] ?? {}), [meId]: m } : { ...(source[day] ?? {}) }
   }
 
+  /* a paint drag writes to the screen as it goes and to storage once, at the end:
+     `paintRef` carries the working copy so a sweep over twenty cells is twenty repaints
+     and one save, not twenty saves. */
+  const paintRef = useRef<Record<string, Iv[]> | null>(null)
+  function flipSlot(day: string, w0: number, w1: number) {
+    const pm = paintRef.current ?? mineRef.current
+    const base = pm[day] ?? []
+    const on = base.some((iv) => iv.s <= w0 && iv.e >= w1)
+    const next = { ...pm, [day]: normalizeIv(on ? base.flatMap((iv) => subtract(iv, w0, w1)) : [...base, { s: w0, e: w1 }]) }
+    paintRef.current = next
+    setMine(next)
+    return next
+  }
+
   // ── coordinate + snapping helpers ──
   const snap5 = (m: number) => Math.max(0, Math.min(gridMax, Math.round(m / 5) * 5))
   const rowStart = (m: number) => Math.max(0, Math.min(gridMax - step, Math.floor(m / step) * step))
@@ -411,7 +446,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     if (!g) return []
     const tracks = getComputedStyle(g).gridTemplateColumns.split(' ').map(parseFloat).filter((n) => !Number.isNaN(n))
     const out: number[] = []
-    let x = tracks[0] || TIME_COL
+    let x = tracks[0] || timeColRef.current
     for (let i = 1; i < tracks.length; i++) { out.push(x); x += tracks[i] }
     return out
   }
@@ -426,43 +461,36 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     for (let k = 0; k < edges.length; k++) if (x >= edges[k]) i = k
     return Math.min(n - 1, i)
   }
-  // the real days between two columns, in order — filler days are skipped, never painted
-  function daysBetween(a: number, b: number) {
-    return weekDaysRef.current.slice(Math.min(a, b), Math.max(a, b) + 1).filter((d) => !d.pad).map((d) => d.key)
-  }
-  // start a rectangle drag from a cell: shared by the mouse (on press) and touch (after the hold).
-  // Over one of your blocks it erases instead of paints; a release without moving selects that block.
+  // start a paint sweep from a cell: shared by the mouse (on press) and touch (after the hold).
+  // Pressed over one of your own blocks it only arms — a release without moving selects it.
   function beginDrag(day: string, ti: number, clientX: number, clientY: number, top: number, height: number) {
     const di = weekDaysRef.current.findIndex((d) => d.key === day)
     if (di < 0) return
     const gridMin = Math.max(0, Math.min(gridMax, ti * step + ((clientY - top) / height) * step))
-    let hit: Iv | null = null
-    if (dayPoll) hit = (mine[day] ?? []).length ? { s: 0, e: gridMax } : null
-    else {
-      hit = (mine[day] ?? []).find((iv) => gridMin >= iv.s && gridMin <= iv.e) ?? null
-      if (!hit) {
-        // a slot already holding a partial never floods to full — a press in its empty
-        // stretch drops a 5-minute band right there instead (a second partial), and the
-        // normalize pass coalesces it into anything it touches
-        const w0 = ti * step, w1 = w0 + step
-        const touching = (mine[day] ?? []).filter((iv) => iv.s < w1 && iv.e > w0)
-        if (touching.length > 0) {
-          const s = Math.max(0, Math.min(gridMax - MIN_LEN, snap5(gridMin - MIN_LEN / 2)))
-          const norm = commitDay(day, [...(mine[day] ?? []), { s, e: s + MIN_LEN }])
-          selectMerged(day, norm, s + MIN_LEN / 2, 'bottom')
-          return
-        }
-      }
-    }
-    const a = dayPoll ? 0 : rowStart(gridMin)
+    const hit: Iv | null = (mine[day] ?? []).find((iv) => gridMin >= iv.s && gridMin <= iv.e) ?? null
+    const w0 = ti * step, w1 = w0 + step
+    paintRef.current = null
     const d: Drag = {
       kind: 'paint', day, di, anchorClientY: clientY, anchorMin: gridMin,
       anchorScrollTop: scroller.current?.scrollTop ?? 0, anchorScrollLeft: scroller.current?.scrollLeft ?? 0,
-      block: dayPoll ? { s: 0, e: gridMax } : { s: a, e: a + step }, days: [day], erase: !!hit, moved: false, hit,
+      visited: new Set([`${day}|${ti}`]), moved: false, hit,
     }
     dragRef.current = d; setDrag(d)
     lastXRef.current = clientX; lastYRef.current = clientY
-    if (!hit) setSel(null) // over a block the handles stay until the drag actually moves
+    if (hit) return // your own block: the press only arms it — release without moving selects it
+    // a slot already holding a partial never floods to full — a press in its empty
+    // stretch drops a 5-minute band right there instead (a second partial), and the
+    // normalize pass coalesces it into anything it touches
+    const touching = (mine[day] ?? []).filter((iv) => iv.s < w1 && iv.e > w0)
+    if (touching.length > 0) {
+      const a = Math.max(0, Math.min(gridMax - MIN_LEN, snap5(gridMin - MIN_LEN / 2)))
+      const pm = { ...mineRef.current, [day]: normalizeIv([...(mine[day] ?? []), { s: a, e: a + MIN_LEN }]) }
+      paintRef.current = pm; setMine(pm)
+      selectMerged(day, pm[day], a + MIN_LEN / 2, 'bottom')
+      return
+    }
+    const next = flipSlot(day, w0, w1)
+    selectMerged(day, next[day], (w0 + w1) / 2, 'bottom') // one slot filled opens its handles
   }
   function cancelHold() {
     if (holdRef.current) { clearTimeout(holdRef.current); holdRef.current = null }
@@ -504,12 +532,6 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const t = tapRef.current; tapRef.current = null
     if (!t || t.day !== day || t.ti !== ti) return
     if (Math.abs(e.clientY - t.y) > SLOP || Math.abs(e.clientX - t.x) > SLOP) return // was a scroll, not a tap
-    // day polls have no partial times and no handles: a day is on or off, one tap each way
-    if (dayPoll) {
-      commitDay(day, (mine[day] ?? []).length ? [] : [{ s: 0, e: gridMax }])
-      setSel(null)
-      return
-    }
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
     const gridMin = Math.max(0, Math.min(gridMax, ti * step + ((e.clientY - r.top) / r.height) * step))
     const hit = (mine[day] ?? []).find((iv) => gridMin >= iv.s && gridMin <= iv.e)
@@ -550,13 +572,18 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       const scrollDelta = (scroller.current?.scrollTop ?? 0) - d.anchorScrollTop
       const cur = Math.max(0, Math.min(gridMax, d.anchorMin + (clientY - d.anchorClientY + scrollDelta) / pxPerMin))
       if (d.kind === 'paint') {
-        const a = rowStart(d.anchorMin), c = rowStart(cur)
         const di = colAt(clientX)
-        const moved = d.moved || di !== d.di || (!dayPoll && c !== a)
-        const block = dayPoll ? { s: 0, e: gridMax } : { s: Math.min(a, c), e: Math.max(a, c) + step }
-        const nd: Drag = { ...d, block, days: daysBetween(d.di, di), moved }
-        dragRef.current = nd; setDrag(nd)
-        if (moved && !d.moved && d.hit) setSel(null) // an erase drag left its block: the handles go
+        const day = weekDaysRef.current[di]
+        const ti = Math.max(0, Math.min(rows - 1, Math.floor(cur / step)))
+        if (!day || day.pad) return // filler days are not part of the question
+        const cellId = `${day.key}|${ti}`
+        if (d.visited.has(cellId)) return
+        d.visited.add(cellId)
+        // the drag has left the cell it started in: it is painting a stretch now, not
+        // fine-tuning one block, so the handles stand down
+        if (!d.moved) { d.moved = true; setSel(null); if (d.hit) flipSlot(d.day, Math.floor(d.anchorMin / step) * step, Math.floor(d.anchorMin / step) * step + step) }
+        flipSlot(day.key, ti * step, (ti + 1) * step)
+        dragRef.current = d
       } else {
         const m = snap5(cur)
         let block: Iv | null = null, del = false
@@ -571,7 +598,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     // clamped by the scroller itself at the first and last time slots
     function tick() {
       const d = dragRef.current, el = scroller.current
-      if (!d || !el) { rafRef.current = 0; return }
+      // only a paint sweep scrolls itself along: a handle drag stays put, or the grid
+      // would creep under a resting pointer and stretch the block to the whole day
+      if (!d || !el || d.kind !== 'paint') { rafRef.current = 0; return }
       const r = el.getBoundingClientRect()
       const headerH = (el.querySelector('.sticky') as HTMLElement | null)?.offsetHeight ?? 56
       const EDGE = 30, MAX_SPEED = 16
@@ -581,7 +610,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       else if (y > r.bottom - EDGE) dy = Math.min(MAX_SPEED, (y - (r.bottom - EDGE)) / 3)
       // sideways too, past the sticky time column — a cross-day drag on a phone reaches every day
       if (d.kind === 'paint') {
-        if (x < r.left + TIME_COL + EDGE) dx = -Math.min(MAX_SPEED, (r.left + TIME_COL + EDGE - x) / 3)
+        if (x < r.left + timeColRef.current + EDGE) dx = -Math.min(MAX_SPEED, (r.left + timeColRef.current + EDGE - x) / 3)
         else if (x > r.right - EDGE) dx = Math.min(MAX_SPEED, (x - (r.right - EDGE)) / 3)
       }
       if (dy || dx) {
@@ -596,30 +625,19 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       if (!dragRef.current) return
       lastYRef.current = ev.clientY; lastXRef.current = ev.clientX
       updateDrag(ev.clientX, ev.clientY)
-      if (!rafRef.current) rafRef.current = requestAnimationFrame(tick)
+      if (!rafRef.current && dragRef.current?.kind === 'paint') rafRef.current = requestAnimationFrame(tick)
     }
     function up() {
       if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = 0 }
       const d = dragRef.current; if (!d) return
       dragRef.current = null; touchDragRef.current = false
       if (d.kind === 'paint') {
-        if (dayPoll) {
-          // a press that never moved toggles its day; a drag sets the whole run on or off
-          if (!d.moved) commitDay(d.day, d.hit ? [] : [{ s: 0, e: gridMax }])
-          else commitDays(Object.fromEntries(d.days.map((k) => [k, d.erase ? [] : [{ s: 0, e: gridMax }]])))
-          setSel(null)
-        } else if (d.erase && !d.moved) {
-          if (d.hit) setSel({ day: d.day, s: d.hit.s, e: d.hit.e, edge: 'bottom' }) // press a block → select, never toggle off
-        } else if (d.block) {
-          const b = d.block
-          const norm = commitDays(Object.fromEntries(d.days.map((k) => {
-            const base = mineRef.current[k] ?? []
-            return [k, d.erase ? base.flatMap((iv) => subtract(iv, b.s, b.e)) : [...base, b]]
-          })))
-          // one day's fresh block opens the handle chip for fine-tuning; a swept rectangle doesn't
-          if (!d.erase && d.days.length === 1) selectMerged(d.days[0], norm[d.days[0]], (b.s + b.e) / 2, 'bottom')
-          else setSel(null)
-        }
+        // pressed on your own block and let go without moving: that is a request to
+        // fine-tune it, not to clear it
+        if (d.hit && !d.moved) setSel({ day: d.day, s: d.hit.s, e: d.hit.e, edge: 'bottom' })
+        const painted = paintRef.current
+        paintRef.current = null
+        if (painted) commitDays(painted)
       } else {
         const base = (mineRef.current[d.day] ?? []).filter((iv) => !(iv.s === d.origS && iv.e === d.origE))
         if (d.del || !d.block) { commitDay(d.day, base); setSel(null) } // dragged to zero → remove
@@ -635,6 +653,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = 0 }
       if (!dragRef.current) return
       dragRef.current = null; touchDragRef.current = false
+      paintRef.current = null
       setDrag(null)
     }
     // touch: once a hold has turned into a drag, the finger paints — the grid must not
@@ -704,6 +723,25 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     commitDay(day, full ? [] : [{ s: 0, e: gridMax }])
     setSel(null)
   }
+  /* a day poll's calendar paints the same way the timetable does: each day the pointer
+     crosses flips on the spot, and the whole sweep is saved once when it is let go. */
+  function flipDay(key: string) {
+    if (mode !== 'edit') return
+    flipSlot(key, 0, gridMax)
+  }
+  function endDayDrag() {
+    const painted = paintRef.current
+    paintRef.current = null
+    if (painted) commitDays(painted)
+  }
+  // a day poll's every control comes through here: one day, a weekday down the whole
+  // poll, a week across, or the lot. All on → the tap clears them; anything off → it fills.
+  function toggleDays(keys: string[]) {
+    if (mode !== 'edit' || !keys.length) return
+    const allOn = keys.every((k) => (mine[k]?.length ?? 0) > 0)
+    commitDays(Object.fromEntries(keys.map((k) => [k, allOn ? [] : [{ s: 0, e: gridMax }]])))
+    setSel(null)
+  }
   function toggleTime(ti: number) {
     if (mode !== 'edit') return
     const w0 = ti * step, w1 = (ti + 1) * step
@@ -716,17 +754,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     setSel(null)
   }
 
-  // intervals to draw for a day, folding in the live drag so shrink/grow/merge shows immediately
+  // intervals to draw for a day. A paint drag has already written itself into `mine`
+  // cell by cell, so only a handle drag still needs folding in for its live preview.
   function renderIvsFor(day: string): Iv[] {
     const d = drag
     const base = mine[day] ?? []
-    if (!d) return base
-    if (d.kind === 'paint') {
-      if (!d.block || !d.days.includes(day)) return base
-      if (d.erase) return d.moved ? base.flatMap((iv) => subtract(iv, d.block!.s, d.block!.e)) : base
-      return [...base, d.block]
-    }
-    if (d.day !== day) return base
+    if (!d || d.kind === 'paint' || d.day !== day) return base
     return [...base.filter((iv) => !(iv.s === d.origS && iv.e === d.origE)), ...(d.block ? [d.block] : [])]
   }
 
@@ -857,6 +890,21 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   }, [combinedByDay, filter, filterOn])
   const viewTotal = filterOn ? filter.size : total
 
+  /* the day calendar reads whole days, not minutes: one id list per day. Hoisted once
+     per render rather than recomputed per cell, so a hundred people stay cheap. */
+  const idsWithTimes = (src: AvailIntervals, key: string) => {
+    const byPid = src[key]
+    return byPid ? Object.keys(byPid).filter((id) => byPid[id].length > 0) : []
+  }
+  const dayFreeIds = useMemo<Record<string, string[]>>(
+    () => (dayPoll ? Object.fromEntries(event.days.map((d) => [d.key, idsWithTimes(viewCombinedByDay, d.key)])) : {}),
+    [dayPoll, viewCombinedByDay], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  const dayOtherIds = useMemo<Record<string, string[]>>(
+    () => (dayPoll ? Object.fromEntries(event.days.map((d) => [d.key, idsWithTimes(othersFiltered, d.key)])) : {}),
+    [dayPoll, othersFiltered], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+
   // best window (live interval sweep — most people simultaneously free, longest such stretch)
   const bw = useMemo(() => bestWindow(viewCombinedByDay, event.days, durationMin, bestMode), [viewCombinedByDay, durationMin, bestMode]) // eslint-disable-line react-hooks/exhaustive-deps
   // while a person filter is on, the whole group's best window stays on the board
@@ -951,6 +999,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     return s
   }, [block, blockLen])
 
+  /* what the calendar frames in ochre. Reference only, so it waits for view mode the
+     same way the time grid's best-day chip does. */
+  const calBestKeys = useMemo(() => {
+    if (!dayPoll || mode !== 'view') return null
+    if (blockKeys) return blockKeys
+    return block ? new Set([block.startKey]) : null
+  }, [dayPoll, mode, blockKeys, block])
+  const calBestLabel = blockLen === 1 ? 'Best day' : `Best ${blockLen} days`
+
   // who still hasn't marked any availability (to nudge)
   const respondedIds = respondedIdSet
   const missing = rosterSorted.filter((p) => !respondedIds.has(p.id) && p.rsvp !== 'not_going')
@@ -961,6 +1018,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const unmarkedNudgees = unmarked.filter((p) => !p.you)
   const labelDays = weekDays.filter((d) => !d.pad)
   const rangeLabel = labelDays.length ? (labelDays.length > 1 ? `${labelDays[0].date} – ${labelDays[labelDays.length - 1].date}` : labelDays[0].date) : ''
+  // the day calendar shows every day at once, so its label is the whole poll
+  const pollRange = event.days.length > 1 ? `${event.days[0].date} – ${event.days[event.days.length - 1].date}` : event.days[0]?.date ?? ''
+  const allDaysOn = event.days.length > 0 && event.days.every((d) => (mine[d.key]?.length ?? 0) > 0)
 
   // virtualization window: mount only the visible rows (+ overscan), pad the rest with spacers
   const firstRow = Math.max(0, Math.floor(scrollTop / CELL) - OVERSCAN)
@@ -990,9 +1050,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     if (idx >= 0) setPage(Math.floor(idx / WEEK))
     setMode('view')
     setBlockLen(1) // the jump targets the best single slot — keep the footer on the same answer
-    const target = Math.max(0, ((bw.s + bw.e) / 2) * pxPerMin - el.clientHeight / 2)
-    el.scrollTop = target
-    setScrollTop(target)
+    if (!dayPoll) {
+      const target = Math.max(0, ((bw.s + bw.e) / 2) * pxPerMin - el.clientHeight / 2)
+      el.scrollTop = target
+      setScrollTop(target)
+    }
     el.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }, [focusBest]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1068,14 +1130,21 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             </div>
           )}
           <div className="flex flex-wrap items-center gap-[9px]">
-          <div className="flex items-center gap-[3px]">
-            <IconBtn onClick={() => goWeek(-1)} disabled={page === 0}><ChevronLeft size={17} /></IconBtn>
-            <span className="px-1 text-center text-[13.5px] font-semibold leading-tight">
-              {rangeLabel}
-              {pageCount > 1 && <> <span className="font-medium text-faint">(week {page + 1} of {pageCount})</span></>}
+          {dayPoll ? (
+            <span className="text-[13.5px] font-semibold leading-tight">
+              {pollRange}
+              <span className="font-medium text-faint"> ({event.days.length} days)</span>
             </span>
-            <IconBtn onClick={() => goWeek(1)} disabled={page >= pageCount - 1}><ChevronRight size={17} /></IconBtn>
-          </div>
+          ) : (
+            <div className="flex items-center gap-[3px]">
+              <IconBtn onClick={() => goWeek(-1)} disabled={page === 0}><ChevronLeft size={17} /></IconBtn>
+              <span className="px-1 text-center text-[13.5px] font-semibold leading-tight">
+                {rangeLabel}
+                {pageCount > 1 && <> <span className="font-medium text-faint">(week {page + 1} of {pageCount})</span></>}
+              </span>
+              <IconBtn onClick={() => goWeek(1)} disabled={page >= pageCount - 1}><ChevronRight size={17} /></IconBtn>
+            </div>
+          )}
           {dayPoll ? null : canConvert ? (
             // a two-sided toggle, so it reads as "event zone vs your zone" at a glance
             <div className="flex h-7 items-center overflow-hidden rounded-lg border border-border bg-s1 text-[12px] font-medium" role="group" aria-label="Show times in">
@@ -1127,7 +1196,17 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               <MissingPopover missing={missing} nudged={nudged} canNudge={canNudge} note={nudgeNote} onNudge={nudge} onNudgeAll={nudgeAll} onClose={() => setShowMissing(false)} />
             )}
           </div>
-          {mode === 'edit' && !dayPoll && <PresetFills onFill={fillPreset} onFillAll={fillAllDays} />}
+          {mode === 'edit' && (dayPoll
+            ? !allDaysOn && (
+                <button
+                  type="button"
+                  onClick={fillAllDays}
+                  className="flex h-11 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[12.5px] font-medium hover:border-border2 sm:h-7"
+                >
+                  <Zap size={13} /> Free for all of it
+                </button>
+              )
+            : <PresetFills onFill={fillPreset} onFillAll={fillAllDays} />)}
           {/* the explicit empty reply: with nothing marked, "none of these days work"
               is one tap — and marking any time takes it back */}
           {mode === 'edit' && !locked && !youAny && (
@@ -1146,7 +1225,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           {mode === 'edit' && !sel && !youAny && (
             <span className="text-[12.5px] text-faint">
               {dayPoll
-                ? (coarse ? 'Tap the days you can make it, or hold and drag across a few.' : 'Click the days you can make it, or drag across a few.')
+                ? `${coarse ? 'Tap' : 'Click'} the days you can make it. A weekday heading marks every one of them, and the rail on the left marks a week.`
                 : (coarse ? 'Hold a moment, then drag across the days and times you’re free. The checkmarks fill a whole day or row at once.' : 'Drag across the days and times you’re free. The checkmarks fill a whole day or row at once.')}
             </span>
           )}
@@ -1250,7 +1329,35 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           </div>
         )}
 
-        {/* grid */}
+        {/* grid — a day poll gets the calendar, everything else the timetable */}
+        {dayPoll ? (
+          <div
+            ref={scroller}
+            onScroll={onGridScroll}
+            className="scroll-slim max-h-[62dvh] flex-1 overflow-auto rounded-[10px] border border-border lg:max-h-none"
+          >
+            <DayCalendar
+              days={event.days}
+              mode={mode}
+              editable={editable}
+              marked={(k) => (mine[k]?.length ?? 0) > 0}
+              freeIds={dayFreeIds}
+              otherIds={dayOtherIds}
+              total={mode === 'edit' ? editTotal : viewTotal}
+              bestKeys={calBestKeys}
+              bestLabel={calBestLabel}
+              avatarOf={avatarOf}
+              byRoster={byRoster}
+              narrow={narrow}
+              cellW={Math.max(40, ((viewportW || 700) - (narrow ? 44 : 60)) / 7)}
+              openKey={detail?.day ?? null}
+              onToggleDays={toggleDays}
+              onFlipDay={flipDay}
+              onDragEnd={endDayDrag}
+              onOpenDetail={(e, key) => openDetail(e, key, 0)}
+            />
+          </div>
+        ) : (
         <div
           ref={scroller}
           onScroll={onGridScroll}
@@ -1268,9 +1375,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             ref={gridEl}
             className="grid"
             style={{
-              gridTemplateColumns: `${TIME_COL}px ${cols.map(colTrack).join(' ')}`,
-              minWidth: TIME_COL + cols.reduce((w, d) => w + (d.pad && narrow ? PAD_W : 72), 0),
-              maxWidth: TIME_COL + cols.reduce((w, d) => w + (d.pad && narrow ? PAD_W : 280), 0),
+              gridTemplateColumns: `${timeCol}px ${cols.map(colTrack).join(' ')}`,
+              minWidth: narrow ? 0 : timeCol + cols.reduce((w, d) => w + COL_MIN, 0),
+              maxWidth: timeCol + cols.reduce((w, d) => w + (d.pad && narrow ? PAD_W : 280), 0),
             }}
           >
             {/* header row — every cell placed by hand, so the seam buttons below can
@@ -1309,17 +1416,24 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   }}
                   title={mode === 'edit' ? 'Click to fill the whole day' : undefined}
                 >
-                  <div className="text-[11px] text-dim">{d.dow}</div>
-                  <div className="text-[14px] font-semibold" style={{ color: isBestDay || inBlock ? 'var(--ochre-text)' : 'var(--text)' }}>{d.date}</div>
+                  <div className={`text-dim ${narrow ? 'text-[10px]' : 'text-[11px]'}`}>{narrow ? d.dow[0] : d.dow}</div>
+                  <div className={`font-semibold leading-tight ${narrow ? 'text-[13px]' : 'text-[14px]'}`} style={{ color: isBestDay || inBlock ? 'var(--ochre-text)' : 'var(--text)' }}>
+                    {narrow ? (
+                      <>
+                        <span className="block h-[10px] text-[8.5px] font-semibold uppercase leading-[10px] tracking-[.06em] text-faint">{monthTurn(di) ? d.date.split(' ')[0] : ''}</span>
+                        {d.date.split(' ')[1]}
+                      </>
+                    ) : d.date}
+                  </div>
                   {mode === 'edit' && (
                     <span className={`mx-auto mt-[3px] grid h-4 w-4 place-items-center rounded-[5px] border ${dayFull ? 'border-accent bg-accent text-on-accent' : 'border-border2 text-transparent'}`}>
                       <Check size={11} />
                     </span>
                   )}
                   {mode === 'view' && (blockFirst
-                    ? <span className="mt-[3px] inline-block whitespace-nowrap rounded-[5px] border border-ochre-border bg-ochre-bg px-[5px] py-px text-[9.5px] font-semibold text-ochre-text">Best {blockLen} days</span>
+                    ? <span className={`mt-[3px] inline-block whitespace-nowrap rounded-[5px] border border-ochre-border bg-ochre-bg py-px font-semibold text-ochre-text ${narrow ? 'px-[3px] text-[9px]' : 'px-[5px] text-[9.5px]'}`}>{narrow ? `Best ${blockLen}` : `Best ${blockLen} days`}</span>
                     : isBestDay
-                      ? <span className="mt-[3px] inline-block rounded-[5px] border border-ochre-border bg-ochre-bg px-[5px] py-px text-[9.5px] font-semibold text-ochre-text">Best day</span>
+                      ? <span className={`mt-[3px] inline-block whitespace-nowrap rounded-[5px] border border-ochre-border bg-ochre-bg py-px font-semibold text-ochre-text ${narrow ? 'px-[3px] text-[9px]' : 'px-[5px] text-[9.5px]'}`}>{narrow ? 'Best' : 'Best day'}</span>
                       : null)}
                 </button>
               )
@@ -1359,9 +1473,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 <button
                   type="button"
                   onClick={() => toggleTime(ti)}
-                  // sticky-left so the time labels follow horizontal scroll, the same way
-                  // the day header row follows vertical scroll
-                  className="sticky left-0 z-[15] flex items-center justify-center gap-1 border-b border-r border-grid-edge bg-s0 p-1 text-[12px] font-medium text-dim"
+                  /* the rail reads like a chart axis: the time sits ON the line that
+                     opens its row, not floating in the middle of it, and the rule is a
+                     tick between the label and the grid — clear of the label, and with
+                     nothing at all to its left. The first row keeps the header's plain
+                     border, so the ticks start one step in and the top time is the one
+                     time the rail never has to name. */
+                  className={`sticky left-0 z-[15] flex items-center justify-end gap-1.5 border-r border-grid-edge bg-s0 px-1.5 font-medium text-dim ${narrow ? 'text-[10px]' : 'text-[12px]'}`}
                   style={{ cursor: mode === 'edit' ? 'pointer' : 'default' }}
                   title={mode === 'edit' ? 'Click to fill this time across the week' : undefined}
                 >
@@ -1370,10 +1488,24 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                       <Check size={10} />
                     </span>
                   )}
-                  <span className="flex flex-col items-center leading-[1.15]">
-                    <span>{dayPoll ? 'All day' : labelMain}</span>
-                    {!dayPoll && labelSub && <span className="text-[9.5px] font-semibold tracking-[.04em] text-faint">{labelSub}</span>}
-                  </span>
+                  {ti > 0 && (
+                    /* the time sits on the rule that opens its row, with a tick either
+                       side of it and a gap so neither touches it. The rule is centred on
+                       y = -0.5px: the hairline between two rows lives in the last pixel
+                       of the row above, so anything drawn at this row's own top edge
+                       would sit a pixel low and miss the cell borders it belongs to. */
+                    <span
+                      className="pointer-events-none absolute inset-x-0 flex -translate-y-1/2 items-center leading-none"
+                      style={{ top: '-0.5px', gap: narrow ? 4 : TICK_GAP }}
+                    >
+                      <span className="h-px flex-1 bg-grid-edge" />
+                      <span className="flex items-baseline gap-[3px] whitespace-nowrap">
+                        <span>{labelMain}</span>
+                        {labelSub && <span className={`font-semibold tracking-[.04em] text-faint ${narrow ? 'text-[8px]' : 'text-[9.5px]'}`}>{labelSub}</span>}
+                      </span>
+                      <span className="h-px flex-1 bg-grid-edge" />
+                    </span>
+                  )}
                 </button>
                 {cols.map((d, di) => {
                   // out-of-window cell: hatched, no data, no interactions
@@ -1470,18 +1602,21 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         ))}
                         {/* slot line redrawn above the heat fills so saturated cells can't wash it out */}
                         <div className="pointer-events-none absolute z-[1] border-b border-r border-grid-line" style={{ inset: '0 -1px -1px 0' }} />
-                        {/* cap the pile so a 100-person cell renders ~6 avatars + "+N", not 100 nodes */}
-                        <div className="relative z-[1] flex flex-wrap content-start gap-0.5 p-[5px]">
-                          {(() => {
-                            const shown = n <= pileMax ? Math.min(n, avatarCap) : pileMax - 1
-                            return (
-                              <>
-                                {byRoster(peak.ids).slice(0, shown).map((id) => { const a = avatarOf(id); return <Avatar key={id} initials={a.initials} color={a.color} size={17} font={8.5} title={a.name} /> })}
-                                {n > shown && <span className="grid h-[15px] min-w-[15px] place-items-center rounded-full bg-s3 px-[3px] text-[8.5px] font-bold text-dim" title={`${n} free`}>+{n - shown}</span>}
-                              </>
-                            )
-                          })()}
-                        </div>
+                        {/* the pile sits on the cell's bottom left, beside the count, capped so a
+                            hundred-person cell draws a few faces and a chip rather than a hundred nodes */}
+                        {n > 0 && (() => {
+                          const { shown, chip } = pileFit(n, avatarCap, colW, viewTotal)
+                          if (!shown) return null
+                          return (
+                            <div className="pointer-events-none absolute bottom-[3px] left-[4px] z-[1]">
+                              <AvatarRow
+                                people={byRoster(peak.ids).slice(0, shown).map(avatarOf)}
+                                size={PILE_AV} overlap={PILE_OVER} font={PILE_FONT} max={shown}
+                                more={chip ? `+${chip}` : ''}
+                              />
+                            </div>
+                          )
+                        })()}
                         {/* one uniform count in every cell — the theme's ink, no backplate */}
                         {n > 0 && (
                           <span className="pointer-events-none absolute bottom-[3px] right-1 z-[1] text-[9.5px] font-bold" style={{ color: 'var(--heat-count)' }}>
@@ -1565,6 +1700,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             {botPad > 0 && <div style={{ gridColumn: '1 / -1', height: botPad }} />}
           </div>
         </div>
+        )}
 
         {/* view-mode cell breakdown — anchored to the cell but outside the scroller so nothing clips it */}
         {detail && (() => {
@@ -1578,6 +1714,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               total={viewTotal}
               fmt={fmt}
               gridStartMin={gridStartMin}
+              dayLabel={dayPoll ? blockDayLabel(detail.day) : undefined}
               avatarOf={avatarOf}
               onPerson={toggleFilter}
               filter={filter}

@@ -8,6 +8,7 @@ export function AvatarRow({
   max = 6,
   overlap = 6,
   more,
+  font,
   ringColor = 'var(--s1)',
 }: {
   people: Person[]
@@ -15,6 +16,7 @@ export function AvatarRow({
   max?: number
   overlap?: number
   more?: string
+  font?: number
   ringColor?: string
 }) {
   const shown = people.slice(0, max)
@@ -23,12 +25,12 @@ export function AvatarRow({
     <div className="flex items-center">
       {shown.map((p, i) => (
         <span key={i} style={{ marginRight: i === shown.length - 1 && !extra ? 0 : -overlap }}>
-          <Avatar initials={p.initials} color={p.color} size={size} ring ringColor={ringColor} title={p.name} />
+          <Avatar initials={p.initials} color={p.color} size={size} font={font} ring ringColor={ringColor} title={p.name} />
         </span>
       ))}
       {extra && (
         <span
-          style={{ width: size, height: size, fontSize: Math.round(size * 0.4 * 10) / 10, border: `2px solid ${ringColor}` }}
+          style={{ width: size, height: size, fontSize: font ?? Math.round(size * 0.4 * 10) / 10, border: `2px solid ${ringColor}` }}
           className="inline-flex items-center justify-center rounded-full bg-s3 font-semibold text-dim"
         >
           {extra}

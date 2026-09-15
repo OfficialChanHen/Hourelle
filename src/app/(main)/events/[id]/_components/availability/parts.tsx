@@ -195,14 +195,27 @@ export function ClearTimes({ onClear }: { onClear: () => void }) {
 
 export function EdgeHandle({ pct, label, active, side, onDown }: { pct: number; label: string; active: boolean; side: 'above' | 'below'; onDown: (e: React.PointerEvent) => void }) {
   const color = active ? '#8A6A2E' : '#C2A468'
+  const grab = { cursor: 'ns-resize' as const, touchAction: 'none' as const }
   return (
     <div className="pointer-events-none absolute inset-x-0 z-[9]" style={{ top: `${pct}%` }}>
+      {/* The whole edge is the handle, not just the grip in the middle of it. A band the
+          width of the cell, centred on the boundary, takes the press — otherwise grabbing
+          the bar itself falls straight through to the cell underneath and starts painting
+          instead of moving the time. */}
+      <div
+        onPointerDown={onDown}
+        className="pointer-events-auto absolute inset-x-0 top-0 -translate-y-1/2"
+        style={{ height: 15, ...grab }}
+        aria-hidden
+      />
       {/* boundary line */}
       <div className="absolute inset-x-0 top-0 -translate-y-1/2 border-t-2" style={{ borderColor: color }} />
-      {/* timestamp, kept outside the block: start above the top handle, end below the bottom handle */}
+      {/* timestamp, kept outside the block: start above the top handle, end below the
+          bottom handle. It grabs too, so a press on it never lands in the cell behind. */}
       <span
-        className="absolute left-1/2 whitespace-nowrap rounded-full border bg-s1 px-1.5 py-px text-[10px] font-semibold tabular-nums shadow-soft"
-        style={{ top: 0, transform: `translate(-50%, ${side === 'above' ? 'calc(-50% - 15px)' : 'calc(-50% + 15px)'})`, borderColor: color, color: '#7A531F' }}
+        onPointerDown={onDown}
+        className="pointer-events-auto absolute left-1/2 whitespace-nowrap rounded-full border bg-s1 px-1.5 py-px text-[10px] font-semibold tabular-nums shadow-soft"
+        style={{ top: 0, transform: `translate(-50%, ${side === 'above' ? 'calc(-50% - 15px)' : 'calc(-50% + 15px)'})`, borderColor: color, color: '#7A531F', ...grab }}
       >
         {label}
       </span>
@@ -211,7 +224,7 @@ export function EdgeHandle({ pct, label, active, side, onDown }: { pct: number; 
         type="button"
         onPointerDown={onDown}
         className="pointer-events-auto absolute left-1/2 top-0 grid h-[15px] w-[26px] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border bg-s1 shadow-soft"
-        style={{ borderColor: color, color, touchAction: 'none' }}
+        style={{ borderColor: color, color, ...grab }}
         aria-label={`Adjust time, currently ${label}`}
       >
         <GripHorizontal size={12} />
@@ -291,8 +304,10 @@ export function MissingPopover({ missing, nudged, canNudge = false, note = null,
 
 /* ── view-mode cell breakdown: who's free in each subsection of the block.
    Names are tap-to-filter, and the list scrolls so everyone free is reachable. ── */
-export function CellDetail({ bands, total, fmt, gridStartMin, avatarOf, onPerson, filter, style, onClose }: {
+export function CellDetail({ bands, total, fmt, gridStartMin, dayLabel, avatarOf, onPerson, filter, style, onClose }: {
   bands: Band[]; total: number; fmt: (m: number) => string; gridStartMin: number
+  // a day poll has no times to name — the date heads the list instead of a clock range
+  dayLabel?: string
   avatarOf: (id: string) => { initials: string; name: string; color: Participant['color'] }
   onPerson: (id: string) => void; filter: Set<string>
   style: React.CSSProperties; onClose: () => void
@@ -319,7 +334,7 @@ export function CellDetail({ bands, total, fmt, gridStartMin, avatarOf, onPerson
         {bands.map((b, i) => (
           <div key={i} className="border-t border-border pt-1.5 first:border-t-0 first:pt-0">
             <div className="mb-1 flex items-center justify-between text-[12px]">
-              <span className="font-semibold">{fmt(gridStartMin + b.s)} – {fmt(gridStartMin + b.e)}</span>
+              <span className="font-semibold">{dayLabel ?? `${fmt(gridStartMin + b.s)} – ${fmt(gridStartMin + b.e)}`}</span>
               <span className="text-dim">{b.ids.length}/{total}</span>
             </div>
             {b.ids.length === 0 ? (
