@@ -12,10 +12,11 @@
    colours, the type and both themes come from the same variables the app uses, so the
    only thing that can drift now is the shape, and that drifts in a diff where it shows. */
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Info } from 'lucide-react'
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import type { PersonColor } from '@/lib/colors'
+import { pileFit } from '@/app/(main)/events/[id]/_components/availability/grid-lib'
 
 const TOTAL = 24
 const DAYS = [
@@ -57,7 +58,7 @@ const PEOPLE: { initials: string; name: string; color: PersonColor }[] = [
 ]
 // a stable handful per cell, so the same cell always shows the same faces
 const facesFor = (col: number, row: number, n: number) =>
-  Array.from({ length: Math.min(n, 4) }, (_, i) => PEOPLE[(col * 3 + row * 2 + i) % PEOPLE.length])
+  Array.from({ length: n }, (_, i) => PEOPLE[(col * 3 + row * 2 + i) % PEOPLE.length])
 
 const heatOf = (n: number) =>
   n === 0 ? 'var(--s2)'
@@ -68,6 +69,19 @@ const heatOf = (n: number) =>
 export function HeroGrid() {
   // yours, on top of everyone else's, the way Edit mine draws it
   const [mine, setMine] = useState<Set<string>>(new Set())
+  // how wide a day is, measured, so the pile fits the cell it is in the way the real
+  // grid's does: beside the headline a cell is half the width it has on its own line
+  const dayRef = useRef<HTMLDivElement>(null)
+  const [colW, setColW] = useState(0)
+  useEffect(() => {
+    const el = dayRef.current
+    if (!el) return
+    const measure = () => setColW(el.clientWidth)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   const toggle = (k: string) => setMine((s) => {
     const n = new Set(s)
     if (n.has(k)) n.delete(k)
@@ -76,7 +90,7 @@ export function HeroGrid() {
   })
 
   return (
-    <div className="select-none p-4 sm:p-5">
+    <div className="@container select-none p-4 @xl:p-5">
       {/* the week on view, and whose clock the times are in */}
       <div className="flex flex-wrap items-center gap-x-[9px] gap-y-2">
         <span className="flex items-center gap-[3px]">
@@ -101,25 +115,27 @@ export function HeroGrid() {
       </div>
 
       <div className="overflow-hidden rounded-[10px] border border-border">
-        {/* the same widths the real grid uses: a narrower rail on a phone, because every
-            pixel here is a pixel the days do not get */}
-        <div className="grid [--rail:62px] sm:[--rail:82px]" style={{ gridTemplateColumns: 'var(--rail) repeat(6, minmax(0, 1fr))' }}>
+        {/* the same widths the real grid uses: a narrower rail when the grid is narrow,
+            because every pixel here is a pixel the days do not get. Narrow means the grid
+            itself, not the window: beside the headline it is a column wide, not a page */}
+        <div className="grid [--rail:62px] @xl:[--rail:82px]" style={{ gridTemplateColumns: 'var(--rail) repeat(6, minmax(0, 1fr))' }}>
           <div className="border-b border-r border-grid-edge bg-s0" />
-          {DAYS.map((d) => (
+          {DAYS.map((d, i) => (
             <div
               key={d.date}
+              ref={i === 0 ? dayRef : undefined}
               className="border-b border-r border-grid-edge px-1.5 py-2 text-center last:border-r-0"
               style={{ background: d.best ? 'var(--best-head)' : 'var(--s0)' }}
             >
-              <div className="text-[10px] text-dim sm:text-[11px]">
-                <span className="sm:hidden">{d.dow[0]}</span><span className="hidden sm:inline">{d.dow}</span>
+              <div className="text-[10px] text-dim @xl:text-[11px]">
+                <span className="@xl:hidden">{d.dow[0]}</span><span className="hidden @xl:inline">{d.dow}</span>
               </div>
-              <div className="text-[13px] font-semibold leading-tight sm:text-[14px]" style={{ color: d.best ? 'var(--ochre-text)' : 'var(--text)' }}>
-                <span className="sm:hidden">{d.date.split(' ')[1]}</span><span className="hidden sm:inline">{d.date}</span>
+              <div className="text-[13px] font-semibold leading-tight @xl:text-[14px]" style={{ color: d.best ? 'var(--ochre-text)' : 'var(--text)' }}>
+                <span className="@xl:hidden">{d.date.split(' ')[1]}</span><span className="hidden @xl:inline">{d.date}</span>
               </div>
               {d.best && (
-                <span className="mt-[3px] inline-block whitespace-nowrap rounded-[5px] border border-ochre-border bg-ochre-bg py-px text-[9px] font-semibold text-ochre-text sm:text-[9.5px] px-[3px] sm:px-[5px]">
-                  <span className="sm:hidden">Best</span><span className="hidden sm:inline">Best day</span>
+                <span className="mt-[3px] inline-block whitespace-nowrap rounded-[5px] border border-ochre-border bg-ochre-bg py-px text-[9px] font-semibold text-ochre-text @xl:text-[9.5px] px-[3px] @xl:px-[5px]">
+                  <span className="@xl:hidden">Best</span><span className="hidden @xl:inline">Best day</span>
                 </span>
               )}
             </div>
@@ -129,12 +145,12 @@ export function HeroGrid() {
             <div key={r} className="contents">
               {/* the rail: each time sits on the line that opens its row, a tick either
                   side of it and a gap so neither touches it */}
-              <div className="relative flex items-center justify-end border-r border-grid-edge bg-s0 px-1.5 text-[10px] font-medium text-dim sm:text-[12px]">
+              <div className="relative flex items-center justify-end border-r border-grid-edge bg-s0 px-1.5 text-[10px] font-medium text-dim @xl:text-[12px]">
                 {r > 0 && (
                   <span className="pointer-events-none absolute inset-x-0 flex -translate-y-1/2 items-center gap-1.5 leading-none" style={{ top: '-0.5px' }}>
                     <span className="h-px flex-1 bg-grid-edge" />
                     <span className="flex items-baseline gap-[3px] whitespace-nowrap">
-                      {AT[r]}<span className="text-[8px] font-semibold tracking-[.04em] text-faint sm:text-[9.5px]">{AM(r)}</span>
+                      {AT[r]}<span className="text-[8px] font-semibold tracking-[.04em] text-faint @xl:text-[9.5px]">{AM(r)}</span>
                     </span>
                     <span className="h-px flex-1 bg-grid-edge" />
                   </span>
@@ -147,6 +163,7 @@ export function HeroGrid() {
                 const count = n + (isMine ? 1 : 0)
                 const inBest = c === BEST.col && r >= BEST.from && r <= BEST.to
                 const last = c === DAYS.length - 1
+                const pile = pileFit(n, 4, colW, TOTAL)
                 return (
                   <button
                     key={key}
@@ -174,9 +191,11 @@ export function HeroGrid() {
                         }}
                       />
                     )}
-                    <span className="pointer-events-none absolute bottom-[3px] left-[4px] z-[1] hidden sm:block">
-                      <AvatarRow people={facesFor(c, r, n)} size={20} overlap={4} font={9} max={4} more={n > 4 ? `+${n - 4}` : ''} />
-                    </span>
+                    {pile.shown > 0 && (
+                      <span className="pointer-events-none absolute bottom-[3px] left-[4px] z-[1]">
+                        <AvatarRow people={facesFor(c, r, pile.shown)} size={20} overlap={4} font={9} max={pile.shown} more={pile.chip ? `+${pile.chip}` : ''} />
+                      </span>
+                    )}
                     <span
                       className="pointer-events-none absolute bottom-[3px] right-1 z-[2] text-[9.5px] font-bold"
                       style={{ color: isMine ? 'var(--you-text)' : 'var(--heat-count)' }}

@@ -28,7 +28,7 @@ export function VisitorHeader({ ready = true }: { ready?: boolean }) {
           <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-accent text-on-accent">
             <CalendarDays size={17} />
           </span>
-          <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Aline</span>
+          <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Hourelle</span>
         </Link>
         <nav className="hidden items-center gap-[3px] text-[14px] md:flex">
           {LINKS.map((l) => {

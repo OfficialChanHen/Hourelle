@@ -22,7 +22,7 @@ export default function AboutPage() {
         Find the day everyone can make.
       </h1>
       <p className="mt-4 text-[15px] leading-[1.65] text-dim">
-        Aline plans things with people: one link collects when everyone is free, where they want
+        Hourelle plans things with people: one link collects when everyone is free, where they want
         to go, and who is coming. A grid for the times, a map and a ballot for the place, a route
         for multi-stop days, and a running chat beside all of it. When the answer is clear, the
         host locks it in and everyone gets the plan.
@@ -50,7 +50,7 @@ export default function AboutPage() {
       </div>
 
       <p className="mt-6 text-[12.5px] leading-[1.6] text-faint">
-        Map data © OpenStreetMap contributors. Aline is an independent project and is not affiliated with Google, Microsoft, or Supabase.
+        Map data © OpenStreetMap contributors. Hourelle is an independent project and is not affiliated with Google, Microsoft, or Supabase.
       </p>
     </div>
   )

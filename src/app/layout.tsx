@@ -21,7 +21,7 @@ const instrumentSans = Instrument_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Aline — where people meet",
+  title: "Hourelle, the little hour when people meet",
   description:
     "A modern replacement for when2meet: availability, location voting, itineraries, and attendance in one editorial flow.",
 };
@@ -41,7 +41,7 @@ export default function RootLayout({
           attributes on body before React loads; that is not a mismatch of ours */}
       <body className="min-h-full flex flex-col bg-bg text-text font-sans" suppressHydrationWarning>
         {/* apply the saved appearance before anything paints, the same way next-themes
-            applies data-theme — otherwise non-default palettes flash the Aline look */}
+            applies data-theme — otherwise non-default palettes flash the Hourelle look */}
         <script
           dangerouslySetInnerHTML={{
             __html: `try{var m={gcal:"daylight",pro:"studio",drain:"aline",pride:"aline"};var p=localStorage.getItem("aline.palette");p=m[p]||p;if(["studio","daylight","contrast"].indexOf(p)>=0)document.documentElement.setAttribute("data-palette",p)}catch(e){}`,

@@ -38,9 +38,9 @@ export async function POST(req: Request) {
   let emailed = false
   const key = process.env.RESEND_API_KEY
   const to = process.env.FEEDBACK_TO_EMAIL
-  const from = process.env.FEEDBACK_FROM_EMAIL || 'Aline <onboarding@resend.dev>'
+  const from = process.env.FEEDBACK_FROM_EMAIL || 'Hourelle <onboarding@resend.dev>'
   if (key && to) {
-    const subject = `[Aline] ${kind === 'bug' ? 'Bug report' : kind === 'idea' ? 'Idea' : 'Question'}${page ? ` from ${page}` : ''}`
+    const subject = `[Hourelle] ${kind === 'bug' ? 'Bug report' : kind === 'idea' ? 'Idea' : 'Question'}${page ? ` from ${page}` : ''}`
     const text = [
       message, '',
       `— from: ${email ?? 'no email given'}`,

@@ -261,7 +261,7 @@ export async function linkGoogle(next: string): Promise<string | null> {
   // the one refusal worth explaining: that Google account is already its own account
   // here, and the way to put them together is the merge below
   if (/already|exists|registered|taken/i.test(error.message)) {
-    return 'That Google account already belongs to another Aline account. Log in with Google, then bring this one in from your profile.'
+    return 'That Google account already belongs to another Hourelle account. Log in with Google, then bring this one in from your profile.'
   }
   return error.message
 }

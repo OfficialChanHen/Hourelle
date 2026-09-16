@@ -22,7 +22,7 @@ const Eyebrow = ({ children }: { children: React.ReactNode }) => (
 const LINKS = [
   { href: '/settings', label: 'Settings', sub: 'Theme, clock style, reminders', icon: Settings },
   { href: '/help', label: 'Help & contact', sub: 'Common questions, and where to reach us', icon: CircleHelp },
-  { href: '/about', label: 'About Aline', sub: 'What this is and where your data lives', icon: Info },
+  { href: '/about', label: 'About Hourelle', sub: 'What this is and where your data lives', icon: Info },
 ]
 
 const COLORS = Object.keys(personColors) as PersonColor[]

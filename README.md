@@ -1,6 +1,6 @@
-# Aline
+# Hourelle
 
-Aline is an event coordination app, built as a modern replacement for when2meet. One link covers the whole life of a plan: finding a time everyone can make, voting on where to go, building a route for multi-stop days, tracking who is actually coming, and talking it over in a per-event chat. Guests join from a share link with just their name, no account needed.
+Hourelle is an event coordination app, built as a modern replacement for when2meet. One link covers the whole life of a plan: finding a time everyone can make, voting on where to go, building a route for multi-stop days, tracking who is actually coming, and talking it over in a per-event chat. Guests join from a share link with just their name, no account needed.
 
 Live at **[aline-black.vercel.app](https://aline-black.vercel.app)** — the **Demos** tab has fully populated sample events, so you can try every surface without signing up.
 

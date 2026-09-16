@@ -29,7 +29,7 @@ export function joinLink(site: string, ev: Pick<AppEvent, 'id'>, p?: Pick<Partic
 /* ── the send ── */
 export const mailConfigured = !!process.env.RESEND_API_KEY
 
-const FROM = process.env.MAIL_FROM_EMAIL || process.env.FEEDBACK_FROM_EMAIL || 'Aline <onboarding@resend.dev>'
+const FROM = process.env.MAIL_FROM_EMAIL || process.env.FEEDBACK_FROM_EMAIL || 'Hourelle <onboarding@resend.dev>'
 
 export type Mail = { to: string; subject: string; text: string; html?: string; replyTo?: string }
 
@@ -156,7 +156,7 @@ function shell(title: string, lines: string[], cta: { label: string; href: strin
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   return `<div style="background:#F4F1EA;padding:32px 16px;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1B1815">
   <div style="max-width:520px;margin:0 auto;background:#FFFFFF;border:1px solid #E6E0D4;border-radius:14px;padding:28px 28px 24px">
-    <div style="font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:#A39A89;font-weight:600">Aline</div>
+    <div style="font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:#A39A89;font-weight:600">Hourelle</div>
     <h1 style="font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:26px;line-height:1.15;margin:10px 0 14px">${esc(title)}</h1>
     ${lines.map((l) => `<p style="font-size:15px;line-height:1.55;margin:0 0 12px;color:#3d3830">${esc(l)}</p>`).join('')}
     <a href="${cta.href}" style="display:inline-block;margin-top:8px;background:#2E4A3C;color:#F8F5EC;text-decoration:none;font-weight:600;font-size:14px;padding:11px 18px;border-radius:10px">${esc(cta.label)}</a>
@@ -169,7 +169,7 @@ export function inviteMail(ev: AppEvent, p: Participant, to: string, site: strin
   const host = hostNameOf(ev), link = joinLink(site, ev, p), when = whenText(ev), place = placeText(ev)
   const ask = ev.confirmed ? 'Open your link to say whether you can make it.' : 'Open your link and mark when you are free. It takes a minute and needs no account.'
   const lines = [`Hi ${firstName(p)}, ${host} is planning ${ev.title}${when ? ` for ${when}` : ''}${place ? ` at ${place}` : ''}.`, ask]
-  const text = [...lines, '', link, '', 'Sent by Aline on behalf of the host.'].join('\n')
+  const text = [...lines, '', link, '', 'Sent by Hourelle on behalf of the host.'].join('\n')
   return { to, subject: `${host} invited you to ${ev.title}`, text, html: shell(`${host} invited you to ${ev.title}`, lines, { label: ev.confirmed ? 'Say if you can make it' : 'Mark when you are free', href: link }), replyTo: hostEmail ?? undefined }
 }
 

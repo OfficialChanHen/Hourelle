@@ -247,7 +247,7 @@ export function HowItWorks() {
             {/* browser chrome */}
             <div className="flex items-center gap-2 border-b border-border bg-s0 px-3 py-2">
               <span className="flex gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-s3" /><i className="h-2.5 w-2.5 rounded-full bg-s3" /><i className="h-2.5 w-2.5 rounded-full bg-s3" /></span>
-              <span className="ml-1 flex h-6 flex-1 items-center rounded-md bg-s2 px-2.5 font-mono text-[11px] text-faint">aline.app/e/{scene === 0 ? 'new' : 'rooftop-dinner'}</span>
+              <span className="ml-1 flex h-6 flex-1 items-center rounded-md bg-s2 px-2.5 font-mono text-[11px] text-faint">hourelle.app/e/{scene === 0 ? 'new' : 'rooftop-dinner'}</span>
             </div>
 
             <div className="relative h-[268px] sm:h-[300px]">
@@ -274,7 +274,7 @@ export function HowItWorks() {
                 <p className="font-serif text-[24px] leading-tight tracking-[-0.01em]">Your event is live</p>
                 <div className="mt-3 flex h-10 items-center gap-2 rounded-[10px] border border-border2 bg-s2 pl-3 pr-1.5">
                   <Link2 size={15} className="flex-none text-accent-text" />
-                  <span className="flex-1 truncate font-mono text-[12.5px]">aline.app/e/rooftop-dinner/join</span>
+                  <span className="flex-1 truncate font-mono text-[12.5px]">hourelle.app/e/rooftop-dinner/join</span>
                   <span className="flex h-7 items-center gap-1 rounded-[7px] bg-accent px-2.5 text-[12px] font-semibold text-on-accent">{copied ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Copy</>}</span>
                 </div>
                 <div className="mt-5">

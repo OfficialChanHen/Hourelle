@@ -88,7 +88,7 @@ export function DayPollDemo() {
 
   return (
     <div ref={ref}>
-      <VignetteFrame url="aline.app/e/cabin-weekend" hint={!done ? 'Watch first. It is yours in a moment.' : 'Tap the days you could make.'} taken={taken} onReset={reset}>
+      <VignetteFrame url="hourelle.app/e/cabin-weekend" hint={!done ? 'Watch first. It is yours in a moment.' : 'Tap the days you could make.'} taken={taken} onReset={reset}>
         <div className="relative select-none p-4 sm:p-5">
           {near && (
             <>

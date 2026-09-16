@@ -1,7 +1,7 @@
 'use client'
 
 // The front door. Signed in, it is a hallway to /home. For everyone else it is
-// the pitch, top to bottom: what Aline is, how a plan comes together, what each
+// the pitch, top to bottom: what Hourelle is, how a plan comes together, what each
 // part looks like, three demos to try, and the two ways in. Outside the (main)
 // layout on purpose — no app chrome, this page sells rather than serves.
 
@@ -96,30 +96,33 @@ export default function Landing() {
 
       <main className="flex-1">
         {/* ── hero ── */}
-        <section className="mx-auto w-full max-w-[1100px] px-6 pb-8 pt-12 sm:pt-20">
-          <div className="ld-hero max-w-[720px]">
-            <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">Plans, settled</p>
-            <h1 className="mt-3 font-serif font-normal text-[46px] leading-[1.0] tracking-[-0.015em] sm:text-[66px]">
-              Find the day everyone can make.
-            </h1>
-            <p className="mt-5 max-w-[560px] text-[16px] leading-[1.6] text-dim sm:text-[17.5px]">
-              One link for the whole plan. People mark when they are free, vote on where to go, say if they are coming, and talk it over. No app to install, and your guests never need an account.
-            </p>
-            <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
-              <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-accent px-6 text-[15px] font-semibold text-on-accent">
-                Sign up <ArrowRight size={16} />
-              </Link>
-              <Link href="/demos" className="flex h-12 items-center justify-center rounded-[11px] border border-border2 bg-s1 px-6 text-[15px] font-semibold text-dim hover:bg-s2 hover:text-text">
-                Try a demo first
-              </Link>
+        <section className="mx-auto w-full max-w-[1240px] px-6 pb-8 pt-8 sm:pt-12 lg:pt-16">
+          <div className="grid gap-10 lg:grid-cols-12 lg:items-center xl:gap-14">
+            <div className="ld-hero order-2 min-w-0 lg:order-1 lg:col-span-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">The little hour when people meet</p>
+              <h1 className="mt-3 font-serif font-normal text-[46px] leading-[1.0] tracking-[-0.015em] sm:text-[62px] lg:text-[54px] xl:text-[62px]">
+                Find the day everyone can make.
+              </h1>
+              <p className="mt-5 max-w-[560px] text-[16px] leading-[1.6] text-dim sm:text-[17px]">
+                One link for the whole plan. People mark when they are free, vote on where to go, say if they are coming, and talk it over. No app to install, and your guests never need an account.
+              </p>
+              <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-accent px-6 text-[15px] font-semibold text-on-accent">
+                  Sign up <ArrowRight size={16} />
+                </Link>
+                <Link href="/demos" className="flex h-12 items-center justify-center rounded-[11px] border border-border2 bg-s1 px-6 text-[15px] font-semibold text-dim hover:bg-s2 hover:text-text">
+                  Try a demo first
+                </Link>
+              </div>
+              <p className="mt-4 text-[12.5px] text-faint">Invited to something? Open the link you were sent. That is all it takes.</p>
             </div>
-            <p className="mt-4 text-[12.5px] text-faint">Invited to something? Open the link you were sent. That is all it takes.</p>
-          </div>
 
-          {/* built rather than photographed: a picture cannot follow the theme, and the
-              two it needed went stale every time the real grid moved */}
-          <div className={`ld-shot mt-12 ${frame}`}>
-            <HeroGrid />
+            {/* built rather than photographed: a picture cannot follow the theme, and the
+                two it needed went stale every time the real grid moved. It sits beside the
+                words on a wide screen and leads on a narrow one. */}
+            <div className={`ld-shot order-1 min-w-0 lg:order-2 lg:col-span-7 ${frame}`}>
+              <HeroGrid />
+            </div>
           </div>
         </section>
 

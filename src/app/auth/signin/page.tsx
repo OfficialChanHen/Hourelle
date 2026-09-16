@@ -13,7 +13,7 @@ import { PasswordField } from '@/components/ui/PasswordField'
 
 /* ── log in, sign up, or ask for a new password ──
    Split like the sign-in pages people know: the form on the left, the pitch on the
-   right in the signature green. The Aline account leads because it finishes without
+   right in the signature green. The Hourelle account leads because it finishes without
    leaving the page; Google sits under the divider. Guests never need this screen at
    all, an invite link works without an account. */
 
@@ -134,7 +134,7 @@ function SignInForm() {
               <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-accent text-on-accent">
                 <CalendarRange size={16} />
               </span>
-              <span className="font-serif text-[21px] tracking-[-0.01em]">Aline</span>
+              <span className="font-serif text-[21px] tracking-[-0.01em]">Hourelle</span>
             </Link>
 
             <h1 className="mt-7 font-serif font-normal text-[31px] leading-[1.05] tracking-[-0.01em]">{copy.title}</h1>
@@ -246,7 +246,7 @@ function SignInForm() {
 
             {!backendOn && (
               <p className="mt-4 rounded-[10px] border border-border bg-s0 px-3.5 py-3 text-[12.5px] leading-[1.55] text-dim">
-                No backend is configured, so accounts are switched off. Everything in Aline still works without one.
+                No backend is configured, so accounts are switched off. Everything in Hourelle still works without one.
               </p>
             )}
 

@@ -61,7 +61,7 @@ export default function ResetPasswordPage() {
           <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-accent text-on-accent">
             <CalendarRange size={16} />
           </span>
-          <span className="font-serif text-[21px] tracking-[-0.01em]">Aline</span>
+          <span className="font-serif text-[21px] tracking-[-0.01em]">Hourelle</span>
         </Link>
 
         {ready === null && <p className="mt-7 text-[13.5px] text-dim">Checking your link…</p>}

@@ -29,7 +29,7 @@ const GROUPS: { title: string; items: QA[] }[] = [
   {
     title: 'Your account and your data',
     items: [
-      { q: 'Where does my data live?', a: 'With an account, your events are stored on Aline’s servers so they follow you between devices. Logged out, everything stays in this browser only. Demos are samples and never leave your device.' },
+      { q: 'Where does my data live?', a: 'With an account, your events are stored on Hourelle’s servers so they follow you between devices. Logged out, everything stays in this browser only. Demos are samples and never leave your device.' },
       { q: 'Who can see my event?', a: 'Anyone with its link. Links are long and random, so they cannot be guessed, but they can be forwarded. Share them the way you would share a private document.' },
       { q: 'How do I delete an event?', a: 'The host deletes it from the Event details tab, and it is gone for everyone. Anyone else can leave, which only removes it from their own list.' },
       { q: 'How do I delete my account?', a: 'Send a note through the form below from the email on the account. The account, its profile, and the events it hosts are removed.' },
@@ -74,7 +74,7 @@ export default function HelpPage() {
 
       <p className="mb-2 mt-7 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Elsewhere</p>
       <div className="rounded-2xl border border-border bg-s1 px-5 py-4 text-[13.5px] leading-[1.6] text-dim">
-        Aline is built in the open. The code, the issue tracker, and the release notes are on{' '}
+        Hourelle is built in the open. The code, the issue tracker, and the release notes are on{' '}
         <Link href="https://github.com/OfficialChanHen/Aline" target="_blank" className="inline-flex items-center gap-1 font-semibold text-accent-text hover:underline">
           GitHub <ExternalLink size={12} className="text-faint" />
         </Link>.

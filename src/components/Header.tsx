@@ -47,7 +47,7 @@ export function Header() {
             <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-accent text-on-accent">
               <CalendarDays size={17} />
             </span>
-            <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Aline</span>
+            <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Hourelle</span>
           </Link>
           <div className="flex-1" />
           <ThemeToggle />
@@ -67,7 +67,7 @@ export function Header() {
           <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-accent text-on-accent">
             <CalendarDays size={17} />
           </span>
-          <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Aline</span>
+          <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Hourelle</span>
         </Link>
 
         {/* nav — filled accent box when active, no underlines */}
@@ -151,7 +151,7 @@ export function Header() {
                 <PopoverItem href="/settings" onClick={close} icon={<Settings size={15} />}>Settings</PopoverItem>
                 <PopoverSep />
                 <PopoverItem href="/help" onClick={close} icon={<CircleHelp size={15} />}>Help &amp; contact</PopoverItem>
-                <PopoverItem href="/about" onClick={close} icon={<Info size={15} />}>About Aline</PopoverItem>
+                <PopoverItem href="/about" onClick={close} icon={<Info size={15} />}>About Hourelle</PopoverItem>
                 <PopoverSep />
                 {account.signedIn ? (
                   <PopoverItem
