@@ -101,7 +101,7 @@ export default function Landing() {
             <div className="ld-hero order-2 min-w-0 lg:order-1 lg:col-span-5">
               <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">The little hour when people meet</p>
               <h1 className="mt-3 font-serif font-normal text-[46px] leading-[1.0] tracking-[-0.015em] sm:text-[62px] lg:text-[54px] xl:text-[62px]">
-                Find the hour everyone can keep.
+                Find the hour everyone can make.
               </h1>
               <p className="mt-5 max-w-[560px] text-[16px] leading-[1.6] text-dim sm:text-[17px]">
                 One link for the whole plan. People mark when they are free, vote on where to go, say if they are coming, and talk it over. No app to install, and your guests never need an account.
