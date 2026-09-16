@@ -7,7 +7,7 @@ import { MessageCircle } from 'lucide-react'
 export function SiteFooter() {
   return (
     <footer className="border-t border-border">
-      <div className="mx-auto flex w-full max-w-[1240px] flex-wrap items-center gap-x-5 gap-y-2 px-6 pb-[88px] pt-6 text-[12.5px] text-faint md:pb-6">
+      <div className="mx-auto flex w-full max-w-[1240px] flex-wrap items-center gap-x-5 gap-y-2 px-[22px] pb-[88px] pt-6 text-[12.5px] text-faint md:pb-6">
         <Link href="/" className="font-serif text-[16px] leading-none text-dim hover:text-text">Hourelle</Link>
         <Link href="/about" className="hover:text-dim">About</Link>
         <Link href="/help" className="hover:text-dim">Help &amp; contact</Link>

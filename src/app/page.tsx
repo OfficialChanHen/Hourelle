@@ -96,12 +96,12 @@ export default function Landing() {
 
       <main className="flex-1">
         {/* ── hero ── */}
-        <section className="mx-auto w-full max-w-[1240px] px-6 pb-8 pt-8 sm:pt-12 lg:pt-16">
+        <section className="mx-auto w-full max-w-[1240px] px-[22px] pb-8 pt-8 sm:pt-12 lg:pt-16">
           <div className="grid gap-10 lg:grid-cols-12 lg:items-center xl:gap-14">
             <div className="ld-hero order-2 min-w-0 lg:order-1 lg:col-span-5">
               <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">The little hour when people meet</p>
               <h1 className="mt-3 font-serif font-normal text-[46px] leading-[1.0] tracking-[-0.015em] sm:text-[62px] lg:text-[54px] xl:text-[62px]">
-                Find the day everyone can make.
+                Find the hour everyone can keep.
               </h1>
               <p className="mt-5 max-w-[560px] text-[16px] leading-[1.6] text-dim sm:text-[17px]">
                 One link for the whole plan. People mark when they are free, vote on where to go, say if they are coming, and talk it over. No app to install, and your guests never need an account.
@@ -127,7 +127,7 @@ export default function Landing() {
         </section>
 
         {/* ── how it works ── */}
-        <section id="how" className="mx-auto w-full max-w-[1100px] scroll-mt-20 px-6 pb-8 pt-20 sm:pt-28">
+        <section id="how" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pb-8 pt-20 sm:pt-28">
           <div className="ld-reveal max-w-[560px]">
             <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-accent-text">How it works</p>
             <h2 className="mt-2.5 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">Four steps, and most of them are other people&apos;s.</h2>
@@ -136,7 +136,7 @@ export default function Landing() {
         </section>
 
         {/* ── features, alternating ── */}
-        <section id="features" className="mx-auto w-full max-w-[1100px] scroll-mt-20 px-6 pt-20 sm:pt-28">
+        <section id="features" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pt-20 sm:pt-28">
           <div className="ld-reveal max-w-[560px]">
             <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-accent-text">What it does</p>
             <h2 className="mt-2.5 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">The whole plan, in one place.</h2>
@@ -168,7 +168,7 @@ export default function Landing() {
         </section>
 
         {/* ── demos ── */}
-        <section id="demos" className="mx-auto w-full max-w-[1100px] scroll-mt-20 px-6 pt-20 sm:pt-28">
+        <section id="demos" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pt-20 sm:pt-28">
           <div className="ld-reveal flex flex-wrap items-end justify-between gap-4">
             <div className="max-w-[560px]">
               <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-accent-text">Demos</p>
@@ -199,7 +199,7 @@ export default function Landing() {
         </section>
 
         {/* ── closing ── */}
-        <section className="mx-auto w-full max-w-[1100px] px-6 pb-16 pt-20 sm:pb-24 sm:pt-28">
+        <section className="mx-auto w-full max-w-[1240px] px-[22px] pb-16 pt-20 sm:pb-24 sm:pt-28">
           <div className="ld-reveal grid gap-8 rounded-2xl bg-accent p-8 text-on-accent sm:p-12 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[.15em] opacity-70">Free to use</p>

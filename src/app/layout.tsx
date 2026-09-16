@@ -21,7 +21,7 @@ const instrumentSans = Instrument_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Hourelle, the little hour when people meet",
+  title: "Hourelle: find the hour everyone can keep",
   description:
     "A modern replacement for when2meet: availability, location voting, itineraries, and attendance in one editorial flow.",
 };
