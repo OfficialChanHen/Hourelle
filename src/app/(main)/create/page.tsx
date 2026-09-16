@@ -6,13 +6,13 @@ import {
   Check, ChevronDown, ChevronUp, Search, Plus, X, MapPin, Video, Clock,
   Info, Vote, ArrowRight, Mail, CalendarRange, Route, GripVertical,
   Loader2, Link2, Copy, UserPlus, Users, PartyPopper, AlignLeft, Wallet,
-  Map, Presentation, Repeat, Utensils, Dices, CookingPot, type LucideIcon,
+  Map, Presentation, Repeat, Utensils, Dices, CookingPot, Send, type LucideIcon,
 } from 'lucide-react'
 import { personColors, type PersonColor } from '@/lib/colors'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
-import { createEvent, draftFromEvent, getEvent, initialsOf, maxPollDays, parseHM, fmtMinute, selectedDayKeys, type AppEvent, type AccountInvitee } from '@/lib/events'
+import { addEmailInvitees, createEvent, draftFromEvent, getEvent, initialsOf, maxPollDays, parseHM, fmtMinute, selectedDayKeys, type AppEvent, type AccountInvitee } from '@/lib/events'
 import { lookupProfileByEmail, recentInvitees, type Invitee } from '@/lib/invitees'
 import { centroidOf, searchPlaces } from '@/lib/geo'
 import { canEmail, sendInvites } from '@/lib/mail'
@@ -960,24 +960,26 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
 }
 
 /* ── Confirmation (after submit) ── */
-function Created({ event }: { event: AppEvent }) {
-  const total = event.participants.filter((p) => !p.you).length
+function Created({ event: initial }: { event: AppEvent }) {
+  // people can still be added from here, so the screen keeps its own copy
+  const [event, setEvent] = useState(initial)
   const slug = event.id
   // the email invitees get their personal links by email, once, as soon as the
   // browser knows it is a logged-in host with a backend to send from
-  const emailCount = event.participants.filter((p) => p.guest && p.email).length
+  const emailCount = initial.participants.filter((p) => p.guest && p.email).length
   const account = useAccount()
+  const mailOn = canEmail(account.signedIn)
   const [invites, setInvites] = useState<{ state: 'off' | 'sending' | 'sent' | 'failed'; sent: number; error?: string }>({ state: 'off', sent: 0 })
   const asked = useRef(false)
   useEffect(() => {
-    if (asked.current || emailCount === 0 || !canEmail(account.signedIn)) return
+    if (asked.current || emailCount === 0 || !mailOn) return
     asked.current = true
     setInvites({ state: 'sending', sent: 0 })
     void sendInvites(event.id).then((r) => {
       if (!r.ok) setInvites({ state: 'failed', sent: 0, error: r.error })
       else setInvites({ state: r.data.failed > 0 && r.data.sent + r.data.already === 0 ? 'failed' : 'sent', sent: r.data.sent + r.data.already, error: r.data.failed > 0 ? `${r.data.failed} could not be sent.` : undefined })
     })
-  }, [account.signedIn, emailCount, event.id])
+  }, [mailOn, emailCount, event.id])
   // the real join URL — a guest opens it, adds their name, and is in
   const link = `${typeof window === 'undefined' ? '' : window.location.host}/events/${slug}/join`
   const toast = useRef<HTMLDivElement>(null)
@@ -997,6 +999,16 @@ function Created({ event }: { event: AppEvent }) {
     navigator.clipboard?.writeText(`${window.location.origin}/events/${slug}/join`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800) }).catch(() => {})
   }
 
+  // one honest line about the invites that went with the event
+  const inviteLine = emailCount > 0 && (
+    invites.state === 'sending' ? `Emailing ${emailCount} ${emailCount === 1 ? 'invite' : 'invites'}…`
+      : invites.state === 'sent' ? `${invites.sent} ${invites.sent === 1 ? 'invite' : 'invites'} emailed with a personal link.${invites.error ? ` ${invites.error}` : ''}`
+        : invites.state === 'failed' ? `The invites could not be emailed${invites.error ? `: ${invites.error}` : '.'} Their personal links are on the event page.`
+          : account.signedIn
+            ? `Email is not switched on for this site yet, so the ${emailCount === 1 ? 'personal link is' : `${emailCount} personal links are`} waiting on the event page.`
+            : `${emailCount} ${emailCount === 1 ? 'person has' : 'people have'} a personal link waiting on the event page. Log in to email invites.`
+  )
+
   return (
     <div className="relative min-h-[calc(100vh-54px)]">
       <div className="mx-auto max-w-[560px] px-[26px] pb-[104px] pt-[64px]">
@@ -1015,17 +1027,13 @@ function Created({ event }: { event: AppEvent }) {
             </button>
           </div>
 
-          {/* what happened to the email invites, in one honest line */}
-          {emailCount > 0 && (
-            <p className={`mx-auto mt-3 max-w-[420px] text-[12.5px] leading-[1.5] ${invites.state === 'failed' ? 'text-brick-text' : 'text-dim'}`}>
-              {invites.state === 'sending' && `Emailing ${emailCount} ${emailCount === 1 ? 'invite' : 'invites'}…`}
-              {invites.state === 'sent' && `${invites.sent} ${invites.sent === 1 ? 'invite' : 'invites'} emailed with a personal link.${invites.error ? ` ${invites.error}` : ''}`}
-              {invites.state === 'failed' && `The invites could not be emailed${invites.error ? `: ${invites.error}` : '.'} Their personal links are on the event page.`}
-              {invites.state === 'off' && `${emailCount} ${emailCount === 1 ? 'person has' : 'people have'} a personal link waiting on the event page. Log in to email invites.`}
-            </p>
+          {inviteLine && (
+            <p className={`mx-auto mt-3 max-w-[420px] text-[12.5px] leading-[1.5] ${invites.state === 'failed' ? 'text-brick-text' : 'text-dim'}`}>{inviteLine}</p>
           )}
 
-          <div className="mt-6 flex items-center justify-center gap-2.5">
+          <ShareByEmail event={event} mailOn={mailOn} onAdded={setEvent} />
+
+          <div className="mt-7 flex items-center justify-center gap-2.5">
             <Link href={`/events/${slug}?tab=availability`} className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-5 text-[14px] font-semibold text-on-accent">
               Go to event <ArrowRight size={17} />
             </Link>
@@ -1041,6 +1049,120 @@ function Created({ event }: { event: AppEvent }) {
           <span className="text-[14px] font-semibold">Event created</span>
         </div>
       </div>
+    </div>
+  )
+}
+
+/* ── the link, by email, from the confirmation screen ──
+   Addresses collect as chips; a paste of several, split on commas or spaces, lands
+   as several. With email switched on, each address becomes a guest with a personal
+   link and gets it from the app. Without it, the host's own mail app opens with the
+   plain join link already written, and nobody is added to the roster, because the
+   people who open that link will add themselves. */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+function ShareByEmail({ event, mailOn, onAdded }: { event: AppEvent; mailOn: boolean; onAdded: (ev: AppEvent) => void }) {
+  const [draft, setDraft] = useState('')
+  const [list, setList] = useState<string[]>([])
+  const [note, setNote] = useState<string | null>(null)
+  const [state, setState] = useState<{ kind: 'idle' | 'sending' | 'sent' | 'failed'; text?: string }>({ kind: 'idle' })
+  const onRoster = useMemo(() => new Set(event.participants.map((p) => p.email?.toLowerCase()).filter(Boolean)), [event.participants])
+
+  // take whatever is in the box: one address, or a pasted handful
+  function take(raw: string): boolean {
+    const parts = raw.split(/[\s,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean)
+    if (!parts.length) return false
+    const bad = parts.find((x) => !EMAIL_RE.test(x))
+    if (bad) { setNote(`${bad} does not look like an email address.`); return false }
+    const dup = parts.find((x) => onRoster.has(x))
+    if (dup) { setNote(`${dup} is already invited.`); return false }
+    setList((l) => Array.from(new Set([...l, ...parts])))
+    setNote(null)
+    setState({ kind: 'idle' })
+    return true
+  }
+  function add() { if (take(draft)) setDraft('') }
+  const remove = (e: string) => setList((l) => l.filter((x) => x !== e))
+
+  const mailto = `mailto:${list.join(',')}?subject=${encodeURIComponent(`Join ${event.title}`)}&body=${encodeURIComponent(`Say when you are free for ${event.title} here:\n${typeof window === 'undefined' ? '' : window.location.origin}/events/${event.id}/join\n\nIt takes a minute and needs no account.`)}`
+
+  async function send() {
+    if (draft.trim() && !take(draft)) return
+    const emails = draft.trim() ? Array.from(new Set([...list, ...draft.split(/[\s,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean)])) : list
+    if (!emails.length) return
+    setDraft('')
+    if (!mailOn) { window.location.href = mailto; return }
+    setState({ kind: 'sending' })
+    const added = addEmailInvitees(event.id, emails)
+    const fresh = getEvent(event.id)
+    if (fresh) onAdded(fresh)
+    if (!added.length) { setState({ kind: 'failed', text: 'Everyone on that list is already invited.' }); return }
+    const r = await sendInvites(event.id, added.map((p) => p.id))
+    if (!r.ok) { setState({ kind: 'failed', text: `${r.error} Their personal links are on the event page.` }); return }
+    const went = r.data.sent + r.data.already
+    if (went === 0) { setState({ kind: 'failed', text: 'The invites could not be sent. Their personal links are on the event page.' }); return }
+    setList([])
+    setState({ kind: 'sent', text: `${went} ${went === 1 ? 'invite' : 'invites'} emailed with a personal link.${r.data.failed ? ` ${r.data.failed} could not be sent.` : ''}` })
+  }
+
+  const count = list.length + (draft.trim() ? 1 : 0)
+  return (
+    <div className="mx-auto mt-6 w-full max-w-[420px] text-left">
+      <div className="mb-2 flex items-center gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Or send it by email</span>
+        <span className="h-px flex-1 bg-border" />
+      </div>
+      <div className="rounded-[13px] border border-border bg-s0 p-2">
+        <div className="flex gap-1.5">
+          <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[9px] border border-border bg-s1 pl-3 pr-1 focus-within:border-accent-border">
+            <Mail size={15} className="flex-none text-dim" />
+            <input
+              value={draft}
+              onChange={(e) => { setDraft(e.target.value); setNote(null) }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add() } }}
+              onBlur={() => { if (draft.trim()) add() }}
+              onPaste={(e) => { const t = e.clipboardData.getData('text'); if (/[\s,;]/.test(t.trim())) { e.preventDefault(); take(t) } }}
+              placeholder="name@example.com"
+              inputMode="email"
+              autoComplete="email"
+              aria-label="Email address"
+              className="h-full min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-faint"
+            />
+            {draft.trim() && (
+              <button type="button" onClick={add} className="flex h-7 flex-none items-center rounded-[7px] px-2.5 text-[12.5px] font-semibold text-accent-text hover:bg-accent-bg">Add</button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => void send()}
+            disabled={count === 0 || state.kind === 'sending'}
+            className="flex h-10 flex-none items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent disabled:opacity-40"
+          >
+            {state.kind === 'sending' ? <Loader2 size={15} className="animate-spin" /> : <Send size={14} />}
+            {mailOn ? (count > 1 ? `Send ${count}` : 'Send') : 'Open mail app'}
+          </button>
+        </div>
+        {list.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 px-1 pb-1 pt-2">
+            {list.map((e) => (
+              <span key={e} className="flex h-[28px] max-w-full items-center gap-1 rounded-full border border-border bg-s1 pl-2.5 pr-1 text-[13px]">
+                <span className="truncate">{e}</span>
+                <button type="button" onClick={() => remove(e)} aria-label={`Remove ${e}`} className="grid h-5 w-5 place-items-center rounded-full text-faint hover:bg-s2 hover:text-brick-text"><X size={13} /></button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      {note && <FieldError>{note}</FieldError>}
+      {state.text && (
+        <p className={`mt-2 flex items-start gap-1.5 text-[12.5px] leading-[1.5] ${state.kind === 'failed' ? 'text-brick-text' : 'text-teal-text'}`}>
+          {state.kind === 'sent' ? <Check size={14} className="mt-px flex-none" /> : <Info size={14} className="mt-px flex-none" />} {state.text}
+        </p>
+      )}
+      {!note && !state.text && (
+        <p className="mt-2 text-[12.5px] leading-[1.5] text-faint">
+          {mailOn ? 'Each person gets their own link, so they arrive already named.' : 'Opens your mail app with the link written in.'}
+        </p>
+      )}
     </div>
   )
 }

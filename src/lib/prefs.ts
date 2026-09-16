@@ -3,9 +3,9 @@
    the surfaces they affect. Anything that needs a server says so honestly in the
    settings UI instead of pretending. */
 
-const H24_KEY = 'aline.pref.h24'
-const NOTIFY_KEY = 'aline.pref.notify'
-export const PREFS_CHANGED = 'aline:prefs-changed'
+const H24_KEY = 'hourelle.pref.h24'
+const NOTIFY_KEY = 'hourelle.pref.notify'
+export const PREFS_CHANGED = 'hourelle:prefs-changed'
 
 function announce() {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(PREFS_CHANGED))
@@ -43,7 +43,7 @@ export function setPrefNotify(patch: Partial<NotifyPrefs>): void {
 // whether the availability grid shows the whole calendar week or only the days the
 // event actually asks about. Off by default: a poll that starts midweek opens on the
 // days being answered, and the seam buttons in the grid still open the rest.
-const WHOLE_WEEK_KEY = 'aline.pref.whole-week'
+const WHOLE_WEEK_KEY = 'hourelle.pref.whole-week'
 export function prefWholeWeek(): boolean {
   if (typeof window === 'undefined') return false
   try { return localStorage.getItem(WHOLE_WEEK_KEY) === '1' } catch { return false }
@@ -55,7 +55,7 @@ export function setPrefWholeWeek(v: boolean): void {
 
 // alert sounds for a new message and a new notification. On by default: they are
 // short, quiet, and the only way the app can reach you while you are on another tab.
-const SOUND_KEY = 'aline.pref.sound'
+const SOUND_KEY = 'hourelle.pref.sound'
 export function prefSound(): boolean {
   if (typeof window === 'undefined') return false
   try { return localStorage.getItem(SOUND_KEY) !== '0' } catch { return false }
@@ -65,14 +65,14 @@ export function setPrefSound(v: boolean): void {
   announce()
 }
 
-// color palette override ('studio', 'daylight', …) — null, or the house key 'aline',
+// color palette override ('studio', 'daylight', …) — null, or the house key 'hourelle',
 // means the house look. The raw key is also read by the inline script in
 // app/layout.tsx, which runs before hydration and can't import this module; keep the
 // key AND the moved-key table below in sync with it.
-const PALETTE_KEY = 'aline.palette'
+const PALETTE_KEY = 'hourelle.palette'
 // appearances that were renamed or retired. A browser that picked one before lands on
 // its nearest survivor instead of on a palette the stylesheet no longer defines.
-const MOVED: Record<string, string> = { gcal: 'daylight', pro: 'studio', drain: 'aline', pride: 'aline' }
+const MOVED: Record<string, string> = { gcal: 'daylight', pro: 'studio', drain: 'hourelle', pride: 'hourelle', aline: 'hourelle' }
 export function prefPalette(): string | null {
   if (typeof window === 'undefined') return null
   try {
@@ -85,7 +85,7 @@ export function setPrefPalette(p: string): void {
 }
 
 // one-time UI hints ("drag to reorder", …): shown until dismissed, per browser
-const hintKey = (name: string) => `aline.hint.${name}`
+const hintKey = (name: string) => `hourelle.hint.${name}`
 export function hintDismissed(name: string): boolean {
   if (typeof window === 'undefined') return false
   try { return localStorage.getItem(hintKey(name)) === '1' } catch { return false }

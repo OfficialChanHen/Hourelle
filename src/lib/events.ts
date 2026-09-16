@@ -164,7 +164,7 @@ export function initialsOf(name: string): string {
 }
 
 /* ── storage ── */
-const KEY = 'aline.events.v1'
+const KEY = 'hourelle.events.v1'
 
 // pre-'set' events stored a settled venue as mode:'vote' + settled:true — fold that into
 // the mode on read so every consumer sees one vocabulary (writes then self-heal via patch)
@@ -969,6 +969,28 @@ function guestFromEmail(raw: string, roster: Participant[]): Participant {
   return { id: `g:${email}`, initials, name, color: pickColor(roster, { initials, name }), rsvp: 'pending', guest: true, email, inviteToken: linkToken(16) }
 }
 
+/** Invite more people by email after the event exists: each new address becomes a
+ *  guest with a personal link, the way the wizard makes them. Addresses already on
+ *  the roster (as a guest's email, or an account's) are skipped. Returns the people
+ *  actually added, so the caller can email exactly those. */
+export function addEmailInvitees(id: string, emails: string[]): Participant[] {
+  const ev = getEvent(id)
+  if (!ev) return []
+  const known = new Set(ev.participants.map((p) => p.email?.toLowerCase()).filter(Boolean))
+  const roster = [...ev.participants]
+  const added: Participant[] = []
+  for (const raw of emails) {
+    const email = raw.trim().toLowerCase()
+    if (!email || known.has(email)) continue
+    known.add(email)
+    const g = guestFromEmail(email, roster)
+    roster.push(g)
+    added.push(g)
+  }
+  if (added.length) patchEvent(id, { participants: roster })
+  return added
+}
+
 /* ── one way to add a line to the discussion ──
    Messages leave the event document here: the local copy is updated for the UI,
    and the message goes to the cloud as its own row, so two people chatting at once
@@ -1033,7 +1055,7 @@ export const isAccountId = (id: string) => UUID_RE.test(id)
    as them. Everything else keeps working through the `you` markers: viewOf() moves
    them onto the guest at read time, and writers re-read raw storage so the remapped
    flags are never persisted — `you` in storage always means the stubbed account. */
-const meKey = (eventId: string) => `aline.me.${eventId}`
+const meKey = (eventId: string) => `hourelle.me.${eventId}`
 
 export function guestSessionId(eventId: string): string | null {
   if (typeof window === 'undefined') return null
@@ -1043,7 +1065,7 @@ export function guestSessionId(eventId: string): string | null {
 /* ── discussion read marks: how many messages this browser has seen, per event ──
    Feeds the unread badge on the chat bubble. Per browser today; becomes per-person
    read state on the server once the backend exists. */
-const seenKey = (eventId: string) => `aline.seen.${eventId}`
+const seenKey = (eventId: string) => `hourelle.seen.${eventId}`
 
 export function seenMessageCount(eventId: string): number {
   if (typeof window === 'undefined') return 0
@@ -1057,8 +1079,8 @@ export function markMessagesSeen(eventId: string, count: number): void {
    whole app. The account surfaces (home, lists, create, alerts, profile) show a
    sign-in gate instead of their content, and the header shrinks to match. Holds
    the joined event id so every gate can lead back. */
-const GUEST_MODE_KEY = 'aline.guest-mode'
-export const GUEST_MODE_CHANGED = 'aline:guest-mode'
+const GUEST_MODE_KEY = 'hourelle.guest-mode'
+export const GUEST_MODE_CHANGED = 'hourelle:guest-mode'
 
 export function guestModeEventId(): string | null {
   if (typeof window === 'undefined') return null
@@ -1160,7 +1182,7 @@ export function addMeToEvent(id: string): Participant | null {
 }
 
 // A guest joins under a device-local id: no account, nothing minted on the server.
-// Their claim to the entry is this browser (aline.me.<eventId>) and, if they gave
+// Their claim to the entry is this browser (hourelle.me.<eventId>) and, if they gave
 // one, their email — proven by magic link when they return on another device.
 export function joinEvent(id: string, name: string, email?: string): Participant | null {
   const ev = getEvent(id)

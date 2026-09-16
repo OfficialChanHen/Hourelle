@@ -378,22 +378,22 @@ input[type="date"]::-webkit-date-and-time-value {
    The tiles are light in both themes (a dark theme dims them a touch rather than
    inverting them); pins and popups use the map's own fixed palette, like the
    drawing they replaced, so they read on the tiles rather than on the page. */
-.aline-map { position: absolute; inset: 0; z-index: 0; background: var(--s2); font-family: inherit; font-size: 13px; line-height: 1.4; }
-.aline-map .leaflet-control-attribution { font-size: 11px; color: #4A463C; background: rgba(255,255,255,.8); }
-.aline-map .leaflet-control-attribution a { color: #2A4537; }
-.aline-map .leaflet-bar { border: 1px solid rgba(0,0,0,.12); border-radius: 8px; box-shadow: none; overflow: hidden; }
-.aline-map .leaflet-bar a { width: 30px; height: 30px; line-height: 30px; color: #1b1b19; background: #fff; border-bottom-color: rgba(0,0,0,.1); }
-[data-theme="dark"] .aline-map .leaflet-tile-pane { filter: brightness(.78) saturate(.8); }
-.aline-pin { background: none; border: none; cursor: pointer; }
-.aline-pin svg { display: block; overflow: visible; font-family: inherit; filter: drop-shadow(0 3px 5px rgba(0,0,0,.35)); transform-origin: 50% 100%; transition: transform .18s ease; }
+.hourelle-map { position: absolute; inset: 0; z-index: 0; background: var(--s2); font-family: inherit; font-size: 13px; line-height: 1.4; }
+.hourelle-map .leaflet-control-attribution { font-size: 11px; color: #4A463C; background: rgba(255,255,255,.8); }
+.hourelle-map .leaflet-control-attribution a { color: #2A4537; }
+.hourelle-map .leaflet-bar { border: 1px solid rgba(0,0,0,.12); border-radius: 8px; box-shadow: none; overflow: hidden; }
+.hourelle-map .leaflet-bar a { width: 30px; height: 30px; line-height: 30px; color: #1b1b19; background: #fff; border-bottom-color: rgba(0,0,0,.1); }
+[data-theme="dark"] .hourelle-map .leaflet-tile-pane { filter: brightness(.78) saturate(.8); }
+.hourelle-pin { background: none; border: none; cursor: pointer; }
+.hourelle-pin svg { display: block; overflow: visible; font-family: inherit; filter: drop-shadow(0 3px 5px rgba(0,0,0,.35)); transform-origin: 50% 100%; transition: transform .18s ease; }
 /* hover lifts the pin off its point; the focused pin stays a touch larger and keeps its ring */
-.aline-pin:hover svg { transform: translateY(-3px) scale(1.08); }
-.aline-pin-focused svg { transform: scale(1.12); }
-.aline-pin-focused:hover svg { transform: translateY(-3px) scale(1.16); }
-.aline-pin-focused .aline-pin-ring { opacity: .45; }
-.aline-popup .leaflet-popup-content-wrapper { border-radius: 11px; padding: 11px 13px 12px; box-shadow: 0 10px 28px rgba(0,0,0,.28); background: #fff; color: #1b1b19; }
-.aline-popup .leaflet-popup-content { margin: 0; min-width: 158px; font: inherit; line-height: inherit; }
-.aline-popup .leaflet-popup-tip { box-shadow: none; }
+.hourelle-pin:hover svg { transform: translateY(-3px) scale(1.08); }
+.hourelle-pin-focused svg { transform: scale(1.12); }
+.hourelle-pin-focused:hover svg { transform: translateY(-3px) scale(1.16); }
+.hourelle-pin-focused .hourelle-pin-ring { opacity: .45; }
+.hourelle-popup .leaflet-popup-content-wrapper { border-radius: 11px; padding: 11px 13px 12px; box-shadow: 0 10px 28px rgba(0,0,0,.28); background: #fff; color: #1b1b19; }
+.hourelle-popup .leaflet-popup-content { margin: 0; min-width: 158px; font: inherit; line-height: inherit; }
+.hourelle-popup .leaflet-popup-tip { box-shadow: none; }
 
 /* a scroll box with no visible bar: dragged by hand on touch screens */
 .scroll-none { scrollbar-width: none; }

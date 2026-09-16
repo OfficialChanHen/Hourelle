@@ -24,15 +24,15 @@ function pinIcon(label: string, lead: boolean, focused: boolean): L.DivIcon {
   const bg = lead ? '#2E4A3C' : '#5E7B69'
   const size = label.length > 2 ? 10.5 : 13
   return L.divIcon({
-    className: `aline-pin${focused ? ' aline-pin-focused' : ''}`,
+    className: `hourelle-pin${focused ? ' hourelle-pin-focused' : ''}`,
     iconSize: [PIN_W, PIN_H],
     iconAnchor: [PIN_W / 2, PIN_H - 1],
     popupAnchor: [0, -(PIN_H - 4)],
     // two rings round the head: the pulse GSAP runs when the pin gains focus, and
     // the steady ring the focused pin keeps (shown by CSS)
     html: `<svg width="${PIN_W}" height="${PIN_H}" viewBox="0 0 32 42" aria-hidden="true">`
-      + `<circle class="aline-pin-pulse" cx="16" cy="15.5" r="13.5" fill="none" stroke="${bg}" stroke-width="2.5" opacity="0"/>`
-      + `<circle class="aline-pin-ring" cx="16" cy="15.5" r="16" fill="none" stroke="${bg}" stroke-width="2" opacity="0"/>`
+      + `<circle class="hourelle-pin-pulse" cx="16" cy="15.5" r="13.5" fill="none" stroke="${bg}" stroke-width="2.5" opacity="0"/>`
+      + `<circle class="hourelle-pin-ring" cx="16" cy="15.5" r="16" fill="none" stroke="${bg}" stroke-width="2" opacity="0"/>`
       + `<path d="M16 41C16 41 2.5 25 2.5 15.5A13.5 13.5 0 0 1 29.5 15.5C29.5 25 16 41 16 41Z" fill="${bg}" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>`
       + `<text x="16" y="16" text-anchor="middle" dominant-baseline="central" font-size="${size}" font-weight="700" fill="#fff">${label}</text>`
       + '</svg>',
@@ -41,7 +41,7 @@ function pinIcon(label: string, lead: boolean, focused: boolean): L.DivIcon {
 
 // the click pulse: a ring that swells out of the pin's head and fades
 function pulsePin(m: L.Marker) {
-  const ring = m.getElement()?.querySelector('.aline-pin-pulse')
+  const ring = m.getElement()?.querySelector('.hourelle-pin-pulse')
   if (!ring) return
   gsap.fromTo(ring, { attr: { r: 13.5 }, opacity: 0.7 }, { attr: { r: 24 }, opacity: 0, duration: 0.75, ease: 'power2.out', overwrite: true })
 }
@@ -152,7 +152,7 @@ export function EventMap({ pins, route, dashed = false, focusId = null, panTo = 
   const fitPoints = useMemo<LatLng[]>(() => (route && route.length > 1 ? [...pins, ...route] : pins), [pins, route])
   const center: [number, number] = pins.length ? [pins[0].lat, pins[0].lng] : [37.7749, -122.4194]
   return (
-    <MapContainer center={center} zoom={13} scrollWheelZoom={false} className={`aline-map absolute inset-0 z-0 ${className}`} attributionControl zoomControl={false}>
+    <MapContainer center={center} zoom={13} scrollWheelZoom={false} className={`hourelle-map absolute inset-0 z-0 ${className}`} attributionControl zoomControl={false}>
       <ZoomControl position="bottomright" />
       <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} maxZoom={19} />
       <Resizer />
@@ -172,7 +172,7 @@ export function EventMap({ pins, route, dashed = false, focusId = null, panTo = 
           eventHandlers={{ click: () => onFocus?.(p.id), popupclose: () => { if (focusId === p.id) onFocus?.(null) } }}
           zIndexOffset={(p.lead ? 500 : 0) + (p.id === focusId ? 1000 : 0)}
         >
-          {renderPopup && <Popup closeButton={false} autoPan className="aline-popup">{renderPopup(p.id)}</Popup>}
+          {renderPopup && <Popup closeButton={false} autoPan className="hourelle-popup">{renderPopup(p.id)}</Popup>}
         </Marker>
       ))}
       <OpenPopup id={focusId} markers={markers} />

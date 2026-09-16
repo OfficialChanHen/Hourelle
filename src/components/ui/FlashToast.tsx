@@ -10,7 +10,7 @@ import { Check, Trash2 } from 'lucide-react'
    the page that lands reads it once and drops it in from the top (same motion as
    the create-flow confirmation). Parent needs `relative` for the anchoring. */
 type Flash = { text: string; tone: 'accent' | 'brick' }
-const KEY = 'aline.flash'
+const KEY = 'hourelle.flash'
 
 export function pushFlash(text: string, tone: Flash['tone'] = 'accent') {
   try { sessionStorage.setItem(KEY, JSON.stringify({ text, tone })) } catch { /* private mode */ }

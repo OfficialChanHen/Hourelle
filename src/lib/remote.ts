@@ -11,8 +11,8 @@ import type { AppEvent, ChatMessage } from './events'
 
 // fired on window whenever the cloud changed the local cache, so any open page
 // can re-read if it wants live updates (roadmap step 7 wires the listeners)
-export const EVENTS_SYNCED = 'aline:events-synced'
-const KEY = 'aline.events.v1'
+export const EVENTS_SYNCED = 'hourelle:events-synced'
+const KEY = 'hourelle.events.v1'
 
 function readCache(): AppEvent[] {
   try { return JSON.parse(localStorage.getItem(KEY) ?? '[]') as AppEvent[] } catch { return [] }
@@ -24,7 +24,7 @@ function writeCache(list: AppEvent[], announce: boolean) {
 
 // fired when the database refuses a write, so the UI can say so instead of leaving
 // a local change that silently never reached anyone else
-export const PUSH_REJECTED = 'aline:push-rejected'
+export const PUSH_REJECTED = 'hourelle:push-rejected'
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // the host as a column, read off the document: the participant flagged `host`, but
@@ -64,7 +64,7 @@ function localize(doc: AppEvent, prior?: AppEvent): AppEvent {
 }
 
 function rejected(action: string, message: string) {
-  console.warn(`aline: ${action} refused by the database — ${message}`)
+  console.warn(`hourelle: ${action} refused by the database — ${message}`)
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(PUSH_REJECTED, { detail: { action, message } }))
   }
@@ -173,7 +173,7 @@ async function loadAnswers(ids: string[]): Promise<{ avail: AvailRow[]; votes: V
   ])
   if (a.error || v.error) {
     if (noteMissing(a.error?.message) || noteMissing(v.error?.message)) return null
-    console.warn('aline: answers pull failed', a.error?.message ?? v.error?.message)
+    console.warn('hourelle: answers pull failed', a.error?.message ?? v.error?.message)
     return null
   }
   rowsReady = true
@@ -339,7 +339,7 @@ export function pushDelete(id: string): void {
    by the email the account signed up with (a guest entry made before the account
    existed — this is how those events follow you in), or an event this browser
    holds a guest session for. Without a backend the browser owns everything in it. */
-const GUEST_KEY_PREFIX = 'aline.me.'
+const GUEST_KEY_PREFIX = 'hourelle.me.'
 export function guestSessionEventIds(): string[] {
   if (typeof window === 'undefined') return []
   try {
@@ -392,7 +392,7 @@ export async function syncFromCloud(): Promise<void> {
   if (currentAccount().id !== acc.id) return
   const failed = results.find((r) => r.error)
   if (failed?.error) {
-    console.warn('aline: pull failed', failed.error.message)
+    console.warn('hourelle: pull failed', failed.error.message)
     pulledOnce = true
     window.dispatchEvent(new Event(EVENTS_SYNCED)) // let waiting pages stop waiting
     return

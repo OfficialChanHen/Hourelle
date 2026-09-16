@@ -145,7 +145,7 @@ export type RoadRoute = { legs: RoadLeg[]; line: LatLng[] }
 // Attendance tab read the same answer, so their clocks agree
 const routeCache = new Map<string, RoadRoute | null>()
 const inflight = new Map<string, Promise<RoadRoute | null>>()
-export const ROUTE_CHANGED = 'aline:route-changed'
+export const ROUTE_CHANGED = 'hourelle:route-changed'
 
 export function routeKey(points: LatLng[]): string {
   return points.map((p) => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join(';')

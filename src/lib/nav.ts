@@ -9,7 +9,7 @@
 // inside it, leaves the trail on the list you were actually browsing. Arriving
 // cold (a pasted link, a reload, an email) leaves no trail and the default stands.
 
-const KEY = 'aline.last-list'
+const KEY = 'hourelle.last-list'
 export type ListPage = 'home' | 'events' | 'demos'
 const PATHS: Record<string, ListPage> = { '/home': 'home', '/events': 'events', '/demos': 'demos' }
 

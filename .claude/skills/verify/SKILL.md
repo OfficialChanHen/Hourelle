@@ -3,7 +3,7 @@ name: verify
 description: How to drive and screenshot this app end-to-end (Next.js client-side, localStorage data, headless Chromium on WSL2 without sudo)
 ---
 
-# Verifying Aline changes in a real browser
+# Verifying Hourelle changes in a real browser
 
 The app is fully client-side (localStorage, no backend). `curl` only proves the page compiles; real verification needs a browser.
 
@@ -20,8 +20,8 @@ The app is fully client-side (localStorage, no backend). `curl` only proves the 
    ```bash
    LD_LIBRARY_PATH=~/.cache/aline-verify-libs node drive.js
    ```
-4. Seed test data through `context.addInitScript` — write an `AppEvent[]` JSON array to localStorage key `aline.events.v1` (shape in `src/lib/events.ts`). The init script re-runs on every navigation, so state resets per page load. Useful fields for edge states: `rsvp: 'pending'`, `status: 'confirmed'` + `confirmed: { dayKey, startMin, endMin, placeIds }` (clock minutes), `availIv` (grid minutes from `times[0]`).
-   Also set `aline.hint.location = '1'` to suppress the one-time hint.
+4. Seed test data through `context.addInitScript` — write an `AppEvent[]` JSON array to localStorage key `hourelle.events.v1` (shape in `src/lib/events.ts`). The init script re-runs on every navigation, so state resets per page load. Useful fields for edge states: `rsvp: 'pending'`, `status: 'confirmed'` + `confirmed: { dayKey, startMin, endMin, placeIds }` (clock minutes), `availIv` (grid minutes from `times[0]`).
+   Also set `hourelle.hint.location = '1'` to suppress the one-time hint.
 5. The built-in demo event is at `/events/q3-offsite`; tabs via `?tab=availability|location|attendance|details`.
 6. Clipboard checks: `newContext({ permissions: ['clipboard-read', 'clipboard-write'] })` works in the headless shell.
 7. Dark theme: `addInitScript(() => localStorage.setItem('theme', 'dark'))` (next-themes). Mobile: 390px viewport.

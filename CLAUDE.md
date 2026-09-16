@@ -1,7 +1,7 @@
-# Aline — project context for Claude Code
+# Hourelle — project context for Claude Code
 
 ## What this is
-Aline is a modern replacement for when2meet.com. It handles the full lifecycle of event coordination: scheduling via an availability grid, collaborative location voting on a map, itinerary building for multi-stop events, real-time chat per event, and attendance tracking (multi-stop itinerary **and** single-venue). Both authenticated users and guests (via share link) can participate.
+Hourelle is a modern replacement for when2meet.com. It handles the full lifecycle of event coordination: scheduling via an availability grid, collaborative location voting on a map, itinerary building for multi-stop events, real-time chat per event, and attendance tracking (multi-stop itinerary **and** single-venue). Both authenticated users and guests (via share link) can participate.
 
 ### Visual direction — the editorial system, designed past its first draft
 The design is **editorial**: warm neutral / warm-charcoal surfaces, a single deep-green signature accent, Instrument Serif display headlines over a grotesk body, hairline rules, restrained shadows, and generous whitespace — shipped in two equally-finished themes (light + dark). The HTML reference files in `public/examples/` were the **early iteration** of this design, not a 1:1 target — the built app is expected to exceed them:

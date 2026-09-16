@@ -151,33 +151,99 @@ export function placeText(ev: AppEvent): string {
 /* ── the messages ── */
 function firstName(p: Participant): string { return p.name.split(' ')[0] || 'there' }
 
-// one quiet HTML shell for every message: paper background, one green button
-function shell(title: string, lines: string[], cta: { label: string; href: string }): string {
-  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  return `<div style="background:#F4F1EA;padding:32px 16px;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1B1815">
-  <div style="max-width:520px;margin:0 auto;background:#FFFFFF;border:1px solid #E6E0D4;border-radius:14px;padding:28px 28px 24px">
-    <div style="font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:#A39A89;font-weight:600">Hourelle</div>
-    <h1 style="font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:26px;line-height:1.15;margin:10px 0 14px">${esc(title)}</h1>
-    ${lines.map((l) => `<p style="font-size:15px;line-height:1.55;margin:0 0 12px;color:#3d3830">${esc(l)}</p>`).join('')}
-    <a href="${cta.href}" style="display:inline-block;margin-top:8px;background:#2E4A3C;color:#F8F5EC;text-decoration:none;font-weight:600;font-size:14px;padding:11px 18px;border-radius:10px">${esc(cta.label)}</a>
-    <p style="font-size:12px;line-height:1.5;color:#A39A89;margin:22px 0 0">If the button does not work, open this link: ${esc(cta.href)}</p>
-  </div>
-</div>`
+/* ── the HTML shell every message wears ──
+   Built the way email has to be built: nested tables, every style inline, no web
+   fonts, and a preheader the inbox list shows under the subject. The look is the
+   app's paper and its deep green; the serif is whatever serif the client has, since
+   Lora will not travel. One column, 560 wide, so it reads the same in Gmail, Mail
+   and Outlook, and on a phone. Anything with structure (when, where, who is asking)
+   goes in a details card rather than a sentence, so it can be found at a glance. */
+type Shell = {
+  title: string
+  lines: string[]
+  cta: { label: string; href: string }
+  details?: { label: string; value: string }[]
+  preheader?: string
+  footer?: string
+}
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+function shell({ title, lines, cta, details = [], preheader, footer }: Shell): string {
+  const font = "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif"
+  const serif = "font-family:Georgia,'Iowan Old Style','Times New Roman',serif"
+  const rows = details.filter((d) => d.value).map((d, i) => `
+            <tr>
+              <td style="padding:${i ? 10 : 0}px 0 0;vertical-align:top;width:88px;${font};font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#98978F;font-weight:600;line-height:20px">${esc(d.label)}</td>
+              <td style="padding:${i ? 10 : 0}px 0 0;vertical-align:top;${font};font-size:15px;color:#1A1917;line-height:20px">${esc(d.value)}</td>
+            </tr>`).join('')
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>${esc(title)}</title>
+</head>
+<body style="margin:0;padding:0;background:#F7F6F4;-webkit-text-size-adjust:100%">
+${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${esc(preheader)}${'&#847;&zwnj;&nbsp;'.repeat(40)}</div>` : ''}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F7F6F4">
+  <tr>
+    <td align="center" style="padding:36px 16px 40px">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px">
+        <tr>
+          <td style="padding:0 6px 14px;${serif};font-size:22px;color:#1A1917;letter-spacing:.01em">Hourelle</td>
+        </tr>
+        <tr>
+          <td style="background:#FFFFFF;border:1px solid #E3E2DE;border-radius:16px;padding:36px 36px 32px">
+            <h1 style="margin:0;${serif};font-weight:400;font-size:30px;line-height:1.15;letter-spacing:-.01em;color:#1A1917">${esc(title)}</h1>
+            ${lines.map((l) => `<p style="margin:16px 0 0;${font};font-size:16px;line-height:1.6;color:#3A3935">${esc(l)}</p>`).join('')}
+            ${rows ? `
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 0;background:#F7F6F4;border:1px solid #E3E2DE;border-radius:12px">
+              <tr><td style="padding:18px 20px"><table role="presentation" cellpadding="0" cellspacing="0" border="0">${rows}
+            </table></td></tr>
+            </table>` : ''}
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 0">
+              <tr>
+                <td style="background:#2E4A3C;border-radius:11px">
+                  <a href="${esc(cta.href)}" style="display:inline-block;padding:14px 24px;${font};font-size:15px;font-weight:600;line-height:1;color:#F8F7F3;text-decoration:none">${esc(cta.label)}</a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:24px 0 0;${font};font-size:12.5px;line-height:1.6;color:#98978F">If the button does not open, copy this link into your browser:<br><a href="${esc(cta.href)}" style="color:#2A4537;text-decoration:underline;word-break:break-all">${esc(cta.href)}</a></p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:18px 6px 0;${font};font-size:12.5px;line-height:1.6;color:#98978F">${esc(footer ?? 'Sent by Hourelle, where people find the hour everyone can make.')}</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`
 }
 
 export function inviteMail(ev: AppEvent, p: Participant, to: string, site: string, hostEmail?: string | null): Mail {
   const host = hostNameOf(ev), link = joinLink(site, ev, p), when = whenText(ev), place = placeText(ev)
   const ask = ev.confirmed ? 'Open your link to say whether you can make it.' : 'Open your link and mark when you are free. It takes a minute and needs no account.'
-  const lines = [`Hi ${firstName(p)}, ${host} is planning ${ev.title}${when ? ` for ${when}` : ''}${place ? ` at ${place}` : ''}.`, ask]
-  const text = [...lines, '', link, '', 'Sent by Hourelle on behalf of the host.'].join('\n')
-  return { to, subject: `${host} invited you to ${ev.title}`, text, html: shell(`${host} invited you to ${ev.title}`, lines, { label: ev.confirmed ? 'Say if you can make it' : 'Mark when you are free', href: link }), replyTo: hostEmail ?? undefined }
+  const lines = [`Hi ${firstName(p)}, ${host} is planning ${ev.title} and would like you there.`, ask]
+  const facts = [when ? `When: ${when}` : '', place ? `Where: ${place}` : ''].filter(Boolean)
+  const text = [lines[0], ...facts, '', ask, '', link, '', `Sent by Hourelle on behalf of ${host}. Reply to this email to reach them.`].join('\n')
+  const html = shell({
+    title: `${host} invited you to ${ev.title}`,
+    lines,
+    details: [{ label: 'When', value: when }, { label: 'Where', value: place }, { label: 'From', value: host }],
+    cta: { label: ev.confirmed ? 'Say if you can make it' : 'Mark when you are free', href: link },
+    preheader: ask,
+    footer: `Sent by Hourelle on behalf of ${host}. Reply to this email to reach them.`,
+  })
+  return { to, subject: `${host} invited you to ${ev.title}`, text, html, replyTo: hostEmail ?? undefined }
 }
 
 export function nudgeMail(ev: AppEvent, p: Participant, to: string, site: string, hostEmail?: string | null): Mail {
   const host = hostNameOf(ev), link = joinLink(site, ev, p)
   const lines = [`Hi ${firstName(p)}, ${host} is still waiting on your times for ${ev.title}.`, 'Mark when you are free so the plan can be settled. Even a rough answer helps.']
   const text = [...lines, '', link].join('\n')
-  return { to, subject: `${host} is waiting on your times for ${ev.title}`, text, html: shell(`A quick one from ${host}`, lines, { label: 'Mark when you are free', href: link }), replyTo: hostEmail ?? undefined }
+  return { to, subject: `${host} is waiting on your times for ${ev.title}`, text, html: shell({ title: `A quick one from ${host}`, lines, cta: { label: 'Mark when you are free', href: link }, preheader: lines[0], footer: `Sent by Hourelle on behalf of ${host}. Reply to this email to reach them.` }), replyTo: hostEmail ?? undefined }
 }
 
 export function reminderMail(kind: MailKind, ev: AppEvent, p: Participant, to: string, site: string): Mail {
@@ -187,19 +253,19 @@ export function reminderMail(kind: MailKind, ev: AppEvent, p: Participant, to: s
   if (kind === 'event-eve' || kind === 'event-day') {
     const title = `${soon === 'today' ? 'Today' : 'Tomorrow'}: ${ev.title}`
     const lines = [`Hi ${first}, ${ev.title} is ${soon}${when ? `: ${when}` : ''}${place ? `, at ${place}` : ''}.`, 'Everything the group settled on is on the event page.']
-    return { to, subject: title, text: [...lines, '', link].join('\n'), html: shell(title, lines, { label: 'Open the event', href: link }) }
+    return { to, subject: title, text: [...lines, '', link].join('\n'), html: shell({ title, lines, details: [{ label: 'When', value: when }, { label: 'Where', value: place }], cta: { label: 'Open the event', href: link }, preheader: lines[0] }) }
   }
   if (kind === 'plan-eve' || kind === 'plan-day') {
     const title = `Lock in ${ev.title} by ${soon}`
     const lines = [`Hi ${first}, you set ${soon === 'today' ? 'today' : 'tomorrow'} as the day to have ${ev.title} settled.`, 'Have a look at how the answers came in and lock in a time and place.']
-    return { to, subject: title, text: [...lines, '', link].join('\n'), html: shell(title, lines, { label: 'Lock it in', href: link }) }
+    return { to, subject: title, text: [...lines, '', link].join('\n'), html: shell({ title, lines, cta: { label: 'Lock it in', href: link }, preheader: lines[0] }) }
   }
   if (kind === 'vote-eve' || kind === 'vote-day') {
     const title = `Voting on ${ev.title} closes ${soon}`
     const lines = [`Hi ${first}, the vote on where ${ev.title} happens closes ${soon}, and yours is not in yet.`, 'Pick your place before it does.']
-    return { to, subject: title, text: [...lines, '', link].join('\n'), html: shell(title, lines, { label: 'Cast your vote', href: link }) }
+    return { to, subject: title, text: [...lines, '', link].join('\n'), html: shell({ title, lines, cta: { label: 'Cast your vote', href: link }, preheader: lines[0] }) }
   }
   const title = `Say if you can make ${ev.title} by ${soon}`
   const lines = [`Hi ${first}, ${hostNameOf(ev)} asked for answers on ${ev.title} by ${soon}${when ? ` (${when})` : ''}.`, 'A yes, a maybe, or a no all help the host plan.']
-  return { to, subject: title, text: [...lines, '', link].join('\n'), html: shell(title, lines, { label: 'Answer now', href: link }) }
+  return { to, subject: title, text: [...lines, '', link].join('\n'), html: shell({ title, lines, details: [{ label: 'When', value: when }], cta: { label: 'Answer now', href: link }, preheader: lines[0] }) }
 }

@@ -53,8 +53,8 @@ export function deriveNotifications(events: AppEvent[]): NotificationItem[] {
 }
 
 /* ── seen tracking ── */
-const SEEN_KEY = 'aline.notifications.seen.v1'
-export const NOTIFICATIONS_CHANGED = 'aline:notifications-changed'
+const SEEN_KEY = 'hourelle.notifications.seen.v1'
+export const NOTIFICATIONS_CHANGED = 'hourelle:notifications-changed'
 
 export function seenNotificationKeys(): Set<string> {
   if (typeof window === 'undefined') return new Set()

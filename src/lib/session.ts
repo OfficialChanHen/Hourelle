@@ -26,8 +26,8 @@ export type Account = {
 // the stubbed identity: what the app is when nobody has signed in
 export const STUB: Account = { id: 'JM', name: 'Jordan Miller', color: 'purple', kind: 'person', signedIn: false }
 
-const CACHE_KEY = 'aline.account'
-export const ACCOUNT_CHANGED = 'aline:account-changed'
+const CACHE_KEY = 'hourelle.account'
+export const ACCOUNT_CHANGED = 'hourelle:account-changed'
 
 let cached: Account | null = null
 
