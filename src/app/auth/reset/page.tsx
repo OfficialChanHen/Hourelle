@@ -8,12 +8,12 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { CalendarRange, Check, Loader2, TriangleAlert } from 'lucide-react'
+import { CalendarRange, Loader2, TriangleAlert } from 'lucide-react'
 import { backendOn } from '@/lib/db'
 import { hasSession, updatePassword } from '@/lib/session'
 import { PasswordField } from '@/components/ui/PasswordField'
-
-const MIN_PASSWORD = 8
+import { PasswordRules } from '@/components/ui/PasswordRules'
+import { passwordOk } from '@/lib/password'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -50,9 +50,9 @@ export default function ResetPasswordPage() {
     setTimeout(() => router.replace('/home'), 1400)
   }
 
-  const longEnough = password.length >= MIN_PASSWORD
+  const strong = passwordOk(password)
   const mismatch = confirm.length > 0 && confirm !== password
-  const canSubmit = longEnough && confirm === password
+  const canSubmit = strong && confirm === password
 
   return (
     <div className="grid min-h-dvh place-items-center px-5 py-10">
@@ -90,12 +90,7 @@ export default function ResetPasswordPage() {
                 value={password}
                 onChange={setPassword}
                 autoComplete="new-password"
-                hint={
-                  <p className={`flex items-center gap-1.5 text-[12px] ${longEnough ? 'text-teal-text' : 'text-faint'}`}>
-                    {longEnough && <Check size={12} />}
-                    At least {MIN_PASSWORD} characters
-                  </p>
-                }
+                hint={<PasswordRules value={password} />}
               />
               <PasswordField
                 id="reset-confirm"

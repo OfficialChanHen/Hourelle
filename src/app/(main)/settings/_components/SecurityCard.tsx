@@ -12,8 +12,8 @@ import { Check, Loader2, ShieldCheck } from 'lucide-react'
 import { PasswordField } from '@/components/ui/PasswordField'
 import { changePassword, signInProviders, signOutEverywhere, updatePassword, type Account } from '@/lib/session'
 import { backendOn } from '@/lib/db'
-
-const MIN_PASSWORD = 8
+import { passwordOk } from '@/lib/password'
+import { PasswordRules } from '@/components/ui/PasswordRules'
 
 export function SecurityCard({ account }: { account: Account }) {
   // which doors this account has. Unknown until the round trip lands; until then the
@@ -30,9 +30,9 @@ export function SecurityCard({ account }: { account: Account }) {
   const [err, setErr] = useState<string | null>(null)
   const [done, setDone] = useState(false)
 
-  const longEnough = next.length >= MIN_PASSWORD
+  const strong = passwordOk(next)
   const mismatch = confirm.length > 0 && confirm !== next
-  const canSave = longEnough && confirm === next && (googleOnly || current.length > 0)
+  const canSave = strong && confirm === next && (googleOnly || current.length > 0)
 
   function reset() {
     setOpen(false); setCurrent(''); setNext(''); setConfirm(''); setErr(null)
@@ -99,13 +99,8 @@ export function SecurityCard({ account }: { account: Account }) {
               value={next}
               onChange={setNext}
               autoComplete="new-password"
-              hint={
-                // the rule stays on screen while you type, which a placeholder cannot do
-                <p className={`flex items-center gap-1.5 text-[12px] ${longEnough ? 'text-teal-text' : 'text-faint'}`}>
-                  {longEnough && <Check size={12} />}
-                  At least {MIN_PASSWORD} characters
-                </p>
-              }
+              // the rule stays on screen while you type, which a placeholder cannot do
+              hint={<PasswordRules value={next} />}
             />
             <PasswordField
               id="security-confirm"

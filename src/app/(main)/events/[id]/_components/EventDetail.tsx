@@ -34,6 +34,7 @@ import { ChatDrawer } from './ChatDrawer'
 import { useIsIOS } from '@/hooks/useIsIOS'
 import { useAccount } from '@/hooks/useAccount'
 import { canEmail, sendInvites } from '@/lib/mail'
+import { InviteByEmail } from '@/components/InviteByEmail'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 
 const TABS = [
@@ -549,6 +550,12 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
             : <>{nAvail} available{nCant > 0 && <>, {nCant} can&rsquo;t make it</>}{nNone > 0 && <span className="text-faint">, {nNone} no reply</span>}</>}
         </span>
       </div>
+      {/* the ways in come first: the link anyone can use, and, for a host who can send,
+          the email box; the roster follows */}
+      <div className="mb-3 flex flex-col gap-2 border-b border-border pb-4">
+        <CopyInviteLink id={event.id} />
+        {isHost && !event.demo && <InviteMore event={event} onPatch={onPatch} />}
+      </div>
       <div className="flex flex-col">
         {sorted.map((p, i) => {
           const chip = locked
@@ -570,7 +577,33 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
           )
         })}
       </div>
-      <CopyInviteLink id={event.id} />
+    </div>
+  )
+}
+
+/* the host can keep inviting by email after the event exists: a row that opens into
+   the same chip box the created screen has. Only when the app can send. */
+function InviteMore({ event, onPatch }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
+  const account = useAccount()
+  const [open, setOpen] = useState(false)
+  if (!canEmail(account.signedIn)) return null
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className={`flex h-9 w-full items-center justify-center gap-1.5 rounded-[9px] border text-[13px] font-semibold ${open ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`}
+      >
+        <Mail size={14} /> Invite by email
+      </button>
+      {open && (
+        <InviteByEmail
+          event={event}
+          label="New people"
+          onAdded={(fresh) => onPatch({ participants: fresh.participants })}
+        />
+      )}
     </div>
   )
 }
@@ -704,7 +737,7 @@ function CopyInviteLink({ id }: { id: string }) {
     navigator.clipboard?.writeText(`${window.location.origin}/events/${id}/join`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
   return (
-    <button onClick={copy} className={`mt-3 flex h-9 w-full items-center justify-center gap-1.5 rounded-[9px] border text-[13px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
+    <button onClick={copy} className={`flex h-9 w-full items-center justify-center gap-1.5 rounded-[9px] border text-[13px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
       {copied ? <><Check size={14} /> Copied</> : <><Link2 size={14} /> Copy invite link</>}
     </button>
   )

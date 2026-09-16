@@ -8,8 +8,10 @@ import { useGSAP } from '@gsap/react'
 import { ArrowLeft, CalendarRange, Check, Loader2, MailCheck, TriangleAlert } from 'lucide-react'
 import { useGuestMode } from '@/hooks/useGuestMode'
 import { backendOn } from '@/lib/db'
-import { hasSession, sendPasswordReset, signInWithEmail, signInWithGoogle, signUpWithEmail } from '@/lib/session'
+import { EMAIL_TAKEN, hasSession, sendPasswordReset, signInWithEmail, signInWithGoogle, signUpWithEmail } from '@/lib/session'
+import { passwordOk } from '@/lib/password'
 import { PasswordField } from '@/components/ui/PasswordField'
+import { PasswordRules } from '@/components/ui/PasswordRules'
 
 /* ── log in, sign up, or ask for a new password ──
    Split like the sign-in pages people know: the form on the left, the pitch on the
@@ -23,8 +25,6 @@ const BENEFITS = [
   'Get reminders before deadlines and the day itself',
   'Fill in when you are free straight from your calendar',
 ]
-
-const MIN_PASSWORD = 8
 
 const GoogleG = () => (
   <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden>
@@ -114,13 +114,13 @@ function SignInForm() {
     router.replace('/home')
   }
 
-  const longEnough = password.length >= MIN_PASSWORD
+  const strong = passwordOk(password)
   // only speak up once there is something in the second box; scolding mid-word is noise
   const mismatch = mode === 'up' && confirm.length > 0 && confirm !== password
   const canSubmit =
     mode === 'forgot' ? !!email.trim()
       : mode === 'in' ? !!email.trim() && password.length > 0
-        : !!email.trim() && !!name.trim() && longEnough && confirm === password
+        : !!email.trim() && !!name.trim() && strong && confirm === password
 
   const copy = COPY[mode]
 
@@ -171,13 +171,8 @@ function SignInForm() {
                       Forgot password?
                     </button>
                   ) : undefined}
-                  hint={mode === 'up' ? (
-                    // the rule stays on screen while you type, which a placeholder cannot do
-                    <p className={`flex items-center gap-1.5 text-[12px] ${longEnough ? 'text-teal-text' : 'text-faint'}`}>
-                      {longEnough && <Check size={12} />}
-                      At least {MIN_PASSWORD} characters
-                    </p>
-                  ) : undefined}
+                  // the rule stays on screen while you type, which a placeholder cannot do
+                  hint={mode === 'up' ? <PasswordRules value={password} /> : undefined}
                 />
               )}
 
@@ -240,7 +235,20 @@ function SignInForm() {
             {error && (
               <div role="alert" className="mt-4 flex items-start gap-2.5 rounded-[10px] border border-brick-border bg-brick-bg px-3.5 py-3">
                 <TriangleAlert size={15} className="mt-0.5 flex-none text-brick-text" />
-                <p className="text-[12.5px] leading-[1.55] text-brick-text">{error}</p>
+                <div className="min-w-0 text-[12.5px] leading-[1.55] text-brick-text">
+                  {error === EMAIL_TAKEN ? (
+                    // the address is taken: the log-in form is the answer, with the
+                    // address carried over. Google is added to an account from the
+                    // profile page, never by signing up a second time
+                    <>
+                      <p>{error} Log in with it, or ask for a new password if you have forgotten yours.</p>
+                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                        <button type="button" onClick={() => go('in')} className="font-semibold underline underline-offset-2">Log in with this email</button>
+                        <button type="button" onClick={() => go('forgot')} className="font-semibold underline underline-offset-2">Reset the password</button>
+                      </div>
+                    </>
+                  ) : error}
+                </div>
               </div>
             )}
 

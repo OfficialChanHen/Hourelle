@@ -9,6 +9,7 @@
 
 import { supabase, backendOn } from './db'
 import type { PersonColor } from './colors'
+import { passwordProblem } from './password'
 
 export type AccountKind = 'person' | 'org'
 export type Account = {
@@ -30,6 +31,9 @@ const CACHE_KEY = 'hourelle.account'
 export const ACCOUNT_CHANGED = 'hourelle:account-changed'
 
 let cached: Account | null = null
+// counts auth events; a profile fetch started under an earlier count is stale and
+// is dropped, so a token refresh racing a sign-out can never bring the account back
+let authGen = 0
 
 function readCache(): Account {
   if (cached) return cached
@@ -83,11 +87,12 @@ async function accountFromSession(userId: string, email: string | undefined): Pr
 export function startAuth(): () => void {
   if (!backendOn) return () => {}
   const { data } = supabase!.auth.onAuthStateChange((_event, session) => {
+    const gen = ++authGen
     if (!session?.user) {
       if (readCache().signedIn) writeCache(STUB)
       return
     }
-    void accountFromSession(session.user.id, session.user.email ?? undefined).then(writeCache)
+    void accountFromSession(session.user.id, session.user.email ?? undefined).then((acc) => { if (gen === authGen) writeCache(acc) })
   })
   return () => data.subscription.unsubscribe()
 }
@@ -106,16 +111,40 @@ export async function signInWithGoogle(): Promise<string | null> {
   return error?.message ?? null
 }
 
+/** The answer sign-up gives when the address already belongs to an account. The
+ *  page recognises it and offers the log-in form instead of a plain error. */
+export const EMAIL_TAKEN = 'That email already has an account.'
+
+/** Is there an account behind this address? profiles mirrors auth.users (the
+ *  handle_new_user trigger copies the email), and it is readable without a session,
+ *  so the sign-up form can ask before anything is created. */
+export async function emailHasAccount(email: string): Promise<boolean> {
+  if (!backendOn) return false
+  const clean = email.trim().toLowerCase()
+  if (!clean) return false
+  const { data } = await supabase!.from('profiles').select('id').eq('email', clean).maybeSingle()
+  return !!data
+}
+
 export async function signUpWithEmail(email: string, password: string, name: string): Promise<string | null> {
   if (!backendOn) return 'Sign-up needs a backend. Add your Supabase keys to .env.local.'
-  const { error } = await supabase!.auth.signUp({
-    email,
+  // one account per email, whichever door made it. Supabase refuses a second one
+  // too, but with confirmation emails on it hides the refusal behind a pretend
+  // success, and the person is sent to wait for a mail that never comes. Ask first.
+  if (await emailHasAccount(email)) return EMAIL_TAKEN
+  const weak = passwordProblem(password)
+  if (weak) return weak
+  const { data, error } = await supabase!.auth.signUp({
+    email: email.trim().toLowerCase(),
     password,
     // `data` becomes raw_user_meta_data on the new auth.users row, which is where
     // the handle_new_user trigger reads the display name from
     options: { data: { name: name.trim() }, emailRedirectTo: `${window.location.origin}/auth/callback` },
   })
-  return error?.message ?? null
+  if (error) return /already|exists|registered/i.test(error.message) ? EMAIL_TAKEN : error.message
+  // the pretend success: a user with no identities is how Supabase says "taken"
+  if (data.user && data.user.identities?.length === 0) return EMAIL_TAKEN
+  return null
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<string | null> {
@@ -186,7 +215,7 @@ export async function signOutEverywhere(): Promise<string | null> {
   if (!backendOn) return 'This needs a backend. Add your Supabase keys to .env.local.'
   const { error } = await supabase!.auth.signOut({ scope: 'global' })
   if (error) return error.message
-  writeCache(STUB)
+  authGen++; writeCache(STUB)
   return null
 }
 
@@ -314,14 +343,14 @@ export async function deleteAccount(): Promise<string | null> {
     return 'Could not reach the server.'
   }
   await supabase!.auth.signOut()
-  writeCache(STUB)
+  authGen++; writeCache(STUB)
   return null
 }
 
 export async function signOut(): Promise<void> {
   if (!backendOn) return
   await supabase!.auth.signOut()
-  writeCache(STUB)
+  authGen++; writeCache(STUB)
 }
 
 /** Does this project have email confirmation switched on? Only the sign-up

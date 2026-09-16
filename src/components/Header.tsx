@@ -155,7 +155,7 @@ export function Header() {
                 <PopoverSep />
                 {account.signedIn ? (
                   <PopoverItem
-                    onClick={() => { close(); void signOut().then(() => router.push('/home')) }}
+                    onClick={() => { close(); void signOut().then(() => router.push('/')) }}
                     icon={<LogOut size={15} />}
                     tone="brick"
                   >

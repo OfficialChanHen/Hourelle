@@ -159,7 +159,7 @@ export default function ProfilePage() {
       <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-s1">
         {account.signedIn ? (
           <button
-            onClick={() => void signOut().then(() => router.push('/home'))}
+            onClick={() => void signOut().then(() => router.push('/'))}
             className="flex w-full items-center justify-between px-5 py-4 text-left text-brick-text hover:bg-brick-bg/50"
           >
             <span className="flex items-center gap-2 text-[14px] font-medium"><LogOut size={16} /> Log out</span>
