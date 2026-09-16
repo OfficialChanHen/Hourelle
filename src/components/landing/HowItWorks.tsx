@@ -64,6 +64,11 @@ export function HowItWorks() {
   // anything to hide, and only then may it paint — see the band's own note
   const [stuck, setStuck] = useState(false)
   const sentinel = useRef<HTMLDivElement>(null)
+  // the timeline down the middle on a wide screen: a track the height of the steps,
+  // a fill that scroll draws down it, and a dot beside each step
+  const rail = useRef<HTMLDivElement>(null)
+  const fill = useRef<HTMLDivElement>(null)
+  const dots = useRef<(HTMLSpanElement | null)[]>([])
 
   // scene state, all driven by the timelines below
   const [typed, setTyped] = useState('')
@@ -123,6 +128,40 @@ export function HowItWorks() {
       })
     })
     ScrollTrigger.create({ trigger: root.current, start: 'top 70%', once: true, onEnter: () => setSeen(true) })
+
+    // the timeline: each dot sits level with its step's title, and the fill runs down
+    // the track as the reading line moves through the steps, so a dot lights the moment
+    // the fill reaches it, scrolling either way, a breath after the step itself wakes.
+    // Dots are placed by measuring, and measured again whenever the triggers are (a
+    // resize, fonts landing).
+    const railEl = rail.current, fillEl = fill.current, list = root.current?.querySelector<HTMLElement>('.hiw-steps')
+    if (!railEl || !fillEl || !list) return
+    let at: number[] = []
+    const measure = () => {
+      const top = railEl.getBoundingClientRect().top, h = railEl.offsetHeight || 1
+      at = gsap.utils.toArray<HTMLElement>('.hiw-step-text > p:first-child').map((el, i) => {
+        const r = el.getBoundingClientRect(), y = r.top - top + r.height / 2
+        const d = dots.current[i]
+        if (d) d.style.top = `${y}px`
+        return y / h
+      })
+    }
+    measure()
+    ScrollTrigger.addEventListener('refresh', measure)
+    const light = (p: number) => dots.current.forEach((d, i) => { if (d) d.dataset.on = p >= at[i] ? '1' : '0' })
+    gsap.fromTo(fillEl, { scaleY: 0 }, {
+      scaleY: 1, ease: 'none',
+      scrollTrigger: {
+        trigger: list,
+        start: () => `top ${lineY()}px`,
+        end: () => `bottom ${lineY()}px`,
+        scrub: 0.4,
+        invalidateOnRefresh: true,
+        onUpdate: (self) => light(self.progress),
+        onRefresh: (self) => light(self.progress),
+      },
+    })
+    return () => ScrollTrigger.removeEventListener('refresh', measure)
   }, { scope: root })
 
   // a tap on a step (or a dot) goes there: the scene switches now and the page
@@ -230,7 +269,7 @@ export function HowItWorks() {
   const heatOf = (n: number) => (n === 0 ? 'var(--s2)' : n / total <= 0.25 ? 'var(--heat-low)' : n / total <= 0.5 ? 'var(--heat-mid)' : n < total ? 'var(--heat-high)' : 'var(--heat-full)')
 
   return (
-    <div ref={root} className="mt-10 lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-14">
+    <div ref={root} className="mt-10 lg:grid lg:grid-cols-[minmax(0,0.9fr)_auto_minmax(0,1.1fr)] lg:gap-x-10">
       {/* the frame: sticky beside the steps on wide screens, above them on a phone.
           Sticky sits on the direct child so its containing block is the whole
           section (tall) on a phone and the full-height grid column on a desktop. */}
@@ -377,7 +416,7 @@ export function HowItWorks() {
       </div>
 
       {/* the four steps: each one is a scroll target for its scene */}
-      <ol className="flex flex-col">
+      <ol className="hiw-steps flex flex-col">
         {STEPS.map(({ title, body }, i) => (
           <li key={title} className="hiw-step flex min-h-[44vh] items-center py-6 lg:min-h-[58vh]">
             <button type="button" onClick={() => go(i)} aria-current={i === active ? 'step' : undefined} className={`hiw-step-text block rounded-xl text-left transition-opacity duration-300 ${i === active ? 'opacity-100' : 'opacity-45 hover:opacity-80'}`}>
@@ -387,6 +426,22 @@ export function HowItWorks() {
           </li>
         ))}
       </ol>
+
+      {/* the timeline between the steps and the frame, wide screens only: the row is
+          as tall as the steps, so the track runs from the first to the last of them */}
+      <div ref={rail} aria-hidden className="relative hidden w-4 lg:block">
+        <span className="absolute inset-y-0 left-[calc(50%-0.5px)] w-px bg-border2" />
+        <div ref={fill} className="absolute inset-y-0 left-[calc(50%-0.5px)] w-px origin-top scale-y-0 bg-accent" />
+        {STEPS.map((st, i) => (
+          <span
+            key={st.title}
+            ref={(el) => { dots.current[i] = el }}
+            data-on="0"
+            className="hiw-dot absolute left-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-border2 bg-bg transition-[background-color,border-color,transform,box-shadow] duration-300 data-[on=1]:border-accent data-[on=1]:bg-accent data-[on=1]:shadow-[0_0_0_4px_var(--accent-bg)]"
+            style={{ top: `${(i + 0.5) * (100 / STEPS.length)}%` }}
+          />
+        ))}
+      </div>
     </div>
   )
 }
