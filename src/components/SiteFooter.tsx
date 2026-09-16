@@ -12,7 +12,7 @@ export function SiteFooter() {
         <Link href="/about" className="hover:text-dim">About</Link>
         <Link href="/help" className="hover:text-dim">Help &amp; contact</Link>
         <Link href="/demos" className="hover:text-dim">Demos</Link>
-        <Link href="https://github.com/OfficialChanHen/Aline" target="_blank" className="hover:text-dim">GitHub</Link>
+        <Link href="https://github.com/OfficialChanHen/Hourelle" target="_blank" className="hover:text-dim">GitHub</Link>
         <span className="ml-auto flex items-center gap-1.5"><MessageCircle size={12} /> Guests never need an account.</span>
       </div>
     </footer>

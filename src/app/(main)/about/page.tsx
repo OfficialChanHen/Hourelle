@@ -10,7 +10,7 @@ const ROWS: { k: string; v: React.ReactNode }[] = [
   { k: 'Storage', v: 'Supabase (Postgres), with row-level security on every table' },
   { k: 'Maps', v: 'Leaflet, with OpenStreetMap tiles and place search' },
   { k: 'Type', v: 'Lora for headings, Instrument Sans for everything else' },
-  { k: 'Source', v: <Link href="https://github.com/OfficialChanHen/Aline" target="_blank" className="inline-flex items-center gap-1.5 font-semibold text-accent-text hover:underline">GitHub <ExternalLink size={12} className="text-faint" /></Link> },
+  { k: 'Source', v: <Link href="https://github.com/OfficialChanHen/Hourelle" target="_blank" className="inline-flex items-center gap-1.5 font-semibold text-accent-text hover:underline">GitHub <ExternalLink size={12} className="text-faint" /></Link> },
 ]
 
 export default function AboutPage() {

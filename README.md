@@ -1,8 +1,10 @@
 # Hourelle
 
+Find the hour everyone can make.
+
 Hourelle is an event coordination app, built as a modern replacement for when2meet. One link covers the whole life of a plan: finding a time everyone can make, voting on where to go, building a route for multi-stop days, tracking who is actually coming, and talking it over in a per-event chat. Guests join from a share link with just their name, no account needed.
 
-Live at **[aline-black.vercel.app](https://aline-black.vercel.app)** — the **Demos** tab has fully populated sample events, so you can try every surface without signing up.
+Live at **[hourelle.vercel.app](https://hourelle.vercel.app)** — the **Demos** tab has fully populated sample events, so you can try every surface without signing up.
 
 ![The availability grid](docs/screenshots/availability-light.png)
 
@@ -28,7 +30,7 @@ Live at **[aline-black.vercel.app](https://aline-black.vercel.app)** — the **D
 
 ## How it's built
 
-- **Next.js (App Router) + TypeScript**, styled with **Tailwind** on a token system: two themes driven entirely by CSS variables, Instrument Serif for display type, Instrument Sans for everything else.
+- **Next.js (App Router) + TypeScript**, styled with **Tailwind** on a token system: two themes driven entirely by CSS variables, Lora for display type, Instrument Sans for everything else.
 - **GSAP** for the animations that matter: drawer slides, drag feedback, progress fills.
 - **Supabase** for storage, auth and realtime. Events are documents in Postgres with row-level security; the things everybody writes at once live in their own tables instead, so nobody's answer can overwrite anybody else's — chat is one row per message, availability one row per person per event, and a vote *is* a row. Presence and typing ride a realtime channel rather than a table.
 - **Local first, in both directions.** The UI reads and writes localStorage synchronously and never waits on the network; the cloud syncs in the background and merges back in. With no Supabase keys in the environment the whole backend no-ops and the app runs entirely in the browser, which is also how the demos work.

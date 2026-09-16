@@ -75,7 +75,7 @@ export default function HelpPage() {
       <p className="mb-2 mt-7 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Elsewhere</p>
       <div className="rounded-2xl border border-border bg-s1 px-5 py-4 text-[13.5px] leading-[1.6] text-dim">
         Hourelle is built in the open. The code, the issue tracker, and the release notes are on{' '}
-        <Link href="https://github.com/OfficialChanHen/Aline" target="_blank" className="inline-flex items-center gap-1 font-semibold text-accent-text hover:underline">
+        <Link href="https://github.com/OfficialChanHen/Hourelle" target="_blank" className="inline-flex items-center gap-1 font-semibold text-accent-text hover:underline">
           GitHub <ExternalLink size={12} className="text-faint" />
         </Link>.
       </div>

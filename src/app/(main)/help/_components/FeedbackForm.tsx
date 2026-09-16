@@ -15,7 +15,7 @@ const KINDS: { key: Kind; label: string; icon: typeof Bug; ask: string }[] = [
   { key: 'idea', label: 'An idea', icon: Lightbulb, ask: 'What would you like Hourelle to do?' },
   { key: 'question', label: 'A question', icon: HelpCircle, ask: 'What can we help with?' },
 ]
-const ISSUES = 'https://github.com/OfficialChanHen/Aline/issues/new'
+const ISSUES = 'https://github.com/OfficialChanHen/Hourelle/issues/new'
 
 export function FeedbackForm() {
   const pathname = usePathname()
