@@ -79,7 +79,7 @@ export function ChatDemo() {
 
   return (
     <div ref={ref}>
-      <VignetteFrame url="hourelle.app/e/rooftop-dinner" hint={!done ? 'Watch first. It is yours in a moment.' : 'Say whether you are coming, then say it in the room.'} taken={taken} onReset={reset}>
+      <VignetteFrame url="hourelle.com/e/rooftop-dinner" hint={!done ? 'Watch first. It is yours in a moment.' : 'Say whether you are coming, then say it in the room.'} taken={taken} onReset={reset}>
         <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-[1fr_1.15fr] sm:p-5">
           {near && (
             <>

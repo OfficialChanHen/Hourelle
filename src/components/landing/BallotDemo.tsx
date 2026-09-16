@@ -74,7 +74,7 @@ export function BallotDemo() {
 
   return (
     <div ref={ref}>
-      <VignetteFrame url="hourelle.app/e/rooftop-dinner" hint={!done ? 'Watch first. It is yours in a moment.' : 'Tap a place to vote. One vote each, and you can change your mind.'} taken={taken} onReset={reset}>
+      <VignetteFrame url="hourelle.com/e/rooftop-dinner" hint={!done ? 'Watch first. It is yours in a moment.' : 'Tap a place to vote. One vote each, and you can change your mind.'} taken={taken} onReset={reset}>
         <div className="relative grid grid-cols-1 gap-3 p-4 sm:grid-cols-[1fr_1.1fr] sm:p-5">
           {near && (
             <>
