@@ -221,10 +221,13 @@ export function adoptMine(): number {
       n++
       continue
     }
-    if (!email || ev.participants.some((p) => p.id === acc.id)) continue
+    if (!email) continue
     const mine = ev.participants.find((p) => p.guest && p.email?.toLowerCase() === email)
     if (!mine) continue
-    adoptParticipant(ev.id, mine.id, acc.id, as)
+    // the account is already on this event too (invited itself, or joined twice):
+    // the guest entry folds into it, answers and all, rather than standing beside it
+    if (ev.participants.some((p) => p.id === acc.id)) patchEvent(ev.id, mergeParticipantsPatch(ev, mine.id, acc.id))
+    else adoptParticipant(ev.id, mine.id, acc.id, as)
     n++
   }
   return n
@@ -259,7 +262,27 @@ export function deleteEvent(id: string): void {
 // the non-host mirror of delete: take someone else's event off your own lists.
 // Only this device's copy goes — the host's plan is untouched, and the invite
 // link can always bring it back. Any guest session for it ends too.
+/** Take yourself off an event someone else hosts. Your entry leaves the roster
+ *  first, answers and votes with it, and that change goes to the cloud; only then
+ *  is the event dropped from this browser. Dropping it alone was not enough: the
+ *  next pull found you still on the roster and brought the event straight back.
+ *  Every entry that is yours goes: the one under your account, the one from a
+ *  guest session on this browser, and any guest entry made with your email. */
 export function leaveEvent(id: string): void {
+  const ev = getEvent(id)
+  if (ev && !ev.demo && !ev.hostedByYou) {
+    const acc = currentAccount()
+    const gid = guestSessionId(id)
+    const email = acc.signedIn ? acc.email?.toLowerCase() : undefined
+    const mine = ev.participants
+      .filter((p) => !p.host && (p.id === gid || (acc.signedIn && p.id === acc.id) || (!!email && p.email?.toLowerCase() === email)))
+      .map((p) => p.id)
+    if (mine.length) {
+      let next: AppEvent = ev
+      for (const pid of mine) next = { ...next, ...removeParticipantPatch(next, pid) }
+      patchEvent(id, next)
+    }
+  }
   writeAll(readAll().filter((e) => e.id !== id))
   leaveGuestSession(id)
 }
@@ -974,18 +997,43 @@ function guestFromEmail(raw: string, roster: Participant[]): Participant {
  *  the roster (as a guest's email, or an account's) are skipped. Returns the people
  *  actually added, so the caller can email exactly those. */
 export function addEmailInvitees(id: string, emails: string[]): Participant[] {
+  return addInvitees(id, emails.map((email) => ({ email })))
+}
+
+/** Is this address the signed-in account's own? Nobody invites themselves: the host
+ *  is already on the roster, and a second entry under their email is the mismatch
+ *  that later needs merging. */
+export function isOwnEmail(email: string): boolean {
+  const acc = currentAccount()
+  return acc.signedIn && !!acc.email && acc.email.toLowerCase() === email.trim().toLowerCase()
+}
+
+/** Invite people after the event exists. An address that belongs to an account joins
+ *  as that person, name and colour included, the way the wizard's invitees do; any
+ *  other address becomes a guest with a personal link. The host's own address and
+ *  anyone already on the roster are skipped. Returns the entries actually added. */
+export function addInvitees(id: string, people: { email: string; account?: AccountInvitee }[]): Participant[] {
   const ev = getEvent(id)
   if (!ev) return []
   const known = new Set(ev.participants.map((p) => p.email?.toLowerCase()).filter(Boolean))
+  const ids = new Set(ev.participants.map((p) => p.id))
   const roster = [...ev.participants]
   const added: Participant[] = []
-  for (const raw of emails) {
+  for (const { email: raw, account } of people) {
     const email = raw.trim().toLowerCase()
-    if (!email || known.has(email)) continue
+    if (!email || known.has(email) || isOwnEmail(email)) continue
+    if (account && ids.has(account.id)) continue
     known.add(email)
-    const g = guestFromEmail(email, roster)
-    roster.push(g)
-    added.push(g)
+    let next: Participant
+    if (account) {
+      const initials = initialsOf(account.name)
+      next = { id: account.id, initials, name: account.name, color: account.colorChosen ? account.color : pickColor(roster, { initials, name: account.name }), rsvp: 'pending', email }
+      ids.add(account.id)
+    } else {
+      next = guestFromEmail(email, roster)
+    }
+    roster.push(next)
+    added.push(next)
   }
   if (added.length) patchEvent(id, { participants: roster })
   return added

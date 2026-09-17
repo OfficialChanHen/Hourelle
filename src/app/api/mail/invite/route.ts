@@ -36,7 +36,9 @@ export async function POST(req: Request) {
 
   const ev = row.data
   const wanted = body.participantIds?.length ? new Set(body.participantIds) : null
-  const people = ev.participants.filter((p) => p.guest && p.email && !p.host && (!wanted || wanted.has(p.id)))
+  // guests need an address on their entry; an account invitee's comes from their
+  // profile (emailsFor). The host never mails themselves.
+  const people = ev.participants.filter((p) => !p.host && (p.guest ? !!p.email : true) && (!wanted || wanted.has(p.id)))
   const emails = await emailsFor(db, people)
   const site = siteUrl(req)
 

@@ -236,6 +236,25 @@ export async function updateProfile(patch: { name?: string; color?: PersonColor 
   return null
 }
 
+/** The profile back to its beginnings: the name from sign-up (what Google sent, or
+ *  what the form collected, or the part of the email before the @) and the avatar
+ *  colour no longer counted as chosen, so every event deals one again. Returns the
+ *  restored name, or an error. */
+export async function resetProfile(): Promise<{ name: string } | { error: string }> {
+  const acc = readCache()
+  if (!acc.signedIn) return { error: 'Log in first.' }
+  let name = acc.email?.split('@')[0] ?? acc.name
+  if (backendOn) {
+    const { data } = await supabase!.auth.getUser()
+    const meta = (data.user?.user_metadata ?? {}) as { name?: string; full_name?: string }
+    name = meta.name?.trim() || meta.full_name?.trim() || name
+    const { error } = await supabase!.from('profiles').update({ name, color_set: false }).eq('id', acc.id)
+    if (error) return { error: error.message }
+  }
+  writeCache({ ...acc, name, colorChosen: false })
+  return { name }
+}
+
 /* ── Google Calendar: the same Google login, asked for one more thing ──
    Supabase hands back Google's own access token (provider_token) when the sign-in
    asked for a scope, and only then. So an import is a short round trip: leave for

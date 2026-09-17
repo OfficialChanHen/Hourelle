@@ -4,7 +4,7 @@
 // anyone whose email belongs to an account. Replaces the wizard's hard-coded cast.
 
 import { supabase, backendOn } from './db'
-import { listEvents } from './events'
+import { addInvitees, isOwnEmail, listEvents, type Participant } from './events'
 import { currentAccount } from './session'
 import type { PersonColor } from './colors'
 
@@ -47,4 +47,19 @@ export async function lookupProfileByEmail(email: string): Promise<Invitee | nul
   const { data } = await supabase!.from('profiles').select('*').eq('email', clean).maybeSingle()
   const row = data as { id: string; name: string; color: string; email?: string; color_set?: boolean } | null
   return row ? { id: row.id, name: row.name, color: row.color as PersonColor, email: row.email ?? clean, account: true, colorChosen: !!row.color_set } : null
+}
+
+/** Invite by email after the event exists: each address is looked up, so a person
+ *  with an account joins under their own name rather than a name made from their
+ *  email. The host's own address is refused and reported back as `self`. */
+export async function inviteByEmail(eventId: string, emails: string[]): Promise<{ added: Participant[]; self: string[] }> {
+  const clean = Array.from(new Set(emails.map((e) => e.trim().toLowerCase()).filter(Boolean)))
+  const self = clean.filter(isOwnEmail)
+  const rest = clean.filter((e) => !self.includes(e))
+  const found = await Promise.all(rest.map((e) => lookupProfileByEmail(e)))
+  const added = addInvitees(eventId, rest.map((email, i) => {
+    const a = found[i]
+    return a ? { email, account: { id: a.id, name: a.name, color: a.color, email, colorChosen: a.colorChosen } } : { email }
+  }))
+  return { added, self }
 }

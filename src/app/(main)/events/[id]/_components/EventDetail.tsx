@@ -657,7 +657,7 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
   }
   // or send it: the host, logged in, may email an invitee their link (again)
   const account = useAccount()
-  const mayEmail = !!p.guest && !!p.email && !!event.hostedByYou && canEmail(account.signedIn)
+  const mayEmail = !p.host && (p.guest ? !!p.email : true) && !!event.hostedByYou && canEmail(account.signedIn)
   const [mail, setMail] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [mailErr, setMailErr] = useState<string | null>(null)
   async function emailInvite() {

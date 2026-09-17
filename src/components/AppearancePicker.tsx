@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
-import { prefPalette, setPrefPalette } from '@/lib/prefs'
+import { prefPalette, setPrefPalette , PREFS_CHANGED } from '@/lib/prefs'
 
 /* Which look the whole app wears. data-palette on <html> picks the family;
    the sun/moon toggle keeps switching light and dark inside whichever is chosen.
@@ -41,8 +41,14 @@ export function AppearancePicker() {
   const [palette, setPalette] = useState<Palette | null>(null)
   const [open, setOpen] = useState(false)
   useEffect(() => {
-    const saved = prefPalette()
-    setPalette(KNOWN.includes(saved as Palette) ? (saved as Palette) : 'hourelle')
+    const sync = () => {
+      const saved = prefPalette()
+      setPalette(KNOWN.includes(saved as Palette) ? (saved as Palette) : 'hourelle')
+    }
+    sync()
+    // a reset from the settings page clears the choice underneath this picker
+    window.addEventListener(PREFS_CHANGED, sync)
+    return () => window.removeEventListener(PREFS_CHANGED, sync)
   }, [])
 
   const current = PALETTES.find((p) => p.key === palette) ?? PALETTES[0]

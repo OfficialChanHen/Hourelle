@@ -31,7 +31,16 @@ export const mailConfigured = !!process.env.RESEND_API_KEY
 
 const FROM = process.env.MAIL_FROM_EMAIL || process.env.FEEDBACK_FROM_EMAIL || 'Hourelle <onboarding@resend.dev>'
 
-export type Mail = { to: string; subject: string; text: string; html?: string; replyTo?: string }
+export type Mail = { to: string; subject: string; text: string; html?: string; replyTo?: string; fromName?: string }
+
+/** The sending address stays the verified one; the display name may be the person
+ *  the message is really from ("Sam via Hourelle"), which is what a mailbox shows
+ *  and one of the things that separates a note from a person from a campaign. */
+function fromFor(name?: string): string {
+  if (!name) return FROM
+  const addr = /<([^>]+)>/.exec(FROM)?.[1] ?? FROM
+  return `${name.replace(/["<>]/g, '')} <${addr}>`
+}
 
 /** One message through Resend. Resolves an error string, or null when it went. */
 export async function sendMail(m: Mail): Promise<string | null> {
@@ -40,7 +49,7 @@ export async function sendMail(m: Mail): Promise<string | null> {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: FROM, to: [m.to], subject: m.subject, text: m.text, ...(m.html ? { html: m.html } : {}), ...(m.replyTo ? { reply_to: m.replyTo } : {}) }),
+    body: JSON.stringify({ from: fromFor(m.fromName), to: [m.to], subject: m.subject, text: m.text, ...(m.html ? { html: m.html } : {}), ...(m.replyTo ? { reply_to: m.replyTo } : {}) }),
   })
   if (res.ok) return null
   const detail = await res.text().catch(() => '')
@@ -172,8 +181,8 @@ function shell({ title, lines, cta, details = [], preheader, footer }: Shell): s
   const serif = "font-family:Georgia,'Iowan Old Style','Times New Roman',serif"
   const rows = details.filter((d) => d.value).map((d, i) => `
             <tr>
-              <td style="padding:${i ? 10 : 0}px 0 0;vertical-align:top;width:88px;${font};font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#98978F;font-weight:600;line-height:20px">${esc(d.label)}</td>
-              <td style="padding:${i ? 10 : 0}px 0 0;vertical-align:top;${font};font-size:15px;color:#1A1917;line-height:20px">${esc(d.value)}</td>
+              <td style="padding:${i ? 8 : 0}px 12px 0 0;vertical-align:top;${font};font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#98978F;font-weight:600;line-height:20px">${esc(d.label)}</td>
+              <td style="padding:${i ? 8 : 0}px 0 0;vertical-align:top;${font};font-size:15px;color:#1A1917;line-height:20px">${esc(d.value)}</td>
             </tr>`).join('')
   return `<!doctype html>
 <html lang="en">
@@ -183,36 +192,29 @@ function shell({ title, lines, cta, details = [], preheader, footer }: Shell): s
 <meta name="color-scheme" content="light">
 <title>${esc(title)}</title>
 </head>
-<body style="margin:0;padding:0;background:#F7F6F4;-webkit-text-size-adjust:100%">
+<body style="margin:0;padding:0;background:#FFFFFF;-webkit-text-size-adjust:100%">
 ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${esc(preheader)}${'&#847;&zwnj;&nbsp;'.repeat(40)}</div>` : ''}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F7F6F4">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FFFFFF">
   <tr>
-    <td align="center" style="padding:36px 16px 40px">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px">
+    <td align="center" style="padding:32px 20px 36px">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px">
         <tr>
-          <td style="padding:0 6px 14px;${serif};font-size:22px;color:#1A1917;letter-spacing:.01em">Hourelle</td>
-        </tr>
-        <tr>
-          <td style="background:#FFFFFF;border:1px solid #E3E2DE;border-radius:16px;padding:36px 36px 32px">
-            <h1 style="margin:0;${serif};font-weight:400;font-size:30px;line-height:1.15;letter-spacing:-.01em;color:#1A1917">${esc(title)}</h1>
-            ${lines.map((l) => `<p style="margin:16px 0 0;${font};font-size:16px;line-height:1.6;color:#3A3935">${esc(l)}</p>`).join('')}
+          <td>
+            <h1 style="margin:0;${serif};font-weight:400;font-size:26px;line-height:1.2;letter-spacing:-.01em;color:#1A1917">${esc(title)}</h1>
+            ${lines.map((l) => `<p style="margin:14px 0 0;${font};font-size:16px;line-height:1.6;color:#1A1917">${esc(l)}</p>`).join('')}
             ${rows ? `
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 0;background:#F7F6F4;border:1px solid #E3E2DE;border-radius:12px">
-              <tr><td style="padding:18px 20px"><table role="presentation" cellpadding="0" cellspacing="0" border="0">${rows}
-            </table></td></tr>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0 0;border-left:2px solid #E3E2DE;padding-left:14px">${rows}
             </table>` : ''}
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 0">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 0">
               <tr>
-                <td style="background:#2E4A3C;border-radius:11px">
-                  <a href="${esc(cta.href)}" style="display:inline-block;padding:14px 24px;${font};font-size:15px;font-weight:600;line-height:1;color:#F8F7F3;text-decoration:none">${esc(cta.label)}</a>
+                <td style="background:#2E4A3C;border-radius:9px">
+                  <a href="${esc(cta.href)}" style="display:inline-block;padding:12px 20px;${font};font-size:15px;font-weight:600;line-height:1;color:#F8F7F3;text-decoration:none">${esc(cta.label)}</a>
                 </td>
               </tr>
             </table>
-            <p style="margin:24px 0 0;${font};font-size:12.5px;line-height:1.6;color:#98978F">If the button does not open, copy this link into your browser:<br><a href="${esc(cta.href)}" style="color:#2A4537;text-decoration:underline;word-break:break-all">${esc(cta.href)}</a></p>
+            <p style="margin:18px 0 0;${font};font-size:13px;line-height:1.6;color:#67665F">Or open this link: <a href="${esc(cta.href)}" style="color:#2A4537;text-decoration:underline;word-break:break-all">${esc(cta.href)}</a></p>
+            ${footer ? `<p style="margin:28px 0 0;${font};font-size:12.5px;line-height:1.6;color:#98978F">${esc(footer)}</p>` : ''}
           </td>
-        </tr>
-        <tr>
-          <td style="padding:18px 6px 0;${font};font-size:12.5px;line-height:1.6;color:#98978F">${esc(footer ?? 'Sent by Hourelle, where people find the hour everyone can make.')}</td>
         </tr>
       </table>
     </td>
@@ -231,19 +233,19 @@ export function inviteMail(ev: AppEvent, p: Participant, to: string, site: strin
   const html = shell({
     title: `${host} invited you to ${ev.title}`,
     lines,
-    details: [{ label: 'When', value: when }, { label: 'Where', value: place }, { label: 'From', value: host }],
+    details: [{ label: 'When', value: when }, { label: 'Where', value: place }],
     cta: { label: ev.confirmed ? 'Say if you can make it' : 'Mark when you are free', href: link },
     preheader: ask,
     footer: `Sent by Hourelle on behalf of ${host}. Reply to this email to reach them.`,
   })
-  return { to, subject: `${host} invited you to ${ev.title}`, text, html, replyTo: hostEmail ?? undefined }
+  return { to, subject: `${host} invited you to ${ev.title}`, text, html, replyTo: hostEmail ?? undefined, fromName: `${host} via Hourelle` }
 }
 
 export function nudgeMail(ev: AppEvent, p: Participant, to: string, site: string, hostEmail?: string | null): Mail {
   const host = hostNameOf(ev), link = joinLink(site, ev, p)
   const lines = [`Hi ${firstName(p)}, ${host} is still waiting on your times for ${ev.title}.`, 'Mark when you are free so the plan can be settled. Even a rough answer helps.']
   const text = [...lines, '', link].join('\n')
-  return { to, subject: `${host} is waiting on your times for ${ev.title}`, text, html: shell({ title: `A quick one from ${host}`, lines, cta: { label: 'Mark when you are free', href: link }, preheader: lines[0], footer: `Sent by Hourelle on behalf of ${host}. Reply to this email to reach them.` }), replyTo: hostEmail ?? undefined }
+  return { to, subject: `${host} is waiting on your times for ${ev.title}`, text, html: shell({ title: `A quick one from ${host}`, lines, cta: { label: 'Mark when you are free', href: link }, preheader: lines[0], footer: `Sent by Hourelle on behalf of ${host}. Reply to this email to reach them.` }), replyTo: hostEmail ?? undefined, fromName: `${host} via Hourelle` }
 }
 
 export function reminderMail(kind: MailKind, ev: AppEvent, p: Participant, to: string, site: string): Mail {

@@ -24,7 +24,7 @@ export function setPrefH24(v: boolean): void {
 // which reminders the visitor wants once email exists — stored now, honest about
 // when they start doing anything
 export type NotifyPrefs = { eventDay: boolean; deadlines: boolean; replies: boolean }
-const NOTIFY_DEFAULTS: NotifyPrefs = { eventDay: true, deadlines: true, replies: false }
+export const NOTIFY_DEFAULTS: NotifyPrefs = { eventDay: true, deadlines: true, replies: false }
 
 export function prefNotify(): NotifyPrefs {
   if (typeof window === 'undefined') return NOTIFY_DEFAULTS
@@ -92,4 +92,19 @@ export function hintDismissed(name: string): boolean {
 }
 export function dismissHint(name: string): void {
   try { localStorage.setItem(hintKey(name), '1') } catch { /* private mode */ }
+}
+
+/** Every device setting back to how it started: 12-hour clock, event days, sounds on,
+ *  the default reminders, the house look, and every one-time hint shown again. The
+ *  theme is next-themes' and the caller resets it; the palette attribute on <html>
+ *  is cleared here so the page changes at once. */
+export function resetPrefs(): void {
+  try {
+    for (const k of [H24_KEY, NOTIFY_KEY, WHOLE_WEEK_KEY, SOUND_KEY, PALETTE_KEY]) localStorage.removeItem(k)
+    const hints: string[] = []
+    for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k?.startsWith('hourelle.hint.')) hints.push(k) }
+    for (const k of hints) localStorage.removeItem(k)
+  } catch { /* private mode */ }
+  if (typeof document !== 'undefined') document.documentElement.removeAttribute('data-palette')
+  announce()
 }

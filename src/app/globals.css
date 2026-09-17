@@ -398,3 +398,15 @@ input[type="date"]::-webkit-date-and-time-value {
 /* a scroll box with no visible bar: dragged by hand on touch screens */
 .scroll-none { scrollbar-width: none; }
 .scroll-none::-webkit-scrollbar { display: none; }
+
+/* iOS zooms the page when a focused field is set below 16px, and the chat's send
+   button (and half the form) leaves the screen with it. Text fields read at 16px on
+   phones; from sm up the design's sizes apply. Unlayered on purpose, so it wins
+   over the per-field utilities. */
+@media (max-width: 639px) {
+  input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"])),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}

@@ -12,7 +12,7 @@ import { personColors, type PersonColor } from '@/lib/colors'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
-import { createEvent, draftFromEvent, getEvent, initialsOf, maxPollDays, parseHM, fmtMinute, selectedDayKeys, type AppEvent, type AccountInvitee } from '@/lib/events'
+import { createEvent, draftFromEvent, getEvent, initialsOf, isOwnEmail, maxPollDays, parseHM, fmtMinute, selectedDayKeys, type AppEvent, type AccountInvitee } from '@/lib/events'
 import { lookupProfileByEmail, recentInvitees, type Invitee } from '@/lib/invitees'
 import { centroidOf, searchPlaces } from '@/lib/geo'
 import { canEmail, sendInvites } from '@/lib/mail'
@@ -877,6 +877,7 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
     const e = draft.trim().toLowerCase()
     if (!e) return
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { setNote('That does not look like an email address.'); return }
+    if (isOwnEmail(e)) { setNote('That is your own address. You are the host, so you are already in.'); return }
     setNote(null)
     setChecking(true)
     const found = await lookupProfileByEmail(e)

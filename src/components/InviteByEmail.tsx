@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from 'react'
 import { Check, Info, Loader2, Mail, Send, X } from 'lucide-react'
-import { addEmailInvitees, getEvent, type AppEvent } from '@/lib/events'
+import { getEvent, isOwnEmail, type AppEvent } from '@/lib/events'
+import { inviteByEmail } from '@/lib/invitees'
 import { sendInvites } from '@/lib/mail'
 
 function FieldError({ children }: { children: React.ReactNode }) {
@@ -29,6 +30,7 @@ export function InviteByEmail({ event, onAdded, label = 'Or send it by email' }:
     if (!parts.length) return false
     const bad = parts.find((x) => !EMAIL_RE.test(x))
     if (bad) { setNote(`${bad} does not look like an email address.`); return false }
+    if (parts.some(isOwnEmail)) { setNote('That is your own address. You are already on the list as the host.'); return false }
     const dup = parts.find((x) => onRoster.has(x))
     if (dup) { setNote(`${dup} is already invited.`); return false }
     setList((l) => Array.from(new Set([...l, ...parts])))
@@ -45,7 +47,7 @@ export function InviteByEmail({ event, onAdded, label = 'Or send it by email' }:
     if (!emails.length) return
     setDraft('')
     setState({ kind: 'sending' })
-    const added = addEmailInvitees(event.id, emails)
+    const { added } = await inviteByEmail(event.id, emails)
     const fresh = getEvent(event.id)
     if (fresh) onAdded(fresh)
     if (!added.length) { setState({ kind: 'failed', text: 'Everyone on that list is already invited.' }); return }
