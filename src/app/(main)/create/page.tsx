@@ -12,7 +12,7 @@ import { personColors, type PersonColor } from '@/lib/colors'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
-import { createEvent, draftFromEvent, getEvent, initialsOf, isOwnEmail, maxPollDays, parseHM, fmtMinute, selectedDayKeys, type AppEvent, type AccountInvitee } from '@/lib/events'
+import { createEvent, draftFromEvent, getEvent, initialsOf, isOwnEmail, nowIn, maxPollDays, parseHM, fmtMinute, selectedDayKeys, type AppEvent, type AccountInvitee } from '@/lib/events'
 import { lookupProfileByEmail, recentInvitees, type Invitee } from '@/lib/invitees'
 import { centroidOf, searchPlaces } from '@/lib/geo'
 import { canEmail, sendInvites } from '@/lib/mail'
@@ -199,9 +199,14 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
   if (created) return <Created event={created} />
 
   // ── required-field validation ──
+  // "now" is read in the zone the event runs in, not the browser's: a day that has
+  // already ended there, or a time that has already passed there, cannot be planned
+  const clock = today ? nowIn(form.timezone || undefined) : null
+  const zToday = clock?.dayKey ?? today
+  const zoneName = TZ.find((x) => x.v === form.timezone)?.l.replace(/ \(.*\)$/, '') ?? 'that time zone'
   const finding = form.scheduleMode === 'find' // the window fields only matter when a time is being found
-  const startErr = !finding ? '' : !form.startDate ? 'Pick the earliest day.' : today && form.startDate < today ? 'The earliest day can’t be before today.' : ''
-  const endErr = !finding ? '' : !form.endDate ? 'Pick the latest day.' : form.startDate && form.endDate < form.startDate ? 'The latest day can’t be before the earliest day.' : ''
+  const startErr = !finding ? '' : !form.startDate ? 'Pick the earliest day.' : zToday && form.startDate < zToday ? `The earliest day has already passed in ${zoneName}.` : ''
+  const endErr = !finding ? '' : !form.endDate ? 'Pick the latest day.' : form.startDate && form.endDate < form.startDate ? 'The latest day can’t be before the earliest day.' : zToday && form.endDate < zToday ? `The latest day has already passed in ${zoneName}.` : ''
   // the days actually being polled: the range minus turned-off weekdays and dates.
   // The grid holds 21 days, so long ranges pass by turning days off, not by truncation.
   const selKeys = finding && !startErr && !endErr && form.startDate && form.endDate
@@ -223,19 +228,24 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
         ? 'Pick both times for the custom window.'
         : finding && form.granularity !== 'day' && form.windowPreset === 'custom' && (parseHM(form.windowEnd) ?? 0) <= (parseHM(form.windowStart) ?? 0)
           ? 'The window has to end after it starts.'
-          : '',
+          // a one-day poll for today whose window is already over has nothing left to ask
+          : finding && form.granularity !== 'day' && clock && form.startDate === zToday && form.endDate === zToday && (parseHM(form.windowEnd) ?? 1440) <= clock.minute
+            ? `That window has already passed today in ${zoneName}.`
+            : '',
     tz: form.timezone ? '' : 'Pick the time zone this event runs in.',
     fixed: finding
       ? ''
       : !form.fixedDay
         ? 'Pick the day.'
-        : today && form.fixedDay < today
-          ? 'The day can’t be before today.'
+        : zToday && form.fixedDay < zToday
+          ? `That day has already passed in ${zoneName}.`
           : parseHM(form.fixedStart) === null || parseHM(form.fixedEnd) === null
             ? 'Pick both times.'
             : (parseHM(form.fixedEnd) as number) <= (parseHM(form.fixedStart) as number)
               ? 'It has to end after it starts.'
-              : '',
+              : clock && form.fixedDay === zToday && (parseHM(form.fixedStart) as number) <= clock.minute
+                ? `${fmtMinute(parseHM(form.fixedStart) as number)} has already passed today in ${zoneName}.`
+                : '',
   }
   const basicsOk = !basicsErr.title && !basicsErr.start && !basicsErr.end && !basicsErr.days && !basicsErr.win && !basicsErr.tz && !basicsErr.fixed
   // the first thing still missing, in the order the form asks for it
@@ -326,7 +336,7 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
       </div>
 
       <div ref={panel} className="rounded-2xl border border-border bg-s1 px-4 py-[22px] sm:px-6">
-        <StepBasics form={form} update={update} today={today} attempted={attempted} errs={basicsErr} />
+        <StepBasics form={form} update={update} today={zToday} attempted={attempted} errs={basicsErr} />
 
         {/* everything optional lives in drawers — open what you need, skip the rest */}
         <div className="mt-5 border-t border-border pt-4">

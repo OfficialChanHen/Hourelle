@@ -615,11 +615,33 @@ export function openQuestions(ev: Pick<AppEvent, 'status' | 'confirmed' | 'locat
 // 'planning'/'confirmed' split lives on the event.
 export type Phase = 'planning' | 'upcoming' | 'soon' | 'today' | 'past'
 
-export function phaseOf(ev: Pick<AppEvent, 'status' | 'confirmed' | 'endDate' | 'rsvpDeadline'>): Phase {
+/** The clock in the event's own timezone: which day it is there, and how many
+ *  minutes into that day. The browser's clock stands in for an event with no
+ *  timezone, or one whose zone name this runtime does not know. */
+export function nowIn(tz?: string): { dayKey: string; minute: number } {
+  const now = new Date()
+  if (tz) {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now)
+      const g = (t: string) => parts.find((x) => x.type === t)?.value ?? '00'
+      return { dayKey: `${g('year')}-${g('month')}-${g('day')}`, minute: (Number(g('hour')) % 24) * 60 + Number(g('minute')) }
+    } catch { /* unknown zone: the local clock below */ }
+  }
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return { dayKey: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`, minute: now.getHours() * 60 + now.getMinutes() }
+}
+
+export function phaseOf(ev: Pick<AppEvent, 'status' | 'confirmed' | 'endDate' | 'rsvpDeadline'> & { timezone?: string }): Phase {
   // a multi-day lock ends on its last day, and counts as "today" for its whole run
   const endRef = ev.confirmed?.endDayKey ?? ev.confirmed?.dayKey ?? ev.endDate
   const untilEnd = daysUntil(endRef)
   if (untilEnd !== null && untilEnd < 0) return 'past'
+  // a timed slot is over when its end time passes, in the event's own zone, not at
+  // midnight: a dinner that ended at nine is done at nine
+  if (ev.status === 'confirmed' && ev.confirmed && !ev.confirmed.endDayKey) {
+    const { dayKey, minute } = nowIn(ev.timezone)
+    if (dayKey > ev.confirmed.dayKey || (dayKey === ev.confirmed.dayKey && minute >= ev.confirmed.endMin)) return 'past'
+  }
   if (ev.status !== 'confirmed' || !ev.confirmed) return 'planning'
   const du = daysUntil(ev.confirmed.dayKey)
   if (du === null) return 'upcoming'
