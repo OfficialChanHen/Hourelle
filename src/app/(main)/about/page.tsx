@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ExternalLink } from 'lucide-react'
 import { BackLink } from '@/components/ui/BackLink'
+import { SupportCard } from '@/components/ui/Support'
 
 /* ── about: what this is, how it treats your data, and what it is built on ── */
 
@@ -48,6 +49,8 @@ export default function AboutPage() {
           </div>
         ))}
       </div>
+
+      <SupportCard />
 
       <p className="mt-6 text-[12.5px] leading-[1.6] text-faint">
         Map data © OpenStreetMap contributors. Hourelle is an independent project and is not affiliated with Google, Microsoft, or Supabase.

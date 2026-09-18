@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { MessageCircle } from 'lucide-react'
+import { SupportLink } from './ui/Support'
 
 // One footer for the whole site: the front door has it, and so does every app page.
 // On phones the bottom padding keeps it clear of the tab bar; the pages above it
@@ -15,6 +16,7 @@ export function SiteFooter() {
         <Link href="/privacy" className="hover:text-dim">Privacy</Link>
         <Link href="/terms" className="hover:text-dim">Terms</Link>
         <Link href="https://github.com/OfficialChanHen/Hourelle" target="_blank" className="hover:text-dim">GitHub</Link>
+        <SupportLink />
         <span className="ml-auto flex items-center gap-1.5"><MessageCircle size={12} /> Guests never need an account.</span>
       </div>
     </footer>
