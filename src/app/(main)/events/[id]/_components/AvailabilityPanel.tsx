@@ -1163,12 +1163,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   }, [focusBest]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    // the panel hugs its rows: a short evening grid ends just under its last row, a
-    // long day is capped to the viewport and scrolls inside. The grip below can still
-    // stretch it past the cap, which is when the inline height takes over.
+    // the panel hugs its rows: a short evening grid ends just under its last row, and
+    // a long day takes the whole viewport under the header and scrolls inside. The
+    // grip below can still stretch it further, which is when the inline height takes over.
     <div
       ref={rootRef}
-      className={`relative flex flex-col rounded-2xl border border-border bg-s1 lg:flex-row ${dayPoll || panelH !== null ? '' : 'lg:max-h-[min(calc(100dvh-300px),820px)]'}`}
+      className={`relative flex flex-col rounded-2xl border border-border bg-s1 lg:flex-row ${dayPoll || panelH !== null ? '' : 'lg:max-h-[calc(100dvh-88px)]'}`}
       style={!dayPoll && panelH !== null ? { height: panelH } : undefined}
     >
       <div ref={colRef} className="relative flex min-w-0 flex-1 flex-col p-4 lg:min-h-0">
@@ -1441,7 +1441,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           <div
             ref={scroller}
             onScroll={onGridScroll}
-            className="scroll-slim min-h-0 max-h-[62dvh] flex-1 overflow-auto rounded-[10px] border border-border pb-2 lg:max-h-none"
+            className="scroll-slim min-h-0 max-h-[calc(100dvh-200px)] flex-1 overflow-auto rounded-[10px] border border-border pb-2 lg:max-h-none"
           >
             <DayCalendar
               days={event.days}
@@ -1470,7 +1470,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           onScroll={onGridScroll}
           // a held finger is how painting starts on a phone — it must not open the long-press menu
           onContextMenu={(e) => { if (mode === 'edit') e.preventDefault() }}
-          className="scroll-slim min-h-0 max-h-[58dvh] flex-1 overflow-auto rounded-[10px] border border-border pb-2 lg:max-h-none"
+          className="scroll-slim min-h-0 max-h-[calc(100dvh-200px)] flex-1 overflow-auto rounded-[10px] border border-border pb-2 lg:max-h-none"
           // the seam button on the last day hangs half its width past the sheet's right
           // edge, and a scroller clips whatever leaves it: weeks with days after the
           // poll keep that half-width free so the button stays whole
