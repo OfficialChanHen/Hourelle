@@ -8,7 +8,9 @@ import { useGSAP } from '@gsap/react'
 import { ArrowLeft, CalendarRange, Check, Loader2, MailCheck, TriangleAlert } from 'lucide-react'
 import { useGuestMode } from '@/hooks/useGuestMode'
 import { backendOn } from '@/lib/db'
-import { EMAIL_TAKEN, hasSession, sendPasswordReset, signInWithEmail, signInWithGoogle, signInWithMicrosoft, signUpWithEmail } from '@/lib/session'
+import { EMAIL_TAKEN, hasSession, recordLegalAcceptance, sendPasswordReset, signInWithEmail, signInWithGoogle, signInWithMicrosoft, signUpWithEmail } from '@/lib/session'
+import { LegalGate } from '@/components/LegalGate'
+import { LEGAL_VERSION } from '@/content/legal'
 import { passwordOk } from '@/lib/password'
 import { PasswordField } from '@/components/ui/PasswordField'
 import { PasswordRules } from '@/components/ui/PasswordRules'
@@ -76,6 +78,8 @@ function SignInForm() {
   const rawNext = params.get('next') ?? ''
   const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/home'
   const [mode, setMode] = useState<Mode>(wanted === 'up' ? 'up' : 'in')
+  // sign-up only: both documents read to the end and the box ticked
+  const [legalOk, setLegalOk] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState(() => params.get('email') ?? '')
   const [password, setPassword] = useState('')
@@ -98,12 +102,14 @@ function SignInForm() {
 
   async function google() {
     setError(null); setBusy('google')
+    if (mode === 'up') recordLegalAcceptance(LEGAL_VERSION)
     // on success the browser leaves for Google and never comes back to this line
     const err = await signInWithGoogle(next)
     if (err) { setError(err); setBusy(null) }
   }
   async function microsoft() {
     setError(null); setBusy('microsoft')
+    if (mode === 'up') recordLegalAcceptance(LEGAL_VERSION)
     const err = await signInWithMicrosoft(next)
     if (err) { setError(err); setBusy(null) }
   }
@@ -122,6 +128,8 @@ function SignInForm() {
     }
 
     if (mode === 'up') {
+      if (!legalOk) { setError('Read and accept the Privacy Policy and the Terms of Use first.'); setBusy(null); return }
+      recordLegalAcceptance(LEGAL_VERSION)
       const err = await signUpWithEmail(email.trim(), password, name)
       if (err) { setError(err); setBusy(null); return }
       // with email confirmation on, sign-up returns no session and the account is
@@ -142,7 +150,7 @@ function SignInForm() {
   const canSubmit =
     mode === 'forgot' ? !!email.trim()
       : mode === 'in' ? !!email.trim() && password.length > 0
-        : !!email.trim() && !!name.trim() && strong && confirm === password
+        : !!email.trim() && !!name.trim() && strong && confirm === password && legalOk
 
   const copy = COPY[mode]
 
@@ -210,6 +218,8 @@ function SignInForm() {
                 />
               )}
 
+              {mode === 'up' && <LegalGate accepted={legalOk} onChange={setLegalOk} />}
+
               <button
                 type="submit" disabled={!canSubmit || busy !== null}
                 className="mt-2 flex h-11 items-center justify-center gap-2 rounded-[10px] bg-accent text-[14px] font-semibold text-on-accent disabled:opacity-40"
@@ -235,10 +245,12 @@ function SignInForm() {
                   <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
                 </div>
 
+                {/* a new account through Google or Microsoft accepts the same terms first */}
+                {mode === 'up' && !legalOk && <p className="mb-2.5 text-[12.5px] text-faint">Read and accept the documents above to sign up with Google or Microsoft.</p>}
                 <button
                   type="button"
                   onClick={google}
-                  disabled={busy !== null}
+                  disabled={busy !== null || (mode === 'up' && !legalOk)}
                   className="flex h-11 w-full items-center justify-center gap-2.5 rounded-[10px] border border-border2 bg-s1 text-[14px] font-semibold hover:bg-s2 disabled:opacity-60"
                 >
                   {busy === 'google' ? <Loader2 size={16} className="animate-spin" /> : <GoogleG />}
@@ -247,7 +259,7 @@ function SignInForm() {
                 <button
                   type="button"
                   onClick={microsoft}
-                  disabled={busy !== null}
+                  disabled={busy !== null || (mode === 'up' && !legalOk)}
                   className="mt-2.5 flex h-11 w-full items-center justify-center gap-2.5 rounded-[10px] border border-border2 bg-s1 text-[14px] font-semibold hover:bg-s2 disabled:opacity-60"
                 >
                   {busy === 'microsoft' ? <Loader2 size={16} className="animate-spin" /> : <MicrosoftMark />}

@@ -28,7 +28,7 @@ export function AccessBoundary({ children }: { children: React.ReactNode }) {
   const eventId = /^\/events\/([^/]+)/.exec(pathname)?.[1]
   const isJoin = /^\/events\/[^/]+\/join/.test(pathname)
   const isDemo = !!eventId && !!getEvent(eventId)?.demo
-  const publicRoom = pathname === '/demos' || pathname === '/help' || pathname === '/about' || isJoin || isDemo
+  const publicRoom = pathname === '/demos' || pathname === '/help' || pathname === '/about' || pathname === '/privacy' || pathname === '/terms' || isJoin || isDemo
   // a guest's territory is any event page (theirs, or a demo they wander into)
   const guestRoom = !!eventId
 

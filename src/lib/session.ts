@@ -93,8 +93,32 @@ export function startAuth(): () => void {
       return
     }
     void accountFromSession(session.user.id, session.user.email ?? undefined).then((acc) => { if (gen === authGen) writeCache(acc) })
+    // an acceptance made before a Google or Microsoft sign-up lands on the profile now
+    void syncLegalAcceptance()
   })
   return () => data.subscription.unsubscribe()
+}
+
+/* ── the terms, accepted ──
+   Sign-up records the moment and the version here, then writes it to the profile
+   as soon as there is a session to write with. Best effort: a database without the
+   0011 columns refuses the write and the note simply stays on the device. */
+const LEGAL_KEY = 'hourelle.legal'
+type LegalNote = { version: string; at: number; synced: boolean }
+export function recordLegalAcceptance(version: string): void {
+  try { localStorage.setItem(LEGAL_KEY, JSON.stringify({ version, at: Date.now(), synced: false } satisfies LegalNote)) } catch { /* private mode */ }
+  void syncLegalAcceptance()
+}
+export async function syncLegalAcceptance(): Promise<void> {
+  if (!backendOn) return
+  let note: LegalNote | null = null
+  try { note = JSON.parse(localStorage.getItem(LEGAL_KEY) ?? 'null') as LegalNote | null } catch { return }
+  if (!note || note.synced) return
+  const { data } = await supabase!.auth.getSession()
+  if (!data.session) return
+  const { error } = await supabase!.from('profiles').update({ terms_version: note.version, terms_accepted_at: new Date(note.at).toISOString() }).eq('id', data.session.user.id)
+  if (error) return
+  try { localStorage.setItem(LEGAL_KEY, JSON.stringify({ ...note, synced: true })) } catch { /* private mode */ }
 }
 
 /* ── the four actions the sign-in page needs ──
