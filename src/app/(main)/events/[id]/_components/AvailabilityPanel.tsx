@@ -914,12 +914,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const busyDays = Object.entries(data).filter(([, di]) => di.busy.length > 0)
     const calendar = provider === 'Outlook' ? 'Outlook calendar' : provider // "your Google Calendar", "your Outlook calendar"
     const span = event.days.length > 1 ? `${event.days[0].date} and ${event.days[event.days.length - 1].date}` : event.days[0]?.date ?? 'these days'
-    // an empty calendar says nothing worth painting on: the person hears that and
-    // decides for themselves, rather than finding every hour marked free
-    if (busyDays.length === 0) {
-      stashUndo(null, `Nothing on your ${calendar} between ${span}, so nothing was marked.`)
-      return
-    }
+    // the two ends of the scale get said out loud: nothing on the calendar means every
+    // hour is free and painted, everything busy means every hour is striped and nothing
+    // is painted, and the toast says which happened
+    const none = busyDays.length === 0
+    const allBusy = !none && Object.values(data).every((di) => (dayPoll ? di.busy.length > 0 : di.free.length === 0))
     // the busy marker grows with every import and never shrinks on its own: what a
     // calendar said stays visible, striped, under whatever is painted later
     const wasImported = event.importedIv ?? {}
@@ -941,7 +940,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       }
       setMine(next); persist(next); markImported(importedIv); setSel(null)
       const busyPart = `${busyDays.length} ${busyDays.length === 1 ? 'day is' : 'days are'} striped as busy`
-      stashUndo(snapshot, addedDays ? `${addedDays} free ${addedDays === 1 ? 'day' : 'days'} marked from your ${calendar}, and ${busyPart}` : `Nothing new to mark from your ${calendar}, but ${busyPart}`, wasImported)
+      stashUndo(snapshot, none
+        ? `Nothing on your ${calendar} between ${span}, so every day is marked as one you can make.`
+        : allBusy
+          ? `Your ${calendar} has something on every one of these days, so they are all striped and none is marked.`
+          : addedDays ? `${addedDays} free ${addedDays === 1 ? 'day' : 'days'} marked from your ${calendar}, and ${busyPart}` : `Nothing new to mark from your ${calendar}, but ${busyPart}`, wasImported)
       return
     }
     // merge, never remove: imported free times join whatever is already marked.
@@ -954,13 +957,20 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       next[day] = normalizeIv([...(next[day] ?? []), ...di.free])
     }
     if (addedMin === 0) {
-      // already painted by hand: nothing to add, but the busy stretches are striped now
-      if (JSON.stringify(importedIv) !== JSON.stringify(wasImported)) markImported(importedIv)
-      stashUndo(null, `Nothing new to add from your ${calendar}, but its busy times are striped now`)
+      // nothing to paint: every hour is busy, or already painted by hand. The busy
+      // stretches are striped either way.
+      const changed = JSON.stringify(importedIv) !== JSON.stringify(wasImported)
+      if (changed) markImported(importedIv)
+      // new stripes can be undone even though nothing was painted
+      stashUndo(changed ? snapshot : null, allBusy
+        ? `Your ${calendar} is busy for all of these times, so they are all striped and nothing is marked free.`
+        : `Nothing new to add from your ${calendar}, but its busy times are striped now.`, changed ? wasImported : undefined)
       return
     }
     setMine(next); persist(next); markImported(importedIv); setSel(null)
-    stashUndo(snapshot, `Added ${fmtDur(addedMin)} of free time from your ${calendar}. Its busy times are striped.`, wasImported)
+    stashUndo(snapshot, none
+      ? `Nothing on your ${calendar} between ${span}, so every hour is marked free.`
+      : `Added ${fmtDur(addedMin)} of free time from your ${calendar}. Its busy times are striped.`, wasImported)
   }
 
   // back from Google or Microsoft with the calendar permission: finish the import
