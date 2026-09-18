@@ -78,7 +78,8 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
             )}
           </div>
         </div>
-        <div className="flex flex-none items-center gap-2">
+        {/* wraps under the date on narrow phones and never exceeds the card */}
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
           <AddToCalendar event={event} slot={{ dayKey: c.dayKey, endDayKey: c.endDayKey, startMin: c.startMin, endMin: c.endMin }} />
           {/* reopening is consequential — everyone's RSVPs reset — so it asks once */}
           {event.hostedByYou && !confirmReopen && (

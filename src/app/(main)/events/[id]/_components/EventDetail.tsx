@@ -416,7 +416,8 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
 function EditableTitle({ title, editable, onSave }: { title: string; editable: boolean; onSave: (t: string) => void }) {
   const [editing, setEditing] = useState(false)
   const ref = useRef<HTMLInputElement>(null)
-  const h1 = 'font-serif text-[27px] leading-[1.04] tracking-[-0.01em] sm:text-[34.5px]'
+  // wraps anywhere: one long word in a title must never widen the page past a phone screen
+  const h1 = 'font-serif text-[27px] leading-[1.04] tracking-[-0.01em] [overflow-wrap:anywhere] sm:text-[34.5px]'
 
   if (!editable) return <h1 className={h1}>{title}</h1>
   if (editing) {
@@ -458,9 +459,9 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
     // two columns on large screens: details + expenses stacked left, participants right.
     // Below lg the same order stacks, so the open-ended roster comes last and the
     // compact cards stay reachable without scrolling past it.
-    <div className="grid items-start gap-3.5 lg:grid-cols-[1.5fr_1fr]">
-      <div className="grid min-w-0 gap-3.5">
-      <div className="rounded-2xl border border-border bg-s1 p-5">
+    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-3.5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3.5">
+      <div className="min-w-0 rounded-2xl border border-border bg-s1 p-5">
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Details</div>
         {isHost && <DetailRow k="Cover" v={<CoverPicker event={event} onPatch={onPatch} />} />}
         <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} onPatch={onPatch} />} />
@@ -1570,11 +1571,14 @@ function DangerZone({ title, onDelete, spotlight = false }: { title: string; onD
     </div>
   )
 }
+/* a details row: label above the value on phones, so editors get the whole card width;
+   side by side from sm up. The value wraps anywhere, so a pasted link or a word with no
+   spaces breaks instead of widening the card past the screen. */
 function DetailRow({ k, v, last }: { k: string; v: React.ReactNode; last?: boolean }) {
   return (
-    <div className={`flex gap-3.5 py-3 ${last ? '' : 'border-b border-border'}`}>
-      <span className="w-[92px] flex-none text-[12.5px] text-dim">{k}</span>
-      <span className="min-w-0 flex-1 text-[13.5px] font-medium">{v}</span>
+    <div className={`flex flex-col gap-1.5 py-3 sm:flex-row sm:gap-3.5 ${last ? '' : 'border-b border-border'}`}>
+      <span className="text-[12.5px] text-dim sm:w-[92px] sm:flex-none sm:pt-px">{k}</span>
+      <span className="min-w-0 flex-1 text-[13.5px] font-medium [overflow-wrap:anywhere]">{v}</span>
     </div>
   )
 }
