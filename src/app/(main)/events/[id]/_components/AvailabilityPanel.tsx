@@ -872,10 +872,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     setSel(null)
     stashUndo(snapshot, 'Your times were cleared')
   }
+  // an undone import takes its marker back too, the same way it was set
+  function markImportedUndo(iv: AvailIntervals) { if (event.demo) return; if (onPatch) onPatch({ importedIv: iv }); else patchEvent(event.id, { importedIv: iv }) }
   function undoRestore() {
     const times = undo?.times
     if (!times) return
-    setMine(times); persist(times, undo?.importedIv ? { importedIv: undo.importedIv } : {})
+    setMine(times); persist(times)
+    if (undo?.importedIv) markImportedUndo(undo.importedIv)
     setUndo(null)
     if (undoTimer.current) clearTimeout(undoTimer.current)
   }
@@ -908,16 +911,36 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       busy = mockBusyUtc(event.days)
     }
     const data = buildImportPreview(busy, event.days, gridStartMin, gridMax, event.timezone)
+    // only days the calendar knows something about change. An empty day is not a free
+    // day, it is a day the calendar has nothing to say about, so it is left alone.
+    const busyDays = Object.entries(data).filter(([, di]) => di.busy.length > 0)
+    const calendar = provider === 'Outlook' ? 'Outlook calendar' : provider // "your Google Calendar", "your Outlook calendar"
+    const span = event.days.length > 1 ? `${event.days[0].date} and ${event.days[event.days.length - 1].date}` : event.days[0]?.date ?? 'these days'
+    if (busyDays.length === 0) {
+      stashUndo(null, `Nothing on your ${calendar} between ${span}, so nothing was marked.`)
+      return
+    }
+    // the marker grows with every import and never shrinks on its own: what a calendar
+    // said stays visible under whatever is painted later
+    const wasImported = event.importedIv ?? {}
+    const importedIv: AvailIntervals = { ...wasImported }
+    // the marker lives on the event, so it goes through the page's live patch when there
+    // is one: the stripes show the moment the import lands, not after the next reload
+    const markImported = (iv: AvailIntervals) => { if (event.demo) return; if (onPatch) onPatch({ importedIv: iv }); else patchEvent(event.id, { importedIv: iv }) }
+    if (dayPoll) {
+      // a day poll asks which days work, and a calendar cannot answer that: a day with
+      // something on it is marked as such, so the person decides, and never painted free
+      for (const [day] of busyDays) importedIv[day] = { ...(importedIv[day] ?? {}), [meId]: [{ s: 0, e: gridMax }] }
+      markImported(importedIv)
+      stashUndo(null, `${busyDays.length} of these days ${busyDays.length === 1 ? 'has' : 'have'} something on your ${calendar}. ${busyDays.length === 1 ? 'It is' : 'They are'} marked.`)
+      return
+    }
     const snapshot = mineRef.current
     const next = { ...snapshot }
     // merge, never remove: imported free times join whatever is already marked.
     // `addedMin` counts only genuinely new minutes (free minus what's already there)
     let addedMin = 0
-    // the marker grows with every import and never shrinks on its own: what a calendar
-    // said stays visible under whatever is painted later
-    const wasImported = event.importedIv ?? {}
-    const importedIv: AvailIntervals = { ...wasImported }
-    for (const [day, di] of Object.entries(data)) {
+    for (const [day, di] of busyDays) {
       let add = di.free
       for (const iv of snapshot[day] ?? []) add = add.flatMap((a) => subtract(a, iv.s, iv.e))
       addedMin += add.reduce((m, iv) => m + (iv.e - iv.s), 0)
@@ -926,11 +949,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     }
     if (addedMin === 0) {
       // already painted by hand: nothing to add, but the times are now marked as the calendar's too
-      if (!event.demo && JSON.stringify(importedIv) !== JSON.stringify(wasImported)) patchEvent(event.id, { importedIv })
+      if (JSON.stringify(importedIv) !== JSON.stringify(wasImported)) markImported(importedIv)
       stashUndo(null, `Nothing new to add from ${provider}`)
       return
     }
-    setMine(next); persist(next, { importedIv }); setSel(null)
+    setMine(next); persist(next); markImported(importedIv); setSel(null)
     stashUndo(snapshot, `Added ${fmtDur(addedMin)} of free time from ${provider}`, wasImported)
   }
 
@@ -1274,7 +1297,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={event.timezone} /></span>
           )}
           {/* importing fills YOUR times, so it rides with edit mode — view stays lean */}
-          {!locked && mode === 'edit' && <ImportFromCalendar onPick={(p) => void startImport(p)} note={backendOn ? 'Free/busy only, asked for once. What lands here is striped, so you can tell it from what you painted.' : 'A sample calendar stands in until a backend is set up.'} />}
+          {!locked && mode === 'edit' && <ImportFromCalendar onPick={(p) => void startImport(p)} note={backendOn ? (dayPoll ? 'Days with something on your calendar get a stripe, so you decide. Nothing is painted for you.' : 'Only days with something on your calendar change: the free hours around it are painted, and striped so you can tell them apart.') : 'A sample calendar stands in until a backend is set up.'} />}
           </div>
         </div>
 
@@ -1335,7 +1358,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 : (coarse ? 'Hold a moment, then drag across the days and times you’re free. The checkmarks fill a whole day or row at once.' : 'Drag across the days and times you’re free. The checkmarks fill a whole day or row at once.')}
             </span>
           )}
-          {mode === 'edit' && !sel && youAny && hasImported && <span className="text-[12.5px] text-faint">Striped times came from your calendar.</span>}
+          {mode === 'edit' && !sel && (youAny || dayPoll) && hasImported && <span className="text-[12.5px] text-faint">{dayPoll ? 'Striped days have something on your calendar.' : 'Striped times came from your calendar.'}</span>}
           {locked && <span className="text-[12.5px] text-faint">Planning is locked. The grid stays for reference.</span>}
           {notListed && !locked && !event.demo && (
             <span className="flex flex-wrap items-center gap-2 text-[12.5px] text-dim">
@@ -1448,6 +1471,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               mode={mode}
               editable={editable}
               marked={(k) => (mine[k]?.length ?? 0) > 0}
+              imported={(k) => (importedMine[k]?.length ?? 0) > 0}
               freeIds={dayFreeIds}
               otherIds={dayOtherIds}
               total={mode === 'edit' ? editTotal : viewTotal}

@@ -71,13 +71,14 @@ export function buildWeeks(days: GridDay[]): Week[] {
 }
 
 export function DayCalendar({
-  days, mode, editable, marked, freeIds, otherIds, total, bestKeys, bestLabel,
+  days, mode, editable, marked, imported, freeIds, otherIds, total, bestKeys, bestLabel,
   avatarOf, byRoster, narrow, cellW, openKey, onToggleDays, onSweep, onDragEnd, onOpenDetail,
 }: {
   days: GridDay[]
   mode: 'view' | 'edit'
   editable: boolean
   marked: (key: string) => boolean // this day is in your own answer
+  imported?: (key: string) => boolean // your calendar has something on this day
   freeIds: Record<string, string[]> // who counts toward the heat, per day
   otherIds: Record<string, string[]> // edit mode: everyone but you, the context tint
   total: number
@@ -310,9 +311,10 @@ export function DayCalendar({
               // cell owns its right and bottom, and the header, the rail or the blank beside
               // it owns the other two. Every one of the four is the full grid color.
               const edges = 'border-b border-r border-grid-line'
-              const title = edit
+              const busyDay = edit && !!imported?.(key)
+              const title = (edit
                 ? mineOn ? `${slot.day.dow}, ${slot.day.date}: you can make it` : `${slot.day.dow}, ${slot.day.date}: mark that you can make it`
-                : `${slot.day.dow}, ${slot.day.date}: ${n} of ${total} free`
+                : `${slot.day.dow}, ${slot.day.date}: ${n} of ${total} free`) + (busyDay ? '. Something on your calendar that day' : '')
               return (
                 <button
                   key={key}
@@ -326,6 +328,11 @@ export function DayCalendar({
                   className={`relative min-h-[52px] select-none text-left sm:min-h-[62px] ${edges}`}
                   style={{ background: bg, boxShadow: open ? 'inset 0 0 0 1.5px var(--accent)' : undefined }}
                 >
+                  {/* a day with something on your calendar: a striped band along the bottom,
+                      a nudge to check before marking it, never a mark in itself */}
+                  {busyDay && (
+                    <span aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-[7px] opacity-[.4]" style={{ background: 'repeating-linear-gradient(135deg, transparent 0 4px, var(--accent) 4px 5px)' }} />
+                  )}
                   {/* your own day, clay over the crowd's green — the time grid's own mark */}
                   {edit && mineOn && (
                     <span
