@@ -128,7 +128,7 @@ function SignInForm() {
     }
 
     if (mode === 'up') {
-      if (!legalOk) { setError('Read and accept the Privacy Policy and the Terms of Use first.'); setBusy(null); return }
+      if (!legalOk) { setError('Read and accept the Privacy Policy and the Terms and Conditions first.'); setBusy(null); return }
       recordLegalAcceptance(LEGAL_VERSION)
       const err = await signUpWithEmail(email.trim(), password, name)
       if (err) { setError(err); setBusy(null); return }
