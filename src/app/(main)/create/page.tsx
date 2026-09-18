@@ -1,7 +1,7 @@
 'use client'
 
-import { use, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { fetchEvent } from '@/lib/remote'
 import { CoverEditor, type ImageFit } from '@/components/ui/CoverEditor'
@@ -132,8 +132,23 @@ const WIZ_TEMPLATES: { key: string; label: string; icon: LucideIcon; chip: Perso
   { key: 'conference', label: 'Conference', icon: Presentation, chip: 'gray' },
 ]
 
-export default function CreatePage({ searchParams }: { searchParams: Promise<{ template?: string; from?: string; created?: string }> }) {
-  const { template, from, created: createdParam } = use(searchParams)
+/* The page is prerendered, so its search params exist only in the browser. The page
+   prop resolves empty in that static shell, which is how a template link or a
+   duplicate link arrived here with nothing on it in production. The hook reads the
+   live address instead, inside the Suspense boundary a static page needs for it. */
+export default function CreatePage() {
+  return (
+    <Suspense fallback={null}>
+      <CreateWizard />
+    </Suspense>
+  )
+}
+
+function CreateWizard() {
+  const params = useSearchParams()
+  const template = params.get('template') ?? undefined
+  const from = params.get('from') ?? undefined
+  const createdParam = params.get('created') ?? undefined
   const router = useRouter()
   const account = useAccount()
   const [created, setCreated] = useState<AppEvent | null>(null)
