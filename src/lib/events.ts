@@ -934,21 +934,32 @@ export function reopenEvent(id: string): void {
 // seed the create wizard from an existing event: structure carries over, dates and
 // responses deliberately do not — the host re-picks them for the new occasion
 /* ── duplicating an event: the same plan, moved to the next week that fits ──
-   Everything travels: title, description, cover, place, people, budget, spots, the
-   daily window. The dates move to the first day on or after today that falls on the
-   original's start weekday, keeping the original's span; a fixed slot comes back as
-   the same clock times on that weekday. Weekdays the original skipped stay skipped.
-   Replies never travel: it is a new plan, and the wizard is where the host checks
-   the people list before it exists. */
+   Everything travels: title, description, cover, people, budget, spots, the daily
+   window. The dates move to the first day on or after today that falls on the
+   original's start weekday, keeping the original's span and the weekdays it
+   skipped. An event born with its date set comes back set, at the same clock times
+   on that weekday; a poll comes back as a poll, even one that was later locked in,
+   since the poll is the plan's shape and the lock-in was one week's answer. The
+   place is the one that was locked in when there is one (a venue, or the itinerary
+   in its locked order), otherwise the original ballot or itinerary. Replies never
+   travel: it is a new plan, and the wizard is where the host checks the people
+   list before it exists. */
 export type EventDraft = Partial<CreateInput> & { excludedDows?: number[] }
 export function draftFromEvent(id: string): EventDraft | null {
   const ev = getEvent(id)
   if (!ev) return null
   const isItin = ev.location.planMode === 'itinerary'
   const byId = new Map(ev.location.places.map((p) => [p.id, p]))
-  const picked = isItin && ev.itinStops?.length
-    ? ev.itinStops.map((sid) => byId.get(sid)).filter((p): p is EventPlace => !!p)
-    : ev.location.places
+  const c = ev.confirmed
+  const lockedPlaces = (c?.placeIds ?? []).map((pid) => byId.get(pid)).filter((p): p is EventPlace => !!p)
+  // a locked-in single venue is the place, settled; a locked itinerary keeps its order
+  const lockedVenue = !isItin && lockedPlaces.length === 1 && ev.location.mode !== 'remote'
+  const picked = lockedPlaces.length
+    ? lockedPlaces
+    : isItin && ev.itinStops?.length
+      ? ev.itinStops.map((sid) => byId.get(sid)).filter((p): p is EventPlace => !!p)
+      : ev.location.places
+  const locMode: CreateInput['locMode'] = lockedVenue ? 'set' : ev.location.mode
 
   const today = todayKey()
   const shift = (key: string, days: number) => { const d = parseLocal(key); if (!d) return key; d.setDate(d.getDate() + days); return isoOf(d) }
@@ -967,9 +978,11 @@ export function draftFromEvent(id: string): EventDraft | null {
   const dowOf = (k: string) => parseLocal(k)?.getDay() ?? -1
   const all = selectedDayKeys(ev.startDate, ev.endDate, [], [])
   const excludedDows = [0, 1, 2, 3, 4, 5, 6].filter((dow) => { const mine = all.filter((k) => dowOf(k) === dow); return mine.length > 0 && mine.every((k) => !have.has(k)) })
-  // a fixed slot on one day comes back fixed, on the same weekday at the same times
-  const c = ev.confirmed
-  const fixed = c && !c.endDayKey && !(c.startMin === 0 && c.endMin === 24 * 60) ? { day: nextSameDow(c.dayKey), start: hm(c.startMin), end: hm(c.endMin) } : undefined
+  // born with its date set: one day, and the grid was built around the slot itself.
+  // Only that shape comes back set; a poll that was locked in comes back as a poll.
+  const bornFixed = !!c && !c.endDayKey && !(c.startMin === 0 && c.endMin === 24 * 60)
+    && ev.days.length === 1 && ev.days[0]?.key === c.dayKey && gridStart === c.startMin && gridEnd === c.endMin
+  const fixed = bornFixed && c ? { day: nextSameDow(c.dayKey), start: hm(c.startMin), end: hm(c.endMin) } : undefined
   return {
     title: ev.title,
     description: ev.description,
@@ -985,16 +998,18 @@ export function draftFromEvent(id: string): EventDraft | null {
     startDate,
     endDate,
     excludedDows,
-    windowStart: windowed ? hm(gridStart) : undefined,
-    windowEnd: windowed ? hm(Math.min(gridEnd, 24 * 60)) : undefined,
+    windowStart: windowed && !bornFixed ? hm(gridStart) : undefined,
+    windowEnd: windowed && !bornFixed ? hm(Math.min(gridEnd, 24 * 60)) : undefined,
     fixed,
-    locMode: ev.location.mode,
-    planMode: ev.location.planMode,
+    locMode,
+    planMode: lockedVenue ? 'vote' : ev.location.planMode,
     picked: picked.map((p) => ({ id: p.id, name: p.name, place: p.place, lat: p.lat, lng: p.lng })),
     platform: ev.location.platform,
     meetingLink: ev.location.meetingLink,
-    emails: ev.participants.filter((p) => p.guest).map((p) => p.id.replace(/^g:/, '')),
-    accounts: ev.participants.filter((p) => !p.guest && !p.you).map((p) => ({ id: p.id, name: p.name, color: p.color, email: p.email })),
+    // guests come back by the email they were invited with; one who joined by the
+    // link without leaving an email cannot be invited again. Accounts come back by id.
+    emails: ev.participants.filter((p) => p.guest && p.email).map((p) => p.email!.toLowerCase()),
+    accounts: ev.participants.filter((p) => !p.guest && !p.you && p.id !== myIdIn(ev)).map((p) => ({ id: p.id, name: p.name, color: p.color, email: p.email })),
   }
 }
 

@@ -3,6 +3,7 @@
 import { use, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { useRouter } from 'next/navigation'
 import { pushFlash } from '@/components/ui/FlashToast'
+import { fetchEvent } from '@/lib/remote'
 import { CoverEditor, type ImageFit } from '@/components/ui/CoverEditor'
 import Link from 'next/link'
 import {
@@ -163,8 +164,10 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
   // (localStorage read, so it has to happen after mount)
   useEffect(() => {
     if (!from) return
+    let cancelled = false
+    const apply = (): boolean => {
     const d = draftFromEvent(from)
-    if (!d) return
+    if (!d) return false
     // the daily window comes back as the preset it matches, or as Custom
     const winPreset: WinPreset = !d.windowStart || !d.windowEnd ? 'any' : (WIN_PRESETS.find((p) => p.v !== 'custom' && p.s === d.windowStart && p.e === d.windowEnd)?.v ?? 'custom')
     setForm((f) => ({
@@ -185,7 +188,8 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
       windowPreset: winPreset,
       windowStart: d.windowStart ?? '',
       windowEnd: d.windowEnd ?? '',
-      ...(d.fixed ? { scheduleMode: 'set' as const, fixedDay: d.fixed.day, fixedStart: d.fixed.start, fixedEnd: d.fixed.end } : {}),
+      scheduleMode: d.fixed ? 'set' : 'find',
+      ...(d.fixed ? { fixedDay: d.fixed.day, fixedStart: d.fixed.start, fixedEnd: d.fixed.end } : {}),
       // 'set' comes back as the In person mode with the chosen-place flag on
       locMode: d.locMode ? (d.locMode === 'set' ? 'vote' : d.locMode) : f.locMode,
       locSettled: d.locMode ? d.locMode === 'set' : f.locSettled,
@@ -196,6 +200,12 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
       emails: d.emails ?? f.emails,
       accounts: d.accounts ?? f.accounts,
     }))
+    return true
+    }
+    if (apply()) return
+    // not in this browser yet (a link opened on another device): pull it, then seed
+    void fetchEvent(from).then(() => { if (!cancelled) apply() })
+    return () => { cancelled = true }
   }, [from])
 
   // today, the visitor's own zone, and the coming week as the starting window — all
