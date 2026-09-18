@@ -43,7 +43,7 @@ export default function SettingsPage() {
   const { theme, setTheme } = useTheme()
   // read after mount so the server render never disagrees with this device
   const [h24, setH24] = useState(false)
-  const [notify, setNotify] = useState<NotifyPrefs>({ eventDay: true, deadlines: true, replies: false })
+  const [notify, setNotify] = useState<NotifyPrefs>(NOTIFY_DEFAULTS)
   const [sound, setSound] = useState(true)
   const [wholeWeek, setWholeWeek] = useState(false)
   const [ready, setReady] = useState(false)
@@ -184,8 +184,20 @@ export default function SettingsPage() {
 
       <Eyebrow>Reminders</Eyebrow>
       <div className="overflow-hidden rounded-2xl border border-border bg-s1">
-        {notifyRows.map((r, i) => (
-          <div key={r.key} className={`flex items-center justify-between gap-4 px-5 py-4 ${i > 0 ? 'border-t border-border' : ''}`}>
+        {/* the channel first: reminders arrive by email, to the address on the account.
+            Off, the rows beneath stay as they are but nothing is sent. */}
+        <div className="flex items-center justify-between gap-4 px-5 py-4">
+          <div className="min-w-0">
+            <div className="text-[14px] font-medium">Email reminders</div>
+            <div className="mt-0.5 truncate text-[12.5px] text-dim">
+              {account.signedIn && account.email ? `Sent to ${account.email}` : 'Sent to the address on your account.'}
+            </div>
+          </div>
+          {!ready && <span className="h-6 w-11 animate-pulse rounded-full bg-s2" aria-hidden />}
+          {ready && <Switch on={notify.email} onChange={(v) => changeNotify({ email: v })} label="Email reminders" />}
+        </div>
+        {notifyRows.map((r) => (
+          <div key={r.key} className={`flex items-center justify-between gap-4 border-t border-border px-5 py-4 ${ready && !notify.email ? 'opacity-50' : ''}`}>
             <div className="min-w-0">
               <div className="text-[14px] font-medium">{r.label}</div>
               <div className="mt-0.5 text-[12.5px] text-dim">{r.sub}</div>

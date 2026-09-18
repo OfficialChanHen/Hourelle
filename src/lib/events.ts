@@ -71,6 +71,7 @@ export type AppEvent = {
   times: string[]
   avail: Record<string, string[][]>   // per-cell view, derived from availIv — kept for lists/stats
   availIv?: AvailIntervals            // source of truth once anyone edits with minute precision
+  importedIv?: AvailIntervals         // dayKey → participantId → ranges that came in from a calendar: a marker kept apart from the answer, so unpainting and repainting never loses it
   votes?: Record<string, string[]>    // placeId → participant ids who voted for it
   maxVotes?: number                   // votes each person gets (default 1)
   hideVoters?: boolean                // anonymous ballot: only counts show, never who voted for what

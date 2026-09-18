@@ -18,24 +18,26 @@ import {
   addMeToEvent, patchEvent, availIvOf, fullAvailIvOf, intervalsToGrid, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
-import { buildImportPreview, googleBusyUtc, mockBusyUtc, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport, type UtcBusy } from '@/lib/calendar-import'
+import { buildImportPreview, googleBusyUtc, outlookBusyUtc, mockBusyUtc, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport, type UtcBusy } from '@/lib/calendar-import'
 import { backendOn } from '@/lib/db'
-import { connectGoogleCalendar, googleProviderToken } from '@/lib/session'
+import { connectCalendar, providerToken, type OAuthProvider } from '@/lib/session'
 
 type Mode = 'view' | 'edit'
 type Edge = 'top' | 'bottom'
 type Sel = { day: string; s: number; e: number; edge: Edge }
 
 type Drag =
-  /* paint: the pointer flips each cell it crosses, on if it was off and off if it was on.
-     `trail` is the cells it has crossed in order, and dragging back over one truncates the
-     trail there, so everything past it returns to how it was — an overshoot is corrected by
-     retreating rather than by a second sweep. `base` is what the day looked like before the
-     press, which is what "how it was" means. Pressed on one of your blocks and released
-     without moving, the whole thing selects that block instead. */
+  /* paint: the pointer sets every cell it crosses to one state, decided by the first cell:
+     off before the press means the sweep paints on, on means it paints off. `trail` is the
+     cells it has crossed, in order, and a cell crossed twice is left as it is, so a sweep
+     never unpaints what it painted, whatever loop the pointer makes on the way. The path
+     between two pointer samples is walked in half-cell steps, so a fast flick still touches
+     every row it crossed. `base` is what the day looked like before the press. Pressed on
+     one of your blocks and released without moving, the whole thing selects that block
+     instead. */
   | {
       kind: 'paint'; day: string; di: number; ti: number; anchorClientY: number; anchorScrollTop: number; anchorScrollLeft: number; anchorMin: number
-      trail: string[]; base: Record<string, Iv[]>; moved: boolean; hit: Iv | null
+      trail: string[]; seen: Set<string>; on: boolean; lastX: number; lastY: number; base: Record<string, Iv[]>; moved: boolean; hit: Iv | null
     }
   | {
       kind: 'resize'; day: string; edge: Edge; fixedMin: number
@@ -126,6 +128,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // import on my other device, the host clearing my marks) — never for the echo of my
   // own write, and never mid-drag
   const [mine, setMine] = useState<Record<string, Iv[]>>(remoteMine)
+  // what a calendar import brought in, per day: a marker beside the answer, not part of
+  // it, so painting over or clearing a slot never loses where it came from
+  const importedMine = useMemo<Record<string, Iv[]>>(() => {
+    const src = event.importedIv ?? {}
+    return Object.fromEntries(event.days.map((d) => [d.key, normalizeIv(src[d.key]?.[meId] ?? [])]))
+  }, [event, meId])
+  const hasImported = event.days.some((d) => (importedMine[d.key]?.length ?? 0) > 0)
   // the rows this panel persisted lately, to tell its own echo from somebody else's news.
   // They expire: an echo comes back in under a second, so anything older is not one, and a
   // remembered signature that never aged out would make a later correcting update — one
@@ -319,7 +328,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   }
   useEffect(() => () => { if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current) }, [])
 
-  function persist(m: Record<string, Iv[]>) {
+  function persist(m: Record<string, Iv[]>, extra: Partial<AppEvent> = {}) {
     // marking any time takes back an earlier "none of these days work"
     if (Object.values(m).some((ivs) => ivs.length) && unavail.has(meId)) {
       setUnavail((prev) => { const next = new Set(prev); next.delete(meId); return next })
@@ -336,7 +345,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       if (m[d.key]?.length) availIv[d.key][meId] = m[d.key]
       else delete availIv[d.key][meId]
     }
-    patchEvent(event.id, { availIv, avail: { ...event.avail, ...intervalsToGrid(availIv, event.days, rows, step) } })
+    patchEvent(event.id, { availIv, avail: { ...event.avail, ...intervalsToGrid(availIv, event.days, rows, step) }, ...extra })
   }
   // your explicit empty reply: none of these days work — cleared by marking any time
   function toggleNoneWork() {
@@ -456,21 +465,32 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const on = cur.some((iv) => iv.s <= w0 && iv.e >= w1)
     return { ...map, [day]: normalizeIv(on ? cur.flatMap((iv) => subtract(iv, w0, w1)) : [...cur, { s: w0, e: w1 }]) }
   }
+  // is a slot wholly inside one of the blocks
+  function cellOn(map: Record<string, Iv[]>, day: string, ti: number): boolean {
+    const w0 = ti * step, w1 = w0 + step
+    return (map[day] ?? []).some((iv) => iv.s <= w0 && iv.e >= w1)
+  }
+  // one slot set to a state, on a working copy: already there means untouched
+  function setIn(map: Record<string, Iv[]>, day: string, ti: number, on: boolean): Record<string, Iv[]> {
+    if (cellOn(map, day, ti) === on) return map
+    const w0 = ti * step, w1 = w0 + step
+    const cur = map[day] ?? []
+    return { ...map, [day]: normalizeIv(on ? [...cur, { s: w0, e: w1 }] : cur.flatMap((iv) => subtract(iv, w0, w1))) }
+  }
   function flipSlot(day: string, ti: number) {
     const next = flipIn(paintRef.current ?? mineRef.current, day, ti)
     paintRef.current = next
     setMine(next)
     return next
   }
-  /* The sweep rebuilt from scratch: everything the trail still holds, flipped away from
-     what the day looked like before the press. Recomputing rather than undoing in place is
-     what lets the trail shrink — a cell dropped off the end simply stops being applied. A
-     trail is as long as the cells the pointer crossed, so this stays cheap. */
+  /* The sweep rebuilt from scratch: every cell the trail holds, set the sweep's way on
+     top of what the day looked like before the press. A trail is as long as the cells the
+     pointer crossed, so this stays cheap. */
   function applyTrail(d: Extract<Drag, { kind: 'paint' }>) {
     let next = d.base
     for (const id of d.trail) {
       const cut = id.lastIndexOf('|')
-      next = flipIn(next, id.slice(0, cut), Number(id.slice(cut + 1)))
+      next = setIn(next, id.slice(0, cut), Number(id.slice(cut + 1)), d.on)
     }
     paintRef.current = next
     setMine(next)
@@ -492,7 +512,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const d: Drag = {
       kind: 'paint', day, di, ti, anchorClientY: clientY, anchorMin: gridMin,
       anchorScrollTop: scroller.current?.scrollTop ?? 0, anchorScrollLeft: scroller.current?.scrollLeft ?? 0,
-      trail: [], base: mineRef.current, moved: false, hit,
+      trail: [], seen: new Set(), on: !cellOn(mineRef.current, day, ti), lastX: clientX, lastY: clientY, base: mineRef.current, moved: false, hit,
     }
     dragRef.current = d; setDrag(d)
     lastXRef.current = clientX; lastYRef.current = clientY
@@ -507,7 +527,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       paintRef.current = pm; setMine(pm)
       return
     }
-    d.trail.push(cellId(day, ti))
+    d.trail.push(cellId(day, ti)); d.seen.add(cellId(day, ti))
     flipSlot(day, ti)
   }
   function cancelHold() {
@@ -609,25 +629,29 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
            how far the sheet has scrolled underneath, and any layout shift on top of that, and
            a few pixels of drift is a whole row wrongly swept. A filler day carries no label,
            so it is skipped by having nothing to find. */
-        const under = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>('[data-cell]')
-        const id = under?.dataset.cell
-        if (!id) return
-        // the drag has left the cell it started in: it is painting a stretch now, not
-        // fine-tuning one block, so the handles stand down. The cell it started in joins
-        // the trail here — a press on your own block did not flip it, and a press in the
-        // empty stretch of a partial dropped a band the sweep now supersedes.
-        if (!d.moved) {
-          d.moved = true
-          setSel(null)
-          if (!d.trail.length) d.trail.push(cellId(d.day, d.ti))
+        const dx = clientX - d.lastX, dy = clientY - d.lastY
+        const n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / (CELL / 2)))
+        d.lastX = clientX; d.lastY = clientY
+        const first = cellId(d.day, d.ti)
+        let changed = false
+        for (let i = 1; i <= n; i++) {
+          const under = document.elementFromPoint(clientX - dx + (dx * i) / n, clientY - dy + (dy * i) / n)?.closest<HTMLElement>('[data-cell]')
+          const id = under?.dataset.cell
+          // nothing under the point, the cell it started in, or one already swept: left alone
+          if (!id || id === first || d.seen.has(id)) continue
+          // the drag has left the cell it started in: it is painting a stretch now, not
+          // fine-tuning one block, so the handles stand down. The cell it started in joins
+          // the trail here — a press on your own block did not flip it, and a press in the
+          // empty stretch of a partial dropped a band the sweep now supersedes.
+          if (!d.moved) {
+            d.moved = true
+            setSel(null)
+            if (!d.trail.length) { d.trail.push(first); d.seen.add(first) }
+          }
+          d.trail.push(id); d.seen.add(id)
+          changed = true
         }
-        const at = d.trail.indexOf(id)
-        if (at === d.trail.length - 1) return // still on the cell it last acted on
-        // back over a cell it has already crossed: the trail ends there and everything
-        // past it goes back to how the day was before the press
-        if (at >= 0) d.trail.length = at + 1
-        else d.trail.push(id)
-        applyTrail(d)
+        if (changed) applyTrail(d)
         dragRef.current = d
       } else {
         const m = snap5(cur)
@@ -824,11 +848,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // bulk changes (clear, calendar import) are instant with an undo window instead
   // of a scary confirm — the old times sit in state until the toast expires.
   // times: null makes it a plain notice with no Undo button
-  const [undo, setUndo] = useState<{ times: Record<string, Iv[]> | null; label: string } | null>(null)
+  const [undo, setUndo] = useState<{ times: Record<string, Iv[]> | null; label: string; importedIv?: AvailIntervals } | null>(null)
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (undoTimer.current) clearTimeout(undoTimer.current) }, [])
-  function stashUndo(times: Record<string, Iv[]> | null, label: string) {
-    setUndo({ times, label })
+  function stashUndo(times: Record<string, Iv[]> | null, label: string, importedIv?: AvailIntervals) {
+    setUndo({ times, label, importedIv })
     if (undoTimer.current) clearTimeout(undoTimer.current)
     undoTimer.current = setTimeout(() => setUndo(null), 8000)
   }
@@ -842,7 +866,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   function undoRestore() {
     const times = undo?.times
     if (!times) return
-    setMine(times); persist(times)
+    setMine(times); persist(times, undo?.importedIv ? { importedIv: undo.importedIv } : {})
     setUndo(null)
     if (undoTimer.current) clearTimeout(undoTimer.current)
   }
@@ -855,16 +879,20 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       stashUndo(null, 'Calendar import works on events you create, not this sample.')
       return
     }
-    // with a backend, Google is real: no token yet means a trip to Google that lands
-    // back here with ?import=google (see the effect below); otherwise the sample
-    // calendar stands in so the flow can be tried without any keys
+    // with a backend the calendars are real: no token yet means a trip to the provider
+    // that lands back here with ?import=google or ?import=outlook (see the effect
+    // below); otherwise the sample calendar stands in so the flow can be tried without keys
+    const remote: OAuthProvider | null = provider === 'Google Calendar' ? 'google' : provider === 'Outlook' ? 'azure' : null
     let busy: UtcBusy[]
-    if (provider === 'Google Calendar' && backendOn) {
-      const back = `/events/${event.id}?tab=availability&import=google`
-      const token = await googleProviderToken()
-      if (!token) { const err = await connectGoogleCalendar(back); if (err) stashUndo(null, err); return }
-      const r = await googleBusyUtc(token, event.days, gridStartMin, gridMax, event.timezone)
-      if (r.error === 'auth') { const err = await connectGoogleCalendar(back); if (err) stashUndo(null, err); return }
+    if (remote && backendOn) {
+      const back = `/events/${event.id}?tab=availability&import=${remote === 'google' ? 'google' : 'outlook'}`
+      const trip = async () => { const err = await connectCalendar(remote, back); if (err) stashUndo(null, err) }
+      const token = await providerToken()
+      if (!token) { await trip(); return }
+      const r = remote === 'google'
+        ? await googleBusyUtc(token, event.days, gridStartMin, gridMax, event.timezone)
+        : await outlookBusyUtc(token, event.days, gridStartMin, gridMax, event.timezone)
+      if (r.error === 'auth') { await trip(); return }
       if (r.error) { stashUndo(null, r.error); return }
       busy = r.busy
     } else {
@@ -876,32 +904,41 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     // merge, never remove: imported free times join whatever is already marked.
     // `addedMin` counts only genuinely new minutes (free minus what's already there)
     let addedMin = 0
+    // the marker grows with every import and never shrinks on its own: what a calendar
+    // said stays visible under whatever is painted later
+    const wasImported = event.importedIv ?? {}
+    const importedIv: AvailIntervals = { ...wasImported }
     for (const [day, di] of Object.entries(data)) {
       let add = di.free
       for (const iv of snapshot[day] ?? []) add = add.flatMap((a) => subtract(a, iv.s, iv.e))
       addedMin += add.reduce((m, iv) => m + (iv.e - iv.s), 0)
       next[day] = normalizeIv([...(next[day] ?? []), ...di.free])
+      if (di.free.length) importedIv[day] = { ...(importedIv[day] ?? {}), [meId]: normalizeIv([...(importedIv[day]?.[meId] ?? []), ...di.free]) }
     }
     if (addedMin === 0) {
+      // already painted by hand: nothing to add, but the times are now marked as the calendar's too
+      if (!event.demo && JSON.stringify(importedIv) !== JSON.stringify(wasImported)) patchEvent(event.id, { importedIv })
       stashUndo(null, `Nothing new to add from ${provider}`)
       return
     }
-    setMine(next); persist(next); setSel(null)
-    stashUndo(snapshot, `Added ${fmtDur(addedMin)} of free time from ${provider}`)
+    setMine(next); persist(next, { importedIv }); setSel(null)
+    stashUndo(snapshot, `Added ${fmtDur(addedMin)} of free time from ${provider}`, wasImported)
   }
 
-  // back from Google with the free/busy permission: finish the import that started
-  // it, once, and take the marker off the address bar
+  // back from Google or Microsoft with the calendar permission: finish the import
+  // that started it, once, and take the marker off the address bar
   const importOnce = useRef(false)
   useEffect(() => {
     if (importOnce.current || typeof window === 'undefined') return
     const url = new URL(window.location.href)
-    if (url.searchParams.get('import') !== 'google') return
+    const which = url.searchParams.get('import')
+    const provider = which === 'google' ? 'Google Calendar' : which === 'outlook' ? 'Outlook' : null
+    if (!provider) return
     importOnce.current = true
     url.searchParams.delete('import')
     window.history.replaceState(window.history.state, '', url.toString())
     // a tick later, so the import's own state changes land after this render
-    const t = setTimeout(() => { void startImport('Google Calendar') }, 0)
+    const t = setTimeout(() => { void startImport(provider) }, 0)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -1226,7 +1263,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={event.timezone} /></span>
           )}
           {/* importing fills YOUR times, so it rides with edit mode — view stays lean */}
-          {!locked && mode === 'edit' && <ImportFromCalendar onPick={(p) => void startImport(p)} providers={backendOn ? ['Google Calendar'] : ['Google Calendar', 'Outlook']} note={backendOn ? 'Free/busy only. Google asks once, then your free times land here.' : 'A sample calendar stands in until a backend is set up.'} />}
+          {!locked && mode === 'edit' && <ImportFromCalendar onPick={(p) => void startImport(p)} note={backendOn ? 'Free/busy only, asked for once. What lands here is striped, so you can tell it from what you painted.' : 'A sample calendar stands in until a backend is set up.'} />}
           </div>
         </div>
 
@@ -1287,6 +1324,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 : (coarse ? 'Hold a moment, then drag across the days and times you’re free. The checkmarks fill a whole day or row at once.' : 'Drag across the days and times you’re free. The checkmarks fill a whole day or row at once.')}
             </span>
           )}
+          {mode === 'edit' && !sel && youAny && hasImported && <span className="text-[12.5px] text-faint">Striped times came from your calendar.</span>}
           {locked && <span className="text-[12.5px] text-faint">Planning is locked. The grid stays for reference.</span>}
           {notListed && !locked && !event.demo && (
             <span className="flex flex-wrap items-center gap-2 text-[12.5px] text-dim">
@@ -1379,10 +1417,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             </div>
             {/* right: Remove / Done pinned bottom-right */}
             <div className="flex flex-none flex-col items-end justify-end gap-1.5">
-              <button onClick={deleteSel} className="flex h-8 items-center gap-1.5 rounded-[8px] border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text hover:bg-brick-bg">
+              <button onClick={deleteSel} className="flex h-11 items-center gap-1.5 rounded-[8px] border border-brick-border bg-s1 px-3 text-[12.5px] font-semibold text-brick-text hover:bg-brick-bg sm:h-8 sm:px-2.5">
                 <Trash2 size={14} /> Remove
               </button>
-              <button onClick={() => setSel(null)} className="flex h-8 items-center rounded-[8px] border border-border2 bg-s1 px-2.5 text-[12.5px] font-semibold hover:bg-s2">Done</button>
+              <button onClick={() => setSel(null)} className="flex h-11 items-center rounded-[8px] border border-border2 bg-s1 px-3 text-[12.5px] font-semibold hover:bg-s2 sm:h-8 sm:px-2.5">Done</button>
             </div>
           </div>
         )}
@@ -1733,6 +1771,19 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                           />
                         )
                       })}
+                      {/* what a calendar import brought in: fine stripes over the range, painted or
+                          not, so the source stays readable after the slot is unpainted and repainted */}
+                      {(importedMine[d.key] ?? []).map((iv, k) => {
+                        const cs = Math.max(iv.s, w0), ce = Math.min(iv.e, w1)
+                        if (ce <= cs) return null
+                        return (
+                          <div
+                            key={`i${k}`}
+                            className="pointer-events-none absolute inset-x-0 z-[1] opacity-[.22]"
+                            style={{ top: `${((cs - w0) / step) * 100}%`, height: `${((ce - cs) / step) * 100}%`, background: 'repeating-linear-gradient(135deg, transparent 0 5px, var(--accent) 5px 6px)' }}
+                          />
+                        )
+                      })}
                       {/* slot line redrawn above the heat fills so saturated cells can't wash it out */}
                       <div className="pointer-events-none absolute z-[1] border-b border-r border-grid-line" style={{ inset: '0 -1px -1px 0' }} />
                       {cnt > 0 && (() => {
@@ -1749,7 +1800,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                       {isTopEdge && (
                         <>
                           <EdgeHandle pct={topPct} label={fmt(gridStartMin + sel!.s)} active={sel!.edge === 'top'} side={topSide} onDown={(e) => onHandleDown(e, 'top')} />
-                          <button
+                          {/* a mouse gets the small cross on the block's edge; a finger would find it
+                              jammed against the drag bar, so on touch the selection bar's Remove
+                              button, sized for a thumb, is the one way to take a block away */}
+                          {!coarse && <button
                             type="button"
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={deleteSel}
@@ -1759,7 +1813,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                             aria-label="Remove this block"
                           >
                             <X size={11} />
-                          </button>
+                          </button>}
                         </>
                       )}
                       {isBotEdge && (

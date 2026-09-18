@@ -23,8 +23,9 @@ export function setPrefH24(v: boolean): void {
 
 // which reminders the visitor wants once email exists — stored now, honest about
 // when they start doing anything
-export type NotifyPrefs = { eventDay: boolean; deadlines: boolean; replies: boolean }
-export const NOTIFY_DEFAULTS: NotifyPrefs = { eventDay: true, deadlines: true, replies: false }
+// `email` is the channel: off, nothing below it is sent by mail whatever it says
+export type NotifyPrefs = { email: boolean; eventDay: boolean; deadlines: boolean; replies: boolean }
+export const NOTIFY_DEFAULTS: NotifyPrefs = { email: true, eventDay: true, deadlines: true, replies: false }
 
 export function prefNotify(): NotifyPrefs {
   if (typeof window === 'undefined') return NOTIFY_DEFAULTS

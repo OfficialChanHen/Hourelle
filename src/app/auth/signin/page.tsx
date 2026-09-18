@@ -8,7 +8,7 @@ import { useGSAP } from '@gsap/react'
 import { ArrowLeft, CalendarRange, Check, Loader2, MailCheck, TriangleAlert } from 'lucide-react'
 import { useGuestMode } from '@/hooks/useGuestMode'
 import { backendOn } from '@/lib/db'
-import { EMAIL_TAKEN, hasSession, sendPasswordReset, signInWithEmail, signInWithGoogle, signUpWithEmail } from '@/lib/session'
+import { EMAIL_TAKEN, hasSession, sendPasswordReset, signInWithEmail, signInWithGoogle, signInWithMicrosoft, signUpWithEmail } from '@/lib/session'
 import { passwordOk } from '@/lib/password'
 import { PasswordField } from '@/components/ui/PasswordField'
 import { PasswordRules } from '@/components/ui/PasswordRules'
@@ -25,6 +25,18 @@ const BENEFITS = [
   'Get reminders before deadlines and the day itself',
   'Fill in when you are free straight from your calendar',
 ]
+
+/* the four squares, in Microsoft's own colours: a logo, not a palette */
+function MicrosoftMark() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 21 21" aria-hidden>
+      <rect x="1" y="1" width="9" height="9" fill="#F25022" />
+      <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+      <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+      <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
+    </svg>
+  )
+}
 
 const GoogleG = () => (
   <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden>
@@ -63,7 +75,7 @@ function SignInForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [busy, setBusy] = useState<'google' | 'email' | null>(null)
+  const [busy, setBusy] = useState<'google' | 'microsoft' | 'email' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null) // check your mail, in both senses
   const guestEventId = useGuestMode()
@@ -83,6 +95,11 @@ function SignInForm() {
     setError(null); setBusy('google')
     // on success the browser leaves for Google and never comes back to this line
     const err = await signInWithGoogle()
+    if (err) { setError(err); setBusy(null) }
+  }
+  async function microsoft() {
+    setError(null); setBusy('microsoft')
+    const err = await signInWithMicrosoft()
     if (err) { setError(err); setBusy(null) }
   }
 
@@ -221,6 +238,15 @@ function SignInForm() {
                 >
                   {busy === 'google' ? <Loader2 size={16} className="animate-spin" /> : <GoogleG />}
                   Continue with Google
+                </button>
+                <button
+                  type="button"
+                  onClick={microsoft}
+                  disabled={busy !== null}
+                  className="mt-2.5 flex h-11 w-full items-center justify-center gap-2.5 rounded-[10px] border border-border2 bg-s1 text-[14px] font-semibold hover:bg-s2 disabled:opacity-60"
+                >
+                  {busy === 'microsoft' ? <Loader2 size={16} className="animate-spin" /> : <MicrosoftMark />}
+                  Continue with Microsoft
                 </button>
               </>
             )}

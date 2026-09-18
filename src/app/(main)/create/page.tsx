@@ -1,6 +1,8 @@
 'use client'
 
 import { use, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useRouter } from 'next/navigation'
+import { pushFlash } from '@/components/ui/FlashToast'
 import Link from 'next/link'
 import {
   Check, ChevronDown, ChevronUp, Search, Plus, X, MapPin, Video, Clock,
@@ -128,6 +130,8 @@ const WIZ_TEMPLATES: { key: string; label: string; icon: LucideIcon; chip: Perso
 
 export default function CreatePage({ searchParams }: { searchParams: Promise<{ template?: string; from?: string; created?: string }> }) {
   const { template, from, created: createdParam } = use(searchParams)
+  const router = useRouter()
+  const account = useAccount()
   const [created, setCreated] = useState<AppEvent | null>(null)
   // a ?created= link resolves after mount; until then nothing is drawn, so the empty
   // wizard never flashes before the event's own screen
@@ -273,7 +277,7 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
       panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       return
     }
-    setCreated(createEvent({
+    const ev = createEvent({
       ...form,
       // the form tracks "already chosen" as a flag under In person; the event model
       // speaks one enum, where a chosen place is its own mode
@@ -285,7 +289,15 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
         : undefined,
       // only pass an explicit day list when days were actually turned off
       pickedDays: finding && (form.excludedDows.length || form.excludedDays.length) ? selKeys ?? undefined : undefined,
-    }))
+    })
+    // straight to the event: no screen in between. The email invitees get their
+    // personal links in the background, the way the Created screen used to send them;
+    // that screen still exists for a ?created= link.
+    const emailed = ev.participants.filter((p) => p.guest && p.email).length
+    const sending = emailed > 0 && canEmail(account.signedIn)
+    if (sending) void sendInvites(ev.id)
+    pushFlash(sending ? `Your event is live. Emailing ${emailed} ${emailed === 1 ? 'invite' : 'invites'}.` : 'Your event is live. Share the link so people can join.')
+    router.push(`/events/${ev.id}`)
   }
 
   // one-line summaries so each closed drawer still says where it stands

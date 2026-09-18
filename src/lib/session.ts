@@ -111,6 +111,21 @@ export async function signInWithGoogle(): Promise<string | null> {
   return error?.message ?? null
 }
 
+/** The Microsoft door: a personal or work account, through Supabase's Azure provider.
+ *  The provider has to be switched on for the project (see docs/phase-10). */
+export async function signInWithMicrosoft(): Promise<string | null> {
+  if (!backendOn) return 'Sign-in needs a backend. Add your Supabase keys to .env.local.'
+  const { error } = await supabase!.auth.signInWithOAuth({
+    provider: 'azure',
+    options: { scopes: 'email openid profile', redirectTo: `${window.location.origin}/auth/callback` },
+  })
+  return error?.message ?? null
+}
+
+/* ── the two providers the app talks to, by name ── */
+export type OAuthProvider = 'google' | 'azure'
+export const PROVIDER_LABEL: Record<OAuthProvider, string> = { google: 'Google', azure: 'Microsoft' }
+
 /** The answer sign-up gives when the address already belongs to an account. The
  *  page recognises it and offers the log-in form instead of a plain error. */
 export const EMAIL_TAKEN = 'That email already has an account.'
@@ -255,28 +270,47 @@ export async function resetProfile(): Promise<{ name: string } | { error: string
   return { name }
 }
 
-/* ── Google Calendar: the same Google login, asked for one more thing ──
-   Supabase hands back Google's own access token (provider_token) when the sign-in
-   asked for a scope, and only then. So an import is a short round trip: leave for
-   Google with the free/busy scope, come back to the event, read the token, ask
-   Google for busy blocks. The token lasts about an hour and is never refreshed;
-   the next import simply makes the trip again. */
-export async function connectGoogleCalendar(next: string): Promise<string | null> {
+/* ── a calendar, connected through the account you are already in ──
+   Supabase hands back the provider's own access token (provider_token) when a
+   sign-in asked for a scope, and only then. So an import is a short round trip:
+   leave for Google or Microsoft with the calendar scope, come back to the event,
+   read the token, ask for busy blocks. The token lasts about an hour and is never
+   refreshed; the next import simply makes the trip again.
+
+   Which trip depends on whether that provider is already one of this account's
+   doors. If it is, a fresh sign-in through it brings the token. If it is not, the
+   trip links it to this account first: a plain sign-in with a provider the account
+   has never used would land in a different account, and the import would go to the
+   wrong person's grid. Either way the browser comes back to the same account. */
+const CALENDAR_SCOPES: Record<OAuthProvider, string> = {
+  google: 'https://www.googleapis.com/auth/calendar.freebusy',
+  azure: 'email openid profile Calendars.Read',
+}
+export async function connectCalendar(provider: OAuthProvider, next: string): Promise<string | null> {
   if (!backendOn) return 'Calendar import needs a backend. Add your Supabase keys to .env.local.'
-  const { error } = await supabase!.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      scopes: 'https://www.googleapis.com/auth/calendar.freebusy',
-      redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
-    },
-  })
+  const options = { scopes: CALENDAR_SCOPES[provider], redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` }
+  if (readCache().signedIn) {
+    const ids = await listIdentities()
+    if (!ids.some((i) => i.provider === provider)) {
+      const { error } = await supabase!.auth.linkIdentity({ provider, options })
+      if (!error) return null
+      if (/already|exists|registered|taken/i.test(error.message)) {
+        return `That ${PROVIDER_LABEL[provider]} account already belongs to another Hourelle account. Bring that account in from your profile first.`
+      }
+      return error.message
+    }
+  }
+  const { error } = await supabase!.auth.signInWithOAuth({ provider, options })
   return error?.message ?? null
 }
-export async function googleProviderToken(): Promise<string | null> {
+export const connectGoogleCalendar = (next: string) => connectCalendar('google', next)
+/** The last provider's own token, when the sign-in that made this session asked for one. */
+export async function providerToken(): Promise<string | null> {
   if (!backendOn) return null
   const { data } = await supabase!.auth.getSession()
   return data.session?.provider_token ?? null
 }
+export const googleProviderToken = providerToken
 
 /* ── the two doors: an email and a password, and the Google button ──
    One account can have both. Supabase calls each way in an "identity", and linking
@@ -297,34 +331,38 @@ export async function listIdentities(): Promise<Identity[]> {
   }))
 }
 
-/** Add the Google button to this account. Comes back through /auth/callback. */
-export async function linkGoogle(next: string): Promise<string | null> {
-  if (!backendOn) return 'Connecting Google needs a backend. Add your Supabase keys to .env.local.'
+/** Add a provider's button to this account. Comes back through /auth/callback. */
+export async function linkProvider(provider: OAuthProvider, next: string): Promise<string | null> {
+  const label = PROVIDER_LABEL[provider]
+  if (!backendOn) return `Connecting ${label} needs a backend. Add your Supabase keys to .env.local.`
   if (!readCache().signedIn) return 'Log in first.'
   const { error } = await supabase!.auth.linkIdentity({
-    provider: 'google',
+    provider,
     options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
   })
   if (!error) return null
-  // the one refusal worth explaining: that Google account is already its own account
+  // the one refusal worth explaining: that account is already its own account
   // here, and the way to put them together is the merge below
   if (/already|exists|registered|taken/i.test(error.message)) {
-    return 'That Google account already belongs to another Hourelle account. Log in with Google, then bring this one in from your profile.'
+    return `That ${label} account already belongs to another Hourelle account. Log in with ${label}, then bring this one in from your profile.`
   }
   return error.message
 }
+export const linkGoogle = (next: string) => linkProvider('google', next)
 
-/** Take the Google button off this account. Refused if it is the only way in. */
-export async function unlinkGoogle(): Promise<string | null> {
+/** Take a provider's button off this account. Refused if it is the only way in. */
+export async function unlinkProvider(provider: OAuthProvider): Promise<string | null> {
+  const label = PROVIDER_LABEL[provider]
   if (!backendOn) return 'This needs a backend.'
   const { data, error } = await supabase!.auth.getUserIdentities()
   if (error || !data) return error?.message ?? 'Could not read this account.'
   if (data.identities.length < 2) return 'This is the only way in to your account. Set a password first.'
-  const google = data.identities.find((i) => i.provider === 'google')
-  if (!google) return 'Google is not connected to this account.'
-  const { error: e2 } = await supabase!.auth.unlinkIdentity(google)
+  const identity = data.identities.find((i) => i.provider === provider)
+  if (!identity) return `${label} is not connected to this account.`
+  const { error: e2 } = await supabase!.auth.unlinkIdentity(identity)
   return e2?.message ?? null
 }
+export const unlinkGoogle = () => unlinkProvider('google')
 
 /** Fold another account into this one: its events, its seats, its answers, its
  *  messages. Proved by that account's own email and password; the server does the

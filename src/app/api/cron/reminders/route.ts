@@ -57,7 +57,9 @@ export async function GET(req: Request) {
         const to = emails.get(p.id)
         if (!to) { totals.skipped++; continue }
         const pref = prefs.get(p.id)
-        if (pref && pref[d.pref] === false) { totals.skipped++; continue }
+        // the account's own say: email off means no reminder by mail at all, and each
+        // kind can be switched off on its own
+        if (pref && (pref.email === false || pref[d.pref] === false)) { totals.skipped++; continue }
         const r = await sendOnce(db, `${ev.id}:${p.id}:${d.kind}:${d.day}`, { eventId: ev.id, participantId: p.id, kind: d.kind }, reminderMail(d.kind, ev, p, to, site))
         totals[r === 'sent' ? 'sent' : r === 'already' ? 'already' : 'failed']++
       }

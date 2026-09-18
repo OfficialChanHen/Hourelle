@@ -1,9 +1,10 @@
 'use client'
 
 /* How you log in — and the way to end up with one account instead of two.
-   One row per door: the email and password you signed up with, and the Google
-   button. Connecting Google adds it to the account you are already in, which is
-   what makes both doors open the same place. Below them, the way back from having
+   One row per door: the email and password you signed up with, the Google button
+   and the Microsoft one. Connecting a provider adds it to the account you are
+   already in, which is what makes every door open the same place; it is also what
+   lets that provider's calendar be imported into your grid. Below them, the way back from having
    made two accounts by accident: give the other one's email and password and it is
    folded into this one. */
 
@@ -11,7 +12,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Check, Loader2, Link2, Link2Off, Merge } from 'lucide-react'
 import { PasswordField } from '@/components/ui/PasswordField'
 import { pushFlash } from '@/components/ui/FlashToast'
-import { listIdentities, linkGoogle, mergeAccount, unlinkGoogle, type Account, type Identity } from '@/lib/session'
+import { listIdentities, linkProvider, mergeAccount, unlinkProvider, PROVIDER_LABEL, type Account, type Identity, type OAuthProvider } from '@/lib/session'
 import { backendOn } from '@/lib/db'
 
 function GoogleMark() {
@@ -25,6 +26,17 @@ function GoogleMark() {
   )
 }
 
+function MicrosoftMark() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 21 21" aria-hidden>
+      <rect x="1" y="1" width="9" height="9" fill="#F25022" />
+      <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+      <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+      <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
+    </svg>
+  )
+}
+
 const Row = ({ children, first }: { children: React.ReactNode; first?: boolean }) => (
   <div className={`px-5 py-4 ${first ? '' : 'border-t border-border'}`}>{children}</div>
 )
@@ -32,6 +44,7 @@ const Row = ({ children, first }: { children: React.ReactNode; first?: boolean }
 export function SignInMethods({ account }: { account: Account }) {
   const [identities, setIdentities] = useState<Identity[] | null>(null)
   const [busy, setBusy] = useState<'link' | 'unlink' | 'merge' | null>(null)
+  const [busyOn, setBusyOn] = useState<OAuthProvider | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
 
@@ -42,28 +55,65 @@ export function SignInMethods({ account }: { account: Account }) {
     // row below says "connected" on its own once the identities land, so the only
     // thing left to do is say it out loud once and tidy the address bar
     const p = new URLSearchParams(window.location.search)
-    if (p.get('linked') === 'google') {
-      pushFlash('Google is connected. Both ways in work now.', 'accent')
+    const linked = p.get('linked')
+    if (linked === 'google' || linked === 'azure') {
+      pushFlash(`${PROVIDER_LABEL[linked]} is connected. Every way in opens the same account now.`, 'accent')
       window.history.replaceState(null, '', window.location.pathname)
     }
   }, [read])
 
-  const google = identities?.find((i) => i.provider === 'google')
   const hasPassword = !!identities?.some((i) => i.provider === 'email')
   const onlyDoor = (identities?.length ?? 0) < 2
 
-  async function connect() {
-    setBusy('link'); setErr(null); setDone(null)
-    const error = await linkGoogle('/profile?linked=google')
-    if (error) { setErr(error); setBusy(null) } // no error means the browser is leaving for Google
+  async function connect(provider: OAuthProvider) {
+    setBusy('link'); setBusyOn(provider); setErr(null); setDone(null)
+    const error = await linkProvider(provider, `/profile?linked=${provider}`)
+    if (error) { setErr(error); setBusy(null); setBusyOn(null) } // no error means the browser is leaving for the provider
   }
-  async function disconnect() {
-    setBusy('unlink'); setErr(null); setDone(null)
-    const error = await unlinkGoogle()
-    setBusy(null)
+  async function disconnect(provider: OAuthProvider) {
+    setBusy('unlink'); setBusyOn(provider); setErr(null); setDone(null)
+    const error = await unlinkProvider(provider)
+    setBusy(null); setBusyOn(null)
     if (error) { setErr(error); return }
-    setDone('Google is disconnected.')
+    setDone(`${PROVIDER_LABEL[provider]} is disconnected.`)
     read()
+  }
+
+  // one row per provider: its mark, its state, and the one button that fits that state
+  const providerRow = (provider: OAuthProvider, mark: React.ReactNode) => {
+    const identity = identities?.find((i) => i.provider === provider)
+    const label = PROVIDER_LABEL[provider]
+    return (
+      <Row>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid h-9 w-9 flex-none place-items-center rounded-[10px] border border-border bg-s2">{mark}</span>
+            <div className="min-w-0">
+              <div className="text-[14px] font-medium">{label}</div>
+              <div className="mt-0.5 truncate text-[12.5px] text-dim">
+                {identities === null ? 'Checking…' : identity ? identity.email ?? 'Connected' : 'Not connected'}
+              </div>
+            </div>
+          </div>
+          {identities !== null && (identity ? (
+            <button
+              type="button" onClick={() => void disconnect(provider)} disabled={busy !== null || onlyDoor}
+              title={onlyDoor ? 'This is the only way in to your account' : undefined}
+              className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2 disabled:opacity-40"
+            >
+              {busy === 'unlink' && busyOn === provider ? <Loader2 size={14} className="animate-spin" /> : <Link2Off size={15} />} Disconnect
+            </button>
+          ) : (
+            <button
+              type="button" onClick={() => void connect(provider)} disabled={busy !== null || !backendOn}
+              className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13px] font-semibold text-on-accent disabled:opacity-40"
+            >
+              {busy === 'link' && busyOn === provider ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={15} />} Connect
+            </button>
+          ))}
+        </div>
+      </Row>
+    )
   }
 
   // bringing another account in
@@ -95,35 +145,8 @@ export function SignInMethods({ account }: { account: Account }) {
         </div>
       </Row>
 
-      <Row>
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="grid h-9 w-9 flex-none place-items-center rounded-[10px] border border-border bg-s2"><GoogleMark /></span>
-            <div className="min-w-0">
-              <div className="text-[14px] font-medium">Google</div>
-              <div className="mt-0.5 truncate text-[12.5px] text-dim">
-                {identities === null ? 'Checking…' : google ? google.email ?? 'Connected' : 'Not connected'}
-              </div>
-            </div>
-          </div>
-          {identities !== null && (google ? (
-            <button
-              type="button" onClick={() => void disconnect()} disabled={busy !== null || onlyDoor}
-              title={onlyDoor ? 'This is the only way in to your account' : undefined}
-              className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2 disabled:opacity-40"
-            >
-              {busy === 'unlink' ? <Loader2 size={14} className="animate-spin" /> : <Link2Off size={15} />} Disconnect
-            </button>
-          ) : (
-            <button
-              type="button" onClick={() => void connect()} disabled={busy !== null || !backendOn}
-              className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13px] font-semibold text-on-accent disabled:opacity-40"
-            >
-              {busy === 'link' ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={15} />} Connect
-            </button>
-          ))}
-        </div>
-      </Row>
+      {providerRow('google', <GoogleMark />)}
+      {providerRow('azure', <MicrosoftMark />)}
 
       <Row>
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">

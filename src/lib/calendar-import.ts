@@ -88,6 +88,42 @@ export async function googleBusyUtc(token: string, days: GridDay[], gridStartMin
   return { busy }
 }
 
+/* Microsoft's answer is the calendar itself, not a free/busy summary: every entry in
+   the window, read as UTC, with how it shows (busy, tentative, out of office, free).
+   Anything that is not free is a busy block. Paged, since a full calendar can be
+   more than one screenful. The token is Microsoft's own, handed over by Supabase
+   after a sign-in that asked for Calendars.Read. */
+export async function outlookBusyUtc(token: string, days: GridDay[], gridStartMin: number, gridMax: number, eventTz: string): Promise<{ busy: UtcBusy[]; error?: 'auth' | string }> {
+  const keys = days.map((d) => d.key).filter((k) => ISO_DAY.test(k)).sort()
+  if (!keys.length) return { busy: [] }
+  const timeMin = new Date(zonedToUtc(keys[0], gridStartMin, eventTz)).toISOString()
+  const timeMax = new Date(zonedToUtc(keys[keys.length - 1], gridStartMin + gridMax, eventTz)).toISOString()
+  type Entry = { start: { dateTime: string }; end: { dateTime: string }; showAs?: string }
+  const busy: UtcBusy[] = []
+  let url = `https://graph.microsoft.com/v1.0/me/calendarView?startDateTime=${encodeURIComponent(timeMin)}&endDateTime=${encodeURIComponent(timeMax)}&$select=start,end,showAs&$top=200`
+  for (let page = 0; url && page < 20; page++) {
+    let res: Response
+    try {
+      res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Prefer: 'outlook.timezone="UTC"' } })
+    } catch {
+      return { busy: [], error: 'Could not reach Outlook.' }
+    }
+    if (res.status === 401) return { busy: [], error: 'auth' }
+    if (res.status === 403) return { busy: [], error: 'Microsoft would not share your calendar. The permission may not have been granted.' }
+    if (!res.ok) return { busy: [], error: `Outlook answered ${res.status}.` }
+    const data = (await res.json()) as { value?: Entry[]; '@odata.nextLink'?: string }
+    // Graph writes the instant without a zone marker; the Prefer header made it UTC
+    const instant = (s: string) => Date.parse(`${s.replace(/\.\d+$/, '')}Z`)
+    for (const e of data.value ?? []) {
+      if (e.showAs === 'free' || e.showAs === 'workingElsewhere') continue
+      const s = instant(e.start.dateTime), en = instant(e.end.dateTime)
+      if (Number.isFinite(s) && Number.isFinite(en) && en > s) busy.push({ s, e: en })
+    }
+    url = data['@odata.nextLink'] ?? ''
+  }
+  return { busy }
+}
+
 function subtract(iv: Iv, a: number, b: number): Iv[] {
   return [{ s: iv.s, e: Math.min(iv.e, a) }, { s: Math.max(iv.s, b), e: iv.e }].filter((x) => x.e > x.s)
 }

@@ -49,7 +49,13 @@ export async function sendMail(m: Mail): Promise<string | null> {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: fromFor(m.fromName), to: [m.to], subject: m.subject, text: m.text, ...(m.html ? { html: m.html } : {}), ...(m.replyTo ? { reply_to: m.replyTo } : {}) }),
+    body: JSON.stringify({
+      from: fromFor(m.fromName), to: [m.to], subject: m.subject, text: m.text,
+      ...(m.html ? { html: m.html } : {}),
+      ...(m.replyTo ? { reply_to: m.replyTo } : {}),
+      // one id per message, so a mailbox never folds two reminders into one thread
+      headers: { 'X-Entity-Ref-ID': crypto.randomUUID() },
+    }),
   })
   if (res.ok) return null
   const detail = await res.text().catch(() => '')
@@ -104,7 +110,7 @@ export async function emailsFor(db: SupabaseClient | null, people: Participant[]
   return out
 }
 
-export type ReminderPrefs = { eventDay: boolean; deadlines: boolean; replies: boolean }
+export type ReminderPrefs = { email?: boolean; eventDay: boolean; deadlines: boolean; replies: boolean }
 /** Accounts can switch reminders off in Settings; guests get them by giving an email. */
 export async function prefsFor(db: SupabaseClient | null, ids: string[]): Promise<Map<string, ReminderPrefs>> {
   const out = new Map<string, ReminderPrefs>()
@@ -166,7 +172,12 @@ function firstName(p: Participant): string { return p.name.split(' ')[0] || 'the
    app's paper and its deep green; the serif is whatever serif the client has, since
    Lora will not travel. One column, 560 wide, so it reads the same in Gmail, Mail
    and Outlook, and on a phone. Anything with structure (when, where, who is asking)
-   goes in a details card rather than a sentence, so it can be found at a glance. */
+   goes in a details card rather than a sentence, so it can be found at a glance.
+
+   It is also built to read as a note to one person, not a campaign, which is what
+   keeps it out of the Promotions tab and the spam folder: no images, no tracking,
+   one link, a plain-text twin of every message, a subject that names the event, a
+   real sender, and no hidden filler behind the preheader. */
 type Shell = {
   title: string
   lines: string[]
@@ -193,7 +204,7 @@ function shell({ title, lines, cta, details = [], preheader, footer }: Shell): s
 <title>${esc(title)}</title>
 </head>
 <body style="margin:0;padding:0;background:#FFFFFF;-webkit-text-size-adjust:100%">
-${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${esc(preheader)}${'&#847;&zwnj;&nbsp;'.repeat(40)}</div>` : ''}
+${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${esc(preheader)}</div>` : ''}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FFFFFF">
   <tr>
     <td align="center" style="padding:32px 20px 36px">
@@ -252,22 +263,26 @@ export function reminderMail(kind: MailKind, ev: AppEvent, p: Participant, to: s
   const link = joinLink(site, ev, p), when = whenText(ev), place = placeText(ev)
   const soon = kind.endsWith('-day') ? 'today' : 'tomorrow'
   const first = firstName(p)
+  // why this arrived, and where to stop it: a plain sentence, the way a person would
+  // say it, not a footer block
+  const footer = `You are getting this because you are on the list for ${ev.title}. Reminders can be turned off in your settings: ${site}/settings`
+  const text = (lines: string[]) => [...lines, '', link, '', footer].join('\n')
   if (kind === 'event-eve' || kind === 'event-day') {
     const title = `${soon === 'today' ? 'Today' : 'Tomorrow'}: ${ev.title}`
     const lines = [`Hi ${first}, ${ev.title} is ${soon}${when ? `: ${when}` : ''}${place ? `, at ${place}` : ''}.`, 'Everything the group settled on is on the event page.']
-    return { to, subject: title, text: [...lines, '', link].join('\n'), html: shell({ title, lines, details: [{ label: 'When', value: when }, { label: 'Where', value: place }], cta: { label: 'Open the event', href: link }, preheader: lines[0] }) }
+    return { to, subject: title, text: text(lines), html: shell({ title, lines, details: [{ label: 'When', value: when }, { label: 'Where', value: place }], cta: { label: 'Open the event', href: link }, preheader: lines[0], footer }) }
   }
   if (kind === 'plan-eve' || kind === 'plan-day') {
     const title = `Lock in ${ev.title} by ${soon}`
     const lines = [`Hi ${first}, you set ${soon === 'today' ? 'today' : 'tomorrow'} as the day to have ${ev.title} settled.`, 'Have a look at how the answers came in and lock in a time and place.']
-    return { to, subject: title, text: [...lines, '', link].join('\n'), html: shell({ title, lines, cta: { label: 'Lock it in', href: link }, preheader: lines[0] }) }
+    return { to, subject: title, text: text(lines), html: shell({ title, lines, cta: { label: 'Lock it in', href: link }, preheader: lines[0], footer }) }
   }
   if (kind === 'vote-eve' || kind === 'vote-day') {
     const title = `Voting on ${ev.title} closes ${soon}`
     const lines = [`Hi ${first}, the vote on where ${ev.title} happens closes ${soon}, and yours is not in yet.`, 'Pick your place before it does.']
-    return { to, subject: title, text: [...lines, '', link].join('\n'), html: shell({ title, lines, cta: { label: 'Cast your vote', href: link }, preheader: lines[0] }) }
+    return { to, subject: title, text: text(lines), html: shell({ title, lines, cta: { label: 'Cast your vote', href: link }, preheader: lines[0], footer }) }
   }
   const title = `Say if you can make ${ev.title} by ${soon}`
   const lines = [`Hi ${first}, ${hostNameOf(ev)} asked for answers on ${ev.title} by ${soon}${when ? ` (${when})` : ''}.`, 'A yes, a maybe, or a no all help the host plan.']
-  return { to, subject: title, text: [...lines, '', link].join('\n'), html: shell({ title, lines, details: [{ label: 'When', value: when }], cta: { label: 'Answer now', href: link }, preheader: lines[0] }) }
+  return { to, subject: title, text: text(lines), html: shell({ title, lines, details: [{ label: 'When', value: when }], cta: { label: 'Answer now', href: link }, preheader: lines[0], footer }) }
 }
