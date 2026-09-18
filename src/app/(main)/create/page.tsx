@@ -3,11 +3,12 @@
 import { use, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { useRouter } from 'next/navigation'
 import { pushFlash } from '@/components/ui/FlashToast'
+import { CoverEditor, type ImageFit } from '@/components/ui/CoverEditor'
 import Link from 'next/link'
 import {
   Check, ChevronDown, ChevronUp, Search, Plus, X, MapPin, Video, Clock,
   Info, Vote, ArrowRight, Mail, CalendarRange, Route, GripVertical,
-  Loader2, Link2, Copy, UserPlus, Users, PartyPopper, AlignLeft, Wallet,
+  Loader2, Link2, Copy, UserPlus, Users, PartyPopper, AlignLeft, Wallet, ImagePlus,
   Map, Presentation, Repeat, Utensils, Dices, CookingPot, type LucideIcon,
 } from 'lucide-react'
 import { personColors, type PersonColor } from '@/lib/colors'
@@ -89,6 +90,8 @@ type Form = {
   meetingLink: string
   emails: string[]
   accounts: AccountInvitee[]
+  image?: string
+  imageFit?: ImageFit
 }
 
 const initialForm: Form = {
@@ -155,12 +158,15 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
     setResolving(false)
   }, [createdParam])
 
-  // reuse a past event (/create?from=…): its structure seeds the form, dates and
-  // responses start fresh (localStorage read, so it has to happen after mount)
+  // duplicate an event (/create?from=…): everything seeds the form, with the dates
+  // moved to the next week that fits (see draftFromEvent); responses start fresh
+  // (localStorage read, so it has to happen after mount)
   useEffect(() => {
     if (!from) return
     const d = draftFromEvent(from)
     if (!d) return
+    // the daily window comes back as the preset it matches, or as Custom
+    const winPreset: WinPreset = !d.windowStart || !d.windowEnd ? 'any' : (WIN_PRESETS.find((p) => p.v !== 'custom' && p.s === d.windowStart && p.e === d.windowEnd)?.v ?? 'custom')
     setForm((f) => ({
       ...f,
       title: d.title ?? f.title,
@@ -170,6 +176,16 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
       durationMin: d.durationMin ?? f.durationMin,
       budget: d.budget ?? f.budget,
       budgetMode: d.budgetMode ?? f.budgetMode,
+      capacity: d.capacity ?? f.capacity,
+      image: d.image,
+      imageFit: d.imageFit,
+      startDate: d.startDate ?? f.startDate,
+      endDate: d.endDate ?? f.endDate,
+      excludedDows: d.excludedDows ?? f.excludedDows,
+      windowPreset: winPreset,
+      windowStart: d.windowStart ?? '',
+      windowEnd: d.windowEnd ?? '',
+      ...(d.fixed ? { scheduleMode: 'set' as const, fixedDay: d.fixed.day, fixedStart: d.fixed.start, fixedEnd: d.fixed.end } : {}),
       // 'set' comes back as the In person mode with the chosen-place flag on
       locMode: d.locMode ? (d.locMode === 'set' ? 'vote' : d.locMode) : f.locMode,
       locSettled: d.locMode ? d.locMode === 'set' : f.locSettled,
@@ -365,6 +381,9 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
               placeholder="What's this event about?"
               className={`${inputCls(false)} h-[72px] resize-none py-[11px] leading-[1.5]`}
             />
+          </Collapse>
+          <Collapse icon={ImagePlus} title="Cover" summary={form.image?.startsWith('data:') ? `Your photo, ${form.imageFit === 'fit' ? 'fitted' : 'filling the frame'}` : form.image ? 'A scene' : 'A scene or a photo of your own'}>
+            <CoverEditor image={form.image} fit={form.imageFit} title={form.title} onChange={(p) => update(p)} />
           </Collapse>
           <Collapse icon={MapPin} title="Place" summary={placeSummary}>
             <StepLocation form={form} update={update} stopUid={stopUid} />

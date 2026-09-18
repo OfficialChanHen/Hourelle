@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Calendar, CalendarPlus, CalendarClock, Check, Link2, ArrowRight } from 'lucide-react'
+import { Calendar, CalendarPlus, CalendarClock, Check, CopyPlus, Link2, ArrowRight } from 'lucide-react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Navigation, Pagination, A11y } from 'swiper/modules'
 import 'swiper/css'
@@ -244,7 +244,7 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
     >
       {/* the cover soaks up any height difference between carousel siblings, so the
           text block reads the same on every slide */}
-      <Cover src={e.image} from={coverFrom} to={coverTo} className={`flex-1 ${e.image ? 'min-h-[110px]' : 'min-h-[64px]'}`} />
+      <Cover src={e.image} fit={e.imageFit} from={coverFrom} to={coverTo} className={`flex-1 ${e.image ? 'min-h-[110px]' : 'min-h-[64px]'}`} />
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 p-5">
         {/* real min width: on phones the CTAs wrap below instead of crushing the title */}
         <div className="min-w-[220px] flex-1">
@@ -313,6 +313,14 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
             >
               {copied ? <><Check size={15} /> Link copied</> : <><Link2 size={15} /> Share link</>}
             </button>
+          )}
+          {!e.demo && (
+            <Link
+              href={`/create?from=${e.id}`} onClick={(ev) => ev.stopPropagation()} title="Duplicate this event"
+              className="flex h-11 sm:h-10 w-full flex-none items-center justify-center gap-1.5 rounded-[10px] border border-border2 bg-s1 px-4 text-[14px] font-semibold text-text hover:bg-s2 sm:w-auto"
+            >
+              <CopyPlus size={15} /> Duplicate
+            </Link>
           )}
         </div>
       </div>

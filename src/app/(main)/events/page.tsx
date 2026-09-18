@@ -72,7 +72,7 @@ function EventsList() {
       ) : shown.length > 0 ? (
         <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((x) => (
-            <StoredEventCard key={x.e.id} e={x.e} reuseHref={x.phase === 'past' ? `/create?from=${x.e.id}` : undefined} sameDay={sameDay(x.e)} />
+            <StoredEventCard key={x.e.id} e={x.e} sameDay={sameDay(x.e)} />
           ))}
         </div>
       ) : (
@@ -93,7 +93,7 @@ function EventsList() {
             <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[11.5px] text-dim">{past.length}</span>
           </div>
           <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
-            {past.map((x) => <StoredEventCard key={x.e.id} e={x.e} reuseHref={`/create?from=${x.e.id}`} />)}
+            {past.map((x) => <StoredEventCard key={x.e.id} e={x.e} />)}
           </div>
         </>
       )}

@@ -5,11 +5,12 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Building2, User, Link2, Copy, Merge, MessageCircle, Pencil, EllipsisVertical, CopyPlus,
-  Check, Trash2, TriangleAlert, Receipt, Plus, X, ImagePlus, Video, UserRoundX, Mail,
+  Check, Trash2, TriangleAlert, Receipt, Plus, X, Video, UserRoundX, Mail,
 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Cover, COVER_PRESETS } from '@/components/ui/Cover'
+import { CoverEditor } from '@/components/ui/CoverEditor'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { lastListPage } from '@/lib/nav'
 import { useEventRoom } from '@/hooks/useEventRoom'
@@ -250,7 +251,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       <BackLink href={backTo.href} label={backTo.label} />
       {/* the host's cover, when one is set — photo or preset scene; shorter on phones
           so the tabs and content stay within the first screen */}
-      {event.image && <Cover src={event.image} from="#E4EDE7" to="#CFE0D5" className="mb-4 h-[92px] border border-border sm:mb-5 sm:h-[170px]" rounded="rounded-2xl" />}
+      {event.image && <Cover src={event.image} fit={event.imageFit} from="#E4EDE7" to="#CFE0D5" className="mb-4 h-[92px] border border-border sm:mb-5 sm:h-[170px]" rounded="rounded-2xl" />}
       {/* header */}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
@@ -489,7 +490,7 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
             align="start"
           />
           <Link href={`/create?from=${event.id}`} className="flex h-8 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2">
-            <CopyPlus size={15} /> Plan another like this
+            <CopyPlus size={15} /> Duplicate this event
           </Link>
         </div>
       </div>
@@ -1129,53 +1130,16 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
   )
 }
 
-/* Cover: pick a preset scene or upload a photo. Uploads are downscaled and recompressed
-   before storing, so a phone photo doesn't blow the localStorage budget. */
-function downscaleImage(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file)
-    const img = new Image()
-    img.onload = () => {
-      try {
-        const MAX = 1280
-        const scale = Math.min(1, MAX / Math.max(img.width, img.height))
-        const c = document.createElement('canvas')
-        c.width = Math.max(1, Math.round(img.width * scale))
-        c.height = Math.max(1, Math.round(img.height * scale))
-        const ctx = c.getContext('2d')
-        if (!ctx) throw new Error('no canvas')
-        ctx.fillStyle = '#fff' // transparent PNGs land on paper, not black
-        ctx.fillRect(0, 0, c.width, c.height)
-        ctx.drawImage(img, 0, 0, c.width, c.height)
-        resolve(c.toDataURL('image/jpeg', 0.82))
-      } catch (e) { reject(e) } finally { URL.revokeObjectURL(url) }
-    }
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')) }
-    img.src = url
-  })
-}
-
+/* Cover: collapsed to the current cover and a "Change" link; the shared editor, with
+   its preview and the fill/fit choice, opens only when asked for */
 function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
-  const fileRef = useRef<HTMLInputElement>(null)
-  const [err, setErr] = useState(false)
-  // one-time-use controls start collapsed: the current cover plus a "Change" link,
-  // swatches and upload only when asked for
   const [editing, setEditing] = useState(false)
-  async function pickFile(f: File | undefined) {
-    if (!f) return
-    try {
-      onPatch({ image: await downscaleImage(f) })
-      setErr(false)
-    } catch {
-      setErr(true)
-    }
-  }
+  const preset = COVER_PRESETS.find((p) => event.image === `preset:${p.id}`)
   if (!editing) {
-    const preset = COVER_PRESETS.find((p) => event.image === `preset:${p.id}`)
     return (
       <div className="flex items-center gap-2.5">
         {event.image
-          ? <Cover src={event.image} from={preset?.from ?? '#E4EDE7'} to={preset?.to ?? '#CFE0D5'} className="h-9 w-14 flex-none rounded-[8px] border border-border" />
+          ? <Cover src={event.image} fit={event.imageFit} from={preset?.from ?? '#E4EDE7'} to={preset?.to ?? '#CFE0D5'} className="h-9 w-14 flex-none rounded-[8px] border border-border" />
           : <span className="text-[13px] leading-none text-dim">No cover</span>}
         <button onClick={() => setEditing(true)} className="text-[13px] font-semibold leading-none text-accent-text hover:underline">
           {event.image ? 'Change' : 'Add one'}
@@ -1185,32 +1149,10 @@ function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Par
   }
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-1.5">
-        {COVER_PRESETS.map((p) => {
-          const on = event.image === `preset:${p.id}`
-          return (
-            <button
-              key={p.id} type="button" title={p.name}
-              onClick={() => onPatch({ image: on ? undefined : `preset:${p.id}` })}
-              className="overflow-hidden rounded-[8px]"
-              style={{ boxShadow: on ? '0 0 0 2px var(--accent)' : '0 0 0 1px var(--border)' }}
-            >
-              <Cover src={`preset:${p.id}`} from={p.from} to={p.to} className="h-9 w-14" />
-            </button>
-          )
-        })}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <button onClick={() => fileRef.current?.click()} className="flex h-8 items-center gap-1.5 rounded-[8px] border border-border2 bg-s1 px-2.5 text-[12.5px] font-semibold hover:bg-s2">
-          <ImagePlus size={14} /> {event.image?.startsWith('data:') ? 'Replace photo' : 'Upload a photo'}
-        </button>
-        {event.image && (
-          <button onClick={() => onPatch({ image: undefined })} className="h-8 rounded-[8px] px-2 text-[12.5px] font-semibold text-brick-text hover:bg-brick-bg">Remove</button>
-        )}
+      <CoverEditor image={event.image} fit={event.imageFit} title={event.title} onChange={(p) => onPatch(p)} />
+      <div>
         <button onClick={() => setEditing(false)} className="h-8 rounded-[8px] px-2 text-[12.5px] font-semibold text-dim hover:bg-s2">Done</button>
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { pickFile(e.target.files?.[0]); e.target.value = '' }} />
       </div>
-      {err && <span className="text-[12px] text-brick-text">That file did not work. Try a JPG or PNG.</span>}
     </div>
   )
 }

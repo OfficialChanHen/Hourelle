@@ -70,21 +70,27 @@ export function Cover({
   from,
   to,
   src,
+  fit = 'fill',
   className = '',
   rounded = '',
 }: {
   from: string
   to: string
   src?: string
+  // a photo either fills the frame (cropped) or fits inside it whole, on a blur of itself
+  fit?: 'fill' | 'fit'
   className?: string
   rounded?: string
 }) {
   if (src?.startsWith('data:')) {
+    const whole = fit === 'fit'
     return (
-      <div className={`relative overflow-hidden ${rounded} ${className}`}>
+      <div className={`relative overflow-hidden ${rounded} ${className}`} style={whole ? { background: 'var(--s2)' } : undefined}>
         {/* a stored data URL, not a remote asset — next/image has nothing to optimize here */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        {whole && <img src={src} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-xl" />}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt="" className={`absolute inset-0 h-full w-full ${whole ? 'object-contain' : 'object-cover'}`} />
       </div>
     )
   }

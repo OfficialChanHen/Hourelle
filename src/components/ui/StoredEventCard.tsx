@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Calendar, CalendarClock, Check, Link2, MapPin, Reply, RotateCcw, Trash2, UserRound, UserRoundX, UsersRound, Vote } from 'lucide-react'
+import { Calendar, CalendarClock, Check, CopyPlus, Link2, MapPin, Reply, Trash2, UserRound, UserRoundX, UsersRound, Vote } from 'lucide-react'
 import { AvatarRow } from './AvatarRow'
 import { TimezonePill } from './TimezonePill'
 import { Cover } from './Cover'
@@ -32,7 +32,7 @@ function asAction(fn: () => void) {
   }
 }
 
-export function StoredEventCard({ e, reuseHref, sameDay }: { e: AppEvent; reuseHref?: string; sameDay?: SameDayInfo }) {
+export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDayInfo }) {
   const router = useRouter()
   const [copied, setCopied] = useState(false)
   const phase = phaseOf(e)
@@ -62,7 +62,8 @@ export function StoredEventCard({ e, reuseHref, sameDay }: { e: AppEvent; reuseH
     navigator.clipboard?.writeText(`${window.location.origin}/events/${e.id}/join`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   })
   const goDelete = asAction(() => router.push(`/events/${e.id}?tab=details&focus=delete`))
-  const goReuse = asAction(() => { if (reuseHref) router.push(reuseHref) })
+  // the same plan again, a week on: the wizard opens filled in, people list included
+  const goDuplicate = asAction(() => router.push(`/create?from=${e.id}`))
 
   return (
     <Link
@@ -71,7 +72,7 @@ export function StoredEventCard({ e, reuseHref, sameDay }: { e: AppEvent; reuseH
       // status reads from the frame, not from chips: the border wears the phase color
       style={tint.border ? { borderColor: tint.border } : undefined}
     >
-      <Cover src={e.image} from={from} to={to} className="-mx-3.5 -mt-3.5 mb-3 h-[92px]" />
+      <Cover src={e.image} fit={e.imageFit} from={from} to={to} className="-mx-3.5 -mt-3.5 mb-3 h-[92px]" />
       {/* the old badge row as one quiet line: dot for the phase, words for the rest */}
       <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium text-dim">
         <span className="h-2 w-2 flex-none rounded-full" style={{ background: tint.dot }} />
@@ -163,12 +164,13 @@ export function StoredEventCard({ e, reuseHref, sameDay }: { e: AppEvent; reuseH
           </span>
         </div>
         <div className="flex flex-none items-center gap-0.5">
-          {reuseHref && (
+          {!e.demo && (
             <span
-              role="button" tabIndex={0} onClick={goReuse} onKeyDown={goReuse}
-              className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[12.5px] font-semibold text-accent-text hover:bg-accent-bg"
+              role="button" tabIndex={0} onClick={goDuplicate} onKeyDown={goDuplicate}
+              title="Duplicate this event"
+              className="grid h-10 w-10 sm:h-8 sm:w-8 place-items-center rounded-md text-faint hover:bg-s2 hover:text-text"
             >
-              <RotateCcw size={13} /> Reuse
+              <CopyPlus size={15} />
             </span>
           )}
           {canShare && (

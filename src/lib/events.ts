@@ -90,6 +90,7 @@ export type AppEvent = {
   expenses?: EventExpense[]           // actual spend logged against the budget
   unavailableIds?: string[]           // declared "none of these days work" — an explicit empty reply, not silence
   image?: string                      // cover: 'preset:<id>' or a downscaled data URL the host uploaded
+  imageFit?: 'fill' | 'fit'           // a photo cropped to the frame, or shown whole on a blur of itself
   messages: ChatMessage[]
   createdAt: number
   demo?: boolean
@@ -126,6 +127,8 @@ export type CreateInput = {
   // is only born confirmed if the place is also answered — a live ballot keeps it planning.
   fixed?: { day: string; start: string; end: string }
   rsvpDeadline?: string // optional, fixed-date events only: the RSVP round opens at birth
+  image?: string        // the cover, chosen in the wizard or carried over by a duplicate
+  imageFit?: 'fill' | 'fit'
 
   picked: { id: string; name: string; place: string; lat?: number; lng?: number }[]
   platform: string
@@ -930,7 +933,15 @@ export function reopenEvent(id: string): void {
 
 // seed the create wizard from an existing event: structure carries over, dates and
 // responses deliberately do not — the host re-picks them for the new occasion
-export function draftFromEvent(id: string): Partial<CreateInput> | null {
+/* ── duplicating an event: the same plan, moved to the next week that fits ──
+   Everything travels: title, description, cover, place, people, budget, spots, the
+   daily window. The dates move to the first day on or after today that falls on the
+   original's start weekday, keeping the original's span; a fixed slot comes back as
+   the same clock times on that weekday. Weekdays the original skipped stay skipped.
+   Replies never travel: it is a new plan, and the wizard is where the host checks
+   the people list before it exists. */
+export type EventDraft = Partial<CreateInput> & { excludedDows?: number[] }
+export function draftFromEvent(id: string): EventDraft | null {
   const ev = getEvent(id)
   if (!ev) return null
   const isItin = ev.location.planMode === 'itinerary'
@@ -938,6 +949,27 @@ export function draftFromEvent(id: string): Partial<CreateInput> | null {
   const picked = isItin && ev.itinStops?.length
     ? ev.itinStops.map((sid) => byId.get(sid)).filter((p): p is EventPlace => !!p)
     : ev.location.places
+
+  const today = todayKey()
+  const shift = (key: string, days: number) => { const d = parseLocal(key); if (!d) return key; d.setDate(d.getDate() + days); return isoOf(d) }
+  // the first day on or after today with the same weekday as the given one
+  const nextSameDow = (key: string) => { const d = parseLocal(key), t = parseLocal(today); return d && t ? shift(today, (d.getDay() - t.getDay() + 7) % 7) : key }
+  const a = parseLocal(ev.startDate), b = parseLocal(ev.endDate)
+  const span = a && b ? Math.max(0, Math.round((b.getTime() - a.getTime()) / 86400000)) : 0
+  const startDate = nextSameDow(ev.startDate)
+  const endDate = shift(startDate, span)
+  // the daily window, when the grid did not cover the whole day
+  const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+  const gridStart = gridStartMinOf(ev), gridEnd = gridStart + ev.times.length * stepOf(ev.granularity)
+  const windowed = ev.granularity !== 'day' && ev.times.length > 0 && (gridStart > 0 || gridEnd < 24 * 60)
+  // a weekday missing from every week of the range was turned off on purpose
+  const have = new Set(ev.days.map((d) => d.key))
+  const dowOf = (k: string) => parseLocal(k)?.getDay() ?? -1
+  const all = selectedDayKeys(ev.startDate, ev.endDate, [], [])
+  const excludedDows = [0, 1, 2, 3, 4, 5, 6].filter((dow) => { const mine = all.filter((k) => dowOf(k) === dow); return mine.length > 0 && mine.every((k) => !have.has(k)) })
+  // a fixed slot on one day comes back fixed, on the same weekday at the same times
+  const c = ev.confirmed
+  const fixed = c && !c.endDayKey && !(c.startMin === 0 && c.endMin === 24 * 60) ? { day: nextSameDow(c.dayKey), start: hm(c.startMin), end: hm(c.endMin) } : undefined
   return {
     title: ev.title,
     description: ev.description,
@@ -947,6 +979,15 @@ export function draftFromEvent(id: string): Partial<CreateInput> | null {
     bestMode: ev.bestMode,
     budget: ev.budget,
     budgetMode: ev.budgetMode,
+    capacity: ev.capacity?.toString(),
+    image: ev.image,
+    imageFit: ev.imageFit,
+    startDate,
+    endDate,
+    excludedDows,
+    windowStart: windowed ? hm(gridStart) : undefined,
+    windowEnd: windowed ? hm(Math.min(gridEnd, 24 * 60)) : undefined,
+    fixed,
     locMode: ev.location.mode,
     planMode: ev.location.planMode,
     picked: picked.map((p) => ({ id: p.id, name: p.name, place: p.place, lat: p.lat, lng: p.lng })),
@@ -1397,6 +1438,7 @@ export function createEvent(input: CreateInput): AppEvent {
     durationMin: fixed ? fixed.e - fixed.s : input.durationMin && input.durationMin >= 1 ? Math.min(24 * 60, input.durationMin) : 60,
     bestMode: input.bestMode,
     capacity: input.capacity && Number(input.capacity) >= 1 ? Number(input.capacity) : undefined,
+    ...(input.image ? { image: input.image, imageFit: input.imageFit } : {}),
     messages: [],
     createdAt: Date.now(),
     status: fixed && !placeOpen ? 'confirmed' : 'planning',
