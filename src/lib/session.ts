@@ -100,24 +100,31 @@ export function startAuth(): () => void {
 /* ── the four actions the sign-in page needs ──
    Each returns an error message or null, so the UI can stay dumb about Supabase. */
 
-export async function signInWithGoogle(): Promise<string | null> {
+// where the callback sends the browser once the session exists: home, or the page
+// that asked for the log-in (an invite, say), when that page is one of ours
+function callbackUrl(next?: string): string {
+  const safe = next && next.startsWith('/') && !next.startsWith('//') ? next : ''
+  return `${window.location.origin}/auth/callback${safe ? `?next=${encodeURIComponent(safe)}` : ''}`
+}
+
+export async function signInWithGoogle(next?: string): Promise<string | null> {
   if (!backendOn) return 'Sign-in needs a backend. Add your Supabase keys to .env.local.'
   const { error } = await supabase!.auth.signInWithOAuth({
     provider: 'google',
     // Google sends the browser back here with a one-time code the client swaps
     // for a session — see src/app/auth/callback/page.tsx
-    options: { redirectTo: `${window.location.origin}/auth/callback` },
+    options: { redirectTo: callbackUrl(next) },
   })
   return error?.message ?? null
 }
 
 /** The Microsoft door: a personal or work account, through Supabase's Azure provider.
  *  The provider has to be switched on for the project (see docs/phase-10). */
-export async function signInWithMicrosoft(): Promise<string | null> {
+export async function signInWithMicrosoft(next?: string): Promise<string | null> {
   if (!backendOn) return 'Sign-in needs a backend. Add your Supabase keys to .env.local.'
   const { error } = await supabase!.auth.signInWithOAuth({
     provider: 'azure',
-    options: { scopes: 'email openid profile', redirectTo: `${window.location.origin}/auth/callback` },
+    options: { scopes: 'email openid profile', redirectTo: callbackUrl(next) },
   })
   return error?.message ?? null
 }
@@ -295,7 +302,7 @@ export async function connectCalendar(provider: OAuthProvider, next: string): Pr
       const { error } = await supabase!.auth.linkIdentity({ provider, options })
       if (!error) return null
       if (/already|exists|registered|taken/i.test(error.message)) {
-        return `That ${PROVIDER_LABEL[provider]} account already belongs to another Hourelle account. Bring that account in from your profile first.`
+        return `That ${PROVIDER_LABEL[provider]} account is already its own Hourelle account. Log in with it to import that calendar.`
       }
       return error.message
     }
@@ -344,7 +351,7 @@ export async function linkProvider(provider: OAuthProvider, next: string): Promi
   // the one refusal worth explaining: that account is already its own account
   // here, and the way to put them together is the merge below
   if (/already|exists|registered|taken/i.test(error.message)) {
-    return `That ${label} account already belongs to another Hourelle account. Log in with ${label}, then bring this one in from your profile.`
+    return `That ${label} account is already its own Hourelle account. Log in with ${label} to use it.`
   }
   return error.message
 }
@@ -363,28 +370,6 @@ export async function unlinkProvider(provider: OAuthProvider): Promise<string | 
   return e2?.message ?? null
 }
 export const unlinkGoogle = () => unlinkProvider('google')
-
-/** Fold another account into this one: its events, its seats, its answers, its
- *  messages. Proved by that account's own email and password; the server does the
- *  moving and then closes it. Returns an error message, or null and a count. */
-export async function mergeAccount(email: string, password: string): Promise<{ error: string | null; events?: number }> {
-  if (!backendOn) return { error: 'Joining accounts needs a backend.' }
-  const { data } = await supabase!.auth.getSession()
-  const token = data.session?.access_token
-  if (!token) return { error: 'Log in first.' }
-  try {
-    const res = await fetch('/api/account/merge', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    })
-    const body = (await res.json().catch(() => ({}))) as { error?: string; events?: number }
-    if (!res.ok) return { error: body.error ?? 'That did not go through.' }
-    return { error: null, events: body.events ?? 0 }
-  } catch {
-    return { error: 'Could not reach the server.' }
-  }
-}
 
 /* ── the end of an account ── */
 export async function deleteAccount(): Promise<string | null> {

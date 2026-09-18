@@ -13,7 +13,7 @@ import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Cover } from '@/components/ui/Cover'
 import { coverFor } from '@/components/ui/StoredEventCard'
 import { PHASE_BADGE } from '@/components/ui/LifecycleStrip'
-import { currentAccount, sendMagicLink } from '@/lib/session'
+import { currentAccount, emailHasAccount, sendMagicLink } from '@/lib/session'
 import { backendOn } from '@/lib/db'
 import { cloudSynced, fetchEvent } from '@/lib/remote'
 import { useAccount } from '@/hooks/useAccount'
@@ -53,6 +53,9 @@ export function JoinFlow({ id }: { id: string }) {
   const [claimEmail, setClaimEmail] = useState('')
   const [claimErr, setClaimErr] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // the typed email belongs to an account: the page says so and offers the log-in,
+  // since joining as a guest under it would make a double of that person
+  const [accountEmail, setAccountEmail] = useState<string | null>(null)
 
   // re-run the resolution when the account settles (sign-in restored after mount)
   const account = useAccount()
@@ -145,10 +148,22 @@ export function JoinFlow({ id }: { id: string }) {
   const nameOk = cleanName.length >= 2
   const nameWords = cleanName.split(' ').length
 
-  function join() {
+  // an email that already has an account is a way in, not a guest name: the person
+  // logs in and joins as themselves. Asked of the database before anything else.
+  async function knownAccount(addr: string): Promise<boolean> {
+    if (!addr || !backendOn) return false
+    setJoining(true)
+    const known = await emailHasAccount(addr)
+    setJoining(false)
+    if (known) setAccountEmail(addr)
+    return known
+  }
+
+  async function join() {
     const clean = cleanName
     if (!nameOk || joining || !event) return
     const cleanEmail = email.trim().toLowerCase()
+    if (await knownAccount(cleanEmail)) return
     // the email is the identity key: same email as an earlier entry means the same
     // person — prove it and resume, instead of creating a double
     const byEmail = cleanEmail ? event.participants.find((p) => p.guest && p.email === cleanEmail) : undefined
@@ -164,11 +179,12 @@ export function JoinFlow({ id }: { id: string }) {
     doJoin(clean)
   }
   // the claim: proof is the email on the earlier entry, never the name alone
-  function claim() {
-    if (!collision?.email) return
+  async function claim() {
+    if (!collision?.email || joining) return
     const addr = claimEmail.trim().toLowerCase()
-    if (addr === collision.email) void proveEmail(addr, collision)
-    else setClaimErr(true)
+    if (addr !== collision.email) { setClaimErr(true); return }
+    if (await knownAccount(addr)) return
+    void proveEmail(addr, collision)
   }
   function joinRenamed() {
     const n = dupeName.trim().replace(/\s+/g, ' ')
@@ -278,13 +294,13 @@ export function JoinFlow({ id }: { id: string }) {
                         type="email"
                         autoComplete="email"
                         value={claimEmail}
-                        onChange={(e) => { setClaimEmail(e.target.value); setClaimErr(false) }}
+                        onChange={(e) => { setClaimEmail(e.target.value); setClaimErr(false); setAccountEmail(null) }}
                         onKeyDown={(e) => { if (e.key === 'Enter') claim() }}
                         aria-label="The email you joined with"
                         placeholder="you@example.com"
                         className={`${field} min-w-0 flex-1`}
                       />
-                      <button onClick={claim} disabled={!claimEmail.trim() || joining} className="h-11 flex-none rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-40">
+                      <button onClick={() => void claim()} disabled={!claimEmail.trim() || joining} className="h-11 flex-none rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-40">
                         That&apos;s me
                       </button>
                     </div>
@@ -345,7 +361,7 @@ export function JoinFlow({ id }: { id: string }) {
                     autoFocus
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') join() }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') void join() }}
                     className={field}
                   />
                   <p className={`text-[12px] leading-[1.55] ${cleanName.length === 1 ? 'text-brick-text' : 'text-faint'}`}>
@@ -364,21 +380,34 @@ export function JoinFlow({ id }: { id: string }) {
                     autoComplete="email"
                     inputMode="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') join() }}
+                    onChange={(e) => { setEmail(e.target.value); setAccountEmail(null) }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') void join() }}
                     placeholder="you@example.com"
                     className={field}
                   />
                   <p className="text-[12px] leading-[1.55] text-faint">For reminders, and to find your answers again from another device.</p>
                 </div>
                 <button
-                  onClick={join}
+                  onClick={() => void join()}
                   disabled={!nameOk || joining}
                   className="mt-5 flex h-11 w-full items-center justify-center gap-1.5 rounded-[10px] bg-accent text-[14.5px] font-semibold text-on-accent disabled:opacity-40"
                 >
                   Join event <ArrowRight size={15} />
                 </button>
               </>
+            )}
+            {accountEmail && (
+              <div role="status" className="mt-4 flex flex-col gap-2.5 rounded-[10px] border border-accent-border bg-accent-bg px-3.5 py-3">
+                <p className="text-[12.5px] leading-[1.55] text-accent-text">
+                  <span className="font-semibold">{accountEmail}</span> is registered to a Hourelle account. Log in to it and you join as yourself, with everything you answered before.
+                </p>
+                <Link
+                  href={`/auth/signin?mode=login&email=${encodeURIComponent(accountEmail)}&next=${encodeURIComponent(`/events/${id}/join${inviteToken ? `?invite=${inviteToken}` : ''}`)}`}
+                  className="flex h-10 w-fit items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent"
+                >
+                  Log in <ArrowRight size={14} />
+                </Link>
+              </div>
             )}
             {error && <p role="alert" className="mt-3 text-[12.5px] font-medium text-brick-text">{error}</p>}
           </div>

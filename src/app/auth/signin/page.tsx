@@ -69,10 +69,15 @@ function SignInForm() {
   const root = useRef<HTMLDivElement>(null)
   const router = useRouter()
   // ?mode=up lands straight on the create-account form — the header's door goes there
-  const wanted = useSearchParams().get('mode')
+  const params = useSearchParams()
+  const wanted = params.get('mode')
+  // an invite page that found the email belongs to an account sends the person here
+  // with the address typed and the way back; only our own paths are followed
+  const rawNext = params.get('next') ?? ''
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/home'
   const [mode, setMode] = useState<Mode>(wanted === 'up' ? 'up' : 'in')
   const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() => params.get('email') ?? '')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [busy, setBusy] = useState<'google' | 'microsoft' | 'email' | null>(null)
@@ -94,12 +99,12 @@ function SignInForm() {
   async function google() {
     setError(null); setBusy('google')
     // on success the browser leaves for Google and never comes back to this line
-    const err = await signInWithGoogle()
+    const err = await signInWithGoogle(next)
     if (err) { setError(err); setBusy(null) }
   }
   async function microsoft() {
     setError(null); setBusy('microsoft')
-    const err = await signInWithMicrosoft()
+    const err = await signInWithMicrosoft(next)
     if (err) { setError(err); setBusy(null) }
   }
 
@@ -121,14 +126,14 @@ function SignInForm() {
       if (err) { setError(err); setBusy(null); return }
       // with email confirmation on, sign-up returns no session and the account is
       // only real once the link is clicked; with it off, we are already signed in
-      if (await hasSession()) router.replace('/home')
+      if (await hasSession()) router.replace(next)
       else { setNote(`Check ${email.trim()} for a confirmation link. Your account is ready once you open it.`); setBusy(null) }
       return
     }
 
     const err = await signInWithEmail(email.trim(), password)
     if (err) { setError(err); setBusy(null); return }
-    router.replace('/home')
+    router.replace(next)
   }
 
   const strong = passwordOk(password)

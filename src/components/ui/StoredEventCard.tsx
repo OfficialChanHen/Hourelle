@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Calendar, CalendarClock, Check, CopyPlus, Link2, MapPin, Reply, Trash2, UserRound, UserRoundX, UsersRound, Vote } from 'lucide-react'
+import { Calendar, CalendarClock, Check, CopyPlus, Link2, MapPin, Pencil, Reply, Trash2, UserRound, UserRoundX, UsersRound, Vote } from 'lucide-react'
 import { AvatarRow } from './AvatarRow'
 import { TimezonePill } from './TimezonePill'
 import { Cover } from './Cover'
@@ -64,6 +64,8 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
   const goDelete = asAction(() => router.push(`/events/${e.id}?tab=details&focus=delete`))
   // the same plan again, a week on: the wizard opens filled in, people list included
   const goDuplicate = asAction(() => router.push(`/create?from=${e.id}`))
+  // the host's shortcut to the details tab, where everything about the event is edited
+  const goEdit = asAction(() => router.push(`/events/${e.id}?tab=details`))
 
   return (
     <Link
@@ -73,7 +75,19 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
       style={tint.border ? { borderColor: tint.border } : undefined}
     >
       {/* a photo of the host's own gets more of the card than a scene; the text stays on paper below it */}
-      <Cover src={e.image} fit={e.imageFit} from={from} to={to} className={`-mx-3.5 -mt-3.5 mb-3 ${e.image?.startsWith('data:') ? 'h-[150px]' : 'h-[92px]'}`} />
+      <div className="relative -mx-3.5 -mt-3.5 mb-3">
+        <Cover src={e.image} fit={e.imageFit} from={from} to={to} className={e.image?.startsWith('data:') ? 'h-[150px]' : 'h-[92px]'} />
+        {/* the cover's top corner is the one open spot on the card: the host's way to the details tab */}
+        {e.hostedByYou && !e.demo && (
+          <span
+            role="button" tabIndex={0} onClick={goEdit} onKeyDown={goEdit}
+            title="Edit the event" aria-label="Edit the event"
+            className="absolute right-2.5 top-2.5 grid h-9 w-9 place-items-center rounded-full border border-border bg-s1/90 text-dim shadow-soft backdrop-blur-sm hover:bg-s1 hover:text-text sm:h-8 sm:w-8"
+          >
+            <Pencil size={14} />
+          </span>
+        )}
+      </div>
       {/* the old badge row as one quiet line: dot for the phase, words for the rest */}
       <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium text-dim">
         <span className="h-2 w-2 flex-none rounded-full" style={{ background: tint.dot }} />

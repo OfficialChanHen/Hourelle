@@ -7,6 +7,9 @@ import { CalendarCheck, Check, ChevronDown, Lock, MapPin, Route, Video, Vote, Wa
 import { TimeSelect } from '@/components/ui/TimeSelect'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { TimezonePill } from '@/components/ui/TimezonePill'
+import { canEmail, sendLockedMail } from '@/lib/mail'
+import { useAccount } from '@/hooks/useAccount'
+import { getEvent } from '@/lib/events'
 import {
   availIvOf, bestWindow, confirmedSlotText, confirmEvent, fmtMinute, gridStartMinOf, patchEvent, respondedCount,
   type AppEvent, type ConfirmedSlot,
@@ -178,6 +181,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
     setStartMin(v)
     setEndMin((e) => (e <= v ? Math.min(v + duration, 24 * 60 - 5) : e))
   }
+  const account = useAccount()
   function lockIn() {
     if (blockedReason) return
     // a run of days (or any day-poll lock) is all-day; only a single-day lock on a
@@ -195,6 +199,9 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
     // clamp a stale pick (the chosen day may have moved under it) before storing
     const deadline = rsvpBy && rsvpBy >= todayKey && rsvpBy <= dayKey ? rsvpBy : undefined
     if (deadline !== event.rsvpDeadline) patchEvent(event.id, { rsvpDeadline: deadline })
+    // everyone hears about it, calendar entry attached, in the background; the
+    // server waits for the lock-in to land before it writes to anyone
+    if (canEmail(account.signedIn) && !event.demo) void sendLockedMail(event.id, getEvent(event.id)?.confirmedAt)
     close()
     onChanged()
   }

@@ -1,18 +1,15 @@
 'use client'
 
-/* How you log in — and the way to end up with one account instead of two.
-   One row per door: the email and password you signed up with, the Google button
-   and the Microsoft one. Connecting a provider adds it to the account you are
-   already in, which is what makes every door open the same place; it is also what
-   lets that provider's calendar be imported into your grid. Below them, the way back from having
-   made two accounts by accident: give the other one's email and password and it is
-   folded into this one. */
+/* How you log in. One row per door: the email and password you signed up with, the
+   Google button and the Microsoft one. Connecting a provider adds it to the account
+   you are already in, which is what makes every door open the same place; it is also
+   what lets that provider's calendar be imported into your grid. An email can only
+   ever belong to one account, so there is nothing here about merging two. */
 
 import { useCallback, useEffect, useState } from 'react'
-import { Check, Loader2, Link2, Link2Off, Merge } from 'lucide-react'
-import { PasswordField } from '@/components/ui/PasswordField'
+import { Check, Loader2, Link2, Link2Off } from 'lucide-react'
 import { pushFlash } from '@/components/ui/FlashToast'
-import { listIdentities, linkProvider, mergeAccount, unlinkProvider, PROVIDER_LABEL, type Account, type Identity, type OAuthProvider } from '@/lib/session'
+import { listIdentities, linkProvider, unlinkProvider, PROVIDER_LABEL, type Account, type Identity, type OAuthProvider } from '@/lib/session'
 import { backendOn } from '@/lib/db'
 
 function GoogleMark() {
@@ -43,7 +40,7 @@ const Row = ({ children, first }: { children: React.ReactNode; first?: boolean }
 
 export function SignInMethods({ account }: { account: Account }) {
   const [identities, setIdentities] = useState<Identity[] | null>(null)
-  const [busy, setBusy] = useState<'link' | 'unlink' | 'merge' | null>(null)
+  const [busy, setBusy] = useState<'link' | 'unlink' | null>(null)
   const [busyOn, setBusyOn] = useState<OAuthProvider | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
@@ -116,21 +113,6 @@ export function SignInMethods({ account }: { account: Account }) {
     )
   }
 
-  // bringing another account in
-  const [open, setOpen] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  async function merge() {
-    if (!email.trim() || !password) return
-    setBusy('merge'); setErr(null); setDone(null)
-    const { error, events } = await mergeAccount(email.trim(), password)
-    setBusy(null)
-    if (error) { setErr(error); return }
-    setEmail(''); setPassword(''); setOpen(false)
-    setDone(events ? `Done. ${events} ${events === 1 ? 'event' : 'events'} moved over, and the other account is closed.` : 'Done. The other account is closed and everything on it is here.')
-    read()
-  }
-
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-s1">
       <Row first>
@@ -147,40 +129,6 @@ export function SignInMethods({ account }: { account: Account }) {
 
       {providerRow('google', <GoogleMark />)}
       {providerRow('azure', <MicrosoftMark />)}
-
-      <Row>
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <div className="min-w-0">
-            <div className="text-[14px] font-medium">Another account of yours</div>
-            {open && <div className="mt-0.5 text-[12.5px] text-dim">Its events, answers and messages move here, and it is closed for good.</div>}
-          </div>
-          <button
-            type="button" onClick={() => { setOpen(!open); setErr(null) }} disabled={busy !== null}
-            className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2 disabled:opacity-40"
-          >
-            {open ? 'Cancel' : <><Merge size={15} /> Bring it in</>}
-          </button>
-        </div>
-
-        {open && (
-          <form onSubmit={(e) => { e.preventDefault(); void merge() }} className="mt-3 flex max-w-[380px] flex-col gap-2 border-t border-border pt-3">
-            <label htmlFor="merge-email" className="block text-[12.5px] font-semibold text-dim">Its email</label>
-            <input
-              id="merge-email" type="email" autoComplete="off" inputMode="email" value={email}
-              onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com"
-              className="h-11 rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none placeholder:text-faint focus:border-accent-border"
-            />
-            <PasswordField id="merge-password" label="Its password" value={password} onChange={setPassword} autoComplete="off" />
-            <p className="mt-1 text-[12px] leading-[1.5] text-faint">A Google-only account has no password to prove.</p>
-            <button
-              type="submit" disabled={!email.trim() || !password || busy !== null}
-              className="mt-2 flex h-10 items-center justify-center gap-2 rounded-[10px] bg-accent text-[14px] font-semibold text-on-accent disabled:opacity-40"
-            >
-              {busy === 'merge' && <Loader2 size={15} className="animate-spin" />} Bring it in
-            </button>
-          </form>
-        )}
-      </Row>
 
       {(err || done) && (
         <p role={err ? 'alert' : undefined} className={`border-t border-border px-5 py-3 text-[12.5px] leading-[1.55] ${err ? 'font-medium text-brick-text' : 'text-teal-text'}`}>

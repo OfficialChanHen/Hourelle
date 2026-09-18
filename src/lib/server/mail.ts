@@ -33,7 +33,10 @@ export const mailConfigured = !!process.env.RESEND_API_KEY
 const FROM = process.env.MAIL_FROM_EMAIL || process.env.FEEDBACK_FROM_EMAIL || 'Hourelle <onboarding@resend.dev>'
 
 export type Attachment = { filename: string; content: string; contentType: string } // content is base64
-export type Mail = { to: string; subject: string; text: string; html?: string; replyTo?: string; fromName?: string; attachments?: Attachment[] }
+// `thread` is the event id: every mail about one event references the same root, so
+// a mailbox files the invite, the lock-in, the reminders and the nudges as one
+// conversation and the whole story of the event reads in one place
+export type Mail = { to: string; subject: string; text: string; html?: string; replyTo?: string; fromName?: string; attachments?: Attachment[]; thread?: string }
 
 /** The locked-in plan as a calendar file, for the mails that announce or remind of it.
  *  A mailbox offers "add to calendar" on it, and the same file sent again with a
@@ -64,8 +67,8 @@ export async function sendMail(m: Mail): Promise<string | null> {
       from: fromFor(m.fromName), to: [m.to], subject: m.subject, text: m.text,
       ...(m.html ? { html: m.html } : {}),
       ...(m.replyTo ? { reply_to: m.replyTo } : {}),
-      // one id per message, so a mailbox never folds two reminders into one thread
-      headers: { 'X-Entity-Ref-ID': crypto.randomUUID() },
+      // Gmail, Apple Mail and Outlook all group on these; the root need not exist
+      ...(m.thread ? { headers: { 'In-Reply-To': `<event-${m.thread}@hourelle.com>`, References: `<event-${m.thread}@hourelle.com>` } } : {}),
       ...(m.attachments?.length ? { attachments: m.attachments.map((a) => ({ filename: a.filename, content: a.content, content_type: a.contentType })) } : {}),
     }),
   })
@@ -75,7 +78,7 @@ export async function sendMail(m: Mail): Promise<string | null> {
 }
 
 /* ── the log: one row per message, and the key that stops repeats ── */
-export type MailKind = 'invite' | 'nudge' | 'event-eve' | 'event-day' | 'plan-eve' | 'plan-day' | 'vote-eve' | 'vote-day' | 'rsvp-eve' | 'rsvp-day'
+export type MailKind = 'invite' | 'nudge' | 'locked' | 'event-eve' | 'event-day' | 'plan-eve' | 'plan-day' | 'vote-eve' | 'vote-day' | 'rsvp-eve' | 'rsvp-day'
 
 /** Send once. The log row is claimed before the message goes out (the unique key
  *  refuses a second claim), so two overlapping runs cannot both send. A failed
@@ -122,7 +125,7 @@ export async function emailsFor(db: SupabaseClient | null, people: Participant[]
   return out
 }
 
-export type ReminderPrefs = { email?: boolean; eventDay: boolean; deadlines: boolean; replies: boolean }
+export type ReminderPrefs = { email?: boolean; lockIn?: boolean; eventDay: boolean; deadlines: boolean; replies: boolean }
 /** Accounts can switch reminders off in Settings; guests get them by giving an email. */
 export async function prefsFor(db: SupabaseClient | null, ids: string[]): Promise<Map<string, ReminderPrefs>> {
   const out = new Map<string, ReminderPrefs>()
@@ -189,7 +192,8 @@ function firstName(p: Participant): string { return p.name.split(' ')[0] || 'the
    It is also built to read as a note to one person, not a campaign, which is what
    keeps it out of the Promotions tab and the spam folder: no images, no tracking,
    one link, a plain-text twin of every message, a subject that names the event, a
-   real sender, and no hidden filler behind the preheader. */
+   real sender, and no hidden filler behind the preheader. Every mail about an event
+   references one root id (see Mail.thread), so a mailbox files them together. */
 type Shell = {
   title: string
   lines: string[]
@@ -264,14 +268,36 @@ export function inviteMail(ev: AppEvent, p: Participant, to: string, site: strin
     preheader: ask,
     footer: `Sent by Hourelle on behalf of ${host}. Reply to this email to reach them.`,
   })
-  return { to, subject: `${host} invited you to ${ev.title}`, text, html, replyTo: hostEmail ?? undefined, fromName: `${host} via Hourelle`, attachments }
+  return { to, subject: `${host} invited you to ${ev.title}`, text, html, replyTo: hostEmail ?? undefined, fromName: `${host} via Hourelle`, attachments, thread: ev.id }
 }
 
 export function nudgeMail(ev: AppEvent, p: Participant, to: string, site: string, hostEmail?: string | null): Mail {
   const host = hostNameOf(ev), link = joinLink(site, ev, p)
   const lines = [`Hi ${firstName(p)}, ${host} is still waiting on your times for ${ev.title}.`, 'Mark when you are free so the plan can be settled. Even a rough answer helps.']
   const text = [...lines, '', link].join('\n')
-  return { to, subject: `${host} is waiting on your times for ${ev.title}`, text, html: shell({ title: `A quick one from ${host}`, lines, cta: { label: 'Mark when you are free', href: link }, preheader: lines[0], footer: `Sent by Hourelle on behalf of ${host}. Reply to this email to reach them.` }), replyTo: hostEmail ?? undefined, fromName: `${host} via Hourelle` }
+  return { to, subject: `${host} is waiting on your times for ${ev.title}`, text, html: shell({ title: `A quick one from ${host}`, lines, cta: { label: 'Mark when you are free', href: link }, preheader: lines[0], footer: `Sent by Hourelle on behalf of ${host}. Reply to this email to reach them.` }), replyTo: hostEmail ?? undefined, fromName: `${host} via Hourelle`, thread: ev.id }
+}
+
+/* The lock-in announcement: the host settled the time and place, here is the entry
+   for your calendar, and the one thing asked of you is whether you can make it. */
+export function lockedMail(ev: AppEvent, p: Participant, to: string, site: string, hostEmail?: string | null): Mail {
+  const host = hostNameOf(ev), link = joinLink(site, ev, p), when = whenText(ev), place = placeText(ev)
+  const attachments = calendarAttachment(ev, link)
+  const lines = [
+    `Hi ${firstName(p)}, ${host} locked in ${ev.title}${when ? `: ${when}` : ''}${place ? `, at ${place}` : ''}.`,
+    `Open your link to say whether you can make it.${attachments ? ' The calendar entry is attached.' : ''}`,
+  ]
+  const footer = `You are getting this because you are on the list for ${ev.title}. Lock-in announcements can be turned off in your settings: ${site}/settings`
+  const text = [lines[0], when ? `When: ${when}` : '', place ? `Where: ${place}` : '', '', lines[1], '', link, '', footer].filter((l, i, all) => l !== '' || all[i - 1] !== '').join('\n')
+  const html = shell({
+    title: `${ev.title} is locked in`,
+    lines,
+    details: [{ label: 'When', value: when }, { label: 'Where', value: place }],
+    cta: { label: 'Say if you can make it', href: link },
+    preheader: when ? `${when}${place ? `, ${place}` : ''}` : lines[1],
+    footer,
+  })
+  return { to, subject: `${ev.title} is locked in${when ? `: ${when}` : ''}`, text, html, replyTo: hostEmail ?? undefined, fromName: `${host} via Hourelle`, attachments, thread: ev.id }
 }
 
 export function reminderMail(kind: MailKind, ev: AppEvent, p: Participant, to: string, site: string): Mail {
@@ -286,19 +312,19 @@ export function reminderMail(kind: MailKind, ev: AppEvent, p: Participant, to: s
     const title = `${soon === 'today' ? 'Today' : 'Tomorrow'}: ${ev.title}`
     const attachments = calendarAttachment(ev, link)
     const lines = [`Hi ${first}, ${ev.title} is ${soon}${when ? `: ${when}` : ''}${place ? `, at ${place}` : ''}.`, `Everything the group settled on is on the event page.${attachments ? ' The calendar entry is attached.' : ''}`]
-    return { to, subject: title, text: text(lines), html: shell({ title, lines, details: [{ label: 'When', value: when }, { label: 'Where', value: place }], cta: { label: 'Open the event', href: link }, preheader: lines[0], footer }), attachments }
+    return { to, subject: title, text: text(lines), html: shell({ title, lines, details: [{ label: 'When', value: when }, { label: 'Where', value: place }], cta: { label: 'Open the event', href: link }, preheader: lines[0], footer }), attachments, thread: ev.id }
   }
   if (kind === 'plan-eve' || kind === 'plan-day') {
     const title = `Lock in ${ev.title} by ${soon}`
     const lines = [`Hi ${first}, you set ${soon === 'today' ? 'today' : 'tomorrow'} as the day to have ${ev.title} settled.`, 'Have a look at how the answers came in and lock in a time and place.']
-    return { to, subject: title, text: text(lines), html: shell({ title, lines, cta: { label: 'Lock it in', href: link }, preheader: lines[0], footer }) }
+    return { to, subject: title, text: text(lines), html: shell({ title, lines, cta: { label: 'Lock it in', href: link }, preheader: lines[0], footer }), thread: ev.id }
   }
   if (kind === 'vote-eve' || kind === 'vote-day') {
     const title = `Voting on ${ev.title} closes ${soon}`
     const lines = [`Hi ${first}, the vote on where ${ev.title} happens closes ${soon}, and yours is not in yet.`, 'Pick your place before it does.']
-    return { to, subject: title, text: text(lines), html: shell({ title, lines, cta: { label: 'Cast your vote', href: link }, preheader: lines[0], footer }) }
+    return { to, subject: title, text: text(lines), html: shell({ title, lines, cta: { label: 'Cast your vote', href: link }, preheader: lines[0], footer }), thread: ev.id }
   }
   const title = `Say if you can make ${ev.title} by ${soon}`
   const lines = [`Hi ${first}, ${hostNameOf(ev)} asked for answers on ${ev.title} by ${soon}${when ? ` (${when})` : ''}.`, 'A yes, a maybe, or a no all help the host plan.']
-  return { to, subject: title, text: text(lines), html: shell({ title, lines, details: [{ label: 'When', value: when }], cta: { label: 'Answer now', href: link }, preheader: lines[0], footer }) }
+  return { to, subject: title, text: text(lines), html: shell({ title, lines, details: [{ label: 'When', value: when }], cta: { label: 'Answer now', href: link }, preheader: lines[0], footer }), thread: ev.id }
 }

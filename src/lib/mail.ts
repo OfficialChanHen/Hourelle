@@ -33,6 +33,13 @@ export function sendInvites(eventId: string, participantIds?: string[], again = 
   return post<InviteResult>('/api/mail/invite', { eventId, participantIds, again })
 }
 
+export type LockedResult = { sent: number; already: number; failed: number; skipped: number; total: number }
+/** Tell everyone on the list that the host locked in a time and place, once per
+ *  lock-in, calendar entry attached. Accounts that switched the kind off are skipped. */
+export function sendLockedMail(eventId: string, confirmedAt?: number) {
+  return post<LockedResult>('/api/mail/locked', { eventId, confirmedAt })
+}
+
 export type NudgeResult = { sent: string[]; already: string[]; noEmail: string[]; failed: string[] }
 /** Ask the given people for their times. One email per person per day. */
 export function sendNudges(eventId: string, participantIds: string[]) {
