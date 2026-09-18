@@ -48,7 +48,7 @@ export function mockBusyUtc(days: GridDay[]): UtcBusy[] {
    primary calendar between two times — the same shape the mock returns, so the rest
    of the pipeline does not know the difference. The token is Google's own, handed
    over by Supabase after a sign-in that asked for the free/busy scope. */
-export async function googleBusyUtc(token: string, days: GridDay[], gridStartMin: number, gridMax: number, eventTz: string): Promise<{ busy: UtcBusy[]; error?: 'auth' | string }> {
+export async function googleBusyUtc(token: string, days: GridDay[], gridStartMin: number, gridMax: number, eventTz: string): Promise<{ busy: UtcBusy[]; error?: 'auth' | 'scope' | string }> {
   const keys = days.map((d) => d.key).filter((k) => ISO_DAY.test(k)).sort()
   if (!keys.length) return { busy: [] }
   const timeMin = new Date(zonedToUtc(keys[0], gridStartMin, eventTz)).toISOString()
@@ -64,7 +64,7 @@ export async function googleBusyUtc(token: string, days: GridDay[], gridStartMin
     return { busy: [], error: 'Could not reach Google Calendar.' }
   }
   if (res.status === 401) return { busy: [], error: 'auth' }
-  if (res.status === 403) return { busy: [], error: 'Google would not share your calendar. The Calendar API may be off for this app, or the permission was not granted.' }
+  if (res.status === 403) return { busy: [], error: 'scope' } // the token has no calendar permission, or the API is off
   if (!res.ok) return { busy: [], error: `Google Calendar answered ${res.status}.` }
   const data = (await res.json()) as { calendars?: { primary?: { busy?: { start: string; end: string }[] } } }
   const busy = (data.calendars?.primary?.busy ?? []).map((b) => ({ s: Date.parse(b.start), e: Date.parse(b.end) })).filter((b) => b.e > b.s)
@@ -76,7 +76,7 @@ export async function googleBusyUtc(token: string, days: GridDay[], gridStartMin
    Anything that is not free is a busy block. Paged, since a full calendar can be
    more than one screenful. The token is Microsoft's own, handed over by Supabase
    after a sign-in that asked for Calendars.Read. */
-export async function outlookBusyUtc(token: string, days: GridDay[], gridStartMin: number, gridMax: number, eventTz: string): Promise<{ busy: UtcBusy[]; error?: 'auth' | string }> {
+export async function outlookBusyUtc(token: string, days: GridDay[], gridStartMin: number, gridMax: number, eventTz: string): Promise<{ busy: UtcBusy[]; error?: 'auth' | 'scope' | string }> {
   const keys = days.map((d) => d.key).filter((k) => ISO_DAY.test(k)).sort()
   if (!keys.length) return { busy: [] }
   const timeMin = new Date(zonedToUtc(keys[0], gridStartMin, eventTz)).toISOString()
@@ -92,7 +92,7 @@ export async function outlookBusyUtc(token: string, days: GridDay[], gridStartMi
       return { busy: [], error: 'Could not reach Outlook.' }
     }
     if (res.status === 401) return { busy: [], error: 'auth' }
-    if (res.status === 403) return { busy: [], error: 'Microsoft would not share your calendar. The permission may not have been granted.' }
+    if (res.status === 403) return { busy: [], error: 'scope' } // the token has no calendar permission
     if (!res.ok) return { busy: [], error: `Outlook answered ${res.status}.` }
     const data = (await res.json()) as { value?: Entry[]; '@odata.nextLink'?: string }
     // Graph writes the instant without a zone marker; the Prefer header made it UTC

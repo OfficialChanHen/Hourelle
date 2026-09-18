@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import Link from 'next/link'
 
 /* The privacy policy and the terms and conditions, as data: the pages at /privacy and
-   /terms render them with a summary, a table of contents and numbered sections, and
+   /terms render them with a table of contents and numbered sections, and
    the sign-up sheet renders the same text with a reading bar. Plain words, and only
    claims the code actually keeps. Bump the version when the substance changes;
    acceptance is recorded against it. */
@@ -11,7 +11,7 @@ export const LEGAL_EFFECTIVE = 'September 18, 2026'
 
 export type LegalKey = 'privacy' | 'terms'
 export type LegalSection = { id: string; title: string; paragraphs: string[]; items?: string[] }
-export type LegalDoc = { title: string; short: string; eyebrow: string; lead: string; summary: string[]; sections: LegalSection[] }
+export type LegalDoc = { title: string; short: string; eyebrow: string; lead: string; sections: LegalSection[] }
 
 /* paragraphs are plain strings with one convention: [text](/path) becomes a link */
 export function renderInline(text: string): ReactNode {
@@ -30,7 +30,7 @@ export function renderInline(text: string): ReactNode {
 
 /** a reading time from the words in a document, at an unhurried pace */
 export function readingMinutes(doc: LegalDoc): number {
-  const words = [...doc.summary, ...doc.sections.flatMap((s) => [...s.paragraphs, ...(s.items ?? [])])].join(' ').split(/\s+/).length
+  const words = doc.sections.flatMap((s) => [...s.paragraphs, ...(s.items ?? [])]).join(' ').split(/\s+/).length
   return Math.max(1, Math.round(words / 180))
 }
 
@@ -39,12 +39,6 @@ const PRIVACY: LegalDoc = {
   short: 'Privacy Policy',
   eyebrow: 'Privacy',
   lead: 'What Hourelle collects, why, who it is shared with, and the choices you have.',
-  summary: [
-    'We keep what you give us to plan events: your name and email, the events you create or join, and what you answer in them.',
-    'Calendar imports are read in your browser. The entries themselves never reach our servers.',
-    'There is no advertising, no analytics and no selling of data. We share only with the services that run the app.',
-    'Deleting your account removes everything about it, straight away and for good.',
-  ],
   sections: [
     {
       id: 'who-we-are', title: 'Who we are and what this policy covers',
@@ -151,12 +145,6 @@ const TERMS: LegalDoc = {
   short: 'Terms and Conditions',
   eyebrow: 'Terms',
   lead: 'The agreement between you and Hourelle for using the service.',
-  summary: [
-    'Hourelle is free to host and free to join. Using it means you agree to these terms and to the Privacy Policy.',
-    'What you add stays yours. You let us store it and show it to the people you share the event with.',
-    'Invite people who want to hear from you, treat others decently, and do not tamper with the service.',
-    'The service is provided as it is, without guarantees, and either of us can end the relationship at any time.',
-  ],
   sections: [
     {
       id: 'agreement', title: 'Agreement to these terms',

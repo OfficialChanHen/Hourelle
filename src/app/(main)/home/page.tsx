@@ -214,7 +214,13 @@ function QuickCreate() {
               ? 'Over four weeks, so this asks which days work instead of times.'
               : 'Uses your time zone. Share the link and people mark when they are free.'}
         </span>
-        <Link href="/create" className="-my-2 py-2 font-semibold text-accent-text hover:underline">More options</Link>
+        {/* the wizard opens with what was typed here, so nothing is typed twice */}
+        <Link
+          href={`/create${(() => { const q = new URLSearchParams(); if (title.trim()) q.set('title', title.trim()); if (start) q.set('start', start); if (end) q.set('end', end); const s = q.toString(); return s ? `?${s}` : '' })()}`}
+          className="-my-2 py-2 font-semibold text-accent-text hover:underline"
+        >
+          More options
+        </Link>
       </div>
     </div>
   )

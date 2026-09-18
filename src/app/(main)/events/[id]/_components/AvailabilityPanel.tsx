@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { gsap } from 'gsap'
+import { useGSAP } from '@gsap/react'
 import { ChevronLeft, ChevronRight, ChevronDown, X, Check, Bell, Info, SlidersHorizontal, Trash2, Zap } from 'lucide-react'
 
 import { AvatarRow } from '@/components/ui/AvatarRow'
@@ -858,6 +860,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // of a scary confirm — the old times sit in state until the toast expires.
   // times: null makes it a plain notice with no Undo button
   const [undo, setUndo] = useState<{ times: Record<string, Iv[]> | null; label: string; importedIv?: AvailIntervals } | null>(null)
+  const toastRef = useRef<HTMLDivElement>(null)
+  useGSAP(() => {
+    if (!undo || !toastRef.current) return
+    gsap.fromTo(toastRef.current, { y: -16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: 'power3.out' })
+  }, { dependencies: [undo] })
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (undoTimer.current) clearTimeout(undoTimer.current) }, [])
   function stashUndo(times: Record<string, Iv[]> | null, label: string, importedIv?: AvailIntervals) {
@@ -886,7 +893,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // calendar import: fetch busy as UTC instants, convert to event-tz grid minutes, and
   // apply in one step. No preview modal — the action is additive-only and the grid
   // shows the result right away, so the toast (what landed, Undo) is confirmation enough.
-  async function startImport(provider: string) {
+  async function startImport(provider: string, opts: { returned?: boolean } = {}) {
     if (!event.days.every((d) => ISO_DAY.test(d.key))) {
       stashUndo(null, 'Calendar import works on events you create, not this sample.')
       return
@@ -905,6 +912,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         ? await googleBusyUtc(token, event.days, gridStartMin, gridMax, event.timezone)
         : await outlookBusyUtc(token, event.days, gridStartMin, gridMax, event.timezone)
       if (r.error === 'auth') { await trip(); return }
+      // a token from a plain log-in has no calendar permission: ask for it with one trip.
+      // Back from that trip and still refused, the reason is on the provider's side.
+      if (r.error === 'scope') {
+        if (!opts.returned) { await trip(); return }
+        stashUndo(null, remote === 'google'
+          ? 'Google would not share your calendar even after asking. The Calendar API may be off for this app, or the permission was refused.'
+          : 'Microsoft would not share your calendar even after asking. The permission may have been refused.')
+        return
+      }
       if (r.error) { stashUndo(null, r.error); return }
       busy = r.busy
     } else {
@@ -977,16 +993,22 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // that started it, once, and take the marker off the address bar
   const importOnce = useRef(false)
   useEffect(() => {
-    if (importOnce.current || typeof window === 'undefined') return
+    if (typeof window === 'undefined') return
     const url = new URL(window.location.href)
     const which = url.searchParams.get('import')
     const provider = which === 'google' ? 'Google Calendar' : which === 'outlook' ? 'Outlook' : null
     if (!provider) return
-    importOnce.current = true
-    url.searchParams.delete('import')
-    window.history.replaceState(window.history.state, '', url.toString())
-    // a tick later, so the import's own state changes land after this render
-    const t = setTimeout(() => { void startImport(provider) }, 0)
+    // a tick later, so the import's own state changes land after this render. The
+    // marker leaves the address bar only when the import really starts: an effect
+    // that is run, cleaned up and run again (development does that) must find it
+    // still there, or the import would never happen at all.
+    const t = setTimeout(() => {
+      if (importOnce.current) return
+      importOnce.current = true
+      url.searchParams.delete('import')
+      window.history.replaceState(window.history.state, '', url.toString())
+      void startImport(provider, { returned: true })
+    }, 0)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -1986,9 +2008,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         </div>}
       </div>
 
-      {/* undo toast — floats above the mobile tab bar, gone after 8s */}
+      {/* undo toast — drops in under the header, gone after 8s */}
       {undo && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-[84px] z-50 flex justify-center px-4 md:bottom-6">
+        <div ref={toastRef} className="pointer-events-none fixed inset-x-0 top-[72px] z-50 flex justify-center px-4 md:top-[68px]">
           <div className={`pointer-events-auto flex items-center gap-2.5 rounded-full border border-border bg-s1 py-1.5 pl-4 text-[13px] shadow-soft ${undo.times ? 'pr-1.5' : 'pr-4'}`}>
             {undo.label}
             {undo.times && (

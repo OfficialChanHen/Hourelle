@@ -149,6 +149,8 @@ function CreateWizard() {
   const template = params.get('template') ?? undefined
   const from = params.get('from') ?? undefined
   const createdParam = params.get('created') ?? undefined
+  // quick create on the home page hands over what was typed there
+  const quick = { title: params.get('title') ?? '', start: params.get('start') ?? '', end: params.get('end') ?? '' }
   const router = useRouter()
   const account = useAccount()
   const [created, setCreated] = useState<AppEvent | null>(null)
@@ -234,13 +236,16 @@ function CreateWizard() {
     setToday(t)
     let local = ''
     try { local = TZ.find((x) => x.v === Intl.DateTimeFormat().resolvedOptions().timeZone)?.v ?? '' } catch { /* the field still asks */ }
+    const day = (v: string) => (/^\d{4}-\d{2}-\d{2}$/.test(v) && v >= t ? v : '')
     setForm((f) => ({
       ...f,
+      title: f.title || quick.title,
       timezone: f.timezone || local,
-      startDate: f.startDate || t,
-      endDate: f.endDate || iso(week),
+      startDate: f.startDate || day(quick.start) || t,
+      endDate: f.endDate || (day(quick.end) && day(quick.end) >= (day(quick.start) || t) ? day(quick.end) : '') || iso(week),
       fixedDay: f.fixedDay || t,
     }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useGSAP(() => { gsap.fromTo(panel.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out' }) }, [])
