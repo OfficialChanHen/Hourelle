@@ -78,7 +78,7 @@ export function DayCalendar({
   mode: 'view' | 'edit'
   editable: boolean
   marked: (key: string) => boolean // this day is in your own answer
-  imported?: (key: string) => boolean // your calendar has something on this day
+  imported?: (key: string) => boolean // your calendar is busy on this day, at least in part
   freeIds: Record<string, string[]> // who counts toward the heat, per day
   otherIds: Record<string, string[]> // edit mode: everyone but you, the context tint
   total: number
@@ -314,7 +314,7 @@ export function DayCalendar({
               const busyDay = edit && !!imported?.(key)
               const title = (edit
                 ? mineOn ? `${slot.day.dow}, ${slot.day.date}: you can make it` : `${slot.day.dow}, ${slot.day.date}: mark that you can make it`
-                : `${slot.day.dow}, ${slot.day.date}: ${n} of ${total} free`) + (busyDay ? '. Something on your calendar that day' : '')
+                : `${slot.day.dow}, ${slot.day.date}: ${n} of ${total} free`) + (busyDay ? '. Busy on your calendar, at least in part' : '')
               return (
                 <button
                   key={key}
@@ -328,7 +328,7 @@ export function DayCalendar({
                   className={`relative min-h-[52px] select-none text-left sm:min-h-[62px] ${edges}`}
                   style={{ background: bg, boxShadow: open ? 'inset 0 0 0 1.5px var(--accent)' : undefined }}
                 >
-                  {/* a day with something on your calendar: a striped band along the bottom,
+                  {/* a day your calendar has something on: a striped band along the bottom,
                       a nudge to check before marking it, never a mark in itself */}
                   {busyDay && (
                     <span aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-[7px] opacity-[.4]" style={{ background: 'repeating-linear-gradient(135deg, transparent 0 4px, var(--accent) 4px 5px)' }} />
