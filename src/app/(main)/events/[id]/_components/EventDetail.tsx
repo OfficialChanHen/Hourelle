@@ -464,6 +464,7 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3.5">
       <div className="min-w-0 rounded-2xl border border-border bg-s1 p-5">
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Details</div>
+        <DetailRow k="Name" v={<NameValue event={event} editable={isHost} onPatch={onPatch} />} />
         {isHost && <DetailRow k="Cover" v={<CoverPicker event={event} onPatch={onPatch} />} />}
         <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} onPatch={onPatch} />} />
         <DetailRow k="When" v={<WhenValue event={event} editable={isHost && !locked} onGoToAvailability={() => onGoToTab('availability')} onGoToBestWindow={onGoToBestWindow} onPatch={onPatch} />} />
@@ -1154,6 +1155,37 @@ function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Par
         <button onClick={() => setEditing(false)} className="h-8 rounded-[8px] px-2 text-[12.5px] font-semibold text-dim hover:bg-s2">Done</button>
       </div>
     </div>
+  )
+}
+
+/* Name: the same rename the header offers, here where the rest of the event is edited.
+   Enter or blur saves, Escape leaves it as it was; an empty name is not a name. */
+function NameValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
+  const [editing, setEditing] = useState(false)
+  const ref = useRef<HTMLInputElement>(null)
+  if (!editable) return <>{event.title}</>
+  if (editing) {
+    const save = () => {
+      const v = ref.current?.value.trim()
+      if (v && v !== event.title) onPatch({ title: v })
+      setEditing(false)
+    }
+    return (
+      <input
+        ref={ref} defaultValue={event.title} autoFocus maxLength={80} aria-label="Event name"
+        onBlur={save}
+        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
+        className="h-9 w-full max-w-[420px] rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-border2"
+      />
+    )
+  }
+  return (
+    <span className="flex items-start gap-2">
+      <span className="min-w-0 flex-1">{event.title}</span>
+      <button onClick={() => setEditing(true)} title="Rename this event" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
+        <Pencil size={13} />
+      </button>
+    </span>
   )
 }
 

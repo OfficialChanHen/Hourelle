@@ -12,6 +12,7 @@ import 'swiper/css/pagination'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { coverFor, StoredEventCard } from '@/components/ui/StoredEventCard'
 import { Cover } from '@/components/ui/Cover'
+import { pushFlash } from '@/components/ui/FlashToast'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Tip } from '@/components/ui/Tip'
 import { LifecycleStrip, PHASE_BADGE, PHASE_TINT } from '@/components/ui/LifecycleStrip'
@@ -181,6 +182,7 @@ function QuickCreate() {
       emails: [], accounts: [],
     })
     // quick means quick: straight to the event, where the share link waits in the header
+    pushFlash('Your event is live. Share the link so people can join.')
     router.push(`/events/${ev.id}`)
   }
   const dateCls = 'h-11 sm:h-10 rounded-[10px] border border-border bg-s2 px-2.5 text-[13.5px] outline-none focus:border-accent-border'

@@ -109,13 +109,13 @@ type BasicsErrs = { title: string; start: string; end: string; days: string; win
 
 // template starting points (/create?template=…) — structure only; dates stay a conscious choice
 const TEMPLATE_PRESETS: Record<string, Partial<Form>> = {
-  offsite: { title: 'Team offsite', description: 'A few days of strategy and team time.', granularity: '60', locMode: 'vote', planMode: 'itinerary', budgetMode: 'person' },
-  trip: { title: 'Weekend trip', description: 'Pick the dates together and vote on where to go.', granularity: 'day', locMode: 'vote', planMode: 'itinerary' },
-  birthday: { title: 'Birthday party', description: 'One night, one spot.', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 180, locMode: 'vote', planMode: 'vote' },
+  offsite: { title: 'Team Offsite', description: 'A few days of strategy and team time.', granularity: '60', locMode: 'vote', planMode: 'itinerary', budgetMode: 'person' },
+  trip: { title: 'Weekend Trip', description: 'Pick the dates together and vote on where to go.', granularity: 'day', locMode: 'vote', planMode: 'itinerary' },
+  birthday: { title: 'Birthday Party', description: 'One night, one spot.', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 180, locMode: 'vote', planMode: 'vote' },
   conference: { title: 'Conference', granularity: '60', locMode: 'vote', planMode: 'itinerary' },
   'one-on-one': { title: 'Weekly 1:1', granularity: '15', durationMin: 30, locMode: 'remote' },
-  dinner: { title: 'Dinner and drinks', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 120, locMode: 'vote', planMode: 'vote' },
-  'game-night': { title: 'Game night', description: 'Bring a game or just show up.', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 180, locMode: 'vote', planMode: 'vote' },
+  dinner: { title: 'Dinner And Drinks', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 120, locMode: 'vote', planMode: 'vote' },
+  'game-night': { title: 'Game Night', description: 'Bring a game or just show up.', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 180, locMode: 'vote', planMode: 'vote' },
   potluck: { title: 'Potluck', description: 'Everyone brings a dish.', granularity: '30', durationMin: 180, locMode: 'vote', planMode: 'vote' },
 }
 
