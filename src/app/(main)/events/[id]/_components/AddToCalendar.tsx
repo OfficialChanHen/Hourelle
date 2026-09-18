@@ -1,8 +1,9 @@
 'use client'
 
-import { CalendarPlus, ChevronDown } from 'lucide-react'
+import { CalendarPlus, ChevronDown, Download } from 'lucide-react'
 import { Popover, PopoverItem, PopoverTitle } from '@/components/ui/Popover'
 import { fmtMinute, type AppEvent } from '@/lib/events'
+import { icsFileName, icsFor } from '@/lib/ics'
 
 /* ── add-to-calendar export (Google / Outlook compose links) ──
    Shown once a time is locked in: adds the confirmed slot as a timed entry.
@@ -53,6 +54,17 @@ export function AddToCalendar({ event, slot, align = 'end' }: { event: AppEvent;
       outlook: `https://outlook.live.com/calendar/0/deeplink/compose?${o}`,
     }
   }
+  // the same file the emails carry: Apple Calendar, Thunderbird, a work Outlook with
+  // no web compose page — anything that opens .ics. Only once a slot is locked in.
+  function downloadIcs() {
+    const ics = icsFor(event, `${window.location.origin}/events/${event.id}`)
+    if (!ics) return
+    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }))
+    const a = document.createElement('a')
+    a.href = url; a.download = icsFileName(event)
+    document.body.appendChild(a); a.click(); a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
   if (!canExport) return null
   return (
     <Popover
@@ -81,6 +93,7 @@ export function AddToCalendar({ event, slot, align = 'end' }: { event: AppEvent;
             </PopoverTitle>
             <PopoverItem onClick={() => exportTo('google')} icon={<CalendarPlus size={15} className="text-accent-text" />}>Google Calendar</PopoverItem>
             <PopoverItem onClick={() => exportTo('outlook')} icon={<CalendarPlus size={15} className="text-accent-text" />}>Outlook</PopoverItem>
+            {event.confirmed && <PopoverItem onClick={() => { downloadIcs(); close() }} icon={<Download size={15} className="text-accent-text" />}>Apple Calendar or a file</PopoverItem>}
           </>
         )
       }}

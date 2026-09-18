@@ -4,6 +4,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { AppEvent, Participant } from '@/lib/events'
+import { icsFileName, icsFor } from '@/lib/ics'
 import { serverDb } from './db'
 
 /* ── where links point ── */
@@ -31,7 +32,17 @@ export const mailConfigured = !!process.env.RESEND_API_KEY
 
 const FROM = process.env.MAIL_FROM_EMAIL || process.env.FEEDBACK_FROM_EMAIL || 'Hourelle <onboarding@resend.dev>'
 
-export type Mail = { to: string; subject: string; text: string; html?: string; replyTo?: string; fromName?: string }
+export type Attachment = { filename: string; content: string; contentType: string } // content is base64
+export type Mail = { to: string; subject: string; text: string; html?: string; replyTo?: string; fromName?: string; attachments?: Attachment[] }
+
+/** The locked-in plan as a calendar file, for the mails that announce or remind of it.
+ *  A mailbox offers "add to calendar" on it, and the same file sent again with a
+ *  later lock-in updates the entry in place. Nothing while nothing is locked in. */
+export function calendarAttachment(ev: AppEvent, link: string): Attachment[] | undefined {
+  const ics = icsFor(ev, link)
+  if (!ics) return undefined
+  return [{ filename: icsFileName(ev), content: Buffer.from(ics, 'utf8').toString('base64'), contentType: 'text/calendar; charset=utf-8; method=PUBLISH' }]
+}
 
 /** The sending address stays the verified one; the display name may be the person
  *  the message is really from ("Sam via Hourelle"), which is what a mailbox shows
@@ -55,6 +66,7 @@ export async function sendMail(m: Mail): Promise<string | null> {
       ...(m.replyTo ? { reply_to: m.replyTo } : {}),
       // one id per message, so a mailbox never folds two reminders into one thread
       headers: { 'X-Entity-Ref-ID': crypto.randomUUID() },
+      ...(m.attachments?.length ? { attachments: m.attachments.map((a) => ({ filename: a.filename, content: a.content, content_type: a.contentType })) } : {}),
     }),
   })
   if (res.ok) return null
@@ -240,6 +252,9 @@ export function inviteMail(ev: AppEvent, p: Participant, to: string, site: strin
   const ask = ev.confirmed ? 'Open your link to say whether you can make it.' : 'Open your link and mark when you are free. It takes a minute and needs no account.'
   const lines = [`Hi ${firstName(p)}, ${host} is planning ${ev.title} and would like you there.`, ask]
   const facts = [when ? `When: ${when}` : '', place ? `Where: ${place}` : ''].filter(Boolean)
+  // a plan already locked in travels with its calendar entry
+  const attachments = calendarAttachment(ev, link)
+  if (attachments) facts.push('The calendar entry is attached.')
   const text = [lines[0], ...facts, '', ask, '', link, '', `Sent by Hourelle on behalf of ${host}. Reply to this email to reach them.`].join('\n')
   const html = shell({
     title: `${host} invited you to ${ev.title}`,
@@ -249,7 +264,7 @@ export function inviteMail(ev: AppEvent, p: Participant, to: string, site: strin
     preheader: ask,
     footer: `Sent by Hourelle on behalf of ${host}. Reply to this email to reach them.`,
   })
-  return { to, subject: `${host} invited you to ${ev.title}`, text, html, replyTo: hostEmail ?? undefined, fromName: `${host} via Hourelle` }
+  return { to, subject: `${host} invited you to ${ev.title}`, text, html, replyTo: hostEmail ?? undefined, fromName: `${host} via Hourelle`, attachments }
 }
 
 export function nudgeMail(ev: AppEvent, p: Participant, to: string, site: string, hostEmail?: string | null): Mail {
@@ -269,8 +284,9 @@ export function reminderMail(kind: MailKind, ev: AppEvent, p: Participant, to: s
   const text = (lines: string[]) => [...lines, '', link, '', footer].join('\n')
   if (kind === 'event-eve' || kind === 'event-day') {
     const title = `${soon === 'today' ? 'Today' : 'Tomorrow'}: ${ev.title}`
-    const lines = [`Hi ${first}, ${ev.title} is ${soon}${when ? `: ${when}` : ''}${place ? `, at ${place}` : ''}.`, 'Everything the group settled on is on the event page.']
-    return { to, subject: title, text: text(lines), html: shell({ title, lines, details: [{ label: 'When', value: when }, { label: 'Where', value: place }], cta: { label: 'Open the event', href: link }, preheader: lines[0], footer }) }
+    const attachments = calendarAttachment(ev, link)
+    const lines = [`Hi ${first}, ${ev.title} is ${soon}${when ? `: ${when}` : ''}${place ? `, at ${place}` : ''}.`, `Everything the group settled on is on the event page.${attachments ? ' The calendar entry is attached.' : ''}`]
+    return { to, subject: title, text: text(lines), html: shell({ title, lines, details: [{ label: 'When', value: when }, { label: 'Where', value: place }], cta: { label: 'Open the event', href: link }, preheader: lines[0], footer }), attachments }
   }
   if (kind === 'plan-eve' || kind === 'plan-day') {
     const title = `Lock in ${ev.title} by ${soon}`

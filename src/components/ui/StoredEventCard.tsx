@@ -72,7 +72,8 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
       // status reads from the frame, not from chips: the border wears the phase color
       style={tint.border ? { borderColor: tint.border } : undefined}
     >
-      <Cover src={e.image} fit={e.imageFit} from={from} to={to} className="-mx-3.5 -mt-3.5 mb-3 h-[92px]" />
+      {/* a photo of the host's own gets more of the card than a scene; the text stays on paper below it */}
+      <Cover src={e.image} fit={e.imageFit} from={from} to={to} className={`-mx-3.5 -mt-3.5 mb-3 ${e.image?.startsWith('data:') ? 'h-[150px]' : 'h-[92px]'}`} />
       {/* the old badge row as one quiet line: dot for the phase, words for the rest */}
       <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium text-dim">
         <span className="h-2 w-2 flex-none rounded-full" style={{ background: tint.dot }} />

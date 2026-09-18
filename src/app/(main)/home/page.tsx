@@ -236,16 +236,21 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
     ev.stopPropagation()
     navigator.clipboard?.writeText(`${window.location.origin}/events/${e.id}/join`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
+  // a photo of the host's own runs behind the whole hero, and the text sits on a
+  // paper panel over it: the picture gets the card, the words keep their contrast
+  const photo = !!e.image?.startsWith('data:')
   return (
     <div
       onClick={() => router.push(dest)}
-      className="flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-s1 transition-colors hover:border-border2"
+      className={`relative flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-s1 transition-colors hover:border-border2 ${photo ? 'justify-end' : ''}`}
       style={tint.border ? { borderColor: tint.border } : undefined}
     >
       {/* the cover soaks up any height difference between carousel siblings, so the
           text block reads the same on every slide */}
-      <Cover src={e.image} fit={e.imageFit} from={coverFrom} to={coverTo} className={`flex-1 ${e.image ? 'min-h-[110px]' : 'min-h-[64px]'}`} />
-      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 p-5">
+      {photo
+        ? <div className="absolute inset-0"><Cover src={e.image} fit={e.imageFit} from={coverFrom} to={coverTo} className="h-full w-full" /></div>
+        : <Cover src={e.image} fit={e.imageFit} from={coverFrom} to={coverTo} className={`flex-1 ${e.image ? 'min-h-[110px]' : 'min-h-[64px]'}`} />}
+      <div className={`flex flex-wrap items-end justify-between gap-x-6 gap-y-4 p-5 ${photo ? 'relative m-3 mt-[170px] rounded-xl border border-border bg-s1/[.94] shadow-soft backdrop-blur-sm sm:mt-[210px]' : ''}`}>
         {/* real min width: on phones the CTAs wrap below instead of crushing the title */}
         <div className="min-w-[220px] flex-1">
           {/* one quiet line instead of a chip row: dot for the phase, words for the rest */}
