@@ -336,6 +336,16 @@ function parseLocal(iso: string): Date | null {
 function isoOf(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
+// today as a day key in the viewer's own zone: the floor for every date picker, since
+// a deadline or a poll day in the past decides nothing
+export function todayKey(): string {
+  return isoOf(new Date())
+}
+// a picked day, never earlier than the floor (the picker's min stops the calendar,
+// this stops a typed date)
+export function fromDay(v: string, floor: string): string {
+  return v && v < floor ? floor : v
+}
 export function dayLabel(d: Date): string {
   return `${MON[d.getMonth()]} ${d.getDate()}`
 }

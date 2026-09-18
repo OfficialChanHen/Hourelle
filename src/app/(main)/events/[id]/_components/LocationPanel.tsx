@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import { gsap } from 'gsap'
 import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, SlidersHorizontal, Info, ExternalLink } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
-import { patchEvent, fmtMinute, fmtMinuteDay, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
+import { fromDay, todayKey, patchEvent, fmtMinute, fmtMinuteDay, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
 import { hintDismissed as isHintDismissed, dismissHint as markHintDismissed } from '@/lib/prefs'
 import { fmtDuration, MODE_LABEL, ALL_MODES, type TravelMode, type ModeEstimate } from '@/lib/travel'
 import { computeItinerary, legKm } from '@/lib/itinerary'
@@ -164,7 +164,8 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
     setPlaces(next)
     persistLoc({ places: next })
   }
-  function changeDeadline(v: string) {
+  function changeDeadline(raw: string) {
+    const v = fromDay(raw, todayKey()) // a closing day already gone would freeze the vote at once
     setVoteDeadline(v)
     persist({ voteDeadline: v || undefined })
   }
@@ -617,6 +618,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                         <input
                           type="date"
                           value={voteDeadline}
+                          min={todayKey()}
                           onChange={(e) => changeDeadline(e.target.value)}
                           className="h-8 min-w-0 flex-1 rounded-[8px] border border-border bg-s1 px-2 text-[13px] outline-none focus:border-accent-border"
                           aria-label="Voting deadline"

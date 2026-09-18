@@ -15,7 +15,7 @@ import { Cover } from '@/components/ui/Cover'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Tip } from '@/components/ui/Tip'
 import { LifecycleStrip, PHASE_BADGE, PHASE_TINT } from '@/components/ui/LifecycleStrip'
-import {
+import { fromDay,
   createEvent, eventTabFor, listEvents, phaseOf, daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, sameDayLabelFor,
   type AppEvent, type Phase, type SameDayInfo,
 } from '@/lib/events'
@@ -151,6 +151,7 @@ function QuickCreate() {
   const [title, setTitle] = useState('')
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
+  const [today, setToday] = useState('')
   const [need, setNeed] = useState(false)
   // dates fill after mount: the server doesn't know the visitor's today.
   // The coming week is the default window (same as the wizard) — a scheduling poll
@@ -160,6 +161,7 @@ function QuickCreate() {
     const d = new Date()
     const week = new Date(d)
     week.setDate(week.getDate() + 6)
+    setToday(iso(d))
     setStart(iso(d))
     setEnd(iso(week))
   }, [])
@@ -178,8 +180,8 @@ function QuickCreate() {
       locMode: 'later', planMode: 'vote', picked: [], platform: 'Google Meet', meetingLink: '',
       emails: [], accounts: [],
     })
-    // every new event ends on the same created page, share link front and center
-    router.push(`/create?created=${ev.id}`)
+    // quick means quick: straight to the event, where the share link waits in the header
+    router.push(`/events/${ev.id}`)
   }
   const dateCls = 'h-11 sm:h-10 rounded-[10px] border border-border bg-s2 px-2.5 text-[13.5px] outline-none focus:border-accent-border'
   return (
@@ -193,10 +195,10 @@ function QuickCreate() {
           className={`h-11 sm:h-10 min-w-[200px] flex-1 rounded-[10px] border ${need ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[14.5px] outline-none placeholder:text-faint focus:border-accent-border`}
         />
         <div className="flex flex-none items-center gap-2">
-          <input type="date" value={start} aria-label="Earliest day" className={dateCls}
-            onChange={(e) => { setStart(e.target.value); if (end < e.target.value) setEnd(e.target.value) }} />
+          <input type="date" value={start} min={today || undefined} aria-label="Earliest day" className={dateCls}
+            onChange={(e) => { const v = fromDay(e.target.value, today); setStart(v); if (end < v) setEnd(v) }} />
           <span className="text-faint">→</span>
-          <input type="date" value={end} min={start} aria-label="Latest day" className={dateCls} onChange={(e) => setEnd(e.target.value)} />
+          <input type="date" value={end} min={start || undefined} aria-label="Latest day" className={dateCls} onChange={(e) => setEnd(fromDay(e.target.value, start))} />
         </div>
         <button onClick={go} className="flex h-11 sm:h-10 flex-none items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent">
           <CalendarPlus size={16} /> Create

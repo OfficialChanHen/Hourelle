@@ -22,7 +22,7 @@ import { BackLink } from '@/components/ui/BackLink'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
-import { getEvent, deleteEvent, leaveEvent, patchEvent, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
+import { fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -839,6 +839,10 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
   const [excluded, setExcluded] = useState(() => deriveExclusions(event))
   const durations = DURATIONS.some(([m]) => m === dur) ? DURATIONS : [...DURATIONS, [dur, `${dur} minutes`] as [number, string]]
   const inputCls = 'h-9 rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-border2'
+  // a day already gone can't be polled: new picks floor at today (an older start the
+  // event already has stays as it is until the host moves it)
+  const today = todayKey()
+  const endFloor = start < today ? today : start
 
   const endEff = end < start ? start : end
   const selKeys = selectedDayKeys(start, endEff, excluded.dows, excluded.days)
@@ -867,11 +871,11 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <input
-          type="date" value={start} className={inputCls}
-          onChange={(ev) => { setStart(ev.target.value); if (end < ev.target.value) setEnd(ev.target.value) }}
+          type="date" value={start} min={today} className={inputCls}
+          onChange={(ev) => { const v = fromDay(ev.target.value, today); setStart(v); if (end < v) setEnd(v) }}
         />
         <span className="text-[13px] text-dim">to</span>
-        <input type="date" value={end} min={start} onChange={(ev) => setEnd(ev.target.value)} className={inputCls} />
+        <input type="date" value={end} min={endFloor} onChange={(ev) => setEnd(fromDay(ev.target.value, endFloor))} className={inputCls} />
       </div>
       <DaysPicker
         startDate={start}
@@ -907,6 +911,7 @@ function FixedWhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch:
   const [startMin, setStartMin] = useState(c.startMin)
   const [endMin, setEndMin] = useState(c.endMin)
   const inputCls = 'h-9 rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-border2'
+  const today = todayKey()
   const changed = day !== c.dayKey || startMin !== c.startMin || endMin !== c.endMin
 
   function changeStart(v: number) {
@@ -935,7 +940,7 @@ function FixedWhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch:
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <input type="date" value={day} onChange={(ev) => setDay(ev.target.value)} className={inputCls} />
+        <input type="date" value={day} min={today} onChange={(ev) => setDay(fromDay(ev.target.value, today))} className={inputCls} />
         <TimeSelect value={startMin} onChange={changeStart} step={15} />
         <span className="text-[13px] text-dim">to</span>
         <TimeSelect value={endMin} onChange={setEndMin} min={startMin + 15} step={15} />

@@ -108,6 +108,26 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readO
     }
   })
 
+  // a phone keyboard shrinks the visual viewport, not the layout one: the browser then
+  // scrolls the fixed layer up to reach the composer and the page shows beneath the
+  // sheet. Pinning the dialog to the visual viewport keeps the sheet on the keyboard
+  // and the backdrop over everything else.
+  useEffect(() => {
+    const vv = window.visualViewport
+    const el = root.current
+    if (!vv || !el) return
+    const fit = () => {
+      const keyboard = window.innerHeight - vv.height > 80
+      el.style.top = keyboard ? `${vv.offsetTop}px` : ''
+      el.style.height = keyboard ? `${vv.height}px` : ''
+      el.style.bottom = keyboard ? 'auto' : ''
+    }
+    fit()
+    vv.addEventListener('resize', fit)
+    vv.addEventListener('scroll', fit)
+    return () => { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit) }
+  }, [])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
     window.addEventListener('keydown', onKey)
@@ -131,7 +151,7 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readO
       {/* mobile: full-height bottom sheet, dismissable by dragging the grab bar */}
       <div
         ref={sheet}
-        className="cd-sheet absolute inset-x-0 bottom-0 flex h-[88dvh] flex-col overflow-hidden rounded-t-2xl border-t border-border bg-s0 shadow-soft lg:hidden"
+        className="cd-sheet absolute inset-x-0 bottom-0 flex h-[88dvh] max-h-full flex-col overflow-hidden rounded-t-2xl border-t border-border bg-s0 shadow-soft lg:hidden"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div

@@ -370,6 +370,7 @@ export function cloudSynced(): boolean {
 
 export async function syncFromCloud(): Promise<void> {
   if (!backendOn) return
+  lastPull = Date.now()
   const acc = currentAccount()
   const guestIds = guestSessionEventIds()
   type Row = { id: string; data: AppEvent }
@@ -425,6 +426,36 @@ export async function syncFromCloud(): Promise<void> {
     for (const m of e.messages) pushMessage(e.id, { ...m, mid: m.mid ?? crypto.randomUUID() })
     // an event that has only ever lived here has answers only in its document
     pushAnswers({ ...e, availIv: {}, votes: {}, unavailableIds: [] }, e)
+  }
+}
+
+/* ── catching up after a gap ──
+   The channel below carries a change only while the socket is up, and nothing
+   replays what was missed: a phone that was locked, a laptop that slept, a tab that
+   lost the network comes back with a live socket and a stale cache, and the other
+   device's edits show only after a reload. So the pull runs again whenever this
+   browser comes back into view, back online, or the channel reconnects after a
+   drop. The tab-focus bounce is common, so a fresh pull is skipped for a while. */
+let lastPull = 0
+let socketDown = false
+const RETURN_GAP_MS = 8_000
+function pullAgain(minGapMs: number): void {
+  if (!backendOn || Date.now() - lastPull < minGapMs) return
+  void syncFromCloud()
+}
+export function resyncOnReturn(): () => void {
+  if (!backendOn) return () => {}
+  const onVisible = () => { if (document.visibilityState === 'visible') pullAgain(RETURN_GAP_MS) }
+  const onOnline = () => pullAgain(0)
+  // a page restored from the back-forward cache is the same as one that was hidden
+  const onShow = (e: PageTransitionEvent) => { if (e.persisted) pullAgain(0) }
+  document.addEventListener('visibilitychange', onVisible)
+  window.addEventListener('online', onOnline)
+  window.addEventListener('pageshow', onShow)
+  return () => {
+    document.removeEventListener('visibilitychange', onVisible)
+    window.removeEventListener('online', onOnline)
+    window.removeEventListener('pageshow', onShow)
   }
 }
 
@@ -485,7 +516,12 @@ export function startRealtime(): () => void {
       const id = (payload.new as { event_id?: string }).event_id ?? (payload.old as { event_id?: string }).event_id
       if (id) refreshAnswers(id)
     })
-    .subscribe()
+    // the socket coming back is the moment the cache may have fallen behind
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        if (socketDown) { socketDown = false; pullAgain(0) }
+      } else socketDown = true // TIMED_OUT, CHANNEL_ERROR or CLOSED: the next join catches up
+    })
   return () => { void supabase!.removeChannel(channel) }
 }
 

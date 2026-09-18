@@ -129,6 +129,9 @@ const WIZ_TEMPLATES: { key: string; label: string; icon: LucideIcon; chip: Perso
 export default function CreatePage({ searchParams }: { searchParams: Promise<{ template?: string; from?: string; created?: string }> }) {
   const { template, from, created: createdParam } = use(searchParams)
   const [created, setCreated] = useState<AppEvent | null>(null)
+  // a ?created= link resolves after mount; until then nothing is drawn, so the empty
+  // wizard never flashes before the event's own screen
+  const [resolving, setResolving] = useState(!!createdParam)
   const [tpl, setTpl] = useState<string | null>(template && TEMPLATE_PRESETS[template] ? template : null)
   const [form, setForm] = useState<Form>(() => ({ ...initialForm, ...(template ? TEMPLATE_PRESETS[template] : undefined) }))
   const [attempted, setAttempted] = useState(false)
@@ -145,6 +148,7 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
     if (!createdParam) return
     const ev = getEvent(createdParam)
     if (ev) setCreated(ev)
+    setResolving(false)
   }, [createdParam])
 
   // reuse a past event (/create?from=…): its structure seeds the form, dates and
@@ -197,6 +201,7 @@ export default function CreatePage({ searchParams }: { searchParams: Promise<{ t
   useGSAP(() => { gsap.fromTo(panel.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out' }) }, [])
 
   if (created) return <Created event={created} />
+  if (resolving) return <div className="mx-auto max-w-[560px] px-[26px] pt-[72px]"><div className="mx-auto h-8 w-56 animate-pulse rounded-lg bg-s2" /></div>
 
   // ── required-field validation ──
   // "now" is read in the zone the event runs in, not the browser's: a day that has

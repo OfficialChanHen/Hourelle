@@ -55,6 +55,21 @@ export function Popover({
       el.style.left = `${el.offsetLeft + dx}px`
       el.style.right = 'auto'
     }
+    // opens upward when the trigger sits near the bottom of the screen, where a
+    // downward panel would run under the phone's tab bar and chat button (below lg
+    // they own the last 84px). Imperative like the nudge: the panel is born fresh
+    // on every open, so there is nothing to reset.
+    const reserve = window.innerWidth < 1024 ? 84 : pad
+    const trigger = wrap.current?.getBoundingClientRect()
+    const spaceAbove = trigger ? trigger.top - pad : 0
+    const spaceBelow = window.innerHeight - reserve - (trigger?.bottom ?? r.top)
+    if (r.bottom > window.innerHeight - reserve && spaceAbove > Math.min(r.height, spaceBelow)) {
+      el.style.top = 'auto'
+      el.style.bottom = '100%'
+      el.style.marginTop = '0'
+      el.style.marginBottom = '6px'
+      el.style.transformOrigin = `bottom ${align === 'end' ? 'right' : 'left'}`
+    }
   }, [open, align])
 
   // the entrance: a breath of scale and lift from the trigger's corner — enough to
@@ -74,7 +89,7 @@ export function Popover({
       {open && (
         <div
           ref={panel}
-          className={`absolute top-full z-30 mt-1.5 max-w-[calc(100vw-16px)] rounded-[14px] border border-border bg-s1 p-1.5 shadow-soft ${align === 'end' ? 'right-0' : 'left-0'}`}
+          className={`absolute top-full z-[45] mt-1.5 max-w-[calc(100vw-16px)] rounded-[14px] border border-border bg-s1 p-1.5 shadow-soft ${align === 'end' ? 'right-0' : 'left-0'}`}
           style={{ width, transformOrigin: align === 'end' ? 'top right' : 'top left' }}
         >
           {children(() => setOpen(false))}

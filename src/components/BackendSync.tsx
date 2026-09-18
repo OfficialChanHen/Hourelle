@@ -6,7 +6,7 @@
 // configured both calls are no-ops and this component does nothing at all.
 
 import { useEffect } from 'react'
-import { EVENTS_SYNCED, forgetCloudEvents, startRealtime, syncFromCloud } from '@/lib/remote'
+import { EVENTS_SYNCED, forgetCloudEvents, resyncOnReturn, startRealtime, syncFromCloud } from '@/lib/remote'
 import { ACCOUNT_CHANGED, currentAccount, startAuth } from '@/lib/session'
 import { adoptMine } from '@/lib/events'
 import { SyncNotice } from './SyncNotice'
@@ -15,6 +15,9 @@ export function BackendSync() {
   useEffect(() => {
     void syncFromCloud()
     const stopRealtime = startRealtime()
+    // a device that was asleep or offline pulls again when it comes back, since the
+    // socket carries nothing from while it was down
+    const stopResync = resyncOnReturn()
     // one auth subscription for the visit: it fires on sign-in, sign-out, token
     // refresh, and once at startup with whatever session was restored from storage
     const stopAuth = startAuth()
@@ -34,7 +37,7 @@ export function BackendSync() {
     window.addEventListener(ACCOUNT_CHANGED, onAccount)
     window.addEventListener(EVENTS_SYNCED, onSynced)
     return () => {
-      stopRealtime(); stopAuth()
+      stopRealtime(); stopAuth(); stopResync()
       window.removeEventListener(ACCOUNT_CHANGED, onAccount)
       window.removeEventListener(EVENTS_SYNCED, onSynced)
     }
