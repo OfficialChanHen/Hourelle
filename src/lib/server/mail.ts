@@ -300,6 +300,18 @@ export function lockedMail(ev: AppEvent, p: Participant, to: string, site: strin
   return { to, subject: `${ev.title} is locked in${when ? `: ${when}` : ''}`, text, html, replyTo: hostEmail ?? undefined, fromName: `${host} via Hourelle`, attachments, thread: ev.id }
 }
 
+/* The account is gone, and this is the only trace: a note to the address it had, so
+   the real owner hears about it even if someone else pressed the button. */
+export function accountDeletedMail(to: string, name: string | null, site: string): Mail {
+  const first = (name ?? '').split(' ')[0] || 'there'
+  const lines = [
+    `Hi ${first}, the Hourelle account for ${to} was deleted just now, together with the events it hosted, its answers on other people’s events and its messages. Nothing about it is kept.`,
+    'If that was you, there is nothing more to do. If it was not, someone else had your login: they cannot get in again, and you can write to us from the Help page.',
+  ]
+  const cta = { label: 'Write to us', href: `${site}/help` }
+  return { to, subject: 'Your Hourelle account was deleted', text: [...lines, '', cta.href].join('\n'), html: shell({ title: 'Your account was deleted', lines, cta, preheader: lines[0] }), fromName: 'Hourelle' }
+}
+
 export function reminderMail(kind: MailKind, ev: AppEvent, p: Participant, to: string, site: string): Mail {
   const link = joinLink(site, ev, p), when = whenText(ev), place = placeText(ev)
   const soon = kind.endsWith('-day') ? 'today' : 'tomorrow'

@@ -39,7 +39,7 @@ function PrivacyBody() {
       <P>Your browser keeps a copy of the events you are part of so pages open at once, your log-in session, and a few preferences such as the theme and the clock style. A guest’s place on an event is remembered on that device. Clearing your browser’s site data removes all of it; a logged-in account gets its events back from the server on the next visit.</P>
 
       <H>How long we keep it</H>
-      <P>Events and everything in them stay until the host deletes the event. A record of each email we sent is kept so nothing is sent twice. Deleting your account from your profile removes your account, the events you host, your place and your answers on other people’s events and the messages you wrote. To ask for a copy of your data or for anything this page does not cover, write through the <A href="/help">Help page</A>.</P>
+      <P>Events and everything in them stay until the host deletes the event. A record of each email we sent is kept so nothing is sent twice. Deleting your account from your profile removes your account, the events you host, your place and your answers on other people’s events and the messages you wrote, straight away and for good; you confirm it with your password or by signing in once more, and a note goes to your email address to say it happened. To ask for a copy of your data or for anything this page does not cover, write through the <A href="/help">Help page</A>.</P>
 
       <H>Children</H>
       <P>Hourelle is not directed at children under 13, and we do not knowingly keep an account for one.</P>

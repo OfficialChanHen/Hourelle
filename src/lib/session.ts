@@ -395,7 +395,23 @@ export async function unlinkProvider(provider: OAuthProvider): Promise<string | 
 }
 export const unlinkGoogle = () => unlinkProvider('google')
 
-/* ── the end of an account ── */
+/* ── the end of an account ──
+   The server only deletes behind a sign-in from the last few minutes, so the profile
+   page asks the person to prove it is them first: their password, or the Google or
+   Microsoft door again. REAUTH_NEEDED is what comes back when that proof is missing. */
+export const REAUTH_NEEDED = 'reauth'
+export async function reauthWithPassword(password: string): Promise<string | null> {
+  if (!backendOn) return 'This needs a backend.'
+  const email = readCache().email
+  if (!email) return 'This account has no email to sign in with.'
+  const { error } = await supabase!.auth.signInWithPassword({ email, password })
+  return error ? 'That password is not right.' : null
+}
+export async function reauthWithProvider(provider: OAuthProvider, next: string): Promise<string | null> {
+  if (!backendOn) return 'This needs a backend.'
+  const { error } = await supabase!.auth.signInWithOAuth({ provider, options: { redirectTo: callbackUrl(next) } })
+  return error?.message ?? null
+}
 export async function deleteAccount(): Promise<string | null> {
   if (!backendOn) return 'Deleting an account needs a backend.'
   const { data } = await supabase!.auth.getSession()
@@ -403,7 +419,8 @@ export async function deleteAccount(): Promise<string | null> {
   if (!token) return 'Log in first.'
   try {
     const res = await fetch('/api/account/delete', { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
-    const body = (await res.json().catch(() => ({}))) as { error?: string }
+    const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string }
+    if (body.code === 'reauth') return REAUTH_NEEDED
     if (!res.ok) return body.error || `The server said no (${res.status}).`
   } catch {
     return 'Could not reach the server.'

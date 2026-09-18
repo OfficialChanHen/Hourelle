@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Check, ChevronRight, CircleHelp, Info, Loader2, LogIn, LogOut, Pencil, Settings, Trash2, X } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { useAccount } from '@/hooks/useAccount'
-import { deleteAccount, signOut, updateProfile } from '@/lib/session'
+import { deleteAccount, listIdentities, reauthWithPassword, reauthWithProvider, signOut, updateProfile, PROVIDER_LABEL, REAUTH_NEEDED, type Identity, type OAuthProvider } from '@/lib/session'
+import { PasswordField } from '@/components/ui/PasswordField'
 import { initialsOf, restampMe } from '@/lib/events'
 import { SignInMethods } from './_components/SignInMethods'
 import { personColors, type PersonColor } from '@/lib/colors'
@@ -56,17 +57,50 @@ export default function ProfilePage() {
   }
   function cancel() { setEditing(false); setName(account.name); setColor(account.color); setSaveErr(null) }
 
-  // the end of the account: a second step spells out what goes with it
+  // the end of the account: a second step spells out what goes with it, and asks the
+  // person to prove it is them right before, with their password or the provider they
+  // log in with. The server refuses without a sign-in from the last few minutes.
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteErr, setDeleteErr] = useState<string | null>(null)
+  const [identities, setIdentities] = useState<Identity[] | null>(null)
+  const [deletePw, setDeletePw] = useState('')
+  useEffect(() => {
+    if (!confirmDelete) return
+    void listIdentities().then(setIdentities)
+  }, [confirmDelete])
+  const hasPassword = !!identities?.some((i) => i.provider === 'email')
+  const doors = (identities ?? []).map((i) => i.provider).filter((p): p is OAuthProvider => p === 'google' || p === 'azure')
   async function destroy() {
     setDeleting(true); setDeleteErr(null)
     const err = await deleteAccount()
     setDeleting(false)
+    if (err === REAUTH_NEEDED) { setDeleteErr('That sign-in is too old to confirm it is you. Sign in again just below.'); return }
     if (err) { setDeleteErr(err); return }
     router.push('/')
   }
+  async function destroyWithPassword() {
+    setDeleting(true); setDeleteErr(null)
+    const err = await reauthWithPassword(deletePw)
+    if (err) { setDeleteErr(err); setDeleting(false); return }
+    await destroy()
+  }
+  async function destroyWithProvider(provider: OAuthProvider) {
+    setDeleting(true); setDeleteErr(null)
+    const err = await reauthWithProvider(provider, '/profile?confirmDelete=1')
+    if (err) { setDeleteErr(err); setDeleting(false) } // otherwise the browser is leaving for the provider
+  }
+  // back from the provider with a fresh sign-in: the deletion goes ahead at once
+  useEffect(() => {
+    if (!account.signedIn) return
+    const p = new URLSearchParams(window.location.search)
+    if (p.get('confirmDelete') !== '1') return
+    window.history.replaceState(null, '', window.location.pathname)
+    // a tick later, so the deletion's own state changes land after this render
+    const t = setTimeout(() => { setConfirmDelete(true); void destroy() }, 0)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account.signedIn])
 
   return (
     <div className="mx-auto max-w-[760px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
@@ -192,12 +226,34 @@ export default function ProfilePage() {
                 <p className="mt-1 text-[13px] leading-[1.55] text-dim">
                   The events you host are deleted for everyone in them. On events other people host, your name, your times and your votes are removed. Your chat messages go too. There is no way back.
                 </p>
+                {/* prove it is you: the password when the account has one, otherwise the
+                    provider you log in with, which comes straight back here and finishes */}
+                {identities === null ? (
+                  <p className="mt-3 text-[12.5px] text-faint">Checking how you log in…</p>
+                ) : hasPassword || doors.length === 0 ? (
+                  <div className="mt-3 max-w-[380px]">
+                    <PasswordField id="delete-password" label="Your password, to confirm it is you" value={deletePw} onChange={setDeletePw} autoComplete="current-password" />
+                  </div>
+                ) : (
+                  <div className="mt-3">
+                    <p className="text-[12.5px] text-dim">Sign in once more to confirm it is you. You come straight back here and the deletion goes ahead.</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {doors.map((d) => (
+                        <button key={d} onClick={() => void destroyWithProvider(d)} disabled={deleting} className="flex h-10 items-center gap-1.5 rounded-[10px] bg-brick px-4 text-[14px] font-semibold text-on-accent disabled:opacity-60">
+                          {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />} Confirm with {PROVIDER_LABEL[d]} and delete
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {deleteErr && <p role="alert" className="mt-2 text-[12.5px] font-medium text-brick-text">{deleteErr} If it keeps failing, write to us from the Help page and we will do it by hand.</p>}
                 <div className="mt-3 flex items-center gap-2">
-                  <button onClick={() => void destroy()} disabled={deleting} className="flex h-10 items-center gap-1.5 rounded-[10px] bg-brick px-4 text-[14px] font-semibold text-on-accent disabled:opacity-60">
-                    {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />} Delete my account
-                  </button>
-                  <button onClick={() => { setConfirmDelete(false); setDeleteErr(null) }} disabled={deleting} className="flex h-10 items-center rounded-[10px] border border-border2 px-4 text-[14px] font-semibold text-dim hover:bg-s2">Keep it</button>
+                  {identities !== null && (hasPassword || doors.length === 0) && (
+                    <button onClick={() => void destroyWithPassword()} disabled={deleting || !deletePw} className="flex h-10 items-center gap-1.5 rounded-[10px] bg-brick px-4 text-[14px] font-semibold text-on-accent disabled:opacity-60">
+                      {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />} Delete my account
+                    </button>
+                  )}
+                  <button onClick={() => { setConfirmDelete(false); setDeleteErr(null); setDeletePw('') }} disabled={deleting} className="flex h-10 items-center rounded-[10px] border border-border2 px-4 text-[14px] font-semibold text-dim hover:bg-s2">Keep it</button>
                 </div>
               </div>
             )}

@@ -7,12 +7,21 @@
 import { NextResponse } from 'next/server'
 import type { AppEvent } from '@/lib/events'
 import { hasServiceKey, serverDb, userFromRequest } from '@/lib/server/db'
+import { accountDeletedMail, mailConfigured, sendMail, siteUrl } from '@/lib/server/mail'
+
+// how recent the sign-in behind the request has to be. A lifted session is not
+// enough to delete an account: the person proves it is them right before.
+const FRESH_MS = 10 * 60_000
 
 export const runtime = 'nodejs'
 
 export async function POST(req: Request) {
   const user = await userFromRequest(req)
   if (!user) return NextResponse.json({ error: 'Log in first.' }, { status: 401 })
+  const signedInAt = user.lastSignInAt ? Date.parse(user.lastSignInAt) : 0
+  if (!signedInAt || Date.now() - signedInAt > FRESH_MS) {
+    return NextResponse.json({ error: 'Sign in again to confirm it is you.', code: 'reauth' }, { status: 403 })
+  }
   if (!hasServiceKey) return NextResponse.json({ error: 'Deleting accounts is not switched on for this server yet.' }, { status: 503 })
   const db = serverDb()
   if (!db) return NextResponse.json({ error: 'No database is configured.' }, { status: 503 })
@@ -40,8 +49,16 @@ export async function POST(req: Request) {
     if (!e2) left++
   }
 
-  // 3. what they said in chat, and 4. the account (its profile cascades)
+  // 3. what they said in chat
   await db.from('messages').delete().eq('participant_id', uid)
+  // the notice goes to the address on file while it still exists; a failed send never
+  // stops the deletion, since the person asked for it and proved who they are
+  if (mailConfigured && user.email) {
+    const { data: prof } = await db.from('profiles').select('name').eq('id', uid).maybeSingle()
+    const err = await sendMail(accountDeletedMail(user.email, (prof as { name?: string } | null)?.name ?? null, siteUrl(req)))
+    if (err) console.warn('account deleted, notice not sent —', err)
+  }
+  // 4. the account (its profile cascades)
   const { error: e3 } = await db.auth.admin.deleteUser(uid)
   if (e3) return NextResponse.json({ error: e3.message }, { status: 500 })
 
