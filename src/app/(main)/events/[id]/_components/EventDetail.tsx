@@ -1,5 +1,24 @@
 'use client'
 
+
+/* ── the event page ──
+   One screen for the whole plan, and the only place the four panels are mounted.
+   It owns three things and delegates the rest:
+
+   1. WHO IS LOOKING. Storage holds one copy of the event; `viewOf` turns it into
+      this browser's view before anything renders, so a guest sees themselves as
+      "you" and loses host powers without storage ever being rewritten.
+   2. WHICH TAB. The tab lives in the address bar (`?tab=`) so a reload or a pasted
+      URL comes back where you were, and the panels below jump between each other
+      through the small `goTo…` helpers rather than by reaching across.
+   3. STAYING CURRENT. `useLiveEvents` re-reads on every cloud change, so somebody
+      else's vote, message or marked time appears without a reload. `patchLive`
+      persists a field and updates the in-memory copy in one move, so the header
+      and an open dropdown never disagree with what was just saved.
+
+   The panels keep their own in-progress edits in local state, which is what lets a
+   message arriving mid-drag change the page around you rather than under you. */
+
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'

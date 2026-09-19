@@ -1,5 +1,18 @@
 'use client'
 
+
+/* ── settings: the device, and the account ──
+   Two kinds of setting share this page, and the difference matters.
+
+   Device settings (clock style, sounds, which days the grid opens on, the
+   appearance) live in localStorage and work with no backend at all. They are read
+   after mount, so the server render never disagrees with this particular browser.
+
+   Account settings (which reminder emails you want) live on the profile row,
+   because the reminder job runs on a server with no browser session and has to be
+   able to read them. The device copy is kept in step so the switches still show the
+   right state offline. */
+
 import { useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
@@ -23,7 +36,6 @@ const Eyebrow = ({ children }: { children: React.ReactNode }) => (
   <p className="mb-2 mt-7 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{children}</p>
 )
 
-// the plain two-state switch every settings page speaks
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme()
   // read after mount so the server render never disagrees with this device

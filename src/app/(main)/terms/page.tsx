@@ -1,3 +1,7 @@
+// The terms, on their own page. Same shape as the privacy page on purpose: one
+// document source, one renderer, two entrances (here, and the sheet shown before
+// an account is created).
+
 import { BackLink } from '@/components/ui/BackLink'
 import { LegalDocument } from '@/components/ui/LegalDocument'
 import { LEGAL, LEGAL_EFFECTIVE } from '@/content/legal'

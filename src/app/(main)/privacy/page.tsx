@@ -1,3 +1,8 @@
+// The privacy policy, on its own page. The document itself lives in content/legal
+// and is rendered by LegalDocument, so this page and the sheet shown before sign-up
+// can never drift apart. Reachable without an account, which is why the back link
+// only appears for someone who has one.
+
 import { BackLink } from '@/components/ui/BackLink'
 import { LegalDocument } from '@/components/ui/LegalDocument'
 import { LEGAL, LEGAL_EFFECTIVE } from '@/content/legal'

@@ -1,5 +1,22 @@
 'use client'
 
+
+/* ── home: what is next, and what you can do about it ──
+   Three bands, in the order a host actually needs them:
+     Up next     the closest locked-in plans, as a swipeable spotlight. With nothing
+                 locked in, the newest plan being made stands in so it is never empty.
+     Your events the ones you host
+     You're invited  the ones you were asked to
+
+   Hero events keep their card in the bands below. The spotlight is a shortcut, not
+   a filing cabinet, and an invitation should always be findable where invitations
+   live.
+
+   Anything the server cannot know — the greeting, today's date, which events this
+   browser holds — is filled in after mount, so the server-rendered HTML never
+   disagrees with a visitor in another timezone. `useLiveEvents` re-reads the list
+   whenever the cloud changes something. */
+
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'

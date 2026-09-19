@@ -1,6 +1,11 @@
 import Link from 'next/link'
 import { Plus, type LucideIcon } from 'lucide-react'
 
+/* Nothing here yet, said the same way everywhere. A dashed box rather than a solid
+   card, because the shape should read as a gap waiting to be filled rather than as
+   content. Always offer a way out: `action` is the thing to do, `secondary` is the
+   quieter alternative (usually the demo shelf, for someone with nothing of their
+   own yet). `compact` is for an empty section inside a fuller page. */
 export function EmptyState({
   icon: Icon,
   title,

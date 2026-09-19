@@ -1,5 +1,26 @@
 'use client'
 
+/* ── the create wizard ──
+   One card, not a series of steps. Only four things are actually required — a name,
+   the days to ask about, a time zone, and (for a fixed date) the hours — and they
+   sit in the open at the top. Everything else lives in a drawer you open if you
+   want it: description, cover, place, people, money.
+
+   THE SHAPE OF A PLAN. Two questions decide what gets built: is the time already
+   set, and is the place. "Find a time" builds a poll; "the date is set" builds an
+   event that is born with its slot as a fact. Combined with the place question,
+   that gives the four planning shapes documented in docs/planning-shapes.md, and
+   `createEvent` turns this form into whichever one was described.
+
+   VALIDATION READS THE EVENT'S CLOCK, NOT THE BROWSER'S. A day that has already
+   ended in the event's time zone, or a window that has already passed there, cannot
+   be planned, and the messages say which zone they mean.
+
+   THREE WAYS IN. Blank; from a template (`?template=`), which seeds structure but
+   never dates; or from an existing event (`?from=`), which carries everything but
+   the answers and moves the dates to the next week that fits. All three arrive as
+   search params, which this page has to read the careful way (see CreatePage). */
+
 import { Suspense, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { pushFlash } from '@/components/ui/FlashToast'

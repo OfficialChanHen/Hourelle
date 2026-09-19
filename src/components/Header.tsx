@@ -1,5 +1,17 @@
 'use client'
 
+
+/* ── the app header ──
+   One component, four headers, chosen by who is looking:
+     visitor        the landing page's header, so the two can never drift apart
+     welcome steps  the name and the mark alone, since there is nowhere to go yet
+     guest          the logo, the theme, and the one action their event is asking for
+     account        the full bar: tabs, New event, alerts and the avatar menu
+
+   On phones the bar rolls away as you read and comes back when you scroll up;
+   desktop keeps it planted. Nothing account-shaped renders until `ready`, because
+   the server cannot know which of the four this is. */
+
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRouter } from 'next/navigation'

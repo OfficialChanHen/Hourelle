@@ -1,5 +1,40 @@
 'use client'
 
+/* ── the Availability tab: the grid ──
+   The biggest single surface in the app, and the one everybody touches. It draws
+   one column per day and one row per time slot, and does three separate jobs at
+   once, which is why it is this size.
+
+   1. SHOWING THE ROOM. Every answer is read as minute intervals, and a cell is
+      painted from the bands inside it (see grid-lib's cellBands), so a block that
+      ends at 8:20 draws a partly filled cell rather than a whole one. The heat
+      ramp, the "best window" frame and the per-cell breakdown all read the same
+      intervals, so nothing on screen can disagree with anything else.
+
+   2. TAKING YOUR ANSWER. "Edit mine" turns the grid into a canvas. A sweep paints
+      every cell it crosses to the state decided by the first one, so dragging back
+      over the sweep takes it back; the path between two pointer samples is walked
+      in half-cell steps, so a fast flick never skips a row. Afterwards the block's
+      edges can be dragged, or nudged by the minute. On a touchscreen the gesture
+      starts with a short hold, which is what separates painting from scrolling.
+      A sweep repaints on every move but SAVES ONCE, at the end.
+
+   3. STAYING CURRENT WITHOUT FIGHTING YOU. `mine` is local while you edit and
+      follows the event's copy otherwise, so someone else's answer landing over the
+      websocket updates the grid around you rather than under you. A write of this
+      panel's own comes back as an echo moments later; `wroteRef` remembers recent
+      signatures so an echo is recognised and ignored, and they expire so a genuine
+      later correction is never mistaken for one.
+
+   Two shapes share all of this. A time grid is what the above describes; a DAY POLL
+   (granularity 'day') asks which whole days work instead, and renders through
+   DayCalendar with everything minute-shaped hidden.
+
+   Scale is a standing constraint. Rows are virtualized, weeks are paged rather than
+   rendered all at once, per-day aggregates are computed once per render rather than
+   per cell, and the avatars in a cell cap hard (none at all on a phone, where the
+   count carries it). Nothing here is allowed to cost cells x people. */
+
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'

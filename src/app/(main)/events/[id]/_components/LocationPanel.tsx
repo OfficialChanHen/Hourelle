@@ -1,5 +1,28 @@
 'use client'
 
+
+/* ── the Location tab: where the plan happens ──
+   One tab, four answers to the same question, chosen by `location.mode`:
+     vote    a live ballot on places people suggest
+     set     a venue the host stated as fact, no voting
+     remote  an online call, a platform and a link
+     later   nothing decided yet (opens as In person so the host can start)
+   Each mode keeps its own data, so switching away and back never destroys the
+   other one's work.
+
+   In-person events also choose a PLAN MODE: a single venue chosen by ballot, or an
+   itinerary, which is an ordered list of stops with dwell times. Timing for the
+   itinerary is not computed here — `lib/itinerary` owns it, and the Attendance tab
+   runs the same function, which is what keeps the two tabs' clocks identical.
+   Real road distance and driving minutes come from OSRM through `useRoute`; when
+   the router is unavailable the straight-line model fills in.
+
+   Editing rights are narrow and explicit: the host may always edit, guests may add
+   places only when the host has opened suggestions, and everything freezes once the
+   plan is locked in or the voting deadline passes. Like the other panels, edits go
+   to local state first (so the demos work in memory) and are persisted for real
+   events through `persist`. */
+
 import { Fragment, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { gsap } from 'gsap'

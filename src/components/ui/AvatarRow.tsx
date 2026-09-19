@@ -1,7 +1,12 @@
 import { Avatar } from './Avatar'
 import type { Avatar as Person } from '@/lib/people'
 
-// Overlapping avatar pile — matches the reference (2px surface ring, -Npx overlap, +N chip)
+/* A pile of faces, overlapping, capped. The cap is the point: a guest list is
+   allowed to be long, and a row that grows with it would break the card it sits in
+   and cost a DOM node per person. Past `max`, the rest become one "+N" chip.
+
+   `ringColor` has to match the surface behind the pile (the page, a card, a hero),
+   because the ring is what cuts each face out of the one beneath it. */
 export function AvatarRow({
   people,
   size = 21,

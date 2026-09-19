@@ -1,6 +1,6 @@
 # The four planning shapes — and the demo for each
 
-Every Aline event answers two independent questions: **when** and **where**. Each question
+Every Hourelle event answers two independent questions: **when** and **where**. Each question
 arrives either open (find a time together / vote on a place) or already answered (the date
 is set / the place is chosen). That gives four shapes, and the built-in demos cover one each.
 

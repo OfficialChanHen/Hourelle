@@ -1,6 +1,12 @@
 import type { PersonColor } from './colors'
 
-// The full cast from the reference, keyed by initials.
+/* The cast the built-in demos are played by, keyed by initials. Demo events are
+   fixtures, so their people are fixtures too: fixed names and fixed colours, so a
+   demo reads identically on every load and in every screenshot.
+
+   Real events never come through here. A real participant carries their own name
+   and is dealt a colour by `pickColor`, which keeps people on the same event
+   visually apart. */
 export const people: Record<string, { name: string; color: PersonColor }> = {
   JM: { name: 'Jordan M', color: 'purple' },
   SR: { name: 'Sarah R', color: 'teal' },

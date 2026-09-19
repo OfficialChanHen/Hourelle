@@ -1,5 +1,25 @@
 'use client'
 
+
+/* ── the Attendance tab: who is actually coming, and when ──
+   Two models behind one toggle, because a day out and a day in a room are different
+   questions:
+     single  one venue. Who is in the room, and for how much of it.
+     itin    a route. Where the headcount peaks and dips across the stops.
+
+   Everything is read against a WINDOW: the locked-in slot once the host has
+   confirmed, and the best free window while the plan is still open. `coverOf` sorts
+   each person into full, partial, none or nodata against that window, and every
+   count, bar and group on the tab is built from those four.
+
+   The tab is built to summarise rather than enumerate, because the guest list is
+   allowed to be long: people are shown as groups and counts, individual rows are
+   reserved for the exceptions, and avatar piles cap with a "+N". Nothing here
+   renders a row per person per stop.
+
+   Only the RSVP, the quorum and the itinerary's own settings are editable, and as
+   on the other tabs those go to local state first so the demos work in memory. */
+
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, TriangleAlert, Users } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'

@@ -1,5 +1,15 @@
 import type { LucideIcon } from 'lucide-react'
 
+/* The one badge. Soft fill, matching text, hairline border, all from the role's own
+   tokens, so light and dark and every appearance follow without a second thought.
+
+   The variant is a MEANING, not a colour. Pick it by what the badge is saying and
+   the palette takes care of itself:
+     teal     confirmed, going, full attendance
+     ochre    planning, partial, caution, arriving late
+     brick    absent, conflict, declined, danger
+     accent   selected, interactive, a date that is close
+     neutral  a state with no weight to it */
 type Variant = 'teal' | 'ochre' | 'brick' | 'accent' | 'neutral'
 
 const variants: Record<Variant, string> = {

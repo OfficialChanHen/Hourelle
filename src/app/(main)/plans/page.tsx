@@ -1,3 +1,7 @@
+// The public price list. Free is the whole product; Plus is a thank-you with a few
+// extras, and is shown as coming soon. The same two cards appear on the welcome
+// steps and in the Plan section of Settings, so they live in one component.
+
 import { BackLink } from '@/components/ui/BackLink'
 import { PlanCards } from '@/components/PlanCards'
 
