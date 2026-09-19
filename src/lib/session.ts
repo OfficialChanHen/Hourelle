@@ -436,6 +436,10 @@ export async function deleteAccount(): Promise<string | null> {
     const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string }
     if (body.code === 'reauth') return REAUTH_NEEDED
     if (!res.ok) return body.error || `The server said no (${res.status}).`
+    // the account is gone on the server; the browser lets go of its session too, so
+    // what follows is the front door, not a page acting for an account that no longer exists
+    await supabase!.auth.signOut({ scope: 'local' }).catch(() => {})
+    authGen++; writeCache(STUB)
   } catch {
     return 'Could not reach the server.'
   }

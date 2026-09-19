@@ -38,9 +38,12 @@ export default function AuthCallbackPage() {
         const { data } = await supabase!.auth.getSession()
         if (data.session) {
           const uid = data.session.user.id
+          // a return that is finishing a deletion goes straight there: nothing to welcome
+          // an account that is about to end, and the terms step must not stand in the way
+          const deleting = next.includes('confirmDelete=1')
           // a Google or Microsoft account made through the log-in button never saw the
           // terms: the welcome steps open on them, and cannot be skipped past them
-          if (!(await legalAccepted(uid)) || (!wasWelcomed(uid) && (await isNewAccount(uid)))) { router.replace(`/welcome?next=${encodeURIComponent(next)}`); return }
+          if (!deleting && (!(await legalAccepted(uid)) || (!wasWelcomed(uid) && (await isNewAccount(uid))))) { router.replace(`/welcome?next=${encodeURIComponent(next)}`); return }
           router.replace(next); return
         }
         await new Promise((r) => setTimeout(r, 150))
