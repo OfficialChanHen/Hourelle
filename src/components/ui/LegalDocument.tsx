@@ -8,7 +8,8 @@ export function LegalDocument({ k, compact = false }: { k: LegalKey; compact?: b
   const minutes = readingMinutes(doc)
   return (
     <div className={compact ? 'text-[13.5px]' : 'text-[14.5px]'}>
-      <p className="text-[12.5px] text-faint">Effective {LEGAL_EFFECTIVE}. About {minutes} min to read.</p>
+      {/* the sheet's own header already carries the date and the reading time */}
+      {!compact && <p className="text-[12.5px] text-faint">Effective {LEGAL_EFFECTIVE}. About {minutes} min to read.</p>}
 
       {!compact && (
         <nav aria-label="Contents" className="mt-6">

@@ -109,7 +109,7 @@ function LegalSheet({ k, read, onRead, onClose }: { k: LegalKey; read: boolean; 
           <div className="min-w-0">
             <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{doc.eyebrow}</div>
             <div className="truncate font-serif text-[22px] leading-tight">{doc.title}</div>
-            <div className="mt-0.5 text-[12px] text-faint">Effective {LEGAL_EFFECTIVE}</div>
+            <div className="mt-0.5 text-[12px] text-faint">Effective {LEGAL_EFFECTIVE}. About {readingMinutes(doc)} min to read.</div>
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 flex-none place-items-center rounded-[9px] text-dim hover:bg-s2 hover:text-text"><X size={17} /></button>
         </div>
