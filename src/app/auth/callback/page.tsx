@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase, backendOn } from '@/lib/db'
 import { wasWelcomed } from '@/lib/plan'
+import { legalAccepted } from '@/lib/session'
 
 // an account made moments ago through Google or Microsoft has not seen the welcome
 // steps; one made earlier has. The profile's creation time tells them apart.
@@ -36,7 +37,10 @@ export default function AuthCallbackPage() {
       for (let i = 0; i < 20 && !done; i++) {
         const { data } = await supabase!.auth.getSession()
         if (data.session) {
-          if (!wasWelcomed() && (await isNewAccount(data.session.user.id))) { router.replace(`/welcome?next=${encodeURIComponent(next)}`); return }
+          const uid = data.session.user.id
+          // a Google or Microsoft account made through the log-in button never saw the
+          // terms: the welcome steps open on them, and cannot be skipped past them
+          if (!(await legalAccepted(uid)) || (!wasWelcomed(uid) && (await isNewAccount(uid)))) { router.replace(`/welcome?next=${encodeURIComponent(next)}`); return }
           router.replace(next); return
         }
         await new Promise((r) => setTimeout(r, 150))

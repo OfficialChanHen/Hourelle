@@ -23,13 +23,14 @@ export function MobileTabBar() {
   const pathname = usePathname()
   const notifCount = useNotificationCount()
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
+  const welcome = pathname.startsWith('/welcome')
   const { ready, guestEventId, visitor } = useAccess()
   // two items, the raised create FAB, then two more
   const [left, right] = [ITEMS.slice(0, 2), ITEMS.slice(2)]
 
   // a visitor's bar: the demos and the door in — and nothing at all until the
   // browser knows who this is
-  if (!ready) return null
+  if (!ready || welcome) return null
   if (visitor) {
     return (
       <nav

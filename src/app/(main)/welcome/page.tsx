@@ -9,16 +9,19 @@ import { Switch } from '@/components/ui/Switch'
 import { PlanCards } from '@/components/PlanCards'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { useAccount } from '@/hooks/useAccount'
-import { updateProfile } from '@/lib/session'
+import { legalAccepted, recordLegalAcceptance, updateProfile } from '@/lib/session'
+import { LegalGate } from '@/components/LegalGate'
+import { LEGAL_VERSION } from '@/content/legal'
 import { restampMe } from '@/lib/events'
 import { loadReminderPrefs, saveReminderPrefs } from '@/lib/mail'
 import { prefNotify, setPrefNotify, NOTIFY_DEFAULTS, type NotifyPrefs } from '@/lib/prefs'
 import { markWelcomed } from '@/lib/plan'
 
-/* The two steps after an account is made: the settings almost everyone touches
-   first, with a small preview, then the plans side by side. Both can be changed
-   later in Settings; this is only the first pass. The page is prerendered, so the
-   address is read with the hook inside a Suspense boundary. */
+/* The steps after an account is made: the terms first, only when the account never
+   accepted them (a Google or Microsoft account made through the log-in button), then
+   the settings almost everyone touches first, with a small preview, then the plans
+   side by side. Settings and plan can be changed later; the terms cannot be skipped.
+   The page is prerendered, so the address is read with the hook inside Suspense. */
 export default function WelcomePage() {
   return (
     <Suspense fallback={null}>
@@ -34,7 +37,25 @@ function Welcome() {
   const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/home'
   const account = useAccount()
   const { theme, setTheme, resolvedTheme } = useTheme()
-  const [step, setStep] = useState<1 | 2>(1)
+  type Step = 'terms' | 'settings' | 'plan'
+  const [needsTerms, setNeedsTerms] = useState<boolean | null>(null)
+  const [legalOk, setLegalOk] = useState(false)
+  const [step, setStep] = useState<Step>('settings')
+  const steps: Step[] = needsTerms ? ['terms', 'settings', 'plan'] : ['settings', 'plan']
+  const stepIndex = steps.indexOf(step) + 1
+  // does this account have the terms on record? Asked once; the answer decides the first step
+  useEffect(() => {
+    if (!account.signedIn) return
+    let gone = false
+    void legalAccepted(account.id).then((ok) => { if (gone) return; setNeedsTerms(!ok); if (!ok) setStep('terms') })
+    return () => { gone = true }
+  }, [account.signedIn, account.id])
+  function acceptTerms() {
+    recordLegalAcceptance(LEGAL_VERSION)
+    setNeedsTerms(false)
+    setStep('settings')
+    window.scrollTo({ top: 0 })
+  }
   const [name, setName] = useState('')
   const [notify, setNotify] = useState<NotifyPrefs>(NOTIFY_DEFAULTS)
   const [ready, setReady] = useState(false)
@@ -64,11 +85,11 @@ function Welcome() {
       restampMe({ name: clean })
     }
     setSaving(false)
-    setStep(2)
+    setStep('plan')
     window.scrollTo({ top: 0 })
   }
   function finish() {
-    markWelcomed()
+    markWelcomed(account.id)
     router.replace(next)
   }
 
@@ -79,24 +100,33 @@ function Welcome() {
     <div className="mx-auto max-w-[860px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
       <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">Welcome</p>
       <h1 className="mt-2 font-serif font-normal text-[40px] leading-[1.06] tracking-[-0.01em]">
-        {step === 1 ? 'Make it yours.' : 'Pick a plan.'}
+        {step === 'terms' ? 'Before you start.' : step === 'settings' ? 'Make it yours.' : 'Pick a plan.'}
       </h1>
       <p className="mt-3 max-w-[560px] text-[15px] leading-[1.65] text-dim">
-        {step === 1 ? 'Three things people set first. Everything here can be changed in Settings later.' : 'Hosting is free and stays free. Plus is a thank-you with a few extras, and it is not on sale yet.'}
+        {step === 'terms'
+          ? 'Two short documents say what Hourelle keeps and how it may be used. Please read both to the end.'
+          : step === 'settings' ? 'Three things people set first. Everything here can be changed in Settings later.' : 'Hosting is free and stays free. Plus is a thank-you with a few extras, and it is not on sale yet.'}
       </p>
 
-      {/* two dots, the way the event lifecycle strip counts */}
-      <div className="mt-5 flex items-center gap-2 text-[12px] font-semibold text-faint" aria-label={`Step ${step} of 2`}>
-        {[1, 2].map((n) => (
-          <span key={n} className="flex items-center gap-2">
-            <span className={`grid h-6 w-6 place-items-center rounded-full border text-[11px] ${n < step ? 'border-teal-border bg-teal-bg text-teal-text' : n === step ? 'border-accent bg-accent text-on-accent' : 'border-border2 text-faint'}`}>{n < step ? <Check size={12} /> : n}</span>
-            <span className={n === step ? 'text-text' : ''}>{n === 1 ? 'Settings' : 'Plan'}</span>
-            {n === 1 && <span className="mx-1 h-px w-8 bg-border2" aria-hidden />}
-          </span>
-        ))}
+      {/* the dots, the way the event lifecycle strip counts */}
+      <div className="mt-5 flex flex-wrap items-center gap-2 text-[12px] font-semibold text-faint" aria-label={`Step ${stepIndex} of ${steps.length}`}>
+        {steps.map((s, i) => {
+          const n = i + 1
+          return (
+            <span key={s} className="flex items-center gap-2">
+              <span className={`grid h-6 w-6 place-items-center rounded-full border text-[11px] ${n < stepIndex ? 'border-teal-border bg-teal-bg text-teal-text' : n === stepIndex ? 'border-accent bg-accent text-on-accent' : 'border-border2 text-faint'}`}>{n < stepIndex ? <Check size={12} /> : n}</span>
+              <span className={n === stepIndex ? 'text-text' : ''}>{s === 'terms' ? 'Terms' : s === 'settings' ? 'Settings' : 'Plan'}</span>
+              {n < steps.length && <span className="mx-1 h-px w-8 bg-border2" aria-hidden />}
+            </span>
+          )
+        })}
       </div>
 
-      {step === 1 ? (
+      {step === 'terms' ? (
+        <div className="mt-7 max-w-[560px]">
+          <LegalGate accepted={legalOk} onChange={setLegalOk} />
+        </div>
+      ) : step === 'settings' ? (
         <div className="mt-7 grid gap-4 md:grid-cols-[1fr_300px]">
           <div className="overflow-hidden rounded-2xl border border-border bg-s1">
             <div className="px-5 py-4">
@@ -156,7 +186,14 @@ function Welcome() {
       {err && <p role="alert" className="mt-3 text-[12.5px] font-medium text-brick-text">{err}</p>}
 
       <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
-        {step === 1 ? (
+        {step === 'terms' ? (
+          <>
+            <span className="text-[12.5px] text-faint">This step cannot be skipped.</span>
+            <button type="button" onClick={acceptTerms} disabled={!legalOk} className="flex h-11 items-center gap-2 rounded-[10px] bg-accent px-5 text-[14px] font-semibold text-on-accent disabled:opacity-40">
+              Continue <ArrowRight size={15} />
+            </button>
+          </>
+        ) : step === 'settings' ? (
           <>
             <button type="button" onClick={finish} className="text-[13px] font-semibold text-dim hover:text-text">Skip for now</button>
             <button type="button" onClick={() => void continueToPlans()} disabled={saving} className="flex h-11 items-center gap-2 rounded-[10px] bg-accent px-5 text-[14px] font-semibold text-on-accent disabled:opacity-60">
@@ -165,7 +202,7 @@ function Welcome() {
           </>
         ) : (
           <>
-            <button type="button" onClick={() => setStep(1)} className="text-[13px] font-semibold text-dim hover:text-text">Back</button>
+            <button type="button" onClick={() => setStep('settings')} className="text-[13px] font-semibold text-dim hover:text-text">Back</button>
             <button type="button" onClick={finish} className="flex h-11 items-center gap-2 rounded-[10px] border border-border2 bg-s1 px-5 text-[14px] font-semibold hover:bg-s2">
               Done <ArrowRight size={15} />
             </button>

@@ -24,10 +24,11 @@ export async function recordPlusInterest(): Promise<void> {
   await supabase!.from('profiles').update({ plan_interest_at: new Date().toISOString() }).eq('id', data.session.user.id)
 }
 
-/** The welcome steps are shown once per browser after an account is made. */
-export function wasWelcomed(): boolean {
-  try { return localStorage.getItem(WELCOMED_KEY) === '1' } catch { return true }
+/** The welcome steps are shown once per account: the note is keyed by the account
+ *  id, so a fresh account on a browser that has seen the steps still gets them. */
+export function wasWelcomed(userId: string): boolean {
+  try { return localStorage.getItem(`${WELCOMED_KEY}:${userId}`) === '1' } catch { return true }
 }
-export function markWelcomed(): void {
-  try { localStorage.setItem(WELCOMED_KEY, '1') } catch { /* private mode */ }
+export function markWelcomed(userId: string): void {
+  try { localStorage.setItem(`${WELCOMED_KEY}:${userId}`, '1') } catch { /* private mode */ }
 }

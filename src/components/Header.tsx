@@ -36,6 +36,22 @@ export function Header() {
   // never drift. Until the browser knows who this is, the same bar minus the doors.
   if (visitor || !ready) return <VisitorHeader ready={ready} />
 
+  // the welcome steps: nothing to go to yet, so the bar is the name and the mark alone
+  if (pathname.startsWith('/welcome')) {
+    return (
+      <header className={chrome}>
+        <div className="mx-auto flex h-[54px] max-w-[1240px] items-center px-[22px]">
+          <span className="flex items-center gap-[9px]">
+            <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-accent text-on-accent">
+              <CalendarDays size={17} />
+            </span>
+            <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Hourelle</span>
+          </span>
+        </div>
+      </header>
+    )
+  }
+
   // a guest's header: the logo goes to the front door like everyone else's (the
   // tab bar and the event page itself are the way back to their event), then the
   // theme (profile is gated) and the one action the rest of the app is asking for

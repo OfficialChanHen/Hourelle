@@ -109,6 +109,20 @@ export function recordLegalAcceptance(version: string): void {
   try { localStorage.setItem(LEGAL_KEY, JSON.stringify({ version, at: Date.now(), synced: false } satisfies LegalNote)) } catch { /* private mode */ }
   void syncLegalAcceptance()
 }
+/** Has the signed-in account accepted the terms? The profile is the record; a note
+ *  on this device that has not reached the profile yet counts too. A database without
+ *  the 0011 columns cannot say, and then the answer is yes rather than a locked door. */
+export async function legalAccepted(userId: string): Promise<boolean> {
+  if (!backendOn) return true
+  const { data, error } = await supabase!.from('profiles').select('terms_accepted_at').eq('id', userId).maybeSingle()
+  if (error) return true
+  if (data?.terms_accepted_at) return true
+  try {
+    const note = JSON.parse(localStorage.getItem(LEGAL_KEY) ?? 'null') as LegalNote | null
+    if (note && !note.synced) { void syncLegalAcceptance(); return true }
+  } catch { /* private mode */ }
+  return false
+}
 export async function syncLegalAcceptance(): Promise<void> {
   if (!backendOn) return
   let note: LegalNote | null = null
@@ -118,7 +132,7 @@ export async function syncLegalAcceptance(): Promise<void> {
   if (!data.session) return
   const { error } = await supabase!.from('profiles').update({ terms_version: note.version, terms_accepted_at: new Date(note.at).toISOString() }).eq('id', data.session.user.id)
   if (error) return
-  try { localStorage.setItem(LEGAL_KEY, JSON.stringify({ ...note, synced: true })) } catch { /* private mode */ }
+  try { localStorage.removeItem(LEGAL_KEY) } catch { /* private mode */ }
 }
 
 /* ── the four actions the sign-in page needs ──

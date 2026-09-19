@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, ChevronRight, FileText, X } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -98,7 +99,9 @@ function LegalSheet({ k, read, onRead, onClose }: { k: LegalKey; read: boolean; 
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  return (
+  // on the body, not inside the form: the sign-up card animates in with a transform,
+  // and a fixed backdrop inside a transformed box only ever covers that box
+  return createPortal(
     <div ref={root} className="fixed inset-0 z-[70] grid place-items-center p-3 sm:p-6" role="dialog" aria-modal="true" aria-label={doc.title}>
       <div className="lg-back absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="lg-panel relative flex max-h-[calc(100dvh-24px)] w-full max-w-[680px] flex-col overflow-hidden rounded-2xl border border-border bg-s1 shadow-soft sm:max-h-[calc(100dvh-48px)]">
@@ -131,6 +134,7 @@ function LegalSheet({ k, read, onRead, onClose }: { k: LegalKey; read: boolean; 
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
