@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { ArrowRight, Calendar, Check } from 'lucide-react'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { AppearancePicker } from '@/components/AppearancePicker'
 import { Switch } from '@/components/ui/Switch'
 import { PlanCards } from '@/components/PlanCards'
 import { TimezonePill } from '@/components/ui/TimezonePill'
@@ -39,15 +40,18 @@ function Welcome() {
   const { theme, setTheme, resolvedTheme } = useTheme()
   type Step = 'terms' | 'settings' | 'plan'
   const [needsTerms, setNeedsTerms] = useState<boolean | null>(null)
+  // once the terms step has been shown it stays on the timeline, ticked, so the
+  // person can see it was done rather than watching it vanish
+  const [termsShown, setTermsShown] = useState(false)
   const [legalOk, setLegalOk] = useState(false)
   const [step, setStep] = useState<Step>('settings')
-  const steps: Step[] = needsTerms ? ['terms', 'settings', 'plan'] : ['settings', 'plan']
+  const steps: Step[] = needsTerms || termsShown ? ['terms', 'settings', 'plan'] : ['settings', 'plan']
   const stepIndex = steps.indexOf(step) + 1
   // does this account have the terms on record? Asked once; the answer decides the first step
   useEffect(() => {
     if (!account.signedIn) return
     let gone = false
-    void legalAccepted(account.id).then((ok) => { if (gone) return; setNeedsTerms(!ok); if (!ok) setStep('terms') })
+    void legalAccepted(account.id).then((ok) => { if (gone) return; setNeedsTerms(!ok); if (!ok) { setTermsShown(true); setStep('terms') } })
     return () => { gone = true }
   }, [account.signedIn, account.id])
   function acceptTerms() {
@@ -152,6 +156,14 @@ function Welcome() {
               {ready ? (
                 <SegmentedControl size="sm" value={themeValue} onChange={setTheme} options={[{ v: 'light', l: 'Light' }, { v: 'dark', l: 'Dark' }, { v: 'system', l: 'System' }]} />
               ) : <span className="h-8 w-[196px] animate-pulse rounded-[9px] bg-s2" aria-hidden />}
+            </div>
+            {/* the four appearances, the same picker Settings has */}
+            <div className="border-t border-border px-5 py-4">
+              <div className="text-[14px] font-medium">Appearance</div>
+              <div className="mt-0.5 text-[12.5px] text-dim">The house warm neutral, or one of three others.</div>
+              <div className="mt-3">
+                <AppearancePicker />
+              </div>
             </div>
           </div>
 

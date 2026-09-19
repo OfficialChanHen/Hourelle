@@ -100,7 +100,6 @@
   --ochre:#A16A1B; --ochre-text:#7F5314; --ochre-bg:#F6EEDD; --ochre-border:#E8D8B6;
   --brick:#B2413B; --brick-text:#93342F; --brick-bg:#F8E5E3; --brick-border:#EBC8C5;
   --shadow:0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
-  --display:var(--font-instrument-sans), system-ui, sans-serif;
   --heat-low:#E7F1EB; --heat-mid:#C6E0D1; --heat-high:#8FBEA3; --heat-full:#2F7A5A;
   --you-only:#F6EEDD; --you-some:#EBDDBC; --you-many:#DCC894; --you-text:#6B5A2C;
   --grid-line:#7E8087; --grid-edge:#AAACB2; --grid-dash:#AAACB2;
@@ -372,7 +371,6 @@ input[type="date"]::-webkit-date-and-time-value {
 /* Studio swaps the display face for the grotesk, which reads thin at the weights the
    serif wants. Unlayered on purpose: it has to beat the `font-normal` utility the
    display sizes carry, which a base-layer rule could not. */
-[data-palette="studio"] .font-serif { font-weight: 600; letter-spacing: -0.02em; }
 
 /* ───────────────────────── Leaflet map (EventMap) ─────────────────────────
    The tiles are light in both themes (a dark theme dims them a touch rather than
