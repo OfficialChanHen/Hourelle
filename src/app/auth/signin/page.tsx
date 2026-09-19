@@ -134,7 +134,8 @@ function SignInForm() {
       if (err) { setError(err); setBusy(null); return }
       // with email confirmation on, sign-up returns no session and the account is
       // only real once the link is clicked; with it off, we are already signed in
-      if (await hasSession()) router.replace(next)
+      // a fresh account goes through the welcome steps first, then on to wherever it was headed
+      if (await hasSession()) router.replace(`/welcome?next=${encodeURIComponent(next)}`)
       else { setNote(`Check ${email.trim()} for a confirmation link. Your account is ready once you open it.`); setBusy(null) }
       return
     }

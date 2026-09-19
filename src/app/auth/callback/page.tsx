@@ -8,6 +8,15 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase, backendOn } from '@/lib/db'
+import { wasWelcomed } from '@/lib/plan'
+
+// an account made moments ago through Google or Microsoft has not seen the welcome
+// steps; one made earlier has. The profile's creation time tells them apart.
+async function isNewAccount(userId: string): Promise<boolean> {
+  const { data } = await supabase!.from('profiles').select('created_at').eq('id', userId).maybeSingle()
+  const at = data?.created_at ? Date.parse(data.created_at as string) : 0
+  return !!at && Date.now() - at < 3 * 60_000
+}
 
 export default function AuthCallbackPage() {
   const router = useRouter()
@@ -26,7 +35,10 @@ export default function AuthCallbackPage() {
     const finish = async () => {
       for (let i = 0; i < 20 && !done; i++) {
         const { data } = await supabase!.auth.getSession()
-        if (data.session) { router.replace(next); return }
+        if (data.session) {
+          if (!wasWelcomed() && (await isNewAccount(data.session.user.id))) { router.replace(`/welcome?next=${encodeURIComponent(next)}`); return }
+          router.replace(next); return
+        }
         await new Promise((r) => setTimeout(r, 150))
       }
       if (!done) setError('That log-in link did not go through. Try again from the log-in page.')

@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
+import Link from 'next/link'
+import { Sparkles } from 'lucide-react'
+import { Switch } from '@/components/ui/Switch'
+import { PLANS } from '@/content/plans'
+import { currentPlan } from '@/lib/plan'
 import { AppearancePicker } from '@/components/AppearancePicker'
 import { BackLink } from '@/components/ui/BackLink'
 import { SecurityCard } from './_components/SecurityCard'
@@ -19,26 +24,6 @@ const Eyebrow = ({ children }: { children: React.ReactNode }) => (
 )
 
 // the plain two-state switch every settings page speaks
-function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      onClick={() => onChange(!on)}
-      // the invisible ::after halo grows the touch target to 44px without changing
-      // how the 22×38 switch looks
-      className={`relative h-[22px] w-[38px] flex-none rounded-full border transition-colors after:absolute after:-inset-[11px] after:content-[''] ${on ? 'border-accent bg-accent' : 'border-border2 bg-s2'}`}
-    >
-      <span
-        className="absolute top-1/2 h-[16px] w-[16px] -translate-y-1/2 rounded-full bg-s1 shadow-raised transition-all"
-        style={{ left: on ? 18 : 2 }}
-      />
-    </button>
-  )
-}
-
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme()
   // read after mount so the server render never disagrees with this device
@@ -182,6 +167,23 @@ export default function SettingsPage() {
           <SecurityCard account={account} />
         </>
       )}
+
+      <Eyebrow>Plan</Eyebrow>
+      <div className="rounded-2xl border border-border bg-s1 px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[14px] font-medium">{PLANS[currentPlan()].name} <span className="rounded-md border border-teal-border bg-teal-bg px-1.5 py-px text-[11px] font-semibold text-teal-text">Your plan</span></div>
+            <div className="mt-0.5 text-[12.5px] text-dim">Hosting is free and stays free.</div>
+          </div>
+          <Link href="/plans" className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2">
+            <Sparkles size={14} className="text-accent-text" /> See Hourelle Plus
+          </Link>
+        </div>
+        {/* what Plus adds, in three lines, so the choice is visible without leaving */}
+        <ul className="mt-3 flex flex-col gap-1.5 border-t border-border pt-3 text-[13px] text-dim">
+          {PLANS.plus.features.slice(1, 4).map((f) => <li key={f} className="flex gap-2"><Sparkles size={13} className="mt-[3px] flex-none text-accent-text" /> <span>{f}</span></li>)}
+        </ul>
+      </div>
 
       <Eyebrow>Reminders</Eyebrow>
       <div className="overflow-hidden rounded-2xl border border-border bg-s1">
