@@ -426,15 +426,16 @@ export async function reauthWithProvider(provider: OAuthProvider, next: string):
   const { error } = await supabase!.auth.signInWithOAuth({ provider, options: { redirectTo: callbackUrl(next) } })
   return error?.message ?? null
 }
-export async function deleteAccount(): Promise<string | null> {
+/** End the account. `confirm` is the phrase the person typed ("delete my account");
+ *  the route checks it too, so nothing can delete an account by accident. */
+export async function deleteAccount(confirm: string): Promise<string | null> {
   if (!backendOn) return 'Deleting an account needs a backend.'
   const { data } = await supabase!.auth.getSession()
   const token = data.session?.access_token
   if (!token) return 'Log in first.'
   try {
-    const res = await fetch('/api/account/delete', { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
-    const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string }
-    if (body.code === 'reauth') return REAUTH_NEEDED
+    const res = await fetch('/api/account/delete', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ confirm }) })
+    const body = (await res.json().catch(() => ({}))) as { error?: string }
     if (!res.ok) return body.error || `The server said no (${res.status}).`
     // the account is gone on the server; the browser lets go of its session too, so
     // what follows is the front door, not a page acting for an account that no longer exists

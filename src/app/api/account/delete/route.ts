@@ -9,18 +9,19 @@ import type { AppEvent } from '@/lib/events'
 import { hasServiceKey, serverDb, userFromRequest } from '@/lib/server/db'
 import { accountDeletedMail, mailConfigured, sendMail, siteUrl } from '@/lib/server/mail'
 
-// how recent the sign-in behind the request has to be. A lifted session is not
-// enough to delete an account: the person proves it is them right before.
-const FRESH_MS = 10 * 60_000
+// the words the person has to type. The session proves who is asking; the phrase
+// proves they mean it, and it works the same for a password account and one that
+// logs in with Google or Microsoft.
+const PHRASE = 'delete my account'
 
 export const runtime = 'nodejs'
 
 export async function POST(req: Request) {
   const user = await userFromRequest(req)
   if (!user) return NextResponse.json({ error: 'Log in first.' }, { status: 401 })
-  const signedInAt = user.lastSignInAt ? Date.parse(user.lastSignInAt) : 0
-  if (!signedInAt || Date.now() - signedInAt > FRESH_MS) {
-    return NextResponse.json({ error: 'Sign in again to confirm it is you.', code: 'reauth' }, { status: 403 })
+  const body = (await req.json().catch(() => ({}))) as { confirm?: string }
+  if ((body.confirm ?? '').trim().toLowerCase() !== PHRASE) {
+    return NextResponse.json({ error: `Type "${PHRASE}" to confirm.` }, { status: 400 })
   }
   if (!hasServiceKey) return NextResponse.json({ error: 'Deleting accounts is not switched on for this server yet.' }, { status: 503 })
   const db = serverDb()
