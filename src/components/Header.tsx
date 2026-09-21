@@ -5,7 +5,7 @@
    One component, four headers, chosen by who is looking:
      visitor        the landing page's header, so the two can never drift apart
      welcome steps  the name and the mark alone, since there is nowhere to go yet
-     guest          the logo, the theme, and the one action their event is asking for
+     guest          the logo, the theme, and the same two doors the landing page has
      account        the full bar: tabs, New event, alerts and the avatar menu
 
    On phones the bar rolls away as you read and comes back when you scroll up;
@@ -74,7 +74,7 @@ export function Header() {
   if (guestEventId) {
     return (
       <header className={chrome}>
-        <div className="mx-auto flex h-[54px] max-w-[1240px] items-center gap-3 px-[22px]">
+        <div className="mx-auto flex h-[58px] max-w-[1240px] items-center gap-3 px-[22px]">
           <Link href="/" className="flex items-center gap-[9px]">
             <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-accent text-on-accent">
               <CalendarDays size={17} />
@@ -82,10 +82,18 @@ export function Header() {
             <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Hourelle</span>
           </Link>
           <div className="flex-1" />
-          <ThemeToggle />
-          <Link href="/auth/signin" className="flex h-[34px] items-center whitespace-nowrap rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent">
-            Log in
-          </Link>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            {/* both doors, worded and weighted exactly as the landing page words them:
+                a guest has no account yet, and signing up is the one that keeps their
+                answers. Both show at every width, a phone included. */}
+            <Link href="/auth/signin" className="flex h-[34px] items-center whitespace-nowrap rounded-[9px] px-[13px] text-[14px] font-medium text-dim hover:bg-s3 hover:text-text">
+              Log in
+            </Link>
+            <Link href="/auth/signin?mode=up" className="flex h-[34px] items-center whitespace-nowrap rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent">
+              Sign up
+            </Link>
+          </div>
         </div>
       </header>
     )
