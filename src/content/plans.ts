@@ -6,12 +6,23 @@ export type PlanKey = 'free' | 'plus'
 export type Plan = {
   key: PlanKey
   name: string
-  price: string
+  price: string        // the monthly figure, and the only figure Free has
   priceNote: string
+  yearly?: string      // the same plan bought by the year
+  monthlyNote?: string
+  yearlyNote?: string
   tagline: string
   features: string[]
   soon?: boolean
 }
+
+/* These figures are what the pages say; Stripe holds what is actually charged.
+   Change one and change the other, or the page lies.
+
+   Plus is a supporter tier while the features it promises are still being built.
+   Nothing in the Free list has ever moved to Plus and nothing ever will: the
+   product spreads because guests use it, and a guest never pays. See
+   docs/plus-and-reach.md. */
 
 export const PLANS: Record<PlanKey, Plan> = {
   free: {
@@ -34,17 +45,18 @@ export const PLANS: Record<PlanKey, Plan> = {
   plus: {
     key: 'plus',
     name: 'Hourelle Plus',
-    price: '$2',
-    priceNote: 'a month, or $15 a year',
-    tagline: 'A thank-you, with a few extras.',
+    price: '$4',
+    priceNote: 'a month',
+    yearly: '$36',
+    monthlyNote: 'a month, cancel any time',
+    yearlyNote: 'a year, which is three months free',
+    tagline: 'For the people keeping this going.',
     features: [
-      'Everything in Free',
-      'Keeps your calendar in step: locked-in plans written to Google or Outlook, and moved when they move',
-      'Unlimited calendar imports',
+      'Everything in Free, which is the whole product',
+      'You keep it running: no ads, no tracking, nobody to answer to',
       'A Plus mark on your profile',
-      'A reply within two days on support',
-      'First access to new features',
+      'A reply within two days when you write in',
+      'New features first, starting with locked-in plans written to your calendar and moved when they move',
     ],
-    soon: true,
   },
 }

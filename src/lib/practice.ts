@@ -1,6 +1,7 @@
 'use client'
 
-import { createEvent, deleteEvent, getEvent, initialsOf, listEvents, patchEvent, pickColor, type AppEvent, type Participant } from './events'
+import { createEvent, deleteEvent, getEvent, initialsOf, leaveEvent, listEvents, patchEvent, pickColor, type AppEvent, type Participant } from './events'
+import { currentAccount } from './session'
 
 /* A practice event: the tour runs on it, and everything can be tried on it because
    it is the person's own, not a read-only sample. Five made-up people have already
@@ -25,10 +26,23 @@ const ANSWERS: [string, number, number, number][] = [
 
 function iso(d: Date): string { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 
+/** Is this practice event ours to write to? The host participant carries the
+ *  account id the event was made under, and the database only accepts writes from
+ *  that account. One left behind by an earlier account on this browser would be
+ *  refused on every change, which is what "you do not have permission" was. */
+function mine(e: AppEvent, meId: string): boolean {
+  return e.participants.find((p) => p.host)?.id === meId
+}
+
 /** The account's practice event, made on first ask. Resolves its id. */
 export function ensurePracticeEvent(): string {
-  const have = listEvents().find((e) => e.practice && e.hostedByYou && !e.demo)
+  const me = currentAccount()
+  const practice = listEvents().filter((e) => e.practice && !e.demo)
+  const have = practice.find((e) => e.hostedByYou && mine(e, me.id))
   if (have) return have.id
+  // one from an earlier account on this browser is nobody's now: it goes from here
+  // without a word to the server, which would refuse the delete anyway
+  for (const e of practice) if (!mine(e, me.id)) leaveEvent(e.id)
 
   // the coming week, Monday to Friday
   const start = new Date(); start.setHours(12, 0, 0, 0)
@@ -77,6 +91,12 @@ export function ensurePracticeEvent(): string {
 /** A fresh practice event for a repeat of the tour: whatever was tried on the old
  *  one is gone with it, so the tour starts from the same place every time. */
 export function resetPracticeEvent(): string {
-  for (const e of listEvents()) if (e.practice && e.hostedByYou && !e.demo) deleteEvent(e.id)
+  const me = currentAccount()
+  for (const e of listEvents()) {
+    if (!e.practice || e.demo) continue
+    // ours goes properly, everyone else's only leaves this browser
+    if (e.hostedByYou && mine(e, me.id)) deleteEvent(e.id)
+    else leaveEvent(e.id)
+  }
   return ensurePracticeEvent()
 }

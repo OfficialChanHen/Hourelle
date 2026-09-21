@@ -16,12 +16,13 @@
 import { useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
-import { Compass, Lightbulb, Sparkles } from 'lucide-react'
+import { Compass, ExternalLink, Gift, Lightbulb, Loader2, Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { resetPracticeEvent } from '@/lib/practice'
 import { Switch } from '@/components/ui/Switch'
 import { PLANS } from '@/content/plans'
-import { currentPlan } from '@/lib/plan'
+import { usePlan } from '@/hooks/usePlan'
+import { canBuy, openBillingPortal } from '@/lib/billing'
 import { AppearancePicker } from '@/components/AppearancePicker'
 import { BackLink } from '@/components/ui/BackLink'
 import { SecurityCard } from './_components/SecurityCard'
@@ -79,6 +80,14 @@ export default function SettingsPage() {
   // account's name and colour. Asked twice, since it undoes every choice at once.
   const [resetAsk, setResetAsk] = useState(false)
   const [hintsBack, setHintsBack] = useState(false)
+  const planState = usePlan()
+  const [billingErr, setBillingErr] = useState<string | null>(null)
+  const [billingBusy, setBillingBusy] = useState(false)
+  async function manageBilling() {
+    setBillingBusy(true); setBillingErr(null)
+    const e = await openBillingPortal()
+    if (e) { setBillingErr(e); setBillingBusy(false) } // otherwise the browser is leaving for Stripe
+  }
   const router = useRouter()
   const [resetState, setResetState] = useState<'idle' | 'busy' | 'done' | 'failed'>('idle')
   const [resetErr, setResetErr] = useState<string | null>(null)
@@ -188,17 +197,42 @@ export default function SettingsPage() {
       <div className="rounded-2xl border border-border bg-s1 px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-[14px] font-medium">{PLANS[currentPlan()].name} <span className="rounded-md border border-teal-border bg-teal-bg px-1.5 py-px text-[11px] font-semibold text-teal-text">Your plan</span></div>
-            <div className="mt-0.5 text-[12.5px] text-dim">Hosting is free and stays free.</div>
+            <div className="flex flex-wrap items-center gap-2 text-[14px] font-medium">
+              {PLANS[planState.plan].name}
+              <span className="rounded-md border border-teal-border bg-teal-bg px-1.5 py-px text-[11px] font-semibold text-teal-text">Your plan</span>
+              {planState.plan === 'plus' && planState.source === 'comped' && (
+                <span className="flex items-center gap-1 rounded-md border border-accent-border bg-accent-bg px-1.5 py-px text-[11px] font-semibold text-accent-text"><Gift size={11} /> On the house</span>
+              )}
+            </div>
+            {/* one line of consequence, and only where there is one to state */}
+            <div className="mt-0.5 text-[12.5px] text-dim">
+              {planState.plan === 'plus'
+                ? planState.source === 'comped'
+                  ? 'Given to you. Nothing to pay.'
+                  : planState.until
+                    ? `Renews ${new Date(planState.until).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}.`
+                    : 'Thank you for keeping this running.'
+                : 'Hosting is free and stays free.'}
+            </div>
           </div>
-          <Link href="/plans" className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2">
-            <Sparkles size={14} className="text-accent-text" /> See Hourelle Plus
-          </Link>
+          <div className="flex flex-none flex-wrap items-center gap-2">
+            {planState.plan === 'plus' && planState.source === 'stripe' && canBuy(account.signedIn) && (
+              <button type="button" onClick={() => void manageBilling()} disabled={billingBusy} className="flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2 disabled:opacity-60">
+                {billingBusy ? <Loader2 size={14} className="animate-spin" /> : <ExternalLink size={13} />} Manage billing
+              </button>
+            )}
+            <Link href="/plans" className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2">
+              <Sparkles size={14} className="text-accent-text" /> {planState.plan === 'plus' ? 'What Plus includes' : 'See Hourelle Plus'}
+            </Link>
+          </div>
         </div>
+        {billingErr && <p role="alert" className="mt-2 text-[12.5px] font-medium text-brick-text">{billingErr}</p>}
         {/* what Plus adds, in three lines, so the choice is visible without leaving */}
-        <ul className="mt-3 flex flex-col gap-1.5 border-t border-border pt-3 text-[13px] text-dim">
-          {PLANS.plus.features.slice(1, 4).map((f) => <li key={f} className="flex gap-2"><Sparkles size={13} className="mt-[3px] flex-none text-accent-text" /> <span>{f}</span></li>)}
-        </ul>
+        {planState.plan !== 'plus' && (
+          <ul className="mt-3 flex flex-col gap-1.5 border-t border-border pt-3 text-[13px] text-dim">
+            {PLANS.plus.features.slice(1, 4).map((f) => <li key={f} className="flex gap-2"><Sparkles size={13} className="mt-[3px] flex-none text-accent-text" /> <span>{f}</span></li>)}
+          </ul>
+        )}
       </div>
 
       <Eyebrow>Reminders</Eyebrow>

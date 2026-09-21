@@ -242,7 +242,15 @@ function Welcome() {
         </div>
       ) : step === 'plan' ? (
         <div className="mt-7">
-          <PlanCards onContinueFree={() => { setStep('tour'); window.scrollTo({ top: 0 }) }} />
+          <PlanCards
+            onContinueFree={() => { setStep('tour'); window.scrollTo({ top: 0 }) }}
+            onPicked={(what) => {
+              // paying leaves for Stripe and comes back to Settings, so the steps are
+              // done with either way; the list is a choice like any other
+              if (what === 'plus') markWelcomed(account.id)
+              if (what === 'list') { setStep('tour'); window.scrollTo({ top: 0 }) }
+            }}
+          />
         </div>
       ) : (
         <div className="mt-7 max-w-[560px] rounded-2xl border border-border bg-s1 px-5 py-5">
@@ -279,11 +287,11 @@ function Welcome() {
             </button>
           </>
         ) : step === 'plan' ? (
+          // no Continue here: the two cards are the choice, and one of them has to
+          // be taken. A second Continue beside them only asked the question twice.
           <>
             <button type="button" onClick={() => setStep('settings')} className="text-[13px] font-semibold text-dim hover:text-text">Back</button>
-            <button type="button" onClick={() => { setStep('tour'); window.scrollTo({ top: 0 }) }} className="flex h-11 items-center gap-2 rounded-[10px] border border-border2 bg-s1 px-5 text-[14px] font-semibold hover:bg-s2">
-              Continue <ArrowRight size={15} />
-            </button>
+            <span className="text-[12.5px] text-faint">Pick one to carry on.</span>
           </>
         ) : (
           <>

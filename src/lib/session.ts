@@ -9,6 +9,7 @@
 
 import { supabase, backendOn } from './db'
 import { resetAppearance } from './prefs'
+import { forgetPlan } from './plan'
 import type { PersonColor } from './colors'
 import { passwordProblem } from './password'
 
@@ -450,6 +451,7 @@ export async function deleteAccount(confirm: string): Promise<string | null> {
     // exists. Its traces on this device go with it: the note that it accepted the
     // terms, which must never vouch for the next account, and the look it chose.
     try { localStorage.removeItem(LEGAL_KEY) } catch { /* private mode */ }
+    forgetPlan(data.session!.user.id)
     resetAppearance()
     await supabase!.auth.signOut({ scope: 'local' }).catch(() => {})
     authGen++; writeCache(STUB)
