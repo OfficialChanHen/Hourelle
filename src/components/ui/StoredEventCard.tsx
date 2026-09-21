@@ -10,7 +10,7 @@ import { Cover } from './Cover'
 import { Tip } from './Tip'
 import { daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, eventTabFor, leadingPlaceOf, phaseOf, respondedCount, type AppEvent, type SameDayInfo } from '@/lib/events'
 import { PHASE_BADGE, PHASE_TINT } from './LifecycleStrip'
-import { isPhotoCover } from '@/lib/covers'
+import { isPhotoCover } from '@/lib/cover-kind'
 
 const COVERS: [string, string][] = [
   ['#E4EDE7', '#CFE0D5'], ['#E7E2EE', '#D9CFE4'], ['#DEE7EC', '#C7DAE2'],

@@ -21,18 +21,11 @@ import { linkToken } from './events'
 
 export const COVER_BUCKET = 'covers'
 
-/** A cover that is a photograph, wherever it is kept, as opposed to a preset scene
- *  or no cover at all. Every surface that sizes a frame differently for a photo asks
- *  this rather than testing for `data:`, so a hosted cover gets the same treatment. */
-export function isPhotoCover(src?: string): boolean {
-  return !!src && (src.startsWith('data:') || src.startsWith('http'))
-}
-
-/** A photo still carried inside the document, byte for byte. These are the ones
- *  costing storage, and the only ones worth offering to move. */
-export function isInlineCover(src?: string): boolean {
-  return !!src?.startsWith('data:')
-}
+// the two questions about a cover string live in cover-kind.ts, with no client
+// directive, because server-rendered pages ask them too and a function exported
+// from a client module cannot be called from the server
+import { isInlineCover } from './cover-kind'
+export { isInlineCover, isPhotoCover } from './cover-kind'
 
 /** A cover this app uploaded, as opposed to one typed in or carried from elsewhere.
  *  Only these are ours to delete. */

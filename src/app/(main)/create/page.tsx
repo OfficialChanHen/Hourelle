@@ -26,7 +26,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { fetchEvent } from '@/lib/remote'
 import { CoverEditor, type ImageFit } from '@/components/ui/CoverEditor'
-import { isInlineCover, isPhotoCover, uploadCover } from '@/lib/covers'
+import { uploadCover } from '@/lib/covers'
+import { isInlineCover, isPhotoCover } from '@/lib/cover-kind'
 import Link from 'next/link'
 import {
   Check, ChevronDown, ChevronUp, Search, Plus, X, MapPin, Video, Clock,

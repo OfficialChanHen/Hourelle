@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { ImagePlus, Loader2 } from 'lucide-react'
 import { Cover, COVER_PRESETS } from './Cover'
 import { ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, downscaleImage, isAcceptedImage } from '@/lib/image'
-import { isInlineCover, isPhotoCover, removeCover, uploadCover } from '@/lib/covers'
+import { removeCover, uploadCover } from '@/lib/covers'
+import { isInlineCover, isPhotoCover } from '@/lib/cover-kind'
 
 export type ImageFit = 'fill' | 'fit'
 

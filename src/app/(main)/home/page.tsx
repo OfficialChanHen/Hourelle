@@ -39,7 +39,7 @@ import { fromDay,
 } from '@/lib/events'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { useAccount } from '@/hooks/useAccount'
-import { isPhotoCover } from '@/lib/covers'
+import { isPhotoCover } from '@/lib/cover-kind'
 
 // what part of the day it is, by the reader's clock
 function greetingFor(hour: number): string {

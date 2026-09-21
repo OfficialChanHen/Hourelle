@@ -3,7 +3,7 @@
    host's own photo, which is a URL into Storage once it has been uploaded and a
    data URL until then (see lib/covers). */
 
-import { isPhotoCover } from '@/lib/covers'
+import { isPhotoCover } from '@/lib/cover-kind'
 
 export type CoverPreset = { id: string; name: string; from: string; to: string; scene: React.ReactNode }
 
