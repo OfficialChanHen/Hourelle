@@ -73,9 +73,13 @@ export function BallotDemo() {
   const reset = () => { setTaken(false); setDone(false); setVotes({}); setMine(null); setRun((r) => r + 1) }
 
   return (
-    <div ref={ref}>
+    <div ref={ref} data-demo="ballot">
       <VignetteFrame url="hourelle.com/e/rooftop-dinner" hint={!done ? 'Watch first. It is yours in a moment.' : 'Tap a place to vote. One vote each, and you can change your mind.'} taken={taken} onReset={reset}>
-        <div className="relative grid grid-cols-1 gap-3 p-4 sm:grid-cols-[1fr_1.1fr] sm:p-5">
+        {/* the height is held from the first paint: the script adds badges and faces as
+            it plays, and the frame would otherwise grow under the reader's eyes. Every
+            row below reserves the space its faces will take, and this holds the space
+            for the whole panel before the demo is even mounted. */}
+        <div className="relative grid min-h-[508px] grid-cols-1 gap-3 p-4 sm:min-h-[334px] sm:grid-cols-[1fr_1.1fr] sm:p-5">
           {near && (
             <>
               {/* the map card: a plain surface with three pins */}
@@ -104,9 +108,14 @@ export function BallotDemo() {
                   return (
                     <div key={p.id} className={`flex items-center gap-2.5 rounded-xl border p-2.5 transition-colors ${lead ? 'border-accent-border bg-accent-bg/40' : 'border-border bg-s0'}`}>
                       <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-1.5 text-[13.5px] font-semibold">{p.name}{lead && <Badge variant="accent">Leading</Badge>}{tied && <Badge variant="ochre">Tied</Badge>}</div>
+                        {/* a fixed line, so the badge arriving cannot make the row taller */}
+                        <div className="flex h-[20px] items-center gap-1.5 text-[13.5px] font-semibold">
+                          <span className="truncate">{p.name}</span>
+                          {lead && <span className="flex-none"><Badge variant="accent">Leading</Badge></span>}
+                          {tied && <span className="flex-none"><Badge variant="ochre">Tied</Badge></span>}
+                        </div>
                         <div className="mt-0.5 truncate text-[12px] text-dim">{p.place} ({n} {n === 1 ? 'vote' : 'votes'})</div>
-                        <div className="mt-1 flex">
+                        <div className="mt-1 flex h-[18px]">
                           {isMine && <span className="rounded-full ring-2 ring-s0"><Avatar initials="JM" color="purple" size={18} font={8} /></span>}
                           {voters.map((v) => <span key={v} className={`rounded-full ring-2 ring-s0 ${isMine || voters[0] !== v ? '-ml-1' : ''}`}><Avatar initials={PEOPLE[v].i} color={PEOPLE[v].c} size={18} font={8} /></span>)}
                         </div>
