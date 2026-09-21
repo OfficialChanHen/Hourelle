@@ -9,15 +9,17 @@ import { useGSAP } from '@gsap/react'
 import { dismissHint, hintDismissed, setTourWanted, tourWanted } from '@/lib/prefs'
 
 /* The tour: a spotlight on one element at a time, a card that says where it is and
-   how it works, and a line inviting the person to try it there and then. The page
-   stays live underneath: the dim is only a picture, so a drag on the grid or a vote
-   on the ballot works while the card is up. Stops on other tabs switch the tab
-   themselves. It runs once, only when it was asked for (the welcome steps, or
-   Settings), never on a screen narrower than a phone, and Skip is on every card.
-   Elements opt in with data-tour="<name>", tabs with data-tour-tab="<key>"; a stop
-   lists the names it can point at, first visible wins, and a stop with nothing to
-   point at is left out rather than pointing at air. The last card has no target:
-   it points at the Help page's clips. */
+   how it works, and, where it makes sense, a line inviting the person to try it
+   there and then. The page stays live underneath: the dim is only a picture, and
+   it sits below popovers and modals, so a menu or a lock-in opened from a card
+   shows in full. Stops on other tabs switch the tab themselves. It runs once, only
+   when it was asked for (the welcome steps, or Settings), never on a screen
+   narrower than a phone, and Skip is on every card. Elements opt in with
+   data-tour="<name>", tabs with data-tour-tab="<key>"; a stop lists the names it
+   can point at, first visible wins, and a stop with nothing to point at is left
+   out. On a phone the card sits at the bottom, clear of the menus that open from
+   the top; on a wider screen it sits beside a small target and under a wide one.
+   The last card has no target: it points at the Help page's clips. */
 
 type Candidate = { sel: string; title: string; text: string; tryIt?: string }
 type Stop = { tab?: string; targets: Candidate[] } | { end: true }
@@ -28,19 +30,19 @@ const STOPS: Stop[] = [
     { sel: 'menu', title: 'One link does it all', text: 'The share link is in this menu. Send it to everyone: they open it, add a name and answer. Nobody needs an account.', tryIt: 'Open the menu and copy the link.' },
   ] },
   { tab: 'availability', targets: [
-    { sel: 'grid', title: 'When people are free', text: 'Switch to Edit mine and drag across the hours you can make. The greener a slot, the more people can.', tryIt: 'Drag across a few hours.' },
-  ] },
-  { tab: 'location', targets: [
-    { sel: 'location', title: 'Where it happens', text: 'Places go on the ballot and everyone votes. The host locks in the winner, or builds a route through the top picks.', tryIt: 'Vote for a place, or add one.' },
-  ] },
-  { tab: 'attendance', targets: [
-    { sel: 'attendance', title: 'Who is coming', text: 'Once the plan is locked in, everyone says whether they can make it, and this tab counts them by stop and by person.', tryIt: 'Come back here after the lock-in.' },
-  ] },
-  { tab: 'details', targets: [
-    { sel: 'details', title: 'Everything else', text: 'The description, the budget, the dates, the people on the list and the invites by email all live here.', tryIt: 'Add a line about the plan.' },
+    { sel: 'grid', title: 'When people are free', text: 'In Edit mine, drag across the hours you can make. The greener a slot, the more people can. A block you painted has handles, so it can be trimmed to the minute.', tryIt: 'Switch to Edit mine, drag a block, then pull one of its edges.' },
   ] },
   { tab: 'availability', targets: [
-    { sel: 'lock', title: 'Lock it in', text: 'When the grid is green enough, lock in a time and a place. Everyone gets the plan.', tryIt: 'Press it when the answers are in.' },
+    { sel: 'people', title: 'One person at a time', text: 'Tap a face to see only that person’s times; tap it again for everyone. The count beside them opens who has answered and who has not.', tryIt: 'Tap a face, then tap it again.' },
+  ] },
+  { tab: 'location', targets: [
+    { sel: 'location', title: 'Where it happens', text: 'Places go on the ballot and everyone votes; the pins carry the count. The host locks in the winner, or switches to Itinerary and builds a route through the top picks.', tryIt: 'Search for a place and add it, vote for one, then open Itinerary.' },
+  ] },
+  { tab: 'availability', targets: [
+    { sel: 'tabs', title: 'The rest of the plan', text: 'Attendance counts who is coming once the plan is locked in. Event details holds the description, the budget, the dates, the people and the invites by email.' },
+  ] },
+  { tab: 'availability', targets: [
+    { sel: 'lock', title: 'Lock it in', text: 'When the grid is green enough, lock in a time and a place. Everyone gets the plan, and the RSVPs open.', tryIt: 'Press it and look at the best window it proposes. Nothing is final until you confirm.' },
     { sel: 'create', title: 'Your own event', text: 'This is where yours starts. Name it, pick some days, and the link is ready to send.', tryIt: 'Make one when you are ready.' },
   ] },
   { end: true },
@@ -72,6 +74,24 @@ function switchTab(key: string) {
   if (activeTab() === key) return
   document.querySelector<HTMLElement>(`[data-tour-tab="${key}"]`)?.click()
 }
+// where the card goes for a spotlight: beside a small target when there is room,
+// under or over a wide one, at the bottom on a phone, in the middle with no target
+function placeCard(b: Box | null, cardH: number): { left: number; top: number; width: number } {
+  const vw = window.innerWidth, vh = window.innerHeight
+  const width = Math.min(360, vw - 32)
+  const H = cardH || 220
+  if (vw < 640) return { left: 16, top: Math.max(16, vh - H - 16), width }
+  if (!b) return { left: (vw - width) / 2, top: Math.max(16, vh / 2 - H / 2), width }
+  const clampTop = (t: number) => Math.max(16, Math.min(t, vh - H - 16))
+  if (b.w < vw * 0.5) {
+    if (b.x >= width + 28) return { left: b.x - width - 16, top: clampTop(b.y), width }
+    if (vw - (b.x + b.w) >= width + 28) return { left: b.x + b.w + 16, top: clampTop(b.y), width }
+  }
+  let top = b.y + b.h + 12
+  if (top + H > vh) top = b.y - 12 - H
+  if (top < 16) top = Math.max(16, vh - H - 16)
+  return { left: Math.max(16, Math.min(b.x, vw - width - 16)), top, width }
+}
 
 export function Tour() {
   const [plan, setPlan] = useState<Stop[] | null>(null)
@@ -79,9 +99,9 @@ export function Tour() {
   const [cand, setCand] = useState<Candidate | null>(null)
   const [box, setBox] = useState<Box | null>(null)
   const el = useRef<HTMLElement | null>(null)
-  const last = useRef<Box | null>(null)
   const root = useRef<HTMLDivElement>(null)
   const hole = useRef<SVGRectElement>(null)
+  const card = useRef<HTMLDivElement>(null)
   const first = useRef(true)
 
   // start: asked for, not done, and room for it. Stops on the current tab are
@@ -108,7 +128,7 @@ export function Tour() {
     const stop = plan[i]
     let tries = 0
     const timer = setInterval(() => {
-      if ('end' in stop) { clearInterval(timer); el.current = null; last.current = null; setCand(null); setBox(null); return }
+      if ('end' in stop) { clearInterval(timer); el.current = null; setCand(null); setBox(null); return }
       if (tries === 0) switchTab(stop.tab ?? 'availability')
       const found = find(stop)
       if (!found) {
@@ -120,24 +140,24 @@ export function Tour() {
       clearInterval(timer)
       el.current = found.el
       found.el.scrollIntoView({ block: 'center', inline: 'nearest' })
-      requestAnimationFrame(() => { const b = boxOf(found.el); last.current = b; setCand(found.c); setBox(b) })
+      requestAnimationFrame(() => { setCand(found.c); setBox(boxOf(found.el)) })
     }, 100)
     return () => clearInterval(timer)
   }, [plan, i])
 
-  // the page is live under the tour, so the element moves: follow it every few frames
+  // the page is live under the tour, so the element moves: the hole and the card
+  // follow it every frame, straight onto the DOM, with no animation in between
   useEffect(() => {
     if (!plan) return
-    let raf = 0, n = 0
+    let raf = 0
     const tick = () => {
       raf = requestAnimationFrame(tick)
-      if (++n % 4 || !el.current) return
-      if (!document.contains(el.current)) return
-      const b = boxOf(el.current), p = last.current
-      if (p && Math.abs(b.x - p.x) < 1 && Math.abs(b.y - p.y) < 1 && Math.abs(b.w - p.w) < 1 && Math.abs(b.h - p.h) < 1) return
-      last.current = b
-      if (hole.current) gsap.to(hole.current, { attr: { x: b.x, y: b.y, width: b.w, height: b.h }, duration: 0.2, overwrite: 'auto' })
-      setBox(b)
+      const target = el.current
+      if (!target || !document.contains(target) || !hole.current || !card.current) return
+      const b = boxOf(target)
+      gsap.set(hole.current, { attr: { x: b.x, y: b.y, width: b.w, height: b.h } })
+      const p = placeCard(b, card.current.offsetHeight)
+      card.current.style.left = `${p.left}px`; card.current.style.top = `${p.top}px`; card.current.style.width = `${p.width}px`
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
@@ -157,7 +177,7 @@ export function Tour() {
     if (box && hole.current) {
       const attr = { x: box.x, y: box.y, width: box.w, height: box.h }
       if (first.current) { first.current = false; gsap.set(hole.current, { attr }); gsap.fromTo('.tour-dim', { opacity: 0 }, { opacity: 1, duration: 0.3 }) }
-      else gsap.to(hole.current, { attr, duration: 0.45, ease: 'power3.inOut', overwrite: 'auto' })
+      else gsap.to(hole.current, { attr, duration: 0.4, ease: 'power3.inOut', overwrite: 'auto' })
     } else if (hole.current) {
       gsap.to(hole.current, { attr: { width: 0, height: 0 }, duration: 0.3, overwrite: 'auto' })
     }
@@ -170,22 +190,12 @@ export function Tour() {
   if (!ending && (!cand || !box)) return null
   const count = plan.filter((s) => !('end' in s)).length
   const isLast = i === plan.length - 1
-  const vh = window.innerHeight, vw = window.innerWidth
-  const cardW = Math.min(360, vw - 32)
-  // below the spotlight when there is room, above it when there is room there, and
-  // over its lower edge when the spotlight is taller than the screen; the end card
-  // sits in the middle
-  const H = 220
-  let left = (vw - cardW) / 2, top = Math.max(16, vh / 2 - H / 2)
-  if (box) {
-    top = box.y + box.h + 12
-    if (top + H > vh) top = box.y - 12 - H
-    if (top < 16) top = Math.max(16, vh - H - 16)
-    left = Math.max(16, Math.min(box.x, vw - cardW - 16))
-  }
+  // first placement with the usual height; the follow loop corrects it a frame later
+  const pos = placeCard(box, 0)
 
   return createPortal(
-    <div ref={root} className="pointer-events-none fixed inset-0 z-[80]" role="dialog" aria-label="Tour">
+    // z-[42]: over the page and its header, under popovers (z-50) and the lock-in modal
+    <div ref={root} className="pointer-events-none fixed inset-0 z-[42]" role="dialog" aria-label="Tour">
       <svg className="tour-dim absolute inset-0 h-full w-full" aria-hidden>
         <defs>
           <mask id="tour-hole">
@@ -195,12 +205,12 @@ export function Tour() {
         </defs>
         <rect width="100%" height="100%" fill="rgba(20,18,14,.45)" mask="url(#tour-hole)" />
       </svg>
-      <div className="tour-card pointer-events-auto absolute rounded-xl border border-border bg-s1 p-4 shadow-soft" style={{ left, top, width: cardW }}>
+      <div ref={card} className="tour-card pointer-events-auto absolute rounded-xl border border-border bg-s1 p-4 shadow-soft" style={pos}>
         {ending ? (
           <>
             <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">The end</div>
             <div className="mt-1 font-serif text-[21px] leading-[1.15] tracking-[-0.01em]">That is the tour</div>
-            <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">Four short clips on the Help page show each step from start to finish: making an event, marking times, picking a place and locking in.</p>
+            <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">This practice event stays yours to play with. Four short clips on the Help page show each step from start to finish: making an event, marking times, picking a place and locking in.</p>
             <div className="mt-3.5 flex items-center justify-between gap-3">
               <Link href="/help#watch" onClick={finish} className="flex items-center gap-1.5 text-[13px] font-semibold text-accent-text hover:underline">
                 <PlayCircle size={15} /> Watch the clips

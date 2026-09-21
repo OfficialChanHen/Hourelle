@@ -18,6 +18,7 @@ import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { Compass, Lightbulb, Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { ensurePracticeEvent } from '@/lib/practice'
 import { Switch } from '@/components/ui/Switch'
 import { PLANS } from '@/content/plans'
 import { currentPlan } from '@/lib/plan'
@@ -238,10 +239,10 @@ export default function SettingsPage() {
         <div className="flex items-center justify-between gap-4 px-5 py-4">
           <div className="min-w-0">
             <div className="text-[14px] font-medium">The tour</div>
-            <div className="mt-0.5 text-[12.5px] text-dim">A few minutes on a sample event, tab by tab.</div>
+            <div className="mt-0.5 text-[12.5px] text-dim">A few minutes on a practice event of your own.</div>
           </div>
           <button
-            type="button" onClick={() => { resetHint('tour'); setTourWanted(true); router.push('/events/q3-offsite') }}
+            type="button" onClick={() => { resetHint('tour'); setTourWanted(true); router.push(`/events/${ensurePracticeEvent()}`) }}
             className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2 hover:text-text"
           >
             <Compass size={14} /> Take it again

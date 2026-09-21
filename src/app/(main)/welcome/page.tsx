@@ -18,6 +18,7 @@ import { loadReminderPrefs, saveReminderPrefs } from '@/lib/mail'
 import { prefNotify, setPrefNotify, NOTIFY_DEFAULTS, type NotifyPrefs } from '@/lib/prefs'
 import { markWelcomed } from '@/lib/plan'
 import { PREFS_CHANGED, setPrefPalette, setTourWanted } from '@/lib/prefs'
+import { ensurePracticeEvent } from '@/lib/practice'
 
 /* The steps after an account is made: the terms first, only when the account never
    accepted them (a Google or Microsoft account made through the log-in button), then
@@ -108,11 +109,12 @@ function Welcome() {
     router.replace(next)
   }
   // the tour runs on the first event page opened: the one they were heading to
-  // when that is an event, the sample otherwise
+  // when that is an event, otherwise a practice event of their own, where
+  // everything on the cards can really be tried
   function showAround() {
     setTourWanted(true)
     markWelcomed(account.id)
-    router.replace(next.startsWith('/events/') ? next : '/events/q3-offsite')
+    router.replace(next.startsWith('/events/') ? next : `/events/${ensurePracticeEvent()}`)
   }
 
   const themeValue = theme ?? 'light'
@@ -129,7 +131,7 @@ function Welcome() {
           ? 'Two short documents say what Hourelle keeps and how it may be used. Open each one, then tick its box.'
           : step === 'settings' ? 'Three things people set first. Everything here can be changed in Settings later.'
             : step === 'plan' ? 'Hosting is free and stays free. Plus is a thank-you with a few extras, and it is not on sale yet.'
-              : 'A short tour walks through an event, tab by tab, and lets you try each thing as you go. It runs on a sample event and you can leave it at any point.'}
+              : 'A short tour walks through an event and lets you try each thing as you go. It runs on a practice event of your own, and you can leave it at any point.'}
       </p>
 
       {/* the dots, the way the event lifecycle strip counts */}

@@ -95,6 +95,7 @@ export type AppEvent = {
   messages: ChatMessage[]
   createdAt: number
   demo?: boolean
+  practice?: boolean                  // the account's own sample event, made for the tour; editable like any other
   reopenedAt?: number                 // set when a locked plan reopens; cleared by the next lock-in — feeds the notification
   status?: EventStatus                // undefined reads as 'planning' (back-compat with stored events)
   // the answered "when": set when the host locks in a plan, OR from birth when the date

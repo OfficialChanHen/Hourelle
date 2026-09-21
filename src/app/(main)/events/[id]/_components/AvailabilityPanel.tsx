@@ -1376,7 +1376,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         </div>
 
         {/* participants + edit hint */}
-        <div className="flex flex-wrap items-center gap-2.5 py-[11px]">
+        <div data-tour="people" className="flex flex-wrap items-center gap-2.5 py-[11px]">
           <span className="text-[12.5px] text-dim">Participants</span>
           <FilterAvatars participants={nameSorted} filter={filter} onToggle={toggleFilter} onClear={clearFilter} onSelectAll={selectAllFilter} />
           {filterOn && (
