@@ -131,8 +131,20 @@ export function Tour({ host = false }: { host?: boolean }) {
   const el = useRef<HTMLElement | null>(null)
   const root = useRef<HTMLDivElement>(null)
   const hole = useRef<SVGRectElement>(null)
+  const glow = useRef<SVGRectElement>(null)
   const card = useRef<HTMLDivElement>(null)
   const first = useRef(true)
+
+  // the hole in the dim and the line drawn around it are the same rectangle, so
+  // they are always moved together
+  const place = (b: Box, animate = false) => {
+    const attr = { x: b.x, y: b.y, width: b.w, height: b.h }
+    for (const el of [hole.current, glow.current]) {
+      if (!el) continue
+      if (animate) gsap.to(el, { attr, duration: 0.4, ease: 'power3.inOut', overwrite: 'auto' })
+      else gsap.set(el, { attr })
+    }
+  }
 
   // start: asked for, not done, and room for it. Stops on the current tab are
   // checked now; stops on other tabs are taken on trust and checked when reached.
@@ -193,7 +205,7 @@ export function Tour({ host = false }: { host?: boolean }) {
       const target = el.current
       if (!target || !document.contains(target) || !hole.current || !card.current) return
       const b = boxOf(target)
-      gsap.set(hole.current, { attr: { x: b.x, y: b.y, width: b.w, height: b.h } })
+      place(b)
       const p = placeCard(b, card.current.offsetHeight)
       card.current.style.left = `${p.left}px`; card.current.style.top = `${p.top}px`; card.current.style.width = `${p.width}px`
     }
@@ -212,12 +224,14 @@ export function Tour({ host = false }: { host?: boolean }) {
   // the hole slides from stop to stop; the card fades in beside it
   useGSAP(() => {
     if (!plan) return
-    if (box && hole.current) {
-      const attr = { x: box.x, y: box.y, width: box.w, height: box.h }
-      if (first.current) { first.current = false; gsap.set(hole.current, { attr }); gsap.fromTo('.tour-dim', { opacity: 0 }, { opacity: 1, duration: 0.3 }) }
-      else gsap.to(hole.current, { attr, duration: 0.4, ease: 'power3.inOut', overwrite: 'auto' })
-    } else if (hole.current) {
-      gsap.to(hole.current, { attr: { width: 0, height: 0 }, duration: 0.3, overwrite: 'auto' })
+    if (box) {
+      if (first.current) { first.current = false; place(box); gsap.fromTo('.tour-dim', { opacity: 0 }, { opacity: 1, duration: 0.3 }) }
+      else place(box, true)
+      // the line breathes rather than sitting there, which is what says "here"
+      gsap.fromTo('.tour-glow', { opacity: 0 }, { opacity: 1, duration: 0.35 })
+      gsap.to('.tour-glow', { opacity: 0.45, duration: 1.1, ease: 'sine.inOut', repeat: -1, yoyo: true, delay: 0.35 })
+    } else {
+      for (const el of [hole.current, glow.current]) if (el) gsap.to(el, { attr: { width: 0, height: 0 }, duration: 0.3, overwrite: 'auto' })
     }
     gsap.fromTo('.tour-card', { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.3, delay: 0.15, ease: 'power3.out' })
   }, { dependencies: [i, cand === null], scope: root })
@@ -242,6 +256,12 @@ export function Tour({ host = false }: { host?: boolean }) {
           </mask>
         </defs>
         <rect width="100%" height="100%" fill="rgba(20,18,14,.45)" mask="url(#tour-hole)" />
+        {/* the lit edge: the same rectangle again, drawn rather than cut out */}
+        <rect
+          ref={glow} className="tour-glow" x={box?.x ?? 0} y={box?.y ?? 0} width={box?.w ?? 0} height={box?.h ?? 0}
+          rx="12" fill="none" stroke="var(--accent)" strokeWidth="2" opacity="0"
+          style={{ filter: 'drop-shadow(0 0 6px var(--accent)) drop-shadow(0 0 14px var(--accent))' }}
+        />
       </svg>
       <div ref={card} className="tour-card pointer-events-auto absolute rounded-xl border border-border bg-s1 p-4 shadow-soft" style={pos}>
         {ending ? (

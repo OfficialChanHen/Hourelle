@@ -40,11 +40,13 @@ export function AskTour() {
         <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-accent-bg text-accent-text"><Compass size={18} /></span>
         <div className="mt-3 font-serif text-[24px] leading-[1.12] tracking-[-0.01em]">First time on Hourelle?</div>
         <p className="mt-2 text-[13.5px] leading-[1.55] text-dim">A short tour shows where things are on this event and lets you try them as you go. It takes about a minute, and you can leave it at any point.</p>
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row-reverse">
-          <button type="button" onClick={() => choose(true)} className="flex h-11 flex-1 items-center justify-center gap-2 rounded-[10px] bg-accent text-[14px] font-semibold text-on-accent">
+        {/* stacked on a phone, where each one is a thumb's target and gets the height
+            to match; side by side from sm up, where they can be the usual size */}
+        <div className="mt-5 flex flex-col gap-2.5 sm:mt-4 sm:flex-row-reverse sm:gap-2">
+          <button type="button" onClick={() => choose(true)} className="flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-accent sm:w-auto sm:flex-1 px-5 text-[15px] font-semibold text-on-accent sm:h-11 sm:rounded-[10px] sm:text-[14px]">
             Show me around
           </button>
-          <button type="button" onClick={() => choose(false)} className="flex h-11 flex-1 items-center justify-center rounded-[10px] border border-border2 bg-s1 text-[14px] font-semibold hover:bg-s2">
+          <button type="button" onClick={() => choose(false)} className="flex h-[52px] w-full items-center justify-center rounded-xl border border-border2 bg-s1 sm:w-auto sm:flex-1 px-5 text-[15px] font-semibold hover:bg-s2 sm:h-11 sm:rounded-[10px] sm:text-[14px]">
             I know my way
           </button>
         </div>

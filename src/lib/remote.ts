@@ -400,6 +400,12 @@ export function isMine(ev: AppEvent): boolean {
    The cloud copy wins for any event it knows about; events that exist only on
    this device (created while offline or before the backend) get pushed up. */
 let pulledOnce = false
+/** Has the first pull for this identity finished? A page that would otherwise say
+ *  "nothing here" while the account's events are still on their way asks this and
+ *  waits instead. False for a browser with no backend, which has nothing coming. */
+export function cloudSettled(): boolean {
+  return !backendOn || pulledOnce
+}
 /** Has the first pull of this visit finished (well or badly)? Pages that would
  *  otherwise declare an event missing wait for this before deciding. */
 export function cloudSynced(): boolean {

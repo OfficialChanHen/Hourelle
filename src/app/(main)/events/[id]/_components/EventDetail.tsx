@@ -353,9 +353,11 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             align="end"
             width={216}
             className="sm:hidden"
+            // a link rather than three dots: the first thing in here is the share
+            // link, and on a phone this is the only way to it
             trigger={(open) => (
-              <span aria-label="More actions" data-tour="menu" className={`grid h-9 w-9 place-items-center rounded-[9px] border border-border2 bg-s1 ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
-                <EllipsisVertical size={16} />
+              <span aria-label="Share link and more" data-tour="menu" className={`grid h-9 w-9 place-items-center rounded-[9px] border border-border2 bg-s1 ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
+                <Link2 size={16} />
               </span>
             )}
           >

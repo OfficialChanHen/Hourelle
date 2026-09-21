@@ -37,6 +37,7 @@ import { fromDay,
   createEvent, eventTabFor, listEvents, phaseOf, daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, sameDayLabelFor,
   type AppEvent, type Phase, type SameDayInfo,
 } from '@/lib/events'
+import { cloudSettled } from '@/lib/remote'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { useAccount } from '@/hooks/useAccount'
 import { isPhotoCover } from '@/lib/cover-kind'
@@ -57,12 +58,18 @@ export default function HomePage() {
   // the greeting names whoever is signed in (the stub, when nobody is)
   const account = useAccount()
   const firstName = account.name.split(' ')[0]
+  // an account signing in on a browser that has not held its events before reads an
+  // empty list for as long as the first pull takes, and used to show "nothing here"
+  // for that moment. The shapes stay until the cloud has actually answered.
+  const [settled, setSettled] = useState(true)
   useEffect(() => {
     setEvents(listEvents())
+    setSettled(cloudSettled())
     setGreeting(greetingFor(new Date().getHours()))
   }, [])
   // someone else's change arrived from the cloud: re-read so the page follows it live
-  useLiveEvents(() => setEvents(listEvents()))
+  useLiveEvents(() => { setEvents(listEvents()); setSettled(cloudSettled()) })
+  const waiting = !settled && (events?.length ?? 0) === 0
 
   const withPhase = (events ?? []).map((e) => ({ e, phase: phaseOf(e) }))
   const active = withPhase.filter((x) => x.phase !== 'past')
@@ -89,7 +96,7 @@ export default function HomePage() {
       <div className="mb-5">
         <h1 className="mb-[9px] font-serif font-normal text-[37px] leading-[1.02] tracking-[-0.01em]" suppressHydrationWarning>{greeting}, {firstName}</h1>
         <div className="flex items-center gap-1.5 text-[13.5px] text-dim">
-          <Calendar size={15} /> {active.length > 0 ? `${active.length} event${active.length === 1 ? '' : 's'} in motion` : 'No events yet'}
+          <Calendar size={15} /> {waiting ? <span className="inline-block h-3.5 w-[104px] animate-pulse rounded bg-s2" /> : active.length > 0 ? `${active.length} event${active.length === 1 ? '' : 's'} in motion` : 'No events yet'}
         </div>
       </div>
 
@@ -98,7 +105,7 @@ export default function HomePage() {
 
       {/* Up next — the closest confirmed plans, one card at a time */}
       {/* localStorage only exists after mount — pulse shapes, never a flash of "empty" */}
-      {events === null && (
+      {(events === null || waiting) && (
         <>
           <SectionHeader color="var(--accent-text)" title="Up next" />
           <div className="h-[240px] animate-pulse rounded-2xl bg-s2" />
@@ -110,7 +117,7 @@ export default function HomePage() {
         </>
       )}
 
-      {events !== null && (
+      {events !== null && !waiting && (
       <>
       {/* accent: the spotlight — what's asking for you now */}
       <SectionHeader color="var(--accent-text)" title="Up next" count={heroes.length > 1 ? heroes.length : undefined} />
