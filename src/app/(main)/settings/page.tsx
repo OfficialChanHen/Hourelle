@@ -113,7 +113,7 @@ export default function SettingsPage() {
   ]
 
   return (
-    <div className="mx-auto max-w-[760px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
+    <div className="mx-auto max-w-[760px] px-4 pb-[92px] pt-[34px] sm:px-[26px]">
       <BackLink href="/profile" label="Profile" />
       <h1 className="font-serif font-normal text-[33.5px] leading-[1.04] tracking-[-0.01em]">Settings</h1>
       <p className="mt-1.5 text-[13.5px] text-dim">Saved on this device.</p>

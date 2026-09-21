@@ -292,10 +292,17 @@ input[type="date"]::-webkit-date-and-time-value {
      calendar button sits wherever is left, so two fields side by side each centred
      their own contents differently. The value takes the room and the button goes to
      the edge, and then the two read as one row. */
+  input[type="date"],
+  input[type="time"] {
+    /* Safari draws the value as plain text with no picker button, and left to itself
+       it sits wherever the intrinsic box lands, which put two fields side by side
+       out of step with each other. Centred, they agree whatever the browser does. */
+    text-align: center;
+  }
   input[type="date"]::-webkit-date-and-time-value,
   input[type="time"]::-webkit-date-and-time-value {
     flex: 1;
-    text-align: left;
+    text-align: center;
   }
   input[type="date"]::-webkit-calendar-picker-indicator,
   input[type="time"]::-webkit-calendar-picker-indicator {

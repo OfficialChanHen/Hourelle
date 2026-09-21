@@ -61,7 +61,7 @@ export function AccessBoundary({ children }: { children: React.ReactNode }) {
   const back = `/events/${guestEventId}`
 
   return (
-    <div className="mx-auto max-w-[480px] px-6 pb-[104px] pt-[64px]">
+    <div className="mx-auto max-w-[480px] px-6 pb-[92px] pt-[64px]">
       <div className="text-center">
         <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">Guest view</p>
         <h1 className="mt-2 font-serif font-normal text-[33px] leading-[1.08] tracking-[-0.01em]">This part needs an account</h1>

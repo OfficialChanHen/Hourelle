@@ -136,7 +136,7 @@ function Welcome() {
   const dark = resolvedTheme === 'dark'
 
   return (
-    <div className="mx-auto max-w-[860px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
+    <div className="mx-auto max-w-[860px] px-4 pb-[92px] pt-[34px] sm:px-[26px]">
       <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">Welcome</p>
       <h1 className="mt-2 font-serif font-normal text-[40px] leading-[1.06] tracking-[-0.01em]">
         {waiting ? 'One moment.' : step === 'terms' ? 'Before you start.' : step === 'settings' ? 'Make it yours.' : step === 'plan' ? 'Pick a plan.' : 'One more thing.'}

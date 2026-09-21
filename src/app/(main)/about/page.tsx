@@ -16,7 +16,7 @@ const PRINCIPLES: { title: string; text: string }[] = [
 
 export default function AboutPage() {
   return (
-    <div className="mx-auto max-w-[680px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
+    <div className="mx-auto max-w-[680px] px-4 pb-[92px] pt-[34px] sm:px-[26px]">
       <BackLink href="/profile" label="Profile" onlyWithAccount />
       <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">About</p>
       <h1 className="mt-2 font-serif font-normal text-[40px] leading-[1.06] tracking-[-0.01em]">

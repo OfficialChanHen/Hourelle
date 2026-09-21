@@ -51,7 +51,7 @@ export default function DemosPage() {
   const byId = new Map((demos ?? []).map((d) => [d.id, d]))
 
   return (
-    <div className="mx-auto max-w-[1240px] px-[26px] pb-[104px] pt-[34px]">
+    <div className="mx-auto max-w-[1240px] px-[26px] pb-[92px] pt-[34px]">
       <div className="mb-8 max-w-[640px]">
         <h1 className="mb-2 font-serif font-normal text-[36px] leading-[1.02] tracking-[-0.01em]">Demos</h1>
         <p className="text-[14px] leading-[1.6] text-dim">

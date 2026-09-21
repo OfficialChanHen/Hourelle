@@ -276,7 +276,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       : { href: '/events', label: 'All events' }
 
   return (
-    <div className="mx-auto max-w-[1240px] px-4 pb-[104px] pt-5 sm:px-[26px] sm:pt-[34px]">
+    <div className="mx-auto max-w-[1240px] px-4 pb-[92px] pt-5 sm:px-[26px] sm:pt-[34px]">
       <BackLink href={backTo.href} label={backTo.label} />
       {/* the tour, only when it was asked for, and the one question a new guest gets; both mount on the body */}
       {phase !== 'past' && <Tour host={event.hostedByYou} locked={phase !== 'planning'} />}
@@ -445,7 +445,11 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           data-tour="chat"
           // on iOS the bubble is clear liquid glass (frost, rim, sheen — no fill);
           // elsewhere it stays the solid accent dot
-          className={`fixed bottom-[84px] right-4 z-40 grid h-12 w-12 place-items-center rounded-full md:bottom-6 md:right-6 ${isIOS ? 'liquid-glass text-accent-text' : 'bg-accent text-on-accent shadow-soft'}`}
+          // the bar is 56 tall plus whatever the phone reserves at the bottom, and the
+          // bubble sits a thumb's width clear of it. A fixed 84 was fine on a phone
+          // with no home indicator and sat on the bar on one that has.
+          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 68px)' }}
+          className={`fixed right-4 z-40 grid h-12 w-12 place-items-center rounded-full md:!bottom-6 md:right-6 ${isIOS ? 'liquid-glass text-accent-text' : 'bg-accent text-on-accent shadow-soft'}`}
         >
           <MessageCircle size={21} />
           {unread > 0 && (

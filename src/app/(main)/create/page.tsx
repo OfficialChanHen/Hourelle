@@ -403,7 +403,7 @@ function CreateWizard() {
   ].filter(Boolean).join(', ') || 'No budget, no spot limit'
 
   return (
-    <div className="mx-auto max-w-[760px] px-4 pb-[104px] pt-6 sm:px-[26px] sm:pt-[34px]">
+    <div className="mx-auto max-w-[760px] px-4 pb-[92px] pt-6 sm:px-[26px] sm:pt-[34px]">
       <div className="mb-4 text-center sm:mb-[22px]">
         <h1 className="font-serif sm:font-normal text-[27px] leading-[1.04] tracking-[-0.01em] sm:text-[33.5px]">Create event</h1>
         <p className="mt-1.5 hidden text-[13.5px] text-dim sm:block">Name it, check the days, create. Everything else can wait.</p>
@@ -1126,7 +1126,7 @@ function Created({ event: initial }: { event: AppEvent }) {
 
   return (
     <div className="relative min-h-[calc(100vh-54px)]">
-      <div className="mx-auto max-w-[560px] px-[26px] pb-[104px] pt-[64px]">
+      <div className="mx-auto max-w-[560px] px-[26px] pb-[92px] pt-[64px]">
         <div ref={card} className="rounded-2xl border border-border bg-s1 px-7 py-9 text-center shadow-soft">
           <span className="created-check mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full border border-teal-border bg-teal-bg text-teal-text"><Check size={34} /></span>
           <h1 className="font-serif font-normal text-[33.5px] leading-[1.05] tracking-[-0.01em]">Your event is live</h1>

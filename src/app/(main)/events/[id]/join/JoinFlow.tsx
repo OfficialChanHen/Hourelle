@@ -215,7 +215,7 @@ export function JoinFlow({ id }: { id: string }) {
   }
   if (event === null) {
     return (
-      <div className="mx-auto max-w-[560px] px-[26px] pb-[104px] pt-[72px] text-center">
+      <div className="mx-auto max-w-[560px] px-[26px] pb-[92px] pt-[72px] text-center">
         <p className="font-serif font-normal text-[33.5px] tracking-[-0.01em]">This invite doesn&apos;t open here</p>
         <p className="mx-auto mt-2 max-w-sm text-[14.5px] leading-[1.55] text-dim">
           The link may have a typo, or the event was deleted. Ask the host to send it again, or plan something of your own.
@@ -236,7 +236,7 @@ export function JoinFlow({ id }: { id: string }) {
   const field = 'h-11 w-full rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none placeholder:text-faint focus:border-accent-border'
 
   return (
-    <div ref={root} className="mx-auto max-w-[600px] px-4 pb-[104px] pt-[34px] sm:px-[26px] sm:pt-[52px]">
+    <div ref={root} className="mx-auto max-w-[600px] px-4 pb-[92px] pt-[34px] sm:px-[26px] sm:pt-[52px]">
       {/* the event as a teaser — enough to know what this is, none of the answers */}
       <div className="overflow-hidden rounded-2xl border border-border bg-s1 shadow-soft">
         <Cover src={event.image} from={coverFrom} to={coverTo} className="h-[120px] sm:h-[150px]" />

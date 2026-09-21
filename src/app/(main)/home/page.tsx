@@ -91,7 +91,7 @@ export default function HomePage() {
   const sameDay = sameDayLabelFor(active.map((x) => x.e))
 
   return (
-    <div className="relative mx-auto max-w-[1240px] px-[26px] pb-[104px] pt-[34px]">
+    <div className="relative mx-auto max-w-[1240px] px-[26px] pb-[92px] pt-[34px]">
       {/* greeting */}
       <div className="mb-5">
         <h1 className="mb-[9px] font-serif font-normal text-[37px] leading-[1.02] tracking-[-0.01em]" suppressHydrationWarning>{greeting}, {firstName}</h1>

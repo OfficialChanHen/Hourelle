@@ -52,7 +52,7 @@ const GROUPS: { title: string; items: QA[] }[] = [
 
 export default function HelpPage() {
   return (
-    <div className="mx-auto max-w-[760px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
+    <div className="mx-auto max-w-[760px] px-4 pb-[92px] pt-[34px] sm:px-[26px]">
       <BackLink href="/profile" label="Profile" onlyWithAccount />
       <h1 className="font-serif font-normal text-[33.5px] leading-[1.04] tracking-[-0.01em]">Help &amp; contact</h1>
       <p className="mt-1.5 text-[13.5px] text-dim">Short answers first, a person after that.</p>

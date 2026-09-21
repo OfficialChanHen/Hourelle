@@ -76,7 +76,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto max-w-[760px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
+    <div className="mx-auto max-w-[760px] px-4 pb-[92px] pt-[34px] sm:px-[26px]">
       <h1 className="font-serif font-normal text-[33.5px] leading-[1.04] tracking-[-0.01em]">Profile</h1>
 
       <Eyebrow>Account</Eyebrow>
