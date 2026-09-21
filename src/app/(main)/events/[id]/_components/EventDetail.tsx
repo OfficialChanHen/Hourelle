@@ -389,7 +389,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             const active = tab === t.key
             return (
               // words alone carry the tabs — the filled box says which one is active
-              <button key={t.key} data-active={active} onClick={() => goTab(t.key)} className={`flex flex-none items-center whitespace-nowrap rounded-[10px] px-3 py-3 text-[13.5px] transition-colors sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
+              <button key={t.key} data-active={active} data-tour-tab={t.key} onClick={() => goTab(t.key)} className={`flex flex-none items-center whitespace-nowrap rounded-[10px] px-3 py-3 text-[13.5px] transition-colors sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
                 <span className="sm:hidden">{t.short}</span>
                 <span className="hidden sm:inline">{t.label}</span>
               </button>
@@ -414,9 +414,10 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           onPatch={patchLive}
         />
       )}
-      {tab === 'location' && <LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} />}
-      {tab === 'attendance' && <AttendancePanel event={event} onGoToTab={goTab} onViewAvailability={goToAvailabilityFor} onViewAvailabilityGroup={goToAvailabilityGroup} onGoToBestWindow={goToBestWindow} />}
-      {tab === 'details' && <DetailsTab event={event} onDelete={handleDelete} onLeave={handleLeave} onGoToTab={goTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} />}
+      {/* the wrappers give the tour something to point at on each tab */}
+      {tab === 'location' && <div data-tour="location"><LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} /></div>}
+      {tab === 'attendance' && <div data-tour="attendance"><AttendancePanel event={event} onGoToTab={goTab} onViewAvailability={goToAvailabilityFor} onViewAvailabilityGroup={goToAvailabilityGroup} onGoToBestWindow={goToBestWindow} /></div>}
+      {tab === 'details' && <div data-tour="details"><DetailsTab event={event} onDelete={handleDelete} onLeave={handleLeave} onGoToTab={goTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} /></div>}
 
       {/* discussion follows you down the page — the classic chat bubble, above the
           mobile tab bar; it is the one and only way in, unread badge included */}

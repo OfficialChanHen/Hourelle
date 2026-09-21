@@ -238,7 +238,7 @@ export default function SettingsPage() {
         <div className="flex items-center justify-between gap-4 px-5 py-4">
           <div className="min-w-0">
             <div className="text-[14px] font-medium">The tour</div>
-            <div className="mt-0.5 text-[12.5px] text-dim">Four stops on a sample event.</div>
+            <div className="mt-0.5 text-[12.5px] text-dim">A few minutes on a sample event, tab by tab.</div>
           </div>
           <button
             type="button" onClick={() => { resetHint('tour'); setTourWanted(true); router.push('/events/q3-offsite') }}

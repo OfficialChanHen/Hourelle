@@ -58,7 +58,7 @@ export default function HelpPage() {
       <p className="mt-1.5 text-[13.5px] text-dim">Short answers first, a person after that.</p>
 
       {/* four short clips, silent, captioned on screen: each one thing, start to finish */}
-      <p className="mb-2 mt-7 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Watch</p>
+      <p id="watch" className="mb-2 mt-7 scroll-mt-24 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Watch</p>
       <div className="grid gap-4 sm:grid-cols-2">
         {CLIPS.map((c) => (
           <figure key={c.id} className="overflow-hidden rounded-2xl border border-border bg-s1">

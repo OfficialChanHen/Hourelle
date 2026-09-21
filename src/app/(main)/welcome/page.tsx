@@ -17,7 +17,7 @@ import { restampMe } from '@/lib/events'
 import { loadReminderPrefs, saveReminderPrefs } from '@/lib/mail'
 import { prefNotify, setPrefNotify, NOTIFY_DEFAULTS, type NotifyPrefs } from '@/lib/prefs'
 import { markWelcomed } from '@/lib/plan'
-import { setTourWanted } from '@/lib/prefs'
+import { PREFS_CHANGED, setPrefPalette, setTourWanted } from '@/lib/prefs'
 
 /* The steps after an account is made: the terms first, only when the account never
    accepted them (a Google or Microsoft account made through the log-in button), then
@@ -48,6 +48,16 @@ function Welcome() {
   const [step, setStep] = useState<Step>('settings')
   const steps: Step[] = needsTerms || termsShown ? ['terms', 'settings', 'plan', 'tour'] : ['settings', 'plan', 'tour']
   const stepIndex = steps.indexOf(step) + 1
+  // a new account starts from the house look in light, whatever the last person on
+  // this device chose; what they pick on the settings step below is theirs from then on
+  useEffect(() => {
+    if (!account.signedIn) return
+    setTheme('light')
+    setPrefPalette('hourelle')
+    document.documentElement.removeAttribute('data-palette')
+    window.dispatchEvent(new Event(PREFS_CHANGED))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account.signedIn, account.id])
   // does this account have the terms on record? Asked once; the answer decides the first step
   useEffect(() => {
     if (!account.signedIn) return
@@ -119,7 +129,7 @@ function Welcome() {
           ? 'Two short documents say what Hourelle keeps and how it may be used. Open each one, then tick its box.'
           : step === 'settings' ? 'Three things people set first. Everything here can be changed in Settings later.'
             : step === 'plan' ? 'Hosting is free and stays free. Plus is a thank-you with a few extras, and it is not on sale yet.'
-              : 'A short tour shows the four places you will use most. It runs on a sample event and you can leave it at any point.'}
+              : 'A short tour walks through an event, tab by tab, and lets you try each thing as you go. It runs on a sample event and you can leave it at any point.'}
       </p>
 
       {/* the dots, the way the event lifecycle strip counts */}
@@ -205,11 +215,12 @@ function Welcome() {
         </div>
       ) : (
         <div className="mt-7 max-w-[560px] rounded-2xl border border-border bg-s1 px-5 py-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Four stops</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">What it shows</p>
           <ol className="mt-2 flex flex-col gap-1.5 text-[14px] leading-[1.55] text-dim">
             <li><span className="font-medium text-text">The link.</span> One link, and everyone can answer without an account.</li>
             <li><span className="font-medium text-text">The grid.</span> Drag across the hours you can make.</li>
-            <li><span className="font-medium text-text">The tabs.</span> Places and votes, who is coming, the details.</li>
+            <li><span className="font-medium text-text">Location.</span> Places on a ballot, votes, and a route.</li>
+            <li><span className="font-medium text-text">Attendance and details.</span> Who is coming, and everything else.</li>
             <li><span className="font-medium text-text">The lock-in.</span> The host sets the plan and everyone gets it.</li>
           </ol>
           <button type="button" onClick={showAround} className="mt-4 flex h-11 items-center gap-2 rounded-[10px] bg-accent px-5 text-[14px] font-semibold text-on-accent">
