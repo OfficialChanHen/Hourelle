@@ -58,6 +58,7 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readO
 }) {
   const root = useRef<HTMLDivElement>(null)
   const sheet = useRef<HTMLDivElement>(null)
+  const skirt = useRef<HTMLDivElement>(null)
   const closing = useRef(false)
 
   // you are reading this room, so a message landing in it is not news to announce
@@ -121,11 +122,28 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readO
       el.style.top = keyboard ? `${vv.offsetTop}px` : ''
       el.style.height = keyboard ? `${vv.height}px` : ''
       el.style.bottom = keyboard ? 'auto' : ''
+      // what is left under the pinned sheet is the keyboard and the browser's own
+      // bar, and between them a band of the page showed through. It is painted in
+      // the sheet's own surface so the sheet simply looks longer than it is.
+      if (skirt.current) {
+        const below = Math.max(0, window.innerHeight - (vv.offsetTop + vv.height))
+        skirt.current.style.height = keyboard ? `${below}px` : '0px'
+      }
     }
     fit()
     vv.addEventListener('resize', fit)
     vv.addEventListener('scroll', fit)
     return () => { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit) }
+  }, [])
+
+  // the room is a room: the page behind it does not scroll while it is open, which
+  // on a phone is what let a tap near the edge slide the whole app about
+  useEffect(() => {
+    const b = document.body
+    const was = { overflow: b.style.overflow, over: b.style.overscrollBehavior }
+    b.style.overflow = 'hidden'
+    b.style.overscrollBehavior = 'none'
+    return () => { b.style.overflow = was.overflow; b.style.overscrollBehavior = was.over }
   }, [])
 
   useEffect(() => {
@@ -148,6 +166,9 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readO
       <div className="cd-panel absolute right-0 top-0 hidden h-full w-[330px] max-w-[88vw] flex-col border-l border-border bg-s0 shadow-soft lg:flex">
         {body}
       </div>
+      {/* the band under the sheet once the keyboard has pushed it up, in the sheet's
+          own colour; nothing while there is no keyboard */}
+      <div ref={skirt} className="pointer-events-none fixed inset-x-0 bottom-0 bg-s0 lg:hidden" style={{ height: 0 }} aria-hidden />
       {/* mobile: full-height bottom sheet, dismissable by dragging the grab bar */}
       <div
         ref={sheet}
@@ -307,19 +328,22 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
               // a line the app wrote ("Sam joined", "reopened the plan"): a quiet
               // centered note, never a bubble, so it reads as the room, not a person
               if (m.system) return (
-                <div key={r.key} className="mt-3 flex items-center justify-center gap-2 text-[11.5px] text-faint">
-                  <Avatar initials={a.initials} color={a.color} size={16} font={7.5} />
-                  <span><span className="font-semibold text-dim">{m.name}</span> {m.text}</span>
-                  <span>{whenLabel(m, h24)}</span>
+                <div key={r.key} className="mt-3 flex flex-col items-center gap-0.5 text-[11.5px] text-faint">
+                  <span className="text-[10.5px]">{whenLabel(m, h24)}</span>
+                  <span className="flex items-center gap-2">
+                    <Avatar initials={a.initials} color={a.color} size={16} font={7.5} />
+                    <span><span className="font-semibold text-dim">{m.name}</span> {m.text}</span>
+                  </span>
                 </div>
               )
               return (
                 <div key={r.key} className={`cd-msg flex flex-col ${first ? 'mt-3.5 first:mt-1' : 'mt-1'} ${m.you ? 'items-end' : 'items-start'}`}>
-                  {first && (
+                  {/* only other people are named. Your own messages are the ones in the
+                      accent on the right, which says whose they are without a label. */}
+                  {first && !m.you && (
                     <div className="mb-1 flex items-center gap-1.5 text-[11px] text-dim">
-                      {!m.you && <Avatar initials={a.initials} color={a.color} size={18} font={8.5} />}
+                      <Avatar initials={a.initials} color={a.color} size={18} font={8.5} />
                       <span className="font-semibold text-text">{m.name}</span>
-                      <span>{whenLabel(m, h24)}</span>
                     </div>
                   )}
                   <div
@@ -332,6 +356,13 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                   >
                     {m.text}
                   </div>
+                  {/* the time under the message and on its own side, one line of its
+                      own, so a long name and a time can never stack into a column */}
+                  {first && (
+                    <span className={`mt-0.5 whitespace-nowrap text-[10.5px] leading-none text-faint ${m.you ? 'pr-1 text-right' : 'pl-1 text-left'}`}>
+                      {whenLabel(m, h24)}
+                    </span>
+                  )}
                 </div>
               )
             })

@@ -102,8 +102,9 @@ export function joinEventRoom(eventId: string, me: Peer, handlers: RoomHandlers)
 export function typingLine(peers: Peer[]): string | null {
   const names = peers.map((p) => p.name.trim().split(/\s+/)[0] || p.name).filter(Boolean)
   if (!names.length) return null
-  if (names.length === 1) return `${names[0]} is typing`
-  if (names.length === 2) return `${names[0]} and ${names[1]} are typing`
-  if (names.length === 3) return `${names[0]}, ${names[1]} and ${names[2]} are typing`
-  return `${names[0]}, ${names[1]} and ${names.length - 2} others are typing`
+  // the trailing dots are the sentence still being written
+  if (names.length === 1) return `${names[0]} is typing...`
+  if (names.length === 2) return `${names[0]} and ${names[1]} are typing...`
+  if (names.length === 3) return `${names[0]}, ${names[1]} and ${names[2]} are typing...`
+  return `${names[0]}, ${names[1]} and ${names.length - 2} others are typing...`
 }

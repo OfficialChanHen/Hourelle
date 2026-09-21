@@ -38,14 +38,14 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { ChevronLeft, ChevronRight, ChevronDown, X, Check, Bell, Info, SlidersHorizontal, Trash2, Zap } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, SlidersHorizontal, Trash2, Zap } from 'lucide-react'
 
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Hint } from '@/components/ui/Hint'
 import { Popover } from '@/components/ui/Popover'
-import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, MissingPopover, PadGrip, PresetFills, Segment } from './availability/parts'
+import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, MissingPopover, PresetFills, Segment } from './availability/parts'
 import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, PILE_AV, PILE_FONT, PILE_OVER, subtract, type Band, type GDay } from './availability/grid-lib'
 import { DayCalendar } from './availability/DayCalendar'
 import { prefH24, prefWholeWeek } from '@/lib/prefs'
@@ -257,11 +257,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const hasLead = firstReal > 0
   const hasTrail = lastReal >= 0 && lastReal < weekDays.length - 1
   // the device preference decides where they start; the seam buttons still rule the visit
-  const [leadOpen, setLeadOpen] = useState(() => prefWholeWeek())
-  const [trailOpen, setTrailOpen] = useState(() => prefWholeWeek())
+  // the days on either side that only square the week off. One switch, in the
+  // toolbar: two little chevrons straddling the grid lines were easy to miss, sat
+  // over the header as the page scrolled, and asked the same question twice.
+  const [wholeWeek, setWholeWeek] = useState(() => prefWholeWeek())
   const cols = useMemo(
-    () => weekDays.filter((d, i) => !d.pad || (i < firstReal ? leadOpen : i > lastReal ? trailOpen : true)),
-    [weekDays, firstReal, lastReal, leadOpen, trailOpen],
+    () => weekDays.filter((d) => !d.pad || wholeWeek),
+    [weekDays, wholeWeek],
   )
 
   // a real day whose left neighbor is filler draws its own left border — the filler's
@@ -362,7 +364,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     // the week stays put with its filler in view
     const inView = first <= 0 || edges[first] == null || edges[first] + COL_MIN <= el.clientWidth
     el.scrollLeft = inView ? 0 : edges[first] - timeCol
-  }, [page, narrow, leadOpen, trailOpen]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, narrow, wholeWeek]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // scroll → recompute the visible row window (rAF-throttled; also fires during drag auto-scroll)
   function onGridScroll() {
@@ -1348,6 +1350,20 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               <IconBtn onClick={() => goWeek(1)} disabled={page >= pageCount - 1}><ChevronRight size={17} /></IconBtn>
             </div>
           )}
+          {/* the poll may ask about part of a week; this shows the rest of it, greyed,
+              for context. Only worth offering when there is a rest to show. */}
+          {!dayPoll && (hasLead || hasTrail) && (
+            <button
+              type="button"
+              onClick={() => setWholeWeek((w) => !w)}
+              aria-pressed={wholeWeek}
+              title={wholeWeek ? 'Show only the days this poll asks about' : 'Show the whole week around the days this poll asks about'}
+              className={`flex h-7 flex-none items-center gap-1.5 rounded-lg border px-[9px] text-[12.5px] font-medium ${wholeWeek ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}
+            >
+              {wholeWeek ? <ChevronsRightLeft size={13} /> : <ChevronsLeftRight size={13} />}
+              Whole week
+            </button>
+          )}
           {dayPoll ? null : canConvert ? (
             // a two-sided toggle, so it reads as "event zone vs your zone" at a glance
             <div className="flex h-7 items-center overflow-hidden rounded-lg border border-border bg-s1 text-[12px] font-medium" role="group" aria-label="Show times in">
@@ -1584,7 +1600,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           // the seam button on the last day hangs half its width past the sheet's right
           // edge, and a scroller clips whatever leaves it: weeks with days after the
           // poll keep that half-width free so the button stays whole
-          style={{ WebkitTouchCallout: 'none', paddingRight: hasTrail ? 9 : undefined } as React.CSSProperties}
+          style={{ WebkitTouchCallout: 'none' } as React.CSSProperties}
         >
           {/* width tracks the day count: a single day must fit the screen without a
               horizontal scroll, and shouldn't stretch into one huge column either */}
@@ -1656,23 +1672,6 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               )
             })}
 
-            {/* the seam between the poll and the days that only square its week off:
-                its own cell on the header row, sharing the column of the day whose
-                border it rides, so it can straddle that line above every layer */}
-            {hasLead && (
-              <PadGrip
-                side="lead" open={leadOpen} n={firstReal}
-                column={cols.findIndex((d) => !d.pad) + 2}
-                onClick={() => setLeadOpen((o) => !o)}
-              />
-            )}
-            {hasTrail && (
-              <PadGrip
-                side="trail" open={trailOpen} n={weekDays.length - 1 - lastReal}
-                column={cols.length - [...cols].reverse().findIndex((d) => !d.pad) + 1}
-                onClick={() => setTrailOpen((o) => !o)}
-              />
-            )}
 
             {/* body rows — only the visible slice is mounted; spacers hold the scroll height */}
             {topPad > 0 && <div style={{ gridColumn: '1 / -1', height: topPad }} />}
