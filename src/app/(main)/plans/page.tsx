@@ -1,7 +1,7 @@
 // The public price list. Free is the whole product; Plus is what keeps it running,
 // with a few extras. The same two cards appear on the welcome steps and in the Plan
-// section of Settings, so they live in one component; this is the only page that
-// also draws the line-by-line comparison, because comparing is what it is for.
+// section of Settings, so they live in one component, and the comparison is on the
+// cards themselves rather than in a table underneath them.
 
 import { BackLink } from '@/components/ui/BackLink'
 import { PlanCards } from '@/components/PlanCards'
@@ -13,10 +13,10 @@ export default function PlansPage() {
       <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">Plans</p>
       <h1 className="mt-2 font-serif font-normal text-[40px] leading-[1.06] tracking-[-0.01em]">Free to host, free to join.</h1>
       <p className="mt-3 max-w-[560px] text-[15px] leading-[1.65] text-dim">
-        Everything it takes to plan something with people is free and stays that way. Hourelle Plus is a way to say thanks, with a few extras for people who plan often.
+        Everything it takes to plan something with people is free and stays that way. Hourelle Plus pays for what it runs on, and comes with a few extras.
       </p>
       <div className="mt-8">
-        <PlanCards comparison />
+        <PlanCards />
       </div>
     </div>
   )
