@@ -214,6 +214,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // nudges are emails from the host: only the host, logged in, with a backend
   const account = useAccount()
   const canNudge = !!event.hostedByYou && canEmail(account.signedIn)
+  // what the panel offers depends on whose event it is: how long the thing needs and
+  // what the best window should favour are the host's answers, and they change the
+  // event for everybody. Everything else in there is about this screen or your own
+  // times, so it is everybody's.
+  const isHost = !!event.hostedByYou
   const [nudgeNote, setNudgeNote] = useState<string | null>(null)
   const [sel, setSel] = useState<Sel | null>(null)
   const [nudgeStep, setNudgeStep] = useState(5) // minutes the − / + buttons move an edge
@@ -1293,7 +1298,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         single number, and stepping it says so. The step widens as the
                         number grows, so an hour is one tap from ninety minutes and a
                         whole day is not forty. */}
-                    {!daysAnswer && <div>
+                    {isHost && !daysAnswer && <div>
                       <div className="flex items-center justify-between gap-3">
                         <span className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Event length</span>
                         <div className="flex flex-none items-center overflow-hidden rounded-[8px] border border-border2 bg-s1">
@@ -1309,7 +1314,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         </div>
                       </div>
                     </div>}
-                    <div className={daysAnswer ? '' : 'border-t border-border pt-2.5'}>
+                    {isHost && <div className={daysAnswer ? '' : 'border-t border-border pt-2.5'}>
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">{daysAnswer ? 'Best days favor' : 'Best time favors'}</div>
                       <Segment compact value={bestMode} onChange={(v) => changeBestMode(v as BestMode)} options={[{ v: 'full', l: 'Everyone stays' }, { v: 'crowd', l: 'Biggest crowd' }]} />
                       <p className="mt-1.5 text-[12px] leading-[1.5] text-faint">
@@ -1321,8 +1326,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                             ? 'Picks the time the most people can attend start to finish.'
                             : 'Picks the time with the most people around overall, even if some come and go.'}
                       </p>
-                    </div>
-                    {!daysAnswer && <div className="border-t border-border pt-2.5">
+                    </div>}
+                    {!daysAnswer && <div className={isHost ? 'border-t border-border pt-2.5' : ''}>
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Time format</div>
                       <Segment value={h24 ? '24' : '12'} onChange={(v) => setH24(v === '24')} options={[{ v: '12', l: '12-hour' }, { v: '24', l: '24-hour' }]} />
                     </div>}
