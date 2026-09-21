@@ -46,6 +46,10 @@
   --glass-rim:rgba(255,255,255,.5);
   --glass-rim-weak:rgba(255,255,255,.18);
   --glass-sheen:rgba(255,255,255,.22);
+  /* the tour: how dark the page goes outside the lit part, and the colour of the
+     line drawn around it. Dark needs both stronger, since a dim charcoal over a
+     charcoal page barely reads and the deep green all but disappears on it. */
+  --tour-dim: rgba(20, 18, 14, .45); --tour-lit: var(--accent);
 }
 
 /* Dark — warm charcoal, the same warmth held at the same distance */
@@ -78,6 +82,7 @@
   --glass-rim:rgba(255,255,255,.14);
   --glass-rim-weak:rgba(255,255,255,.06);
   --glass-sheen:rgba(255,255,255,.08);
+  --tour-dim: rgba(0, 0, 0, .66); --tour-lit: var(--accent-text);
 }
 
 /* ── Appearances — optional palettes layered over the same tokens ──

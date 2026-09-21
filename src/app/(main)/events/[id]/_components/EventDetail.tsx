@@ -279,8 +279,8 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     <div className="mx-auto max-w-[1240px] px-4 pb-[104px] pt-5 sm:px-[26px] sm:pt-[34px]">
       <BackLink href={backTo.href} label={backTo.label} />
       {/* the tour, only when it was asked for, and the one question a new guest gets; both mount on the body */}
-      <Tour host={event.hostedByYou} />
-      <AskTour />
+      {phase !== 'past' && <Tour host={event.hostedByYou} locked={phase !== 'planning'} />}
+      {phase !== 'past' && <AskTour />}
       {/* the host's cover, when one is set — photo or preset scene; shorter on phones
           so the tabs and content stay within the first screen */}
       {event.image && <Cover src={event.image} fit={event.imageFit} from="#E4EDE7" to="#CFE0D5" className="mb-4 h-[92px] border border-border sm:mb-5 sm:h-[170px]" rounded="rounded-2xl" />}
@@ -324,6 +324,12 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           {/* discussion lives in the floating bubble alone — one entry point, less header */}
           {/* share button opens a dropdown with the URL and a one-tap copy; on phones it
               folds into the ⋯ menu so the title and lock-in keep the row */}
+          {/* sharing closes when the event does: a link handed out afterwards only
+              brings somebody to a plan they have already missed. The people already
+              on it keep theirs, and a duplicate is open again. */}
+          {phase === 'past' ? (
+            <span className="hidden h-9 items-center rounded-[9px] border border-border bg-s0 px-3.5 text-[13px] text-faint sm:flex">Sharing closed</span>
+          ) : (
           <Popover
             align="end"
             width={312}
@@ -349,6 +355,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
               </>
             )}
           </Popover>
+          )}
           <Popover
             align="end"
             width={216}
@@ -362,9 +369,14 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             )}
           >
             {() => (
+              // the same rule as the desktop button: nothing to hand out once it is over
+              phase === 'past' ? (
+                <p className="px-3.5 py-3 text-[12.5px] leading-[1.5] text-dim">This event is over, so its link is closed. Duplicate it to plan the next one.</p>
+              ) : (
               <PopoverItem onClick={copy} icon={copied ? <Check size={15} className="text-teal-text" /> : <Link2 size={15} />}>
                 {copied ? 'Link copied' : 'Copy invite link'}
               </PopoverItem>
+              )
             )}
           </Popover>
         </div>
@@ -632,6 +644,11 @@ function InviteMore({ event, onPatch }: { event: AppEvent; onPatch: (patch: Part
   const account = useAccount()
   const [open, setOpen] = useState(false)
   if (!canEmail(account.signedIn)) return null
+  // nobody is invited to something that already happened; the copy is where the
+  // next one starts, and that one is open again from the moment it is made
+  if (phaseOf(event) === 'past') {
+    return <p className="rounded-[9px] border border-border bg-s0 px-3.5 py-2.5 text-[12.5px] leading-[1.5] text-dim">This event is over, so invitations are closed. Duplicate it to plan the next one.</p>
+  }
   return (
     <div>
       <button

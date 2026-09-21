@@ -98,7 +98,7 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
       </div>
 
       {/* your RSVP — the one thing the plan asks of you */}
-      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3.5">
+      <div data-tour="rsvp" className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3.5">
         <span className="text-[13px] text-dim">Are you coming?</span>
         <div className="flex items-center gap-1.5">
           {RSVP_OPTIONS.map((o) => {

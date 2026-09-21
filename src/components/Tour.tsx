@@ -57,6 +57,25 @@ const HOST_STOPS: Stop[] = [
   { end: true },
 ]
 
+// the guest's tour once the plan is locked in. There is no Edit mine on a settled
+// grid, so telling somebody to press it would point at nothing; what is asked of
+// them now is whether they are coming.
+const GUEST_LOCKED_STOPS: Stop[] = [
+  { tab: 'availability', targets: [
+    { sel: 'rsvp', title: 'Say if you can make it', text: 'The time and the place are settled. All that is left is whether you are there.', tryIt: 'Answer going, maybe or cannot go. You can change it later.' },
+  ] },
+  { tab: 'availability', targets: [
+    { sel: 'grid-all', title: 'When it is', text: 'The grid shows the times everyone gave and the window that won. It is read-only now that the plan is locked.' },
+  ] },
+  { tab: 'attendance', targets: [
+    { sel: 'attendance', title: 'Who is coming', text: 'Everyone who has answered, and who the host is still waiting on.' },
+  ] },
+  { tab: 'availability', targets: [
+    { sel: 'chat', title: 'Say something', text: 'The discussion is per event and everyone on it can write, guests included. It is the place to say you will be late.', tryIt: 'Open it and leave a line.' },
+  ] },
+  { end: true },
+]
+
 // the guest's tour: what a guest actually does here. No invites, no lock-in, no
 // host controls; the ballot and the discussion take the last two stops instead.
 const GUEST_STOPS: Stop[] = [
@@ -123,7 +142,7 @@ function placeCard(b: Box | null, cardH: number): { left: number; top: number; w
   return { left: Math.max(16, Math.min(b.x, vw - width - 16)), top, width }
 }
 
-export function Tour({ host = false }: { host?: boolean }) {
+export function Tour({ host = false, locked = false }: { host?: boolean; locked?: boolean }) {
   const [plan, setPlan] = useState<Stop[] | null>(null)
   const [i, setI] = useState(0)
   const [cand, setCand] = useState<Candidate | null>(null)
@@ -156,7 +175,8 @@ export function Tour({ host = false }: { host?: boolean }) {
       if (t) clearTimeout(t)
       t = setTimeout(() => {
         const here = activeTab()
-        const have = (host ? HOST_STOPS : GUEST_STOPS).filter((s) => 'end' in s || s.tab !== here || find(s))
+        const script = host ? HOST_STOPS : locked ? GUEST_LOCKED_STOPS : GUEST_STOPS
+        const have = script.filter((s) => 'end' in s || s.tab !== here || find(s))
         if (have.length > 1) { first.current = true; setI(0); setPlan(have) }
       }, delay)
     }
@@ -164,7 +184,7 @@ export function Tour({ host = false }: { host?: boolean }) {
     const onStart = () => begin(300)
     window.addEventListener(TOUR_START, onStart)
     return () => { if (t) clearTimeout(t); window.removeEventListener(TOUR_START, onStart) }
-  }, [host])
+  }, [host, locked])
 
   const finish = useCallback(() => {
     dismissHint('tour')
@@ -255,12 +275,12 @@ export function Tour({ host = false }: { host?: boolean }) {
             <rect ref={hole} x={box?.x ?? 0} y={box?.y ?? 0} width={box?.w ?? 0} height={box?.h ?? 0} rx="12" fill="#000" />
           </mask>
         </defs>
-        <rect width="100%" height="100%" fill="rgba(20,18,14,.45)" mask="url(#tour-hole)" />
+        <rect width="100%" height="100%" fill="var(--tour-dim)" mask="url(#tour-hole)" />
         {/* the lit edge: the same rectangle again, drawn rather than cut out */}
         <rect
           ref={glow} className="tour-glow" x={box?.x ?? 0} y={box?.y ?? 0} width={box?.w ?? 0} height={box?.h ?? 0}
-          rx="12" fill="none" stroke="var(--accent)" strokeWidth="2" opacity="0"
-          style={{ filter: 'drop-shadow(0 0 6px var(--accent)) drop-shadow(0 0 14px var(--accent))' }}
+          rx="12" fill="none" stroke="var(--tour-lit)" strokeWidth="2.5" opacity="0"
+          style={{ filter: 'drop-shadow(0 0 5px var(--tour-lit)) drop-shadow(0 0 13px var(--tour-lit))' }}
         />
       </svg>
       <div ref={card} className="tour-card pointer-events-auto absolute rounded-xl border border-border bg-s1 p-4 shadow-soft" style={pos}>
