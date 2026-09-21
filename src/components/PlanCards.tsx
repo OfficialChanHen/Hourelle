@@ -41,8 +41,6 @@ function Lines({ rows, side }: { rows: Row[]; side: 'free' | 'plus' }) {
   )
 }
 
-type Card = { key: 'free' | 'monthly' | 'yearly' | 'plus'; name: string; price: string; note: string; tagline: string; plus: boolean }
-
 export function PlanCards({ onContinueFree, onPicked }: {
   // the welcome step passes both: the Free card carries on, and any other choice
   // still counts as a choice, so the step can let go
@@ -52,10 +50,12 @@ export function PlanCards({ onContinueFree, onPicked }: {
   const account = useAccount()
   const { plan, source, ready } = usePlan()
   const buyable = canBuy(account.signedIn)
+  const [period, setPeriod] = useState<Period>('yearly')
   const [interested, setInterested] = useState<boolean>(() => (typeof window === 'undefined' ? false : plusInterested(account.id)))
-  const [busy, setBusy] = useState<Period | 'portal' | 'list' | null>(null)
+  const [busy, setBusy] = useState<'buy' | 'portal' | 'list' | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const onPlus = ready && plan === 'plus'
+  const P = PLANS.plus
 
   async function keepPosted() {
     setBusy('list'); setErr(null)
@@ -63,8 +63,8 @@ export function PlanCards({ onContinueFree, onPicked }: {
     setInterested(true); setBusy(null)
     onPicked?.('list')
   }
-  async function buy(period: Period) {
-    setBusy(period); setErr(null)
+  async function buy() {
+    setBusy('buy'); setErr(null)
     onPicked?.('plus') // said before leaving: Stripe brings the browser back to Settings, not here
     const e = await startCheckout(period)
     if (e) { setErr(e); setBusy(null) }
@@ -75,109 +75,121 @@ export function PlanCards({ onContinueFree, onPicked }: {
     if (e) { setErr(e); setBusy(null) }
   }
 
-  const P = PLANS.plus
-  const cards: Card[] = [
-    { key: 'free', name: PLANS.free.name, price: PLANS.free.price, note: PLANS.free.priceNote, tagline: PLANS.free.tagline, plus: false },
-    ...(onPlus
-      ? [{ key: 'plus' as const, name: P.name, price: P.price, note: P.monthlyNote ?? P.priceNote, tagline: P.tagline, plus: true }]
-      : [
-          { key: 'monthly' as const, name: `${P.name} monthly`, price: P.price, note: P.monthlyNote ?? 'a month', tagline: P.tagline, plus: true },
-          { key: 'yearly' as const, name: `${P.name} yearly`, price: P.yearly ?? P.price, note: P.yearlyNote ?? 'a year', tagline: P.tagline, plus: true },
-        ]),
-  ]
-
   return (
     <div>
-      <div className={`grid gap-4 ${cards.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
-        {cards.map((c) => {
-          const best = c.key === 'yearly'
-          return (
-            <div key={c.key} className={`relative flex flex-col rounded-2xl border bg-s1 p-5 sm:p-6 ${best ? 'border-[1.5px] border-accent' : c.plus ? 'border-accent-border' : 'border-border'}`}>
-              {/* the recommendation sits on the card it recommends, so it cannot be read
-                  as pointing at the other one */}
-              {best && !onPlus && (
-                <span className="absolute -top-2.5 left-5 rounded-md bg-accent px-2 py-0.5 text-[11px] font-semibold text-on-accent sm:left-6">{BILLING_TERMS.recommended}</span>
-              )}
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    {c.plus && <Sparkles size={15} className="flex-none text-accent-text" />}
-                    <span className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{c.name}</span>
-                  </div>
-                  {/* price and unit on one line, and the unit is two words, so nothing wraps */}
-                  <div className="mt-2 flex flex-wrap items-baseline gap-x-2">
-                    <span className="font-serif text-[36px] leading-none tracking-[-0.01em]">{c.price}</span>
-                    <span className="text-[13px] text-dim">{c.note}</span>
-                  </div>
-                  {best && <div className="mt-1.5 inline-block rounded-md border border-teal-border bg-teal-bg px-1.5 py-0.5 text-[11px] font-semibold text-teal-text">{BILLING_TERMS.saving}</div>}
-                  <p className="mt-2 text-[13.5px] leading-[1.55] text-dim">{c.tagline}</p>
-                </div>
-                {((c.key === 'free' && ready && plan === 'free') || (c.plus && onPlus)) && (
-                  <span className="flex flex-none items-center gap-1 rounded-md border border-teal-border bg-teal-bg px-2 py-0.5 text-[11px] font-semibold text-teal-text">
-                    {c.plus && source === 'comped' && <Gift size={11} />} Your plan
-                  </span>
-                )}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* ── Free ── */}
+        <div className="flex flex-col rounded-2xl border border-border bg-s1 p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <span className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{PLANS.free.name}</span>
+              <div className="mt-2 flex flex-wrap items-baseline gap-x-2">
+                <span className="font-serif text-[36px] leading-none tracking-[-0.01em]">{PLANS.free.price}</span>
+                <span className="text-[13px] text-dim">{PLANS.free.priceNote}</span>
               </div>
+              <p className="mt-2 text-[13.5px] leading-[1.55] text-dim">{PLANS.free.tagline}</p>
+            </div>
+            {ready && plan === 'free' && (
+              <span className="flex-none rounded-md border border-teal-border bg-teal-bg px-2 py-0.5 text-[11px] font-semibold text-teal-text">Your plan</span>
+            )}
+          </div>
+          <Lines rows={CRUCIAL} side="free" />
+          <div className="mt-auto pt-6">
+            {onContinueFree ? (
+              <button type="button" onClick={() => { onPicked?.('free'); onContinueFree() }} className="flex h-11 w-full items-center justify-center rounded-[10px] border border-border2 bg-s1 text-[14px] font-semibold hover:bg-s2">
+                Continue with Free
+              </button>
+            ) : (
+              <p className="text-center text-[12.5px] text-faint">Hosting stays free, whatever you choose later.</p>
+            )}
+          </div>
+        </div>
 
-              {c.plus ? (
-                <>
-                  <ul className="mt-5 border-t border-border pt-4">
-                    <li className="flex gap-2.5 text-[13.5px] font-semibold leading-[1.5]">
-                      <Check size={15} className="mt-[3px] flex-none text-teal-text" /> Everything in Free
-                    </li>
-                  </ul>
-                  <Lines rows={PLUS_ADDS} side="plus" />
-                </>
-              ) : (
-                <Lines rows={CRUCIAL} side="free" />
-              )}
+        {/* ── Plus, with the two ways to pay split across the top ──
+            The lists are identical for monthly and yearly, so a third card would
+            have repeated every line to change one number. The card is one offer
+            and the split is the choice inside it. */}
+        <div className="flex flex-col rounded-2xl border border-accent-border bg-s1 p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Sparkles size={15} className="flex-none text-accent-text" />
+              <span className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{P.name}</span>
+            </div>
+            {onPlus && (
+              <span className="flex flex-none items-center gap-1 rounded-md border border-teal-border bg-teal-bg px-2 py-0.5 text-[11px] font-semibold text-teal-text">
+                {source === 'comped' && <Gift size={11} />} Your plan
+              </span>
+            )}
+          </div>
 
-              <div className="mt-auto pt-6">
-                {c.plus ? (
-                  onPlus ? (
-                    source === 'comped' ? (
-                      <p className="text-center text-[12.5px] leading-[1.5] text-teal-text">Plus, on the house. Nothing to pay.</p>
-                    ) : (
-                      <button type="button" onClick={() => void manage()} disabled={busy !== null} className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] border border-border2 bg-s1 text-[14px] font-semibold hover:bg-s2 disabled:opacity-60">
-                        {busy === 'portal' ? <Loader2 size={15} className="animate-spin" /> : <ExternalLink size={14} />} Manage billing
-                      </button>
-                    )
-                  ) : buyable ? (
-                    <>
-                      <button
-                        type="button" onClick={() => void buy(c.key === 'yearly' ? 'yearly' : 'monthly')} disabled={busy !== null}
-                        className={`flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[14px] font-semibold disabled:opacity-60 ${best ? 'bg-accent text-on-accent' : 'border border-border2 bg-s1 hover:bg-s2'}`}
-                      >
-                        {busy === (c.key === 'yearly' ? 'yearly' : 'monthly') ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} className={best ? '' : 'text-accent-text'} />}
-                        Get Plus
-                      </button>
-                      {/* said before the button is pressed, not after */}
-                      <p className="mt-2 text-[12px] leading-[1.5] text-faint">{BILLING_TERMS.renews} {BILLING_TERMS.cancel}</p>
-                    </>
-                  ) : (
+          {onPlus ? (
+            <div className="mt-2">
+              <span className="font-serif text-[36px] leading-none tracking-[-0.01em]">Thank you</span>
+              <p className="mt-2 text-[13.5px] leading-[1.55] text-dim">{source === 'comped' ? 'Plus, on the house.' : 'Plus is on.'}</p>
+            </div>
+          ) : (
+            <>
+              <p className="mt-2 text-[13.5px] leading-[1.55] text-dim">{P.tagline}</p>
+              {/* the two prices, side by side, one of them chosen. Picking here is
+                  what the button then buys, so the choice is never made twice. */}
+              <div role="radiogroup" aria-label="How to pay" className="mt-4 grid grid-cols-2 gap-2">
+                {([['monthly', P.price, P.monthlyNote ?? 'a month'], ['yearly', P.yearly ?? P.price, P.yearlyNote ?? 'a year']] as const).map(([k, price, note]) => {
+                  const on = period === k
+                  const best = k === 'yearly'
+                  return (
                     <button
-                      type="button" onClick={() => void keepPosted()} disabled={interested || busy !== null}
-                      className={`flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[14px] font-semibold ${interested ? 'border border-teal-border bg-teal-bg text-teal-text' : best ? 'bg-accent text-on-accent' : 'border border-border2 bg-s1 hover:bg-s2'} disabled:opacity-100`}
+                      key={k} type="button" role="radio" aria-checked={on} onClick={() => setPeriod(k)}
+                      className={`relative rounded-xl border px-3 py-3 text-left transition-colors ${on ? 'border-[1.5px] border-accent bg-accent-bg' : 'border-border bg-s0 hover:border-border2'}`}
                     >
-                      {interested ? <><Check size={15} /> You are on the list</> : 'Tell me when it is ready'}
+                      {best && (
+                        <span className="absolute -top-2 right-2 rounded bg-accent px-1.5 py-px text-[10px] font-semibold text-on-accent">{BILLING_TERMS.recommended}</span>
+                      )}
+                      <span className="block font-serif text-[27px] leading-none tracking-[-0.01em]">{price}</span>
+                      <span className="mt-1 block text-[12.5px] text-dim">{note}</span>
+                      <span className={`mt-1 block text-[11px] font-semibold ${best ? 'text-teal-text' : 'text-faint'}`}>{best ? BILLING_TERMS.saving : 'Cancel any time'}</span>
                     </button>
                   )
-                ) : onContinueFree ? (
-                  <button type="button" onClick={() => { onPicked?.('free'); onContinueFree() }} className="flex h-11 w-full items-center justify-center rounded-[10px] border border-border2 bg-s1 text-[14px] font-semibold hover:bg-s2">
-                    Continue with Free
-                  </button>
-                ) : (
-                  <p className="text-center text-[12.5px] text-faint">Hosting stays free, whatever you choose later.</p>
-                )}
+                })}
               </div>
-            </div>
-          )
-        })}
+            </>
+          )}
+
+          <ul className="mt-5 border-t border-border pt-4">
+            <li className="flex gap-2.5 text-[13.5px] font-semibold leading-[1.5]">
+              <Check size={15} className="mt-[3px] flex-none text-teal-text" /> Everything in Free
+            </li>
+          </ul>
+          <Lines rows={PLUS_ADDS} side="plus" />
+
+          <div className="mt-auto pt-6">
+            {onPlus ? (
+              source === 'comped' ? (
+                <p className="text-center text-[12.5px] leading-[1.5] text-teal-text">Nothing to pay.</p>
+              ) : (
+                <button type="button" onClick={() => void manage()} disabled={busy !== null} className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] border border-border2 bg-s1 text-[14px] font-semibold hover:bg-s2 disabled:opacity-60">
+                  {busy === 'portal' ? <Loader2 size={15} className="animate-spin" /> : <ExternalLink size={14} />} Manage billing
+                </button>
+              )
+            ) : buyable ? (
+              <>
+                <button type="button" onClick={() => void buy()} disabled={busy !== null} className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-accent text-[14px] font-semibold text-on-accent disabled:opacity-60">
+                  {busy === 'buy' ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />} Get Plus {period === 'yearly' ? 'yearly' : 'monthly'}
+                </button>
+                {/* said before the button is pressed, not after */}
+                <p className="mt-2 text-[12px] leading-[1.5] text-faint">{BILLING_TERMS.renews} {BILLING_TERMS.cancel}</p>
+              </>
+            ) : (
+              <button
+                type="button" onClick={() => void keepPosted()} disabled={interested || busy !== null}
+                className={`flex h-11 w-full items-center justify-center gap-2 rounded-[10px] text-[14px] font-semibold ${interested ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'} disabled:opacity-100`}
+              >
+                {interested ? <><Check size={15} /> You are on the list</> : 'Tell me when it is ready'}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
       {err && <p role="alert" className="mt-3 text-[12.5px] font-medium text-brick-text">{err}</p>}
-      <p className="mt-3 text-[12px] leading-[1.55] text-faint">
-        Nothing in Free has ever moved to Plus, and nothing will. Guests never pay and never need an account.
-      </p>
     </div>
   )
 }

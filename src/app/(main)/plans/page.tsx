@@ -13,7 +13,7 @@ export default function PlansPage() {
       <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">Plans</p>
       <h1 className="mt-2 font-serif font-normal text-[40px] leading-[1.06] tracking-[-0.01em]">Free to host, free to join.</h1>
       <p className="mt-3 max-w-[560px] text-[15px] leading-[1.65] text-dim">
-        Everything it takes to plan something with people is free and stays that way. Hourelle Plus pays for what it runs on, and comes with a few extras.
+        Everything it takes to plan something with people is free and stays that way. Hourelle Plus helps pay for better maps and a faster app, and comes with a few extras.
       </p>
       <div className="mt-8">
         <PlanCards />

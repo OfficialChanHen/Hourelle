@@ -30,7 +30,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     name: 'Free',
     price: 'Free',
     priceNote: 'always',
-    tagline: 'Everything you need to host and to join.',
+    tagline: 'The whole thing, for everyone.',
     features: [
       'Unlimited events, guests and places',
       'The availability grid, day polls and quick fills',
@@ -50,34 +50,36 @@ export const PLANS: Record<PlanKey, Plan> = {
     yearly: '$30',
     monthlyNote: 'a month',
     yearlyNote: 'a year',
-    tagline: 'For the people keeping this going.',
+    tagline: 'For the people who keep it going.',
     features: [
-      'Everything in Free, which is the whole product',
-      'Pays for what this runs on: the servers, the database, the email and the maps',
+      'Everything in Free',
+      'Helps pay for better maps and a faster app',
+      'A Plus mark and a reply within two days',
+      'New features first',
       'No ads, no tracking, nobody to answer to',
-      'A Plus mark on your profile, and a reply within two days when you write in',
-      'New features first, starting with a calendar that keeps itself in step',
     ],
   },
 }
 
 /* ── the few lines that decide it, on the cards themselves ──
-   Short on purpose. A comparison is only worth reading if every row could go
-   either way, so these are the ones that actually differ or actually matter.
-   `'soon'` is its own answer and the honest one for the calendar connection: the
-   emailed entry already updates itself, a direct link to Google or Outlook is not
-   built, so neither column gets a tick for it. */
+   Short on purpose, and in this order: what Free has, then what only Plus has,
+   then the one thing nobody has yet. `'soon'` is its own answer and the honest one
+   for the calendar connection: adding a plan to a calendar is already free and the
+   emailed entry updates itself, but a direct link to Google or Outlook is not
+   built, so neither column gets a tick. It goes last, because a promise should
+   never sit above a fact. */
 export type Answer = true | false | 'soon'
 export type Row = { label: string; free: Answer; plus: Answer }
 
 export const CRUCIAL: Row[] = [
-  { label: 'Everything that settles a plan: times, places, attendance and chat', free: true, plus: true },
-  { label: 'As many events, guests and places as you like, and guests never need an account', free: true, plus: true },
-  { label: 'Invites, nudges and reminders by email', free: true, plus: true },
-  { label: 'Add a locked-in plan to any calendar, and the emailed entry updates itself when the plan moves', free: true, plus: true },
-  { label: 'Your calendar kept in step on its own, with no email to open', free: false, plus: 'soon' },
-  { label: 'Pays for what this runs on: the servers, the database, the email and the maps', free: false, plus: true },
-  { label: 'A Plus mark on your profile, a reply within two days, and new features first', free: false, plus: true },
+  { label: 'Times, places, attendance and chat', free: true, plus: true },
+  { label: 'Any number of events, guests and places', free: true, plus: true },
+  { label: 'Guests answer without an account', free: true, plus: true },
+  { label: 'Invites, reminders and add to calendar', free: true, plus: true },
+  { label: 'Helps pay for better maps and a faster app', free: false, plus: true },
+  { label: 'A Plus mark and a reply within two days', free: false, plus: true },
+  { label: 'New features first', free: false, plus: true },
+  { label: 'Your calendar kept in step on its own', free: false, plus: 'soon' },
 ]
 
 /** What a Plus card lists: the whole of Free in one line, then only what it adds. */
