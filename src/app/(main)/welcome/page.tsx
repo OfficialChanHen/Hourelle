@@ -58,13 +58,29 @@ function Welcome() {
     setTheme('system')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account.signedIn, account.id])
-  // does this account have the terms on record? Asked once; the answer decides the first step
+  // does this account have the terms on record? Asked once; the answer decides the
+  // first step. Nothing is on screen until it comes back: the page used to open on
+  // the settings step, which carries a Skip for now, so a quick hand could leave
+  // before the terms step had appeared and never see the documents at all.
+  const [checked, setChecked] = useState(false)
   useEffect(() => {
     if (!account.signedIn) return
     let gone = false
-    void legalAccepted(account.id).then((ok) => { if (gone) return; setNeedsTerms(!ok); if (!ok) { setTermsShown(true); setStep('terms') } })
+    void legalAccepted(account.id).then((ok) => {
+      if (gone) return
+      setNeedsTerms(!ok)
+      if (!ok) { setTermsShown(true); setStep('terms') }
+      setChecked(true)
+    })
     return () => { gone = true }
   }, [account.signedIn, account.id])
+  // a browser with no account never gets an answer, and neither does one whose
+  // network is gone; after a moment the steps open rather than waiting for ever
+  useEffect(() => {
+    const t = setTimeout(() => setChecked(true), 5000)
+    return () => clearTimeout(t)
+  }, [])
+  const waiting = !checked
   function acceptTerms() {
     recordLegalAcceptance(LEGAL_VERSION)
     setNeedsTerms(false)
@@ -123,10 +139,12 @@ function Welcome() {
     <div className="mx-auto max-w-[860px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
       <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">Welcome</p>
       <h1 className="mt-2 font-serif font-normal text-[40px] leading-[1.06] tracking-[-0.01em]">
-        {step === 'terms' ? 'Before you start.' : step === 'settings' ? 'Make it yours.' : step === 'plan' ? 'Pick a plan.' : 'One more thing.'}
+        {waiting ? 'One moment.' : step === 'terms' ? 'Before you start.' : step === 'settings' ? 'Make it yours.' : step === 'plan' ? 'Pick a plan.' : 'One more thing.'}
       </h1>
       <p className="mt-3 max-w-[560px] text-[15px] leading-[1.65] text-dim">
-        {step === 'terms'
+        {waiting
+          ? 'Setting up your account.'
+          : step === 'terms'
           ? 'Two short documents say what Hourelle keeps and how it may be used. Open each one, then tick its box.'
           : step === 'settings' ? 'Three things people set first. Everything here can be changed in Settings later.'
             : step === 'plan' ? 'Hosting is free and stays free. Plus is a thank-you with a few extras, and it is not on sale yet.'
@@ -134,6 +152,11 @@ function Welcome() {
       </p>
 
       {/* the dots, the way the event lifecycle strip counts */}
+      {waiting ? (
+        <div className="mt-5 flex items-center gap-2" aria-hidden>
+          {[0, 1, 2].map((n) => <span key={n} className="h-6 w-[74px] animate-pulse rounded-full bg-s2" />)}
+        </div>
+      ) : (
       <div className="mt-5 flex flex-wrap items-center gap-2 text-[12px] font-semibold text-faint" aria-label={`Step ${stepIndex} of ${steps.length}`}>
         {steps.map((s, i) => {
           const n = i + 1
@@ -146,8 +169,15 @@ function Welcome() {
           )
         })}
       </div>
+      )}
 
-      {step === 'terms' ? (
+      {waiting ? (
+        <div className="mt-7 max-w-[560px] animate-pulse rounded-2xl border border-border bg-s1 px-5 py-7" aria-hidden>
+          <div className="h-4 w-1/3 rounded bg-s2" />
+          <div className="mt-3 h-3 w-2/3 rounded bg-s2" />
+          <div className="mt-6 h-10 w-full max-w-[380px] rounded-[10px] bg-s2" />
+        </div>
+      ) : step === 'terms' ? (
         <div className="mt-7 max-w-[560px]">
           <LegalGate onChange={setLegalOk} />
         </div>
@@ -232,6 +262,7 @@ function Welcome() {
 
       {err && <p role="alert" className="mt-3 text-[12.5px] font-medium text-brick-text">{err}</p>}
 
+      {!waiting && (
       <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
         {step === 'terms' ? (
           <>
@@ -263,6 +294,7 @@ function Welcome() {
           </>
         )}
       </div>
+      )}
     </div>
   )
 }
