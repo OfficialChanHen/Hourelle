@@ -38,16 +38,17 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronsLeftRight, ChevronsRightLeft, Minus, Plus, X, Check, Bell, Info, SlidersHorizontal, Trash2, Zap } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, SlidersHorizontal, Trash2, Zap } from 'lucide-react'
 
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Switch } from '@/components/ui/Switch'
+import { DurationField } from '@/components/ui/DurationField'
 import { Hint } from '@/components/ui/Hint'
 import { Popover } from '@/components/ui/Popover'
 import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, MissingPopover, PresetFills, Segment } from './availability/parts'
-import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, stepDuration, PILE_AV, PILE_FONT, PILE_OVER, subtract, type Band, type GDay } from './availability/grid-lib'
+import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, PILE_AV, PILE_FONT, PILE_OVER, subtract, type Band, type GDay } from './availability/grid-lib'
 import { DayCalendar } from './availability/DayCalendar'
 import { prefH24, prefWholeWeek } from '@/lib/prefs'
 import { useAccount } from '@/hooks/useAccount'
@@ -1165,22 +1166,31 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     if (!el) return
     const startH = el.getBoundingClientRect().height
     if (baseHRef.current === null && panelH === null) baseHRef.current = startH
-    const minH = baseHRef.current ?? startH
+    // the floor is the screen's, not the grid's: enough of the sheet to still be a
+    // calendar, and never more than about half of what is in front of you. It used
+    // to be the panel's own opening height, which meant the grip could only ever
+    // make the grid taller and never give the page back.
+    const minH = Math.round(Math.max(240, Math.min(window.innerHeight * 0.45, 420)))
     const sc = scroller.current
     const maxH = startH + (sc ? Math.max(0, sc.scrollHeight - sc.clientHeight) : 0)
     const startY = e.clientY
-    const startScroll = window.scrollY
     let lastY = e.clientY
     let raf = 0
+    // only the scrolling this drag asked for counts. Reading window.scrollY instead
+    // fed back on itself: a shrink makes the page shorter, the browser scrolls up to
+    // suit, and that read as more dragging, so the grid fell to its floor from the
+    // first inch of movement.
+    let autoScrolled = 0
+    const scrollBy = (n: number) => { const was = window.scrollY; window.scrollBy(0, n); autoScrolled += window.scrollY - was }
     const apply = () => {
-      const dy = (lastY - startY) + (window.scrollY - startScroll)
+      const dy = (lastY - startY) + autoScrolled
       setPanelH(Math.round(Math.max(minH, Math.min(maxH, startH + dy))))
     }
     const EDGE = 56
     const tick = () => {
       const vh = window.innerHeight
-      if (lastY > vh - EDGE) window.scrollBy(0, Math.min(18, (lastY - (vh - EDGE)) / 2))
-      else if (lastY < EDGE + 60) window.scrollBy(0, -Math.min(18, (EDGE + 60 - lastY) / 2))
+      if (lastY > vh - EDGE) scrollBy(Math.min(18, (lastY - (vh - EDGE)) / 2))
+      else if (lastY < EDGE + 60) scrollBy(-Math.min(18, (EDGE + 60 - lastY) / 2))
       apply()
       raf = requestAnimationFrame(tick)
     }
@@ -1301,17 +1311,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     {isHost && !daysAnswer && <div>
                       <div className="flex items-center justify-between gap-3">
                         <span className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Event length</span>
-                        <div className="flex flex-none items-center overflow-hidden rounded-[8px] border border-border2 bg-s1">
-                          <button
-                            type="button" onClick={() => changeDuration(stepDuration(durationMin, -1))} disabled={durationMin <= 15}
-                            aria-label="Shorter" className="grid h-8 w-8 place-items-center text-dim enabled:hover:bg-s2 enabled:active:bg-s3 disabled:opacity-35"
-                          ><Minus size={14} /></button>
-                          <span aria-live="polite" className="min-w-[62px] px-1 text-center text-[13px] font-semibold tabular-nums">{fmtDur(durationMin)}</span>
-                          <button
-                            type="button" onClick={() => changeDuration(stepDuration(durationMin, 1))} disabled={durationMin >= 720}
-                            aria-label="Longer" className="grid h-8 w-8 place-items-center text-dim enabled:hover:bg-s2 enabled:active:bg-s3 disabled:opacity-35"
-                          ><Plus size={14} /></button>
-                        </div>
+                        <DurationField value={durationMin} max={Math.max(30, event.times.length * step)} onChange={changeDuration} />
                       </div>
                     </div>}
                     {isHost && <div className={daysAnswer ? '' : 'border-t border-border pt-2.5'}>
@@ -2089,16 +2089,16 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       )}
 
 
-      {/* corner grip: drag to stretch the grid toward showing every row at once.
-          Wears the same diagonal mark as a resizable textarea. Desktop only —
-          phones scroll; day polls have nothing to expand. */}
+      {/* corner grip: drag to give the grid more rows, or to hand the height back to
+          the page. Wears the same diagonal mark as a resizable textarea, and is a
+          thumb's worth of target on a phone. Day polls have nothing to expand. */}
       {!dayPoll && (
         <div
           role="separator"
           aria-label="Drag to resize the grid"
           title="Drag to resize the grid"
           onPointerDown={onResizeDown}
-          className="absolute bottom-0 right-0 z-[20] hidden h-6 w-6 cursor-ns-resize touch-none place-items-center rounded-tl-[8px] text-faint hover:bg-s2 hover:text-dim lg:grid"
+          className="absolute bottom-0 right-0 z-[20] grid h-9 w-9 cursor-ns-resize touch-none place-items-center rounded-tl-[8px] text-faint hover:bg-s2 hover:text-dim lg:h-6 lg:w-6"
         >
           <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
             <path d="M9 1 1 9M9 5 5 9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" fill="none" />

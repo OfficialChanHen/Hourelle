@@ -4,7 +4,7 @@
 // anyone whose email belongs to an account. Replaces the wizard's hard-coded cast.
 
 import { supabase, backendOn } from './db'
-import { addInvitees, isOwnEmail, listEvents, type Participant } from './events'
+import { addInvitees, isAccountId, isOwnEmail, listEvents, type Participant } from './events'
 import { currentAccount } from './session'
 import type { PersonColor } from './colors'
 
@@ -25,9 +25,14 @@ export function recentInvitees(limit = 8): Invitee[] {
   const out: Invitee[] = []
   const events = [...listEvents()].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
   for (const ev of events) {
+    // the samples and the tour's practice event are cast with made-up people: they
+    // have no address and no account, and offering them here would send a host to
+    // invite somebody who does not exist
+    if (ev.demo || ev.practice) continue
     for (const p of ev.participants) {
       if (p.you || p.id === me.id) continue
-      if (p.guest && !p.email) continue
+      // invitable means reachable: an address to write to, or an account to add by id
+      if (!p.email && !isAccountId(p.id)) continue
       const key = (p.email ?? p.id).toLowerCase()
       if (seen.has(key)) continue
       seen.add(key)

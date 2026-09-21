@@ -44,6 +44,7 @@ import { lookupProfileByEmail, recentInvitees, type Invitee } from '@/lib/invite
 import { centroidOf, searchPlaces } from '@/lib/geo'
 import { canEmail, sendInvites } from '@/lib/mail'
 import { InviteByEmail } from '@/components/InviteByEmail'
+import { DurationField } from '@/components/ui/DurationField'
 import { useAccount } from '@/hooks/useAccount'
 import { OverflowText } from '@/components/ui/OverflowText'
 import { DaysPicker } from '@/components/ui/DaysPicker'
@@ -75,7 +76,6 @@ const WIN_PRESETS: { v: WinPreset; l: string; s: string; e: string }[] = [
 ]
 
 // event-length presets, shown the same way as in the availability settings
-const DUR_PRESETS = [30, 60, 90, 120, 180, 240]
 const fmtDur = (m: number) => (m < 60 ? `${m}m` : m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h`)
 // length of the daily time window in minutes — the whole day when no window is set;
 // the event can't run longer than the window people are asked about
@@ -555,11 +555,6 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
     : ''
   // event length is bounded by the daily window: 1 minute up to the whole window
   const winLen = winLenOf(form.windowPreset, form.windowStart, form.windowEnd)
-  const durH = Math.floor(form.durationMin / 60)
-  const durM = form.durationMin % 60
-  function setDur(h: number, m: number) {
-    update({ durationMin: Math.min(winLen, Math.max(1, h * 60 + m)) })
-  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -697,29 +692,12 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
             <Segmented value={form.granularity} onChange={(v) => update({ granularity: v })} options={[{ v: '15', l: '15 min' }, { v: '30', l: '30 min' }, { v: '60', l: '1 hour' }]} />
           </div>
 
-          {/* how long the event needs — drives the best-time search on the grid */}
-          <div className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
+          {/* how long the event needs — drives the best-time search on the grid. The
+              same control the grid's own settings use, and it cannot be stepped or
+              typed past the daily window this event is allowed to happen in. */}
+          <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2.5 border-t border-border pt-3">
             <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Event length</span>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {DUR_PRESETS.map((m) => (
-                <button key={m} type="button" disabled={m > winLen} onClick={() => update({ durationMin: m })} className={`rounded-[7px] border px-2 py-1 text-[12.5px] font-medium ${m === form.durationMin ? 'border-accent bg-accent text-on-accent' : 'border-border2 bg-s1 enabled:hover:bg-s2 disabled:opacity-35'}`}>{fmtDur(m)}</button>
-              ))}
-              <span className="ml-1 text-[12px] text-faint">Custom</span>
-              <input
-                type="number" min={0} max={Math.floor(winLen / 60)} value={durH}
-                onChange={(e) => { const n = parseInt(e.target.value, 10); setDur(Number.isNaN(n) ? 0 : Math.max(0, n), durM) }}
-                className="h-7 w-[52px] rounded-[7px] border border-border bg-s1 px-2 text-[13px] tabular-nums outline-none focus:border-accent-border"
-                aria-label="Event length hours"
-              />
-              <span className="text-[12px] text-faint">hr</span>
-              <input
-                type="number" min={0} max={59} value={durM}
-                onChange={(e) => { const n = parseInt(e.target.value, 10); setDur(durH, Number.isNaN(n) ? 0 : Math.min(59, Math.max(0, n))) }}
-                className="h-7 w-[52px] rounded-[7px] border border-border bg-s1 px-2 text-[13px] tabular-nums outline-none focus:border-accent-border"
-                aria-label="Event length minutes"
-              />
-              <span className="text-[12px] text-faint">min</span>
-            </div>
+            <DurationField value={form.durationMin} min={15} max={winLen} onChange={(m) => update({ durationMin: m })} />
           </div>
           </>)}
           </>)}
