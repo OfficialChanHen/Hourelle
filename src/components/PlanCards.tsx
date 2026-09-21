@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, ExternalLink, Gift, Loader2, Sparkles } from 'lucide-react'
-import { PLANS, type PlanKey } from '@/content/plans'
+import { Check, Clock, ExternalLink, Gift, Loader2, Minus, Sparkles } from 'lucide-react'
+import { BILLING_TERMS, COMPARISON, PLANS, type Answer, type PlanKey } from '@/content/plans'
 import { plusInterested, recordPlusInterest } from '@/lib/plan'
 import { canBuy, openBillingPortal, startCheckout, type Period } from '@/lib/billing'
 import { useAccount } from '@/hooks/useAccount'
@@ -16,11 +16,13 @@ import { SegmentedControl } from './ui/SegmentedControl'
 
    On the welcome step both cards carry a button, because that step is a choice:
    there is no way past it except by picking one. */
-export function PlanCards({ onContinueFree, onPicked }: {
+export function PlanCards({ onContinueFree, onPicked, comparison = false }: {
   // the welcome step passes both: the Free card carries on, and any other choice
   // still counts as a choice, so the step can let go
   onContinueFree?: () => void
   onPicked?: (what: 'free' | 'plus' | 'list') => void
+  // the line-by-line table, for the page whose job is the comparison
+  comparison?: boolean
 }) {
   const account = useAccount()
   const { plan, source, ready } = usePlan()
@@ -54,12 +56,17 @@ export function PlanCards({ onContinueFree, onPicked }: {
       {/* the two ways to pay, when there is anywhere to pay. Yearly leads because it
           is the better deal and the one worth defaulting somebody to. */}
       {buyable && plan !== 'plus' && (
-        <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
           <SegmentedControl
             size="sm" value={period} onChange={(v) => setPeriod(v as Period)}
             options={[{ v: 'yearly', l: 'Yearly' }, { v: 'monthly', l: 'Monthly' }]}
           />
-          <span className="text-[12.5px] text-dim">{period === 'yearly' ? PLANS.plus.yearlyNote : PLANS.plus.monthlyNote}</span>
+          {/* the chip names the option it recommends, so it still reads right while
+              the other one is selected, and the line beside it says why */}
+          <span className="rounded-md border border-accent-border bg-accent-bg px-2 py-0.5 text-[11px] font-semibold text-accent-text">
+            {BILLING_TERMS.savingChip}
+          </span>
+          <span className="text-[12.5px] text-dim">{period === 'yearly' ? BILLING_TERMS.yearlyLine : BILLING_TERMS.monthlyLine}</span>
         </div>
       )}
 
@@ -112,9 +119,14 @@ export function PlanCards({ onContinueFree, onPicked }: {
                       </button>
                     )
                   ) : buyable ? (
-                    <button type="button" onClick={() => void buy()} disabled={busy !== null} className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-accent text-[14px] font-semibold text-on-accent disabled:opacity-60">
-                      {busy === 'buy' ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />} Get Plus
-                    </button>
+                    <>
+                      <button type="button" onClick={() => void buy()} disabled={busy !== null} className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-accent text-[14px] font-semibold text-on-accent disabled:opacity-60">
+                        {busy === 'buy' ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />} Get Plus {period === 'yearly' ? 'yearly' : 'monthly'}
+                      </button>
+                      {/* before the button is pressed, not after: it renews on its own, and
+                          stopping it is two clicks in Stripe's own portal */}
+                      <p className="mt-2 text-center text-[12px] leading-[1.5] text-faint">{BILLING_TERMS.renews} {BILLING_TERMS.cancel}</p>
+                    </>
                   ) : (
                     <button
                       type="button" onClick={() => void keepPosted()} disabled={interested || busy !== null}
@@ -136,6 +148,51 @@ export function PlanCards({ onContinueFree, onPicked }: {
         })}
       </div>
       {err && <p role="alert" className="mt-3 text-[12.5px] font-medium text-brick-text">{err}</p>}
+      {comparison && <Comparison />}
     </div>
+  )
+}
+
+/* Line by line, both columns. Three answers, not two: a tick, a dash for what a
+   plan does not include, and a clock for the one thing that is not built yet, on
+   either side, which is the only honest way to show it. */
+function Mark({ a }: { a: Answer }) {
+  if (a === 'soon') return <span title="Not built yet" className="inline-flex items-center gap-1 text-[11px] font-semibold text-ochre-text"><Clock size={13} /> Soon</span>
+  if (a) return <Check size={16} className="text-teal-text" aria-label="Included" />
+  return <Minus size={15} className="text-faint" aria-label="Not included" />
+}
+
+function Comparison() {
+  return (
+    <section className="mt-9">
+      <p className="mb-3 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Side by side</p>
+      <div className="overflow-hidden rounded-2xl border border-border bg-s1">
+        {/* the header sticks to the top of the card on a long scroll, so the two
+            columns never lose their names */}
+        <div className="sticky top-0 z-10 grid grid-cols-[minmax(0,1fr)_64px_64px] items-center gap-2 border-b border-border bg-s1 px-4 py-2.5 sm:grid-cols-[minmax(0,1fr)_92px_92px] sm:px-5">
+          <span className="text-[12px] font-semibold text-dim">What you get</span>
+          <span className="text-center text-[12px] font-semibold text-dim">Free</span>
+          <span className="flex items-center justify-center gap-1 text-center text-[12px] font-semibold text-accent-text"><Sparkles size={12} /> Plus</span>
+        </div>
+        {COMPARISON.map((g) => (
+          <div key={g.group}>
+            <div className="border-b border-border bg-s0 px-4 py-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint sm:px-5">{g.group}</div>
+            {g.rows.map((r) => (
+              <div key={r.label} className="grid grid-cols-[minmax(0,1fr)_64px_64px] items-center gap-2 border-b border-border px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_92px_92px] sm:px-5">
+                <span className="min-w-0 text-[13.5px] leading-[1.45]">
+                  {r.label}
+                  {r.note && <span className="mt-0.5 block text-[12px] text-faint">{r.note}</span>}
+                </span>
+                <span className="flex justify-center"><Mark a={r.free} /></span>
+                <span className="flex justify-center"><Mark a={r.plus} /></span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+      <p className="mt-2.5 text-[12px] leading-[1.55] text-faint">
+        Nothing in the Free column has ever moved to Plus, and nothing will. Guests never pay and never need an account.
+      </p>
+    </section>
   )
 }
