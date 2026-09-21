@@ -1,6 +1,6 @@
 'use client'
 
-import { createEvent, getEvent, initialsOf, listEvents, patchEvent, pickColor, type AppEvent, type Participant } from './events'
+import { createEvent, deleteEvent, getEvent, initialsOf, listEvents, patchEvent, pickColor, type AppEvent, type Participant } from './events'
 
 /* A practice event: the tour runs on it, and everything can be tried on it because
    it is the person's own, not a read-only sample. Five made-up people have already
@@ -72,4 +72,11 @@ export function ensurePracticeEvent(): string {
     location: { ...fresh.location, guestsCanSuggest: true, places: places.map((p) => ({ ...p, addedBy: addedBy[p.id] ?? p.addedBy })) },
   })
   return ev.id
+}
+
+/** A fresh practice event for a repeat of the tour: whatever was tried on the old
+ *  one is gone with it, so the tour starts from the same place every time. */
+export function resetPracticeEvent(): string {
+  for (const e of listEvents()) if (e.practice && e.hostedByYou && !e.demo) deleteEvent(e.id)
+  return ensurePracticeEvent()
 }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
-import { ArrowRight, Check, PlayCircle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, PlayCircle } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { TOUR_START, dismissHint, hintDismissed, setTourWanted, tourWanted } from '@/lib/prefs'
@@ -39,7 +39,7 @@ const STOPS: Stop[] = [
     { sel: 'location', title: 'Where it happens', text: 'Places go on the ballot and everyone votes; the pins carry the count. The host locks in the winner, or switches to Itinerary and builds a route through the top picks.', tryIt: 'Search for a place and add it, vote for one, then open Itinerary.' },
   ] },
   { tab: 'availability', targets: [
-    { sel: 'tabs', title: 'The rest of the plan', text: 'Attendance counts who is coming once the plan is locked in. Event details holds the description, the budget, the dates, the people and the invites by email.' },
+    { sel: 'tabs', title: 'The rest of the plan', text: 'Attendance counts who is coming once the plan is locked in. Event details holds the description, the budget, the dates, the people and the invites by email.', tryIt: 'Open Attendance, then Event details, and come back to Availability.' },
   ] },
   { tab: 'availability', targets: [
     { sel: 'lock', title: 'Lock it in', text: 'When the grid is green enough, lock in a time and a place. Everyone gets the plan, and the RSVPs open.', tryIt: 'Press it and look at the best window it proposes. Nothing is final until you confirm.' },
@@ -223,9 +223,12 @@ export function Tour() {
               <Link href="/help#watch" onClick={finish} className="flex items-center gap-1.5 text-[13px] font-semibold text-accent-text hover:underline">
                 <PlayCircle size={15} /> Watch the clips
               </Link>
-              <button type="button" onClick={finish} className="flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent">
-                Done <Check size={14} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setI(i - 1)} aria-label="Back" className="grid h-9 w-9 place-items-center rounded-[9px] border border-border2 text-dim hover:bg-s2 hover:text-text"><ArrowLeft size={15} /></button>
+                <button type="button" onClick={finish} className="flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent">
+                  Done <Check size={14} />
+                </button>
+              </div>
             </div>
           </>
         ) : (
@@ -238,13 +241,18 @@ export function Tour() {
             )}
             <div className="mt-3.5 flex items-center justify-between gap-3">
               <button type="button" onClick={finish} className="text-[13px] font-semibold text-dim hover:text-text">Skip the tour</button>
-              <button
-                type="button"
-                onClick={() => (isLast ? finish() : setI(i + 1))}
-                className="flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent"
-              >
-                Next <ArrowRight size={14} />
-              </button>
+              <div className="flex items-center gap-2">
+                {i > 0 && (
+                  <button type="button" onClick={() => setI(i - 1)} aria-label="Back" className="grid h-9 w-9 place-items-center rounded-[9px] border border-border2 text-dim hover:bg-s2 hover:text-text"><ArrowLeft size={15} /></button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => (isLast ? finish() : setI(i + 1))}
+                  className="flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent"
+                >
+                  Next <ArrowRight size={14} />
+                </button>
+              </div>
             </div>
           </>
         )}
