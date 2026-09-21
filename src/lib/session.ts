@@ -8,6 +8,7 @@
 // demo identity the app has always used — so every screen keeps working.
 
 import { supabase, backendOn } from './db'
+import { resetAppearance } from './prefs'
 import type { PersonColor } from './colors'
 import { passwordProblem } from './password'
 
@@ -109,9 +110,16 @@ export function recordLegalAcceptance(version: string): void {
   try { localStorage.setItem(LEGAL_KEY, JSON.stringify({ version, at: Date.now(), synced: false } satisfies LegalNote)) } catch { /* private mode */ }
   void syncLegalAcceptance()
 }
+// how long a note on the device may vouch for the account being made. Accepting
+// the terms and arriving here are seconds apart; anything older belongs to an
+// earlier account on this browser, and after a deletion it must not speak for the
+// next one.
+const NOTE_GOOD_FOR = 30 * 60_000
+
 /** Has the signed-in account accepted the terms? The profile is the record; a note
- *  on this device that has not reached the profile yet counts too. A database without
- *  the 0011 columns cannot say, and then the answer is yes rather than a locked door. */
+ *  made on this device moments ago, on its way to the profile, counts too. A database
+ *  without the 0011 columns cannot say, and then the answer is yes rather than a
+ *  locked door. */
 export async function legalAccepted(userId: string): Promise<boolean> {
   if (!backendOn) return true
   const { data, error } = await supabase!.from('profiles').select('terms_accepted_at').eq('id', userId).maybeSingle()
@@ -119,7 +127,7 @@ export async function legalAccepted(userId: string): Promise<boolean> {
   if (data?.terms_accepted_at) return true
   try {
     const note = JSON.parse(localStorage.getItem(LEGAL_KEY) ?? 'null') as LegalNote | null
-    if (note && !note.synced) { void syncLegalAcceptance(); return true }
+    if (note && !note.synced && Date.now() - note.at < NOTE_GOOD_FOR) { void syncLegalAcceptance(); return true }
   } catch { /* private mode */ }
   return false
 }
@@ -438,7 +446,11 @@ export async function deleteAccount(confirm: string): Promise<string | null> {
     const body = (await res.json().catch(() => ({}))) as { error?: string }
     if (!res.ok) return body.error || `The server said no (${res.status}).`
     // the account is gone on the server; the browser lets go of its session too, so
-    // what follows is the front door, not a page acting for an account that no longer exists
+    // what follows is the front door, not a page acting for an account that no longer
+    // exists. Its traces on this device go with it: the note that it accepted the
+    // terms, which must never vouch for the next account, and the look it chose.
+    try { localStorage.removeItem(LEGAL_KEY) } catch { /* private mode */ }
+    resetAppearance()
     await supabase!.auth.signOut({ scope: 'local' }).catch(() => {})
     authGen++; writeCache(STUB)
   } catch {

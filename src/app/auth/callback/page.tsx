@@ -12,10 +12,12 @@ import { wasWelcomed } from '@/lib/plan'
 import { legalAccepted } from '@/lib/session'
 
 // an account made moments ago through Google or Microsoft has not seen the welcome
-// steps; one made earlier has. The profile's creation time tells them apart.
-async function isNewAccount(userId: string): Promise<boolean> {
-  const { data } = await supabase!.from('profiles').select('created_at').eq('id', userId).maybeSingle()
-  const at = data?.created_at ? Date.parse(data.created_at as string) : 0
+// steps; one made earlier has. The session's own user says when it was made, which
+// is true the instant the session exists — the profile row is written by a trigger
+// and can still be on its way, and reading a row that is not there yet used to read
+// as "not new", which is how an account made again after a deletion missed the steps.
+function isNewAccount(user: { created_at?: string }): boolean {
+  const at = user.created_at ? Date.parse(user.created_at) : 0
   return !!at && Date.now() - at < 3 * 60_000
 }
 
@@ -43,7 +45,7 @@ export default function AuthCallbackPage() {
           const deleting = next.includes('confirmDelete=1')
           // a Google or Microsoft account made through the log-in button never saw the
           // terms: the welcome steps open on them, and cannot be skipped past them
-          if (!deleting && (!(await legalAccepted(uid)) || (!wasWelcomed(uid) && (await isNewAccount(uid))))) { router.replace(`/welcome?next=${encodeURIComponent(next)}`); return }
+          if (!deleting && (!(await legalAccepted(uid)) || (!wasWelcomed(uid) && isNewAccount(data.session.user)))) { router.replace(`/welcome?next=${encodeURIComponent(next)}`); return }
           router.replace(next); return
         }
         await new Promise((r) => setTimeout(r, 150))

@@ -17,7 +17,7 @@ import { restampMe } from '@/lib/events'
 import { loadReminderPrefs, saveReminderPrefs } from '@/lib/mail'
 import { prefNotify, setPrefNotify, NOTIFY_DEFAULTS, type NotifyPrefs } from '@/lib/prefs'
 import { markWelcomed } from '@/lib/plan'
-import { PREFS_CHANGED, setPrefPalette, setTourWanted } from '@/lib/prefs'
+import { resetAppearance, setTourWanted } from '@/lib/prefs'
 import { ensurePracticeEvent } from '@/lib/practice'
 
 /* The steps after an account is made: the terms first, only when the account never
@@ -49,14 +49,13 @@ function Welcome() {
   const [step, setStep] = useState<Step>('settings')
   const steps: Step[] = needsTerms || termsShown ? ['terms', 'settings', 'plan', 'tour'] : ['settings', 'plan', 'tour']
   const stepIndex = steps.indexOf(step) + 1
-  // a new account starts from the house look in light, whatever the last person on
-  // this device chose; what they pick on the settings step below is theirs from then on
+  // a new account starts from the house look with the theme following the device,
+  // whatever the last person on this browser chose; what they pick on the settings
+  // step below is theirs from then on
   useEffect(() => {
     if (!account.signedIn) return
-    setTheme('light')
-    setPrefPalette('hourelle')
-    document.documentElement.removeAttribute('data-palette')
-    window.dispatchEvent(new Event(PREFS_CHANGED))
+    resetAppearance()
+    setTheme('system')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account.signedIn, account.id])
   // does this account have the terms on record? Asked once; the answer decides the first step

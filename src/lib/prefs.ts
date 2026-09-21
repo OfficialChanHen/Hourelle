@@ -85,6 +85,18 @@ export function setPrefPalette(p: string): void {
   try { localStorage.setItem(PALETTE_KEY, p) } catch { /* private mode */ }
 }
 
+/** The look back to how it ships: the house warm neutral, and the theme following
+ *  the device. Called when an account ends, so the next person at this browser
+ *  starts where everyone starts rather than inside the last one's choices. */
+export function resetAppearance(): void {
+  try {
+    localStorage.removeItem(PALETTE_KEY)
+    localStorage.setItem('theme', 'system') // next-themes reads this key
+  } catch { /* private mode */ }
+  if (typeof document !== 'undefined') document.documentElement.removeAttribute('data-palette')
+  announce()
+}
+
 // one-time UI hints ("drag to reorder", …): shown until dismissed, per browser
 const hintKey = (name: string) => `hourelle.hint.${name}`
 export function hintDismissed(name: string): boolean {

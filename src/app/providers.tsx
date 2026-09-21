@@ -6,9 +6,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider
       attribute="data-theme"
-      // the house look in light is where everyone starts; the device's own setting
-      // applies only when someone picks System on the welcome step or in Settings
-      defaultTheme="light"
+      // the device decides until someone chooses, and an account that ends puts this
+      // back (resetAppearance); the house warm neutral is the palette either way
+      defaultTheme="system"
       enableSystem
       themes={['light', 'dark']}
     >
