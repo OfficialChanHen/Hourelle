@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { ArrowRight, Check, PlayCircle } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { dismissHint, hintDismissed, setTourWanted, tourWanted } from '@/lib/prefs'
+import { TOUR_START, dismissHint, hintDismissed, setTourWanted, tourWanted } from '@/lib/prefs'
 
 /* The tour: a spotlight on one element at a time, a card that says where it is and
    how it works, and, where it makes sense, a line inviting the person to try it
@@ -106,14 +106,22 @@ export function Tour() {
 
   // start: asked for, not done, and room for it. Stops on the current tab are
   // checked now; stops on other tabs are taken on trust and checked when reached.
+  // The same start answers a later ask (the guest popup, Settings) on this page.
   useEffect(() => {
-    if (!tourWanted() || hintDismissed('tour') || window.innerWidth < 360) return
-    const t = setTimeout(() => {
-      const here = activeTab()
-      const have = STOPS.filter((s) => 'end' in s || s.tab !== here || find(s))
-      if (have.length > 1) setPlan(have)
-    }, 800)
-    return () => clearTimeout(t)
+    let t: ReturnType<typeof setTimeout> | null = null
+    const begin = (delay: number) => {
+      if (!tourWanted() || hintDismissed('tour') || window.innerWidth < 360) return
+      if (t) clearTimeout(t)
+      t = setTimeout(() => {
+        const here = activeTab()
+        const have = STOPS.filter((s) => 'end' in s || s.tab !== here || find(s))
+        if (have.length > 1) { first.current = true; setI(0); setPlan(have) }
+      }, delay)
+    }
+    begin(800)
+    const onStart = () => begin(300)
+    window.addEventListener(TOUR_START, onStart)
+    return () => { if (t) clearTimeout(t); window.removeEventListener(TOUR_START, onStart) }
   }, [])
 
   const finish = useCallback(() => {

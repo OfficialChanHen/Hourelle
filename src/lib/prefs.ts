@@ -120,6 +120,29 @@ export function tourWanted(): boolean {
 export function setTourWanted(v: boolean): void {
   try { v ? localStorage.setItem(TOUR_KEY, '1') : localStorage.removeItem(TOUR_KEY) } catch { /* private mode */ }
 }
+/** Start the tour on the page that is open right now, done or not. */
+export const TOUR_START = 'hourelle:tour-start'
+export function startTour(): void {
+  resetHint('tour')
+  setTourWanted(true)
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(TOUR_START))
+}
+
+// a guest who just joined is asked once, on this device, whether they know their way
+// around; the join flow raises the flag and the event page answers it
+const ASK_KEY = 'hourelle.tour.ask'
+export function askAboutTour(): void {
+  if (hintDismissed('tour-ask')) return
+  try { localStorage.setItem(ASK_KEY, '1') } catch { /* private mode */ }
+}
+export function tourAskPending(): boolean {
+  if (typeof window === 'undefined') return false
+  try { return localStorage.getItem(ASK_KEY) === '1' && !hintDismissed('tour-ask') } catch { return false }
+}
+export function answerTourAsk(): void {
+  try { localStorage.removeItem(ASK_KEY) } catch { /* private mode */ }
+  dismissHint('tour-ask')
+}
 
 /** Every device setting back to how it started: 12-hour clock, event days, sounds on,
  *  the default reminders, the house look, and every one-time hint shown again. The

@@ -17,6 +17,7 @@ import { currentAccount, emailHasAccount, sendMagicLink } from '@/lib/session'
 import { backendOn } from '@/lib/db'
 import { cloudSynced, fetchEvent } from '@/lib/remote'
 import { useAccount } from '@/hooks/useAccount'
+import { askAboutTour } from '@/lib/prefs'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import {
   addMeToEvent, adoptParticipant, claimGuestSession, confirmedSlotText, dateRangeText, getEvent, guestSessionId, isAccountId,
@@ -88,7 +89,7 @@ export function JoinFlow({ id }: { id: string }) {
     const invited = participantByInvite(ev, inviteToken)
     if (invited) {
       if (signedIn) adoptParticipant(id, invited.id, acc.id, { name: acc.name })
-      else claimGuestSession(id, invited.id)
+      else { claimGuestSession(id, invited.id); askAboutTour() } // a guest arriving named is asked, once, if they know their way
       go(); return
     }
 
@@ -127,14 +128,16 @@ export function JoinFlow({ id }: { id: string }) {
     if (joining) return
     setJoining(true)
     const guest = joinEvent(id, n, email)
-    if (guest) go()
+    // a guest who just gave their name is asked, once per device, whether they know
+    // their way around; an account had that offer on the welcome steps
+    if (guest) { askAboutTour(); go() }
     else setJoining(false)
   }
 
   // prove an email is yours: with a backend that is a magic link (the account it
   // signs in to inherits the entry); without one, a plain match is the best we have
   async function proveEmail(addr: string, entry: Participant) {
-    if (!backendOn) { claimGuestSession(id, entry.id); go(); return }
+    if (!backendOn) { claimGuestSession(id, entry.id); askAboutTour(); go(); return }
     setError(null); setJoining(true)
     const err = await sendMagicLink(addr, `/events/${id}/join`)
     setJoining(false)
