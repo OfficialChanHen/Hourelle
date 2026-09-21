@@ -15,7 +15,6 @@ export function SiteFooter() {
         <Link href="/demos" className="hover:text-dim">Demos</Link>
         <Link href="/privacy" className="hover:text-dim">Privacy</Link>
         <Link href="/terms" className="hover:text-dim">Terms</Link>
-        <Link href="https://github.com/OfficialChanHen/Hourelle" target="_blank" className="hover:text-dim">GitHub</Link>
         <SupportLink />
         <span className="ml-auto flex items-center gap-1.5"><MessageCircle size={12} /> Guests never need an account.</span>
       </div>

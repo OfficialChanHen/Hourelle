@@ -93,6 +93,32 @@ export function hintDismissed(name: string): boolean {
 }
 export function dismissHint(name: string): void {
   try { localStorage.setItem(hintKey(name), '1') } catch { /* private mode */ }
+  announce()
+}
+export function resetHint(name: string): void {
+  try { localStorage.removeItem(hintKey(name)) } catch { /* private mode */ }
+  announce()
+}
+/** Every one-time hint shown again, and nothing else touched. */
+export function resetHints(): void {
+  try {
+    const hints: string[] = []
+    for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k?.startsWith('hourelle.hint.')) hints.push(k) }
+    for (const k of hints) localStorage.removeItem(k)
+  } catch { /* private mode */ }
+  announce()
+}
+
+// the tour: four stops on the first event page opened after it was asked for. The
+// welcome steps and Settings ask; the event page runs it once and marks it done
+// under the hint prefix, so "show the hints again" brings it back with the rest.
+const TOUR_KEY = 'hourelle.tour.wanted'
+export function tourWanted(): boolean {
+  if (typeof window === 'undefined') return false
+  try { return localStorage.getItem(TOUR_KEY) === '1' } catch { return false }
+}
+export function setTourWanted(v: boolean): void {
+  try { v ? localStorage.setItem(TOUR_KEY, '1') : localStorage.removeItem(TOUR_KEY) } catch { /* private mode */ }
 }
 
 /** Every device setting back to how it started: 12-hour clock, event days, sounds on,

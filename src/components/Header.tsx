@@ -127,6 +127,7 @@ export function Header() {
             new event, not a smooth ride back to the top composer */}
         <Link
           href="/create"
+          data-tour="create"
           className="hidden h-[34px] items-center gap-[7px] rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent md:flex"
         >
           <Plus size={17} />

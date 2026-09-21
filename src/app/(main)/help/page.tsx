@@ -1,5 +1,3 @@
-import Link from 'next/link'
-import { ExternalLink } from 'lucide-react'
 import { FeedbackForm } from './_components/FeedbackForm'
 import { BackLink } from '@/components/ui/BackLink'
 
@@ -7,6 +5,13 @@ import { BackLink } from '@/components/ui/BackLink'
    then a real way to reach a person ── */
 
 type QA = { q: string; a: React.ReactNode }
+
+const CLIPS: { id: string; title: string; text: string }[] = [
+  { id: 'make', title: 'Make an event', text: 'Name it, pick the days, and the link is ready.' },
+  { id: 'mark', title: 'Mark when you are free', text: 'Drag across the grid. Green is where others already are.' },
+  { id: 'place', title: 'Pick a place', text: 'Add places to the ballot and vote.' },
+  { id: 'lock', title: 'Lock it in', text: 'The host sets the time and place. Everyone gets the plan.' },
+]
 const GROUPS: { title: string; items: QA[] }[] = [
   {
     title: 'Getting started',
@@ -52,6 +57,23 @@ export default function HelpPage() {
       <h1 className="font-serif font-normal text-[33.5px] leading-[1.04] tracking-[-0.01em]">Help &amp; contact</h1>
       <p className="mt-1.5 text-[13.5px] text-dim">Short answers first, a person after that.</p>
 
+      {/* four short clips, silent, captioned on screen: each one thing, start to finish */}
+      <p className="mb-2 mt-7 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Watch</p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {CLIPS.map((c) => (
+          <figure key={c.id} className="overflow-hidden rounded-2xl border border-border bg-s1">
+            <video className="aspect-[16/10] w-full bg-s2" controls muted playsInline preload="none" poster={`/tutorial/${c.id}.jpg`}>
+              <source src={`/tutorial/${c.id}.mp4`} type="video/mp4" />
+              <source src={`/tutorial/${c.id}.webm`} type="video/webm" />
+            </video>
+            <figcaption className="px-4 py-3">
+              <div className="text-[14px] font-semibold">{c.title}</div>
+              <div className="mt-0.5 text-[12.5px] leading-[1.5] text-dim">{c.text}</div>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+
       {GROUPS.map((g) => (
         <section key={g.title}>
           <p className="mb-2 mt-7 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{g.title}</p>
@@ -72,13 +94,6 @@ export default function HelpPage() {
       <p className="mb-2 mt-9 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Report a problem or send an idea</p>
       <FeedbackForm />
 
-      <p className="mb-2 mt-7 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Elsewhere</p>
-      <div className="rounded-2xl border border-border bg-s1 px-5 py-4 text-[13.5px] leading-[1.6] text-dim">
-        Hourelle is built in the open. The code, the issue tracker, and the release notes are on{' '}
-        <Link href="https://github.com/OfficialChanHen/Hourelle" target="_blank" className="inline-flex items-center gap-1 font-semibold text-accent-text hover:underline">
-          GitHub <ExternalLink size={12} className="text-faint" />
-        </Link>.
-      </div>
     </div>
   )
 }

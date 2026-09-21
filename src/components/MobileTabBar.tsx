@@ -80,6 +80,7 @@ export function MobileTabBar() {
           <Link
             href="/create"
             aria-label="Create event"
+            data-tour="create"
             className="-mt-5 grid h-[54px] w-[54px] place-items-center rounded-full bg-accent text-on-accent shadow-soft ring-4 ring-bg active:scale-95"
           >
             <Plus size={26} />

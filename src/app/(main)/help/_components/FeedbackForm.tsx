@@ -2,11 +2,11 @@
 
 // Report a bug, suggest an idea, or ask a question. Posts to /api/feedback, which
 // stores the report and emails a copy when an inbox is configured. If nothing is set
-// up yet the page says so and offers the GitHub issues page instead of pretending.
+// up yet the page says so instead of pretending.
 
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { Bug, Check, ExternalLink, HelpCircle, Lightbulb, Loader2 } from 'lucide-react'
+import { Bug, Check, HelpCircle, Lightbulb, Loader2 } from 'lucide-react'
 import { useAccount } from '@/hooks/useAccount'
 
 type Kind = 'bug' | 'idea' | 'question'
@@ -15,7 +15,6 @@ const KINDS: { key: Kind; label: string; icon: typeof Bug; ask: string }[] = [
   { key: 'idea', label: 'An idea', icon: Lightbulb, ask: 'What would you like Hourelle to do?' },
   { key: 'question', label: 'A question', icon: HelpCircle, ask: 'What can we help with?' },
 ]
-const ISSUES = 'https://github.com/OfficialChanHen/Hourelle/issues/new'
 
 export function FeedbackForm() {
   const pathname = usePathname()
@@ -106,16 +105,13 @@ export function FeedbackForm() {
         >
           {busy && <Loader2 size={15} className="animate-spin" />} Send
         </button>
-        <a href={ISSUES} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-[13px] font-medium text-dim hover:text-text">
-          Or open a GitHub issue <ExternalLink size={12} className="text-faint" />
-        </a>
       </div>
 
       {state === 'sent' && <p role="status" className="mt-4 flex items-center gap-2 rounded-[10px] border border-teal-border bg-teal-bg px-3.5 py-3 text-[13px] text-teal-text"><Check size={15} /> Sent. Thank you, it landed in the inbox.</p>}
       {state === 'stored' && <p role="status" className="mt-4 flex items-center gap-2 rounded-[10px] border border-teal-border bg-teal-bg px-3.5 py-3 text-[13px] text-teal-text"><Check size={15} /> Got it. Thank you.</p>}
       {state === 'nowhere' && (
         <p role="alert" className="mt-4 rounded-[10px] border border-ochre-border bg-ochre-bg px-3.5 py-3 text-[13px] leading-[1.55] text-ochre-text">
-          Reports are not wired to an inbox on this copy of Hourelle yet. Please <a href={ISSUES} target="_blank" rel="noreferrer" className="font-semibold underline underline-offset-2">open a GitHub issue</a> instead.
+          Reports are not wired to an inbox on this copy of Hourelle yet. Please try again later.
         </p>
       )}
       {state === 'error' && <p role="alert" className="mt-4 rounded-[10px] border border-brick-border bg-brick-bg px-3.5 py-3 text-[13px] text-brick-text">That did not go through. Try again in a moment.</p>}

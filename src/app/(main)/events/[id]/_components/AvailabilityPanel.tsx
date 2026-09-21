@@ -43,6 +43,7 @@ import { ChevronLeft, ChevronRight, ChevronDown, X, Check, Bell, Info, SlidersHo
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { Hint } from '@/components/ui/Hint'
 import { Popover } from '@/components/ui/Popover'
 import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, MissingPopover, PadGrip, PresetFills, Segment } from './availability/parts'
 import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, PILE_AV, PILE_FONT, PILE_OVER, subtract, type Band, type GDay } from './availability/grid-lib'
@@ -1532,10 +1533,21 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           </div>
         )}
 
+        {/* one line of how the grid works, gone once dismissed. Edit mode has its own
+            line about dragging, so the hint stays out of its way there */}
+        {mode !== 'edit' && (
+          <Hint name="grid" className="mb-2">
+            {!editable ? 'The greener a slot, the more people are free then.'
+              : dayPoll ? 'Tap the days you can make. The greener a day, the more people can.'
+                : 'Switch to Edit mine and drag across the hours you can make. The greener a slot, the more people can.'}
+          </Hint>
+        )}
+
         {/* grid — a day poll gets the calendar, everything else the timetable */}
         {dayPoll ? (
           <div
             ref={scroller}
+            data-tour="grid"
             onScroll={onGridScroll}
             className="scroll-slim min-h-0 max-h-[calc(100dvh-200px)] flex-1 overflow-auto rounded-[10px] border border-border pb-2 lg:max-h-none"
           >
@@ -1564,6 +1576,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         ) : (
         <div
           ref={scroller}
+          data-tour="grid"
           onScroll={onGridScroll}
           // a held finger is how painting starts on a phone — it must not open the long-press menu
           onContextMenu={(e) => { if (mode === 'edit') e.preventDefault() }}

@@ -42,6 +42,8 @@ import { BackLink } from '@/components/ui/BackLink'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
+import { Hint } from '@/components/ui/Hint'
+import { Tour } from '@/components/Tour'
 import { fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
@@ -275,6 +277,8 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   return (
     <div className="mx-auto max-w-[1240px] px-4 pb-[104px] pt-5 sm:px-[26px] sm:pt-[34px]">
       <BackLink href={backTo.href} label={backTo.label} />
+      {/* the four-stop tour, only when it was asked for; it mounts on the body */}
+      <Tour />
       {/* the host's cover, when one is set — photo or preset scene; shorter on phones
           so the tabs and content stay within the first screen */}
       {event.image && <Cover src={event.image} fit={event.imageFit} from="#E4EDE7" to="#CFE0D5" className="mb-4 h-[92px] border border-border sm:mb-5 sm:h-[170px]" rounded="rounded-2xl" />}
@@ -323,7 +327,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             width={312}
             className="hidden sm:block"
             trigger={(open) => (
-              <span className={`flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[14px] font-semibold ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
+              <span data-tour="share" className={`flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[14px] font-semibold ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
                 <Link2 size={16} /> Share link
               </span>
             )}
@@ -348,7 +352,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             width={216}
             className="sm:hidden"
             trigger={(open) => (
-              <span aria-label="More actions" className={`grid h-9 w-9 place-items-center rounded-[9px] border border-border2 bg-s1 ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
+              <span aria-label="More actions" data-tour="menu" className={`grid h-9 w-9 place-items-center rounded-[9px] border border-border2 bg-s1 ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
                 <EllipsisVertical size={16} />
               </span>
             )}
@@ -373,9 +377,14 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       {/* the locked-in plan leads the page once confirmed */}
       {locked && phase !== 'past' && <ConfirmedHero event={event} onChanged={refresh} />}
 
+      {/* the host's one line about the lock-in, gone once dismissed */}
+      {event.hostedByYou && phase === 'planning' && (
+        <Hint name="lock" className="mb-4">When enough of the grid is green, Lock it in sets the time and place and everyone gets the plan.</Hint>
+      )}
+
       {/* tabs — horizontally scrollable on narrow screens, with edge fades hinting more */}
       <div className="relative mb-4 sm:mb-6">
-        <div ref={tabsRef} onScroll={checkTabFade} className="scroll-slim flex items-center gap-1 overflow-x-auto pb-1 sm:gap-1.5">
+        <div ref={tabsRef} data-tour="tabs" onScroll={checkTabFade} className="scroll-slim flex items-center gap-1 overflow-x-auto pb-1 sm:gap-1.5">
           {TABS.map((t) => {
             const active = tab === t.key
             return (

@@ -37,6 +37,7 @@ export function ConfirmBar({ event, onChanged, onGoToDetails, onGoToLocation, pr
     <>
       <button
         type="button"
+        data-tour="lock"
         onClick={() => setOpen(true)}
         className="flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[14px] font-semibold text-on-accent"
       >

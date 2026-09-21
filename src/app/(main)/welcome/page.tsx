@@ -17,6 +17,7 @@ import { restampMe } from '@/lib/events'
 import { loadReminderPrefs, saveReminderPrefs } from '@/lib/mail'
 import { prefNotify, setPrefNotify, NOTIFY_DEFAULTS, type NotifyPrefs } from '@/lib/prefs'
 import { markWelcomed } from '@/lib/plan'
+import { setTourWanted } from '@/lib/prefs'
 
 /* The steps after an account is made: the terms first, only when the account never
    accepted them (a Google or Microsoft account made through the log-in button), then
@@ -38,14 +39,14 @@ function Welcome() {
   const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/home'
   const account = useAccount()
   const { theme, setTheme, resolvedTheme } = useTheme()
-  type Step = 'terms' | 'settings' | 'plan'
+  type Step = 'terms' | 'settings' | 'plan' | 'tour'
   const [needsTerms, setNeedsTerms] = useState<boolean | null>(null)
   // once the terms step has been shown it stays on the timeline, ticked, so the
   // person can see it was done rather than watching it vanish
   const [termsShown, setTermsShown] = useState(false)
   const [legalOk, setLegalOk] = useState(false)
   const [step, setStep] = useState<Step>('settings')
-  const steps: Step[] = needsTerms || termsShown ? ['terms', 'settings', 'plan'] : ['settings', 'plan']
+  const steps: Step[] = needsTerms || termsShown ? ['terms', 'settings', 'plan', 'tour'] : ['settings', 'plan', 'tour']
   const stepIndex = steps.indexOf(step) + 1
   // does this account have the terms on record? Asked once; the answer decides the first step
   useEffect(() => {
@@ -96,6 +97,13 @@ function Welcome() {
     markWelcomed(account.id)
     router.replace(next)
   }
+  // the tour runs on the first event page opened: the one they were heading to
+  // when that is an event, the sample otherwise
+  function showAround() {
+    setTourWanted(true)
+    markWelcomed(account.id)
+    router.replace(next.startsWith('/events/') ? next : '/events/q3-offsite')
+  }
 
   const themeValue = theme ?? 'light'
   const dark = resolvedTheme === 'dark'
@@ -104,12 +112,14 @@ function Welcome() {
     <div className="mx-auto max-w-[860px] px-4 pb-[104px] pt-[34px] sm:px-[26px]">
       <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">Welcome</p>
       <h1 className="mt-2 font-serif font-normal text-[40px] leading-[1.06] tracking-[-0.01em]">
-        {step === 'terms' ? 'Before you start.' : step === 'settings' ? 'Make it yours.' : 'Pick a plan.'}
+        {step === 'terms' ? 'Before you start.' : step === 'settings' ? 'Make it yours.' : step === 'plan' ? 'Pick a plan.' : 'One more thing.'}
       </h1>
       <p className="mt-3 max-w-[560px] text-[15px] leading-[1.65] text-dim">
         {step === 'terms'
           ? 'Two short documents say what Hourelle keeps and how it may be used. Open each one, then tick its box.'
-          : step === 'settings' ? 'Three things people set first. Everything here can be changed in Settings later.' : 'Hosting is free and stays free. Plus is a thank-you with a few extras, and it is not on sale yet.'}
+          : step === 'settings' ? 'Three things people set first. Everything here can be changed in Settings later.'
+            : step === 'plan' ? 'Hosting is free and stays free. Plus is a thank-you with a few extras, and it is not on sale yet.'
+              : 'A short tour shows the four places you will use most. It runs on a sample event and you can leave it at any point.'}
       </p>
 
       {/* the dots, the way the event lifecycle strip counts */}
@@ -119,7 +129,7 @@ function Welcome() {
           return (
             <span key={s} className="flex items-center gap-2">
               <span className={`grid h-6 w-6 place-items-center rounded-full border text-[11px] ${n < stepIndex ? 'border-teal-border bg-teal-bg text-teal-text' : n === stepIndex ? 'border-accent bg-accent text-on-accent' : 'border-border2 text-faint'}`}>{n < stepIndex ? <Check size={12} /> : n}</span>
-              <span className={n === stepIndex ? 'text-text' : ''}>{s === 'terms' ? 'Terms' : s === 'settings' ? 'Settings' : 'Plan'}</span>
+              <span className={n === stepIndex ? 'text-text' : ''}>{s === 'terms' ? 'Terms' : s === 'settings' ? 'Settings' : s === 'plan' ? 'Plan' : 'Tour'}</span>
               {n < steps.length && <span className="mx-1 h-px w-8 bg-border2" aria-hidden />}
             </span>
           )
@@ -189,9 +199,22 @@ function Welcome() {
             </div>
           </div>
         </div>
-      ) : (
+      ) : step === 'plan' ? (
         <div className="mt-7">
-          <PlanCards onContinueFree={finish} />
+          <PlanCards onContinueFree={() => { setStep('tour'); window.scrollTo({ top: 0 }) }} />
+        </div>
+      ) : (
+        <div className="mt-7 max-w-[560px] rounded-2xl border border-border bg-s1 px-5 py-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Four stops</p>
+          <ol className="mt-2 flex flex-col gap-1.5 text-[14px] leading-[1.55] text-dim">
+            <li><span className="font-medium text-text">The link.</span> One link, and everyone can answer without an account.</li>
+            <li><span className="font-medium text-text">The grid.</span> Drag across the hours you can make.</li>
+            <li><span className="font-medium text-text">The tabs.</span> Places and votes, who is coming, the details.</li>
+            <li><span className="font-medium text-text">The lock-in.</span> The host sets the plan and everyone gets it.</li>
+          </ol>
+          <button type="button" onClick={showAround} className="mt-4 flex h-11 items-center gap-2 rounded-[10px] bg-accent px-5 text-[14px] font-semibold text-on-accent">
+            Show me around <ArrowRight size={15} />
+          </button>
         </div>
       )}
 
@@ -212,11 +235,18 @@ function Welcome() {
               Continue <ArrowRight size={15} />
             </button>
           </>
-        ) : (
+        ) : step === 'plan' ? (
           <>
             <button type="button" onClick={() => setStep('settings')} className="text-[13px] font-semibold text-dim hover:text-text">Back</button>
+            <button type="button" onClick={() => { setStep('tour'); window.scrollTo({ top: 0 }) }} className="flex h-11 items-center gap-2 rounded-[10px] border border-border2 bg-s1 px-5 text-[14px] font-semibold hover:bg-s2">
+              Continue <ArrowRight size={15} />
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="button" onClick={() => setStep('plan')} className="text-[13px] font-semibold text-dim hover:text-text">Back</button>
             <button type="button" onClick={finish} className="flex h-11 items-center gap-2 rounded-[10px] border border-border2 bg-s1 px-5 text-[14px] font-semibold hover:bg-s2">
-              Done <ArrowRight size={15} />
+              Not now <ArrowRight size={15} />
             </button>
           </>
         )}
