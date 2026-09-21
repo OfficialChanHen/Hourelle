@@ -38,15 +38,16 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, SlidersHorizontal, Trash2, Zap } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronsLeftRight, ChevronsRightLeft, Minus, Plus, X, Check, Bell, Info, SlidersHorizontal, Trash2, Zap } from 'lucide-react'
 
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { Switch } from '@/components/ui/Switch'
 import { Hint } from '@/components/ui/Hint'
 import { Popover } from '@/components/ui/Popover'
 import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, MissingPopover, PresetFills, Segment } from './availability/parts'
-import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, PILE_AV, PILE_FONT, PILE_OVER, subtract, type Band, type GDay } from './availability/grid-lib'
+import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, stepDuration, PILE_AV, PILE_FONT, PILE_OVER, subtract, type Band, type GDay } from './availability/grid-lib'
 import { DayCalendar } from './availability/DayCalendar'
 import { prefH24, prefWholeWeek } from '@/lib/prefs'
 import { useAccount } from '@/hooks/useAccount'
@@ -1279,7 +1280,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               <SegmentedControl size="sm" value={mode} onChange={(v) => { setMode(v as Mode); setSel(null); setDetail(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
               <Popover
                 align="end"
-                width={264}
+                width={284}
                 trigger={(open) => (
                   <span className={`flex h-7 items-center gap-1.5 rounded-lg border px-[10px] text-[12.5px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
                     <SlidersHorizontal size={13} /> Settings
@@ -1288,22 +1289,24 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               >
                 {() => (
                   <div className="flex flex-col gap-3 p-1">
+                    {/* one line rather than six chips and a number field: a length is a
+                        single number, and stepping it says so. The step widens as the
+                        number grows, so an hour is one tap from ninety minutes and a
+                        whole day is not forty. */}
                     {!daysAnswer && <div>
-                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Event length</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {[30, 60, 90, 120, 180, 240].map((m) => (
-                          <button key={m} onClick={() => changeDuration(m)} className={`rounded-[7px] border px-2 py-1 text-[12.5px] font-medium ${m === durationMin ? 'border-accent bg-accent text-on-accent' : 'border-border2 bg-s1 hover:bg-s2'}`}>{fmtDur(m)}</button>
-                        ))}
-                      </div>
-                      <div className="mt-2 flex items-center gap-1.5">
-                        <span className="text-[12px] text-faint">Custom</span>
-                        <input
-                          type="number" min={15} max={720} step={15} value={durationMin}
-                          onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) changeDuration(Math.min(720, Math.max(15, n))) }}
-                          className="h-7 w-16 rounded-[7px] border border-border bg-s1 px-2 text-[13px] tabular-nums outline-none focus:border-accent-border"
-                          aria-label="Custom event length in minutes"
-                        />
-                        <span className="text-[12px] text-faint">min</span>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Event length</span>
+                        <div className="flex flex-none items-center overflow-hidden rounded-[8px] border border-border2 bg-s1">
+                          <button
+                            type="button" onClick={() => changeDuration(stepDuration(durationMin, -1))} disabled={durationMin <= 15}
+                            aria-label="Shorter" className="grid h-8 w-8 place-items-center text-dim enabled:hover:bg-s2 enabled:active:bg-s3 disabled:opacity-35"
+                          ><Minus size={14} /></button>
+                          <span aria-live="polite" className="min-w-[62px] px-1 text-center text-[13px] font-semibold tabular-nums">{fmtDur(durationMin)}</span>
+                          <button
+                            type="button" onClick={() => changeDuration(stepDuration(durationMin, 1))} disabled={durationMin >= 720}
+                            aria-label="Longer" className="grid h-8 w-8 place-items-center text-dim enabled:hover:bg-s2 enabled:active:bg-s3 disabled:opacity-35"
+                          ><Plus size={14} /></button>
+                        </div>
                       </div>
                     </div>}
                     <div className={daysAnswer ? '' : 'border-t border-border pt-2.5'}>
@@ -1323,6 +1326,17 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Time format</div>
                       <Segment value={h24 ? '24' : '12'} onChange={(v) => setH24(v === '24')} options={[{ v: '12', l: '12-hour' }, { v: '24', l: '24-hour' }]} />
                     </div>}
+                    {/* the days that only square the week off. Out of the toolbar and
+                        in here: it is a preference about the view, not an action */}
+                    {!dayPoll && (hasLead || hasTrail) && (
+                      <div className="border-t border-border pt-2.5">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Whole week</span>
+                          <Switch on={wholeWeek} onChange={setWholeWeek} label="Show the whole week" />
+                        </div>
+                        <p className="mt-1.5 text-[12px] leading-[1.5] text-faint">Shows the days around the poll, greyed out.</p>
+                      </div>
+                    )}
                     {youAny && (
                       <div className="border-t border-border pt-2.5">
                         <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Your times</div>
@@ -1350,9 +1364,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               <IconBtn onClick={() => goWeek(1)} disabled={page >= pageCount - 1}><ChevronRight size={17} /></IconBtn>
             </div>
           )}
-          {/* the poll may ask about part of a week; this shows the rest of it, greyed,
-              for context. Only worth offering when there is a rest to show. */}
-          {!dayPoll && (hasLead || hasTrail) && (
+          {/* it lives in Settings, which only a grid you can edit has; a read-only
+              grid keeps it here so nobody loses the days around the poll */}
+          {!editable && !dayPoll && (hasLead || hasTrail) && (
             <button
               type="button"
               onClick={() => setWholeWeek((w) => !w)}
