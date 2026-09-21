@@ -279,7 +279,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     <div className="mx-auto max-w-[1240px] px-4 pb-[104px] pt-5 sm:px-[26px] sm:pt-[34px]">
       <BackLink href={backTo.href} label={backTo.label} />
       {/* the tour, only when it was asked for, and the one question a new guest gets; both mount on the body */}
-      <Tour />
+      <Tour host={event.hostedByYou} />
       <AskTour />
       {/* the host's cover, when one is set — photo or preset scene; shorter on phones
           so the tabs and content stay within the first screen */}
@@ -428,6 +428,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           ref={bubbleRef}
           onClick={() => { setUnreadMark(unread > 0 ? seenMsgs ?? 0 : undefined); setChatOpen(true) }}
           aria-label={unread > 0 ? `Open discussion, ${unread} unread` : 'Open discussion'}
+          data-tour="chat"
           // on iOS the bubble is clear liquid glass (frost, rim, sheen — no fill);
           // elsewhere it stays the solid accent dot
           className={`fixed bottom-[84px] right-4 z-40 grid h-12 w-12 place-items-center rounded-full md:bottom-6 md:right-6 ${isIOS ? 'liquid-glass text-accent-text' : 'bg-accent text-on-accent shadow-soft'}`}

@@ -1268,7 +1268,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       className={`relative flex flex-col rounded-2xl border border-border bg-s1 lg:flex-row ${dayPoll || panelH !== null ? '' : 'lg:max-h-[calc(100dvh-88px)]'}`}
       style={!dayPoll && panelH !== null ? { height: panelH } : undefined}
     >
-      <div ref={colRef} className="relative flex min-w-0 flex-1 flex-col p-4 lg:min-h-0">
+      <div ref={colRef} data-tour="grid-all" className="relative flex min-w-0 flex-1 flex-col p-4 lg:min-h-0">
         {/* toolbar — first row pairs the mode toggle with Settings (always right-aligned);
             the week nav and time controls flow on their own row below */}
         <div className="border-b border-border pb-[13px]">

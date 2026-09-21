@@ -12,31 +12,40 @@ import { TOUR_START, dismissHint, hintDismissed, setTourWanted, tourWanted } fro
    how it works, and, where it makes sense, a line inviting the person to try it
    there and then. The page stays live underneath: the dim is only a picture, and
    it sits below popovers and modals, so a menu or a lock-in opened from a card
-   shows in full. Stops on other tabs switch the tab themselves. It runs once, only
-   when it was asked for (the welcome steps, or Settings), never on a screen
-   narrower than a phone, and Skip is on every card. Elements opt in with
-   data-tour="<name>", tabs with data-tour-tab="<key>"; a stop lists the names it
-   can point at, first visible wins, and a stop with nothing to point at is left
-   out. On a phone the card sits at the bottom, clear of the menus that open from
-   the top; on a wider screen it sits beside a small target and under a wide one.
-   The last card has no target: it points at the Help page's clips. */
+   shows in full. A spotlight covers everything a card asks for, toolbar included,
+   so the toggle a card names can be pressed while the card is up.
+
+   The cards speak to whoever is reading. A host is told about the link they send
+   and the plan they lock in; a guest is told what a guest can do, since inviting
+   and locking in are not theirs, and their last stops are the ballot and the
+   discussion instead. Stops on other tabs switch the tab themselves.
+
+   It runs once, only when it was asked for (the welcome steps, Settings, or the
+   question a new guest gets), never on a screen narrower than a phone, and Skip is
+   on every card. Elements opt in with data-tour="<name>", tabs with
+   data-tour-tab="<key>"; a stop lists the names it can point at, first visible
+   wins, and a stop with nothing to point at is left out. On a phone the card sits
+   at the bottom, clear of the menus that open from the top; on a wider screen it
+   sits beside a small target and under a wide one. The last card has no target:
+   it points at the Help page's clips. */
 
 type Candidate = { sel: string; title: string; text: string; tryIt?: string }
 type Stop = { tab?: string; targets: Candidate[] } | { end: true }
 
-const STOPS: Stop[] = [
+// the host's tour: the link they send, the grid, the ballot, the rest, the lock-in
+const HOST_STOPS: Stop[] = [
   { tab: 'availability', targets: [
     { sel: 'share', title: 'One link does it all', text: 'Send it to everyone. They open it, add a name and answer. Nobody needs an account.', tryIt: 'Open Share link and copy it.' },
     { sel: 'menu', title: 'One link does it all', text: 'The share link is in this menu. Send it to everyone: they open it, add a name and answer. Nobody needs an account.', tryIt: 'Open the menu and copy the link.' },
   ] },
   { tab: 'availability', targets: [
-    { sel: 'grid', title: 'When people are free', text: 'In Edit mine, drag across the hours you can make. The greener a slot, the more people can. A block you painted has handles, so it can be trimmed to the minute.', tryIt: 'Switch to Edit mine, drag a block, then pull one of its edges.' },
+    { sel: 'grid-all', title: 'When people are free', text: 'In Edit mine, drag across the hours you can make. The greener a slot, the more people can. A block you painted has handles, so it can be trimmed to the minute.', tryIt: 'Press Edit mine, drag a block, then pull one of its edges.' },
   ] },
   { tab: 'availability', targets: [
-    { sel: 'people', title: 'One person at a time', text: 'Tap a face to see only that person’s times; tap it again for everyone. The count beside them opens who has answered and who has not.', tryIt: 'Tap a face, then tap it again.' },
+    { sel: 'people', title: 'One person at a time', text: 'Tap a face to see only that person\u2019s times; tap it again for everyone. The count beside them opens who has answered and who has not.', tryIt: 'Tap a face, then tap it again.' },
   ] },
   { tab: 'location', targets: [
-    { sel: 'location', title: 'Where it happens', text: 'Places go on the ballot and everyone votes; the pins carry the count. The host locks in the winner, or switches to Itinerary and builds a route through the top picks.', tryIt: 'Search for a place and add it, vote for one, then open Itinerary.' },
+    { sel: 'location', title: 'Where it happens', text: 'Places go on the ballot and everyone votes; the pins carry the count. You lock in the winner, or switch to Itinerary and build a route through the top picks.', tryIt: 'Search for a place and add it, vote for one, then open Itinerary.' },
   ] },
   { tab: 'availability', targets: [
     { sel: 'tabs', title: 'The rest of the plan', text: 'Attendance counts who is coming once the plan is locked in. Event details holds the description, the budget, the dates, the people and the invites by email.', tryIt: 'Open Attendance, then Event details, and come back to Availability.' },
@@ -44,6 +53,27 @@ const STOPS: Stop[] = [
   { tab: 'availability', targets: [
     { sel: 'lock', title: 'Lock it in', text: 'When the grid is green enough, lock in a time and a place. Everyone gets the plan, and the RSVPs open.', tryIt: 'Press it and look at the best window it proposes. Nothing is final until you confirm.' },
     { sel: 'create', title: 'Your own event', text: 'This is where yours starts. Name it, pick some days, and the link is ready to send.', tryIt: 'Make one when you are ready.' },
+  ] },
+  { end: true },
+]
+
+// the guest's tour: what a guest actually does here. No invites, no lock-in, no
+// host controls; the ballot and the discussion take the last two stops instead.
+const GUEST_STOPS: Stop[] = [
+  { tab: 'availability', targets: [
+    { sel: 'grid-all', title: 'Start with your times', text: 'This is the whole point: in Edit mine, drag across the hours you can make. The greener a slot, the more people can. A block you painted has handles, so it can be trimmed to the minute.', tryIt: 'Press Edit mine, drag a block, then pull one of its edges.' },
+  ] },
+  { tab: 'availability', targets: [
+    { sel: 'people', title: 'Who else has answered', text: 'Tap a face to see only that person\u2019s times; tap it again for everyone. The count beside them says who has answered and who the host is still waiting on.', tryIt: 'Tap a face, then tap it again.' },
+  ] },
+  { tab: 'location', targets: [
+    { sel: 'location', title: 'Have a say in the place', text: 'Every place on the ballot takes one vote from you, and the pins carry the count. The host settles on one in the end, but the votes are what they go by.', tryIt: 'Vote for a place, and add one of your own if the host allowed it.' },
+  ] },
+  { tab: 'availability', targets: [
+    { sel: 'tabs', title: 'The rest of the event', text: 'Attendance says who is coming once the host locks the plan in. Event details holds the description, the dates and the budget the host set. You can read all of it; only the host can change it.', tryIt: 'Open Attendance, then Event details, and come back to Availability.' },
+  ] },
+  { tab: 'availability', targets: [
+    { sel: 'chat', title: 'Say something', text: 'The discussion is per event and everyone on it can write, guests included. It is the place to ask about the times, or say you will be late.', tryIt: 'Open it and leave a line.' },
   ] },
   { end: true },
 ]
@@ -93,7 +123,7 @@ function placeCard(b: Box | null, cardH: number): { left: number; top: number; w
   return { left: Math.max(16, Math.min(b.x, vw - width - 16)), top, width }
 }
 
-export function Tour() {
+export function Tour({ host = false }: { host?: boolean }) {
   const [plan, setPlan] = useState<Stop[] | null>(null)
   const [i, setI] = useState(0)
   const [cand, setCand] = useState<Candidate | null>(null)
@@ -114,7 +144,7 @@ export function Tour() {
       if (t) clearTimeout(t)
       t = setTimeout(() => {
         const here = activeTab()
-        const have = STOPS.filter((s) => 'end' in s || s.tab !== here || find(s))
+        const have = (host ? HOST_STOPS : GUEST_STOPS).filter((s) => 'end' in s || s.tab !== here || find(s))
         if (have.length > 1) { first.current = true; setI(0); setPlan(have) }
       }, delay)
     }
@@ -122,7 +152,7 @@ export function Tour() {
     const onStart = () => begin(300)
     window.addEventListener(TOUR_START, onStart)
     return () => { if (t) clearTimeout(t); window.removeEventListener(TOUR_START, onStart) }
-  }, [])
+  }, [host])
 
   const finish = useCallback(() => {
     dismissHint('tour')
@@ -218,7 +248,7 @@ export function Tour() {
           <>
             <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">The end</div>
             <div className="mt-1 font-serif text-[21px] leading-[1.15] tracking-[-0.01em]">That is the tour</div>
-            <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">This practice event stays yours to play with. Four short clips on the Help page show each step from start to finish: making an event, marking times, picking a place and locking in.</p>
+            <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">{host ? 'This practice event stays yours to play with. Four short clips on the Help page show each step from start to finish: making an event, marking times, picking a place and locking in.' : 'Your answers are saved as you go, and you can change them any time. Four short clips on the Help page show each step from start to finish.'}</p>
             <div className="mt-3.5 flex items-center justify-between gap-3">
               <Link href="/help#watch" onClick={finish} className="flex items-center gap-1.5 text-[13px] font-semibold text-accent-text hover:underline">
                 <PlayCircle size={15} /> Watch the clips
