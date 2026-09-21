@@ -8,9 +8,13 @@ import { useEffect, useState } from 'react'
 import { TriangleAlert } from 'lucide-react'
 import { PUSH_REJECTED } from '@/lib/remote'
 
-// the field trigger raises sentences meant to be read; a bare policy refusal does not
+/* The field trigger raises sentences meant to be read; a bare policy refusal does
+   not, so it gets one. "Violates" alone was too wide a net: a foreign key that is
+   not there yet also violates something, and a change that arrived a moment early
+   was being reported to the person as a change they were not allowed to make. */
 function humanize(message: string): string {
-  if (/row-level security|violates/i.test(message)) return 'You do not have permission to make that change.'
+  if (/row-level security|policy/i.test(message)) return 'You do not have permission to make that change.'
+  if (/foreign key|is not present in table/i.test(message)) return 'That change arrived before the event did. It is still on this device; reload to send it again.'
   return message
 }
 

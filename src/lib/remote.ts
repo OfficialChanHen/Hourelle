@@ -109,20 +109,43 @@ const docOf = (ev: AppEvent) => {
    someone else's event would be refused before the update policy ever saw it. */
 export function pushEvent(ev: AppEvent): void {
   if (!backendOn) return
-  void supabase!
-    .from('events')
-    .update({ data: docOf(ev), host_id: hostIdOf(ev) })
-    .eq('id', ev.id)
-    .then(({ error }) => { if (error) rejected('save', error.message) })
+  // an update that overtakes the insert matches no rows and is lost in silence
+  void afterCreate(ev.id).then(() =>
+    supabase!
+      .from('events')
+      .update({ data: docOf(ev), host_id: hostIdOf(ev) })
+      .eq('id', ev.id)
+      .then(({ error }) => { if (error) rejected('save', error.message) }),
+  )
+}
+
+/* ── one event's row, on its way up ──
+   Everything else about an event points at that row: the answers, the votes and
+   the chat all carry its id as a foreign key, and an update needs something to
+   update. A new event is made and then, in the same breath, filled in — the tour's
+   practice event seeds five people's times a millisecond after creating the event
+   — so without this the answers arrived first and the database refused them for
+   pointing at nothing. Worse, the refusal said "violates", which the notice read
+   as a permission problem and told the person they were not allowed.
+
+   So an insert is remembered while it is in flight, and everything that follows
+   waits for it. It is kept per event and dropped as soon as it lands, so this is
+   one promise for the first moment of an event's life and nothing afterwards. */
+const creating = new Map<string, Promise<void>>()
+function afterCreate(id: string): Promise<void> {
+  return creating.get(id) ?? Promise.resolve()
 }
 
 /* A brand-new event is inserted: the one path the insert policy is for. */
 export function pushNewEvent(ev: AppEvent): void {
   if (!backendOn) return
-  void supabase!
-    .from('events')
-    .insert({ id: ev.id, data: docOf(ev), host_id: hostIdOf(ev) })
-    .then(({ error }) => { if (error) rejected('create', error.message) })
+  const done = Promise.resolve(
+    supabase!
+      .from('events')
+      .insert({ id: ev.id, data: docOf(ev), host_id: hostIdOf(ev) })
+      .then(({ error }) => { if (error) rejected('create', error.message) }),
+  ).then(() => { creating.delete(ev.id) })
+  creating.set(ev.id, done)
 }
 
 /* ── one event, by id, for whoever holds its link ──
@@ -246,10 +269,12 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
     // an answer of your own on somebody else's event: once it is saved, the host may
     // want to hear about it
     const answer = pid === me && !after.hostedByYou && (aUn.has(pid) || Object.values(to).some((iv) => iv.length > 0))
-    void supabase!
-      .from('availability')
-      .upsert({ event_id: after.id, participant_id: pid, intervals: to, unavailable: aUn.has(pid), updated_at: new Date().toISOString() }, { onConflict: 'event_id,participant_id' })
-      .then((r) => { fail('save your times')(r); if (!r.error && answer) tellHost(after.id, pid) })
+    void afterCreate(after.id).then(() =>
+      supabase!
+        .from('availability')
+        .upsert({ event_id: after.id, participant_id: pid, intervals: to, unavailable: aUn.has(pid), updated_at: new Date().toISOString() }, { onConflict: 'event_id,participant_id' })
+        .then((r) => { fail('save your times')(r); if (!r.error && answer) tellHost(after.id, pid) }),
+    )
   }
 
   // the ballot: a vote is a row, so casting is an insert and taking it back a delete
@@ -259,10 +284,12 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
     const added = [...has].filter((p) => !had.has(p))
     const gone = [...had].filter((p) => !has.has(p))
     if (added.length) {
-      void supabase!
-        .from('votes')
-        .upsert(added.map((participant_id) => ({ event_id: after.id, place_id: placeId, participant_id })), { onConflict: 'event_id,place_id,participant_id' })
-        .then(fail('vote'))
+      void afterCreate(after.id).then(() =>
+        supabase!
+          .from('votes')
+          .upsert(added.map((participant_id) => ({ event_id: after.id, place_id: placeId, participant_id })), { onConflict: 'event_id,place_id,participant_id' })
+          .then(fail('vote')),
+      )
     }
     for (const participant_id of gone) {
       void supabase!
@@ -304,12 +331,14 @@ function rowToMessage(r: MessageRow): ChatMessage {
 
 export function pushMessage(eventId: string, m: ChatMessage): void {
   if (!backendOn) return
-  void supabase!
+  void afterCreate(eventId).then(() =>
+    supabase!
     .from('messages')
     // a message id is minted once and never changes, so a second push of the same
     // line (a re-sync, a retry) is a no-op rather than a duplicate-key refusal
     .upsert({ id: m.mid, event_id: eventId, participant_id: m.id, name: m.name, body: m.text, system: !!m.system, at: m.at ?? Date.now() }, { onConflict: 'id', ignoreDuplicates: true })
-    .then(({ error }) => { if (error) rejected('message', error.message) })
+    .then(({ error }) => { if (error) rejected('message', error.message) }),
+  )
 }
 
 // merge a batch of rows into the cached events, newest last, without duplicates
@@ -332,11 +361,13 @@ function mergeMessages(list: AppEvent[], rows: MessageRow[]): AppEvent[] {
 
 export function pushDelete(id: string): void {
   if (!backendOn) return
-  void supabase!
+  void afterCreate(id).then(() =>
+    supabase!
     .from('events')
     .delete()
     .eq('id', id)
-    .then(({ error }) => { if (error) rejected('delete', error.message) })
+    .then(({ error }) => { if (error) rejected('delete', error.message) }),
+  )
 }
 
 /* ── whose events are these ──

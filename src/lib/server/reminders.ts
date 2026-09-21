@@ -1,7 +1,7 @@
 // What the reminder job owes today, worked out per event in its own timezone.
 // Kept apart from the route so it can be exercised without a server.
 
-import type { AppEvent, Participant } from '@/lib/events'
+import { phaseOf, type AppEvent, type Participant } from '@/lib/events'
 import type { MailKind } from './mail'
 
 export type Due = { kind: MailKind; day: string; people: Participant[]; pref: 'eventDay' | 'deadlines' }
@@ -32,7 +32,12 @@ export function dueFor(ev: AppEvent, now: Date): Due[] {
 
   if (ev.status === 'confirmed' && ev.confirmed) {
     const b = band(ev.confirmed.dayKey)
-    if (b) out.push({ kind: `event-${b}`, day: ev.confirmed.dayKey, people: going, pref: 'eventDay' })
+    // "today" only until it is over. The job runs at one hour of the day, and for an
+    // event that finished before that hour, in its own timezone, a note saying it is
+    // today would arrive after everyone had already been and gone. phaseOf knows the
+    // end time, not just the day.
+    const over = phaseOf(ev) === 'past'
+    if (b && !over) out.push({ kind: `event-${b}`, day: ev.confirmed.dayKey, people: going, pref: 'eventDay' })
     if (ev.rsvpDeadline) {
       const rb = band(ev.rsvpDeadline)
       if (rb) out.push({ kind: `rsvp-${rb}`, day: ev.rsvpDeadline, people: ev.participants.filter((p) => p.rsvp === 'pending' && !p.host), pref: 'deadlines' })
