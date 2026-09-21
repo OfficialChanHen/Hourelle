@@ -26,6 +26,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { fetchEvent } from '@/lib/remote'
 import { CoverEditor, type ImageFit } from '@/components/ui/CoverEditor'
+import { isInlineCover, isPhotoCover, uploadCover } from '@/lib/covers'
 import Link from 'next/link'
 import {
   Check, ChevronDown, ChevronUp, Search, Plus, X, MapPin, Video, Clock,
@@ -37,7 +38,7 @@ import { personColors, type PersonColor } from '@/lib/colors'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
-import { createEvent, draftFromEvent, getEvent, initialsOf, isOwnEmail, nowIn, maxPollDays, parseHM, fmtMinute, selectedDayKeys, type AppEvent, type AccountInvitee } from '@/lib/events'
+import { createEvent, draftFromEvent, getEvent, initialsOf, isOwnEmail, nowIn, maxPollDays, parseHM, patchEvent, fmtMinute, selectedDayKeys, type AppEvent, type AccountInvitee } from '@/lib/events'
 import { lookupProfileByEmail, recentInvitees, type Invitee } from '@/lib/invitees'
 import { centroidOf, searchPlaces } from '@/lib/geo'
 import { canEmail, sendInvites } from '@/lib/mail'
@@ -357,12 +358,26 @@ function CreateWizard() {
       // only pass an explicit day list when days were actually turned off
       pickedDays: finding && (form.excludedDows.length || form.excludedDays.length) ? selKeys ?? undefined : undefined,
     })
+    // the cover was picked before the event existed, so it goes up now that there is
+    // something to file it under. Background, like the invites: the data URL already
+    // in the document draws the same picture until the URL replaces it.
+    if (isInlineCover(ev.image)) {
+      void uploadCover(ev.id, ev.image as string).then((url) => { if (url) patchEvent(ev.id, { image: url }) })
+    }
     // straight to the event: no screen in between. The email invitees get their
     // personal links in the background, the way the Created screen used to send them;
     // that screen still exists for a ?created= link.
     const emailed = ev.participants.filter((p) => p.guest && p.email).length
     const sending = emailed > 0 && canEmail(account.signedIn)
-    if (sending) void sendInvites(ev.id)
+    // a send that fails says so after the fact: the flash that follows replaces
+    // "Emailing" with the reason, and the personal links are on the event page
+    if (sending) {
+      void sendInvites(ev.id).then((r) => {
+        const went = r.ok ? r.data.sent + r.data.already : 0
+        if (r.ok && (went > 0 || r.data.failed === 0)) return
+        pushFlash(`The invites could not be emailed. ${r.ok ? r.data.reason ?? '' : r.error} Personal links are on the event page.`.replace('  ', ' '), 'brick')
+      })
+    }
     pushFlash(sending ? `Your event is live. Emailing ${emailed} ${emailed === 1 ? 'invite' : 'invites'}.` : 'Your event is live. Share the link so people can join.')
     router.push(`/events/${ev.id}`)
   }
@@ -433,7 +448,7 @@ function CreateWizard() {
               className={`${inputCls(false)} h-[72px] resize-none py-[11px] leading-[1.5]`}
             />
           </Collapse>
-          <Collapse icon={ImagePlus} title="Cover" summary={form.image?.startsWith('data:') ? `Your photo, ${form.imageFit === 'fit' ? 'fitted' : 'filling the frame'}` : form.image ? 'A scene' : 'A scene or a photo of your own'}>
+          <Collapse icon={ImagePlus} title="Cover" summary={isPhotoCover(form.image) ? `Your photo, ${form.imageFit === 'fit' ? 'fitted' : 'filling the frame'}` : form.image ? 'A scene' : 'A scene or a photo of your own'}>
             <CoverEditor image={form.image} fit={form.imageFit} title={form.title} onChange={(p) => update(p)} />
           </Collapse>
           <Collapse icon={MapPin} title="Place" summary={placeSummary}>

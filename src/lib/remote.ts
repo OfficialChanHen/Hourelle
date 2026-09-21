@@ -5,6 +5,7 @@
 // When `backendOn` is false every function here is a silent no-op.
 
 import { supabase, backendOn } from './db'
+import { writeLocal } from './local'
 import { currentAccount } from './session'
 import { byDay, byParticipant, fullAvailIvOf, intervalsToGrid, stepOf, type PersonAnswer } from './availability'
 import type { AppEvent, ChatMessage } from './events'
@@ -18,7 +19,9 @@ function readCache(): AppEvent[] {
   try { return JSON.parse(localStorage.getItem(KEY) ?? '[]') as AppEvent[] } catch { return [] }
 }
 function writeCache(list: AppEvent[], announce: boolean) {
-  try { localStorage.setItem(KEY, JSON.stringify(list)) } catch { /* quota / private mode */ }
+  // a pull that cannot be cached still repaints the open page from the list it just
+  // built, so the announcement goes out either way; writeLocal says if it stuck
+  writeLocal(KEY, JSON.stringify(list))
   if (announce) window.dispatchEvent(new Event(EVENTS_SYNCED))
 }
 
@@ -236,13 +239,17 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
   // document's legacy `avail` would otherwise bring the old times back.
   const b = byParticipant(fullAvailIvOf(before)), a = byParticipant(fullAvailIvOf(after))
   const bUn = new Set(before.unavailableIds ?? []), aUn = new Set(after.unavailableIds ?? [])
+  const me = after.participants.find((p) => p.you)?.id
   for (const pid of new Set([...a.keys(), ...b.keys(), ...aUn, ...bUn])) {
     const from = b.get(pid) ?? {}, to = a.get(pid) ?? {}
     if (JSON.stringify(from) === JSON.stringify(to) && bUn.has(pid) === aUn.has(pid)) continue
+    // an answer of your own on somebody else's event: once it is saved, the host may
+    // want to hear about it
+    const answer = pid === me && !after.hostedByYou && (aUn.has(pid) || Object.values(to).some((iv) => iv.length > 0))
     void supabase!
       .from('availability')
       .upsert({ event_id: after.id, participant_id: pid, intervals: to, unavailable: aUn.has(pid), updated_at: new Date().toISOString() }, { onConflict: 'event_id,participant_id' })
-      .then(fail('save your times'))
+      .then((r) => { fail('save your times')(r); if (!r.error && answer) tellHost(after.id, pid) })
   }
 
   // the ballot: a vote is a row, so casting is an insert and taking it back a delete
@@ -523,6 +530,19 @@ export function startRealtime(): () => void {
       } else socketDown = true // TIMED_OUT, CHANNEL_ERROR or CLOSED: the next join catches up
     })
   return () => { void supabase!.removeChannel(channel) }
+}
+
+/* ── reply activity ──
+   The host may have asked to hear when someone answers (Settings, off by default).
+   Asked once per event per visit from here; the route keeps it to once per person
+   per event for good, whatever this browser remembers. Best effort, never waited
+   for: the answer is saved either way, and there is no session to carry, since
+   the person answering is a guest as often as not. */
+const told = new Set<string>()
+function tellHost(eventId: string, participantId: string): void {
+  if (process.env.NEXT_PUBLIC_MAIL_ON !== '1' || told.has(eventId)) return
+  told.add(eventId)
+  void fetch('/api/mail/reply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ eventId, participantId }) }).catch(() => { /* the host hears next time */ })
 }
 
 /* ── sign-out: the account's events leave with it ──

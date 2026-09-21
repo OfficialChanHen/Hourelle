@@ -108,7 +108,7 @@ function Welcome() {
       </h1>
       <p className="mt-3 max-w-[560px] text-[15px] leading-[1.65] text-dim">
         {step === 'terms'
-          ? 'Two short documents say what Hourelle keeps and how it may be used. Please read both to the end.'
+          ? 'Two short documents say what Hourelle keeps and how it may be used. Open each one, then tick its box.'
           : step === 'settings' ? 'Three things people set first. Everything here can be changed in Settings later.' : 'Hosting is free and stays free. Plus is a thank-you with a few extras, and it is not on sale yet.'}
       </p>
 
@@ -128,7 +128,7 @@ function Welcome() {
 
       {step === 'terms' ? (
         <div className="mt-7 max-w-[560px]">
-          <LegalGate accepted={legalOk} onChange={setLegalOk} />
+          <LegalGate onChange={setLegalOk} />
         </div>
       ) : step === 'settings' ? (
         <div className="mt-7 grid gap-4 md:grid-cols-[1fr_300px]">

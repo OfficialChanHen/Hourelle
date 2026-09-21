@@ -72,13 +72,34 @@ export async function sendMail(m: Mail): Promise<string | null> {
       ...(m.attachments?.length ? { attachments: m.attachments.map((a) => ({ filename: a.filename, content: a.content, content_type: a.contentType })) } : {}),
     }),
   })
-  if (res.ok) return null
+  if (res.ok) { lastRefusal = null; return null }
   const detail = await res.text().catch(() => '')
+  lastRefusal = explainRefusal(res.status, detail)
   return `Resend refused the message (${res.status})${detail ? `: ${detail.slice(0, 200)}` : ''}`
 }
 
+/* ── why a message did not go, in words the host can act on ──
+   The routes count sent and failed; a count alone left "2 could not be sent" with
+   nothing behind it, and the real reason only in the server log. The last refusal
+   is kept here so a route can hand it back with the counts. The usual causes are
+   configuration, and each says which setting to look at. */
+let lastRefusal: string | null = null
+export function lastMailRefusal(): string | null { return lastRefusal }
+function explainRefusal(status: number, detail: string): string {
+  if (/only send testing emails|testing_email|verify a domain/i.test(detail))
+    return 'The sending address is still the sandbox one, which only delivers to the Resend account itself. Set MAIL_FROM_EMAIL to an address on the verified domain.'
+  if (/domain is not verified|not_verified/i.test(detail))
+    return 'The sending domain is not verified in Resend yet.'
+  if (status === 401 || status === 403)
+    return 'Resend did not accept the API key (RESEND_API_KEY).'
+  if (status === 422 && /from/i.test(detail))
+    return 'Resend did not accept the sending address (MAIL_FROM_EMAIL).'
+  if (status === 429) return 'Resend is rate limiting sends right now.'
+  return `Resend refused the message (${status}).`
+}
+
 /* ── the log: one row per message, and the key that stops repeats ── */
-export type MailKind = 'invite' | 'nudge' | 'locked' | 'event-eve' | 'event-day' | 'plan-eve' | 'plan-day' | 'vote-eve' | 'vote-day' | 'rsvp-eve' | 'rsvp-day'
+export type MailKind = 'invite' | 'nudge' | 'locked' | 'reply' | 'event-eve' | 'event-day' | 'plan-eve' | 'plan-day' | 'vote-eve' | 'vote-day' | 'rsvp-eve' | 'rsvp-day'
 
 /** Send once. The log row is claimed before the message goes out (the unique key
  *  refuses a second claim), so two overlapping runs cannot both send. A failed
@@ -298,6 +319,19 @@ export function lockedMail(ev: AppEvent, p: Participant, to: string, site: strin
     footer,
   })
   return { to, subject: `${ev.title} is locked in${when ? `: ${when}` : ''}`, text, html, replyTo: hostEmail ?? undefined, fromName: `${host} via Hourelle`, attachments, thread: ev.id }
+}
+
+/* Reply activity: a host who asked to hear when someone answers (Settings, off by
+   default). Who, where the count stands, and the grid one tap away. */
+export function replyMail(ev: AppEvent, p: Participant, host: Participant, to: string, site: string, answered: number, total: number): Mail {
+  const link = `${site}/events/${ev.id}`
+  const title = `${p.name} answered ${ev.title}`
+  const lines = [
+    `Hi ${firstName(host)}, ${p.name} marked when they are free for ${ev.title}.`,
+    `${answered} of ${total} ${answered === 1 ? 'has' : 'have'} answered so far.`,
+  ]
+  const footer = `You are getting this because you host ${ev.title}. Reply activity can be turned off in your settings: ${site}/settings`
+  return { to, subject: title, text: [...lines, '', link, '', footer].join('\n'), html: shell({ title, lines, cta: { label: 'See the grid', href: link }, preheader: lines[0], footer }), thread: ev.id }
 }
 
 /* The account is gone, and this is the only trace: a note to the address it had, so

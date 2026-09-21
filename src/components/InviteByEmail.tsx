@@ -54,7 +54,7 @@ export function InviteByEmail({ event, onAdded, label = 'Or send it by email' }:
     const r = await sendInvites(event.id, added.map((p) => p.id))
     if (!r.ok) { setState({ kind: 'failed', text: `${r.error} Their personal links are on the event page.` }); return }
     const went = r.data.sent + r.data.already
-    if (went === 0) { setState({ kind: 'failed', text: 'The invites could not be sent. Their personal links are on the event page.' }); return }
+    if (went === 0) { setState({ kind: 'failed', text: `The invites could not be sent. ${r.data.reason ?? ''} Their personal links are on the event page.`.replace('  ', ' ') }); return }
     setList([])
     setState({ kind: 'sent', text: `${went} ${went === 1 ? 'invite' : 'invites'} emailed with a personal link.${r.data.failed ? ` ${r.data.failed} could not be sent.` : ''}` })
   }

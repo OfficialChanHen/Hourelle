@@ -1,5 +1,7 @@
 'use client'
 
+import { useRef } from 'react'
+import { useSwingOnNew } from '@/hooks/useAttention'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, CalendarDays, Plus, Bell, User, LayoutGrid, LogIn } from 'lucide-react'
@@ -95,6 +97,8 @@ function TabItem({ href, label, icon: Icon, active, count = 0, compact = false }
   // the compressed bar keeps icons only — labels fold away until scrolling up regrows it
   compact?: boolean
 }) {
+  const iconRef = useRef<SVGSVGElement>(null)
+  useSwingOnNew(iconRef, count)
   return (
     <Link
       href={href}
@@ -102,7 +106,8 @@ function TabItem({ href, label, icon: Icon, active, count = 0, compact = false }
       className={`flex flex-1 flex-col items-center justify-center text-[12px] font-semibold ${compact ? 'gap-0' : 'gap-1'} ${active ? 'text-accent-text' : 'text-faint'}`}
     >
       <span className="relative">
-        <Icon size={22} strokeWidth={active ? 2.4 : 2} />
+        {/* the icon swings when its count goes up (only the bell ever has one) */}
+        <Icon ref={iconRef} size={22} strokeWidth={active ? 2.4 : 2} />
         {count > 0 && (
           <span className="absolute -right-2 -top-1.5 grid h-[15px] min-w-[15px] place-items-center rounded-full bg-accent px-1 text-[9.5px] font-bold leading-none text-on-accent ring-2 ring-s0">
             {count > 9 ? '9+' : count}

@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server'
 import type { AppEvent } from '@/lib/events'
 import { userFromRequest } from '@/lib/server/db'
-import { emailsFor, eventRow, inviteMail, mailConfigured, sendOnce, serverDb, siteUrl } from '@/lib/server/mail'
+import { emailsFor, eventRow, inviteMail, lastMailRefusal, mailConfigured, sendOnce, serverDb, siteUrl } from '@/lib/server/mail'
 
 export const runtime = 'nodejs'
 
@@ -49,5 +49,6 @@ export async function POST(req: Request) {
     const r = await sendOnce(db, `${ev.id}:${p.id}:invite`, { eventId: ev.id, participantId: p.id, kind: 'invite' }, inviteMail(ev, p, to, site, user.email), !!body.again)
     if (r === 'sent') sent++; else if (r === 'already') already++; else failed++
   }
-  return NextResponse.json({ sent, already, failed, total: people.length })
+  // the counts say how many; the reason says why, when any did not go
+  return NextResponse.json({ sent, already, failed, total: people.length, ...(failed ? { reason: lastMailRefusal() } : {}) })
 }

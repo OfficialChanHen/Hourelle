@@ -39,6 +39,7 @@ import { fromDay,
 } from '@/lib/events'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { useAccount } from '@/hooks/useAccount'
+import { isPhotoCover } from '@/lib/covers'
 
 // what part of the day it is, by the reader's clock
 function greetingFor(hour: number): string {
@@ -202,7 +203,11 @@ function QuickCreate() {
     pushFlash('Your event is live. Share the link so people can join.')
     router.push(`/events/${ev.id}`)
   }
-  const dateCls = 'h-11 sm:h-10 rounded-[10px] border border-border bg-s2 px-2.5 text-[13.5px] outline-none focus:border-accent-border'
+  // on a phone the two dates share the row. Each sits in a wrapper that flex can
+  // shrink and fills it: iOS gives a bare date input an intrinsic width that a
+  // flex basis alone does not override, and the second one ran past the card.
+  // From sm up they sit at their natural size.
+  const dateCls = 'block h-11 w-full rounded-[10px] border border-border bg-s2 px-2.5 text-[13.5px] outline-none focus:border-accent-border sm:h-10 sm:w-auto'
   return (
     <div className="mb-6 rounded-2xl border border-border bg-s1 p-4">
       <div className="flex flex-wrap items-center gap-2.5">
@@ -213,11 +218,15 @@ function QuickCreate() {
           placeholder="What are you planning?"
           className={`h-11 sm:h-10 min-w-[200px] flex-1 rounded-[10px] border ${need ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[14.5px] outline-none placeholder:text-faint focus:border-accent-border`}
         />
-        <div className="flex flex-none items-center gap-2">
-          <input type="date" value={start} min={today || undefined} aria-label="Earliest day" className={dateCls}
-            onChange={(e) => { const v = fromDay(e.target.value, today); setStart(v); if (end < v) setEnd(v) }} />
-          <span className="text-faint">→</span>
-          <input type="date" value={end} min={start || undefined} aria-label="Latest day" className={dateCls} onChange={(e) => setEnd(fromDay(e.target.value, start))} />
+        <div className="flex w-full min-w-0 flex-none items-center gap-2 sm:w-auto">
+          <span className="min-w-0 flex-1 sm:flex-none">
+            <input type="date" value={start} min={today || undefined} aria-label="Earliest day" className={dateCls}
+              onChange={(e) => { const v = fromDay(e.target.value, today); setStart(v); if (end < v) setEnd(v) }} />
+          </span>
+          <span className="flex-none text-faint" aria-hidden>→</span>
+          <span className="min-w-0 flex-1 sm:flex-none">
+            <input type="date" value={end} min={start || undefined} aria-label="Latest day" className={dateCls} onChange={(e) => setEnd(fromDay(e.target.value, start))} />
+          </span>
         </div>
         <button onClick={go} className="flex h-11 sm:h-10 flex-none items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent">
           <CalendarPlus size={16} /> Create
@@ -263,7 +272,7 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
   }
   // a photo of the host's own runs behind the whole hero, and the text sits on a
   // paper panel over it: the picture gets the card, the words keep their contrast
-  const photo = !!e.image?.startsWith('data:')
+  const photo = isPhotoCover(e.image)
   return (
     <div
       onClick={() => router.push(dest)}

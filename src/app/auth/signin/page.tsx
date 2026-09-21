@@ -9,8 +9,8 @@ import { ArrowLeft, CalendarRange, Check, Loader2, MailCheck, TriangleAlert } fr
 import { useGuestMode } from '@/hooks/useGuestMode'
 import { backendOn } from '@/lib/db'
 import { EMAIL_TAKEN, hasSession, recordLegalAcceptance, sendPasswordReset, signInWithEmail, signInWithGoogle, signInWithMicrosoft, signUpWithEmail } from '@/lib/session'
-import { LegalGate } from '@/components/LegalGate'
-import { LEGAL_VERSION } from '@/content/legal'
+import { LegalGate, LegalSheet } from '@/components/LegalGate'
+import { LEGAL_VERSION, type LegalKey } from '@/content/legal'
 import { passwordOk } from '@/lib/password'
 import { PasswordField } from '@/components/ui/PasswordField'
 import { PasswordRules } from '@/components/ui/PasswordRules'
@@ -80,6 +80,8 @@ function SignInForm() {
   const [mode, setMode] = useState<Mode>(wanted === 'up' ? 'up' : 'in')
   // sign-up only: both documents read to the end and the box ticked
   const [legalOk, setLegalOk] = useState(false)
+  // a document opened from the "By continuing" line, over the form
+  const [reading, setReading] = useState<LegalKey | null>(null)
   const [name, setName] = useState('')
   const [email, setEmail] = useState(() => params.get('email') ?? '')
   const [password, setPassword] = useState('')
@@ -128,7 +130,7 @@ function SignInForm() {
     }
 
     if (mode === 'up') {
-      if (!legalOk) { setError('Read and accept the Privacy Policy and the Terms and Conditions first.'); setBusy(null); return }
+      if (!legalOk) { setError('Tick both boxes first: the Privacy Policy and the Terms and Conditions.'); setBusy(null); return }
       recordLegalAcceptance(LEGAL_VERSION)
       const err = await signUpWithEmail(email.trim(), password, name)
       if (err) { setError(err); setBusy(null); return }
@@ -219,7 +221,7 @@ function SignInForm() {
                 />
               )}
 
-              {mode === 'up' && <LegalGate accepted={legalOk} onChange={setLegalOk} />}
+              {mode === 'up' && <LegalGate onChange={setLegalOk} />}
 
               <button
                 type="submit" disabled={!canSubmit || busy !== null}
@@ -247,7 +249,7 @@ function SignInForm() {
                 </div>
 
                 {/* a new account through Google or Microsoft accepts the same terms first */}
-                {mode === 'up' && !legalOk && <p className="mb-2.5 text-[12.5px] text-faint">Read and accept the documents above to sign up with Google or Microsoft.</p>}
+                {mode === 'up' && !legalOk && <p className="mb-2.5 text-[12.5px] text-faint">Tick both boxes above to sign up with Google or Microsoft.</p>}
                 <button
                   type="button"
                   onClick={google}
@@ -302,10 +304,17 @@ function SignInForm() {
               </p>
             )}
 
-            <p className="mt-5 text-[11.5px] leading-[1.6] text-faint">
-              By continuing you agree to the <span className="underline underline-offset-2">Terms</span> and the{' '}
-              <span className="underline underline-offset-2">Privacy Policy</span>.
-            </p>
+            {/* signing up ticks the boxes above; logging in agrees by continuing, with
+                both documents a tap away over the form */}
+            {mode !== 'up' && (
+              <p className="mt-5 text-[11.5px] leading-[1.6] text-faint">
+                By continuing you agree to the{' '}
+                <button type="button" onClick={() => setReading('terms')} className="font-semibold text-accent-text underline underline-offset-2 hover:text-accent">Terms</button>
+                {' '}and the{' '}
+                <button type="button" onClick={() => setReading('privacy')} className="font-semibold text-accent-text underline underline-offset-2 hover:text-accent">Privacy Policy</button>.
+              </p>
+            )}
+            {reading && <LegalSheet k={reading} onClose={() => setReading(null)} />}
 
             <Link href={backHref} className="mt-6 flex w-fit items-center gap-1.5 text-[13px] font-semibold text-accent-text hover:underline">
               <ArrowLeft size={14} /> {guestEventId ? 'Back to your event' : 'Back to the app'}

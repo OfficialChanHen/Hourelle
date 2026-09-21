@@ -52,10 +52,12 @@ import { ConfirmBar } from './ConfirmBar'
 import { ConfirmedHero } from './ConfirmedHero'
 import { ChatDrawer } from './ChatDrawer'
 import { useIsIOS } from '@/hooks/useIsIOS'
+import { useBounceOnNew } from '@/hooks/useAttention'
 import { useAccount } from '@/hooks/useAccount'
 import { canEmail, sendInvites } from '@/lib/mail'
 import { InviteByEmail } from '@/components/InviteByEmail'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
+import { removeEventCovers } from '@/lib/covers'
 
 const TABS = [
   { key: 'availability', label: 'Availability', short: 'Availability' },
@@ -116,6 +118,9 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   // frozen at the moment the drawer opens, so the "New" rule inside it holds
   // still even as reading marks everything seen
   const [unreadMark, setUnreadMark] = useState<number | undefined>(undefined)
+  // the bubble hops when a message lands while the drawer is closed
+  const bubbleRef = useRef<HTMLButtonElement>(null)
+  useBounceOnNew(bubbleRef, unread, !chatOpen)
   const tabsRef = useRef<HTMLDivElement>(null)
   const [tabFade, setTabFade] = useState({ l: false, r: false })
   const tabResolved = useRef(false)
@@ -165,6 +170,8 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
 
   function handleDelete() {
     const title = event?.title
+    // the photos filed under it have nothing left to belong to
+    void removeEventCovers(id)
     deleteEvent(id)
     pushFlash(title ? `${title} was deleted` : 'Event deleted', 'brick')
     // back to wherever they came from; a straight-to-URL visit falls back to home
@@ -406,6 +413,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           mobile tab bar; it is the one and only way in, unread badge included */}
       {!chatOpen && (
         <button
+          ref={bubbleRef}
           onClick={() => { setUnreadMark(unread > 0 ? seenMsgs ?? 0 : undefined); setChatOpen(true) }}
           aria-label={unread > 0 ? `Open discussion, ${unread} unread` : 'Open discussion'}
           // on iOS the bubble is clear liquid glass (frost, rim, sheen — no fill);
@@ -687,7 +695,7 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
     setMail('sending')
     const r = await sendInvites(event.id, [p.id], true)
     if (r.ok && r.data.failed === 0 && r.data.total > 0) { setMail('sent'); setTimeout(close, 1100) }
-    else { setMail('error'); setMailErr(r.ok ? 'The message could not be sent.' : r.error) }
+    else { setMail('error'); setMailErr(r.ok ? (r.data.reason ?? 'The message could not be sent.') : r.error) }
   }
   return (
     <>
@@ -1169,7 +1177,8 @@ function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Par
   }
   return (
     <div className="flex flex-col gap-2">
-      <CoverEditor image={event.image} fit={event.imageFit} title={event.title} onChange={(p) => onPatch(p)} />
+      {/* a demo is never persisted, so it has nothing to file a photo under */}
+      <CoverEditor image={event.image} fit={event.imageFit} title={event.title} eventId={event.demo ? undefined : event.id} onChange={(p) => onPatch(p)} />
       <div>
         <button onClick={() => setEditing(false)} className="h-8 rounded-[8px] px-2 text-[12.5px] font-semibold text-dim hover:bg-s2">Done</button>
       </div>

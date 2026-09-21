@@ -271,6 +271,7 @@ input[type="time"] {
 input[type="date"]::-webkit-date-and-time-value {
   text-align: left;
   margin: 0;
+  min-height: 1.2em; /* an empty field keeps its height once the native look is off */
 }
 /* On touch devices, drop the native appearance so the input honors width:100%
    instead of its intrinsic size. Scoped to coarse pointers so desktop keeps its

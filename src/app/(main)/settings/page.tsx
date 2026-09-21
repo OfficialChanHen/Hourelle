@@ -96,7 +96,7 @@ export default function SettingsPage() {
     { key: 'lockIn', label: 'Lock-in announcements', sub: 'When a host locks in the time and place of an event you are on.' },
     { key: 'eventDay', label: 'Event reminders', sub: 'The day before and the morning of a locked-in plan.' },
     { key: 'deadlines', label: 'Deadline reminders', sub: 'When a vote, plan-by, or RSVP date is about to pass.' },
-    { key: 'replies', label: 'Reply activity', sub: 'When someone answers an event you host.' },
+    { key: 'replies', label: 'Reply activity', sub: 'The first time each person marks their times on an event you host.' },
   ]
 
   return (

@@ -12,8 +12,13 @@ import { Check, Trash2 } from 'lucide-react'
 type Flash = { text: string; tone: 'accent' | 'brick' }
 const KEY = 'hourelle.flash'
 
+const PUSHED = 'hourelle:flash'
+
 export function pushFlash(text: string, tone: Flash['tone'] = 'accent') {
   try { sessionStorage.setItem(KEY, JSON.stringify({ text, tone })) } catch { /* private mode */ }
+  // a flash pushed with no navigation to follow (a background send reporting back)
+  // is read at once rather than on the next route change
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(PUSHED))
 }
 
 export function FlashToast() {
@@ -24,12 +29,17 @@ export function FlashToast() {
   const pathname = usePathname()
 
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(KEY)
-      if (!raw) return
-      sessionStorage.removeItem(KEY)
-      setFlash(JSON.parse(raw) as Flash)
-    } catch { /* private mode / bad payload */ }
+    const read = () => {
+      try {
+        const raw = sessionStorage.getItem(KEY)
+        if (!raw) return
+        sessionStorage.removeItem(KEY)
+        setFlash(JSON.parse(raw) as Flash)
+      } catch { /* private mode / bad payload */ }
+    }
+    read()
+    window.addEventListener(PUSHED, read)
+    return () => window.removeEventListener(PUSHED, read)
   }, [pathname])
 
   useGSAP(() => {

@@ -2,6 +2,7 @@ import type { PersonColor } from './colors'
 import { av } from './people'
 import { isMine, pushAnswers, pushDelete, pushEvent, pushMessage, pushNewEvent } from './remote'
 import { currentAccount } from './session'
+import { writeLocal } from './local'
 import type { AccountKind } from './session'
 import {
   avail as demoAvail,
@@ -188,9 +189,12 @@ function readAll(): AppEvent[] {
     return []
   }
 }
+// the one write that can realistically fill a browser, so it is the one that has to
+// say when it did. writeLocal announces it; the change still goes to the cloud, which
+// is why the notice is worded around this browser rather than around the plan.
 function writeAll(list: AppEvent[]) {
   if (typeof window === 'undefined') return
-  try { localStorage.setItem(KEY, JSON.stringify(list)) } catch { /* quota / private mode */ }
+  writeLocal(KEY, JSON.stringify(list))
 }
 
 export function listEvents(): AppEvent[] {

@@ -6,7 +6,7 @@
 import { NextResponse } from 'next/server'
 import type { AppEvent } from '@/lib/events'
 import { userFromRequest } from '@/lib/server/db'
-import { emailsFor, eventRow, lockedMail, mailConfigured, prefsFor, sendOnce, serverDb, siteUrl } from '@/lib/server/mail'
+import { emailsFor, eventRow, lastMailRefusal, lockedMail, mailConfigured, prefsFor, sendOnce, serverDb, siteUrl } from '@/lib/server/mail'
 
 export const runtime = 'nodejs'
 
@@ -53,5 +53,5 @@ export async function POST(req: Request) {
     const r = await sendOnce(db, `${ev.id}:${p.id}:locked:${stamp}`, { eventId: ev.id, participantId: p.id, kind: 'locked' }, lockedMail(ev, p, to, site, user.email))
     if (r === 'sent') sent++; else if (r === 'already') already++; else failed++
   }
-  return NextResponse.json({ sent, already, failed, skipped, total: people.length })
+  return NextResponse.json({ sent, already, failed, skipped, total: people.length, ...(failed ? { reason: lastMailRefusal() } : {}) })
 }

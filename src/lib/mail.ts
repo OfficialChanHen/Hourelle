@@ -26,21 +26,22 @@ async function post<T>(path: string, body: unknown): Promise<{ ok: true; data: T
   }
 }
 
-export type InviteResult = { sent: number; already: number; failed: number; total: number }
+// `reason`: why any failed, in words meant for the host
+export type InviteResult = { sent: number; already: number; failed: number; total: number; reason?: string }
 /** Email the personal invite links of an event's email invitees (all, or the given
  *  ones). `again` sends to people who already had theirs. */
 export function sendInvites(eventId: string, participantIds?: string[], again = false) {
   return post<InviteResult>('/api/mail/invite', { eventId, participantIds, again })
 }
 
-export type LockedResult = { sent: number; already: number; failed: number; skipped: number; total: number }
+export type LockedResult = { sent: number; already: number; failed: number; skipped: number; total: number; reason?: string }
 /** Tell everyone on the list that the host locked in a time and place, once per
  *  lock-in, calendar entry attached. Accounts that switched the kind off are skipped. */
 export function sendLockedMail(eventId: string, confirmedAt?: number) {
   return post<LockedResult>('/api/mail/locked', { eventId, confirmedAt })
 }
 
-export type NudgeResult = { sent: string[]; already: string[]; noEmail: string[]; failed: string[] }
+export type NudgeResult = { sent: string[]; already: string[]; noEmail: string[]; failed: string[]; reason?: string }
 /** Ask the given people for their times. One email per person per day. */
 export function sendNudges(eventId: string, participantIds: string[]) {
   return post<NudgeResult>('/api/mail/nudge', { eventId, participantIds })

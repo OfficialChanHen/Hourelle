@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { AlertSounds } from "@/components/AlertSounds";
 import { BackendSync } from "@/components/BackendSync";
+import { NoticeRail } from "@/components/NoticeRail";
 
 // Lora is the display serif: soft, rounded strokes with conventional letterforms,
 // and real weights — 400 for display sizes, 500 for headings under 28px (set in
@@ -52,6 +53,7 @@ export default function RootLayout({
         <Providers>
           <BackendSync />
           <AlertSounds />
+          <NoticeRail />
           {children}
         </Providers>
       </body>

@@ -1,6 +1,9 @@
 /* Warm covers for event cards and headers. Three sources, one component:
    the generated gradient (default), a preset scene ('preset:<id>'), or the
-   host's own photo (a downscaled data URL). */
+   host's own photo, which is a URL into Storage once it has been uploaded and a
+   data URL until then (see lib/covers). */
+
+import { isPhotoCover } from '@/lib/covers'
 
 export type CoverPreset = { id: string; name: string; from: string; to: string; scene: React.ReactNode }
 
@@ -82,11 +85,14 @@ export function Cover({
   className?: string
   rounded?: string
 }) {
-  if (src?.startsWith('data:')) {
+  // a host's own photo, whether it is still inside the document as a data URL or
+  // has been moved to Storage and is now a URL. Both draw identically.
+  if (isPhotoCover(src)) {
     const whole = fit === 'fit'
     return (
       <div className={`relative overflow-hidden ${rounded} ${className}`} style={whole ? { background: 'var(--s2)' } : undefined}>
-        {/* a stored data URL, not a remote asset — next/image has nothing to optimize here */}
+        {/* already downscaled on the way in, and a data URL has nothing for
+            next/image to fetch, so both sources go straight to an <img> */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {whole && <img src={src} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-xl" />}
         {/* eslint-disable-next-line @next/next/no-img-element */}

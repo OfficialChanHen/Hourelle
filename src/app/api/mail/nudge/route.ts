@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server'
 import type { AppEvent } from '@/lib/events'
 import { userFromRequest } from '@/lib/server/db'
-import { emailsFor, eventRow, mailConfigured, nudgeMail, sendOnce, serverDb, siteUrl } from '@/lib/server/mail'
+import { emailsFor, eventRow, lastMailRefusal, mailConfigured, nudgeMail, sendOnce, serverDb, siteUrl } from '@/lib/server/mail'
 
 export const runtime = 'nodejs'
 
@@ -43,5 +43,5 @@ export async function POST(req: Request) {
     const r = await sendOnce(db, `${ev.id}:${p.id}:nudge:${day}`, { eventId: ev.id, participantId: p.id, kind: 'nudge' }, nudgeMail(ev, p, to, site, user.email))
     ;(r === 'sent' ? sent : r === 'already' ? already : failed).push(p.id)
   }
-  return NextResponse.json({ sent, already, noEmail, failed })
+  return NextResponse.json({ sent, already, noEmail, failed, ...(failed.length ? { reason: lastMailRefusal() } : {}) })
 }

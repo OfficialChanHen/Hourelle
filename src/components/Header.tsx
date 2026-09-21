@@ -12,6 +12,8 @@
    desktop keeps it planted. Nothing account-shaped renders until `ready`, because
    the server cannot know which of the four this is. */
 
+import { useRef } from 'react'
+import { useSwingOnNew } from '@/hooks/useAttention'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRouter } from 'next/navigation'
@@ -37,6 +39,8 @@ export function Header() {
   const pathname = usePathname()
   const router = useRouter()
   const notifCount = useNotificationCount()
+  const bellRef = useRef<SVGSVGElement>(null)
+  useSwingOnNew(bellRef, notifCount)
   const { ready, guestEventId, visitor, account } = useAccess()
   const avatar = personColors[account.color] ?? personColors.gray
   // phones: reading scrolls the header away, scrolling back up recalls it.
@@ -142,7 +146,8 @@ export function Header() {
                 : 'border-border text-dim hover:text-text'
             }`}
           >
-            <Bell size={17} />
+            {/* the bell itself swings when a notification is added; the badge holds still */}
+            <Bell ref={bellRef} size={17} />
             {/* how many you haven't looked at — opening the page clears it */}
             {notifCount > 0 && (
               <span className="absolute -right-1.5 -top-1.5 grid h-[16px] min-w-[16px] place-items-center rounded-full bg-accent px-1 text-[10px] font-bold leading-none text-on-accent ring-2 ring-s0">

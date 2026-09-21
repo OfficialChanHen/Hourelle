@@ -10,6 +10,7 @@ import { Cover } from './Cover'
 import { Tip } from './Tip'
 import { daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, eventTabFor, leadingPlaceOf, phaseOf, respondedCount, type AppEvent, type SameDayInfo } from '@/lib/events'
 import { PHASE_BADGE, PHASE_TINT } from './LifecycleStrip'
+import { isPhotoCover } from '@/lib/covers'
 
 const COVERS: [string, string][] = [
   ['#E4EDE7', '#CFE0D5'], ['#E7E2EE', '#D9CFE4'], ['#DEE7EC', '#C7DAE2'],
@@ -76,7 +77,7 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
     >
       {/* a photo of the host's own gets more of the card than a scene; the text stays on paper below it */}
       <div className="relative -mx-3.5 -mt-3.5 mb-3">
-        <Cover src={e.image} fit={e.imageFit} from={from} to={to} className={e.image?.startsWith('data:') ? 'h-[150px]' : 'h-[92px]'} />
+        <Cover src={e.image} fit={e.imageFit} from={from} to={to} className={isPhotoCover(e.image) ? 'h-[150px]' : 'h-[92px]'} />
         {/* the cover's top corner is the one open spot on the card: the host's way to the details tab */}
         {e.hostedByYou && !e.demo && (
           <span
