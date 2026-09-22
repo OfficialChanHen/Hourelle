@@ -41,6 +41,9 @@ const FREE = [
 ]
 // the stretch the grid is pointing at: Friday afternoon, where the crowd peaks
 const BEST = { col: 4, from: 3, to: 5 }
+// how many of the nine rows a narrow container draws, so the section below the
+// hero still shows itself once the grid is on screen
+const NARROW_ROWS = 6
 // the row a time belongs to is the one it opens, so the first row is the one time the
 // rail never has to name
 const AT = ['', '10:00', '11:00', '12:00', '1:00', '2:00', '3:00', '4:00', '5:00']
@@ -141,8 +144,16 @@ export function HeroGrid() {
             </div>
           ))}
 
+          {/* a phone gets six hours of the nine. The cells keep the height the real grid
+              draws them at, because squashing them would make this a picture of
+              something that does not exist; the quiet tail of the afternoon goes
+              instead, which a real grid would have scrolled off anyway. Short enough
+              that parking the grid on screen still leaves room for the section below
+              to show its name, which is the whole reason it was cut. The rows come
+              back the moment there is width for them, and the best block (rows 3 to 5)
+              is never among the ones that leave. */}
           {FREE.map((row, r) => (
-            <div key={r} className="contents">
+            <div key={r} className={r >= NARROW_ROWS ? 'hidden @xl:contents' : 'contents'}>
               {/* the rail: each time sits on the line that opens its row, a tick either
                   side of it and a gap so neither touches it */}
               <div className="relative flex items-center justify-end border-r border-grid-edge bg-s0 px-1.5 text-[10px] font-medium text-dim @xl:text-[12px]">

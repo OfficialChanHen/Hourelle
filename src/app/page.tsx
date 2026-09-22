@@ -76,11 +76,15 @@ export default function Landing() {
         .fromTo('.ld-hero > *', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.55, stagger: 0.07, ease: 'power3.out' })
         .fromTo('.ld-shot', { opacity: 0, y: 28, scale: 0.985 }, { opacity: 1, y: 0, scale: 1, duration: 0.8, ease: 'power3.out' }, '-=0.35')
       // everything below the fold rises into place as it arrives
+      // these fire as a section reaches the bottom edge, not once it is already a
+      // seventh of the way up. At 86% the last 14% of every screen was reserved for
+      // something still at opacity 0, so a section could never peek: you scrolled the
+      // grid into view and the space under it stayed blank until you scrolled again.
       gsap.utils.toArray<HTMLElement>('.ld-reveal').forEach((el) => {
-        gsap.from(el, { opacity: 0, y: 26, duration: 0.7, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 86%', once: true } })
+        gsap.from(el, { opacity: 0, y: 26, duration: 0.7, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 99%', once: true } })
       })
       gsap.utils.toArray<HTMLElement>('.ld-stagger').forEach((group) => {
-        gsap.from(group.children, { opacity: 0, y: 18, duration: 0.55, stagger: 0.08, ease: 'power2.out', scrollTrigger: { trigger: group, start: 'top 84%', once: true } })
+        gsap.from(group.children, { opacity: 0, y: 18, duration: 0.55, stagger: 0.08, ease: 'power2.out', scrollTrigger: { trigger: group, start: 'top 92%', once: true } })
       })
     })
     return () => mm.revert()
@@ -130,7 +134,7 @@ export default function Landing() {
         </section>
 
         {/* ── how it works ── */}
-        <section id="how" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pb-8 pt-20 sm:pt-28">
+        <section id="how" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pb-8 pt-14 sm:pt-28">
           <div className="ld-reveal max-w-[560px]">
             <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-accent-text">How it works</p>
             <h2 className="mt-2.5 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">Four steps, and most of them are other people&apos;s.</h2>
@@ -139,7 +143,7 @@ export default function Landing() {
         </section>
 
         {/* ── features, alternating ── */}
-        <section id="features" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pt-20 sm:pt-28">
+        <section id="features" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pt-14 sm:pt-28">
           <div className="ld-reveal max-w-[560px]">
             <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-accent-text">What it does</p>
             <h2 className="mt-2.5 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">The whole plan, in one place.</h2>
