@@ -38,6 +38,7 @@ import { useFollow } from '@/hooks/useFollow'
 import type { MapPin as MapPinData, PanRequest } from '@/components/EventMap'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
+import { usePhoneScreen } from '@/hooks/usePhoneScreen'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { OverflowText } from '@/components/ui/OverflowText'
 import { TimeSelect } from '@/components/ui/TimeSelect'
@@ -207,30 +208,23 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
     persist({ hideVoters: next })
   }
 
-  // mobile sheet drag-to-close, same feel as the chat sheet: the grab bar follows
-  // the finger, release past the threshold slides it away, a short drag springs back
+  // on a phone the places panel is the whole screen while it is open, the same as the
+  // discussion: pinned to the visible part of the screen, so the keyboard the place
+  // search raises cannot lift it off the page. It slides up in and down out.
   const sheetRef = useRef<HTMLDivElement>(null)
-  const sheetDrag = useRef<{ startY: number; dy: number } | null>(null)
-  function onSheetGrabDown(e: React.PointerEvent) {
-    sheetDrag.current = { startY: e.clientY, dy: 0 }
-    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-  }
-  function onSheetGrabMove(e: React.PointerEvent) {
-    if (!sheetDrag.current || !sheetRef.current) return
-    sheetDrag.current.dy = Math.max(0, e.clientY - sheetDrag.current.startY)
-    gsap.set(sheetRef.current, { y: sheetDrag.current.dy })
-  }
-  function onSheetGrabUp() {
+  usePhoneScreen(sheetRef, { active: sheetOpen })
+  useEffect(() => {
     const el = sheetRef.current
-    if (!sheetDrag.current || !el) return
-    const { dy } = sheetDrag.current
-    sheetDrag.current = null
-    if (dy > Math.min(120, el.clientHeight * 0.22)) {
-      // reset the transform after hiding, so the sheet reopens in place
-      gsap.to(el, { y: '100%', duration: 0.25, ease: 'power2.in', onComplete: () => { setSheetOpen(false); gsap.set(el, { y: 0 }) } })
-    } else {
-      gsap.to(el, { y: 0, duration: 0.3, ease: 'power3.out' })
-    }
+    if (!sheetOpen || !el || window.matchMedia('(min-width: 1024px)').matches) return
+    const tw = gsap.fromTo(el, { y: '100%' }, { y: 0, duration: 0.36, ease: 'power3.out' })
+    return () => { tw.kill(); gsap.set(el, { clearProps: 'transform' }) }
+  }, [sheetOpen])
+  const closing = useRef(false)
+  function closeSheet() {
+    const el = sheetRef.current
+    if (!el || closing.current) return
+    closing.current = true
+    gsap.to(el, { y: '100%', duration: 0.26, ease: 'power2.in', onComplete: () => { closing.current = false; setSheetOpen(false) } })
   }
 
   const votesOf = (id: string) => votes[id] ?? []
@@ -546,23 +540,13 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
           <span className="flex items-center gap-1.5 text-[12.5px] text-dim">{places.length} {places.length === 1 ? 'place' : 'places'} <ChevronUp size={16} /></span>
         </button>
       )}
-      {mode !== 'remote' && sheetOpen && <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSheetOpen(false)} />}
 
       {/* side panel — only for in-person events; a bottom sheet on mobile, a column on desktop */}
       {mode !== 'remote' && (
-        <div ref={sheetRef} className={`flex flex-none flex-col lg:static lg:z-auto lg:flex lg:h-[580px] lg:w-[330px] lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none ${sheetOpen ? 'fixed inset-x-0 bottom-0 z-50 h-[86dvh] w-full rounded-t-2xl border-t border-border bg-s1 px-3 pt-1 shadow-soft' : 'hidden'}`} style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-          {/* grab handle + close (mobile sheet only) — drag down to dismiss, like the chat */}
-          <div
-            className="relative mb-1.5 flex flex-none cursor-grab touch-none items-center justify-center py-3 active:cursor-grabbing lg:hidden"
-            onPointerDown={onSheetGrabDown}
-            onPointerMove={onSheetGrabMove}
-            onPointerUp={onSheetGrabUp}
-            onPointerCancel={onSheetGrabUp}
-            aria-label="Drag down to close"
-          >
-            <span className="h-1 w-10 rounded-full bg-border2" />
-            <button onClick={() => setSheetOpen(false)} onPointerDown={(e) => e.stopPropagation()} aria-label="Close" className="absolute right-1 grid h-10 w-10 place-items-center rounded-lg text-dim hover:text-text"><X size={18} /></button>
-          </div>
+        <div ref={sheetRef} className={`flex flex-none flex-col lg:static lg:z-auto lg:flex lg:h-[580px] lg:w-[330px] lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none ${sheetOpen ? 'fixed inset-0 z-50 w-full bg-s1 px-3' : 'hidden'}`} style={{ paddingBottom: 'env(safe-area-inset-bottom)', ...(sheetOpen ? { paddingTop: 'calc(env(safe-area-inset-top) + 8px)' } : {}) }}>
+          {/* runs on past the bottom edge in the panel's own colour, so the frame the pin
+              lags behind a keyboard or the browser's bar shows more panel, not the page */}
+          {sheetOpen && <div className="pointer-events-none absolute inset-x-0 top-full h-[100lvh] bg-s1 lg:hidden" aria-hidden />}
           <div className="mb-3 flex flex-none items-center gap-2">
             {/* whether the place is a ballot or a route is the host's decision, the
                 same as in person or remote above it. Everyone else is shown the one
@@ -664,6 +648,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 )}
               </Popover>
             )}
+            <button onClick={closeSheet} aria-label="Close" className="-mr-1.5 grid h-11 w-11 flex-none place-items-center rounded-lg text-dim hover:text-text lg:hidden"><X size={18} /></button>
           </div>
 
           {/* one line of how this tab works, gone once dismissed */}

@@ -9,6 +9,7 @@ import { fmtMinute, type AppEvent, type ChatMessage, type Participant } from '@/
 import { prefH24 } from '@/lib/prefs'
 import { typingLine, type Peer } from '@/lib/room'
 import { setWatchingChat } from '@/lib/sound'
+import { usePhoneScreen } from '@/hooks/usePhoneScreen'
 
 /* ── event discussion, reachable from every tab ──
    Desktop: a drawer sliding in from the right over a dimmed backdrop.
@@ -82,41 +83,8 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readO
       .to('.cd-sheet', { y: '100%', duration: 0.28, ease: 'power2.in' }, 0)
   })
 
-  // on a phone the room is the screen, and "the screen" is the visual viewport: the
-  // part actually visible above the keyboard and between the browser's own bars. The
-  // layout viewport that position:fixed measures against is taller whenever either is
-  // showing, and the browser scrolls it to reach the composer, which is what used to
-  // lift the sheet and show the page beneath. So the dialog is pinned to the visual
-  // viewport the whole time it is open, not only once a keyboard is detected, and
-  // re-pinned on every resize and scroll of it. From lg up it is a drawer in a
-  // desktop window and keeps plain inset-0.
-  useEffect(() => {
-    const vv = window.visualViewport
-    const el = root.current
-    if (!vv || !el) return
-    const wide = window.matchMedia('(min-width: 1024px)')
-    const fit = () => {
-      const pin = !wide.matches
-      el.style.top = pin ? `${vv.offsetTop}px` : ''
-      el.style.height = pin ? `${vv.height}px` : ''
-      el.style.bottom = pin ? 'auto' : ''
-    }
-    fit()
-    vv.addEventListener('resize', fit)
-    vv.addEventListener('scroll', fit)
-    wide.addEventListener('change', fit)
-    return () => { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit); wide.removeEventListener('change', fit) }
-  }, [])
-
-  // the room is a room: the page behind it does not scroll while it is open, which
-  // on a phone is what let a tap near the edge slide the whole app about
-  useEffect(() => {
-    const b = document.body
-    const was = { overflow: b.style.overflow, over: b.style.overscrollBehavior }
-    b.style.overflow = 'hidden'
-    b.style.overscrollBehavior = 'none'
-    return () => { b.style.overflow = was.overflow; b.style.overscrollBehavior = was.over }
-  }, [])
+  // on a phone the room is the screen, keyboard or not
+  usePhoneScreen(root, { lockWide: true })
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
