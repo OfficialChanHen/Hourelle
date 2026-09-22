@@ -10,9 +10,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { MousePointer2, RotateCcw } from 'lucide-react'
+import { reducedMotion } from '@/lib/prefs'
 
 export function prefersReducedMotion(): boolean {
-  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  return reducedMotion()
 }
 
 /** Is the element on screen (and has it ever been)? `near` mounts early; `inView`

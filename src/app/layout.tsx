@@ -43,11 +43,11 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-bg text-text font-sans" suppressHydrationWarning>
         {/* two things before anything paints. First, everything this browser saved under
             the old name moves to the new one, once, so a rename never empties anyone's
-            events. Then the saved appearance is applied, the same way next-themes applies
+            events. Then the saved appearance and accessibility choices are applied, the same way next-themes applies
             data-theme — otherwise non-default palettes flash the house look. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var ks=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf("aline.")===0)ks.push(k)}for(var j=0;j<ks.length;j++){var nk="hourelle."+ks[j].slice(6);if(localStorage.getItem(nk)===null)localStorage.setItem(nk,localStorage.getItem(ks[j]));localStorage.removeItem(ks[j])}var m={gcal:"daylight",pro:"studio",drain:"hourelle",pride:"hourelle",aline:"hourelle"};var p=localStorage.getItem("hourelle.palette");p=m[p]||p;if(["studio","daylight","contrast"].indexOf(p)>=0)document.documentElement.setAttribute("data-palette",p)}catch(e){}`,
+            __html: `try{var ks=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf("aline.")===0)ks.push(k)}for(var j=0;j<ks.length;j++){var nk="hourelle."+ks[j].slice(6);if(localStorage.getItem(nk)===null)localStorage.setItem(nk,localStorage.getItem(ks[j]));localStorage.removeItem(ks[j])}var m={gcal:"daylight",pro:"studio",drain:"hourelle",pride:"hourelle",aline:"hourelle"};var p=localStorage.getItem("hourelle.palette");p=m[p]||p;if(["studio","daylight","contrast"].indexOf(p)>=0)document.documentElement.setAttribute("data-palette",p);var a=JSON.parse(localStorage.getItem("hourelle.pref.a11y")||"{}"),r=document.documentElement;if(a.motion==="reduce")r.setAttribute("data-motion","reduce");if(a.links)r.setAttribute("data-links","underline");if(a.focus)r.setAttribute("data-focus","strong")}catch(e){}`,
           }}
         />
         <Providers>

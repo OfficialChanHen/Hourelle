@@ -17,6 +17,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip } from '@/components/ui/LifecycleStrip'
 import type { PersonColor } from '@/lib/colors'
+import { reducedMotion } from '@/lib/prefs'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -183,7 +184,7 @@ export function HowItWorks() {
 
   // the scene for the active step, rebuilt whenever the step changes
   useGSAP(() => {
-    const reduce = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const reduce = reducedMotion()
     // reset every scene on the timeline's first tick, then play the active one
     const reset = () => {
       setTyped(''); setDates(false); setPressed(false); setCopied(false); setJoined(0)

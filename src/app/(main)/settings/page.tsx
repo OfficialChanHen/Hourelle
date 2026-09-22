@@ -5,7 +5,7 @@
    Two kinds of setting share this page, and the difference matters.
 
    Device settings (clock style, sounds, which days the grid opens on, the
-   appearance) live in localStorage and work with no backend at all. They are read
+   appearance, accessibility) live in localStorage and work with no backend at all. They are read
    after mount, so the server render never disagrees with this particular browser.
 
    Account settings (which reminder emails you want) live on the profile row,
@@ -27,7 +27,7 @@ import { AppearancePicker } from '@/components/AppearancePicker'
 import { BackLink } from '@/components/ui/BackLink'
 import { SecurityCard } from './_components/SecurityCard'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { NOTIFY_DEFAULTS, prefH24, setPrefH24, prefNotify, setPrefNotify, prefSound, setPrefSound, prefWholeWeek, setPrefWholeWeek, resetHint, resetHints, resetPrefs, setTourWanted, type NotifyPrefs } from '@/lib/prefs'
+import { A11Y_DEFAULTS, prefA11y, setPrefA11y, type A11yPrefs, NOTIFY_DEFAULTS, prefH24, setPrefH24, prefNotify, setPrefNotify, prefSound, setPrefSound, prefWholeWeek, setPrefWholeWeek, resetHint, resetHints, resetPrefs, setTourWanted, type NotifyPrefs } from '@/lib/prefs'
 import { useAccount } from '@/hooks/useAccount'
 import { backendOn } from '@/lib/db'
 import { loadReminderPrefs, saveReminderPrefs } from '@/lib/mail'
@@ -46,14 +46,17 @@ export default function SettingsPage() {
   const [notify, setNotify] = useState<NotifyPrefs>(NOTIFY_DEFAULTS)
   const [sound, setSound] = useState(true)
   const [wholeWeek, setWholeWeek] = useState(false)
+  const [a11y, setA11y] = useState<A11yPrefs>(A11Y_DEFAULTS)
   const [ready, setReady] = useState(false)
   useEffect(() => {
     setH24(prefH24())
     setNotify(prefNotify())
     setSound(prefSound())
     setWholeWeek(prefWholeWeek())
+    setA11y(prefA11y())
     setReady(true)
   }, [])
+  function changeA11y(patch: Partial<A11yPrefs>) { setA11y((a) => ({ ...a, ...patch })); setPrefA11y(patch) }
   function changeSound(v: boolean) { setSound(v); setPrefSound(v) }
   function changeWholeWeek(v: string) { const on = v === 'week'; setWholeWeek(on); setPrefWholeWeek(on) }
   // logged in, the reminder switches live on the account: that is where the
@@ -95,7 +98,7 @@ export default function SettingsPage() {
     setResetState('busy'); setResetErr(null)
     resetPrefs()
     setTheme('light')
-    setH24(false); setSound(true); setWholeWeek(false); setNotify(NOTIFY_DEFAULTS)
+    setH24(false); setSound(true); setWholeWeek(false); setA11y(A11Y_DEFAULTS); setNotify(NOTIFY_DEFAULTS)
     if (account.signedIn) {
       void saveReminderPrefs(account.id, NOTIFY_DEFAULTS)
       const r = await resetProfile()
@@ -138,6 +141,41 @@ export default function SettingsPage() {
         </div>
         <div className="mt-3">
           <AppearancePicker />
+        </div>
+      </div>
+
+      <Eyebrow>Accessibility</Eyebrow>
+      <div className="overflow-hidden rounded-2xl border border-border bg-s1">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-4">
+          <div className="min-w-0">
+            <div className="text-[14px] font-medium">Reduce motion</div>
+            <div className="mt-0.5 text-[12.5px] text-dim">Panels and pickers appear without sliding, and the landing page stays still.</div>
+          </div>
+          {!ready && <span className="h-8 w-[150px] animate-pulse rounded-[9px] bg-s2" aria-hidden />}
+          {ready && (
+            <SegmentedControl
+              size="sm"
+              value={a11y.motion}
+              onChange={(v) => changeA11y({ motion: v as A11yPrefs['motion'] })}
+              options={[{ v: 'system', l: 'System' }, { v: 'reduce', l: 'Always' }]}
+            />
+          )}
+        </div>
+        <div className="flex items-center justify-between gap-4 border-t border-border px-5 py-4">
+          <div className="min-w-0">
+            <div className="text-[14px] font-medium">Underline links</div>
+            <div className="mt-0.5 text-[12.5px] text-dim">So a link never depends on colour to be seen.</div>
+          </div>
+          {!ready && <span className="h-6 w-11 animate-pulse rounded-full bg-s2" aria-hidden />}
+          {ready && <Switch on={a11y.links} onChange={(v) => changeA11y({ links: v })} label="Underline links" />}
+        </div>
+        <div className="flex items-center justify-between gap-4 border-t border-border px-5 py-4">
+          <div className="min-w-0">
+            <div className="text-[14px] font-medium">Bold focus ring</div>
+            <div className="mt-0.5 text-[12.5px] text-dim">A thick outline around whatever the Tab key reaches.</div>
+          </div>
+          {!ready && <span className="h-6 w-11 animate-pulse rounded-full bg-s2" aria-hidden />}
+          {ready && <Switch on={a11y.focus} onChange={(v) => changeA11y({ focus: v })} label="Bold focus ring" />}
         </div>
       </div>
 

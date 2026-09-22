@@ -24,6 +24,7 @@ import { Cover } from '@/components/ui/Cover'
 import { coverFor } from '@/components/ui/StoredEventCard'
 import { useAccess } from '@/hooks/useAccess'
 import { listDemos, type AppEvent } from '@/lib/events'
+import { reducedMotion } from '@/lib/prefs'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -69,6 +70,8 @@ export default function Landing() {
 
   useGSAP(() => {
     if (!ready || signedIn) return
+    // the setting in Settings counts as much as the device's own
+    if (reducedMotion()) return
     const mm = gsap.matchMedia()
     mm.add('(prefers-reduced-motion: no-preference)', () => {
       // the hero settles in as one gesture

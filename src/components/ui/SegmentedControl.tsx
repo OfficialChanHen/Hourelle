@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
+import { reducedMotion } from '@/lib/prefs'
 
 type Option = { v: string; l: string; icon?: React.ComponentType<{ size?: number | string }> }
 
@@ -30,7 +31,7 @@ export function SegmentedControl({ value, onChange, options, size = 'md', stretc
     if (!el || !p || !w) return
     // fractional rects (not integer offsetLeft) so the pill sits pixel-exact over the button
     const er = el.getBoundingClientRect(), wr = w.getBoundingClientRect()
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const reduce = reducedMotion()
     const to = { x: er.left - wr.left, y: er.top - wr.top, width: er.width, height: er.height }
     if (animate && !reduce) gsap.to(p, { ...to, duration: 0.34, ease: 'power3.out' })
     else gsap.set(p, to)

@@ -85,6 +85,42 @@ export function setPrefPalette(p: string): void {
   try { localStorage.setItem(PALETTE_KEY, p) } catch { /* private mode */ }
 }
 
+// accessibility: how much the app moves, and two ways of making it easier to find
+// your place in it. Each is an attribute on <html> that globals.css reads, set before
+// paint by the inline script in app/layout.tsx (keep A11Y_KEY and the attribute
+// names in sync with it). Motion 'system' follows the device's reduce-motion setting.
+const A11Y_KEY = 'hourelle.pref.a11y'
+export type A11yPrefs = { motion: 'system' | 'reduce'; links: boolean; focus: boolean }
+export const A11Y_DEFAULTS: A11yPrefs = { motion: 'system', links: false, focus: false }
+export function prefA11y(): A11yPrefs {
+  if (typeof window === 'undefined') return A11Y_DEFAULTS
+  try {
+    const raw = localStorage.getItem(A11Y_KEY)
+    return raw ? { ...A11Y_DEFAULTS, ...(JSON.parse(raw) as Partial<A11yPrefs>) } : A11Y_DEFAULTS
+  } catch { return A11Y_DEFAULTS }
+}
+export function applyA11y(p: A11yPrefs): void {
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
+  const set = (name: string, on: boolean, v: string) => (on ? root.setAttribute(name, v) : root.removeAttribute(name))
+  set('data-motion', p.motion === 'reduce', 'reduce')
+  set('data-links', p.links, 'underline')
+  set('data-focus', p.focus, 'strong')
+}
+export function setPrefA11y(patch: Partial<A11yPrefs>): void {
+  const next = { ...prefA11y(), ...patch }
+  try { localStorage.setItem(A11Y_KEY, JSON.stringify(next)) } catch { /* private mode */ }
+  applyA11y(next)
+  announce()
+}
+/** Should this animation be skipped? True when the device asks for less motion or
+ *  the person chose it here. Every animation that checks for reduced motion asks this. */
+export function reducedMotion(): boolean {
+  if (typeof window === 'undefined') return false
+  return document.documentElement.getAttribute('data-motion') === 'reduce'
+    || !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+}
+
 /** The look back to how it ships: the house warm neutral, and the theme following
  *  the device. Called when an account ends, so the next person at this browser
  *  starts where everyone starts rather than inside the last one's choices. */
@@ -157,16 +193,17 @@ export function answerTourAsk(): void {
 }
 
 /** Every device setting back to how it started: 12-hour clock, event days, sounds on,
- *  the default reminders, the house look, and every one-time hint shown again. The
+ *  the default reminders, the house look, no accessibility overrides, and every one-time hint shown again. The
  *  theme is next-themes' and the caller resets it; the palette attribute on <html>
  *  is cleared here so the page changes at once. */
 export function resetPrefs(): void {
   try {
-    for (const k of [H24_KEY, NOTIFY_KEY, WHOLE_WEEK_KEY, SOUND_KEY, PALETTE_KEY]) localStorage.removeItem(k)
+    for (const k of [H24_KEY, NOTIFY_KEY, WHOLE_WEEK_KEY, SOUND_KEY, PALETTE_KEY, A11Y_KEY]) localStorage.removeItem(k)
     const hints: string[] = []
     for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k?.startsWith('hourelle.hint.')) hints.push(k) }
     for (const k of hints) localStorage.removeItem(k)
   } catch { /* private mode */ }
   if (typeof document !== 'undefined') document.documentElement.removeAttribute('data-palette')
+  applyA11y(A11Y_DEFAULTS)
   announce()
 }

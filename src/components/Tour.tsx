@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { ArrowLeft, ArrowRight, Check, PlayCircle } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { TOUR_START, dismissHint, hintDismissed, setTourWanted, tourWanted } from '@/lib/prefs'
+import { TOUR_START, dismissHint, hintDismissed, setTourWanted, tourWanted, reducedMotion } from '@/lib/prefs'
 
 /* The tour: a spotlight on one element at a time, a card that says where it is and
    how it works, and, where it makes sense, a line inviting the person to try it
@@ -254,7 +254,7 @@ export function Tour({ host = false, locked = false }: { host?: boolean; locked?
       else place(box, true)
       // the line breathes rather than sitting there, which is what says "here"
       gsap.fromTo('.tour-glow', { opacity: 0 }, { opacity: 1, duration: 0.35 })
-      gsap.to('.tour-glow', { opacity: 0.45, duration: 1.1, ease: 'sine.inOut', repeat: -1, yoyo: true, delay: 0.35 })
+      if (!reducedMotion()) gsap.to('.tour-glow', { opacity: 0.45, duration: 1.1, ease: 'sine.inOut', repeat: -1, yoyo: true, delay: 0.35 })
     } else {
       for (const el of [hole.current, glow.current]) if (el) gsap.to(el, { attr: { width: 0, height: 0 }, duration: 0.3, overwrite: 'auto' })
     }

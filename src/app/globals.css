@@ -435,3 +435,34 @@ input[type="date"]::-webkit-date-and-time-value {
     font-size: 16px;
   }
 }
+
+/* ── accessibility settings (Settings, Accessibility) ──
+   Each is an attribute on <html>, set before paint from the saved choice. Unlayered
+   like the rule above, so they win over the utilities they have to override. */
+
+/* less motion: CSS transitions and keyframes land at once (GSAP is handled in
+   providers.tsx), and nothing scrolls smoothly on its own */
+[data-motion="reduce"] *,
+[data-motion="reduce"] *::before,
+[data-motion="reduce"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* links in running text are underlined, so they do not rely on colour alone. Links
+   dressed as buttons, tabs or cards, the wordmark, and the header and tab bar carry their own
+   shape and are left alone. */
+[data-links="underline"] :where(p, li, dd, td, label, small) a,
+[data-links="underline"] a:where([href]):not([class*="rounded"]):not([role]):not([class*="font-serif"]):not(header a, nav a) {
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2.5px;
+}
+
+/* a thick ring, set off by a gap, drawn on whatever the keyboard reaches, in every palette */
+[data-focus="strong"] :focus-visible {
+  outline: 3px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}
