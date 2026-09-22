@@ -44,7 +44,11 @@ export function DurationField({ value, min = 15, max = 720, onChange, label = 'E
     if (!e.currentTarget.contains(e.relatedTarget as Node | null)) commit()
   }
 
-  const field = 'h-8 w-[38px] rounded-[6px] border border-border bg-s1 text-center text-[13px] tabular-nums outline-none focus:border-accent-border'
+  // the two typing fields and the one collapsed number are sized to the same total,
+  // so tapping the number swaps what is inside the control without changing how wide
+  // it is. It used to grow by 56px on tap, which pushed it out of the 284px settings
+  // popover it lives in on the grid.
+  const field = 'h-8 w-[34px] rounded-[6px] border border-border bg-s1 text-center text-[13px] tabular-nums outline-none focus:border-accent-border'
   return (
     <div className="flex flex-none items-center overflow-hidden rounded-[8px] border border-border2 bg-s1">
       <button
@@ -53,7 +57,7 @@ export function DurationField({ value, min = 15, max = 720, onChange, label = 'E
       ><Minus size={14} /></button>
 
       {typing ? (
-        <div onBlur={onBlur} className="flex items-center gap-1 px-1.5">
+        <div onBlur={onBlur} className="flex w-[104px] items-center justify-center gap-1">
           <input
             ref={hRef} value={h} onChange={(e) => setH(e.target.value.replace(/\D/g, '').slice(0, 2))}
             onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setTyping(false) }}
@@ -70,7 +74,7 @@ export function DurationField({ value, min = 15, max = 720, onChange, label = 'E
       ) : (
         <button
           type="button" onClick={open} aria-label={`${label}, ${fmtDur(value)}. Tap to type it`}
-          className="h-8 min-w-[62px] px-1 text-center text-[13px] font-semibold tabular-nums hover:bg-s2"
+          className="h-8 w-[104px] px-1 text-center text-[13px] font-semibold tabular-nums hover:bg-s2"
         >
           {fmtDur(value)}
         </button>

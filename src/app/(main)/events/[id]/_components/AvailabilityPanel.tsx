@@ -1340,10 +1340,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         number grows, so an hour is one tap from ninety minutes and a
                         whole day is not forty. */}
                     {isHost && !daysAnswer && <div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Event length</span>
-                        <DurationField value={durationMin} max={Math.max(30, event.times.length * step)} onChange={changeDuration} />
-                      </div>
+                      {/* label above the control, the way every other block in here is
+                          laid out. Beside it there was never room: the control is wider
+                          than the gap the label leaves, and it spilled out of the panel. */}
+                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Event length</div>
+                      <DurationField value={durationMin} max={Math.max(30, event.times.length * step)} onChange={changeDuration} />
                     </div>}
                     {isHost && <div className={daysAnswer ? '' : 'border-t border-border pt-2.5'}>
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">{daysAnswer ? 'Best days favor' : 'Best time favors'}</div>
