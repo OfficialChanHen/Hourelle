@@ -39,7 +39,6 @@ export const PLANS: Record<PlanKey, Plan> = {
       'Invites, nudges, lock-in announcements and reminders by email',
       'Calendar import from Google and Outlook',
       'Calendar files and links to add a plan to any calendar',
-      'No ads, no tracking',
     ],
   },
   plus: {

@@ -10,7 +10,7 @@ const PRINCIPLES: { title: string; text: string }[] = [
   { title: 'The group informs, the host decides.', text: 'Everyone answers, the picture becomes clear, and one person locks it in. Nothing is left hanging on a vote nobody closes.' },
   { title: 'Time zones are never a surprise.', text: 'Every time is shown with its zone, and anyone can see the plan in their own.' },
   { title: 'The whole plan, not just the hour.', text: 'Where to go, who is coming, what it costs, and the reminders before the day: all of it lives on the same page as the time.' },
-  { title: 'Private by default.', text: 'An event is visible to the people holding its link and to no one else. There are no ads, no trackers, and nothing is sold.' },
+  { title: 'Private by default.', text: 'An event is visible to the people holding its link and to no one else, and nothing you put in it is sold.' },
   { title: 'Free to host.', text: 'Planning something with people is not a premium feature. Hosting is free and stays free.' },
 ]
 

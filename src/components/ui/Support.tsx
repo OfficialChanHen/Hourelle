@@ -24,7 +24,7 @@ export function SupportCard() {
       <div className="min-w-[220px] flex-1">
         <p className="text-[14px] font-semibold">Free to host, free to join</p>
         <p className="mt-1 text-[13.5px] leading-[1.6] text-dim">
-          Hourelle costs nothing and shows no ads. If it saved you a group chat or two, a coffee keeps the servers and the reminders going.
+          Hourelle costs nothing. If it saved you a group chat or two, a coffee keeps the servers and the reminders going.
         </p>
       </div>
       {/* the official button, so it is recognised at a glance; an image from their CDN, no script */}

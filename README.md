@@ -313,7 +313,7 @@ repository.
 
 <div align="center">
 
-Free to host, free to join, no ads.
+Free to host, free to join.
 If it saved you a group chat, [a coffee](https://www.buymeacoffee.com/ChanHen) keeps the reminders going.
 
 </div>
