@@ -12,7 +12,7 @@ import { setWatchingChat } from '@/lib/sound'
 
 /* ── event discussion, reachable from every tab ──
    Desktop: a drawer sliding in from the right over a dimmed backdrop.
-   Mobile: a full-height bottom sheet. One shared body between them.
+   Mobile: the whole screen, sliding up from the bottom. One shared body between them.
    Messages carry an `at` timestamp when they were sent from this app; older
    stored messages and demo seeds only have a display string, which renders as-is. */
 
@@ -57,8 +57,6 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readO
   onStopTyping?: () => void
 }) {
   const root = useRef<HTMLDivElement>(null)
-  const sheet = useRef<HTMLDivElement>(null)
-  const skirt = useRef<HTMLDivElement>(null)
   const closing = useRef(false)
 
   // you are reading this room, so a message landing in it is not news to announce
@@ -84,56 +82,30 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readO
       .to('.cd-sheet', { y: '100%', duration: 0.28, ease: 'power2.in' }, 0)
   })
 
-  // the grab bar dismisses the sheet: drag follows the finger, release past the
-  // threshold slides it away, a short drag springs back
-  const drag = useRef<{ startY: number; dy: number } | null>(null)
-  function onGrabDown(e: React.PointerEvent) {
-    drag.current = { startY: e.clientY, dy: 0 }
-    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-  }
-  const onGrabMove = contextSafe((e: React.PointerEvent) => {
-    if (!drag.current || !sheet.current) return
-    drag.current.dy = Math.max(0, e.clientY - drag.current.startY)
-    gsap.set(sheet.current, { y: drag.current.dy })
-  })
-  const onGrabUp = contextSafe(() => {
-    if (!drag.current || !sheet.current) return
-    const { dy } = drag.current
-    drag.current = null
-    if (dy > Math.min(120, sheet.current.clientHeight * 0.22)) {
-      closing.current = true
-      gsap.to(sheet.current, { y: '100%', duration: 0.25, ease: 'power2.in', onComplete: onClose })
-      if (root.current) gsap.to(root.current.querySelector('.cd-back'), { opacity: 0, duration: 0.25 })
-    } else {
-      gsap.to(sheet.current, { y: 0, duration: 0.3, ease: 'power3.out' })
-    }
-  })
-
-  // a phone keyboard shrinks the visual viewport, not the layout one: the browser then
-  // scrolls the fixed layer up to reach the composer and the page shows beneath the
-  // sheet. Pinning the dialog to the visual viewport keeps the sheet on the keyboard
-  // and the backdrop over everything else.
+  // on a phone the room is the screen, and "the screen" is the visual viewport: the
+  // part actually visible above the keyboard and between the browser's own bars. The
+  // layout viewport that position:fixed measures against is taller whenever either is
+  // showing, and the browser scrolls it to reach the composer, which is what used to
+  // lift the sheet and show the page beneath. So the dialog is pinned to the visual
+  // viewport the whole time it is open, not only once a keyboard is detected, and
+  // re-pinned on every resize and scroll of it. From lg up it is a drawer in a
+  // desktop window and keeps plain inset-0.
   useEffect(() => {
     const vv = window.visualViewport
     const el = root.current
     if (!vv || !el) return
+    const wide = window.matchMedia('(min-width: 1024px)')
     const fit = () => {
-      const keyboard = window.innerHeight - vv.height > 80
-      el.style.top = keyboard ? `${vv.offsetTop}px` : ''
-      el.style.height = keyboard ? `${vv.height}px` : ''
-      el.style.bottom = keyboard ? 'auto' : ''
-      // what is left under the pinned sheet is the keyboard and the browser's own
-      // bar, and between them a band of the page showed through. It is painted in
-      // the sheet's own surface so the sheet simply looks longer than it is.
-      if (skirt.current) {
-        const below = Math.max(0, window.innerHeight - (vv.offsetTop + vv.height))
-        skirt.current.style.height = keyboard ? `${below}px` : '0px'
-      }
+      const pin = !wide.matches
+      el.style.top = pin ? `${vv.offsetTop}px` : ''
+      el.style.height = pin ? `${vv.height}px` : ''
+      el.style.bottom = pin ? 'auto' : ''
     }
     fit()
     vv.addEventListener('resize', fit)
     vv.addEventListener('scroll', fit)
-    return () => { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit) }
+    wide.addEventListener('change', fit)
+    return () => { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit); wide.removeEventListener('change', fit) }
   }, [])
 
   // the room is a room: the page behind it does not scroll while it is open, which
@@ -166,25 +138,15 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readO
       <div className="cd-panel absolute right-0 top-0 hidden h-full w-[330px] max-w-[88vw] flex-col border-l border-border bg-s0 shadow-soft lg:flex">
         {body}
       </div>
-      {/* the band under the sheet once the keyboard has pushed it up, in the sheet's
-          own colour; nothing while there is no keyboard */}
-      <div ref={skirt} className="pointer-events-none fixed inset-x-0 bottom-0 bg-s0 lg:hidden" style={{ height: 0 }} aria-hidden />
-      {/* mobile: full-height bottom sheet, dismissable by dragging the grab bar */}
+      {/* mobile: the whole screen */}
       <div
-        ref={sheet}
-        className="cd-sheet absolute inset-x-0 bottom-0 flex h-[88dvh] max-h-full flex-col overflow-hidden rounded-t-2xl border-t border-border bg-s0 shadow-soft lg:hidden"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        className="cd-sheet absolute inset-0 flex flex-col bg-s0 lg:hidden"
+        style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        <div
-          className="flex flex-none cursor-grab touch-none justify-center py-2.5 active:cursor-grabbing"
-          onPointerDown={onGrabDown}
-          onPointerMove={onGrabMove}
-          onPointerUp={onGrabUp}
-          onPointerCancel={onGrabUp}
-          aria-label="Drag down to close"
-        >
-          <span className="h-1 w-10 rounded-full bg-border2" />
-        </div>
+        {/* the sheet runs on past its own bottom edge in its own colour. The pin above
+            follows the viewport a frame late, and while a keyboard or the browser's bar
+            is sliding, that frame used to be a band of the page. Now it is more sheet. */}
+        <div className="pointer-events-none absolute inset-x-0 top-full h-[100lvh] bg-s0" aria-hidden />
         {body}
       </div>
     </div>
@@ -299,11 +261,11 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
     <div ref={zone} className="flex h-full min-h-0 w-full flex-col">
       <div className="flex flex-none items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0 font-serif text-[19px] leading-tight tracking-[-0.01em]">Discussion</div>
-        <button onClick={onClose} aria-label="Close chat" className="-mr-1 grid h-[34px] w-[34px] place-items-center rounded-lg text-dim hover:text-text"><X size={18} /></button>
+        <button onClick={onClose} aria-label="Close chat" className="-mr-2 grid h-11 w-11 place-items-center sm:-mr-1 sm:h-[34px] sm:w-[34px] rounded-lg text-dim hover:text-text"><X size={18} /></button>
       </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col">
-        <div ref={scroller} onScroll={onScroll} className="scroll-slim min-h-0 flex-1 overflow-auto px-3.5 py-3">
+        <div ref={scroller} onScroll={onScroll} className="scroll-slim min-h-0 flex-1 overflow-auto overscroll-contain px-3.5 py-3">
           {messages.length === 0 ? (
             <div className="flex h-full items-center justify-center">
               <div className="max-w-[220px] text-center">
