@@ -22,7 +22,7 @@ const instrumentSans = Instrument_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Hourelle: find the hour everyone can make",
+  title: "Hourelle: find the hour everyone can meet",
   description:
     "A modern replacement for when2meet: availability, location voting, itineraries, and attendance in one editorial flow.",
 };

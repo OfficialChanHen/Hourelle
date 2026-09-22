@@ -20,7 +20,7 @@ export default function AboutPage() {
       <BackLink href="/profile" label="Profile" onlyWithAccount />
       <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">About</p>
       <h1 className="mt-2 font-serif font-normal text-[40px] leading-[1.06] tracking-[-0.01em]">
-        Find the hour everyone can make.
+        Find the hour everyone can meet.
       </h1>
       <p className="mt-4 text-[15px] leading-[1.65] text-dim">
         Hourelle is an independent service for settling plans with other people: when, where, and

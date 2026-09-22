@@ -30,7 +30,7 @@ gsap.registerPlugin(ScrollTrigger)
 const FEATURES = [
   {
     eyebrow: 'When',
-    title: 'See the day everyone can make.',
+    title: 'See the day everyone can meet.',
     body: 'Drag across the times you are free. The grid turns green where people overlap, and the best window is worked out for you, in every timezone at the table.',
     points: ['Minute-precise edges, not just half-hour boxes', 'Day polls for trips and weekends', 'Import free time from your calendar in one tap'],
     demo: 'daypoll',
@@ -98,10 +98,10 @@ export default function Landing() {
         {/* ── hero ── */}
         <section className="mx-auto w-full max-w-[1240px] px-[22px] pb-8 pt-8 sm:pt-12 lg:pt-16">
           <div className="grid gap-10 lg:grid-cols-12 lg:items-center xl:gap-14">
-            <div className="ld-hero order-2 min-w-0 lg:order-1 lg:col-span-5">
+            <div className="ld-hero min-w-0 lg:col-span-5">
               <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">The little hour when people meet</p>
               <h1 className="mt-3 font-serif font-normal text-[46px] leading-[1.0] tracking-[-0.015em] sm:text-[62px] lg:text-[54px] xl:text-[62px]">
-                Find the hour everyone can make.
+                Find the hour everyone can meet.
               </h1>
               <p className="mt-5 max-w-[560px] text-[16px] leading-[1.6] text-dim sm:text-[17px]">
                 One link for the whole plan. People mark when they are free, vote on where to go, say if they are coming, and talk it over. No app to install, and your guests never need an account.
@@ -119,8 +119,11 @@ export default function Landing() {
 
             {/* built rather than photographed: a picture cannot follow the theme, and the
                 two it needed went stale every time the real grid moved. It sits beside the
-                words on a wide screen and leads on a narrow one. */}
-            <div className={`ld-shot order-1 min-w-0 lg:order-2 lg:col-span-7 ${frame}`}>
+                words on a wide screen and under them on a narrow one. It used to lead there,
+                which put the headline five pixels below the fold of a 390 by 844 phone: the
+                whole first screen was grid, and you had to scroll to find out what any of it
+                was for. A picture can argue for the thing once the thing has been named. */}
+            <div className={`ld-shot min-w-0 lg:col-span-7 ${frame}`}>
               <HeroGrid />
             </div>
           </div>

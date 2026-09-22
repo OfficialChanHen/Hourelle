@@ -326,7 +326,7 @@ function SignInForm() {
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[.15em] opacity-70">Why an account</p>
               <p className="mt-3 font-serif font-normal text-[30px] leading-[1.12] tracking-[-0.01em]">
-                Find the hour everyone can make.
+                Find the hour everyone can meet.
               </p>
             </div>
             <ul className="flex flex-col gap-3.5">

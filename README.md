@@ -2,7 +2,7 @@
 
 # Hourelle
 
-**Find the hour everyone can make.**
+**Find the hour everyone can meet.**
 
 Event coordination from the first "when are you free?" to the reminder on the morning of.
 One link covers finding a time, choosing a place, building a route, tracking who is coming,
