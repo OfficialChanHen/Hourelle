@@ -952,6 +952,23 @@ function ItineraryAttendance({
     .map((p) => ({ p, misses: stopData.filter((s) => s.absent.some((a) => a.id === p.id)).map((s) => s.i + 1) }))
     .filter((x) => x.misses.length > 0), [attendees, stopData])
   const attendAll = attendees.length - exceptions.length
+  // people who miss the same stops, together; the biggest group first
+  const gapGroups = useMemo(() => {
+    const nameOf = (n: number) => stopData[n - 1]?.name ?? `stop ${n}`
+    const joined = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : xs[0])
+    const by = new Map<string, { key: string; label: string; people: Participant[] }>()
+    for (const { p, misses } of exceptions) {
+      const key = misses.join(',')
+      if (!by.has(key)) {
+        const label = misses.length === stops.length ? 'Misses every stop'
+          : misses.length > 2 ? `Misses ${misses.length} stops: ${joined(misses.map(nameOf))}`
+          : `Misses ${joined(misses.map(nameOf))}`
+        by.set(key, { key, label, people: [] })
+      }
+      by.get(key)!.people.push(p)
+    }
+    return [...by.values()].sort((x, y) => y.people.length - x.people.length)
+  }, [exceptions, stopData, stops.length])
   const peak = Math.max(1, ...stopData.map((s) => s.present.length))
 
   return (
@@ -1006,27 +1023,19 @@ function ItineraryAttendance({
         ))}
       </div>
 
-      {/* exceptions — only people with gaps get a row */}
+      {/* the gaps, grouped by which stops are missed. It was a row per person with
+          the stop numbers they miss as bare circles, which made the reader match
+          numbers to names and grew with the guest list. People who miss the same
+          stops are one group, named by those stops, so the list grows with the
+          patterns (a handful) rather than the people. */}
       <div className="rounded-2xl border border-border bg-s1 p-5">
-        <div className="mb-3 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Gaps</div>
+        <div className="mb-3 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Who misses a stop</div>
         {exceptions.length === 0 ? (
-          <div className="flex items-center gap-2 text-[14px] text-teal-text"><span className="h-1.5 w-1.5 rounded-full bg-teal" /> Everyone going makes every stop.</div>
+          <div className="flex items-center gap-2 text-[14px] text-teal-text"><span className="h-1.5 w-1.5 rounded-full bg-teal" /> Everyone makes every stop.</div>
         ) : (
-          <div className="flex flex-col gap-2.5">
-            {exceptions.map(({ p, misses }) => (
-              <div key={p.id} className="flex items-center gap-2.5">
-                <button
-                  type="button" onClick={onPerson ? () => onPerson(p.id) : undefined} disabled={!onPerson}
-                  title={onPerson ? `See when ${p.name} is free` : undefined}
-                  className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-[8px] text-left ${onPerson ? '-mx-1 px-1 py-0.5 hover:bg-s2' : ''}`}
-                >
-                  <Avatar initials={p.initials} color={p.color} size={27} font={10} />
-                  <span className="min-w-0 flex-1 truncate text-[14px]">{p.name}</span>
-                </button>
-                <div className="flex flex-wrap justify-end gap-1">
-                  {misses.map((n) => <span key={n} className="grid h-5 w-5 place-items-center rounded-full border border-brick-border bg-brick-bg text-[10.5px] font-semibold text-brick-text" title={`Misses stop ${n}`}>{n}</span>)}
-                </div>
-              </div>
+          <div className="flex flex-col gap-5">
+            {gapGroups.map((g) => (
+              <RosterGroup key={g.key} compact tone="brick" label={g.label} people={g.people.map((p) => ({ p }))} onPerson={onPerson} />
             ))}
           </div>
         )}

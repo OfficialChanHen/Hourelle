@@ -289,7 +289,11 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       {event.image && <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from="#E4EDE7" to="#CFE0D5" className="mb-4 h-[92px] border border-border sm:mb-5 sm:h-[170px]" rounded="rounded-2xl" />}
       {/* header */}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-        <div className="min-w-0">
+        {/* on a phone the share menu sits beside the title, top right, where a phone
+            keeps its overflow button. Down in the action row it wrapped onto a line of
+            its own and floated there alone. */}
+        <div className="flex w-full min-w-0 items-start gap-3 sm:w-auto">
+        <div className="min-w-0 flex-1">
           <EditableTitle title={event.title} editable={event.hostedByYou} onSave={(t) => patchLive({ title: t })} />
           <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13.5px] text-dim">
             {/* the icon reads the hosting account's kind — person or organization (set by
@@ -321,8 +325,33 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             )}
           </div>
         </div>
-        {/* ml-auto keeps the actions hugging the right edge when the header wraps */}
-        <div className="ml-auto flex min-w-0 items-center gap-2">
+        <Popover
+          align="end"
+          width={216}
+          className="flex-none sm:hidden"
+          // a link rather than three dots: the first thing in here is the share
+          // link, and on a phone this is the only way to it
+          trigger={(open) => (
+            <span aria-label="Share link and more" data-tour="menu" className={`grid h-11 w-11 place-items-center rounded-[10px] border border-border2 bg-s1 ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
+              <Link2 size={16} />
+            </span>
+          )}
+        >
+          {() => (
+            // the same rule as the desktop button: nothing to hand out once it is over
+            phase === 'past' ? (
+              <p className="px-3.5 py-3 text-[12.5px] leading-[1.5] text-dim">This event is over, so its link is closed. Duplicate it to plan the next one.</p>
+            ) : (
+            <PopoverItem onClick={copy} icon={copied ? <Check size={15} className="text-teal-text" /> : <Link2 size={15} />}>
+              {copied ? 'Link copied' : 'Copy invite link'}
+            </PopoverItem>
+            )
+          )}
+        </Popover>
+        </div>
+        {/* ml-auto keeps the actions hugging the right edge when the header wraps; on a
+            phone the host's lock-in takes the row's full width instead of floating */}
+        <div className={`${event.hostedByYou && phase === 'planning' ? 'flex' : 'hidden sm:flex'} min-w-0 items-center gap-2 sm:ml-auto`}>
           {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToDetails={() => goTab('details')} onGoToLocation={() => goTab('location')} prefill={lockAsk} openNonce={lockAsk?.nonce} runLen={runLen ?? undefined} />}
           {/* discussion lives in the floating bubble alone — one entry point, less header */}
           {/* share button opens a dropdown with the URL and a one-tap copy; on phones it
@@ -359,29 +388,6 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             )}
           </Popover>
           )}
-          <Popover
-            align="end"
-            width={216}
-            className="sm:hidden"
-            // a link rather than three dots: the first thing in here is the share
-            // link, and on a phone this is the only way to it
-            trigger={(open) => (
-              <span aria-label="Share link and more" data-tour="menu" className={`grid h-9 w-9 place-items-center rounded-[9px] border border-border2 bg-s1 ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
-                <Link2 size={16} />
-              </span>
-            )}
-          >
-            {() => (
-              // the same rule as the desktop button: nothing to hand out once it is over
-              phase === 'past' ? (
-                <p className="px-3.5 py-3 text-[12.5px] leading-[1.5] text-dim">This event is over, so its link is closed. Duplicate it to plan the next one.</p>
-              ) : (
-              <PopoverItem onClick={copy} icon={copied ? <Check size={15} className="text-teal-text" /> : <Link2 size={15} />}>
-                {copied ? 'Link copied' : 'Copy invite link'}
-              </PopoverItem>
-              )
-            )}
-          </Popover>
         </div>
       </div>
 
