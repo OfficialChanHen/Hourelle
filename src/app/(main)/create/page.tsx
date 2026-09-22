@@ -30,6 +30,7 @@ import { uploadCover } from '@/lib/covers'
 import { isInlineCover, isPhotoCover } from '@/lib/cover-kind'
 import Link from 'next/link'
 import * as Slider from '@radix-ui/react-slider'
+import { DateField } from '@/components/ui/DateField'
 import {
   Check, ChevronDown, ChevronUp, Search, Plus, X, MapPin, Video, Clock,
   Info, Vote, ArrowRight, Mail, CalendarRange, Route, GripVertical,
@@ -653,12 +654,12 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
               <div className="min-w-0 flex-1 sm:min-w-[150px]">
                 <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> First day</span>
-                <input type="date" aria-label="First day of the event" value={form.fixedDay} min={today || undefined} onChange={(e) => onFixedDay(e.target.value)} className={`${inputCls(show(errs.fixed) && !form.fixedDay)} cursor-pointer !bg-s1`} />
+                <DateField label="First day of the event" value={form.fixedDay} min={today || undefined} onChange={onFixedDay} invalid={show(errs.fixed) && !form.fixedDay} className="h-11 !bg-s1 sm:h-10" />
               </div>
               <span className="hidden pb-[11px] text-faint sm:block">→</span>
               <div className="min-w-0 flex-1 sm:min-w-[150px]">
                 <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Last day</span>
-                <input type="date" aria-label="Last day of the event" value={fxEnd} min={form.fixedDay || today || undefined} onChange={(e) => update({ fixedEndDay: e.target.value && form.fixedDay && e.target.value < form.fixedDay ? form.fixedDay : e.target.value })} className={`${inputCls(false)} cursor-pointer !bg-s1`} />
+                <DateField label="Last day of the event" value={fxEnd} min={form.fixedDay || today || undefined} onChange={(v) => update({ fixedEndDay: v && form.fixedDay && v < form.fixedDay ? form.fixedDay : v })} className="h-11 !bg-s1 sm:h-10" />
               </div>
             </div>
 
@@ -686,15 +687,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
                 <Check size={13} /> RSVP by <span className="normal-case tracking-normal">(Optional)</span>
               </span>
               <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  aria-label="RSVP deadline"
-                  value={form.rsvpBy}
-                  min={today || undefined}
-                  max={form.fixedDay || undefined}
-                  onChange={(e) => update({ rsvpBy: e.target.value })}
-                  className={`${inputCls(false)} max-w-[220px] cursor-pointer !bg-s1`}
-                />
+                <DateField label="RSVP deadline" value={form.rsvpBy} min={today || undefined} max={form.fixedDay || undefined} onChange={(v) => update({ rsvpBy: v })} className="h-11 w-full max-w-[220px] !bg-s1 sm:h-10" />
                 {form.rsvpBy && (
                   <button type="button" onClick={() => update({ rsvpBy: '' })} className="flex-none text-[12.5px] font-semibold text-dim hover:text-brick-text hover:underline">
                     Clear
@@ -711,12 +704,12 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
             <div className="min-w-0 flex-1 sm:min-w-[150px]">
               <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Earliest day</span>
-              <input type="date" aria-label="Earliest day to poll" value={form.startDate} min={today || undefined} onChange={(e) => onStart(e.target.value)} className={`${inputCls(show(errs.start))} cursor-pointer !bg-s1`} />
+              <DateField label="Earliest day to poll" value={form.startDate} min={today || undefined} onChange={onStart} invalid={show(errs.start)} className="h-11 !bg-s1 sm:h-10" />
             </div>
             <span className="hidden pb-[11px] text-faint sm:block">→</span>
             <div className="min-w-0 flex-1 sm:min-w-[150px]">
               <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Latest day</span>
-              <input type="date" aria-label="Latest day to poll" value={form.endDate} min={form.startDate || today || undefined} onChange={(e) => onEnd(e.target.value)} className={`${inputCls(show(errs.end))} cursor-pointer !bg-s1`} />
+              <DateField label="Latest day to poll" value={form.endDate} min={form.startDate || today || undefined} onChange={onEnd} invalid={show(errs.end)} className="h-11 !bg-s1 sm:h-10" />
             </div>
           </div>
           {(show(errs.start) || show(errs.end)) && <FieldError>{errs.start || errs.end}</FieldError>}

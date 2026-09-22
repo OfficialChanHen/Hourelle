@@ -41,6 +41,7 @@ import { cloudSettled } from '@/lib/remote'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { useAccount } from '@/hooks/useAccount'
 import { isPhotoCover } from '@/lib/cover-kind'
+import { DateField } from '@/components/ui/DateField'
 
 // what part of the day it is, by the reader's clock
 function greetingFor(hour: number): string {
@@ -210,11 +211,9 @@ function QuickCreate() {
     pushFlash('Your event is live. Share the link so people can join.')
     router.push(`/events/${ev.id}`)
   }
-  // on a phone the two dates share the row. Each sits in a wrapper that flex can
-  // shrink and fills it: iOS gives a bare date input an intrinsic width that a
-  // flex basis alone does not override, and the second one ran past the card.
-  // From sm up they sit at their natural size.
-  const dateCls = 'block h-11 w-full rounded-[10px] border border-border bg-s2 px-2.5 text-[13.5px] outline-none focus:border-accent-border sm:h-10 sm:w-auto'
+  // on a phone the two dates share the row and split it evenly; from sm up each is
+  // wide enough for the longest day name
+  const dateCls = 'h-11 w-full sm:h-10 sm:w-[158px]'
   return (
     <div className="mb-6 rounded-2xl border border-border bg-s1 p-4">
       <div className="flex flex-wrap items-center gap-2.5">
@@ -227,12 +226,12 @@ function QuickCreate() {
         />
         <div className="flex w-full min-w-0 flex-none items-center gap-2 sm:w-auto">
           <span className="min-w-0 flex-1 sm:flex-none">
-            <input type="date" value={start} min={today || undefined} aria-label="Earliest day" className={dateCls}
-              onChange={(e) => { const v = fromDay(e.target.value, today); setStart(v); if (end < v) setEnd(v) }} />
+            <DateField value={start} min={today || undefined} label="Earliest day" className={dateCls}
+              onChange={(v) => { const d = fromDay(v, today); setStart(d); if (end < d) setEnd(d) }} />
           </span>
           <span className="flex-none text-faint" aria-hidden>→</span>
           <span className="min-w-0 flex-1 sm:flex-none">
-            <input type="date" value={end} min={start || undefined} aria-label="Latest day" className={dateCls} onChange={(e) => setEnd(fromDay(e.target.value, start))} />
+            <DateField value={end} min={start || undefined} label="Latest day" className={dateCls} onChange={(v) => setEnd(fromDay(v, start))} />
           </span>
         </div>
         <button onClick={go} className="flex h-11 sm:h-10 flex-none items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent">
