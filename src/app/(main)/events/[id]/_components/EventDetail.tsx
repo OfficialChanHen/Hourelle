@@ -24,7 +24,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Building2, User, Link2, Copy, Merge, MessageCircle, Pencil, EllipsisVertical, CopyPlus,
-  Check, Trash2, TriangleAlert, Receipt, Plus, X, Video, UserRoundX, Mail,
+  Check, Trash2, TriangleAlert, Receipt, Plus, X, Video, UserRoundX, Mail, Search,
 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -533,10 +533,10 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
         {/* optional deadlines — each reminds everyone the day before and the day of.
             Plan-by belongs to planning, RSVP-by to the locked plan. */}
         {!locked && (isHost || event.planDeadline) && (
-          <DetailRow k="Plan by" v={<DeadlineValue value={event.planDeadline} editable={isHost} onChange={(v) => onPatch({ planDeadline: v })} hint="Reminders go out the day before and the day of." max={event.endDate} />} />
+          <DetailRow k="Plan by" v={<DeadlineValue label="Plan by" value={event.planDeadline} editable={isHost} onChange={(v) => onPatch({ planDeadline: v })} hint="Reminders go out the day before and the day of." max={event.endDate} />} />
         )}
         {locked && (isHost || event.rsvpDeadline) && (
-          <DetailRow k="RSVP by" v={<DeadlineValue value={event.rsvpDeadline} editable={isHost} onChange={(v) => onPatch({ rsvpDeadline: v })} hint="Everyone gets a reminder the day before and the day of. Late answers still count." max={event.confirmed?.dayKey} />} />
+          <DetailRow k="RSVP by" v={<DeadlineValue label="RSVP by" value={event.rsvpDeadline} editable={isHost} onChange={(v) => onPatch({ rsvpDeadline: v })} hint="Everyone gets a reminder the day before and the day of. Late answers still count." max={event.confirmed?.dayKey} />} />
         )}
         <DetailRow k="Spots" v={<CapacityValue event={event} editable={isHost} onPatch={onPatch} />} />
         <DetailRow
@@ -602,6 +602,16 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
   // no group titles on this card, so availability ordering would read as random —
   // the status chip per row carries the state; names carry the order
   const sorted = [...event.participants].sort(byYouFirst)
+  // a chip only where a row differs from the usual answer. Seven "Available" badges in
+  // eight rows said nothing the header count had not; the one "Can't make it" was
+  // lost among them. The header keeps the totals, the rows keep the exceptions.
+  const usual = (p: AppEvent['participants'][number]) => (locked ? p.rsvp === 'attending' : groupOf(p) === 'available')
+  // long lists get a name filter and stop at ten until asked
+  const [query, setQuery] = useState('')
+  const [all, setAll] = useState(false)
+  const q = query.trim().toLowerCase()
+  const found = q ? sorted.filter((p) => p.name.toLowerCase().includes(q)) : sorted
+  const shown = all || q ? found : found.slice(0, 10)
 
   return (
     <div className="min-w-0 rounded-2xl border border-border bg-s1 p-5">
@@ -620,8 +630,15 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
         <CopyInviteLink id={event.id} />
         {isHost && !event.demo && <InviteMore event={event} onPatch={onPatch} />}
       </div>
+      {sorted.length > 12 && (
+        <label className="mb-2 flex h-11 items-center gap-2 rounded-[10px] border border-border bg-s0 px-3 focus-within:border-accent-border sm:h-9">
+          <Search size={14} className="flex-none text-faint" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name" aria-label="Find a participant" className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-faint" />
+        </label>
+      )}
       <div className="flex flex-col">
-        {sorted.map((p, i) => {
+        {q && !found.length && <p className="py-2 text-[13px] text-faint">Nobody here by that name.</p>}
+        {shown.map((p, i) => {
           const chip = locked
             ? { label: RSVP[p.rsvp].label, color: RSVP[p.rsvp].color, bg: `var(--${RSVP[p.rsvp].chip}-bg, var(--s2))` }
             : PLAN_GROUP[groupOf(p)]
@@ -635,11 +652,16 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
                 <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}{p.you && <span className="font-normal text-faint"> (You)</span>}</span>
               </button>
               {p.host && <span className="flex-none rounded-md border border-accent-border bg-accent-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-accent-text">Host</span>}
-              <span className="flex-none rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: chip.color, background: chip.bg }}>{chip.label}</span>
+              {!usual(p) && <span className="flex-none rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: chip.color, background: chip.bg }}>{chip.label}</span>}
               {isHost && !p.you && <ParticipantMenu p={p} event={event} onPatch={onPatch} />}
             </div>
           )
         })}
+        {!q && found.length > 10 && (
+          <button type="button" onClick={() => setAll((a) => !a)} className="mt-1 h-11 border-t border-border text-left text-[13px] font-semibold text-accent-text hover:underline sm:h-9">
+            {all ? 'Show fewer' : `Show all ${found.length}`}
+          </button>
+        )}
       </div>
     </div>
   )
@@ -1064,8 +1086,8 @@ function FixedWhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch:
 
 /* an optional deadline date: the host sets or clears it, everyone else reads it as fact.
    Bounded to [today, max] — a deadline in the past or after the event decides nothing */
-function DeadlineValue({ value, editable, onChange, hint, max }: {
-  value?: string; editable: boolean; onChange: (v?: string) => void; hint: string; max?: string
+function DeadlineValue({ label, value, editable, onChange, hint, max }: {
+  label: string; value?: string; editable: boolean; onChange: (v?: string) => void; hint: string; max?: string
 }) {
   const d0 = new Date()
   const todayKey = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`
@@ -1075,14 +1097,7 @@ function DeadlineValue({ value, editable, onChange, hint, max }: {
   return (
     <div className="flex flex-col gap-1">
       <span className="flex flex-wrap items-center gap-2">
-        <input
-          type="date"
-          value={value ?? ''}
-          min={todayKey}
-          max={max}
-          onChange={(e) => onChange(e.target.value ? clamp(e.target.value) : undefined)}
-          className="h-9 cursor-pointer rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-border2"
-        />
+        <DateField label={label} value={value ?? ''} min={todayKey} max={max} onChange={(v) => onChange(v ? clamp(v) : undefined)} className="h-11 w-[176px] !bg-s0 sm:h-9" />
         {value && (
           <button onClick={() => onChange(undefined)} className="-my-2 py-2 text-[12.5px] font-semibold text-dim hover:text-brick-text hover:underline">
             Clear
@@ -1345,8 +1360,8 @@ function BudgetConverse({ amount, mode, responded }: { amount: number; mode: 'to
       <span className="mr-1 italic">or</span>
       <span className="text-dim">
         {mode === 'person'
-          ? `$${(amount * responded).toLocaleString()} total for ${responded} currently available`
-          : `$${Math.round(amount / responded).toLocaleString()}/person for ${responded} currently available`}
+          ? `$${(amount * responded).toLocaleString()} in all, for the ${responded} who've replied`
+          : `$${Math.round(amount / responded).toLocaleString()} a person, split ${responded} ways`}
       </span>
     </span>
   )

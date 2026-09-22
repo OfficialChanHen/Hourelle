@@ -21,16 +21,17 @@
    on the other tabs those go to local state first so the demos work in memory. */
 
 import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, TriangleAlert, Users } from 'lucide-react'
+import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, Users, X } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Popover, PopoverNote, PopoverTitle } from '@/components/ui/Popover'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import {
-  availIvOf, bestWindow, byYouFirst, dayLabel, gridStartMinOf, fmtMinute, fmtMinuteDay, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
+  availIvOf, bestWindow, byYouFirst, confirmedSlotText, dayLabel, gridStartMinOf, fmtMinute, fmtMinuteDay, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
   type AppEvent, type AvailIntervals, type BestMode, type GridDay, type Iv, type Participant, type Rsvp,
 } from '@/lib/events'
 import { computeItinerary } from '@/lib/itinerary'
+import { isAllDay } from '@/lib/slot'
 import { coordsOf, type LatLng } from '@/lib/geo'
 import { useRoute } from '@/hooks/useRoute'
 import { useFollow } from '@/hooks/useFollow'
@@ -161,7 +162,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <RsvpSummary participants={participants} capacity={event.capacity} locked={locked} available={availableNow} planningOut={outCount} planningNoTimes={noTimesCount} />
         <div className="flex flex-wrap items-center gap-2">
-          <CopySummaryButton event={liveEvent} win={win} locked={locked} gridStart={gridStart} available={availableNow} />
+          <CopySummaryButton event={liveEvent} win={win} locked={locked} gridStart={gridStart} dayIv={dayIv} markedIds={markedIds} />
           {hasItinerary && (
             <SegmentedControl
               size="sm"
@@ -180,7 +181,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
       {!anyResponded ? (
         <EmptyState onGoToTab={onGoToTab} />
       ) : model === 'itin' && hasItinerary ? (
-        <ItineraryAttendance event={liveEvent} attendees={attendees} dayIv={dayIv} gridStart={gridStart} onPerson={onViewAvailability} />
+        <ItineraryAttendance event={liveEvent} attendees={locked ? attendees : participants.filter((p) => p.rsvp !== 'not_going' && !(unavailSet.has(p.id) && !markedIds.has(p.id)))} dayIv={dayIv} gridStart={gridStart} onPerson={onViewAvailability} />
       ) : (
         <SingleVenue
           event={liveEvent} attendees={attendees} win={win} locked={locked} dayIv={dayIv}
@@ -322,19 +323,58 @@ function RsvpSummary({ participants, capacity, locked, available, planningOut, p
   )
 }
 
-/* one-tap summary for the group chat: headcount, window, and the place, as plain text */
-function CopySummaryButton({ event, win, locked, gridStart, available }: { event: AppEvent; win: Win | null; locked: boolean; gridStart: number; available: number }) {
+/* one tap, and the group chat has the plan. Written the way a good organiser would
+   write it by hand: what and when on their own lines, the count as a sentence, the
+   place, who is still missing by name, and the link that lets them fix that. A line
+   is left out rather than filled with a placeholder when there is nothing to say. */
+function firstNames(ps: Participant[], cap = 5): string {
+  const names = ps.slice(0, cap).map((p) => p.name.split(' ')[0])
+  const more = ps.length - names.length
+  if (more > 0) return `${names.join(', ')} and ${more} more`
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0] ?? ''
+}
+function summaryOf(event: AppEvent, win: Win | null, locked: boolean, gridStart: number, dayIv: Record<string, Iv[]>, markedIds: Set<string>): string {
+  const ps = event.participants
+  const link = `${window.location.origin}/events/${event.id}${locked ? '' : '/join'}`
+  const lines: string[] = []
+  const lead = leadingPlaceOf(event)
+  const where = event.location.mode === 'remote'
+    ? `Online${event.location.platform ? `, on ${event.location.platform}` : ''}`
+    : lead ? `${lead.place.name}${lead.place.place ? `, ${lead.place.place}` : ''}` : ''
+
+  if (locked && event.confirmed) {
+    const slot = confirmedSlotText(event) ?? ''
+    lines.push(`${event.title} is on.`, isAllDay(event.confirmed) ? slot : `${slot} ${tzAbbr(event.timezone)}`)
+    if (where) lines.push(where)
+    const going = ps.filter((p) => p.rsvp === 'attending').length
+    const maybe = ps.filter((p) => p.rsvp === 'maybe').length
+    lines.push('', `${going} going${maybe ? `, ${maybe} maybe` : ''}.`)
+    const waiting = ps.filter((p) => p.rsvp === 'pending').sort(byYouFirst)
+    if (waiting.length) lines.push(`Still to reply: ${firstNames(waiting)}.`)
+    lines.push('', `Details and RSVP: ${link}`)
+  } else {
+    lines.push(event.title)
+    if (win) lines.push(`Best time so far: ${win.dayLabel}, ${fmtMinute(gridStart + win.s)} – ${fmtMinute(gridStart + win.e)} ${tzAbbr(event.timezone)}`)
+    if (where) lines.push(event.location.mode === 'remote' || lead?.confirmed ? where : `Leading place: ${where}`)
+    const open = ps.filter((p) => p.rsvp !== 'not_going' && !(event.unavailableIds ?? []).includes(p.id))
+    if (win) {
+      const can = open.filter((p) => { const c = coverOf(dayIv[p.id], win.s, win.e); return c === 'full' || c === 'partial' })
+      const whole = can.filter((p) => coverOf(dayIv[p.id], win.s, win.e) === 'full').length
+      lines.push('', `${can.length} of ${ps.length} can make it${whole < can.length ? `, ${whole} for the whole time` : ''}.`)
+    }
+    const silent = open.filter((p) => !markedIds.has(p.id)).sort(byYouFirst)
+    if (silent.length) lines.push(`Still need times from ${firstNames(silent)}.`)
+    lines.push('', `Add yours: ${link}`)
+  }
+  return lines.join('\n')
+}
+function CopySummaryButton({ event, win, locked, gridStart, dayIv, markedIds }: { event: AppEvent; win: Win | null; locked: boolean; gridStart: number; dayIv: Record<string, Iv[]>; markedIds: Set<string> }) {
   const [copied, setCopied] = useState(false)
   function copy() {
-    const going = event.participants.filter((p) => p.rsvp === 'attending').length
-    const parts = [`${event.title}: ${locked ? going : available} of ${event.participants.length} ${locked ? 'going' : 'available'}`]
-    if (win) parts.push(`${locked ? 'confirmed for' : 'best window'} ${win.dayLabel}, ${fmtMinute(gridStart + win.s)}–${fmtMinute(gridStart + win.e)} ${tzAbbr(event.timezone)}`)
-    const lead = leadingPlaceOf(event)
-    if (lead) parts.push(lead.confirmed ? `at ${lead.place.name}` : `leading place: ${lead.place.name}`)
-    navigator.clipboard?.writeText(parts.join(', ')).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
+    navigator.clipboard?.writeText(summaryOf(event, win, locked, gridStart, dayIv, markedIds)).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
   return (
-    <button onClick={copy} className={`flex h-9 items-center gap-1.5 rounded-[9px] border px-3 text-[13px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
+    <button onClick={copy} className={`flex h-11 items-center gap-1.5 rounded-[9px] border px-3 text-[13px] font-semibold sm:h-9 ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
       {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy summary</>}
     </button>
   )
@@ -355,6 +395,10 @@ function SingleVenue({
   const winE = win?.e ?? rows * step
   // which roster group to show; everyone by default
   const [showGroup, setShowGroup] = useState<'all' | 'whole' | 'part' | 'noTimes' | 'maybe' | 'out' | 'noReply'>('all')
+  // a long guest list gets a name filter; it narrows every group at once
+  const [query, setQuery] = useState('')
+  const q = query.trim().toLowerCase()
+  const hit = (p: Participant) => !q || p.name.toLowerCase().includes(q)
 
   // group attendees by how their availability lines up with the event window — RSVP leads,
   // availability splits "going" into whole-time, part-time, and honest silence: someone who
@@ -388,6 +432,14 @@ function SingleVenue({
     return { whole, part, noTimes, maybe, out, noReply }
   }, [event.participants, dayIv, win, winS, winE, markedIds, locked]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // who the counts are out of. Once locked it is the RSVPs; while planning nobody has
+  // been asked to RSVP yet, so it is everyone who has not said no. Counting RSVPs then
+  // left only the host, and the band read "1" in every slot.
+  const pool = useMemo(
+    () => (locked ? attendees : event.participants.filter((p) => p.rsvp !== 'not_going' && !(unavailSet.has(p.id) && !markedIds.has(p.id)))),
+    [locked, attendees, event.participants, unavailSet, markedIds],
+  )
+
   // the roster only says "here" once there is somewhere to be
   const hasVenue = event.location.mode === 'remote' || leadingPlaceOf(event) != null
 
@@ -420,9 +472,9 @@ function SingleVenue({
   // beaten by a shift, so this mostly speaks up when the confirmed time isn't the best one.
   const shift = useMemo(() => {
     if (!win) return null
-    const fullCount = (s: number, e: number) => attendees.filter((p) => (dayIv[p.id] ?? []).some((iv) => iv.s <= s && iv.e >= e)).length
+    const fullCount = (s: number, e: number) => pool.filter((p) => (dayIv[p.id] ?? []).some((iv) => iv.s <= s && iv.e >= e)).length
     const cur = fullCount(winS, winE)
-    if (cur >= attendees.length) return null
+    if (cur >= pool.length) return null
     let found: { d: number; count: number } | null = null
     for (const d of [-120, -90, -60, -45, -30, -15, 15, 30, 45, 60, 90, 120]) {
       const s = winS + d, e = winE + d
@@ -431,22 +483,22 @@ function SingleVenue({
       if (c > cur && (!found || c > found.count || (c === found.count && Math.abs(d) < Math.abs(found.d)))) found = { d, count: c }
     }
     return found ? { d: found.d, gain: found.count - cur } : null
-  }, [win, winS, winE, attendees, dayIv, rows, step])
+  }, [win, winS, winE, pool, dayIv, rows, step])
 
   return (
     <div className="rounded-2xl border border-border bg-s1 p-5">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      <div className="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-3">
         <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{locked ? 'Who’s coming' : 'Who’s available'}</div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           {win && (() => {
             // an all-day lock (day polls) has no clock times to show
             const allDay = gridStart + winS === 0 && gridStart + winE === 24 * 60
             return (
-              <div className="flex items-center gap-1.5 text-[12.5px] text-dim">
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] text-dim">
                 {locked ? (allDay ? 'Confirmed day' : 'Confirmed time') : 'Best window'}:{' '}
                 {locked
-                  ? <span>{win.dayLabel}{allDay ? '' : `, ${fmtMinute(gridStart + winS)}–${fmtMinute(gridStart + winE)}`}</span>
-                  : <button type="button" onClick={() => (onGoToBestWindow ? onGoToBestWindow() : onGoToTab?.('availability'))} className="font-semibold text-ochre hover:underline">{win.dayLabel}, {fmtMinute(gridStart + winS)}–{fmtMinute(gridStart + winE)}</button>}
+                  ? <span className="font-semibold text-text">{win.dayLabel}{allDay ? '' : `, ${fmtMinute(gridStart + winS)} – ${fmtMinute(gridStart + winE)}`}</span>
+                  : <button type="button" onClick={() => (onGoToBestWindow ? onGoToBestWindow() : onGoToTab?.('availability'))} className="font-semibold text-accent-text hover:underline">{win.dayLabel}, {fmtMinute(gridStart + winS)} – {fmtMinute(gridStart + winE)}</button>}
                 {!allDay && <TimezonePill tz={event.timezone} />}
                 {!locked && <BestWindowInfo mode={event.bestMode ?? 'full'} />}
               </div>
@@ -459,7 +511,7 @@ function SingleVenue({
       <LeadingPlace event={event} onGoToTab={onGoToTab} />
 
       {win
-        ? <HeadcountBars attendees={attendees} dayIv={dayIv} gridStart={gridStart} step={step} winS={winS} winE={winE} quorum={quorum} />
+        ? <HeadcountBars attendees={pool} dayIv={dayIv} gridStart={gridStart} step={step} winS={winS} winE={winE} quorum={quorum} />
         : <div className="rounded-xl border border-border bg-s0 px-4 py-6 text-center text-[13.5px] text-dim">Add availability to see who is around when.</div>}
 
       {quorum != null && win && <QuorumStatus quorum={quorum} whole={groups.whole.length} />}
@@ -474,7 +526,7 @@ function SingleVenue({
       )}
 
       {/* pick one group or read them all — the chips double as a headcount per group */}
-      <div className="mt-5 flex flex-wrap items-center gap-1.5">
+      <div className="-mx-5 mt-5 flex items-center gap-1.5 overflow-x-auto px-5 py-1.5 scroll-none sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
         {([
           ['all', 'All', event.participants.length],
           ['whole', locked && hasVenue ? 'Whole time' : 'Free whole time', groups.whole.length],
@@ -488,7 +540,8 @@ function SingleVenue({
           return (
             <button
               key={k} onClick={() => setShowGroup(k)}
-              className={`flex items-center gap-1 rounded-full border px-3 py-3 text-[12px] font-semibold sm:px-2.5 sm:py-1 ${on ? 'border-accent bg-accent text-on-accent' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}
+              // 32 to look at, 44 to touch: the pseudo-element takes the finger
+              className={`relative flex h-8 flex-none items-center gap-1 whitespace-nowrap rounded-full border px-3 text-[12.5px] font-semibold before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] sm:h-7 sm:px-2.5 sm:before:hidden ${on ? 'border-accent bg-accent text-on-accent' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}
             >
               {l} <span className={on ? 'opacity-80' : 'text-faint'}>{n}</span>
             </button>
@@ -496,16 +549,27 @@ function SingleVenue({
         })}
       </div>
 
-      <div className="mt-4 flex flex-col gap-4">
-        {(showGroup === 'all' || showGroup === 'whole') && <RosterGroup label={locked && hasVenue ? 'Here the whole time' : 'Free the whole time'} tone="teal" people={groups.whole.map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.whole.map((p) => p.id)) : undefined} />}
-        {(showGroup === 'all' || showGroup === 'part') && <RosterGroup label={locked && hasVenue ? 'Part of the time' : 'Free part of the time'} tone="ochre" people={groups.part.map((x) => ({
+      {event.participants.length > 12 && (
+        <label className="mt-3 flex h-11 items-center gap-2 rounded-[10px] border border-border bg-s0 px-3 focus-within:border-accent-border sm:h-9 sm:max-w-[280px]">
+          <Search size={14} className="flex-none text-faint" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name" aria-label="Find a person" className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-faint" />
+          {query && <button type="button" onClick={() => setQuery('')} aria-label="Clear" className="grid h-7 w-7 flex-none place-items-center rounded-[6px] text-faint hover:text-text"><X size={13} /></button>}
+        </label>
+      )}
+
+      <div className="mt-4 flex flex-col gap-5">
+        {q && [groups.whole, groups.part.map((x) => x.p), groups.noTimes, groups.maybe, groups.out, groups.noReply].every((g) => !g.some(hit)) && (
+          <p className="text-[13px] text-faint">Nobody here by that name.</p>
+        )}
+        {(showGroup === 'all' || showGroup === 'whole') && <RosterGroup compact label={locked && hasVenue ? 'Here the whole time' : 'Free the whole time'} tone="teal" people={groups.whole.filter(hit).map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.whole.map((p) => p.id)) : undefined} />}
+        {(showGroup === 'all' || showGroup === 'part') && <RosterGroup label={locked && hasVenue ? 'Part of the time' : 'Free part of the time'} tone="ochre" people={groups.part.filter((x) => hit(x.p)).map((x) => ({
           p: x.p,
           bar: barsOf(x.segs),
         }))} axis={axis.length ? axis : undefined} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.part.map((x) => x.p.id)) : undefined} />}
-        {(showGroup === 'all' || showGroup === 'noTimes') && <RosterGroup label={locked ? 'Going, no times yet' : 'No times yet'} tone="faint" people={groups.noTimes.map((p) => ({ p }))} action={!locked && groups.noTimes.length > 0 ? <CopyReminder event={event} /> : undefined} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.noTimes.map((p) => p.id)) : undefined} />}
-        {(showGroup === 'all' || showGroup === 'maybe') && <RosterGroup label="Maybe" tone="ochre" people={groups.maybe.map((p) => ({ p }))} onPerson={onPerson} />}
-        {(showGroup === 'all' || showGroup === 'out') && <RosterGroup label="Can't make it" tone="brick" people={groups.out.map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.out.map((p) => p.id)) : undefined} />}
-        {(showGroup === 'all' || showGroup === 'noReply') && <RosterGroup label="No reply" tone="faint" people={groups.noReply.map((p) => ({ p }))} action={<CopyReminder event={event} />} onPerson={onPerson} />}
+        {(showGroup === 'all' || showGroup === 'noTimes') && <RosterGroup compact label={locked ? 'Going, no times yet' : 'No times yet'} tone="faint" people={groups.noTimes.filter(hit).map((p) => ({ p }))} action={!locked && groups.noTimes.length > 0 ? <CopyReminder event={event} /> : undefined} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.noTimes.map((p) => p.id)) : undefined} />}
+        {(showGroup === 'all' || showGroup === 'maybe') && <RosterGroup compact label="Maybe" tone="ochre" people={groups.maybe.filter(hit).map((p) => ({ p }))} onPerson={onPerson} />}
+        {(showGroup === 'all' || showGroup === 'out') && <RosterGroup compact label="Can't make it" tone="brick" people={groups.out.filter(hit).map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.out.map((p) => p.id)) : undefined} />}
+        {(showGroup === 'all' || showGroup === 'noReply') && <RosterGroup compact label="No reply" tone="faint" people={groups.noReply.filter(hit).map((p) => ({ p }))} action={<CopyReminder event={event} />} onPerson={onPerson} />}
       </div>
     </div>
   )
@@ -635,7 +699,12 @@ function LeadingPlace({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab
   )
 }
 
-/* Headcount through the day — how many attendees are free per slot; tap a bar for the numbers */
+/* Headcount through the window, as one band. It was a bar chart, and a bar chart of
+   a two-hour window at half-hour slots is four blocks, so it read as a picture of
+   blocks rather than of people. Now the window is one strip cut into its slots,
+   each shaded on the same green ramp the grid uses and carrying its count, so the
+   question "when is everyone here" reads left to right in one line. A quorum marks
+   the slots that fall short of it. Tap a slot for the time and the count. */
 function HeadcountBars({
   attendees, dayIv, gridStart, step, winS, winE, quorum,
 }: {
@@ -643,52 +712,62 @@ function HeadcountBars({
   winS: number; winE: number; quorum: number | null
 }) {
   const [sel, setSel] = useState<number | null>(null)
-  // the strip covers the window being decided on, not the whole grid day — every
-  // bar is a slot inside the best (or confirmed) window
   const spanRows = Math.max(1, Math.ceil((winE - winS) / step))
   const counts = useMemo(() => Array.from({ length: spanRows }, (_, ti) => {
     const s = winS + ti * step, e = Math.min(winE, s + step)
     return attendees.filter((p) => (dayIv[p.id] ?? []).some((iv) => iv.s < e && iv.e > s)).length
   }), [attendees, dayIv, spanRows, step, winS, winE])
-  const peak = Math.max(1, ...counts)
   const total = Math.max(1, attendees.length)
-  const quorumPct = quorum != null ? Math.min(100, (quorum / peak) * 100) : null
+  // counts print inside the band while each slot is wide enough to hold one
+  const labeled = spanRows <= 12
+  const shade = (c: number) => {
+    const f = c / total
+    return f === 0 ? { bg: 'var(--s2)', fg: 'var(--faint)' }
+      : f >= 1 ? { bg: 'var(--heat-full)', fg: 'var(--heat-count-full)' }
+      : f >= 0.66 ? { bg: 'var(--heat-high)', fg: 'var(--heat-count)' }
+      : f >= 0.33 ? { bg: 'var(--heat-mid)', fg: 'var(--heat-count)' }
+      : { bg: 'var(--heat-low)', fg: 'var(--heat-count)' }
+  }
+  // hour marks under the band, once the window is long enough to need them
+  const span = Math.max(1, winE - winS)
+  const hours: number[] = []
+  if (span >= 180) for (let m = Math.ceil((gridStart + winS + 1) / 60) * 60; m < gridStart + winE; m += 60) hours.push(m)
 
   return (
     <div>
       <div className="relative">
         {sel != null && (
           <div
-            className="pointer-events-none absolute -top-1.5 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-[8px] border border-border bg-s1 px-2.5 py-1.5 text-[12px] shadow-soft"
+            className="pointer-events-none absolute -top-2 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-[8px] border border-border bg-s1 px-2.5 py-1.5 text-[12px] shadow-soft"
             style={{ left: `${Math.min(88, Math.max(12, ((sel + 0.5) / spanRows) * 100))}%` }}
           >
-            <span className="font-semibold">{fmtMinute(gridStart + winS + sel * step)}</span>: {counts[sel]} of {total} free
+            <span className="font-semibold">{fmtMinute(gridStart + winS + sel * step)}</span>: {counts[sel]} of {attendees.length} free
           </div>
         )}
-        <div className="flex h-16 items-end gap-[2px]">
+        <div className="flex h-11 overflow-hidden rounded-[10px] border border-border">
           {counts.map((c, i) => {
-            const frac = c / total
-            const bg = frac === 0 ? 'var(--s2)' : frac >= 0.85 ? 'var(--teal)' : frac >= 0.5 ? '#9DBBA4' : frac >= 0.25 ? '#CFE0D2' : '#EBF1EB'
+            const { bg, fg } = shade(c)
+            const short = quorum != null && c < quorum
             return (
               <button
-                key={i} onClick={() => setSel(sel === i ? null : i)}
-                aria-label={`${fmtMinute(gridStart + winS + i * step)}, ${c} of ${total} free`}
-                className={`flex-1 rounded-t-[2px] ${sel === i ? 'outline outline-1 outline-[--accent]' : ''}`}
-                style={{ height: `${Math.max(6, (c / peak) * 100)}%`, background: bg }}
-                title={`${fmtMinute(gridStart + winS + i * step)}: ${c} free`}
-              />
+                key={i} type="button" onClick={() => setSel(sel === i ? null : i)}
+                aria-label={`${fmtMinute(gridStart + winS + i * step)}, ${c} of ${attendees.length} free`}
+                className={`grid min-w-0 flex-1 place-items-center text-[12px] font-semibold tabular-nums ${i > 0 ? 'border-l border-bg/60' : ''} ${sel === i ? 'ring-2 ring-inset ring-accent' : ''}`}
+                style={{ background: bg, color: short ? 'var(--brick-text)' : fg }}
+              >
+                {labeled ? c : ''}
+              </button>
             )
           })}
         </div>
-        {quorumPct != null && (
-          <div className="pointer-events-none absolute inset-x-0 border-t border-dashed border-ochre" style={{ bottom: `${quorumPct}%` }}>
-            <span className="absolute right-0 top-0 rounded-[4px] bg-s1/85 px-1 text-[10px] font-semibold text-ochre-text">need {quorum}</span>
-          </div>
-        )}
       </div>
-      <div className="mt-1.5 flex justify-between text-[11px] text-faint">
-        <span>{fmtMinute(gridStart + winS)}</span>
-        <span>{fmtMinute(gridStart + winE)}</span>
+      <div className="relative mt-1.5 h-4 text-[11px] tabular-nums text-faint">
+        <span className="absolute left-0">{fmtMinute(gridStart + winS)}</span>
+        {hours.map((m) => {
+          const pct = ((m - gridStart - winS) / span) * 100
+          return pct > 14 && pct < 86 ? <span key={m} className="absolute hidden -translate-x-1/2 sm:block" style={{ left: `${pct}%` }}>{fmtMinute(m).replace(':00 ', ' ')}</span> : null
+        })}
+        <span className="absolute right-0">{fmtMinute(gridStart + winE)}</span>
       </div>
     </div>
   )
@@ -701,8 +780,14 @@ const TONE: Record<string, { dot: string; text: string }> = {
   faint: { dot: 'var(--faint)', text: 'text-faint' },
 }
 
-function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGroup, hint, axis }: {
+/* A group of people, read one of two ways. Rows, when each person has something of
+   their own to show (the part-time bars). Chips, when the only thing to know is who:
+   a group that is simply "free the whole time" is the longest and the least
+   interesting, and a row each for it pushed the people with gaps off the screen.
+   Either way it stops at a sensible number and offers the rest on request. */
+function RosterGroup({ label, tone, people, cap: capIn, compact, action, onPerson, onOpenGroup, hint, axis }: {
   label: string; tone: keyof typeof TONE | string
+  compact?: boolean
   people: { p: Participant; note?: string; bar?: { left: string; width: string; label: string; full: string }[] | null }[]
   cap?: number
   action?: ReactNode
@@ -711,10 +796,17 @@ function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGr
   hint?: string
   axis?: { pct: number; label?: string }[]
 }) {
+  const [all, setAll] = useState(false)
   if (!people.length) return null
   const t = TONE[tone] ?? TONE.faint
-  const shown = people.slice(0, cap)
+  const cap = capIn ?? (compact ? 24 : 12)
+  const shown = all ? people : people.slice(0, cap)
   const extra = people.length - shown.length
+  const more = extra > 0 || all ? (
+    <button type="button" onClick={() => setAll((a) => !a)} className="relative h-8 self-start rounded-full px-1 text-[12.5px] font-semibold text-accent-text before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] hover:underline">
+      {all ? 'Show fewer' : `Show all ${people.length}`}
+    </button>
+  ) : null
   const hasBars = people.some((x) => x.bar !== undefined)
   return (
     <div>
@@ -759,6 +851,21 @@ function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGr
           </div>
         </div>
       )}
+      {compact && !hasBars ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {shown.map(({ p }) => (
+            <button
+              key={p.id} type="button" onClick={onPerson ? () => onPerson(p.id) : undefined} disabled={!onPerson}
+              title={onPerson ? `See when ${p.name} is free` : undefined}
+              className="relative flex h-8 max-w-full items-center gap-2 rounded-full border border-border bg-s0 pl-1 pr-3 before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] enabled:hover:border-border2 enabled:hover:bg-s2 sm:before:hidden"
+            >
+              <Avatar initials={p.initials} color={p.color} size={24} font={9} />
+              <span className="min-w-0 truncate text-[13px]">{p.name}{p.you && <span className="text-faint"> (You)</span>}</span>
+            </button>
+          ))}
+          {more}
+        </div>
+      ) : (
       <div className="flex flex-col gap-1.5">
         {shown.map(({ p, note, bar }) => (
           <div key={p.id} className="flex items-center gap-2.5">
@@ -786,8 +893,9 @@ function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGr
             {note && <span className="hidden flex-none items-center gap-1 text-[12.5px] text-dim sm:flex"><Clock size={12} /> {note}</span>}
           </div>
         ))}
-        {extra > 0 && <div className="pl-[34px] text-[12.5px] text-faint">and {extra} more</div>}
+        {more && <div className="pl-[34px]">{more}</div>}
       </div>
+      )}
     </div>
   )
 }
@@ -796,8 +904,9 @@ function RosterGroup({ label, tone, people, cap = 12, action, onPerson, onOpenGr
 function CopyReminder({ event }: { event: AppEvent }) {
   const [copied, setCopied] = useState(false)
   function copy() {
-    const deadline = event.voteDeadline ? ` Voting closes ${fmtDeadline(event.voteDeadline)}.` : ''
-    const msg = `Quick reminder about ${event.title}! Please mark when you're free and vote on a place: ${window.location.origin}/events/${event.id}/join${deadline}`
+    const voting = event.location.mode === 'vote' && event.location.places.length > 1
+    const deadline = event.voteDeadline ? `\nVoting closes ${fmtDeadline(event.voteDeadline)}.` : ''
+    const msg = `${event.title} still needs your times. It takes a minute: mark when you're free${voting ? ' and vote on a place' : ''}.\n${window.location.origin}/events/${event.id}/join${deadline}`
     navigator.clipboard?.writeText(msg).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
   return (
