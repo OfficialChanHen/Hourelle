@@ -1335,17 +1335,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               >
                 {() => (
                   <div className="flex flex-col gap-3 p-1">
-                    {/* one line rather than six chips and a number field: a length is a
-                        single number, and stepping it says so. The step widens as the
-                        number grows, so an hour is one tap from ninety minutes and a
-                        whole day is not forty. */}
-                    {isHost && !daysAnswer && <div>
-                      {/* label above the control, the way every other block in here is
-                          laid out. Beside it there was never room: the control is wider
-                          than the gap the label leaves, and it spilled out of the panel. */}
-                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Event length</div>
-                      <DurationField value={durationMin} max={Math.max(30, event.times.length * step)} onChange={changeDuration} />
-                    </div>}
+                    {/* the length as a track the width of the panel, the value named
+                        beside its label, the way the wizard asks it */}
+                    {isHost && !daysAnswer && (
+                      <DurationField
+                        value={durationMin} max={Math.max(30, event.times.length * step)} onChange={changeDuration}
+                        title={<span className="text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Event length</span>}
+                      />
+                    )}
                     {isHost && <div className={daysAnswer ? '' : 'border-t border-border pt-2.5'}>
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">{daysAnswer ? 'Best days favor' : 'Best time favors'}</div>
                       <Segment compact value={bestMode} onChange={(v) => changeBestMode(v as BestMode)} options={[{ v: 'full', l: 'Everyone stays' }, { v: 'crowd', l: 'Biggest crowd' }]} />

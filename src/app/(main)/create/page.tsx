@@ -770,9 +770,11 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           {/* how long the event needs — drives the best-time search on the grid. The
               same control the grid's own settings use, and it cannot be stepped or
               typed past the daily window this event is allowed to happen in. */}
-          <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2.5 border-t border-border pt-3">
-            <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Event length</span>
-            <DurationField value={form.durationMin} min={15} max={winLen} onChange={(m) => update({ durationMin: m })} />
+          <div className="mt-3.5 border-t border-border pt-3">
+            <DurationField
+              value={form.durationMin} min={15} max={winLen} onChange={(m) => update({ durationMin: m })}
+              title={<span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Event length</span>}
+            />
           </div>
           </>)}
         </div>

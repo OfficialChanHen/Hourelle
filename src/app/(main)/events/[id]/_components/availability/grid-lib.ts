@@ -92,19 +92,6 @@ export function padToWeeks(days: GridDay[]): GDay[] {
 /* ── how long the event needs — drives the best-window search (set in the Settings popover) ── */
 export function fmtDur(m: number) { return m < 60 ? `${m}m` : m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h` }
 
-/* How long an event needs, stepped rather than picked from a row of chips. The
-   step grows with the number, so half an hour is a tap away from an hour and a
-   whole day does not take forty of them: quarter hours up to two, half hours up to
-   four, then hours. Clamped to a quarter hour and twelve. */
-export function stepDuration(min: number, dir: 1 | -1): number {
-  const step = (m: number) => (m < 120 ? 15 : m < 240 ? 30 : 60)
-  // stepping down uses the step of the band being entered, so 2h goes to 1h 45m
-  const size = dir > 0 ? step(min) : step(min - 1)
-  const next = Math.round((min + dir * size) / size) * size
-  return Math.min(720, Math.max(15, next))
-}
-
-
 /* ── the pile on a cell's bottom line ──
    Faces stack the way the participant strip stacks them, then a +N chip of the same
    size, and the whole run has to clear the n/total count in the other corner.
