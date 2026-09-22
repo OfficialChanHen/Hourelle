@@ -251,7 +251,7 @@ export function JoinFlow({ id }: { id: string }) {
     <div ref={root} className="mx-auto max-w-[600px] px-4 pb-[92px] pt-[34px] sm:px-[26px] sm:pt-[52px]">
       {/* the event as a teaser — enough to know what this is, none of the answers */}
       <div className="overflow-hidden rounded-2xl border border-border bg-s1 shadow-soft">
-        <Cover src={event.image} from={coverFrom} to={coverTo} className="h-[120px] sm:h-[150px]" />
+        <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from={coverFrom} to={coverTo} className="h-[120px] sm:h-[150px]" />
         <div className="p-6 sm:p-7">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <Badge variant={badge.variant}>{badge.label}</Badge>

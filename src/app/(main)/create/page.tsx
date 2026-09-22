@@ -127,6 +127,7 @@ type Form = {
   accounts: AccountInvitee[]
   image?: string
   imageFit?: ImageFit
+  imagePos?: { x: number; y: number }
 }
 
 const initialForm: Form = {
@@ -463,7 +464,7 @@ function CreateWizard() {
             />
           </Collapse>
           <Collapse icon={ImagePlus} title="Cover" summary={isPhotoCover(form.image) ? `Your photo, ${form.imageFit === 'fit' ? 'fitted' : 'filling the frame'}` : form.image ? 'A scene' : 'A scene or a photo of your own'}>
-            <CoverEditor image={form.image} fit={form.imageFit} title={form.title} onChange={(p) => update(p)} />
+            <CoverEditor image={form.image} fit={form.imageFit} pos={form.imagePos} title={form.title} onChange={(p) => update(p)} />
           </Collapse>
           <Collapse icon={MapPin} title="Place" summary={placeSummary}>
             <StepLocation form={form} update={update} stopUid={stopUid} />

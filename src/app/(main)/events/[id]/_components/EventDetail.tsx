@@ -283,7 +283,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       {phase !== 'past' && <AskTour />}
       {/* the host's cover, when one is set — photo or preset scene; shorter on phones
           so the tabs and content stay within the first screen */}
-      {event.image && <Cover src={event.image} fit={event.imageFit} from="#E4EDE7" to="#CFE0D5" className="mb-4 h-[92px] border border-border sm:mb-5 sm:h-[170px]" rounded="rounded-2xl" />}
+      {event.image && <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from="#E4EDE7" to="#CFE0D5" className="mb-4 h-[92px] border border-border sm:mb-5 sm:h-[170px]" rounded="rounded-2xl" />}
       {/* header */}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
@@ -1203,7 +1203,7 @@ function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Par
     return (
       <div className="flex items-center gap-2.5">
         {event.image
-          ? <Cover src={event.image} fit={event.imageFit} from={preset?.from ?? '#E4EDE7'} to={preset?.to ?? '#CFE0D5'} className="h-9 w-14 flex-none rounded-[8px] border border-border" />
+          ? <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from={preset?.from ?? '#E4EDE7'} to={preset?.to ?? '#CFE0D5'} className="h-9 w-14 flex-none rounded-[8px] border border-border" />
           : <span className="text-[13px] leading-none text-dim">No cover</span>}
         <button onClick={() => setEditing(true)} className="text-[13px] font-semibold leading-none text-accent-text hover:underline">
           {event.image ? 'Change' : 'Add one'}
@@ -1214,7 +1214,7 @@ function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Par
   return (
     <div className="flex flex-col gap-2">
       {/* a demo is never persisted, so it has nothing to file a photo under */}
-      <CoverEditor image={event.image} fit={event.imageFit} title={event.title} eventId={event.demo ? undefined : event.id} onChange={(p) => onPatch(p)} />
+      <CoverEditor image={event.image} fit={event.imageFit} pos={event.imagePos} title={event.title} eventId={event.demo ? undefined : event.id} onChange={(p) => onPatch(p)} />
       <div>
         <button onClick={() => setEditing(false)} className="h-8 rounded-[8px] px-2 text-[12.5px] font-semibold text-dim hover:bg-s2">Done</button>
       </div>

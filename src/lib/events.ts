@@ -97,6 +97,9 @@ export type AppEvent = {
   unavailableIds?: string[]           // declared "none of these days work" — an explicit empty reply, not silence
   image?: string                      // cover: 'preset:<id>' or a downscaled data URL the host uploaded
   imageFit?: 'fill' | 'fit'           // a photo cropped to the frame, or shown whole on a blur of itself
+  // which part of a cropped photo to keep, as percentages, the way object-position
+  // reads them. Absent means the middle, which is what every cover did before this.
+  imagePos?: { x: number; y: number }
   messages: ChatMessage[]
   createdAt: number
   demo?: boolean
@@ -136,6 +139,7 @@ export type CreateInput = {
   rsvpDeadline?: string // optional, fixed-date events only: the RSVP round opens at birth
   image?: string        // the cover, chosen in the wizard or carried over by a duplicate
   imageFit?: 'fill' | 'fit'
+  imagePos?: { x: number; y: number }
 
   picked: { id: string; name: string; place: string; lat?: number; lng?: number }[]
   platform: string
@@ -1005,6 +1009,7 @@ export function draftFromEvent(id: string): EventDraft | null {
     capacity: ev.capacity?.toString(),
     image: ev.image,
     imageFit: ev.imageFit,
+    imagePos: ev.imagePos,
     startDate,
     endDate,
     excludedDows,
@@ -1463,7 +1468,7 @@ export function createEvent(input: CreateInput): AppEvent {
     durationMin: fixed ? fixed.e - fixed.s : input.durationMin && input.durationMin >= 1 ? Math.min(24 * 60, input.durationMin) : 60,
     bestMode: input.bestMode,
     capacity: input.capacity && Number(input.capacity) >= 1 ? Number(input.capacity) : undefined,
-    ...(input.image ? { image: input.image, imageFit: input.imageFit } : {}),
+    ...(input.image ? { image: input.image, imageFit: input.imageFit, imagePos: input.imagePos } : {}),
     messages: [],
     createdAt: Date.now(),
     status: fixed && !placeOpen ? 'confirmed' : 'planning',

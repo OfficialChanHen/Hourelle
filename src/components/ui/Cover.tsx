@@ -74,6 +74,7 @@ export function Cover({
   to,
   src,
   fit = 'fill',
+  pos,
   className = '',
   rounded = '',
 }: {
@@ -82,6 +83,10 @@ export function Cover({
   src?: string
   // a photo either fills the frame (cropped) or fits inside it whole, on a blur of itself
   fit?: 'fill' | 'fit'
+  // which part of a cropped photo survives the crop. Every frame in the app is a
+  // different shape, so the host picks a point to keep rather than a rectangle: the
+  // card keeps it, the header keeps it, and each crops around it.
+  pos?: { x: number; y: number }
   className?: string
   rounded?: string
 }) {
@@ -96,7 +101,12 @@ export function Cover({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {whole && <img src={src} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-xl" />}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="" className={`absolute inset-0 h-full w-full ${whole ? 'object-contain' : 'object-cover'}`} />
+        <img
+          src={src}
+          alt=""
+          className={`absolute inset-0 h-full w-full ${whole ? 'object-contain' : 'object-cover'}`}
+          style={!whole && pos ? { objectPosition: `${pos.x}% ${pos.y}%` } : undefined}
+        />
       </div>
     )
   }

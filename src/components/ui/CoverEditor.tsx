@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ImagePlus, Loader2 } from 'lucide-react'
+import { Crop, ImagePlus, Loader2 } from 'lucide-react'
 import { Cover, COVER_PRESETS } from './Cover'
+import { CoverPosition, type Pos } from './CoverPosition'
 import { ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, downscaleImage, isAcceptedImage } from '@/lib/image'
 import { removeCover, uploadCover } from '@/lib/covers'
 import { isInlineCover, isPhotoCover } from '@/lib/cover-kind'
@@ -24,14 +25,17 @@ export type ImageFit = 'fill' | 'fit'
    A photo that is still a data URL is also moved, quietly, the first time its host
    opens this editor. That is the only way the covers already sitting in people's
    browsers ever leave them: the bytes are there, not on the server. */
-export function CoverEditor({ image, fit = 'fill', title, eventId, onChange }: {
+export function CoverEditor({ image, fit = 'fill', pos, title, eventId, onChange }: {
   image?: string
   fit?: ImageFit
+  // which part of a cropped photo to keep; the middle when nothing has been chosen
+  pos?: Pos
   title: string
   // the event to file the photo under; absent in the wizard, where there is no event yet
   eventId?: string
-  onChange: (patch: { image?: string; imageFit?: ImageFit }) => void
+  onChange: (patch: { image?: string; imageFit?: ImageFit; imagePos?: Pos }) => void
 }) {
+  const [posing, setPosing] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -88,12 +92,12 @@ export function CoverEditor({ image, fit = 'fill', title, eventId, onChange }: {
       {/* the preview: the card's frame and the event page's wider one, side by side */}
       <div className="grid gap-3 sm:grid-cols-[188px_minmax(0,1fr)]">
         <div className="overflow-hidden rounded-[13px] border border-border bg-s1 p-3.5">
-          <Cover src={image} fit={fit} from={from} to={to} className="-mx-3.5 -mt-3.5 mb-3 h-[92px]" />
+          <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="-mx-3.5 -mt-3.5 mb-3 h-[92px]" />
           <div className="truncate text-[14px] font-semibold tracking-[-0.01em]">{name}</div>
           <div className="mt-1 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">On a card</div>
         </div>
         <div className="min-w-0">
-          <Cover src={image} fit={fit} from={from} to={to} className="h-[92px] border border-border sm:h-[124px]" rounded="rounded-2xl" />
+          <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[92px] border border-border sm:h-[124px]" rounded="rounded-2xl" />
           <div className="mt-2 truncate font-serif text-[21px] leading-[1.1] tracking-[-0.01em]">{name}</div>
           <div className="mt-1 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">On the event page</div>
         </div>
@@ -134,11 +138,26 @@ export function CoverEditor({ image, fit = 'fill', title, eventId, onChange }: {
             ))}
           </div>
         )}
+        {/* only Fill crops, so only Fill has anything to position: a fitted photo is
+            shown whole and there is nothing being lost to choose between */}
+        {photo && fit !== 'fit' && (
+          <button type="button" onClick={() => setPosing(true)} className="flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[13px] font-semibold hover:bg-s2 sm:h-8 sm:px-2.5 sm:text-[12.5px]">
+            <Crop size={14} /> Position
+          </button>
+        )}
         {image && (
           <button type="button" onClick={() => choose({ image: undefined })} className="h-9 rounded-[9px] px-2.5 text-[13px] font-semibold text-brick-text hover:bg-brick-bg sm:h-8 sm:text-[12.5px]">Remove</button>
         )}
         <input ref={fileRef} type="file" accept={ACCEPTED_IMAGE_TYPES} className="hidden" onChange={(e) => { void pickFile(e.target.files?.[0]); e.target.value = '' }} />
       </div>
+      {posing && image && (
+        <CoverPosition
+          src={image}
+          value={pos ?? { x: 50, y: 50 }}
+          onChange={(p) => onChange({ imagePos: p })}
+          onClose={() => setPosing(false)}
+        />
+      )}
       {/* the one constraint, always there, and the refusal in its place when there is one */}
       {err
         ? <span className="text-[12px] text-brick-text">{err}</span>
