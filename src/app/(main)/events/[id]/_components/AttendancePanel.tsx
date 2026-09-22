@@ -105,7 +105,10 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
     if (locked) {
       const c = event.confirmed!
       const d = event.days.find((x) => x.key === c.dayKey)
-      return { s: c.startMin - gridStart, e: c.endMin - gridStart, dayKey: c.dayKey, dayLabel: d ? `${d.dow}, ${d.date}` : c.dayKey }
+      // a run of days is counted by day (runDays below); its window is the first day whole
+      return c.endDayKey
+        ? { s: 0, e: 24 * 60 - gridStart, dayKey: c.dayKey, dayLabel: d ? `${d.dow}, ${d.date}` : c.dayKey }
+        : { s: c.startMin - gridStart, e: c.endMin - gridStart, dayKey: c.dayKey, dayLabel: d ? `${d.dow}, ${d.date}` : c.dayKey }
     }
     return best ? { s: best.s, e: best.e, dayKey: best.dayKey, dayLabel: best.dayLabel } : null
   }, [locked, event.confirmed, event.days, gridStart, best])

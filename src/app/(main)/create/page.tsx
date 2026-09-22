@@ -31,6 +31,7 @@ import { isInlineCover, isPhotoCover } from '@/lib/cover-kind'
 import Link from 'next/link'
 import * as Slider from '@radix-ui/react-slider'
 import { DateField } from '@/components/ui/DateField'
+import { TimeSelect } from '@/components/ui/TimeSelect'
 import {
   Check, ChevronDown, ChevronUp, Search, Plus, X, MapPin, Video, Clock,
   Info, Vote, ArrowRight, Mail, CalendarRange, Route, GripVertical,
@@ -301,11 +302,11 @@ function CreateWizard() {
   // both polls ask for a range of days; only the set mode does not. The time-only
   // checks below narrow it further with `granularity !== 'day'`.
   const polling = form.scheduleMode !== 'set'
-  // a set date that runs past its first day is a run of whole days, like a locked day
-  // poll; one day can be all day too, and otherwise it has hours
+  // a set date that runs past its first day is a run of days, like a locked day poll,
+  // timed from the first day's start to the last day's end; either shape can be all day
   const fxEnd = form.fixedEndDay && form.fixedEndDay > form.fixedDay ? form.fixedEndDay : form.fixedDay
   const fxRun = !!form.fixedDay && fxEnd !== form.fixedDay
-  const fxWhole = form.fixedAllDay || fxRun
+  const fxWhole = form.fixedAllDay
   const fxRunLen = fxRun ? selectedDayKeys(form.fixedDay, fxEnd, [], []).length : 1
   const startErr = !polling ? '' : !form.startDate ? 'Pick the earliest day.' : zToday && form.startDate < zToday ? `The earliest day has already passed in ${zoneName}.` : ''
   const endErr = !polling ? '' : !form.endDate ? 'Pick the latest day.' : form.startDate && form.endDate < form.startDate ? 'The latest day can’t be before the earliest day.' : zToday && form.endDate < zToday ? `The latest day has already passed in ${zoneName}.` : ''
@@ -347,7 +348,7 @@ function CreateWizard() {
             ? ''
           : parseHM(form.fixedStart) === null || parseHM(form.fixedEnd) === null
             ? 'Pick both times.'
-            : (parseHM(form.fixedEnd) as number) <= (parseHM(form.fixedStart) as number)
+            : !fxRun && (parseHM(form.fixedEnd) as number) <= (parseHM(form.fixedStart) as number)
               ? 'It has to end after it starts.'
               : clock && form.fixedDay === zToday && (parseHM(form.fixedStart) as number) <= clock.minute
                 ? `${fmtMinute(parseHM(form.fixedStart) as number)} has already passed today in ${zoneName}.`
@@ -575,6 +576,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
   }
   const fxEnd = form.fixedEndDay && form.fixedEndDay > form.fixedDay ? form.fixedEndDay : form.fixedDay
   const fxRun = !!form.fixedDay && fxEnd !== form.fixedDay
+  const dayWord = (k: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(k); return m ? new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : '' }
   // a new slot size snaps a custom window outward onto its steps, the way the grid
   // itself will be built, so the slider never sits between two of its own stops
   function pickGranularity(v: string) {
@@ -663,14 +665,23 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
               </div>
             </div>
 
-            {/* the hours, for one day. A run of days has none to give: it is planned the
-                way a locked day poll is, as whole days, and says so in place of the slider. */}
+            {/* the time. One day has hours, drawn as a band of that day. A run of days
+                has two ends on two different days, Friday at six to Sunday at noon, so
+                it names each end on its own day rather than pretending to be a band. */}
             <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
-              <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Hours</span>
-              {fxRun
-                ? <span className="text-[13px] font-semibold">All day, every day</span>
-                : <Segmented value={form.fixedAllDay ? 'all' : 'hours'} onChange={(v) => update({ fixedAllDay: v === 'all' })} options={[{ v: 'hours', l: 'Set hours' }, { v: 'all', l: 'All day' }]} />}
+              <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> {fxRun ? 'Times' : 'Hours'}</span>
+              <Segmented value={form.fixedAllDay ? 'all' : 'hours'} onChange={(v) => update({ fixedAllDay: v === 'all' })} options={[{ v: 'hours', l: fxRun ? 'Set times' : 'Set hours' }, { v: 'all', l: 'All day' }]} />
             </div>
+            {fxRun && !form.fixedAllDay && (
+              <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
+                {([['Starts', form.fixedDay, 'fixedStart', 'Start time on the first day'], ['Ends', fxEnd, 'fixedEnd', 'End time on the last day']] as const).map(([word, key, field, title]) => (
+                  <div key={field} className="flex items-center justify-between gap-2 rounded-[10px] border border-border bg-s1 px-3 py-2">
+                    <span className="min-w-0 text-[13px] text-dim">{word} <span className="font-semibold text-text">{dayWord(key)}</span></span>
+                    <TimeSelect value={parseHM(form[field]) ?? 0} onChange={(m) => update({ [field]: hhmmOf(m) })} step={15} title={title} />
+                  </div>
+                ))}
+              </div>
+            )}
             {!fxRun && !form.fixedAllDay && (
               <TimeRange
                 start={form.fixedStart}

@@ -187,8 +187,13 @@ export default function NotificationsPage() {
                         <span>
                           {du <= 0 ? 'Today' : `In ${du} day${du === 1 ? '' : 's'}`}, locked in
                           {day ? ` for ${day.dow}, ${day.date}` : ''}
-                          {c.endDayKey && (() => { const ed = e.days.find((d) => d.key === c.endDayKey); return ed ? ` – ${ed.dow}, ${ed.date}` : '' })()}
                           {c.startMin === 0 && c.endMin === 24 * 60 ? '' : ` at ${fmtMinute(c.startMin)}`}
+                          {c.endDayKey && (() => {
+                            // a timed run says when it ends as well as when it starts
+                            const ed = e.days.find((d) => d.key === c.endDayKey)
+                            if (!ed) return ''
+                            return c.startMin === 0 && c.endMin === 24 * 60 ? ` – ${ed.dow}, ${ed.date}` : `, until ${ed.dow}, ${ed.date} at ${fmtMinute(c.endMin)}`
+                          })()}
                         </span>
                         {!(c.startMin === 0 && c.endMin === 24 * 60) && <TimezonePill tz={e.timezone} />}
                         <span className="flex items-center gap-1">{remote ? <Video size={12} /> : <MapPin size={12} />} {place}</span>

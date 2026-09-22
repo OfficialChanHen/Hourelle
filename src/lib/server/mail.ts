@@ -5,6 +5,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { AppEvent, Participant } from '@/lib/events'
 import { icsFileName, icsFor } from '@/lib/ics'
+import { isAllDay, slotWhen } from '@/lib/slot'
 import { serverDb } from './db'
 
 /* ── where links point ── */
@@ -183,9 +184,8 @@ export function hostNameOf(ev: AppEvent): string {
 export function whenText(ev: AppEvent): string {
   const c = ev.confirmed
   if (c) {
-    const allDay = c.startMin === 0 && c.endMin === 24 * 60
-    const days = c.endDayKey ? `${fmtDay(c.dayKey)} – ${fmtDay(c.endDayKey)}` : fmtDay(c.dayKey)
-    return allDay ? days : `${days}, ${fmtMinute(c.startMin)} – ${fmtMinute(c.endMin)} ${tzAbbr(ev.timezone)}`
+    const text = slotWhen(c, fmtDay, fmtMinute)
+    return isAllDay(c) ? text : `${text} ${tzAbbr(ev.timezone)}`
   }
   if (ev.startDate && ev.endDate && ev.startDate !== ev.endDate) return `${fmtDay(ev.startDate)} – ${fmtDay(ev.endDate)}`
   return ev.startDate ? fmtDay(ev.startDate) : ''

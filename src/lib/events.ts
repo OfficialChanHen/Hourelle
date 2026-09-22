@@ -3,6 +3,7 @@ import { av } from './people'
 import { isMine, pushAnswers, pushDelete, pushEvent, pushMessage, pushNewEvent } from './remote'
 import { currentAccount } from './session'
 import { writeLocal } from './local'
+import { slotOver, slotWhen } from './slot'
 import type { AccountKind } from './session'
 import {
   avail as demoAvail,
@@ -19,7 +20,8 @@ export type { ChatMessage }
 export type Rsvp = 'attending' | 'maybe' | 'not_going' | 'pending'
 export type EventStatus = 'planning' | 'confirmed'
 // the host's locked-in plan: a day, a clock-minute window, and the chosen place(s).
-// endDayKey (a day poll, or a date set as a run of days) makes it a run of whole days — absent means one day.
+// endDayKey (a day poll, or a date set as a run of days) makes it a run of days — absent means one day.
+// On a run, startMin is on the first day and endMin on the last; 0 to 24:00 is whole days.
 export type ConfirmedSlot = { dayKey: string; endDayKey?: string; startMin: number; endMin: number; placeIds: string[] }
 export type Participant = {
   id: string; initials: string; name: string; color: PersonColor; rsvp: Rsvp
@@ -135,8 +137,8 @@ export type CreateInput = {
   planMode: 'vote' | 'itinerary'
   // date already set ('YYYY-MM-DD' + 'HH:MM'): the time is a fact from birth. The event
   // is only born confirmed if the place is also answered — a live ballot keeps it planning.
-  // allDay, or an endDay past day, makes it a run of whole days, the shape a locked day
-  // poll has, and start/end are ignored.
+  // an endDay past day makes it a run of days, the shape a locked day poll has; its
+  // start is on the first day and its end on the last. allDay drops the times.
   fixed?: { day: string; endDay?: string; start: string; end: string; allDay?: boolean }
   rsvpDeadline?: string // optional, fixed-date events only: the RSVP round opens at birth
   image?: string        // the cover, chosen in the wizard or carried over by a duplicate
@@ -667,10 +669,11 @@ export function phaseOf(ev: Pick<AppEvent, 'status' | 'confirmed' | 'endDate' | 
   const untilEnd = daysUntil(endRef)
   if (untilEnd !== null && untilEnd < 0) return 'past'
   // a timed slot is over when its end time passes, in the event's own zone, not at
-  // midnight: a dinner that ended at nine is done at nine
-  if (ev.status === 'confirmed' && ev.confirmed && !ev.confirmed.endDayKey) {
+  // midnight: a dinner that ended at nine is done at nine, and a weekend that ends at
+  // noon on the Sunday is done at noon on the Sunday
+  if (ev.status === 'confirmed' && ev.confirmed) {
     const { dayKey, minute } = nowIn(ev.timezone)
-    if (dayKey > ev.confirmed.dayKey || (dayKey === ev.confirmed.dayKey && minute >= ev.confirmed.endMin)) return 'past'
+    if (slotOver(ev.confirmed, dayKey, minute)) return 'past'
   }
   if (ev.status !== 'confirmed' || !ev.confirmed) return 'planning'
   const du = daysUntil(ev.confirmed.dayKey)
@@ -691,18 +694,12 @@ export function daysUntilLabel(du: number | null): string {
   return `${du} day${du === 1 ? '' : 's'}`
 }
 
-// the locked-in slot as one glanceable line: "Sat, Jul 26, 5:00 PM – 9:00 PM".
-// An all-day slot (a day poll's lock) skips the clock times; a run of days reads
-// as "Fri, Aug 14 – Sun, Aug 16".
+// the locked-in slot as one glanceable line: "Sat, Jul 26, 5:00 PM – 9:00 PM",
+// "Fri, Aug 14 – Sun, Aug 16" for a run of whole days, and
+// "Fri, Aug 14, 6:00 PM – Sun, Aug 16, 12:00 PM" for a timed one (see lib/slot)
 export function confirmedSlotText(ev: Pick<AppEvent, 'confirmed'>): string | null {
-  if (!ev.confirmed) return null
-  const d = parseLocal(ev.confirmed.dayKey)
-  if (!d) return null
-  const day = `${DOW[d.getDay()]}, ${dayLabel(d)}`
-  const e = ev.confirmed.endDayKey ? parseLocal(ev.confirmed.endDayKey) : null
-  if (e) return `${day} – ${DOW[e.getDay()]}, ${dayLabel(e)}`
-  const allDay = ev.confirmed.startMin === 0 && ev.confirmed.endMin === 24 * 60
-  return allDay ? day : `${day}, ${fmtMinute(ev.confirmed.startMin)} – ${fmtMinute(ev.confirmed.endMin)}`
+  if (!ev.confirmed || !parseLocal(ev.confirmed.dayKey)) return null
+  return slotWhen(ev.confirmed, (k) => { const d = parseLocal(k); return d ? `${DOW[d.getDay()]}, ${dayLabel(d)}` : k }, fmtMinute)
 }
 
 // the longest stretch of touching calendar days in a poll — the ceiling for any
@@ -805,8 +802,11 @@ export function sortByAttendance(ev: AppEvent): Participant[] {
   const availIv = availIvOf(ev)
   const gridStart = gridStartMinOf(ev)
   const locked = ev.status === 'confirmed' && !!ev.confirmed
+  // a run of days is read by day coverage below, so its window is the whole first day
   const win = locked
-    ? { dayKey: ev.confirmed!.dayKey, s: ev.confirmed!.startMin - gridStart, e: ev.confirmed!.endMin - gridStart }
+    ? ev.confirmed!.endDayKey
+      ? { dayKey: ev.confirmed!.dayKey, s: 0, e: 24 * 60 - gridStart }
+      : { dayKey: ev.confirmed!.dayKey, s: ev.confirmed!.startMin - gridStart, e: ev.confirmed!.endMin - gridStart }
     : bestWindow(availIv, ev.days, ev.durationMin ?? 60, ev.bestMode)
   const dayIv = win ? availIv[win.dayKey] ?? {} : {}
   const marked = new Set<string>()
@@ -998,13 +998,15 @@ export function draftFromEvent(id: string): EventDraft | null {
   // Only that shape comes back set; a poll that was locked in comes back as a poll.
   const bornFixed = !!c && !c.endDayKey && !(c.startMin === 0 && c.endMin === 24 * 60)
     && ev.days.length === 1 && ev.days[0]?.key === c.dayKey && gridStart === c.startMin && gridEnd === c.endMin
-  // or born as a run of whole days: a day grid that is exactly the locked run
+  // or born all day, or as a run of days, timed or not: a day grid that is exactly
+  // the locked day or run
   const runEnd = c?.endDayKey ?? c?.dayKey
-  const bornWhole = !!c && ev.granularity === 'day' && c.startMin === 0 && c.endMin === 24 * 60
+  const cAllDay = !!c && c.startMin === 0 && c.endMin === 24 * 60
+  const bornWhole = !!c && ev.granularity === 'day' && (cAllDay || !!c.endDayKey)
     && ev.startDate === c.dayKey && ev.endDate === runEnd && ev.days.length === selectedDayKeys(c.dayKey, runEnd!, [], []).length
   const runSpan = (() => { const x = parseLocal(c?.dayKey ?? ''), y = parseLocal(runEnd ?? ''); return x && y ? Math.round((y.getTime() - x.getTime()) / 86400000) : 0 })()
   const fixed = bornFixed && c ? { day: nextSameDow(c.dayKey), start: hm(c.startMin), end: hm(c.endMin) }
-    : bornWhole && c ? { day: nextSameDow(c.dayKey), endDay: shift(nextSameDow(c.dayKey), runSpan), start: '18:00', end: '21:00', allDay: true }
+    : bornWhole && c ? { day: nextSameDow(c.dayKey), endDay: shift(nextSameDow(c.dayKey), runSpan), start: cAllDay ? '18:00' : hm(c.startMin), end: cAllDay ? '21:00' : hm(c.endMin), allDay: cAllDay }
     : undefined
   return {
     title: ev.title,
@@ -1403,15 +1405,18 @@ export function createEvent(input: CreateInput): AppEvent {
   // too the event is born confirmed and goes straight to the RSVP round; with a live
   // ballot it stays in planning until the place is locked.
   const fxEnd = input.fixed?.endDay && input.fixed.endDay > input.fixed.day ? input.fixed.endDay : input.fixed?.day
-  const fxWhole = !!input.fixed && (!!input.fixed.allDay || fxEnd !== input.fixed.day)
-  const fxS = input.fixed ? (fxWhole ? 0 : parseHM(input.fixed.start)) : null
-  const fxE = input.fixed ? (fxWhole ? 24 * 60 : parseHM(input.fixed.end)) : null
-  const fixed = input.fixed && fxS !== null && fxE !== null && fxE > fxS
-    ? { day: input.fixed.day, endDay: fxEnd ?? input.fixed.day, s: fxS, e: fxE, whole: fxWhole }
+  const fxRun = !!input.fixed && fxEnd !== input.fixed.day
+  const fxAllDay = !!input.fixed?.allDay
+  const fxS = input.fixed ? (fxAllDay ? 0 : parseHM(input.fixed.start)) : null
+  const fxE = input.fixed ? (fxAllDay ? 24 * 60 : parseHM(input.fixed.end)) : null
+  // on one day the end has to come after the start; across days it always does
+  const fixed = input.fixed && fxS !== null && fxE !== null && (fxRun || fxE > fxS)
+    ? { day: input.fixed.day, endDay: fxEnd ?? input.fixed.day, s: fxS, e: fxE, whole: fxAllDay || fxRun }
     : null
 
-  // a timed fixed date carries clock times, so it can't be a day poll: coerce to 30 min.
-  // A run of whole days is exactly a day poll's grid.
+  // a timed day carries clock times, so it can't be a day poll: coerce to 30 min. A run
+  // of days, timed or not, is a day poll's grid: the question it leaves is who is
+  // there on which day, and the times at its two ends live on the slot.
   const gran: AppEvent['granularity'] = fixed?.whole ? 'day'
     : input.granularity === '15' || input.granularity === '60' ? input.granularity
       : input.granularity === 'day' && !fixed ? 'day'
@@ -1476,8 +1481,8 @@ export function createEvent(input: CreateInput): AppEvent {
     itinStops: isItin ? input.picked.map((p) => p.id) : [],
     itinRank: [],
     itinDwell: isItin ? input.picked.map(() => 60) : [],
-    itinStartMin: hasWin ? (winS as number) : 9 * 60,
-    durationMin: fixed ? fixed.e - fixed.s : input.durationMin && input.durationMin >= 1 ? Math.min(24 * 60, input.durationMin) : 60,
+    itinStartMin: hasWin ? (winS as number) : fixed && !fxAllDay ? fixed.s : 9 * 60,
+    durationMin: fixed?.whole ? 24 * 60 : fixed ? fixed.e - fixed.s : input.durationMin && input.durationMin >= 1 ? Math.min(24 * 60, input.durationMin) : 60,
     bestMode: input.bestMode,
     capacity: input.capacity && Number(input.capacity) >= 1 ? Number(input.capacity) : undefined,
     ...(input.image ? { image: input.image, imageFit: input.imageFit, imagePos: input.imagePos } : {}),

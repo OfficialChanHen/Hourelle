@@ -36,6 +36,9 @@ import { useEventRoom } from '@/hooks/useEventRoom'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { DaysPicker } from '@/components/ui/DaysPicker'
 import { TimeSelect } from '@/components/ui/TimeSelect'
+import { DateField } from '@/components/ui/DateField'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { isAllDay, slotWhen } from '@/lib/slot'
 import { Avatar } from '@/components/ui/Avatar'
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { BackLink } from '@/components/ui/BackLink'
@@ -822,14 +825,17 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
   if (event.confirmed) {
     const c = event.confirmed
     if (editing && editable) return <FixedWhenEditor event={event} onPatch={onPatch} onDone={() => setEditing(false)} />
-    const d = event.days.find((x) => x.key === c.dayKey)
-    const endD = c.endDayKey ? event.days.find((x) => x.key === c.endDayKey) : null
-    const allDay = c.startMin === 0 && c.endMin === 24 * 60
-    const year = (c.endDayKey ?? c.dayKey).slice(0, 4)
-    const dayPart = `${d ? `${d.dow}, ${d.date}` : c.dayKey}${endD ? ` – ${endD.dow}, ${endD.date}` : ''}, ${year}`
+    const allDay = isAllDay(c)
+    // the year rides on the last day named: "Fri, Aug 14, 6:00 PM – Sun, Aug 16, 2026, 12:00 PM"
+    const lastKey = c.endDayKey ?? c.dayKey
+    const dayOf = (k: string) => {
+      const x = event.days.find((d) => d.key === k)
+      const label = x ? `${x.dow}, ${x.date}` : k
+      return k === lastKey ? `${label}, ${k.slice(0, 4)}` : label
+    }
     return (
       <span className="flex flex-wrap items-center gap-1.5">
-        {allDay ? dayPart : `${dayPart}, ${fmtMinute(c.startMin)} – ${fmtMinute(c.endMin)}`}
+        {slotWhen(c, dayOf, fmtMinute)}
         {!allDay && <TimezonePill tz={event.timezone} />}
         {editable && (
           <button onClick={() => setEditing(true)} title="Change the day or time" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
@@ -968,47 +974,80 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
 }
 
 /* a fixed slot is still movable while the event plans (the place vote may be live).
-   Moving it rebuilds the one-day grid around the new window and clears the
-   can-you-come replies — they answered a slot that no longer exists. */
+   It is the same three shapes the wizard makes: one day with hours, one day all day,
+   or a run of days, which is timed from its first day's start to its last day's end
+   unless it is all day. Moving it rebuilds the grid around the new slot (a timed day's
+   hours, or a run's days) and clears the can-you-come replies: they answered a slot
+   that no longer exists. */
 function FixedWhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void; onDone: () => void }) {
   const c = event.confirmed!
   const [day, setDay] = useState(c.dayKey)
-  const [startMin, setStartMin] = useState(c.startMin)
-  const [endMin, setEndMin] = useState(c.endMin)
-  const inputCls = 'h-9 rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-border2'
+  const [endDay, setEndDay] = useState(c.endDayKey ?? c.dayKey)
+  const [allDay, setAllDay] = useState(isAllDay(c))
+  const [startMin, setStartMin] = useState(isAllDay(c) ? 18 * 60 : c.startMin)
+  const [endMin, setEndMin] = useState(isAllDay(c) ? 21 * 60 : c.endMin)
   const today = todayKey()
-  const changed = day !== c.dayKey || startMin !== c.startMin || endMin !== c.endMin
+  const run = endDay > day
+  const s0 = allDay ? 0 : startMin, e0 = allDay ? 24 * 60 : endMin
+  const changed = day !== c.dayKey || (run ? endDay : undefined) !== c.endDayKey || s0 !== c.startMin || e0 !== c.endMin
+  const valid = !!day && (allDay || run || endMin > startMin)
 
+  function changeDay(v: string) {
+    const d = fromDay(v, today)
+    setDay(d)
+    if (endDay < d) setEndDay(d)
+  }
   function changeStart(v: number) {
     setStartMin(v)
-    setEndMin((e) => (e <= v ? Math.min(v + (c.endMin - c.startMin), 24 * 60 - 5) : e))
+    if (!run) setEndMin((e) => (e <= v ? Math.min(v + Math.max(15, c.endMin - c.startMin), 24 * 60 - 5) : e))
   }
   function save() {
     if (!changed) { onDone(); return }
-    if (!day || endMin <= startMin) return
-    const st = stepOf(event.granularity)
-    const times = buildTimes(event.granularity, Math.floor(startMin / st) * st, Math.min(24 * 60, Math.ceil(endMin / st) * st))
-    onPatch({
-      confirmed: { ...c, dayKey: day, startMin, endMin },
-      startDate: day,
-      endDate: day,
-      days: buildDays(day, day),
-      times,
-      durationMin: endMin - startMin,
-      avail: { [day]: times.map(() => []) },
-      availIv: { [day]: {} },
-      unavailableIds: [],
-    })
+    if (!valid) return
+    const reset = { unavailableIds: [] as string[] }
+    if (allDay || run) {
+      // a run of days, or a whole day: a day grid over exactly those days
+      const days = buildDays(day, endDay, maxPollDays('day', day))
+      const times = buildTimes('day')
+      onPatch({
+        confirmed: { ...c, dayKey: day, endDayKey: run ? endDay : undefined, startMin: s0, endMin: e0 },
+        startDate: day, endDate: days[days.length - 1].key, granularity: 'day', days, times, durationMin: 24 * 60,
+        avail: Object.fromEntries(days.map((d) => [d.key, times.map(() => [])])),
+        availIv: Object.fromEntries(days.map((d) => [d.key, {}])),
+        ...reset,
+      })
+    } else {
+      const gran = event.granularity === 'day' ? '30' : event.granularity
+      const st = stepOf(gran)
+      const times = buildTimes(gran, Math.floor(startMin / st) * st, Math.min(24 * 60, Math.ceil(endMin / st) * st))
+      onPatch({
+        confirmed: { ...c, dayKey: day, endDayKey: undefined, startMin, endMin },
+        startDate: day, endDate: day, granularity: gran, days: buildDays(day, day), times, durationMin: endMin - startMin,
+        avail: { [day]: times.map(() => []) },
+        availIv: { [day]: {} },
+        ...reset,
+      })
+    }
     onDone()
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2.5">
+      <div className="flex max-w-[340px] items-center gap-2">
+        <DateField label="First day" value={day} min={today} onChange={changeDay} className="h-11 min-w-0 flex-1 !bg-s0 sm:h-9" />
+        <span className="flex-none text-faint" aria-hidden>→</span>
+        <DateField label="Last day" value={endDay} min={day || today} onChange={(v) => setEndDay(v && v < day ? day : v)} className="h-11 min-w-0 flex-1 !bg-s0 sm:h-9" />
+      </div>
       <div className="flex flex-wrap items-center gap-2">
-        <input type="date" value={day} min={today} onChange={(ev) => setDay(fromDay(ev.target.value, today))} className={inputCls} />
-        <TimeSelect value={startMin} onChange={changeStart} step={15} />
-        <span className="text-[13px] text-dim">to</span>
-        <TimeSelect value={endMin} onChange={setEndMin} min={startMin + 15} step={15} />
+        <SegmentedControl size="sm" value={allDay ? 'all' : 'times'} onChange={(v) => setAllDay(v === 'all')} options={[{ v: 'times', l: run ? 'Set times' : 'Set hours' }, { v: 'all', l: 'All day' }]} />
+        {!allDay && (
+          <span className="flex flex-wrap items-center gap-2">
+            {run && <span className="text-[13px] text-dim">starts</span>}
+            <TimeSelect value={startMin} onChange={changeStart} step={15} title={run ? 'Starts on the first day' : 'Start time'} />
+            <span className="text-[13px] text-dim">{run ? 'ends' : 'to'}</span>
+            <TimeSelect value={endMin} onChange={setEndMin} min={run ? 0 : startMin + 15} step={15} title={run ? 'Ends on the last day' : 'End time'} />
+          </span>
+        )}
       </div>
       {changed && (
         <p className="max-w-[420px] text-[12px] leading-[1.5] text-faint">
@@ -1016,7 +1055,7 @@ function FixedWhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch:
         </p>
       )}
       <div className="flex items-center gap-2">
-        <button onClick={save} disabled={!day || endMin <= startMin} className="h-8 rounded-[8px] bg-accent px-3 text-[12.5px] font-semibold text-on-accent disabled:opacity-40">Save</button>
+        <button onClick={save} disabled={!valid} className="h-8 rounded-[8px] bg-accent px-3 text-[12.5px] font-semibold text-on-accent disabled:opacity-40">Save</button>
         <button onClick={onDone} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
       </div>
     </div>

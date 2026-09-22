@@ -38,10 +38,12 @@ export function AddToCalendar({ event, slot, align = 'end' }: { event: AppEvent;
     } else if (timed) {
       const hm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}${String(min % 60).padStart(2, '0')}00`
       const hmc = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}:00`
-      const d = timed.dayKey.replace(/-/g, '')
-      g.set('dates', `${d}T${hm(timed.startMin)}/${d}T${hm(timed.endMin)}`)
+      // a timed run starts on its first day and ends on its last
+      const endKey = timed.endDayKey ?? timed.dayKey
+      const d = timed.dayKey.replace(/-/g, ''), e = endKey.replace(/-/g, '')
+      g.set('dates', `${d}T${hm(timed.startMin)}/${e}T${hm(timed.endMin)}`)
       o.set('startdt', `${timed.dayKey}T${hmc(timed.startMin)}`)
-      o.set('enddt', `${timed.dayKey}T${hmc(timed.endMin)}`)
+      o.set('enddt', `${endKey}T${hmc(timed.endMin)}`)
     } else {
       const end = plusDay(event.endDate || event.startDate) // end date is exclusive for all-day entries
       g.set('dates', `${event.startDate.replace(/-/g, '')}/${end.replace(/-/g, '')}`)

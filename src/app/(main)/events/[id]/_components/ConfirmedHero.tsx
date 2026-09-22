@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { dateRangeText, daysUntil, daysUntilLabel, fmtMinute, reopenEvent, setMyRsvp, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
+import { slotWhen } from '@/lib/slot'
 
 // your answer to the locked-in plan — strict role colors: teal going, ochre maybe, brick out
 const RSVP_OPTIONS: { v: Rsvp; label: string; icon: typeof Check; on: string }[] = [
@@ -29,6 +30,7 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
 
   const day = event.days.find((d) => d.key === c.dayKey)
   const endDay = c.endDayKey ? event.days.find((d) => d.key === c.endDayKey) : null
+  const dayOf = (k: string) => { const d = event.days.find((x) => x.key === k); return d ? `${d.dow}, ${d.date}` : k }
   const dayText = (day ? `${day.dow}, ${day.date}` : c.dayKey) + (endDay ? ` – ${endDay.dow}, ${endDay.date}` : '')
   const du = daysUntil(c.dayKey)
   const placeNames = c.placeIds
@@ -53,13 +55,13 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
             <Badge variant={du !== null && du >= 0 && du <= 14 ? 'accent' : 'neutral'}>{daysUntilLabel(du)}</Badge>
           </div>
           <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-            {/* an all-day lock (day polls) has no clock times to show; a run of days
-                reads as the range alone */}
+            {/* an all-day lock has no clock times to show, and an all-day run of days
+                reads as the range alone; a timed run names the time at each end */}
             {c.startMin === 0 && c.endMin === 24 * 60 ? (
               <span className="font-serif text-[27px] leading-[1.05] tracking-[-0.01em]">{dayText}{endDay ? '' : ', all day'}</span>
             ) : (
               <>
-                <span className="font-serif text-[27px] leading-[1.05] tracking-[-0.01em]">{dayText}, {fmtMinute(c.startMin)} – {fmtMinute(c.endMin)}</span>
+                <span className="font-serif text-[27px] leading-[1.05] tracking-[-0.01em]">{slotWhen(c, dayOf, fmtMinute)}</span>
                 <TimezonePill tz={event.timezone} />
               </>
             )}
