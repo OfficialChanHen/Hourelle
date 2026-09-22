@@ -177,7 +177,12 @@ export function Tour({ host = false, locked = false }: { host?: boolean; locked?
         const here = activeTab()
         const script = host ? HOST_STOPS : locked ? GUEST_LOCKED_STOPS : GUEST_STOPS
         const have = script.filter((s) => 'end' in s || s.tab !== here || find(s))
-        if (have.length > 1) { first.current = true; setI(0); setPlan(have) }
+        // the request is spent the moment the tour is actually on screen, not when it
+        // is finished. Walking away from it — the back button, a tap through to
+        // another page, closing the tab — used to leave it armed, and it would then
+        // ambush the next event opened, days later and on an event that was never
+        // the practice one. Escape, Skip and Done still mark it done properly.
+        if (have.length > 1) { first.current = true; setI(0); setPlan(have); setTourWanted(false) }
       }, delay)
     }
     begin(800)

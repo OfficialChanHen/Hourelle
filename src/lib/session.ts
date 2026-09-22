@@ -64,6 +64,24 @@ export function currentAccount(): Account {
   return readCache()
 }
 
+/* ── has auth had its say yet? ──
+   onAuthStateChange fires once at startup with whatever session was restored, but
+   that is a round trip after the first render. On a browser that has never cached
+   this account — a fresh phone, a magic link opened somewhere new — a signed-in
+   person reads as nobody until it lands, and anything deciding on "not signed in"
+   in that window decides wrongly. A cached account is an answer in itself, so only
+   a browser with nobody in it ever waits. */
+export const AUTH_SETTLED = 'hourelle:auth-settled'
+let settled = !backendOn
+export function authSettled(): boolean {
+  return settled || readCache().signedIn
+}
+function markSettled(): void {
+  if (settled) return
+  settled = true
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(AUTH_SETTLED))
+}
+
 /* ── the account behind a signed-in session ──
    auth.users holds the credentials; profiles holds the name and color the UI shows.
    One read of profiles turns a session into an Account. */
@@ -88,17 +106,23 @@ async function accountFromSession(userId: string, email: string | undefined): Pr
    coming back to a tab days later. Returns an unsubscribe. */
 export function startAuth(): () => void {
   if (!backendOn) return () => {}
+  // a profile read that hangs must not leave the rest of the app waiting on an
+  // answer for the whole visit
+  const fuse = setTimeout(markSettled, 4000)
   const { data } = supabase!.auth.onAuthStateChange((_event, session) => {
     const gen = ++authGen
     if (!session?.user) {
       if (readCache().signedIn) writeCache(STUB)
+      markSettled()
       return
     }
-    void accountFromSession(session.user.id, session.user.email ?? undefined).then((acc) => { if (gen === authGen) writeCache(acc) })
+    void accountFromSession(session.user.id, session.user.email ?? undefined)
+      .then((acc) => { if (gen === authGen) writeCache(acc) })
+      .finally(markSettled)
     // an acceptance made before a Google or Microsoft sign-up lands on the profile now
     void syncLegalAcceptance()
   })
-  return () => data.subscription.unsubscribe()
+  return () => { clearTimeout(fuse); data.subscription.unsubscribe() }
 }
 
 /* ── the terms, accepted ──

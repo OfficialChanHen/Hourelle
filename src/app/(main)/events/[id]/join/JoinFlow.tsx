@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { gsap } from 'gsap'
@@ -13,7 +13,7 @@ import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Cover } from '@/components/ui/Cover'
 import { coverFor } from '@/components/ui/StoredEventCard'
 import { PHASE_BADGE } from '@/components/ui/LifecycleStrip'
-import { currentAccount, emailHasAccount, sendMagicLink } from '@/lib/session'
+import { AUTH_SETTLED, authSettled, currentAccount, emailHasAccount, sendMagicLink } from '@/lib/session'
 import { backendOn } from '@/lib/db'
 import { cloudSynced, fetchEvent } from '@/lib/remote'
 import { useAccount } from '@/hooks/useAccount'
@@ -27,6 +27,11 @@ import {
 // names compare loosely — case and stray spaces shouldn't decide whether two
 // people "match"
 const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase()
+
+const subscribeAuth = (cb: () => void) => {
+  window.addEventListener(AUTH_SETTLED, cb)
+  return () => window.removeEventListener(AUTH_SETTLED, cb)
+}
 
 /* ── the share-link landing: the event as a teaser, then one ask — your name ──
    No account needed. The grid, the ballot, and the chat stay out of sight until a
@@ -60,6 +65,12 @@ export function JoinFlow({ id }: { id: string }) {
 
   // re-run the resolution when the account settles (sign-in restored after mount)
   const account = useAccount()
+  // and do not resolve at all until auth has had its say. Every branch below turns on
+  // who this browser is, and on a device that has not cached the account yet the
+  // honest answer for the first moment is "not known", not "not signed in" — which is
+  // how a host opening their own link could be handed the guest form, a guest session
+  // and the first-timer's tour offer.
+  const authReady = useSyncExternalStore(subscribeAuth, authSettled, () => false)
 
   const go = useCallback(() => router.replace(`/events/${id}`), [router, id])
 
@@ -67,6 +78,7 @@ export function JoinFlow({ id }: { id: string }) {
   // bring it, since a visitor is part of nothing yet
   const fetched = useRef(false)
   const resolve = useCallback(() => {
+    if (!authReady) return // the skeleton holds until this browser knows who it is
     const ev = getEvent(id)
     if (!ev && !cloudSynced()) return // keep the skeleton until the first pull lands
     if (!ev && backendOn && !fetched.current) {
@@ -112,7 +124,7 @@ export function JoinFlow({ id }: { id: string }) {
     if (!backendOn && ev.hostedByYou) { go(); return }
 
     setEvent(ev)
-  }, [id, go, inviteToken, account.signedIn, account.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, go, inviteToken, authReady, account.signedIn, account.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { resolve() }, [resolve])
   useLiveEvents(resolve)
