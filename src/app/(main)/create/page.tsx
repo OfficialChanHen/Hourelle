@@ -29,6 +29,7 @@ import { CoverEditor, type ImageFit } from '@/components/ui/CoverEditor'
 import { uploadCover } from '@/lib/covers'
 import { isInlineCover, isPhotoCover } from '@/lib/cover-kind'
 import Link from 'next/link'
+import * as Slider from '@radix-ui/react-slider'
 import {
   Check, ChevronDown, ChevronUp, Search, Plus, X, MapPin, Video, Clock,
   Info, Vote, ArrowRight, Mail, CalendarRange, Route, GripVertical,
@@ -580,15 +581,15 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <Label>Event title <Req /></Label>
-        <input value={form.title} onChange={(e) => update({ title: e.target.value })} placeholder="e.g. Team Meeting" className={inputCls(show(errs.title))} />
+        <Label htmlFor="ev-title">Event title <Req /></Label>
+        <input id="ev-title" value={form.title} onChange={(e) => update({ title: e.target.value })} placeholder="e.g. Team Meeting" className={inputCls(show(errs.title))} />
         {show(errs.title) && <FieldError>{errs.title}</FieldError>}
       </div>
 
       {/* events are hosted by the signed-in account — nothing to choose, the name is locked */}
       <div>
-        <Label>Hosted by</Label>
-        <input value={hostName} readOnly disabled className={`${inputCls(false)} max-w-[320px] cursor-not-allowed opacity-60`} />
+        <Label htmlFor="ev-host">Hosted by</Label>
+        <input id="ev-host" value={hostName} readOnly disabled className={`${inputCls(false)} max-w-[320px] cursor-not-allowed opacity-60`} />
       </div>
 
       <div>
@@ -622,7 +623,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
               <div className="min-w-0 flex-1 sm:min-w-[150px]">
                 <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Day</span>
-                <input type="date" value={form.fixedDay} min={today || undefined} onChange={(e) => update({ fixedDay: e.target.value })} className={`${inputCls(show(errs.fixed) && !form.fixedDay)} cursor-pointer !bg-s1`} />
+                <input type="date" aria-label="Day of the event" value={form.fixedDay} min={today || undefined} onChange={(e) => update({ fixedDay: e.target.value })} className={`${inputCls(show(errs.fixed) && !form.fixedDay)} cursor-pointer !bg-s1`} />
               </div>
               <div className="flex flex-none flex-wrap items-center gap-2.5 pb-px">
                 <span className="text-[12.5px] text-dim">from</span>
@@ -639,6 +640,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
               <div className="flex items-center gap-2">
                 <input
                   type="date"
+                  aria-label="RSVP deadline"
                   value={form.rsvpBy}
                   min={today || undefined}
                   max={form.fixedDay || undefined}
@@ -661,12 +663,12 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
             <div className="min-w-0 flex-1 sm:min-w-[150px]">
               <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Earliest day</span>
-              <input type="date" value={form.startDate} min={today || undefined} onChange={(e) => onStart(e.target.value)} className={`${inputCls(show(errs.start))} cursor-pointer !bg-s1`} />
+              <input type="date" aria-label="Earliest day to poll" value={form.startDate} min={today || undefined} onChange={(e) => onStart(e.target.value)} className={`${inputCls(show(errs.start))} cursor-pointer !bg-s1`} />
             </div>
             <span className="hidden pb-[11px] text-faint sm:block">→</span>
             <div className="min-w-0 flex-1 sm:min-w-[150px]">
               <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Latest day</span>
-              <input type="date" value={form.endDate} min={form.startDate || today || undefined} onChange={(e) => onEnd(e.target.value)} className={`${inputCls(show(errs.end))} cursor-pointer !bg-s1`} />
+              <input type="date" aria-label="Latest day to poll" value={form.endDate} min={form.startDate || today || undefined} onChange={(e) => onEnd(e.target.value)} className={`${inputCls(show(errs.end))} cursor-pointer !bg-s1`} />
             </div>
           </div>
           {(show(errs.start) || show(errs.end)) && <FieldError>{errs.start || errs.end}</FieldError>}
@@ -689,15 +691,16 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           {form.granularity !== 'day' && (<>
           <div className="mt-3.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border pt-3">
             <span className="min-w-0 text-[12.5px] leading-[1.5] text-dim">
-              {WIN_PRESETS.find((p) => p.v === form.windowPreset)?.l ?? 'All day'}, {{ '15': '15 min', '30': '30 min', '60': '1 hour' }[form.granularity] ?? form.granularity} slots, {fmtDur(form.durationMin)} long
+              {{ '15': '15 min', '30': '30 min', '60': '1 hour' }[form.granularity] ?? form.granularity} slots, {fmtDur(form.durationMin)} long
             </span>
             <button type="button" onClick={() => setTune((t) => !t)} className="-my-2 flex-none py-2 text-[12.5px] font-semibold text-accent-text hover:underline">
               {openTune ? 'Hide options' : 'Change'}
             </button>
           </div>
 
-          {openTune && (<>
-          {/* optional daily time window */}
+          {/* which hours of each day the poll covers. Out in the open rather than
+              behind Change: it is the second half of the question the calendar above
+              asks, and a poll that only wants evenings should say so before it is made. */}
           <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
             <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Daily time window</span>
             <Segmented value={form.windowPreset} onChange={pickWin} options={WIN_PRESETS.map((p) => ({ v: p.v, l: p.l }))} />
@@ -715,6 +718,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
             <p className="mt-2 text-[12.5px] leading-[1.5] text-faint">People will only be asked when they&apos;re free between {winText} on each day.</p>
           )}
 
+          {openTune && (<>
           <div className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
             <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Time slot size</span>
             <Segmented value={form.granularity} onChange={(v) => update({ granularity: v })} options={[{ v: '15', l: '15 min' }, { v: '30', l: '30 min' }, { v: '60', l: '1 hour' }]} />
@@ -739,6 +743,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
         <div className="relative">
           <select
             value={form.timezone}
+            aria-label="Time zone the event runs in"
             onChange={(e) => update({ timezone: e.target.value })}
             className={`h-11 sm:h-9 cursor-pointer appearance-none rounded-[9px] border ${show(errs.tz) ? 'border-brick-border' : 'border-border'} bg-s2 pl-3 pr-8 text-[13.5px] font-medium outline-none focus:border-accent-border`}
             style={form.timezone ? undefined : { color: 'var(--faint)' }}
@@ -1250,18 +1255,21 @@ function TimeField({ value, onChange, err, label }: { value: string; onChange: (
 }
 /* ── the daily time window, as a band of the day rather than two dropdowns ──
    It used to be two popovers, each with three scrolling columns: hours, minutes and
-   AM/PM. Three scrollers to say "evenings", on a phone, inside a form. And nothing
-   in it showed the one thing that matters, which is how much of the day is being
-   asked about.
+   AM/PM. Three scrollers to say "evenings", on a phone, inside a form. And nothing in
+   it showed the one thing that matters, which is how much of the day is being asked
+   about.
 
-   A window is a range, so it is drawn as one. Two native range inputs sit on top of
-   each other over a single track, the chosen band is painted between them, and the
-   two ends say what they are in words. Native inputs because they arrive with the
-   keyboard and the screen reader already working, which a pair of scrolling columns
-   never did: arrows nudge by the step, Home and End go to the ends of the day.
+   A window is a range, so it is drawn as one: a single track with the chosen band
+   painted between two handles, and the ends named underneath. On Radix's slider
+   rather than a pair of native inputs, because two native ranges stacked on top of
+   each other fight over the pointer wherever the handles meet — and they meet often,
+   since a window is usually a narrow band of a 24-hour track. Radix owns two thumbs
+   on one track properly, gives each its own aria-label, value and orientation, and
+   keeps the keyboard working: arrows nudge by the step, Home and End run to the ends
+   of the day.
 
-   Half-hour steps, because a poll built in half-hour slots cannot ask about 9:07,
-   and the handles cannot cross: each one stops a step short of the other. */
+   Half-hour steps, because a poll made of half-hour slots cannot ask about 9:07, and
+   a minimum gap of one step, so the two ends can never land on each other. */
 const DAY_MIN = 24 * 60
 const WIN_STEP = 30
 function TimeRange({ start, end, onChange, err }: {
@@ -1270,20 +1278,24 @@ function TimeRange({ start, end, onChange, err }: {
   const hhmm = (n: number) => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`
   const s = parseHM(start) ?? 10 * 60
   const e = parseHM(end) ?? 14 * 60
-  const pct = (n: number) => (n / DAY_MIN) * 100
-  const setS = (n: number) => onChange(hhmm(Math.min(n, e - WIN_STEP)), end)
-  const setE = (n: number) => onChange(start, hhmm(Math.max(n, s + WIN_STEP)))
-  // the thumb is the only part of each input that takes the pointer, so whichever
-  // handle is under the finger is the one that moves
-  const rail = 'pointer-events-none absolute inset-x-0 top-1/2 h-9 w-full -translate-y-1/2 appearance-none bg-transparent [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-accent [&::-webkit-slider-thumb]:bg-s1 [&::-webkit-slider-thumb]:shadow-soft [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-accent [&::-moz-range-thumb]:bg-s1 focus-visible:outline-none [&:focus-visible::-webkit-slider-thumb]:ring-2 [&:focus-visible::-webkit-slider-thumb]:ring-accent-border'
+  const thumb = 'block h-5 w-5 rounded-full border-2 border-accent bg-s1 shadow-soft outline-none focus-visible:ring-2 focus-visible:ring-accent-border'
   return (
     <div className="mt-2.5">
-      <div className="relative h-9 select-none">
-        <div className={`absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full ${err ? 'bg-brick-bg' : 'bg-s3'}`} />
-        <div className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-accent" style={{ left: `${pct(s)}%`, right: `${100 - pct(e)}%` }} />
-        <input type="range" min={0} max={DAY_MIN} step={WIN_STEP} value={s} onChange={(ev) => setS(Number(ev.target.value))} aria-label="Window start" className={rail} />
-        <input type="range" min={0} max={DAY_MIN} step={WIN_STEP} value={e} onChange={(ev) => setE(Number(ev.target.value))} aria-label="Window end" className={rail} />
-      </div>
+      <Slider.Root
+        value={[s, e]}
+        min={0}
+        max={DAY_MIN}
+        step={WIN_STEP}
+        minStepsBetweenThumbs={1}
+        onValueChange={([a, b]) => onChange(hhmm(a), hhmm(b))}
+        className="relative flex h-9 w-full touch-none select-none items-center"
+      >
+        <Slider.Track className={`relative h-1.5 w-full rounded-full ${err ? 'bg-brick-bg' : 'bg-s3'}`}>
+          <Slider.Range className="absolute h-full rounded-full bg-accent" />
+        </Slider.Track>
+        <Slider.Thumb className={thumb} aria-label="Window start" />
+        <Slider.Thumb className={thumb} aria-label="Window end" />
+      </Slider.Root>
       <div className="mt-1 flex items-center justify-between text-[13px] font-semibold tabular-nums">
         <span>{fmtMinute(s)}</span>
         <span className="text-[12.5px] font-medium text-faint">{fmtDur(e - s)} of the day</span>
@@ -1300,8 +1312,8 @@ function FieldError({ children }: { children: React.ReactNode }) {
   return <p className="mt-1.5 flex items-center gap-1 text-[12.5px] font-medium text-brick-text"><Info size={12} /> {children}</p>
 }
 
-function Label({ children }: { children: React.ReactNode }) {
-  return <label className="mb-[7px] block text-[13px] font-semibold text-dim">{children}</label>
+function Label({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
+  return <label htmlFor={htmlFor} className="mb-[7px] block text-[13px] font-semibold text-dim">{children}</label>
 }
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div><Label>{label}</Label>{children}</div>
