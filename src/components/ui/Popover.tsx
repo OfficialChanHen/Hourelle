@@ -1,24 +1,48 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import Link from 'next/link'
+import * as RPopover from '@radix-ui/react-popover'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 
 /**
  * Small anchored dropdown for progressive disclosure — tuck secondary settings and controls
- * behind a trigger instead of laying them out inline. Closes on outside-click and Escape.
+ * behind a trigger instead of laying them out inline.
  * `trigger` is a render prop so the caller can reflect the open state (e.g. rotate a chevron);
  * `children` is a render prop handed a `close` so menu items can dismiss the popover.
- * The panel clamps itself inside the viewport, so it never bleeds off-screen no matter
- * where its trigger ends up after the toolbar wraps.
  *
  * One voice for every dropdown: the panel carries the chrome (surface, hairline,
  * shadow, entrance), and the pieces below carry the inner language — a Title up top,
  * Items as rows, a Sep between groups. Title and Item alone should give the user all
  * the context an action needs; a Note is reserved for confirmations and committal
  * actions (deleting, locking in) where the consequence must be spelled out.
+ *
+ * ── why this sits on Radix ──
+ * It used to be hand-rolled, and the hand-rolled version was quietly inaccessible. The
+ * trigger never said it was one: no aria-expanded, no aria-haspopup, no link between it
+ * and the thing it opened. Focus never entered the panel when it opened and never came
+ * back to the trigger when it closed, so a keyboard left the panel behind and a screen
+ * reader was never told anything had happened. Tab walked straight out of an open panel
+ * into the page underneath. The panel was a bare div with no role. It rendered inline,
+ * so any ancestor with a hidden overflow — the availability grid, for one — could clip
+ * it. And it re-derived its own collision maths against window.innerWidth every time.
+ *
+ * Radix brings all of that and keeps it correct: the aria wiring, focus in and focus
+ * back, dismissal on Escape and on an outside press, a portal nothing can clip, and
+ * collision handling that flips and shifts the panel to fit. What stays ours is the
+ * look, the inner language below, and the entrance.
  */
+
+// a phone's bottom bar and the chat button own the last stretch of the screen, so the
+// panel is told to treat that as the edge and flip upward rather than open beneath it
+const NARROW = '(max-width: 1023px)'
+const subscribeNarrow = (cb: () => void) => {
+  const mq = window.matchMedia(NARROW)
+  mq.addEventListener('change', cb)
+  return () => mq.removeEventListener('change', cb)
+}
+
 export function Popover({
   trigger, children, align = 'end', width = 240, className,
 }: {
@@ -29,73 +53,34 @@ export function Popover({
   className?: string
 }) {
   const [open, setOpen] = useState(false)
-  const wrap = useRef<HTMLDivElement>(null)
+  const narrow = useSyncExternalStore(subscribeNarrow, () => window.matchMedia(NARROW).matches, () => false)
   const panel = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false) }
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
-    window.addEventListener('pointerdown', onDown); window.addEventListener('keydown', onKey)
-    return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
-  }, [open])
-
-  // keep the panel on-screen: measure once per open and nudge it back inside the viewport.
-  // The nudge lives on `left`, NOT transform — GSAP animates transform for the entrance
-  // and would stomp a transform-based clamp.
-  useLayoutEffect(() => {
-    const el = panel.current
-    if (!open || !el) return
-    el.style.left = ''
-    el.style.right = align === 'end' ? '0' : ''
-    const r = el.getBoundingClientRect()
-    const pad = 8
-    const dx = r.left < pad ? pad - r.left : r.right > window.innerWidth - pad ? window.innerWidth - pad - r.right : 0
-    if (dx) {
-      el.style.left = `${el.offsetLeft + dx}px`
-      el.style.right = 'auto'
-    }
-    // opens upward when the trigger sits near the bottom of the screen, where a
-    // downward panel would run under the phone's tab bar and chat button (below lg
-    // they own the last 84px). Imperative like the nudge: the panel is born fresh
-    // on every open, so there is nothing to reset.
-    const reserve = window.innerWidth < 1024 ? 84 : pad
-    const trigger = wrap.current?.getBoundingClientRect()
-    const spaceAbove = trigger ? trigger.top - pad : 0
-    const spaceBelow = window.innerHeight - reserve - (trigger?.bottom ?? r.top)
-    if (r.bottom > window.innerHeight - reserve && spaceAbove > Math.min(r.height, spaceBelow)) {
-      el.style.top = 'auto'
-      el.style.bottom = '100%'
-      el.style.marginTop = '0'
-      el.style.marginBottom = '6px'
-      el.style.transformOrigin = `bottom ${align === 'end' ? 'right' : 'left'}`
-    }
-  }, [open, align])
-
-  // the entrance: a breath of scale and lift from the trigger's corner — enough to
-  // feel physical, quick enough to never be waited on
+  // the entrance: a breath of scale and lift from the corner the panel grew out of.
+  // Radix decides where it lands and hands back the origin; this only plays it in.
   useGSAP(() => {
     if (!open || !panel.current) return
-    gsap.fromTo(
-      panel.current,
-      { opacity: 0, y: -5, scale: 0.96 },
-      { opacity: 1, y: 0, scale: 1, duration: 0.22, ease: 'power3.out' },
-    )
+    gsap.fromTo(panel.current, { opacity: 0, y: -5, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.22, ease: 'power3.out' })
   }, { dependencies: [open] })
 
   return (
-    <div ref={wrap} className={`relative ${className ?? ''}`}>
-      <button type="button" onClick={() => setOpen((o) => !o)}>{trigger(open)}</button>
-      {open && (
-        <div
+    <RPopover.Root open={open} onOpenChange={setOpen}>
+      <RPopover.Trigger asChild>
+        <button type="button" className={className}>{trigger(open)}</button>
+      </RPopover.Trigger>
+      <RPopover.Portal>
+        <RPopover.Content
           ref={panel}
-          className={`absolute top-full z-[45] mt-1.5 max-w-[calc(100vw-16px)] rounded-[14px] border border-border bg-s1 p-1.5 shadow-soft ${align === 'end' ? 'right-0' : 'left-0'}`}
-          style={{ width, transformOrigin: align === 'end' ? 'top right' : 'top left' }}
+          align={align}
+          sideOffset={6}
+          collisionPadding={{ top: 8, right: 8, bottom: narrow ? 92 : 8, left: 8 }}
+          className="z-[45] max-w-[calc(100vw-16px)] rounded-[14px] border border-border bg-s1 p-1.5 shadow-soft"
+          style={{ width, transformOrigin: 'var(--radix-popover-content-transform-origin)' }}
         >
           {children(() => setOpen(false))}
-        </div>
-      )}
-    </div>
+        </RPopover.Content>
+      </RPopover.Portal>
+    </RPopover.Root>
   )
 }
 
