@@ -64,6 +64,7 @@ import { canEmail, sendInvites } from '@/lib/mail'
 import { InviteByEmail } from '@/components/InviteByEmail'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { removeEventCovers } from '@/lib/covers'
+import { purgeRemoved } from '@/lib/remote'
 
 const TABS = [
   { key: 'availability', label: 'Availability', short: 'Availability' },
@@ -736,6 +737,8 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
   }
   function remove() {
     onPatch(removeParticipantPatch(event, p.id))
+    // their chat lines are rows no browser may delete; the server finishes the job
+    if (!event.demo) purgeRemoved(event.id, [p.id])
     close()
   }
   // two entries for one person (joined by name before an account, or from two devices):
@@ -805,7 +808,7 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
         </div>
       ) : confirmRemove ? (
         <div className="rounded-[9px] bg-brick-bg px-2.5 py-2">
-          <p className="mb-2 text-[12.5px] leading-[1.45] text-brick-text">Remove {first}? This clears their replies too.</p>
+          <p className="mb-2 text-[12.5px] leading-[1.45] text-brick-text">Remove {first}? This clears their times, votes and messages too.</p>
           <div className="flex items-center gap-1.5">
             <button onClick={remove} className="h-7 flex-1 rounded-[7px] text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
               Remove

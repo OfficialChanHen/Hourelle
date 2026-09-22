@@ -1,6 +1,6 @@
 import type { PersonColor } from './colors'
 import { av } from './people'
-import { isMine, pushAnswers, pushDelete, pushEvent, pushMessage, pushNewEvent } from './remote'
+import { isMine, purgeRemoved, pushAnswers, pushDelete, pushEvent, pushMessage, pushNewEvent } from './remote'
 import { currentAccount } from './session'
 import { writeLocal } from './local'
 import { slotOver, slotWhen } from './slot'
@@ -79,6 +79,10 @@ export type AppEvent = {
   times: string[]
   avail: Record<string, string[][]>   // per-cell view, derived from availIv — kept for lists/stats
   availIv?: AvailIntervals            // source of truth once anyone edits with minute precision
+  // everyone taken off the list, by the host or by leaving: the server clears their
+  // chat lines only for ids that are here and no longer on the roster, so a merge
+  // (which also takes an id off the roster) can never be mistaken for a removal
+  removedIds?: string[]
   importedIv?: AvailIntervals         // dayKey → participantId → ranges a calendar import showed as busy: drawn striped, kept apart from the answer so painting never loses them
   votes?: Record<string, string[]>    // placeId → participant ids who voted for it
   maxVotes?: number                   // votes each person gets (default 1)
@@ -303,6 +307,7 @@ export function leaveEvent(id: string): void {
       let next: AppEvent = ev
       for (const pid of mine) next = { ...next, ...removeParticipantPatch(next, pid) }
       patchEvent(id, next)
+      purgeRemoved(id, mine)
     }
   }
   writeAll(readAll().filter((e) => e.id !== id))
@@ -875,13 +880,23 @@ export function mergeParticipantsPatch(ev: AppEvent, fromId: string, intoId: str
   }
 }
 
+/* Taking someone off the event takes everything they put into it: their free times,
+   their calendar marks, "none of these days work", their votes and their lines in
+   the chat, "joined the event" included. What they added to the ballot stays, since
+   other people may have voted for it. The document half is here; the rows that live
+   on their own (availability, votes, messages) follow through pushAnswers and
+   purgeRemoved in remote.ts. */
 export function removeParticipantPatch(ev: AppEvent, pid: string): Partial<AppEvent> {
+  const drop = <T,>(byDay?: Record<string, Record<string, T>>) =>
+    byDay ? Object.fromEntries(Object.entries(byDay).map(([k, byPid]) => [k, Object.fromEntries(Object.entries(byPid).filter(([id]) => id !== pid))])) : undefined
   return {
     participants: ev.participants.filter((p) => p.id !== pid),
+    removedIds: [...new Set([...(ev.removedIds ?? []), pid])],
+    unavailableIds: ev.unavailableIds?.filter((id) => id !== pid),
+    importedIv: drop(ev.importedIv),
+    messages: ev.messages.filter((m) => m.id !== pid),
     avail: Object.fromEntries(Object.entries(ev.avail).map(([k, rows]) => [k, rows.map((ids) => ids.filter((id) => id !== pid))])),
-    availIv: ev.availIv
-      ? Object.fromEntries(Object.entries(ev.availIv).map(([k, byPid]) => [k, Object.fromEntries(Object.entries(byPid).filter(([id]) => id !== pid))]))
-      : undefined,
+    availIv: drop(ev.availIv),
     votes: ev.votes
       ? Object.fromEntries(Object.entries(ev.votes).map(([k, ids]) => [k, ids.filter((id) => id !== pid)]))
       : undefined,
@@ -1359,9 +1374,11 @@ export function joinEvent(id: string, name: string, email?: string): Participant
   let pid = base
   for (let n = 2; ev.participants.some((p) => p.id === pid); n++) pid = `${base}-${n}`
   const cleanEmail = email?.trim().toLowerCase()
+  // an email comes with a personal link, the same kind an invited guest gets: it is
+  // mailed to them once, and opening it on any device lands them back as themselves
   const guest: Participant = {
     id: pid, initials, name: clean, color: pickColor(ev.participants, { initials, name: clean }), rsvp: 'pending', guest: true,
-    ...(cleanEmail ? { email: cleanEmail } : {}),
+    ...(cleanEmail ? { email: cleanEmail, inviteToken: linkToken(16) } : {}),
   }
   if (ev.demo) {
     // a demo only lives in code, and patchEvent skips ids it can't find — materialize

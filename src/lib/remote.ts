@@ -263,7 +263,18 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
   const b = byParticipant(fullAvailIvOf(before)), a = byParticipant(fullAvailIvOf(after))
   const bUn = new Set(before.unavailableIds ?? []), aUn = new Set(after.unavailableIds ?? [])
   const me = after.participants.find((p) => p.you)?.id
+  const onList = new Set(after.participants.map((p) => p.id))
   for (const pid of new Set([...a.keys(), ...b.keys(), ...aUn, ...bUn])) {
+    // someone taken off the event: their row goes, rather than being kept as an empty
+    // answer, which is what an emptied answer from someone still on the list is
+    if (!onList.has(pid)) {
+      if (before.participants.some((p) => p.id === pid)) {
+        void afterCreate(after.id).then(() =>
+          supabase!.from('availability').delete().match({ event_id: after.id, participant_id: pid }).then(fail('clear their times')),
+        )
+      }
+      continue
+    }
     const from = b.get(pid) ?? {}, to = a.get(pid) ?? {}
     if (JSON.stringify(from) === JSON.stringify(to) && bUn.has(pid) === aUn.has(pid)) continue
     // an answer of your own on somebody else's event: once it is saved, the host may
@@ -327,6 +338,17 @@ type MessageRow = { id: string; event_id: string; participant_id: string; name: 
 
 function rowToMessage(r: MessageRow): ChatMessage {
   return { mid: r.id, id: r.participant_id, name: r.name, text: r.body, at: Number(r.at), time: '', you: false, system: r.system || undefined }
+}
+
+/* Someone came off an event: ask the server to clear their chat lines, which no
+   browser may delete. The server checks the event row first (the ids have to be in
+   its removedIds and off its roster), so this can only ever finish a removal that
+   already happened. Fire and forget: the removal itself has succeeded either way. */
+export function purgeRemoved(eventId: string, participantIds: string[]): void {
+  if (!backendOn || !participantIds.length) return
+  void afterCreate(eventId).then(() =>
+    fetch('/api/events/purge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ eventId, participantIds }) }).catch(() => {}),
+  )
 }
 
 export function pushMessage(eventId: string, m: ChatMessage): void {
@@ -549,6 +571,15 @@ export function startRealtime(): () => void {
       const list = readCache()
       if (!list.some((e) => e.id === row.event_id)) return // not a room this browser is in
       writeCache(mergeMessages(list, [row]), true)
+    })
+    // a line taken out of the chat (its writer was removed from the event) leaves every
+    // open copy too; matched by the message's own id, which a merge never rewrites
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (payload) => {
+      const mid = (payload.old as { id?: string }).id
+      if (!mid) return
+      const list = readCache()
+      if (!list.some((e) => e.messages.some((m) => m.mid === mid))) return
+      writeCache(list.map((e) => (e.messages.some((m) => m.mid === mid) ? { ...e, messages: e.messages.filter((m) => m.mid !== mid) } : e)), true)
     })
     // someone marked their times or moved a vote. Both tables are published whole, so
     // a delete still names its event; the refresh itself is debounced.

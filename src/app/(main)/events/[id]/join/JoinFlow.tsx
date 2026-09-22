@@ -14,6 +14,8 @@ import { Cover } from '@/components/ui/Cover'
 import { coverFor } from '@/components/ui/StoredEventCard'
 import { PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { AUTH_SETTLED, authSettled, currentAccount, emailHasAccount, sendMagicLink } from '@/lib/session'
+import { sendJoinedLink } from '@/lib/mail'
+import { pushFlash } from '@/components/ui/FlashToast'
 import { backendOn } from '@/lib/db'
 import { cloudSynced, fetchEvent } from '@/lib/remote'
 import { useAccount } from '@/hooks/useAccount'
@@ -140,6 +142,9 @@ export function JoinFlow({ id }: { id: string }) {
     if (joining) return
     setJoining(true)
     const guest = joinEvent(id, n, email)
+    // an email comes with the way back: the server mails their personal link once,
+    // in the background, and the event page says so when it arrives
+    if (guest?.email) void sendJoinedLink(id, guest.id).then((ok) => { if (ok) pushFlash(`Your link is on its way to ${guest.email}. Keep it to get back here from any device.`) })
     // a guest who just gave their name is asked, once per device, whether they know
     // their way around; an account had that offer on the welcome steps
     if (guest) { askAboutTour(); go() }

@@ -47,6 +47,19 @@ export function sendNudges(eventId: string, participantIds: string[]) {
   return post<NudgeResult>('/api/mail/nudge', { eventId, participantIds })
 }
 
+/** A guest who joined with their email: ask the server to send their personal link,
+ *  once. A guest has no session, so nothing to prove; the server checks the entry on
+ *  the event row and writes only to the address on it. Quiet either way: joining has
+ *  already succeeded, and this only adds a way back. */
+export async function sendJoinedLink(eventId: string, participantId: string): Promise<boolean> {
+  if (!backendOn || process.env.NEXT_PUBLIC_MAIL_ON !== '1') return false
+  try {
+    const res = await fetch('/api/mail/joined', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ eventId, participantId }) })
+    const data = (await res.json().catch(() => ({}))) as { sent?: boolean }
+    return res.ok && !!data.sent
+  } catch { return false }
+}
+
 /* ── reminder switches, kept on the account so the reminder job can read them ── */
 export async function loadReminderPrefs(userId: string): Promise<NotifyPrefs | null> {
   if (!backendOn) return null

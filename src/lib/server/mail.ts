@@ -100,7 +100,7 @@ function explainRefusal(status: number, detail: string): string {
 }
 
 /* ── the log: one row per message, and the key that stops repeats ── */
-export type MailKind = 'invite' | 'nudge' | 'locked' | 'reply' | 'event-eve' | 'event-day' | 'plan-eve' | 'plan-day' | 'vote-eve' | 'vote-day' | 'rsvp-eve' | 'rsvp-day'
+export type MailKind = 'invite' | 'joined' | 'nudge' | 'locked' | 'reply' | 'event-eve' | 'event-day' | 'plan-eve' | 'plan-day' | 'vote-eve' | 'vote-day' | 'rsvp-eve' | 'rsvp-day'
 
 /** Send once. The log row is claimed before the message goes out (the unique key
  *  refuses a second claim), so two overlapping runs cannot both send. A failed
@@ -317,6 +317,22 @@ export function inviteMail(ev: AppEvent, p: Participant, to: string, site: strin
   // whose two halves agree reads as correspondence and not as a template
   const html = note([lines[0], ...(facts.length ? [facts.join('\n')] : []), ask], link, footer)
   return { to, subject: `${host} invited you to ${ev.title}`, text, html, replyTo: hostEmail ?? undefined, fromName: `${host} via Hourelle`, attachments, thread: ev.id }
+}
+
+/* A guest who joined with their email gets their way back, once. Written as a note
+   to one person, like the invite: the link on its own line is the whole point of it,
+   and it says plainly what the link does so it is kept rather than deleted. */
+export function joinedMail(ev: AppEvent, p: Participant, to: string, site: string): Mail {
+  const host = hostNameOf(ev), link = joinLink(site, ev, p), when = whenText(ev), place = placeText(ev)
+  const lines = [
+    `Hi ${firstName(p)}, you're in on ${ev.title}.`,
+    'This is your own link to it. Open it on any phone or computer and you are back as yourself, with your answers where you left them. No account or password needed.',
+  ]
+  const facts = [when ? `When: ${when}` : '', place ? `Where: ${place}` : ''].filter(Boolean)
+  const footer = `You're getting this because you joined ${host}'s event with this address. If that wasn't you, you can ignore it.`
+  const text = [lines[0], ...facts, '', lines[1], '', link, '', footer].join('\n')
+  const html = note([lines[0], ...(facts.length ? [facts.join('\n')] : []), lines[1]], link, footer)
+  return { to, subject: `Your link to ${ev.title}`, text, html, fromName: 'Hourelle', thread: ev.id }
 }
 
 export function nudgeMail(ev: AppEvent, p: Participant, to: string, site: string, hostEmail?: string | null): Mail {
