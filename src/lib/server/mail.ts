@@ -272,6 +272,37 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;c
 </html>`
 }
 
+/* ── the invite wears something plainer than the rest ──
+   Every other message here is a notice from the app, and the shell above suits a
+   notice. An invite is not one: it is one person asking another, and it has to
+   arrive where personal mail arrives. Gmail decides the Promotions tab mostly on
+   shape, and a centred 520px card with a filled green button is the shape of a
+   campaign however careful the words inside it are.
+
+   So the invite gets none of it. No card, no button, no hidden preheader, no
+   uppercase labels, no footer rule: left-aligned paragraphs in the reader's own
+   default size, the link on its own line as itself, and the same sentences in the
+   same order as the plain-text twin beside it, which is what a real mail client
+   produces when a person writes to a person. `reply_to` already points at the host,
+   so a reply is a real reply, and a reply is the strongest signal there is.
+
+   Placement beats prominence here: an invite nobody finds converts at nothing. */
+function note(paras: string[], link: string, footer: string): string {
+  const font = "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif"
+  const para = (t: string) => `<p style="margin:0 0 14px;${font};font-size:15px;line-height:1.6;color:#1A1917">${t}</p>`
+  return `<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0">
+<div style="max-width:600px">
+${paras.map((t) => para(esc(t).replace(/\n/g, '<br>'))).join('\n')}
+${para(`<a href="${esc(link)}" style="color:#2A4537;word-break:break-all">${esc(link)}</a>`)}
+<p style="margin:22px 0 0;${font};font-size:13px;line-height:1.6;color:#67665F">${esc(footer)}</p>
+</div>
+</body>
+</html>`
+}
+
 export function inviteMail(ev: AppEvent, p: Participant, to: string, site: string, hostEmail?: string | null): Mail {
   const host = hostNameOf(ev), link = joinLink(site, ev, p), when = whenText(ev), place = placeText(ev)
   const ask = ev.confirmed ? 'Open your link to say whether you can make it.' : 'Open your link and mark when you are free. It takes a minute and needs no account.'
@@ -280,15 +311,11 @@ export function inviteMail(ev: AppEvent, p: Participant, to: string, site: strin
   // a plan already locked in travels with its calendar entry
   const attachments = calendarAttachment(ev, link)
   if (attachments) facts.push('The calendar entry is attached.')
-  const text = [lines[0], ...facts, '', ask, '', link, '', `Sent by Hourelle on behalf of ${host}. Reply to this email to reach them.`].join('\n')
-  const html = shell({
-    title: `${host} invited you to ${ev.title}`,
-    lines,
-    details: [{ label: 'When', value: when }, { label: 'Where', value: place }],
-    cta: { label: ev.confirmed ? 'Say if you can make it' : 'Mark when you are free', href: link },
-    preheader: ask,
-    footer: `Sent by Hourelle on behalf of ${host}. Reply to this email to reach them.`,
-  })
+  const footer = `Sent by Hourelle on behalf of ${host}. Reply to this email to reach them.`
+  const text = [lines[0], ...facts, '', ask, '', link, '', footer].join('\n')
+  // the HTML says the same things in the same order as the text, because a message
+  // whose two halves agree reads as correspondence and not as a template
+  const html = note([lines[0], ...(facts.length ? [facts.join('\n')] : []), ask], link, footer)
   return { to, subject: `${host} invited you to ${ev.title}`, text, html, replyTo: hostEmail ?? undefined, fromName: `${host} via Hourelle`, attachments, thread: ev.id }
 }
 
