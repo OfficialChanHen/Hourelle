@@ -12,12 +12,15 @@ import { fmtDur } from '@/app/(main)/events/[id]/_components/availability/grid-l
    its label, and under both a track as wide as the panel it lives in, filled up to
    the length chosen, on the same Radix slider the daily window uses.
 
-   The stops are the poll's own unit first. A grid of hour slots can only draw an
-   event in whole hours, so offering 1h 15m there asked for a length the calendar
-   could not show; the slot size is the smallest step, and the first stop. Past that
-   the step only widens as the number grows, because nobody weighs 9h 15m against
-   9h 30m: the slot size up to two hours, half hours (or the slot, if bigger) up to
-   four, then whole hours to the end of the window, a full day at most.
+   The length is its own measure, not the grid's. The best-time search works in
+   minutes over the stretches people marked, and the grid outlines what it finds
+   even when that starts or ends partway through a slot, so a 1h 15m event on a
+   grid of hour slots is a real answer: the frame just stops a quarter of the way
+   into the next row. Tying the steps to the slot size would have hidden lengths the
+   app can find. So the steps are quarter hours for every poll, and they only widen
+   as the number grows, because nobody weighs 9h 15m against 9h 30m: quarter hours
+   up to two hours, half hours up to four, then whole hours to the end of the
+   window, a full day at most.
 
    The track runs over the list of stops rather than raw minutes, so every stop is
    the same distance apart and ninety minutes is as easy to land on as nine hours.
@@ -26,10 +29,10 @@ import { fmtDur } from '@/app/(main)/events/[id]/_components/availability/grid-l
    the stops, Home and End run to the ends, and the thumb announces "1h 30m", not a
    stop number. */
 const DAY = 24 * 60
-function stopsFor(unit: number, min: number, max: number): number[] {
+function stopsFor(min: number, max: number): number[] {
   const top = Math.min(max, DAY)
   const out: number[] = []
-  for (let m = unit; m <= top; m += m < 120 ? unit : m < 240 ? Math.max(unit, 30) : Math.max(unit, 60)) if (m >= min) out.push(m)
+  for (let m = 15; m <= top; m += m < 120 ? 15 : m < 240 ? 30 : 60) if (m >= min) out.push(m)
   // a window that ends between stops still offers its own length as the last one
   if (!out.length || out[out.length - 1] < top) out.push(top)
   return out
@@ -37,10 +40,8 @@ function stopsFor(unit: number, min: number, max: number): number[] {
 // the hour marks worth naming under the track, in the order the scale reaches them
 const MARKS = [60, 120, 240, 480, 720, DAY]
 
-export function DurationField({ value, unit = 15, min = unit, max = DAY, onChange, label = 'Event length', title }: {
+export function DurationField({ value, min = 15, max = DAY, onChange, label = 'Event length', title }: {
   value: number
-  /** the poll's slot size in minutes: the smallest step, and the shortest length */
-  unit?: number
   min?: number
   max?: number
   onChange: (min: number) => void
@@ -48,7 +49,7 @@ export function DurationField({ value, unit = 15, min = unit, max = DAY, onChang
   /** what sits before the value on the top line; the value always follows it */
   title?: ReactNode
 }) {
-  const stops = stopsFor(unit, min, max)
+  const stops = stopsFor(min, max)
   // the stop nearest the value, so a length from before the stops changed still lands
   let at = 0
   for (let i = 1; i < stops.length; i++) if (Math.abs(stops[i] - value) < Math.abs(stops[at] - value)) at = i

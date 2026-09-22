@@ -583,12 +583,10 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
     const st = Number(v)
     update((f) => {
       const ws = parseHM(f.windowStart), we = parseHM(f.windowEnd)
-      // the length is measured in slots too: round it to the new one, never below one
-      const len = Math.max(st, Math.round(f.durationMin / st) * st)
-      if (f.windowPreset !== 'custom' || ws === null || we === null) return { granularity: v, durationMin: Math.min(len, winLenOf(f.windowPreset, f.windowStart, f.windowEnd)) }
+      if (f.windowPreset !== 'custom' || ws === null || we === null) return { granularity: v }
       const a = Math.floor(ws / st) * st
       const b = Math.max(a + st, Math.min(24 * 60, Math.ceil(we / st) * st))
-      return { granularity: v, windowStart: hhmmOf(a), windowEnd: hhmmOf(b), durationMin: Math.min(len, b - a) }
+      return { granularity: v, windowStart: hhmmOf(a), windowEnd: hhmmOf(b), durationMin: Math.min(f.durationMin, b - a) }
     })
   }
   function pickWin(v: string) {
@@ -774,7 +772,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
               typed past the daily window this event is allowed to happen in. */}
           <div className="mt-3.5 border-t border-border pt-3">
             <DurationField
-              value={form.durationMin} unit={Number(form.granularity) || 30} max={winLen} onChange={(m) => update({ durationMin: m })}
+              value={form.durationMin} max={winLen} onChange={(m) => update({ durationMin: m })}
               title={<span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Event length</span>}
             />
           </div>
