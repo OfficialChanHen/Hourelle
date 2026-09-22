@@ -463,7 +463,7 @@ function SingleVenue({
     for (let m = Math.ceil(winS / 30) * 30; m < winE; m += 30) {
       const pct = ((m - winS) / span) * 100
       if (pct <= 2 || pct >= 98) continue
-      const labeled = m % 60 === 0 && span >= 120 && pct > 14 && pct < 86
+      const labeled = m % 60 === 0 && span >= 120 && pct > 18 && pct < 82
       axis.push({ pct, label: labeled ? short(gridStart + m) : undefined })
     }
   }
@@ -836,18 +836,23 @@ function RosterGroup({ label, tone, people, cap: capIn, compact, action, onPerso
             {axis.map((t, i) => (
               <span key={i} className={`absolute bottom-0 w-px ${t.label ? 'h-[7px] bg-faint' : 'h-1 bg-border2'}`} style={{ left: `calc(${t.pct}% - 0.5px)` }} />
             ))}
-            {/* every label centers over its own tick, endpoints included — the row has
-                open space either side, so a half-label overhang costs nothing. Interior
-                labels sit out below sm so the endpoints never get squeezed. */}
-            {axis.filter((t) => t.label).map((t, i) => (
-              <span
-                key={`l${i}`}
-                className={`absolute top-0 -translate-x-1/2 whitespace-nowrap text-[11px] font-medium leading-none text-dim ${t.pct > 1 && t.pct < 99 ? 'hidden sm:block' : ''}`}
-                style={{ left: `${t.pct}%` }}
-              >
-                {t.label}
-              </span>
-            ))}
+            {/* the two ends hold their own edge: the first label starts at its tick and
+                the last one ends at its tick, so a long end time ("12:30 AM") stays
+                inside the card instead of hanging half past it. Interior labels center
+                on their ticks, sit out below sm, and are dropped where they would
+                collide with an end label. */}
+            {axis.filter((t) => t.label).map((t, i) => {
+              const start = t.pct <= 1, end = t.pct >= 99
+              return (
+                <span
+                  key={`l${i}`}
+                  className={`absolute top-0 whitespace-nowrap text-[11px] font-medium leading-none text-dim ${start ? '' : end ? '-translate-x-full' : '-translate-x-1/2 hidden sm:block'}`}
+                  style={{ left: `${t.pct}%` }}
+                >
+                  {t.label}
+                </span>
+              )
+            })}
           </div>
         </div>
       )}
