@@ -40,7 +40,6 @@ import { fromDay,
 import { cloudSettled } from '@/lib/remote'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { useAccount } from '@/hooks/useAccount'
-import { isPhotoCover } from '@/lib/cover-kind'
 import { DateField } from '@/components/ui/DateField'
 
 // what part of the day it is, by the reader's clock
@@ -276,25 +275,23 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
     ev.stopPropagation()
     navigator.clipboard?.writeText(`${window.location.origin}/events/${e.id}/join`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
-  // a photo of the host's own runs behind the whole hero, and the text sits on a
-  // paper panel over it: the picture gets the card, the words keep their contrast
-  const photo = isPhotoCover(e.image)
   return (
     <div
       onClick={() => router.push(dest)}
-      className="relative flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-s1 transition-colors hover:border-border2"
+      className="relative flex h-full cursor-pointer flex-col justify-end overflow-hidden rounded-2xl border border-border bg-s1 transition-colors hover:border-border2"
       style={tint.border ? { borderColor: tint.border } : undefined}
     >
-      {/* every Up next card shows the same height of cover, photo, scene or none:
-          170 on a phone, 210 from sm. It used to soak up whatever height the tallest
-          slide left over, so the picture grew and shrank from one event to the next.
-          Now the spare height goes to the words, which sit at the foot of the card. A
-          photo still runs behind the whole card with the words on a panel over it;
-          the panel starts at the same line a scene's cover ends. */}
-      {photo
-        ? <div className="absolute inset-0"><Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className="h-full w-full" /></div>
-        : <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className="h-[170px] flex-none sm:h-[210px]" />}
-      <div className={`flex flex-1 flex-wrap content-end items-end justify-between gap-x-6 gap-y-4 p-5 ${photo ? 'relative m-3 mt-[170px] rounded-xl border border-border bg-s1/[.94] shadow-soft backdrop-blur-sm sm:mt-[210px]' : ''}`}>
+      {/* The cover is the whole card on every Up next slide, photo or scene or the
+          fallback wash, and the words sit on a paper panel inset over its foot, so
+          the picture frames the details rather than stopping above them. Photos have
+          worn it this way since the photo covers arrived; scenes stacked instead, and
+          a later pass stretched the panel to fill spare height, which buried the
+          background the inset was there to show. Now every slide is the same card:
+          the carousel gives them one height, the cover fills it, the panel keeps its
+          own height at the bottom, and any spare height shows more of the picture.
+          170 (210 from sm) is the least of the cover that shows above the panel. */}
+      <div className="absolute inset-0"><Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className="h-full w-full" /></div>
+      <div className="relative m-3 mt-[170px] flex flex-wrap items-end justify-between gap-x-6 gap-y-4 rounded-xl border border-border bg-s1/[.94] p-5 shadow-soft backdrop-blur-sm sm:mt-[210px]">
         {/* real min width: on phones the CTAs wrap below instead of crushing the title */}
         <div className="min-w-[220px] flex-1">
           {/* one quiet line instead of a chip row: dot for the phase, words for the rest */}
