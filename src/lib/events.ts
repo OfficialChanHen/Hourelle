@@ -33,6 +33,11 @@ export type Participant = {
   // set when the host invited them by email: a secret in their personal link, so
   // opening it lands them already named. Possession of the link is the identity.
   inviteToken?: string
+  // when this invitation was made. A guest's id is built from their address, so
+  // removing someone and inviting them again rebuilds the same id, and the mail log
+  // (keyed on it) would call the second invitation a repeat of the first and send
+  // nothing. This separates them: a new invitation is a new moment.
+  invitedAt?: number
 }
 // lat/lng: where it is on the map (absent on custom places typed by hand, and on events saved before the real map)
 export type EventPlace = { id: string; name: string; place: string; addedBy?: string; lat?: number; lng?: number } // addedBy: participant id who suggested it
@@ -1083,7 +1088,7 @@ function guestFromEmail(raw: string, roster: Participant[]): Participant {
   const local = email.split('@')[0] || email
   const name = local.replace(/[._-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).trim() || email
   const initials = (name.split(' ').filter(Boolean).map((w) => w[0]).join('').slice(0, 2) || email[0] || 'G').toUpperCase()
-  return { id: `g:${email}`, initials, name, color: pickColor(roster, { initials, name }), rsvp: 'pending', guest: true, email, inviteToken: linkToken(16) }
+  return { id: `g:${email}`, initials, name, color: pickColor(roster, { initials, name }), rsvp: 'pending', guest: true, email, inviteToken: linkToken(16), invitedAt: Date.now() }
 }
 
 /** Invite more people by email after the event exists: each new address becomes a
@@ -1121,7 +1126,7 @@ export function addInvitees(id: string, people: { email: string; account?: Accou
     let next: Participant
     if (account) {
       const initials = initialsOf(account.name)
-      next = { id: account.id, initials, name: account.name, color: account.colorChosen ? account.color : pickColor(roster, { initials, name: account.name }), rsvp: 'pending', email }
+      next = { id: account.id, initials, name: account.name, color: account.colorChosen ? account.color : pickColor(roster, { initials, name: account.name }), rsvp: 'pending', email, invitedAt: Date.now() }
       ids.add(account.id)
     } else {
       next = guestFromEmail(email, roster)
