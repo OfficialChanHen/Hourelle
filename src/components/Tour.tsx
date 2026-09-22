@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { ArrowLeft, ArrowRight, Check, PlayCircle } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -143,6 +144,10 @@ function placeCard(b: Box | null, cardH: number): { left: number; top: number; w
 }
 
 export function Tour({ host = false, locked = false }: { host?: boolean; locked?: boolean }) {
+  // the clips link carries the event it was followed from, so Help can offer the way back
+  const pathname = usePathname()
+  const eventId = /^\/events\/([^/]+)/.exec(pathname ?? '')?.[1]
+  const watchHref = eventId ? `/help?from=${encodeURIComponent(eventId)}#watch` : '/help#watch'
   const [plan, setPlan] = useState<Stop[] | null>(null)
   const [i, setI] = useState(0)
   const [cand, setCand] = useState<Candidate | null>(null)
@@ -295,7 +300,7 @@ export function Tour({ host = false, locked = false }: { host?: boolean; locked?
             <div className="mt-1 font-serif text-[21px] leading-[1.15] tracking-[-0.01em]">That is the tour</div>
             <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">{host ? 'This practice event stays yours to play with. Four short clips on the Help page show each step from start to finish: making an event, marking times, picking a place and locking in.' : 'Your answers are saved as you go, and you can change them any time. Four short clips on the Help page show each step from start to finish.'}</p>
             <div className="mt-3.5 flex items-center justify-between gap-3">
-              <Link href="/help#watch" onClick={finish} className="flex items-center gap-1.5 text-[13px] font-semibold text-accent-text hover:underline">
+              <Link href={watchHref} onClick={finish} className="flex items-center gap-1.5 text-[13px] font-semibold text-accent-text hover:underline">
                 <PlayCircle size={15} /> Watch the clips
               </Link>
               <div className="flex items-center gap-2">
