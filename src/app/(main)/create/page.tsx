@@ -66,6 +66,16 @@ type LocMode = 'vote' | 'remote' | 'later'
 type PlanMode = 'vote' | 'itinerary'
 type WinPreset = 'any' | 'morning' | 'afternoon' | 'evening' | 'custom'
 
+/* ── the one question the whole event hangs on ──
+   Asking in whole days is not a setting, it is one of the three things an event can
+   be, and it changes what everybody sees: a calendar to tap rather than a grid to
+   drag. It spent too long as a pill inside a collapsed drawer. */
+const SCHEDULE_MODES: { v: 'find' | 'days' | 'set'; l: string; hint: string; icon: LucideIcon }[] = [
+  { v: 'find', l: 'Times of day', hint: 'People drag across the hours they are free.', icon: Clock },
+  { v: 'days', l: 'Whole days', hint: 'People tap the days they can make. Best for trips.', icon: CalendarRange },
+  { v: 'set', l: 'The date is set', hint: 'You already know. Guests just say yes or no.', icon: Check },
+]
+
 // daily time-window presets — 'any' means the grid covers the whole day
 const WIN_PRESETS: { v: WinPreset; l: string; s: string; e: string }[] = [
   { v: 'any', l: 'All day', s: '', e: '' },
@@ -88,7 +98,7 @@ function winLenOf(preset: WinPreset, s: string, e: string): number {
 type Form = {
   title: string
   description: string
-  scheduleMode: 'find' | 'set' // find a time together, or the date is already set
+  scheduleMode: 'find' | 'days' | 'set' // poll times, poll whole days, or the date is already set
   fixedDay: string
   fixedStart: string
   fixedEnd: string
@@ -228,7 +238,7 @@ function CreateWizard() {
       windowPreset: winPreset,
       windowStart: d.windowStart ?? '',
       windowEnd: d.windowEnd ?? '',
-      scheduleMode: d.fixed ? 'set' : 'find',
+      scheduleMode: d.fixed ? 'set' : (d.granularity ?? f.granularity) === 'day' ? 'days' : 'find',
       ...(d.fixed ? { fixedDay: d.fixed.day, fixedStart: d.fixed.start, fixedEnd: d.fixed.end } : {}),
       // 'set' comes back as the In person mode with the chosen-place flag on
       locMode: d.locMode ? (d.locMode === 'set' ? 'vote' : d.locMode) : f.locMode,
@@ -282,12 +292,14 @@ function CreateWizard() {
   const clock = today ? nowIn(form.timezone || undefined) : null
   const zToday = clock?.dayKey ?? today
   const zoneName = TZ.find((x) => x.v === form.timezone)?.l.replace(/ \(.*\)$/, '') ?? 'that time zone'
-  const finding = form.scheduleMode === 'find' // the window fields only matter when a time is being found
-  const startErr = !finding ? '' : !form.startDate ? 'Pick the earliest day.' : zToday && form.startDate < zToday ? `The earliest day has already passed in ${zoneName}.` : ''
-  const endErr = !finding ? '' : !form.endDate ? 'Pick the latest day.' : form.startDate && form.endDate < form.startDate ? 'The latest day can’t be before the earliest day.' : zToday && form.endDate < zToday ? `The latest day has already passed in ${zoneName}.` : ''
+  // both polls ask for a range of days; only the set mode does not. The time-only
+  // checks below narrow it further with `granularity !== 'day'`.
+  const polling = form.scheduleMode !== 'set'
+  const startErr = !polling ? '' : !form.startDate ? 'Pick the earliest day.' : zToday && form.startDate < zToday ? `The earliest day has already passed in ${zoneName}.` : ''
+  const endErr = !polling ? '' : !form.endDate ? 'Pick the latest day.' : form.startDate && form.endDate < form.startDate ? 'The latest day can’t be before the earliest day.' : zToday && form.endDate < zToday ? `The latest day has already passed in ${zoneName}.` : ''
   // the days actually being polled: the range minus turned-off weekdays and dates.
   // The grid holds 21 days, so long ranges pass by turning days off, not by truncation.
-  const selKeys = finding && !startErr && !endErr && form.startDate && form.endDate
+  const selKeys = polling && !startErr && !endErr && form.startDate && form.endDate
     ? selectedDayKeys(form.startDate, form.endDate, form.excludedDows, form.excludedDays)
     : null
   const basicsErr: BasicsErrs = {
@@ -302,16 +314,16 @@ function CreateWizard() {
           ? `That's ${selKeys.length} days to poll. Keep it to ${maxPollDays(form.granularity, form.startDate)} or fewer by turning off the days that don't apply${form.granularity === 'day' ? '' : ', or switch to whole days'}. A range that starts on the 1st of a month may run to the end of ${form.granularity === 'day' ? 'the third month' : 'that month'}.`
           : '',
     win:
-      finding && form.granularity !== 'day' && form.windowPreset === 'custom' && (parseHM(form.windowStart) === null || parseHM(form.windowEnd) === null)
+      polling && form.granularity !== 'day' && form.windowPreset === 'custom' && (parseHM(form.windowStart) === null || parseHM(form.windowEnd) === null)
         ? 'Pick both times for the custom window.'
-        : finding && form.granularity !== 'day' && form.windowPreset === 'custom' && (parseHM(form.windowEnd) ?? 0) <= (parseHM(form.windowStart) ?? 0)
+        : polling && form.granularity !== 'day' && form.windowPreset === 'custom' && (parseHM(form.windowEnd) ?? 0) <= (parseHM(form.windowStart) ?? 0)
           ? 'The window has to end after it starts.'
           // a one-day poll for today whose window is already over has nothing left to ask
-          : finding && form.granularity !== 'day' && clock && form.startDate === zToday && form.endDate === zToday && (parseHM(form.windowEnd) ?? 1440) <= clock.minute
+          : polling && form.granularity !== 'day' && clock && form.startDate === zToday && form.endDate === zToday && (parseHM(form.windowEnd) ?? 1440) <= clock.minute
             ? `That window has already passed today in ${zoneName}.`
             : '',
     tz: form.timezone ? '' : 'Pick the time zone this event runs in.',
-    fixed: finding
+    fixed: polling
       ? ''
       : !form.fixedDay
         ? 'Pick the day.'
@@ -357,7 +369,7 @@ function CreateWizard() {
         ? form.rsvpBy
         : undefined,
       // only pass an explicit day list when days were actually turned off
-      pickedDays: finding && (form.excludedDows.length || form.excludedDays.length) ? selKeys ?? undefined : undefined,
+      pickedDays: polling && (form.excludedDows.length || form.excludedDays.length) ? selKeys ?? undefined : undefined,
     })
     // the cover was picked before the event existed, so it goes up now that there is
     // something to file it under. Background, like the invites: the data URL already
@@ -532,6 +544,15 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
     const floor = form.startDate || today
     update({ endDate: floor && v && v < floor ? floor : v })
   }
+  /* the mode is the question, so it carries the answer's shape with it: whole days
+     means a day poll, and coming back to times restores a slot size rather than
+     leaving 'day' behind where no time control can reach it. */
+  function pickMode(v: 'find' | 'days' | 'set') {
+    update((f) => ({
+      scheduleMode: v,
+      granularity: v === 'days' ? 'day' : f.granularity === 'day' ? '30' : f.granularity,
+    }))
+  }
   function pickWin(v: string) {
     const p = WIN_PRESETS.find((x) => x.v === v)!
     update((f) => {
@@ -572,13 +593,30 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
 
       <div>
         <Label>When does it happen? <Req /></Label>
-        <SegmentedControl
-          stretch
-          className="mb-2.5 w-full"
-          value={form.scheduleMode}
-          onChange={(v) => update({ scheduleMode: v as 'find' | 'set' })}
-          options={[{ v: 'find', l: 'Find a time together', icon: CalendarRange }, { v: 'set', l: 'The date is set', icon: Check }]}
-        />
+        {/* The three real answers to "when", and asking in whole days is one of them.
+            It used to be a pill inside a drawer below the calendar, which made a whole
+            mode of the app look like a setting nobody needed to find. Cards rather than
+            segments: each one needs a line saying who it is for, and three segments on
+            a phone truncate to nothing. */}
+        <div className="mb-2.5 grid gap-2.5 sm:grid-cols-3">
+          {SCHEDULE_MODES.map((m) => {
+            const on = form.scheduleMode === m.v
+            return (
+              <button
+                key={m.v}
+                type="button"
+                onClick={() => pickMode(m.v)}
+                aria-pressed={on}
+                className={`flex flex-col items-start gap-1 rounded-xl border p-3.5 text-left ${on ? 'border-accent bg-accent-bg' : 'border-border bg-s1 hover:border-border2 hover:bg-s2'}`}
+              >
+                <span className={`flex items-center gap-1.5 text-[14px] font-semibold ${on ? 'text-accent-text' : ''}`}>
+                  <m.icon size={15} className={on ? 'text-accent-text' : 'text-dim'} /> {m.l}
+                </span>
+                <span className="text-[12.5px] leading-[1.45] text-dim">{m.hint}</span>
+              </button>
+            )
+          })}
+        </div>
         {form.scheduleMode === 'set' ? (
           <div className="rounded-[12px] border border-border bg-s2 p-3.5">
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
@@ -644,13 +682,14 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           />
           {show(errs.days) && <FieldError>{errs.days}</FieldError>}
 
-          {/* schedule fine-tuning starts collapsed — the defaults work, and a summary line
-              keeps the choices visible without three rows of controls up front */}
+          {/* every control in here is about times of day, so a day poll never shows it:
+              the window, the slot size and the event length have nothing to say when
+              the question is which days. Collapsed by default, with a summary line so
+              the choices stay visible without three rows of controls up front. */}
+          {form.granularity !== 'day' && (<>
           <div className="mt-3.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border pt-3">
             <span className="min-w-0 text-[12.5px] leading-[1.5] text-dim">
-              {form.granularity === 'day'
-                ? 'Full days, people tap the days they can make'
-                : <>{WIN_PRESETS.find((p) => p.v === form.windowPreset)?.l ?? 'All day'}, {{ '15': '15 min', '30': '30 min', '60': '1 hour' }[form.granularity] ?? form.granularity} slots, {fmtDur(form.durationMin)} long</>}
+              {WIN_PRESETS.find((p) => p.v === form.windowPreset)?.l ?? 'All day'}, {{ '15': '15 min', '30': '30 min', '60': '1 hour' }[form.granularity] ?? form.granularity} slots, {fmtDur(form.durationMin)} long
             </span>
             <button type="button" onClick={() => setTune((t) => !t)} className="-my-2 flex-none py-2 text-[12.5px] font-semibold text-accent-text hover:underline">
               {openTune ? 'Hide options' : 'Change'}
@@ -658,16 +697,6 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           </div>
 
           {openTune && (<>
-          <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
-            <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Asking about</span>
-            <Segmented
-              value={form.granularity === 'day' ? 'day' : 'times'}
-              onChange={(v) => update({ granularity: v === 'day' ? 'day' : '30' })}
-              options={[{ v: 'times', l: 'Times of day' }, { v: 'day', l: 'Whole days' }]}
-            />
-            {form.granularity === 'day' && <span className="text-[12.5px] text-faint">Good for trips. People tap the days they can make.</span>}
-          </div>
-          {form.granularity !== 'day' && (<>
           {/* optional daily time window */}
           <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
             <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Daily time window</span>
