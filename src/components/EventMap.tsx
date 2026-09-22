@@ -13,7 +13,9 @@ import { MapContainer, Marker, Polyline, Popup, TileLayer, ZoomControl, useMap }
 import 'leaflet/dist/leaflet.css'
 import { TILE_ATTRIBUTION, TILE_URL, type LatLng } from '@/lib/geo'
 
-export type MapPin = LatLng & { id: string; label: string; lead?: boolean }
+// `name` is what the pin is called out loud: the label in its head is a vote count
+// or a stop number, which tells a screen reader nothing about where it is
+export type MapPin = LatLng & { id: string; label: string; lead?: boolean; name?: string }
 
 const PIN_W = 32, PIN_H = 42
 
@@ -166,6 +168,11 @@ export function EventMap({ pins, route, dashed = false, focusId = null, panTo = 
           key={p.id}
           position={[p.lat, p.lng]}
           icon={pinIcon(p.label, !!p.lead, p.id === focusId)}
+          // Leaflet gives every marker role="button" and a tab stop, and the pin's own
+          // SVG is decorative, so without this the keyboard lands on a control that
+          // announces nothing at all. `alt` is what Leaflet writes onto the element.
+          alt={p.name ? `${p.name}${p.lead ? ', leading' : ''}` : `Place ${p.label}`}
+          title={p.name ?? undefined}
           ref={(m) => { if (m) markers.set(p.id, m); else markers.delete(p.id) }}
           // a close only clears focus when it is the focused pin closing — opening
           // another pin's popup closes this one too, and that must not reset focus

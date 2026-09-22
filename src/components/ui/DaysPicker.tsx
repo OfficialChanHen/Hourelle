@@ -117,7 +117,7 @@ export function DaysPicker({ startDate, endDate, excludedDows, excludedDays, onC
       </div>
 
       {/* weekday headers, then one row per week of the month with its label */}
-      <div className="mt-2 grid grid-cols-[auto_repeat(7,minmax(0,1fr))] gap-1 sm:gap-1.5" role="grid" aria-label="Days to poll">
+      <div className="mt-2 grid grid-cols-[auto_repeat(7,minmax(0,1fr))] gap-1 sm:gap-1.5" role="group" aria-label="Days to poll">
         <span aria-hidden />
         {DOW_L.map((l, d) => {
           const present = presentDows.has(d)
@@ -140,7 +140,7 @@ export function DaysPicker({ startDate, endDate, excludedDows, excludedDays, onC
           const rowOn = keys.some(isOn)
           const rowPossible = keys.some((k) => !dowOff(k))
           return (
-            <div key={w.n} className="contents" role="row">
+            <div key={w.n} className="contents">
               <button
                 type="button" onClick={() => toggleWeek(w)} disabled={!rowPossible} aria-pressed={rowOn}
                 title={keys.length === 0 ? 'No polled days this week' : rowOn ? `Turn week ${w.n} off` : `Turn week ${w.n} back on`}

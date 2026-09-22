@@ -1393,12 +1393,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             </span>
           ) : (
             <div className="flex items-center gap-[3px]">
-              <IconBtn onClick={() => goWeek(-1)} disabled={page === 0}><ChevronLeft size={17} /></IconBtn>
+              <IconBtn onClick={() => goWeek(-1)} disabled={page === 0} label="Previous week"><ChevronLeft size={17} /></IconBtn>
               <span className="px-1 text-center text-[13.5px] font-semibold leading-tight">
                 {rangeLabel}
                 {pageCount > 1 && <> <span className="font-medium text-faint">(week {page + 1} of {pageCount})</span></>}
               </span>
-              <IconBtn onClick={() => goWeek(1)} disabled={page >= pageCount - 1}><ChevronRight size={17} /></IconBtn>
+              <IconBtn onClick={() => goWeek(1)} disabled={page >= pageCount - 1} label="Next week"><ChevronRight size={17} /></IconBtn>
             </div>
           )}
           {/* it lives in Settings, which only a grid you can edit has; a read-only
@@ -1748,6 +1748,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                      time the rail never has to name. */
                   className={`sticky left-0 z-[15] flex items-center justify-end gap-1.5 border-r border-grid-edge bg-s0 px-1.5 font-medium text-dim ${narrow ? 'text-[10px]' : 'text-[12px]'}`}
                   style={{ cursor: mode === 'edit' ? 'pointer' : 'default' }}
+                  aria-label={mode === 'edit' ? `Fill ${fmt(gridStartMin + ti * step)} across the week` : `${fmt(gridStartMin + ti * step)} row`}
                   title={mode === 'edit' ? 'Click to fill this time across the week' : undefined}
                 >
                   {mode === 'edit' && (

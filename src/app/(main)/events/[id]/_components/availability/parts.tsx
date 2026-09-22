@@ -386,6 +386,8 @@ export function EdgeNudge({ label, value, onLess, onMore }: { label: string; val
     </div>
   )
 }
-export function IconBtn({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) {
-  return <button type="button" onClick={onClick} disabled={disabled} className="grid h-11 w-11 place-items-center rounded-[7px] border border-border bg-s1 text-dim enabled:hover:text-text disabled:opacity-40 sm:h-7 sm:w-7">{children}</button>
+export function IconBtn({ children, onClick, disabled, label }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; label: string }) {
+  // the child is an icon, which says nothing out loud: the label is what a screen
+  // reader reads and what a voice control user says to press it
+  return <button type="button" onClick={onClick} disabled={disabled} aria-label={label} className="grid h-11 w-11 place-items-center rounded-[7px] border border-border bg-s1 text-dim enabled:hover:text-text disabled:opacity-40 sm:h-7 sm:w-7">{children}</button>
 }

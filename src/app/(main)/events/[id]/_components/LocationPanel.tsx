@@ -394,8 +394,8 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // what the map draws: on the ballot, one pin per located place with its vote count;
   // on the itinerary, one numbered pin per stop
   const mapPins: MapPinData[] = sub === 'vote'
-    ? places.flatMap((p) => { const c = coordsOf(p); return c ? [{ id: p.id, label: String(votesOf(p.id).length), lead: locked ? confirmedIds.has(p.id) : p.id === leadingId, ...c }] : [] })
-    : stops.flatMap((s, i) => { const c = coordsOf(placeAt(s.placeId)); return c ? [{ id: s.uid, label: String(i + 1), lead: true, ...c }] : [] })
+    ? places.flatMap((p) => { const c = coordsOf(p); return c ? [{ id: p.id, label: String(votesOf(p.id).length), name: p.name, lead: locked ? confirmedIds.has(p.id) : p.id === leadingId, ...c }] : [] })
+    : stops.flatMap((s, i) => { const c = coordsOf(placeAt(s.placeId)); return c ? [{ id: s.uid, label: String(i + 1), name: placeAt(s.placeId)?.name, lead: true, ...c }] : [] })
   const unmapped = places.filter((p) => !coordsOf(p)).length
   // searches look near the places the event already has
   const near = centroidOf(places)

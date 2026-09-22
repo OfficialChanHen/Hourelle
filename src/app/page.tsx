@@ -96,9 +96,15 @@ export default function Landing() {
 
   return (
     <div ref={root} className="flex min-h-dvh flex-col">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-[10px] focus:border focus:border-accent-border focus:bg-s1 focus:px-4 focus:py-2.5 focus:text-[14px] focus:font-semibold focus:text-accent-text focus:shadow-soft"
+      >
+        Skip to content
+      </a>
       <VisitorHeader />
 
-      <main className="flex-1">
+      <main id="main" tabIndex={-1} className="flex-1">
         {/* ── hero ── */}
         <section className="mx-auto w-full max-w-[1240px] px-[22px] pb-8 pt-8 sm:pt-12 lg:pt-16">
           <div className="grid gap-10 lg:grid-cols-12 lg:items-center xl:gap-14">
