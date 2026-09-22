@@ -6,7 +6,6 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CalendarDays } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { useHideOnScroll } from '@/hooks/useHideOnScroll'
 
@@ -24,10 +23,7 @@ export function VisitorHeader({ ready = true }: { ready?: boolean }) {
   return (
     <header className={`sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md transition-transform duration-300 md:translate-y-0 ${hidden ? '-translate-y-full' : 'translate-y-0'}`}>
       <div className="mx-auto flex h-[58px] w-full max-w-[1240px] items-center gap-[22px] px-[22px]">
-        <Link href="/" className="flex items-center gap-[9px]">
-          <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-accent text-on-accent">
-            <CalendarDays size={17} />
-          </span>
+        <Link href="/" className="flex items-center">
           <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Hourelle</span>
         </Link>
         <nav className="hidden items-center gap-[3px] text-[14px] md:flex">

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Hourelle">
+  <defs><clipPath id="tile"><rect x="15.87" y="15.87" width="480.26" height="480.26" rx="112.64"/></clipPath></defs>
+  <g clip-path="url(#tile)">
+    <rect x="15.87" y="15.87" width="480.26" height="480.26" fill="#F7F6F4"/>
+    <rect x="175.96" y="256.0" width="160.09" height="120.06" fill="#2E4A3C"/>
+    <path d="M175.96 15.87V496.13M336.04 15.87V496.13M15.87 135.94H496.13M15.87 256.0H496.13M15.87 376.06H496.13" stroke="#C2D4C8" stroke-width="24.06" fill="none"/>
+  </g>
+  <rect x="15.87" y="15.87" width="480.26" height="480.26" rx="112.64" fill="none" stroke="#2E4A3C" stroke-width="32.0"/>
+</svg>

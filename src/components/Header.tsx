@@ -17,7 +17,7 @@ import { useSwingOnNew } from '@/hooks/useAttention'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRouter } from 'next/navigation'
-import { CalendarDays, Plus, Bell, UserRound, LogIn, LogOut, Settings, CircleHelp, Info } from 'lucide-react'
+import { Plus, Bell, UserRound, LogIn, LogOut, Settings, CircleHelp, Info } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { VisitorHeader } from './VisitorHeader'
 import { Popover, PopoverItem, PopoverSep } from './ui/Popover'
@@ -52,15 +52,12 @@ export function Header() {
   // never drift. Until the browser knows who this is, the same bar minus the doors.
   if (visitor || !ready) return <VisitorHeader ready={ready} />
 
-  // the welcome steps: nothing to go to yet, so the bar is the name and the mark alone
+  // the welcome steps: nothing to go to yet, so the bar is the name alone
   if (pathname.startsWith('/welcome')) {
     return (
       <header className={chrome}>
         <div className="mx-auto flex h-[54px] max-w-[1240px] items-center px-[22px]">
-          <span className="flex items-center gap-[9px]">
-            <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-accent text-on-accent">
-              <CalendarDays size={17} />
-            </span>
+          <span className="flex items-center">
             <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Hourelle</span>
           </span>
         </div>
@@ -75,10 +72,7 @@ export function Header() {
     return (
       <header className={chrome}>
         <div className="mx-auto flex h-[58px] max-w-[1240px] items-center gap-3 px-[22px]">
-          <Link href="/" className="flex items-center gap-[9px]">
-            <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-accent text-on-accent">
-              <CalendarDays size={17} />
-            </span>
+          <Link href="/" className="flex items-center">
             <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Hourelle</span>
           </Link>
           <div className="flex-1" />
@@ -102,11 +96,8 @@ export function Header() {
   return (
     <header className={chrome}>
       <div className="mx-auto flex h-[54px] max-w-[1240px] items-center gap-[22px] px-[22px]">
-        {/* logo — icon box + serif wordmark */}
-        <Link href="/home" className="flex items-center gap-[9px]">
-          <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-accent text-on-accent">
-            <CalendarDays size={17} />
-          </span>
+        {/* logo — the serif wordmark, on its own */}
+        <Link href="/home" className="flex items-center">
           <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Hourelle</span>
         </Link>
 
