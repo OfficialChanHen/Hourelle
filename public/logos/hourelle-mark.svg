@@ -1,9 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Hourelle">
+  <!--
+  The mark: a poll and the letter it belongs to, at the same time. Three days
+       across, three bands down, and the two cells painted green are the counters of
+       an H. What is left in warm paper is the letter. The counters run to the tile's
+       edge on purpose, because an H's counters are open at the top and the bottom;
+       closing them turns the letter back into two floating squares.
+  -->
   <defs><clipPath id="tile"><rect x="15.87" y="15.87" width="480.26" height="480.26" rx="112.64"/></clipPath></defs>
   <g clip-path="url(#tile)">
-    <rect x="15.87" y="15.87" width="480.26" height="480.26" fill="#F7F6F4"/>
-    <rect x="175.96" y="256.0" width="160.09" height="120.06" fill="#2E4A3C"/>
-    <path d="M175.96 15.87V496.13M336.04 15.87V496.13M15.87 135.94H496.13M15.87 256.0H496.13M15.87 376.06H496.13" stroke="#C2D4C8" stroke-width="24.06" fill="none"/>
+    <rect x="15.87" y="15.87" width="480.26" height="480.26" rx="112.64" fill="#F7F6F4"/>
+    <rect x="175.96" y="15.87" width="160.09" height="177.69" fill="#2E4A3C"/>
+    <rect x="175.96" y="318.43" width="160.09" height="177.69" fill="#2E4A3C"/>
+    <path d="M175.96 15.87V496.13M336.04 15.87V496.13M15.87 193.57H496.13M15.87 318.43H496.13" stroke="#C2D4C8" stroke-width="24.06" fill="none"/>
   </g>
   <rect x="15.87" y="15.87" width="480.26" height="480.26" rx="112.64" fill="none" stroke="#2E4A3C" stroke-width="32.0"/>
 </svg>
