@@ -1339,7 +1339,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         beside its label, the way the wizard asks it */}
                     {isHost && !daysAnswer && (
                       <DurationField
-                        value={durationMin} max={Math.max(30, event.times.length * step)} onChange={changeDuration}
+                        value={durationMin} unit={step} max={Math.max(step, event.times.length * step)} onChange={changeDuration}
                         title={<span className="text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Event length</span>}
                       />
                     )}
