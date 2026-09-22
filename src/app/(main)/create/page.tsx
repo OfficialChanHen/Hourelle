@@ -101,6 +101,8 @@ type Form = {
   description: string
   scheduleMode: 'find' | 'days' | 'set' // poll times, poll whole days, or the date is already set
   fixedDay: string
+  fixedEndDay: string // the last day of a set run; the same as fixedDay for one day
+  fixedAllDay: boolean
   fixedStart: string
   fixedEnd: string
   rsvpBy: string // optional RSVP deadline — set-date events open the RSVP round at birth
@@ -132,7 +134,7 @@ type Form = {
 
 const initialForm: Form = {
   title: '', description: '',
-  scheduleMode: 'find', fixedDay: '', fixedStart: '18:00', fixedEnd: '21:00', rsvpBy: '',
+  scheduleMode: 'find', fixedDay: '', fixedEndDay: '', fixedAllDay: false, fixedStart: '18:00', fixedEnd: '21:00', rsvpBy: '',
   startDate: '', endDate: '', excludedDows: [], excludedDays: [], granularity: '30', windowPreset: 'any', windowStart: '', windowEnd: '', durationMin: 60,
   timezone: '', budget: '', budgetMode: 'total', capacity: '', // timezone deliberately unset: picking it is a required, conscious step
   locMode: 'vote', planMode: 'vote', locSettled: false, picked: [], platform: 'Google Meet', meetingLink: '',
@@ -241,7 +243,7 @@ function CreateWizard() {
       windowStart: d.windowStart ?? '',
       windowEnd: d.windowEnd ?? '',
       scheduleMode: d.fixed ? 'set' : (d.granularity ?? f.granularity) === 'day' ? 'days' : 'find',
-      ...(d.fixed ? { fixedDay: d.fixed.day, fixedStart: d.fixed.start, fixedEnd: d.fixed.end } : {}),
+      ...(d.fixed ? { fixedDay: d.fixed.day, fixedEndDay: d.fixed.endDay ?? d.fixed.day, fixedAllDay: !!d.fixed.allDay, fixedStart: d.fixed.start, fixedEnd: d.fixed.end } : {}),
       // 'set' comes back as the In person mode with the chosen-place flag on
       locMode: d.locMode ? (d.locMode === 'set' ? 'vote' : d.locMode) : f.locMode,
       locSettled: d.locMode ? d.locMode === 'set' : f.locSettled,
@@ -279,6 +281,7 @@ function CreateWizard() {
       startDate: f.startDate || day(quick.start) || t,
       endDate: f.endDate || (day(quick.end) && day(quick.end) >= (day(quick.start) || t) ? day(quick.end) : '') || iso(week),
       fixedDay: f.fixedDay || t,
+      fixedEndDay: f.fixedEndDay || f.fixedDay || t,
     }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -297,6 +300,12 @@ function CreateWizard() {
   // both polls ask for a range of days; only the set mode does not. The time-only
   // checks below narrow it further with `granularity !== 'day'`.
   const polling = form.scheduleMode !== 'set'
+  // a set date that runs past its first day is a run of whole days, like a locked day
+  // poll; one day can be all day too, and otherwise it has hours
+  const fxEnd = form.fixedEndDay && form.fixedEndDay > form.fixedDay ? form.fixedEndDay : form.fixedDay
+  const fxRun = !!form.fixedDay && fxEnd !== form.fixedDay
+  const fxWhole = form.fixedAllDay || fxRun
+  const fxRunLen = fxRun ? selectedDayKeys(form.fixedDay, fxEnd, [], []).length : 1
   const startErr = !polling ? '' : !form.startDate ? 'Pick the earliest day.' : zToday && form.startDate < zToday ? `The earliest day has already passed in ${zoneName}.` : ''
   const endErr = !polling ? '' : !form.endDate ? 'Pick the latest day.' : form.startDate && form.endDate < form.startDate ? 'The latest day can’t be before the earliest day.' : zToday && form.endDate < zToday ? `The latest day has already passed in ${zoneName}.` : ''
   // the days actually being polled: the range minus turned-off weekdays and dates.
@@ -331,6 +340,10 @@ function CreateWizard() {
         ? 'Pick the day.'
         : zToday && form.fixedDay < zToday
           ? `That day has already passed in ${zoneName}.`
+          : fxRunLen > maxPollDays('day', form.fixedDay)
+            ? `That's ${fxRunLen} days. Keep it to ${maxPollDays('day', form.fixedDay)} or fewer.`
+          : fxWhole
+            ? ''
           : parseHM(form.fixedStart) === null || parseHM(form.fixedEnd) === null
             ? 'Pick both times.'
             : (parseHM(form.fixedEnd) as number) <= (parseHM(form.fixedStart) as number)
@@ -348,7 +361,7 @@ function CreateWizard() {
   function applyTemplate(key: string) {
     setForm((f) => ({
       ...initialForm,
-      timezone: f.timezone, startDate: f.startDate, endDate: f.endDate, fixedDay: f.fixedDay,
+      timezone: f.timezone, startDate: f.startDate, endDate: f.endDate, fixedDay: f.fixedDay, fixedEndDay: f.fixedEndDay,
       ...(tpl === key ? {} : TEMPLATE_PRESETS[key]),
     }))
     setTpl(tpl === key ? null : key)
@@ -365,7 +378,7 @@ function CreateWizard() {
       // the form tracks "already chosen" as a flag under In person; the event model
       // speaks one enum, where a chosen place is its own mode
       locMode: form.locMode === 'vote' && form.locSettled ? 'set' : form.locMode,
-      fixed: form.scheduleMode === 'set' ? { day: form.fixedDay, start: form.fixedStart, end: form.fixedEnd } : undefined,
+      fixed: form.scheduleMode === 'set' ? { day: form.fixedDay, endDay: fxEnd, start: form.fixedStart, end: form.fixedEnd, allDay: fxWhole } : undefined,
       // only a deadline that still makes sense travels: between today and the event day
       rsvpDeadline: form.scheduleMode === 'set' && form.rsvpBy && (!today || form.rsvpBy >= today) && form.rsvpBy <= form.fixedDay
         ? form.rsvpBy
@@ -555,6 +568,24 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
       granularity: v === 'days' ? 'day' : f.granularity === 'day' ? '30' : f.granularity,
     }))
   }
+  // moving the first day past the last one carries the last day along
+  function onFixedDay(v: string) {
+    update((f) => ({ fixedDay: v, fixedEndDay: !f.fixedEndDay || (v && f.fixedEndDay < v) ? v : f.fixedEndDay }))
+  }
+  const fxEnd = form.fixedEndDay && form.fixedEndDay > form.fixedDay ? form.fixedEndDay : form.fixedDay
+  const fxRun = !!form.fixedDay && fxEnd !== form.fixedDay
+  // a new slot size snaps a custom window outward onto its steps, the way the grid
+  // itself will be built, so the slider never sits between two of its own stops
+  function pickGranularity(v: string) {
+    const st = Number(v)
+    update((f) => {
+      const ws = parseHM(f.windowStart), we = parseHM(f.windowEnd)
+      if (f.windowPreset !== 'custom' || ws === null || we === null) return { granularity: v }
+      const a = Math.floor(ws / st) * st
+      const b = Math.max(a + st, Math.min(24 * 60, Math.ceil(we / st) * st))
+      return { granularity: v, windowStart: hhmmOf(a), windowEnd: hhmmOf(b), durationMin: Math.min(f.durationMin, b - a) }
+    })
+  }
   function pickWin(v: string) {
     const p = WIN_PRESETS.find((x) => x.v === v)!
     update((f) => {
@@ -570,8 +601,6 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
     })
   }
   const show = (e: string) => attempted && !!e
-  const [tune, setTune] = useState(false)
-  const openTune = tune || (attempted && !!errs.win) // never hide a field that has an error
   const winS = parseHM(form.windowStart), winE = parseHM(form.windowEnd)
   const winText = form.windowPreset !== 'any' && winS !== null && winE !== null && winE > winS
     ? `${fmtMinute(winS)} and ${fmtMinute(winE)}`
@@ -623,18 +652,36 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           <div className="rounded-[12px] border border-border bg-s2 p-3.5">
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
               <div className="min-w-0 flex-1 sm:min-w-[150px]">
-                <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Day</span>
-                <input type="date" aria-label="Day of the event" value={form.fixedDay} min={today || undefined} onChange={(e) => update({ fixedDay: e.target.value })} className={`${inputCls(show(errs.fixed) && !form.fixedDay)} cursor-pointer !bg-s1`} />
+                <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> First day</span>
+                <input type="date" aria-label="First day of the event" value={form.fixedDay} min={today || undefined} onChange={(e) => onFixedDay(e.target.value)} className={`${inputCls(show(errs.fixed) && !form.fixedDay)} cursor-pointer !bg-s1`} />
               </div>
-              <div className="flex flex-none flex-wrap items-center gap-2.5 pb-px">
-                <span className="text-[12.5px] text-dim">from</span>
-                <TimeField value={form.fixedStart} onChange={(v) => update({ fixedStart: v })} err={show(errs.fixed) && !!form.fixedDay} label="Start time" />
-                <span className="text-[12.5px] text-dim">to</span>
-                <TimeField value={form.fixedEnd} onChange={(v) => update({ fixedEnd: v })} err={show(errs.fixed) && !!form.fixedDay} label="End time" />
+              <span className="hidden pb-[11px] text-faint sm:block">→</span>
+              <div className="min-w-0 flex-1 sm:min-w-[150px]">
+                <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Last day</span>
+                <input type="date" aria-label="Last day of the event" value={fxEnd} min={form.fixedDay || today || undefined} onChange={(e) => update({ fixedEndDay: e.target.value && form.fixedDay && e.target.value < form.fixedDay ? form.fixedDay : e.target.value })} className={`${inputCls(false)} cursor-pointer !bg-s1`} />
               </div>
             </div>
+
+            {/* the hours, for one day. A run of days has none to give: it is planned the
+                way a locked day poll is, as whole days, and says so in place of the slider. */}
+            <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
+              <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Hours</span>
+              {fxRun
+                ? <span className="text-[13px] font-semibold">All day, every day</span>
+                : <Segmented value={form.fixedAllDay ? 'all' : 'hours'} onChange={(v) => update({ fixedAllDay: v === 'all' })} options={[{ v: 'hours', l: 'Set hours' }, { v: 'all', l: 'All day' }]} />}
+            </div>
+            {!fxRun && !form.fixedAllDay && (
+              <TimeRange
+                start={form.fixedStart}
+                end={form.fixedEnd}
+                step={15}
+                labels={['Start time', 'End time']}
+                err={show(errs.fixed) && !!form.fixedDay}
+                onChange={(fs, fe) => update({ fixedStart: fs, fixedEnd: fe })}
+              />
+            )}
             {show(errs.fixed) && <FieldError>{errs.fixed}</FieldError>}
-            <div className="mt-3">
+            <div className="mt-3 border-t border-border pt-3">
               <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint">
                 <Check size={13} /> RSVP by <span className="normal-case tracking-normal">(Optional)</span>
               </span>
@@ -686,22 +733,17 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           {show(errs.days) && <FieldError>{errs.days}</FieldError>}
 
           {/* every control in here is about times of day, so a day poll never shows it:
-              the window, the slot size and the event length have nothing to say when
-              the question is which days. Collapsed by default, with a summary line so
-              the choices stay visible without three rows of controls up front. */}
+              the slot size, the window and the event length have nothing to say when
+              the question is which days. Slot size comes first because it is the
+              window's unit: the slider below steps by it, so a poll of hour slots
+              cannot ask about half past. */}
           {form.granularity !== 'day' && (<>
-          <div className="mt-3.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border pt-3">
-            <span className="min-w-0 text-[12.5px] leading-[1.5] text-dim">
-              {{ '15': '15 min', '30': '30 min', '60': '1 hour' }[form.granularity] ?? form.granularity} slots, {fmtDur(form.durationMin)} long
-            </span>
-            <button type="button" onClick={() => setTune((t) => !t)} className="-my-2 flex-none py-2 text-[12.5px] font-semibold text-accent-text hover:underline">
-              {openTune ? 'Hide options' : 'Change'}
-            </button>
+          <div className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
+            <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Time slot size</span>
+            <Segmented value={form.granularity} onChange={pickGranularity} options={[{ v: '15', l: '15 min' }, { v: '30', l: '30 min' }, { v: '60', l: '1 hour' }]} />
           </div>
 
-          {/* which hours of each day the poll covers. Out in the open rather than
-              behind Change: it is the second half of the question the calendar above
-              asks, and a poll that only wants evenings should say so before it is made. */}
+          {/* which hours of each day the poll covers */}
           <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
             <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Daily time window</span>
             <Segmented value={form.windowPreset} onChange={pickWin} options={WIN_PRESETS.map((p) => ({ v: p.v, l: p.l }))} />
@@ -710,6 +752,8 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
             <TimeRange
               start={form.windowStart}
               end={form.windowEnd}
+              step={Number(form.granularity) || 30}
+              labels={['Window start', 'Window end']}
               err={show(errs.win)}
               onChange={(ws, we) => update((f) => ({ windowStart: ws, windowEnd: we, durationMin: Math.min(f.durationMin, winLenOf(f.windowPreset, ws, we)) }))}
             />
@@ -719,12 +763,6 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
             <p className="mt-2 text-[12.5px] leading-[1.5] text-faint">People will only be asked when they&apos;re free between {winText} on each day.</p>
           )}
 
-          {openTune && (<>
-          <div className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
-            <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Time slot size</span>
-            <Segmented value={form.granularity} onChange={(v) => update({ granularity: v })} options={[{ v: '15', l: '15 min' }, { v: '30', l: '30 min' }, { v: '60', l: '1 hour' }]} />
-          </div>
-
           {/* how long the event needs — drives the best-time search on the grid. The
               same control the grid's own settings use, and it cannot be stepped or
               typed past the daily window this event is allowed to happen in. */}
@@ -732,7 +770,6 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
             <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Event length</span>
             <DurationField value={form.durationMin} min={15} max={winLen} onChange={(m) => update({ durationMin: m })} />
           </div>
-          </>)}
           </>)}
         </div>
         )}
@@ -1185,75 +1222,6 @@ function inputCls(err = false) {
   // 44px tall on phones, the tighter 40 from sm up
   return `w-full h-11 sm:h-10 rounded-[10px] border ${err ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[14.5px] outline-none placeholder:text-faint focus:border-accent-border`
 }
-/* custom time picker: the whole field opens the popover (native inputs only open on the
-   clock icon), and the columns clip mid-row with a visible scrollbar so scrolling is obvious */
-const HOURS = Array.from({ length: 12 }, (_, i) => i) // 0 = 12 o'clock
-const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5)
-
-function TimeField({ value, onChange, err, label }: { value: string; onChange: (v: string) => void; err?: boolean; label: string }) {
-  const [open, setOpen] = useState(false)
-  const wrap = useRef<HTMLDivElement>(null)
-  const hourCol = useRef<HTMLDivElement>(null)
-  const minCol = useRef<HTMLDivElement>(null)
-  const min = parseHM(value) ?? 10 * 60
-  const hr12 = Math.floor(min / 60) % 12 // 0 = 12 o'clock
-  const mm = min % 60
-  const pm = min >= 12 * 60
-
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false) }
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
-    window.addEventListener('pointerdown', onDown)
-    window.addEventListener('keydown', onKey)
-    return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
-  }, [open])
-
-  // center the current values when the popover opens
-  useEffect(() => {
-    if (!open) return
-    const center = (col: HTMLDivElement | null, idx: number) => { if (col) col.scrollTop = idx * 30 - col.clientHeight / 2 + 15 }
-    center(hourCol.current, hr12)
-    center(minCol.current, Math.round(mm / 5))
-  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const set = (h: number, m: number, isPm: boolean) => onChange(`${String((h % 12) + (isPm ? 12 : 0)).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
-  const colCls = 'scroll-slim max-h-[164px] w-[52px] overflow-y-auto pr-0.5'
-  const itemCls = (on: boolean) => `flex h-[30px] w-full items-center justify-center rounded-[7px] text-[13.5px] font-medium ${on ? 'bg-accent text-on-accent' : 'text-dim hover:bg-s2 hover:text-text'}`
-
-  return (
-    <div ref={wrap} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-label={label}
-        aria-expanded={open}
-        className={`flex h-9 items-center gap-1.5 rounded-[10px] border ${err ? 'border-brick-border' : open ? 'border-accent-border' : 'border-border'} bg-s1 px-2.5 text-[14px] font-medium hover:border-border2`}
-      >
-        <Clock size={15} className="text-dim" /> {fmtMinute(min)} <ChevronDown size={15} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 flex gap-1 rounded-[10px] border border-border bg-s1 p-1.5 shadow-soft">
-          <div ref={hourCol} className={colCls}>
-            {HOURS.map((h) => (
-              <button key={h} type="button" onClick={() => set(h, mm, pm)} className={itemCls(h === hr12)}>{h === 0 ? 12 : h}</button>
-            ))}
-          </div>
-          <div ref={minCol} className={colCls}>
-            {MINUTES.map((m) => (
-              <button key={m} type="button" onClick={() => set(hr12, m, pm)} className={itemCls(m === mm)}>{String(m).padStart(2, '0')}</button>
-            ))}
-          </div>
-          <div className="flex flex-col gap-1">
-            {(['AM', 'PM'] as const).map((ap) => (
-              <button key={ap} type="button" onClick={() => set(hr12, mm, ap === 'PM')} className={`${itemCls((ap === 'PM') === pm)} !w-[42px]`}>{ap}</button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 /* ── the daily time window, as a band of the day rather than two dropdowns ──
    It used to be two popovers, each with three scrolling columns: hours, minutes and
    AM/PM. Three scrollers to say "evenings", on a phone, inside a form. And nothing in
@@ -1269,14 +1237,16 @@ function TimeField({ value, onChange, err, label }: { value: string; onChange: (
    keeps the keyboard working: arrows nudge by the step, Home and End run to the ends
    of the day.
 
-   Half-hour steps, because a poll made of half-hour slots cannot ask about 9:07, and
-   a minimum gap of one step, so the two ends can never land on each other. */
+   It steps by the poll's slot size, because a poll made of half-hour slots cannot ask
+   about 9:07, with a minimum gap of one step, so the two ends can never land on each
+   other. A set date uses it too, in quarter hours. */
 const DAY_MIN = 24 * 60
-const WIN_STEP = 30
-function TimeRange({ start, end, onChange, err }: {
+const hhmmOf = (n: number) => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`
+function TimeRange({ start, end, onChange, err, step, labels }: {
   start: string; end: string; onChange: (s: string, e: string) => void; err?: boolean
+  step: number; labels: [string, string]
 }) {
-  const hhmm = (n: number) => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`
+  const hhmm = hhmmOf
   const s = parseHM(start) ?? 10 * 60
   const e = parseHM(end) ?? 14 * 60
   const thumb = 'block h-5 w-5 rounded-full border-2 border-accent bg-s1 shadow-soft outline-none focus-visible:ring-2 focus-visible:ring-accent-border'
@@ -1286,7 +1256,7 @@ function TimeRange({ start, end, onChange, err }: {
         value={[s, e]}
         min={0}
         max={DAY_MIN}
-        step={WIN_STEP}
+        step={step}
         minStepsBetweenThumbs={1}
         onValueChange={([a, b]) => onChange(hhmm(a), hhmm(b))}
         className="relative flex h-9 w-full touch-none select-none items-center"
@@ -1294,8 +1264,8 @@ function TimeRange({ start, end, onChange, err }: {
         <Slider.Track className={`relative h-1.5 w-full rounded-full ${err ? 'bg-brick-bg' : 'bg-s3'}`}>
           <Slider.Range className="absolute h-full rounded-full bg-accent" />
         </Slider.Track>
-        <Slider.Thumb className={thumb} aria-label="Window start" />
-        <Slider.Thumb className={thumb} aria-label="Window end" />
+        <Slider.Thumb className={thumb} aria-label={labels[0]} />
+        <Slider.Thumb className={thumb} aria-label={labels[1]} />
       </Slider.Root>
       <div className="mt-1 flex items-center justify-between text-[13px] font-semibold tabular-nums">
         <span>{fmtMinute(s)}</span>

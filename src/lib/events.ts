@@ -19,7 +19,7 @@ export type { ChatMessage }
 export type Rsvp = 'attending' | 'maybe' | 'not_going' | 'pending'
 export type EventStatus = 'planning' | 'confirmed'
 // the host's locked-in plan: a day, a clock-minute window, and the chosen place(s).
-// endDayKey (day polls only) makes it a run of whole days — absent means one day.
+// endDayKey (a day poll, or a date set as a run of days) makes it a run of whole days — absent means one day.
 export type ConfirmedSlot = { dayKey: string; endDayKey?: string; startMin: number; endMin: number; placeIds: string[] }
 export type Participant = {
   id: string; initials: string; name: string; color: PersonColor; rsvp: Rsvp
@@ -135,7 +135,9 @@ export type CreateInput = {
   planMode: 'vote' | 'itinerary'
   // date already set ('YYYY-MM-DD' + 'HH:MM'): the time is a fact from birth. The event
   // is only born confirmed if the place is also answered — a live ballot keeps it planning.
-  fixed?: { day: string; start: string; end: string }
+  // allDay, or an endDay past day, makes it a run of whole days, the shape a locked day
+  // poll has, and start/end are ignored.
+  fixed?: { day: string; endDay?: string; start: string; end: string; allDay?: boolean }
   rsvpDeadline?: string // optional, fixed-date events only: the RSVP round opens at birth
   image?: string        // the cover, chosen in the wizard or carried over by a duplicate
   imageFit?: 'fill' | 'fit'
@@ -996,7 +998,14 @@ export function draftFromEvent(id: string): EventDraft | null {
   // Only that shape comes back set; a poll that was locked in comes back as a poll.
   const bornFixed = !!c && !c.endDayKey && !(c.startMin === 0 && c.endMin === 24 * 60)
     && ev.days.length === 1 && ev.days[0]?.key === c.dayKey && gridStart === c.startMin && gridEnd === c.endMin
-  const fixed = bornFixed && c ? { day: nextSameDow(c.dayKey), start: hm(c.startMin), end: hm(c.endMin) } : undefined
+  // or born as a run of whole days: a day grid that is exactly the locked run
+  const runEnd = c?.endDayKey ?? c?.dayKey
+  const bornWhole = !!c && ev.granularity === 'day' && c.startMin === 0 && c.endMin === 24 * 60
+    && ev.startDate === c.dayKey && ev.endDate === runEnd && ev.days.length === selectedDayKeys(c.dayKey, runEnd!, [], []).length
+  const runSpan = (() => { const x = parseLocal(c?.dayKey ?? ''), y = parseLocal(runEnd ?? ''); return x && y ? Math.round((y.getTime() - x.getTime()) / 86400000) : 0 })()
+  const fixed = bornFixed && c ? { day: nextSameDow(c.dayKey), start: hm(c.startMin), end: hm(c.endMin) }
+    : bornWhole && c ? { day: nextSameDow(c.dayKey), endDay: shift(nextSameDow(c.dayKey), runSpan), start: '18:00', end: '21:00', allDay: true }
+    : undefined
   return {
     title: ev.title,
     description: ev.description,
@@ -1393,15 +1402,18 @@ export function createEvent(input: CreateInput): AppEvent {
   // the date is already set: the time is a fact from birth. If the place is answered
   // too the event is born confirmed and goes straight to the RSVP round; with a live
   // ballot it stays in planning until the place is locked.
-  const fxS = input.fixed ? parseHM(input.fixed.start) : null
-  const fxE = input.fixed ? parseHM(input.fixed.end) : null
+  const fxEnd = input.fixed?.endDay && input.fixed.endDay > input.fixed.day ? input.fixed.endDay : input.fixed?.day
+  const fxWhole = !!input.fixed && (!!input.fixed.allDay || fxEnd !== input.fixed.day)
+  const fxS = input.fixed ? (fxWhole ? 0 : parseHM(input.fixed.start)) : null
+  const fxE = input.fixed ? (fxWhole ? 24 * 60 : parseHM(input.fixed.end)) : null
   const fixed = input.fixed && fxS !== null && fxE !== null && fxE > fxS
-    ? { day: input.fixed.day, s: fxS, e: fxE }
+    ? { day: input.fixed.day, endDay: fxEnd ?? input.fixed.day, s: fxS, e: fxE, whole: fxWhole }
     : null
 
-  // a fixed date carries clock times, so it can't be a day poll — coerce to 30 min
-  const gran: AppEvent['granularity'] =
-    input.granularity === '15' || input.granularity === '60' ? input.granularity
+  // a timed fixed date carries clock times, so it can't be a day poll: coerce to 30 min.
+  // A run of whole days is exactly a day poll's grid.
+  const gran: AppEvent['granularity'] = fixed?.whole ? 'day'
+    : input.granularity === '15' || input.granularity === '60' ? input.granularity
       : input.granularity === 'day' && !fixed ? 'day'
         : '30'
 
@@ -1409,11 +1421,11 @@ export function createEvent(input: CreateInput): AppEvent {
   const dayCap = maxPollDays(gran, fixed ? fixed.day : input.startDate)
   const sparseList = !fixed && input.pickedDays?.length ? buildDaysFrom(input.pickedDays, dayCap) : null
   const sparse = sparseList?.length ? sparseList : null
-  const days = sparse ?? buildDays(fixed ? fixed.day : input.startDate, fixed ? fixed.day : input.endDate, dayCap)
+  const days = sparse ?? buildDays(fixed ? fixed.day : input.startDate, fixed ? fixed.endDay : input.endDate, dayCap)
   // optional daily time window, snapped outward to the slot size so it fully covers the ask;
   // no window = the whole day. A fixed date windows the grid around the chosen slot.
   const st = stepOf(gran)
-  const winS = fixed ? fixed.s : parseHM(input.windowStart), winE = fixed ? fixed.e : parseHM(input.windowEnd)
+  const winS = fixed ? (fixed.whole ? null : fixed.s) : parseHM(input.windowStart), winE = fixed ? (fixed.whole ? null : fixed.e) : parseHM(input.windowEnd)
   const hasWin = winS !== null && winE !== null && winE > winS
   const fromMin = hasWin ? Math.floor(winS / st) * st : 0
   const toMin = hasWin ? Math.min(24 * 60, Math.ceil(winE / st) * st) : 24 * 60
@@ -1441,7 +1453,7 @@ export function createEvent(input: CreateInput): AppEvent {
     description: input.description.trim(),
     timezone: input.timezone || 'UTC', // wizard validation requires one; fallback for safety
     startDate: fixed ? fixed.day : sparse ? days[0].key : input.startDate,
-    endDate: fixed ? fixed.day : sparse ? days[days.length - 1].key : input.endDate,
+    endDate: fixed ? fixed.endDay : sparse ? days[days.length - 1].key : input.endDate,
     granularity: gran,
     budget: input.budget,
     budgetMode: input.budgetMode ?? 'total',
@@ -1473,7 +1485,7 @@ export function createEvent(input: CreateInput): AppEvent {
     createdAt: Date.now(),
     status: fixed && !placeOpen ? 'confirmed' : 'planning',
     ...(fixed ? {
-      confirmed: { dayKey: fixed.day, startMin: fixed.s, endMin: fixed.e, placeIds: fixedPlaceIds },
+      confirmed: { dayKey: fixed.day, ...(fixed.endDay !== fixed.day ? { endDayKey: fixed.endDay } : {}), startMin: fixed.s, endMin: fixed.e, placeIds: fixedPlaceIds },
       ...(placeOpen ? {} : { confirmedAt: Date.now() }),
       // the deadline rides along even while a ballot keeps the event planning — it
       // starts mattering the moment the place locks
