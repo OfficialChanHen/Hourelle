@@ -209,14 +209,18 @@ export const PROVIDER_LABEL: Record<OAuthProvider, string> = { google: 'Google',
 export const EMAIL_TAKEN = 'That email already has an account.'
 
 /** Is there an account behind this address? profiles mirrors auth.users (the
- *  handle_new_user trigger copies the email), and it is readable without a session,
- *  so the sign-up form can ask before anything is created. */
+ *  handle_new_user trigger copies the email), so the sign-up form can ask before
+ *  anything is created. It asks through `email_has_account` rather than by reading
+ *  the table, which is closed to everyone but its owner (migrations 0016 and 0017):
+ *  the answer is a bare yes or no and no address ever comes back out. A failure
+ *  reads as "no", so a database that has not been migrated yet leaves sign-up
+ *  working and merely stops it noticing a duplicate early. */
 export async function emailHasAccount(email: string): Promise<boolean> {
   if (!backendOn) return false
   const clean = email.trim().toLowerCase()
   if (!clean) return false
-  const { data } = await supabase!.from('profiles').select('id').eq('email', clean).maybeSingle()
-  return !!data
+  const { data, error } = await supabase!.rpc('email_has_account', { addr: clean })
+  return !error && data === true
 }
 
 export async function signUpWithEmail(email: string, password: string, name: string): Promise<string | null> {

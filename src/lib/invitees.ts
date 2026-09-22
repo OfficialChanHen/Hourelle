@@ -43,15 +43,18 @@ export function recentInvitees(limit = 8): Invitee[] {
   return out
 }
 
-/** An exact email that belongs to an account, or null. Exact only: profiles are
- *  readable, but the app never offers a way to browse them. */
+/** An exact email that belongs to an account, or null. Exact only, and through
+ *  `profile_by_email` rather than the table, which is closed to everyone but its
+ *  owner (migrations 0016 and 0017). The function hands back a name and a colour and
+ *  nothing else, it answers signed-in callers only, and there is still no way to
+ *  browse: you have to know the address already. */
 export async function lookupProfileByEmail(email: string): Promise<Invitee | null> {
   if (!backendOn) return null
   const clean = email.trim().toLowerCase()
   if (!clean) return null
-  const { data } = await supabase!.from('profiles').select('*').eq('email', clean).maybeSingle()
-  const row = data as { id: string; name: string; color: string; email?: string; color_set?: boolean } | null
-  return row ? { id: row.id, name: row.name, color: row.color as PersonColor, email: row.email ?? clean, account: true, colorChosen: !!row.color_set } : null
+  const { data } = await supabase!.rpc('profile_by_email', { addr: clean }).maybeSingle()
+  const row = data as { id: string; name: string; color: string; color_set?: boolean } | null
+  return row ? { id: row.id, name: row.name, color: row.color as PersonColor, email: clean, account: true, colorChosen: !!row.color_set } : null
 }
 
 /** Invite by email after the event exists: each address is looked up, so a person
