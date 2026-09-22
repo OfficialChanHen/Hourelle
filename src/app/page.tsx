@@ -21,7 +21,7 @@ import { ChatDemo } from '@/components/landing/ChatDemo'
 import { SiteFooter } from '@/components/SiteFooter'
 import { rich } from '@/components/ui/rich'
 import { Cover } from '@/components/ui/Cover'
-import { coverFor } from '@/components/ui/StoredEventCard'
+import { CARD_COVER_H, coverFor } from '@/components/ui/StoredEventCard'
 import { useAccess } from '@/hooks/useAccess'
 import { listDemos, type AppEvent } from '@/lib/events'
 import { reducedMotion } from '@/lib/prefs'
@@ -200,7 +200,7 @@ export default function Landing() {
               const [from, to] = coverFor(d.id)
               return (
                 <Link key={d.id} href={`/events/${d.id}`} className={`group ${frame} transition-transform hover:-translate-y-0.5`}>
-                  <Cover src={d.image} from={from} to={to} className="h-[110px]" />
+                  <Cover src={d.image} from={from} to={to} className={CARD_COVER_H} />
                   <div className="p-5">
                     <p className="font-serif text-[21px] leading-tight tracking-[-0.01em]">{d.title}</p>
                     <p className="mt-1.5 text-[13px] leading-[1.55] text-dim">{rich(DEMO_PICKS[d.id])}</p>

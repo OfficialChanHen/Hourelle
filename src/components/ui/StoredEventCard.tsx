@@ -10,13 +10,15 @@ import { Cover } from './Cover'
 import { Tip } from './Tip'
 import { daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, eventTabFor, leadingPlaceOf, phaseOf, respondedCount, type AppEvent, type SameDayInfo } from '@/lib/events'
 import { PHASE_BADGE, PHASE_TINT } from './LifecycleStrip'
-import { isPhotoCover } from '@/lib/cover-kind'
 
 const COVERS: [string, string][] = [
   ['#E4EDE7', '#CFE0D5'], ['#E7E2EE', '#D9CFE4'], ['#DEE7EC', '#C7DAE2'],
   ['#EFE7D6', '#E4D3B4'], ['#EEE1DD', '#E4CCC7'], ['#E4EADB', '#CDDCBB'],
 ]
 // shared with the home hero, so the same event wears the same cover everywhere
+/** The cover height every event card wears, here and on the landing page. */
+export const CARD_COVER_H = 'h-[120px]'
+
 export function coverFor(id: string): [string, string] {
   let h = 0
   for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0
@@ -75,9 +77,11 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
       // status reads from the frame, not from chips: the border wears the phase color
       style={tint.border ? { borderColor: tint.border } : undefined}
     >
-      {/* a photo of the host's own gets more of the card than a scene; the text stays on paper below it */}
+      {/* one cover height for every card, photo or scene, so a row of cards lines up:
+          the titles start on the same line and the grid reads as a grid. A photo used
+          to take 150 and a scene 92, which staggered every row that mixed the two. */}
       <div className="relative -mx-3.5 -mt-3.5 mb-3">
-        <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={from} to={to} className={isPhotoCover(e.image) ? 'h-[150px]' : 'h-[92px]'} />
+        <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={from} to={to} className={CARD_COVER_H} />
         {/* the cover's top corner is the one open spot on the card: the host's way to the details tab */}
         {e.hostedByYou && !e.demo && (
           <span

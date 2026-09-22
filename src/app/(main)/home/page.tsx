@@ -282,15 +282,19 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
   return (
     <div
       onClick={() => router.push(dest)}
-      className={`relative flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-s1 transition-colors hover:border-border2 ${photo ? 'justify-end' : ''}`}
+      className="relative flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-border bg-s1 transition-colors hover:border-border2"
       style={tint.border ? { borderColor: tint.border } : undefined}
     >
-      {/* the cover soaks up any height difference between carousel siblings, so the
-          text block reads the same on every slide */}
+      {/* every Up next card shows the same height of cover, photo, scene or none:
+          170 on a phone, 210 from sm. It used to soak up whatever height the tallest
+          slide left over, so the picture grew and shrank from one event to the next.
+          Now the spare height goes to the words, which sit at the foot of the card. A
+          photo still runs behind the whole card with the words on a panel over it;
+          the panel starts at the same line a scene's cover ends. */}
       {photo
         ? <div className="absolute inset-0"><Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className="h-full w-full" /></div>
-        : <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className={`flex-1 ${e.image ? 'min-h-[110px]' : 'min-h-[64px]'}`} />}
-      <div className={`flex flex-wrap items-end justify-between gap-x-6 gap-y-4 p-5 ${photo ? 'relative m-3 mt-[170px] rounded-xl border border-border bg-s1/[.94] shadow-soft backdrop-blur-sm sm:mt-[210px]' : ''}`}>
+        : <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className="h-[170px] flex-none sm:h-[210px]" />}
+      <div className={`flex flex-1 flex-wrap content-end items-end justify-between gap-x-6 gap-y-4 p-5 ${photo ? 'relative m-3 mt-[170px] rounded-xl border border-border bg-s1/[.94] shadow-soft backdrop-blur-sm sm:mt-[210px]' : ''}`}>
         {/* real min width: on phones the CTAs wrap below instead of crushing the title */}
         <div className="min-w-[220px] flex-1">
           {/* one quiet line instead of a chip row: dot for the phase, words for the rest */}
