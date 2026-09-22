@@ -703,13 +703,12 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
             <Segmented value={form.windowPreset} onChange={pickWin} options={WIN_PRESETS.map((p) => ({ v: p.v, l: p.l }))} />
           </div>
           {form.windowPreset === 'custom' && (
-            <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
-              <span className="text-[12.5px] text-dim">From</span>
-              <TimeField value={form.windowStart} onChange={(v) => update((f) => ({ windowStart: v, durationMin: Math.min(f.durationMin, winLenOf(f.windowPreset, v, f.windowEnd)) }))} err={show(errs.win)} label="Window start" />
-              <span className="text-faint">→</span>
-              <span className="text-[12.5px] text-dim">to</span>
-              <TimeField value={form.windowEnd} onChange={(v) => update((f) => ({ windowEnd: v, durationMin: Math.min(f.durationMin, winLenOf(f.windowPreset, f.windowStart, v)) }))} err={show(errs.win)} label="Window end" />
-            </div>
+            <TimeRange
+              start={form.windowStart}
+              end={form.windowEnd}
+              err={show(errs.win)}
+              onChange={(ws, we) => update((f) => ({ windowStart: ws, windowEnd: we, durationMin: Math.min(f.durationMin, winLenOf(f.windowPreset, ws, we)) }))}
+            />
           )}
           {show(errs.win) && <FieldError>{errs.win}</FieldError>}
           {winText && (
@@ -1249,6 +1248,51 @@ function TimeField({ value, onChange, err, label }: { value: string; onChange: (
     </div>
   )
 }
+/* ── the daily time window, as a band of the day rather than two dropdowns ──
+   It used to be two popovers, each with three scrolling columns: hours, minutes and
+   AM/PM. Three scrollers to say "evenings", on a phone, inside a form. And nothing
+   in it showed the one thing that matters, which is how much of the day is being
+   asked about.
+
+   A window is a range, so it is drawn as one. Two native range inputs sit on top of
+   each other over a single track, the chosen band is painted between them, and the
+   two ends say what they are in words. Native inputs because they arrive with the
+   keyboard and the screen reader already working, which a pair of scrolling columns
+   never did: arrows nudge by the step, Home and End go to the ends of the day.
+
+   Half-hour steps, because a poll built in half-hour slots cannot ask about 9:07,
+   and the handles cannot cross: each one stops a step short of the other. */
+const DAY_MIN = 24 * 60
+const WIN_STEP = 30
+function TimeRange({ start, end, onChange, err }: {
+  start: string; end: string; onChange: (s: string, e: string) => void; err?: boolean
+}) {
+  const hhmm = (n: number) => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`
+  const s = parseHM(start) ?? 10 * 60
+  const e = parseHM(end) ?? 14 * 60
+  const pct = (n: number) => (n / DAY_MIN) * 100
+  const setS = (n: number) => onChange(hhmm(Math.min(n, e - WIN_STEP)), end)
+  const setE = (n: number) => onChange(start, hhmm(Math.max(n, s + WIN_STEP)))
+  // the thumb is the only part of each input that takes the pointer, so whichever
+  // handle is under the finger is the one that moves
+  const rail = 'pointer-events-none absolute inset-x-0 top-1/2 h-9 w-full -translate-y-1/2 appearance-none bg-transparent [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-accent [&::-webkit-slider-thumb]:bg-s1 [&::-webkit-slider-thumb]:shadow-soft [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-accent [&::-moz-range-thumb]:bg-s1 focus-visible:outline-none [&:focus-visible::-webkit-slider-thumb]:ring-2 [&:focus-visible::-webkit-slider-thumb]:ring-accent-border'
+  return (
+    <div className="mt-2.5">
+      <div className="relative h-9 select-none">
+        <div className={`absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full ${err ? 'bg-brick-bg' : 'bg-s3'}`} />
+        <div className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full bg-accent" style={{ left: `${pct(s)}%`, right: `${100 - pct(e)}%` }} />
+        <input type="range" min={0} max={DAY_MIN} step={WIN_STEP} value={s} onChange={(ev) => setS(Number(ev.target.value))} aria-label="Window start" className={rail} />
+        <input type="range" min={0} max={DAY_MIN} step={WIN_STEP} value={e} onChange={(ev) => setE(Number(ev.target.value))} aria-label="Window end" className={rail} />
+      </div>
+      <div className="mt-1 flex items-center justify-between text-[13px] font-semibold tabular-nums">
+        <span>{fmtMinute(s)}</span>
+        <span className="text-[12.5px] font-medium text-faint">{fmtDur(e - s)} of the day</span>
+        <span>{fmtMinute(e)}</span>
+      </div>
+    </div>
+  )
+}
+
 function Req() {
   return <span className="font-bold text-brick-text">*</span>
 }
