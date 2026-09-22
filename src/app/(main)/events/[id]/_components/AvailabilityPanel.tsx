@@ -86,6 +86,9 @@ type Drag =
     }
 
 const CELL = 50 // px per grid row — must match the h-[50px] cell height below
+// the fewest rows the grip may leave standing: three of them, plus the day header.
+// Below that the panel stops being a calendar and starts being a scrollbar.
+const MIN_GRID_H = CELL * 3 + 40
 const MIN_LEN = 5 // smallest block, in minutes
 // the time rail, wide enough for "12:30 AM" on one line beside its tick. A phone gives
 // up the slack: every pixel here is a pixel the days do not get.
@@ -1160,18 +1163,46 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const rootRef = useRef<HTMLDivElement>(null)
   const baseHRef = useRef<number | null>(null)
   const [panelH, setPanelH] = useState<number | null>(null)
+  // the floor: enough of the sheet to still be a calendar, and never more than about
+  // half of what is in front of you. Measured against the screen AND against the
+  // toolbar, hint and best-answer line wrapped above and below the rows — on a phone
+  // that chrome is most of a screen's worth, and a floor that ignored it handed the
+  // grip a card whose rows had been squeezed to ten pixels behind it.
+  const floorH = () => {
+    const el = rootRef.current, sc = scroller.current
+    const chrome = el && sc ? Math.max(0, el.getBoundingClientRect().height - sc.clientHeight) : 0
+    return Math.round(Math.max(chrome + MIN_GRID_H, Math.min(window.innerHeight * 0.45, 420)))
+  }
+  // a height dragged at one size is the wrong height at the next. Turning the phone,
+  // the address bar folding away, or the layout crossing into its side-by-side form
+  // all leave the number stale: too short to be a calendar, or tall enough to hang
+  // empty space under the last row. Measure again against what is on screen now.
+  useEffect(() => {
+    if (panelH === null) return
+    const settle = () => setPanelH((h) => {
+      const sc = scroller.current
+      if (h === null) return h
+      const dead = sc ? Math.max(0, sc.clientHeight - sc.scrollHeight) : 0
+      return Math.max(floorH(), h - dead)
+    })
+    window.addEventListener('resize', settle)
+    window.addEventListener('orientationchange', settle)
+    return () => { window.removeEventListener('resize', settle); window.removeEventListener('orientationchange', settle) }
+  }, [panelH === null]) // eslint-disable-line react-hooks/exhaustive-deps
   function onResizeDown(e: React.PointerEvent) {
     e.preventDefault()
     const el = rootRef.current
     if (!el) return
     const startH = el.getBoundingClientRect().height
     if (baseHRef.current === null && panelH === null) baseHRef.current = startH
-    // the floor is the screen's, not the grid's: enough of the sheet to still be a
-    // calendar, and never more than about half of what is in front of you. It used
-    // to be the panel's own opening height, which meant the grip could only ever
-    // make the grid taller and never give the page back.
-    const minH = Math.round(Math.max(240, Math.min(window.innerHeight * 0.45, 420)))
+    // a panel whose natural height is already under the floor has nothing to give
+    // back: the floor must not shove it taller the moment the grip is touched
+    const minH = Math.min(startH, floorH())
     const sc = scroller.current
+    // the ceiling is the height at which the last row ends, so the grip never drags
+    // out dead space. Below lg the scroller is still wearing its viewport cap at this
+    // moment — it comes off on the first render with a height — but the sum is the
+    // same either way: what is on screen plus what is scrolled out of sight.
     const maxH = startH + (sc ? Math.max(0, sc.scrollHeight - sc.clientHeight) : 0)
     const startY = e.clientY
     let lastY = e.clientY
@@ -1286,7 +1317,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       className={`relative flex flex-col rounded-2xl border border-border bg-s1 lg:flex-row ${dayPoll || panelH !== null ? '' : 'lg:max-h-[calc(100dvh-88px)]'}`}
       style={!dayPoll && panelH !== null ? { height: panelH } : undefined}
     >
-      <div ref={colRef} data-tour="grid-all" className="relative flex min-w-0 flex-1 flex-col p-4 lg:min-h-0">
+      <div ref={colRef} data-tour="grid-all" className="relative flex min-w-0 min-h-0 flex-1 flex-col p-4">
         {/* toolbar — first row pairs the mode toggle with Settings (always right-aligned);
             the week nav and time controls flow on their own row below */}
         <div className="border-b border-border pb-[13px]">
@@ -1584,7 +1615,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             ref={scroller}
             data-tour="grid"
             onScroll={onGridScroll}
-            className="scroll-slim min-h-0 max-h-[calc(100dvh-200px)] flex-1 overflow-auto rounded-[10px] border border-border pb-2 lg:max-h-none"
+            className={`scroll-slim min-h-0 flex-1 overflow-auto rounded-[10px] border border-border pb-2 ${panelH === null ? 'max-h-[calc(100dvh-200px)] lg:max-h-none' : ''}`}
           >
             <DayCalendar
               days={event.days}
@@ -1615,7 +1646,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           onScroll={onGridScroll}
           // a held finger is how painting starts on a phone — it must not open the long-press menu
           onContextMenu={(e) => { if (mode === 'edit') e.preventDefault() }}
-          className="scroll-slim min-h-0 max-h-[calc(100dvh-200px)] flex-1 overflow-auto rounded-[10px] border border-border pb-2 lg:max-h-none"
+          className={`scroll-slim min-h-0 flex-1 overflow-auto rounded-[10px] border border-border pb-2 ${panelH === null ? 'max-h-[calc(100dvh-200px)] lg:max-h-none' : ''}`}
           // the seam button on the last day hangs half its width past the sheet's right
           // edge, and a scroller clips whatever leaves it: weeks with days after the
           // poll keep that half-width free so the button stays whole
