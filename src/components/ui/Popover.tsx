@@ -34,6 +34,9 @@ import { useGSAP } from '@gsap/react'
  * look, the inner language below, and the entrance.
  */
 
+// z-55: over the tab bar (40) and over the surfaces that take a phone's whole screen
+// (the discussion, the places panel, both 50), since a panel opened inside one of
+// those has to land on top of it. Under tooltips (60) and the reading sheets (70).
 // a phone's bottom bar and the chat button own the last stretch of the screen, so the
 // panel is told to treat that as the edge and flip upward rather than open beneath it
 const NARROW = '(max-width: 1023px)'
@@ -74,7 +77,7 @@ export function Popover({
           align={align}
           sideOffset={6}
           collisionPadding={{ top: 8, right: 8, bottom: narrow ? 92 : 8, left: 8 }}
-          className="z-[45] max-w-[calc(100vw-16px)] rounded-[14px] border border-border bg-s1 p-1.5 shadow-soft"
+          className="z-[55] max-w-[calc(100vw-16px)] rounded-[14px] border border-border bg-s1 p-1.5 shadow-soft"
           style={{ width, transformOrigin: 'var(--radix-popover-content-transform-origin)' }}
         >
           {children(() => setOpen(false))}
