@@ -137,8 +137,11 @@ export function FilterModal({ participants, filter, onToggle, onClear, onSelectA
   )
 }
 
-/* ── import from calendar (availability stage): connect a provider and auto-fill busy times ── */
-export function ImportFromCalendar({ onPick, providers = ['Google Calendar', 'Outlook'], note }: { onPick: (provider: string) => void; providers?: string[]; note?: string }) {
+/* ── import from calendar (availability stage): connect a provider and auto-fill busy times ──
+   `soon` keeps the door in its place but says it is not open yet: the import needs
+   switches on the Google, Microsoft and Supabase side that are not all on, and a
+   button that silently does nothing is worse than one that says so. */
+export function ImportFromCalendar({ onPick, providers = ['Google Calendar', 'Outlook'], note, soon = false }: { onPick: (provider: string) => void; providers?: string[]; note?: string; soon?: boolean }) {
   return (
     <Popover
       align="start"
@@ -149,7 +152,12 @@ export function ImportFromCalendar({ onPick, providers = ['Google Calendar', 'Ou
         </span>
       )}
     >
-      {(close) => (
+      {(close) => soon ? (
+        <>
+          <PopoverTitle>Coming soon</PopoverTitle>
+          <p className="px-2.5 pb-2 text-[12.5px] leading-[1.5] text-dim">Filling your times from Google Calendar or Outlook is almost ready. For now, drag across the grid to mark when you&apos;re free.</p>
+        </>
+      ) : (
         <>
           {/* applies instantly; the toast afterward says what landed and offers Undo */}
           <PopoverTitle>Fills your free times</PopoverTitle>

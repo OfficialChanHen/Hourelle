@@ -1435,7 +1435,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={event.timezone} /></span>
           )}
           {/* importing fills YOUR times, so it rides with edit mode — view stays lean */}
-          {!locked && mode === 'edit' && <ImportFromCalendar onPick={(p) => void startImport(p)} note={backendOn ? (dayPoll ? 'Free days are marked for you. Days with something on your calendar are striped as busy, for you to decide.' : 'Your free hours are painted, and what your calendar has is striped as busy.') : 'A sample calendar stands in until a backend is set up.'} />}
+          {!locked && mode === 'edit' && <ImportFromCalendar soon={backendOn && process.env.NEXT_PUBLIC_CALENDAR_IMPORT_ON !== '1'} onPick={(p) => void startImport(p)} note={backendOn ? (dayPoll ? 'Free days are marked for you. Days with something on your calendar are striped as busy, for you to decide.' : 'Your free hours are painted, and what your calendar has is striped as busy.') : 'A sample calendar stands in until a backend is set up.'} />}
           </div>
         </div>
 
