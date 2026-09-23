@@ -505,15 +505,17 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                       )}
                     </div>
                   ) : (
-                    <div className="mb-2.5 flex h-[38px] items-center gap-2 rounded-[10px] border border-border bg-s2 py-0 pl-3 pr-2">
-                      <Link2 size={16} className="flex-none text-accent-text" />
-                      <span className="flex-1 truncate text-left font-mono text-[13px]">{meetingLink || `${loc.platform} link coming soon`}</span>
-                      {meetingLink && (
-                        <button onClick={copyLink} className="flex h-7 flex-none items-center gap-1 rounded-[7px] bg-accent px-2.5 text-[12.5px] font-semibold text-on-accent">
-                          {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
-                        </button>
-                      )}
-                    </div>
+                    // everyone else: a way into the call, not an address to pass on, since
+                    // handing out the link is the host's for now, like the invite link
+                    meetingLink ? (
+                      <a href={meetingLink} target="_blank" rel="noopener noreferrer" className="mb-2.5 flex h-11 w-full items-center justify-center gap-1.5 rounded-[10px] bg-accent text-[14px] font-semibold text-on-accent">
+                        <Video size={16} /> Join on {loc.platform || 'the call'}
+                      </a>
+                    ) : (
+                      <div className="mb-2.5 flex h-[38px] items-center justify-center gap-2 rounded-[10px] border border-border bg-s2 px-3 text-[13px] text-dim">
+                        <Link2 size={15} className="flex-none text-faint" /> The {loc.platform} link is on its way
+                      </div>
+                    )
                   )}
                   <div className="text-[12.5px] text-dim">{event.participants.filter((p) => p.rsvp !== 'not_going').length} joining on {loc.platform}</div>
                 </>

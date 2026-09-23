@@ -355,7 +355,8 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             )}
           </div>
         </div>
-        <Popover
+        {/* inviting is the host's, for now: nobody else is handed the link */}
+        {event.hostedByYou && <Popover
           align="end"
           width={216}
           className="flex-none sm:hidden"
@@ -377,7 +378,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             </PopoverItem>
             )
           )}
-        </Popover>
+        </Popover>}
         </div>
         {/* ml-auto keeps the actions hugging the right edge when the header wraps; on a
             phone the host's lock-in takes the row's full width instead of floating */}
@@ -389,7 +390,8 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           {/* sharing closes when the event does: a link handed out afterwards only
               brings somebody to a plan they have already missed. The people already
               on it keep theirs, and a duplicate is open again. */}
-          {phase === 'past' ? (
+          {/* the invite link is the host's to hand out, for now */}
+          {!event.hostedByYou ? null : phase === 'past' ? (
             <span className="hidden h-9 items-center rounded-[9px] border border-border bg-s0 px-3.5 text-[13px] text-faint sm:flex">Sharing closed</span>
           ) : (
           <Popover
@@ -660,12 +662,15 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
             : <>{nAvail} available{nCant > 0 && <>, {nCant} can&rsquo;t make it</>}{nNone > 0 && <span className="text-faint">, {nNone} no reply</span>}</>}
         </span>
       </div>
-      {/* the ways in come first: the link anyone can use, and, for a host who can send,
-          the email box; the roster follows */}
-      <div className="mb-3 flex flex-col gap-2 border-b border-border pb-4">
-        <CopyInviteLink id={event.id} />
-        {isHost && !event.demo && <InviteMore event={event} onPatch={onPatch} />}
-      </div>
+      {/* the ways in come first, and they are the host's: the link, and, where the app
+          can send, the email box. Everyone else sees the roster alone, since inviting
+          is the host's call for now */}
+      {isHost && (
+        <div className="mb-3 flex flex-col gap-2 border-b border-border pb-4">
+          <CopyInviteLink id={event.id} />
+          {!event.demo && <InviteMore event={event} onPatch={onPatch} />}
+        </div>
+      )}
       {sorted.length > 12 && (
         <label className="mb-2 flex h-11 items-center gap-2 rounded-[10px] border border-border bg-s0 px-3 focus-within:border-accent-border sm:h-9">
           <Search size={14} className="flex-none text-faint" />
@@ -1183,7 +1188,14 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
   const copyLink = () => {
     navigator.clipboard?.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
-  const linkRow = (
+  // the meeting link follows the invite link's rule: the host hands it out, so only
+  // the host sees the address with a Copy beside it. Everyone else gets a way into the
+  // call and nothing to pass on.
+  const linkRow = !event.hostedByYou ? (
+    <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex h-11 w-fit items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13px] font-semibold text-on-accent sm:h-8">
+      <Video size={14} /> Join the call
+    </a>
+  ) : (
     <span className="flex max-w-[420px] items-center gap-2">
       <span className="min-w-0 flex-1 truncate rounded-[7px] border border-border bg-s0 px-2.5 py-1 font-mono text-[12px] text-dim">{link}</span>
       <button onClick={copyLink} className={`flex h-7 flex-none items-center gap-1 rounded-[7px] border px-2 text-[12px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 text-dim hover:bg-s2'}`}>

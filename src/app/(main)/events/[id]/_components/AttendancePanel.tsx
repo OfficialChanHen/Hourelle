@@ -351,7 +351,8 @@ function summaryOf(event: AppEvent, win: Win | null, locked: boolean, gridStart:
     lines.push('', `${going} going${maybe ? `, ${maybe} maybe` : ''}.`)
     const waiting = ps.filter((p) => p.rsvp === 'pending').sort(byYouFirst)
     if (waiting.length) lines.push(`Still to reply: ${firstNames(waiting)}.`)
-    lines.push('', `Details and RSVP: ${link}`)
+    // the link is the invitation, and inviting is the host's for now
+    if (event.hostedByYou) lines.push('', `Details and RSVP: ${link}`)
   } else {
     lines.push(event.title)
     if (win) lines.push(`Best time so far: ${win.dayLabel}, ${fmtMinute(gridStart + win.s)} – ${fmtMinute(gridStart + win.e)} ${tzAbbr(event.timezone)}`)
@@ -364,7 +365,7 @@ function summaryOf(event: AppEvent, win: Win | null, locked: boolean, gridStart:
     }
     const silent = open.filter((p) => !markedIds.has(p.id)).sort(byYouFirst)
     if (silent.length) lines.push(`Still need times from ${firstNames(silent)}.`)
-    lines.push('', `Add yours: ${link}`)
+    if (event.hostedByYou) lines.push('', `Add yours: ${link}`)
   }
   return lines.join('\n')
 }
@@ -566,10 +567,10 @@ function SingleVenue({
           p: x.p,
           bar: barsOf(x.segs),
         }))} axis={axis.length ? axis : undefined} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.part.map((x) => x.p.id)) : undefined} />}
-        {(showGroup === 'all' || showGroup === 'noTimes') && <RosterGroup compact label={locked ? 'Going, no times yet' : 'No times yet'} tone="faint" people={groups.noTimes.filter(hit).map((p) => ({ p }))} action={!locked && groups.noTimes.length > 0 ? <CopyReminder event={event} /> : undefined} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.noTimes.map((p) => p.id)) : undefined} />}
+        {(showGroup === 'all' || showGroup === 'noTimes') && <RosterGroup compact label={locked ? 'Going, no times yet' : 'No times yet'} tone="faint" people={groups.noTimes.filter(hit).map((p) => ({ p }))} action={!locked && groups.noTimes.length > 0 && event.hostedByYou ? <CopyReminder event={event} /> : undefined} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.noTimes.map((p) => p.id)) : undefined} />}
         {(showGroup === 'all' || showGroup === 'maybe') && <RosterGroup compact label="Maybe" tone="ochre" people={groups.maybe.filter(hit).map((p) => ({ p }))} onPerson={onPerson} />}
         {(showGroup === 'all' || showGroup === 'out') && <RosterGroup compact label="Can't make it" tone="brick" people={groups.out.filter(hit).map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.out.map((p) => p.id)) : undefined} />}
-        {(showGroup === 'all' || showGroup === 'noReply') && <RosterGroup compact label="No reply" tone="faint" people={groups.noReply.filter(hit).map((p) => ({ p }))} action={<CopyReminder event={event} />} onPerson={onPerson} />}
+        {(showGroup === 'all' || showGroup === 'noReply') && <RosterGroup compact label="No reply" tone="faint" people={groups.noReply.filter(hit).map((p) => ({ p }))} action={event.hostedByYou ? <CopyReminder event={event} /> : undefined} onPerson={onPerson} />}
       </div>
     </div>
   )
