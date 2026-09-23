@@ -37,7 +37,7 @@ export const PLANS: Record<PlanKey, Plan> = {
       'Place votes, itineraries and driving routes',
       'Chat, RSVPs and attendance',
       'Invites, nudges, lock-in announcements and reminders by email',
-      'Calendar import from Google and Outlook',
+      'Calendar import from Google and Outlook (coming soon)',
       'Calendar files and links to add a plan to any calendar',
     ],
   },

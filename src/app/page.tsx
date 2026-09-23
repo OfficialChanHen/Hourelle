@@ -34,7 +34,7 @@ const FEATURES = [
     eyebrow: 'When',
     title: 'See the day everyone can meet.',
     body: 'Drag across the times you are free. The grid turns green where people overlap, and the best window is worked out for you, in every timezone at the table.',
-    points: ['Minute-precise edges, not just half-hour boxes', 'Day polls for trips and weekends', 'Import free time from your calendar in one tap'],
+    points: ['Minute-precise edges, not just half-hour boxes', 'Day polls for trips and weekends', 'Or skip the poll when the date is already set'],
     demo: 'daypoll',
   },
   {
