@@ -125,12 +125,20 @@ function switchTab(key: string) {
   document.querySelector<HTMLElement>(`[data-tour-tab="${key}"]`)?.click()
 }
 // where the card goes for a spotlight: beside a small target when there is room,
-// under or over a wide one, at the bottom on a phone, in the middle with no target
+// under or over a wide one, in the middle with no target. On a phone the card takes
+// the half of the screen the target is not in. It always sat at the bottom, which is
+// where the chat bubble and the tab bar live, so the stop about the chat covered the
+// very thing it asked you to open; now a low target puts the card up top, and a high
+// one puts it at the foot, clear of the tab bar
 function placeCard(b: Box | null, cardH: number): { left: number; top: number; width: number } {
   const vw = window.innerWidth, vh = window.innerHeight
   const width = Math.min(360, vw - 32)
   const H = cardH || 220
-  if (vw < 640) return { left: 16, top: Math.max(16, vh - H - 16), width }
+  if (vw < 640) {
+    const low = !b || b.y + b.h / 2 > vh / 2
+    const bottom = Math.max(16, vh - H - 92) // the tab bar and the chat bubble own the last 92
+    return { left: 16, top: low ? Math.min(16, bottom) : bottom, width }
+  }
   if (!b) return { left: (vw - width) / 2, top: Math.max(16, vh / 2 - H / 2), width }
   const clampTop = (t: number) => Math.max(16, Math.min(t, vh - H - 16))
   if (b.w < vw * 0.5) {
