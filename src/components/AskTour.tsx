@@ -8,15 +8,16 @@ import { useGSAP } from '@gsap/react'
 import { answerTourAsk, startTour, tourAskPending } from '@/lib/prefs'
 import { AUTH_SETTLED, authSettled, currentAccount } from '@/lib/session'
 
-/* The one question a guest gets, once per device, the moment they land in an event
-   with their name: have you been here before? "Show me around" starts the tour on
-   this very event; "I know my way" closes it. Either answer is remembered, so no
-   later join asks again. The event page mounts it next to the tour.
+/* The one question a guest gets, the moment they arrive at an event new to them:
+   have you been here before? "Show me around" starts the tour on this very event;
+   "I know my way" closes it. It is asked per arrival, not per device, so a second
+   guest on a shared browser is asked too, and someone returning to their own entry
+   is not (see askAboutTour). The event page mounts it next to the tour.
 
    It is the guest's offer only. An account was asked the same thing on the welcome
    steps, so a signed-in person is never asked twice — and the question waits for auth
    to answer before believing nobody is signed in. */
-export function AskTour() {
+export function AskTour({ eventId }: { eventId: string }) {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
 
@@ -26,13 +27,13 @@ export function AskTour() {
     const check = () => {
       if (t || !authSettled()) return
       t = setTimeout(() => {
-        if (tourAskPending() && !currentAccount().signedIn && window.innerWidth >= 360) setOpen(true)
+        if (tourAskPending(eventId) && !currentAccount().signedIn && window.innerWidth >= 360) setOpen(true)
       }, 600)
     }
     check()
     window.addEventListener(AUTH_SETTLED, check)
     return () => { if (t) clearTimeout(t); window.removeEventListener(AUTH_SETTLED, check) }
-  }, [])
+  }, [eventId])
 
   useGSAP(() => {
     if (!open) return

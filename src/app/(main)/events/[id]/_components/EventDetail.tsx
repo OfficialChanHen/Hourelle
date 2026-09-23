@@ -313,7 +313,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       <BackLink href={backTo.href} label={backTo.label} />
       {/* the tour, only when it was asked for, and the one question a new guest gets; both mount on the body */}
       {phase !== 'past' && <Tour host={event.hostedByYou} locked={phase !== 'planning'} />}
-      {phase !== 'past' && <AskTour />}
+      {phase !== 'past' && <AskTour eventId={id} />}
       {/* the host's cover, when one is set — photo or preset scene; shorter on phones
           so the tabs and content stay within the first screen */}
       {event.image && <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from="#E4EDE7" to="#CFE0D5" className="mb-4 h-[92px] border border-border sm:mb-5 sm:h-[170px]" rounded="rounded-2xl" />}

@@ -88,8 +88,25 @@ export async function recordPlusInterest(userId: string): Promise<void> {
 export function wasWelcomed(userId: string): boolean {
   try { return localStorage.getItem(`${WELCOMED_KEY}:${userId}`) === '1' } catch { return true }
 }
+/** Done with the welcome steps: noted on this browser, and on the account itself
+ *  (its user metadata), so another device knows too and never offers them again. */
 export function markWelcomed(userId: string): void {
   try { localStorage.setItem(`${WELCOMED_KEY}:${userId}`, '1') } catch { /* private mode */ }
+  if (backendOn) void supabase!.auth.updateUser({ data: { welcomed: true } }).catch(() => {})
+}
+
+/* Does this account still need the welcome steps (and with them the offer of the
+   tour)? A fact about the account, not the device or the clock: it was only ever
+   "made in the last three minutes", which a sign-up that waits on an emailed
+   confirmation link misses entirely, since the link is often opened later. Now an
+   account that has not been through the steps (no `welcomed` on it, and none noted
+   here) gets them, however and whenever it first signs in. Accounts made before
+   the flag existed count as welcomed, so nobody already in is walked through again. */
+const WELCOME_FLAG_SINCE = Date.parse('2026-09-23T01:30:00Z')
+export function needsWelcome(user: { id: string; created_at?: string; user_metadata?: Record<string, unknown> }): boolean {
+  if (user.user_metadata?.welcomed === true || wasWelcomed(user.id)) return false
+  const at = user.created_at ? Date.parse(user.created_at) : 0
+  return at >= WELCOME_FLAG_SINCE || (!!at && Date.now() - at < 3 * 60_000)
 }
 export function forgetWelcomed(userId: string): void {
   try { localStorage.removeItem(`${WELCOMED_KEY}:${userId}`) } catch { /* private mode */ }

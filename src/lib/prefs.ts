@@ -176,20 +176,21 @@ export function startTour(): void {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(TOUR_START))
 }
 
-// a guest who just joined is asked once, on this device, whether they know their way
-// around; the join flow raises the flag and the event page answers it
+// "First time here?" belongs to a person's arrival at an event, not to the device: a
+// guest new to an event is asked, whoever used this browser before (an account that
+// already took the tour, another guest). The join flow names the event it is asking
+// about; that event's page asks, once, and either answer clears it. Someone coming
+// back to an entry they already had is not new there, and the join flow never asks.
 const ASK_KEY = 'hourelle.tour.ask'
-export function askAboutTour(): void {
-  if (hintDismissed('tour-ask')) return
-  try { localStorage.setItem(ASK_KEY, '1') } catch { /* private mode */ }
+export function askAboutTour(eventId: string): void {
+  try { localStorage.setItem(ASK_KEY, eventId) } catch { /* private mode */ }
 }
-export function tourAskPending(): boolean {
+export function tourAskPending(eventId: string): boolean {
   if (typeof window === 'undefined') return false
-  try { return localStorage.getItem(ASK_KEY) === '1' && !hintDismissed('tour-ask') } catch { return false }
+  try { return localStorage.getItem(ASK_KEY) === eventId } catch { return false }
 }
 export function answerTourAsk(): void {
   try { localStorage.removeItem(ASK_KEY) } catch { /* private mode */ }
-  dismissHint('tour-ask')
 }
 
 /** Every device setting back to how it started: 12-hour clock, event days, sounds on,

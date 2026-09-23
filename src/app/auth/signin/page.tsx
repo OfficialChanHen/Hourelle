@@ -7,7 +7,8 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { ArrowLeft, CalendarRange, Check, Loader2, MailCheck, TriangleAlert } from 'lucide-react'
 import { useGuestMode } from '@/hooks/useGuestMode'
-import { backendOn } from '@/lib/db'
+import { backendOn, supabase } from '@/lib/db'
+import { needsWelcome } from '@/lib/plan'
 import { EMAIL_TAKEN, hasSession, recordLegalAcceptance, sendPasswordReset, signInWithEmail, signInWithGoogle, signInWithMicrosoft, signUpWithEmail } from '@/lib/session'
 import { LegalGate, LegalSheet } from '@/components/LegalGate'
 import { LEGAL_VERSION, type LegalKey } from '@/content/legal'
@@ -144,7 +145,11 @@ function SignInForm() {
 
     const err = await signInWithEmail(email.trim(), password)
     if (err) { setError(err); setBusy(null); return }
-    router.replace(next)
+    // an account confirmed by email and signed into here for the first time has not
+    // been through the welcome steps yet; the link it was confirmed with may have been
+    // opened on another device, or the steps closed half way
+    const user = backendOn ? (await supabase!.auth.getUser()).data.user : null
+    router.replace(user && needsWelcome(user) ? `/welcome?next=${encodeURIComponent(next)}` : next)
   }
 
   const strong = passwordOk(password)
