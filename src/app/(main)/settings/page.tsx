@@ -97,7 +97,7 @@ export default function SettingsPage() {
   async function restoreDefaults() {
     setResetState('busy'); setResetErr(null)
     resetPrefs()
-    setTheme('light')
+    setTheme('system') // the default is the device's own setting, as for a new visitor
     setH24(false); setSound(true); setWholeWeek(false); setA11y(A11Y_DEFAULTS); setNotify(NOTIFY_DEFAULTS)
     if (account.signedIn) {
       void saveReminderPrefs(account.id, NOTIFY_DEFAULTS)
