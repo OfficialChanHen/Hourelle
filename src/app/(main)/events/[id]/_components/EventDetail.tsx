@@ -203,7 +203,16 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
 
   // the first time an invitee opens the event, the room hears they arrived
   const arrivingId = event && !event.demo ? event.participants.find((p) => p.you && !p.host && !p.joinedAt)?.id ?? null : null
-  useEffect(() => { if (arrivingId) { markArrived(id, arrivingId); refresh() } }, [arrivingId, id]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!arrivingId) return
+    // your own "joined the event" line is not news to you: a newcomer's chat is read up
+    // to it, so their bubble does not open on an unread badge for their own arrival
+    if (markArrived(id, arrivingId)) {
+      const raw = getEvent(id)
+      if (raw) { const n = viewOf(raw).messages.length; markMessagesSeen(id, n); setSeenMsgs(n) }
+    }
+    refresh()
+  }, [arrivingId, id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // taken off the event by the host while here (or before coming back): there is
   // nothing left on this page that is yours, so it closes behind you. A guest has no

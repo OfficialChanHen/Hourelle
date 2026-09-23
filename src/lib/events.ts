@@ -1309,6 +1309,33 @@ export function claimGuestSession(eventId: string, pid: string): void {
 // session the `you` markers move onto the guest and host powers switch off. Views
 // are for rendering only — never write a view's participants or messages back.
 export function viewOf(ev: AppEvent): AppEvent {
+  return sinceArrival(markYou(ev))
+}
+
+/* Someone who joins later starts the chat at the moment they arrived, the way a group
+   chat does: what was said before is the room's history, not theirs. The view keeps
+   only lines at or after their arrival, so the chat, its unread count and anything
+   else reading messages all agree, and an empty chat for a newcomer is simply empty
+   rather than a history they are not shown. The host sees everything, and so does
+   anyone with no arrival stamp who was already active (see arrivalOf). */
+function sinceArrival(ev: AppEvent): AppEvent {
+  const me = ev.participants.find((p) => p.you)
+  if (!me || me.host || ev.demo) return ev
+  const from = arrivalOf(ev, me)
+  return from > 0 ? { ...ev, messages: ev.messages.filter((m) => (m.at ?? 0) >= from) } : ev
+}
+
+/** When this person's view of the chat begins: their stamp, or, before one exists,
+ *  now for a newcomer and the very start for someone already active (a line in the
+ *  chat or an answer on the grid), whose history was theirs all along. */
+export function arrivalOf(ev: AppEvent, p: Participant): number {
+  if (p.joinedAt) return p.joinedAt
+  const spoke = ev.messages.some((m) => m.id === p.id)
+  const answered = Object.values(availIvOf(ev)).some((byPid) => (byPid[p.id] ?? []).length > 0) || (ev.unavailableIds ?? []).includes(p.id)
+  return spoke || answered ? 0 : Date.now()
+}
+
+function markYou(ev: AppEvent): AppEvent {
   const gid = guestSessionId(ev.id)
   if (gid && ev.participants.some((p) => p.id === gid)) {
     return {
@@ -1368,14 +1395,16 @@ export function viewOf(ev: AppEvent): AppEvent {
    and speaks only for a genuine first arrival: no line from them in the chat yet and
    no answer of theirs on the grid, so people who were already active before this
    existed are marked as arrived without a late announcement. The host never is. */
-export function markArrived(id: string, pid: string): void {
+export function markArrived(id: string, pid: string): boolean {
   const ev = getEvent(id)
   const p = ev?.participants.find((x) => x.id === pid)
-  if (!ev || ev.demo || !p || p.host || p.joinedAt) return
-  patchEvent(id, { participants: ev.participants.map((x) => (x.id === pid ? { ...x, joinedAt: Date.now() } : x)) })
-  const spoke = ev.messages.some((m) => m.id === pid)
-  const answered = Object.values(availIvOf(ev)).some((byPid) => (byPid[pid] ?? []).length > 0) || (ev.unavailableIds ?? []).includes(pid)
-  if (!spoke && !answered) appendMessage(id, { id: pid, name: p.name, time: 'now', text: 'joined the event', you: false, system: true })
+  if (!ev || ev.demo || !p || p.host || p.joinedAt) return false
+  // someone already active keeps the whole history: they arrived before stamps did
+  const newcomer = arrivalOf(ev, p) > 0
+  const at = newcomer ? Date.now() : ev.createdAt || 1
+  patchEvent(id, { participants: ev.participants.map((x) => (x.id === pid ? { ...x, joinedAt: at } : x)) })
+  if (newcomer) appendMessage(id, { id: pid, name: p.name, time: 'now', text: 'joined the event', you: false, system: true, at: Date.now() })
+  return newcomer
 }
 
 export function addMeToEvent(id: string): Participant | null {

@@ -245,7 +245,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
             <div className="flex h-full items-center justify-center">
               <div className="max-w-[220px] text-center">
                 <p className="font-serif text-[19px]">Start the conversation</p>
-                <p className="mt-1.5 text-[12.5px] leading-[1.5] text-dim">Say hi or ask a question. Everyone invited can read and reply.</p>
+                <p className="mt-1.5 text-[12.5px] leading-[1.5] text-dim">Say hi or ask a question. Everyone here can read and reply.</p>
               </div>
             </div>
           ) : (
