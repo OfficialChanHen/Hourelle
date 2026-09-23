@@ -993,11 +993,14 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
     if (selErr) return
     const days = excluded.dows.length || excluded.days.length ? buildDaysFrom(selKeys, dayCap) : buildDays(start, endEff, dayCap)
     // keep every existing day's replies (even out-of-range ones stay dormant); new days start empty
-    const avail = { ...event.avail }
+    // everyone's replies as saved now, not as this screen drew them, so a reply that
+    // arrived while the editor was open is kept rather than written back out
+    const cur = (!event.demo && getEvent(event.id)) || event
+    const avail = { ...cur.avail }
     for (const d of days) if (!avail[d.key]) avail[d.key] = event.times.map(() => [])
     // seed from the full store (dormant days too) — starting from an empty object here
     // would shadow legacy grid replies the moment availIv gets written
-    const availIv = { ...fullAvailIvOf(event) }
+    const availIv = { ...fullAvailIvOf(cur) }
     for (const d of days) if (!availIv[d.key]) availIv[d.key] = {}
     onPatch({ startDate: days[0].key, endDate: days[days.length - 1].key, days, avail, availIv, durationMin: dur })
     onDone()

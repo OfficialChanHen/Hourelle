@@ -330,6 +330,20 @@ export function patchEvent(id: string, patch: Partial<AppEvent>): void {
   pushEvent(list[i])
 }
 
+/* A change worked out from the event as this device holds it right now, not as some
+   screen last drew it. A panel renders from a snapshot, and the saved copy can move on
+   under it (another person's times arriving over the socket, a pull after a reload),
+   so a whole map rebuilt from the snapshot, written back, puts back an older answer
+   over someone's newer one. Read and write happen together here, with nothing between
+   them. Returns the patch it wrote, or null for an event this device does not keep. */
+export function patchEventWith(id: string, make: (current: AppEvent) => Partial<AppEvent>): Partial<AppEvent> | null {
+  const current = readAll().find((e) => e.id === id)
+  if (!current) return null
+  const patch = make(current)
+  patchEvent(id, patch)
+  return patch
+}
+
 /* ── slug ── */
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'event'

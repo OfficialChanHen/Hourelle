@@ -265,10 +265,27 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
   const bUn = new Set(before.unavailableIds ?? []), aUn = new Set(after.unavailableIds ?? [])
   const me = after.participants.find((p) => p.you)?.id
   const onList = new Set(after.participants.map((p) => p.id))
+
+  /* Whose answers this device may send. Anyone but the host sends their own and no
+     one else's. The diff is between two copies on this device, and when one of them
+     was built from a screen that had not caught up, other people's answers show up
+     in it as changed: sent, they overwrite a newer answer with an older one, or
+     someone's first times with nothing. That is how a guest's marks came back empty
+     after a reload. The host is the exception, because the host changes other
+     people's answers on purpose: taking someone off the list, or changing the poll
+     in a way that clears it. When an entry changes hands (an account taking over the
+     guest entry it came in as), the old id leaving the list is that same person. */
+  const wasMe = before.participants.find((p) => p.you)?.id
+  const rekeyed = !!me && !before.participants.some((p) => p.id === me)
+  const mayWrite = (pid: string) => !!after.hostedByYou || pid === me || pid === wasMe || (rekeyed && !onList.has(pid))
+  let heldBack = false
+  const allowed = (pid: string) => { if (mayWrite(pid)) return true; heldBack = true; return false }
+
   for (const pid of new Set([...a.keys(), ...b.keys(), ...aUn, ...bUn])) {
     // someone taken off the event: their row goes, rather than being kept as an empty
     // answer, which is what an emptied answer from someone still on the list is
     if (!onList.has(pid)) {
+      if (!allowed(pid)) continue
       if (before.participants.some((p) => p.id === pid)) {
         void afterCreate(after.id).then(() =>
           supabase!.from('availability').delete().match({ event_id: after.id, participant_id: pid }).then(fail('clear their times')),
@@ -278,6 +295,7 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
     }
     const from = b.get(pid) ?? {}, to = a.get(pid) ?? {}
     if (JSON.stringify(from) === JSON.stringify(to) && bUn.has(pid) === aUn.has(pid)) continue
+    if (!allowed(pid)) continue
     // an answer of your own on somebody else's event: once it is saved, the host may
     // want to hear about it
     const answer = pid === me && !after.hostedByYou && (aUn.has(pid) || Object.values(to).some((iv) => iv.length > 0))
@@ -293,8 +311,8 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
   const was = before.votes ?? {}, now = after.votes ?? {}
   for (const placeId of new Set([...Object.keys(was), ...Object.keys(now)])) {
     const had = new Set(was[placeId] ?? []), has = new Set(now[placeId] ?? [])
-    const added = [...has].filter((p) => !had.has(p))
-    const gone = [...had].filter((p) => !has.has(p))
+    const added = [...has].filter((p) => !had.has(p) && allowed(p))
+    const gone = [...had].filter((p) => !has.has(p) && allowed(p))
     if (added.length) {
       void afterCreate(after.id).then(() =>
         supabase!
@@ -309,6 +327,13 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
         .match({ event_id: after.id, place_id: placeId, participant_id })
         .then(fail('take back your vote'))
     }
+  }
+
+  // what was held back is still wrong on this device, so the answers are read again
+  // and the saved ones take their place
+  if (heldBack) {
+    console.warn('hourelle: kept this device from rewriting other people\'s answers; rereading them')
+    refreshAnswers(after.id)
   }
 }
 
@@ -481,6 +506,28 @@ export async function syncFromCloud(): Promise<void> {
   const cloud = new Map<string, AppEvent>()
   for (const r of results) for (const row of r.data ?? []) cloud.set(row.id, row.data)
   const local = readCache()
+
+  /* An event of someone else's that none of the questions above brought back is not
+     yet known to be gone. They find it by this identity's place on its list, and the
+     list is part of a document that anyone's save replaces whole, so a save from a
+     device that had not yet seen you join can leave you off it for a moment. Taken as
+     gone, the event was forgotten here, and every mark made after that went nowhere:
+     shown on the screen, never saved. So each one is asked for by its own id, and
+     only an event the database says is not there is forgotten. One that is still
+     there comes in with the rest, and if you really were taken off it, its page says
+     so. If the question fails, nothing is forgotten this time. */
+  const me = currentAccount()
+  const hosted = (e: AppEvent) => !!e.hostedByYou || (me.signedIn && hostIdOf(e) === me.id)
+  const unseen = local.filter((e) => !cloud.has(e.id) && isMine(e) && !hosted(e)).map((e) => e.id)
+  const gone: string[] = []
+  if (unseen.length) {
+    const { data, error } = await supabase!.from('events').select('id, data').in('id', unseen)
+    if (currentAccount().id !== acc.id) return
+    if (!error) {
+      for (const row of (data ?? []) as Row[]) cloud.set(row.id, row.data)
+      for (const id of unseen) if (!cloud.has(id)) gone.push(id)
+    }
+  }
   // the cloud document carries no chat; keep whatever this browser already holds,
   // then lay the message rows over it
   let merged = local.map((e) => { const c = cloud.get(e.id); return c ? { ...localize(c, e), messages: withoutRemoved(e.messages, c) } : e })
@@ -506,13 +553,10 @@ export async function syncFromCloud(): Promise<void> {
   // behind on an event that was since deleted sent the event up (refused), then every
   // chat line in it (refused again, for pointing at an event that is not there), and
   // the notice said "that change arrived before the event did" on every page load.
-  // An event of someone else's that the pull does not bring back no longer exists,
-  // so this device forgets it, guest session and all.
-  const me = currentAccount()
-  const hosted = (e: AppEvent) => !!e.hostedByYou || (me.signedIn && hostIdOf(e) === me.id)
-  const gone: string[] = []
+  // An event of someone else's that the database says is no longer there is
+  // forgotten here, guest session and all.
   for (const e of local) if (!cloud.has(e.id) && isMine(e)) {
-    if (!hosted(e)) { gone.push(e.id); continue }
+    if (!hosted(e)) continue // gone, and forgotten below; or not known to be, and kept
     void supabase!.from('events').upsert({ id: e.id, data: docOf(e), host_id: hostIdOf(e) }).then(({ error }) => { if (error) rejected('save', error.message) })
     for (const m of e.messages) pushMessage(e.id, { ...m, mid: m.mid ?? crypto.randomUUID() })
     // an event that has only ever lived here has answers only in its document

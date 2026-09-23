@@ -28,7 +28,7 @@ import dynamic from 'next/dynamic'
 import { gsap } from 'gsap'
 import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, SlidersHorizontal, Info, ExternalLink } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
-import { fromDay, todayKey, patchEvent, fmtMinute, fmtMinuteDay, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
+import { fromDay, todayKey, getEvent, patchEvent, fmtMinute, fmtMinuteDay, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
 import { hintDismissed as isHintDismissed, dismissHint as markHintDismissed } from '@/lib/prefs'
 import { fmtDuration, MODE_LABEL, ALL_MODES, type TravelMode, type ModeEstimate } from '@/lib/travel'
 import { computeItinerary, legKm } from '@/lib/itinerary'
@@ -169,6 +169,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
 
   // route through the parent when it listens, so the always-mounted surfaces (the
   // Lock-it-in popover, the hero summary) see mode/place/vote changes without a reload
+  // the ballot as this device holds it right now, which can be newer than the one this
+  // screen last drew (see patchEventWith)
+  const latestVotes = () => (event.demo ? votes : getEvent(event.id)?.votes ?? votes)
   function persist(patch: Partial<AppEvent>) {
     if (onPatch) onPatch(patch)
     else if (!event.demo) patchEvent(event.id, patch)
@@ -243,15 +246,20 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
     if (!has && maxVotes > 1 && votesLeft === 0) return // out of votes
     voteFlip.capture()
     // build the next ballot first, then set and persist — persisting inside a state
-    // updater would run during render and update the parent mid-render
-    const next: Record<string, string[]> = { ...votes }
+    // updater would run during render and update the parent mid-render. Only your own
+    // vote moves, laid over the ballot as saved now: everyone else's votes come from
+    // there, not from this screen, which may not have caught up with a vote cast a
+    // moment ago and would otherwise write it back out.
+    const base = latestVotes()
+    const next: Record<string, string[]> = { ...base }
+    const without = (id: string) => (base[id] ?? []).filter((x) => x !== YOU)
     if (has) {
-      next[placeId] = (votes[placeId] ?? []).filter((x) => x !== YOU)
+      next[placeId] = without(placeId)
     } else if (maxVotes === 1) {
-      for (const p of places) if ((votes[p.id] ?? []).includes(YOU)) next[p.id] = votes[p.id].filter((x) => x !== YOU)
-      next[placeId] = [...(votes[placeId] ?? []), YOU]
+      for (const id of Object.keys(base)) if (base[id].includes(YOU)) next[id] = without(id)
+      next[placeId] = [...without(placeId), YOU]
     } else {
-      next[placeId] = [...(votes[placeId] ?? []), YOU]
+      next[placeId] = [...without(placeId), YOU]
     }
     setVotes(next)
     persist({ votes: next })
@@ -274,7 +282,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   function removePlace(placeId: string) {
     voteFlip.capture(); itinFlip.capture()
     const nextPlaces = places.filter((p) => p.id !== placeId)
-    const nextVotes = { ...votes }; delete nextVotes[placeId]
+    const nextVotes = { ...latestVotes() }; delete nextVotes[placeId]
     const nextStops = stops.filter((s) => s.placeId !== placeId) // drop it from the itinerary too
     setPlaces(nextPlaces); setVotes(nextVotes); setStops(nextStops); setConfirmRemove(null)
     persist({

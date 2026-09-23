@@ -55,7 +55,7 @@ import { useAccount } from '@/hooks/useAccount'
 import { useFollow } from '@/hooks/useFollow'
 import { canEmail, sendNudges } from '@/lib/mail'
 import {
-  addMeToEvent, patchEvent, availIvOf, fullAvailIvOf, intervalsToGrid, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
+  addMeToEvent, patchEvent, patchEventWith, availIvOf, fullAvailIvOf, intervalsToGrid, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
 import { buildImportPreview, googleBusyUtc, outlookBusyUtc, mockBusyUtc, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport, type UtcBusy } from '@/lib/calendar-import'
@@ -391,29 +391,40 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     // marking any time takes back an earlier "none of these days work"
     if (Object.values(m).some((ivs) => ivs.length) && unavail.has(meId)) {
       setUnavail((prev) => { const next = new Set(prev); next.delete(meId); return next })
-      if (!event.demo) patchEvent(event.id, { unavailableIds: (event.unavailableIds ?? []).filter((id) => id !== meId) })
+      if (!event.demo) patchEventWith(event.id, (cur) => ({ unavailableIds: (cur.unavailableIds ?? []).filter((id) => id !== meId) }))
     }
     if (event.demo) return
     const now = Date.now()
     wroteRef.current = [...wroteRef.current.filter((w) => now - w.at < ECHO_MS).slice(-19), { sig: JSON.stringify(m), at: now }]
-    // start from every stored day, not just the current window — replies on days a
-    // shrunken window dropped stay dormant and come back if the window re-grows
-    const availIv: AvailIntervals = { ...fullAvailIvOf(event) }
-    for (const d of event.days) {
-      availIv[d.key] = { ...(others[d.key] ?? {}) }
-      if (m[d.key]?.length) availIv[d.key][meId] = m[d.key]
-      else delete availIv[d.key][meId]
-    }
-    patchEvent(event.id, { availIv, avail: { ...event.avail, ...intervalsToGrid(availIv, event.days, rows, step) }, ...extra })
+    // only your own row changes, laid over everyone else's as this device holds them
+    // now. It used to rebuild the whole map from what this screen last drew, so a
+    // screen that had not caught up yet wrote back its older picture of other people:
+    // someone's times, marked a moment before, were saved over as empty. Every stored
+    // day is kept, not just the current window, so replies on days a shrunken window
+    // dropped stay dormant and come back if the window re-grows.
+    patchEventWith(event.id, (cur) => {
+      const availIv: AvailIntervals = { ...fullAvailIvOf(cur) }
+      for (const d of event.days) {
+        const day = { ...(availIv[d.key] ?? {}) }
+        if (m[d.key]?.length) day[meId] = m[d.key]
+        else delete day[meId]
+        availIv[d.key] = day
+      }
+      return { availIv, avail: { ...cur.avail, ...intervalsToGrid(availIv, event.days, rows, step) }, ...extra }
+    })
   }
   // your explicit empty reply: none of these days work — cleared by marking any time
   function toggleNoneWork() {
+    const on = !unavail.has(meId)
     setUnavail((prev) => {
       const next = new Set(prev)
-      if (next.has(meId)) next.delete(meId)
-      else next.add(meId)
-      if (!event.demo) patchEvent(event.id, { unavailableIds: [...next] })
+      if (on) next.add(meId)
+      else next.delete(meId)
       return next
+    })
+    if (!event.demo) patchEventWith(event.id, (cur) => {
+      const rest = (cur.unavailableIds ?? []).filter((id) => id !== meId)
+      return { unavailableIds: on ? [...rest, meId] : rest }
     })
   }
   function changeDuration(v: number) {
