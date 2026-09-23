@@ -93,11 +93,18 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readO
   }, [close])
 
   const pById = new Map(event.participants.map((p) => [p.id, p]))
-  const avatarOf = (id: string) => {
+  // a sender no longer on the list (merged into someone else, or an old line) is named
+  // from the line itself, which kept their name at the time: never from their raw id
+  const avatarOf = (id: string, name?: string) => {
     const p = pById.get(id)
-    return { initials: p?.initials ?? id, name: p?.name ?? id, color: p?.color ?? ('gray' as Participant['color']) }
+    const n = p?.name ?? name ?? 'Someone'
+    const initials = p?.initials ?? (n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?')
+    return { initials, name: n, color: p?.color ?? ('stone' as Participant['color']) }
   }
-  const body = <ChatBody messages={messages} unreadFrom={unreadFrom} onSend={onSend} onClose={close} avatarOf={avatarOf} readOnly={readOnly} typing={typing} onType={onType} onStopTyping={onStopTyping} />
+  // lines from people the host took off the event never show, whatever copy they came from
+  const gone = new Set((event.removedIds ?? []).filter((rid) => !pById.has(rid)))
+  const shown = gone.size ? messages.filter((m) => !gone.has(m.id)) : messages
+  const body = <ChatBody messages={shown} unreadFrom={unreadFrom} onSend={onSend} onClose={close} avatarOf={avatarOf} readOnly={readOnly} typing={typing} onType={onType} onStopTyping={onStopTyping} />
 
   return (
     <div ref={root} className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Event discussion">
@@ -125,7 +132,7 @@ type ChatProps = {
   messages: ChatMessage[]; unreadFrom?: number
   onSend: (t: string) => void; onClose: () => void
   typing: Peer[]; onType?: () => void; onStopTyping?: () => void
-  avatarOf: (id: string) => { initials: string; name: string; color: Participant['color'] }
+  avatarOf: (id: string, name?: string) => { initials: string; name: string; color: Participant['color'] }
   readOnly: boolean
 }
 
@@ -254,7 +261,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                 </div>
               )
               const { m, first } = r
-              const a = avatarOf(m.id)
+              const a = avatarOf(m.id, m.name)
               // a line the app wrote ("Sam joined", "reopened the plan"): a quiet
               // centered note, never a bubble, so it reads as the room, not a person
               if (m.system) return (

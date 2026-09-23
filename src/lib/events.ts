@@ -1278,6 +1278,22 @@ export function leaveGuestSession(eventId: string): void {
   setGuestMode(null)
 }
 
+/** Was this browser's own entry taken off the event? True when the guest session's
+ *  id or the account's is in removedIds and no longer on the roster, so someone
+ *  removed and later invited again is not caught by it. */
+export function removedFromEvent(ev: AppEvent): boolean {
+  const removed = new Set(ev.removedIds ?? [])
+  if (!removed.size) return false
+  const acc = currentAccount()
+  const mine = [guestSessionId(ev.id), acc.signedIn ? acc.id : null].filter((x): x is string => !!x)
+  return mine.some((id) => removed.has(id) && !ev.participants.some((p) => p.id === id))
+}
+/** Forget an event this browser was removed from: its copy here and any guest session. */
+export function forgetRemovedEvent(id: string): void {
+  writeAll(readAll().filter((e) => e.id !== id))
+  if (guestSessionId(id)) leaveGuestSession(id)
+}
+
 // resume an existing guest entry instead of creating a new one — the caller must
 // have proof it's really them (today: their email matches the entry's; later: the
 // magic link). This is what keeps repeat joins from piling up work for the host.

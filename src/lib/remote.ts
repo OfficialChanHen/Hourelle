@@ -159,7 +159,7 @@ export async function fetchEvent(id: string): Promise<boolean> {
   const ev = data.data as AppEvent
   const list = readCache()
   const i = list.findIndex((e) => e.id === id)
-  let merged = i >= 0 ? list.map((e, k) => (k === i ? { ...localize(ev, e), messages: e.messages } : e)) : [...list, { ...localize(ev), messages: [] }]
+  let merged = i >= 0 ? list.map((e, k) => (k === i ? { ...localize(ev, e), messages: withoutRemoved(e.messages, ev) } : e)) : [...list, { ...localize(ev), messages: [] }]
   const { data: rows } = await supabase!.from('messages').select('*').eq('event_id', id).order('at', { ascending: true })
   if (rows) merged = mergeMessages(merged, rows as MessageRow[])
   merged = mergeAnswers(merged, await loadAnswers([id]), new Set([id]))
@@ -363,6 +363,18 @@ export function pushMessage(eventId: string, m: ChatMessage): void {
   )
 }
 
+/* Lines from people taken off the event stay out of every copy. The server deletes
+   their rows, but a pull, a refresh or an insert racing the removal can bring one
+   back, and a document echo arrives with the new list before the delete does. The
+   test is the event's own: in removedIds and off the roster (a merge never puts an
+   id in removedIds, so merged history is kept). */
+function withoutRemoved(messages: ChatMessage[], ev: Pick<AppEvent, 'removedIds' | 'participants'>): ChatMessage[] {
+  const gone = (ev.removedIds ?? []).filter((id) => !ev.participants.some((p) => p.id === id))
+  if (!gone.length) return messages
+  const g = new Set(gone)
+  return messages.filter((m) => !g.has(m.id))
+}
+
 // merge a batch of rows into the cached events, newest last, without duplicates
 function mergeMessages(list: AppEvent[], rows: MessageRow[]): AppEvent[] {
   const byEvent = new Map<string, ChatMessage[]>()
@@ -375,7 +387,7 @@ function mergeMessages(list: AppEvent[], rows: MessageRow[]): AppEvent[] {
     const incoming = byEvent.get(e.id)
     if (!incoming) return e
     const have = new Set(e.messages.map((m) => m.mid).filter(Boolean))
-    const merged = [...e.messages, ...incoming.filter((m) => !have.has(m.mid))]
+    const merged = withoutRemoved([...e.messages, ...incoming.filter((m) => !have.has(m.mid))], e)
     merged.sort((a, b) => (a.at ?? 0) - (b.at ?? 0))
     return { ...e, messages: merged }
   })
@@ -471,7 +483,7 @@ export async function syncFromCloud(): Promise<void> {
   const local = readCache()
   // the cloud document carries no chat; keep whatever this browser already holds,
   // then lay the message rows over it
-  let merged = local.map((e) => { const c = cloud.get(e.id); return c ? { ...localize(c, e), messages: e.messages } : e })
+  let merged = local.map((e) => { const c = cloud.get(e.id); return c ? { ...localize(c, e), messages: withoutRemoved(e.messages, c) } : e })
   for (const [id, ev] of cloud) if (!local.some((e) => e.id === id)) merged.push({ ...localize(ev), messages: [] })
   const ids = merged.map((e) => e.id)
   if (ids.length) {
@@ -555,7 +567,7 @@ export function startRealtime(): () => void {
         const had = list[i]
         list[i] = {
           ...localize(ev, had),
-          messages: had.messages,
+          messages: withoutRemoved(had.messages, ev),
           availIv: ev.availIv ?? had.availIv,
           votes: ev.votes ?? had.votes,
           unavailableIds: ev.unavailableIds ?? had.unavailableIds,

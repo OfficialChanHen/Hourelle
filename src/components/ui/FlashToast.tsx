@@ -14,11 +14,13 @@ const KEY = 'hourelle.flash'
 
 const PUSHED = 'hourelle:flash'
 
-export function pushFlash(text: string, tone: Flash['tone'] = 'accent') {
+export function pushFlash(text: string, tone: Flash['tone'] = 'accent', { forNextPage = false } = {}) {
   try { sessionStorage.setItem(KEY, JSON.stringify({ text, tone })) } catch { /* private mode */ }
   // a flash pushed with no navigation to follow (a background send reporting back)
-  // is read at once rather than on the next route change
-  if (typeof window !== 'undefined') window.dispatchEvent(new Event(PUSHED))
+  // is read at once rather than on the next route change. One meant for a page about
+  // to load from scratch is left for it: read now, it would show on the page that is
+  // leaving and be gone before the next one could.
+  if (!forNextPage && typeof window !== 'undefined') window.dispatchEvent(new Event(PUSHED))
 }
 
 export function FlashToast() {

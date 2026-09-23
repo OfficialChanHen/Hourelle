@@ -48,7 +48,7 @@ import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/
 import { Hint } from '@/components/ui/Hint'
 import { Tour } from '@/components/Tour'
 import { AskTour } from '@/components/AskTour'
-import { fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
+import { forgetRemovedEvent, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -65,6 +65,7 @@ import { InviteByEmail } from '@/components/InviteByEmail'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { removeEventCovers } from '@/lib/covers'
 import { purgeRemoved } from '@/lib/remote'
+import { currentAccount } from '@/lib/session'
 
 const TABS = [
   { key: 'availability', label: 'Availability', short: 'Availability' },
@@ -199,6 +200,21 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   // reload. The panels keep their own in-progress edits in local state, so a message
   // arriving mid-drag updates the page around you rather than under you.
   useLiveEvents(refresh)
+
+  // taken off the event by the host while here (or before coming back): there is
+  // nothing left on this page that is yours, so it closes behind you. A guest has no
+  // app to go back to and lands on the front page; an account lands on Home.
+  const removedTitle = event && removedFromEvent(event) ? event.title : null
+  useEffect(() => {
+    if (removedTitle === null) return
+    const signedIn = currentAccount().signedIn
+    forgetRemovedEvent(id)
+    // an account stays in the app; a guest leaves it for the front door with a full
+    // load, which drops the guest session's state, and the front page shows the notice
+    pushFlash(`The host removed you from ${removedTitle}.`, 'brick', { forNextPage: !signedIn })
+    if (signedIn) router.replace('/home')
+    else window.location.replace('/')
+  }, [removedTitle, id, router])
 
   // who else has this event open, and who is typing. Presence is not a fact about
   // the event, so it lives on a channel and never in a table; with no backend the

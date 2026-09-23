@@ -19,6 +19,7 @@ import { DayPollDemo } from '@/components/landing/DayPollDemo'
 import { BallotDemo } from '@/components/landing/BallotDemo'
 import { ChatDemo } from '@/components/landing/ChatDemo'
 import { SiteFooter } from '@/components/SiteFooter'
+import { FlashToast } from '@/components/ui/FlashToast'
 import { rich } from '@/components/ui/rich'
 import { Cover } from '@/components/ui/Cover'
 import { CARD_COVER_H, coverFor } from '@/components/ui/StoredEventCard'
@@ -107,7 +108,10 @@ export default function Landing() {
       </a>
       <VisitorHeader />
 
-      <main id="main" tabIndex={-1} className="flex-1">
+      <main id="main" tabIndex={-1} className="relative flex-1">
+        {/* the front door has its own layout, so a flash queued on the way here (a
+            guest the host removed from an event) needs its own place to land */}
+        <FlashToast />
         {/* ── hero ── */}
         <section className="mx-auto w-full max-w-[1240px] px-[22px] pb-8 pt-8 sm:pt-12 lg:pt-16">
           <div className="grid gap-10 lg:grid-cols-12 lg:items-center xl:gap-14">
@@ -146,7 +150,7 @@ export default function Landing() {
         <section id="how" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pb-8 pt-14 sm:pt-28">
           <div className="ld-reveal max-w-[560px]">
             <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-accent-text">How it works</p>
-            <h2 className="mt-2.5 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">Four steps, and most of them are other people&apos;s.</h2>
+            <h2 className="mt-2.5 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">Four simple steps.</h2>
           </div>
           <HowItWorks />
         </section>
