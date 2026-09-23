@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { ExternalLink } from 'lucide-react'
-import { BackLink } from '@/components/ui/BackLink'
+import { EventBack } from '@/components/EventBack'
 import { SupportCard } from '@/components/ui/Support'
 
 /* ── about: why Hourelle exists, what it holds to, and how it treats what you give it ── */
@@ -17,7 +17,7 @@ const PRINCIPLES: { title: string; text: string }[] = [
 export default function AboutPage() {
   return (
     <div className="mx-auto max-w-[680px] px-4 pb-[92px] pt-[34px] sm:px-[26px]">
-      <BackLink href="/profile" label="Profile" onlyWithAccount />
+      <EventBack fallback={{ href: '/profile', label: 'Profile' }} />
       <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">About</p>
       <h1 className="mt-2 font-serif font-normal text-[40px] leading-[1.06] tracking-[-0.01em]">
         Find the hour everyone can meet.

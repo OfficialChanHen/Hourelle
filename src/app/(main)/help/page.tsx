@@ -1,5 +1,6 @@
 import { FeedbackForm } from './_components/FeedbackForm'
-import { HelpBack, HelpBackAfterClips } from './_components/HelpBack'
+import { HelpBackAfterClips } from './_components/HelpBack'
+import { EventBack } from '@/components/EventBack'
 
 /* ── help & contact: the questions people actually hit, answered in plain words,
    then a real way to reach a person ── */
@@ -53,7 +54,7 @@ const GROUPS: { title: string; items: QA[] }[] = [
 export default function HelpPage() {
   return (
     <div className="mx-auto max-w-[760px] px-4 pb-[92px] pt-[34px] sm:px-[26px]">
-      <HelpBack />
+      <EventBack fallback={{ href: '/profile', label: 'Profile' }} />
       <h1 className="font-serif font-normal text-[33.5px] leading-[1.04] tracking-[-0.01em]">Help &amp; contact</h1>
       <p className="mt-1.5 text-[13.5px] text-dim">Short answers first, a person after that.</p>
 

@@ -3,7 +3,7 @@
 // can never drift apart. Reachable without an account, which is why the back link
 // only appears for someone who has one.
 
-import { BackLink } from '@/components/ui/BackLink'
+import { EventBack } from '@/components/EventBack'
 import { LegalDocument } from '@/components/ui/LegalDocument'
 import { LEGAL, LEGAL_EFFECTIVE } from '@/content/legal'
 
@@ -12,7 +12,7 @@ const doc = LEGAL.privacy
 export default function Page() {
   return (
     <div className="mx-auto max-w-[720px] px-4 pb-[92px] pt-[34px] sm:px-[26px]">
-      <BackLink href="/profile" label="Profile" onlyWithAccount />
+      <EventBack fallback={{ href: '/profile', label: 'Profile' }} />
       <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">{doc.eyebrow}</p>
       <h1 className="mt-2 font-serif font-normal text-[40px] leading-[1.06] tracking-[-0.01em]">{doc.title}</h1>
       <p className="mt-3 text-[15px] leading-[1.65] text-dim">{doc.lead}</p>

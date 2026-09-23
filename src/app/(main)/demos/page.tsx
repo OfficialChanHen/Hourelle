@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { StoredEventCard } from '@/components/ui/StoredEventCard'
 import { rich } from '@/components/ui/rich'
 import { listDemos, sameDayLabelFor, type AppEvent } from '@/lib/events'
+import { EventBack } from '@/components/EventBack'
 
 /* ── the demo shelf: example events, grouped by the question they answer ──
    Every demo is a finished plan to walk through: the grid, the ballot, the roster
@@ -52,6 +53,7 @@ export default function DemosPage() {
 
   return (
     <div className="mx-auto max-w-[1240px] px-[26px] pb-[92px] pt-[34px]">
+      <EventBack />
       <div className="mb-8 max-w-[640px]">
         <h1 className="mb-2 font-serif font-normal text-[36px] leading-[1.02] tracking-[-0.01em]">Demos</h1>
         <p className="text-[14px] leading-[1.6] text-dim">
