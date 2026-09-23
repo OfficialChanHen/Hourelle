@@ -1006,12 +1006,9 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="date" value={start} min={today} className={inputCls}
-          onChange={(ev) => { const v = fromDay(ev.target.value, today); setStart(v); if (end < v) setEnd(v) }}
-        />
-        <span className="text-[13px] text-dim">to</span>
-        <input type="date" value={end} min={endFloor} onChange={(ev) => setEnd(fromDay(ev.target.value, endFloor))} className={inputCls} />
+        <DateField label="Earliest day" value={start} min={today} onChange={(v) => { const d = fromDay(v, today); setStart(d); if (end < d) setEnd(d) }} className="h-11 w-[160px] !bg-s0 sm:h-9" />
+        <span className="text-faint" aria-hidden>→</span>
+        <DateField label="Latest day" value={end} min={endFloor} onChange={(v) => setEnd(fromDay(v, endFloor))} className="h-11 w-[160px] !bg-s0 sm:h-9" />
       </div>
       <DaysPicker
         startDate={start}

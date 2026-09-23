@@ -5,6 +5,7 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { CalendarCheck, Check, ChevronDown, Lock, MapPin, Route, Video, Vote, Wallet, X } from 'lucide-react'
 import { TimeSelect } from '@/components/ui/TimeSelect'
+import { DateField } from '@/components/ui/DateField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { canEmail, sendLockedMail } from '@/lib/mail'
@@ -335,14 +336,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
       <div>
         <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">RSVP by <span className="normal-case tracking-normal text-faint">(Optional)</span></div>
         <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={rsvpBy}
-            min={todayKey}
-            max={dayKey}
-            onChange={(e) => setRsvpBy(e.target.value)}
-            className="h-9 flex-1 cursor-pointer rounded-[9px] border border-border bg-s1 px-3 text-[13.5px] font-medium outline-none focus:border-accent-border"
-          />
+          <DateField label="RSVP by" value={rsvpBy} min={todayKey} max={dayKey} onChange={setRsvpBy} className="h-11 flex-1 !bg-s1 sm:h-9" />
           {rsvpBy && (
             <button type="button" onClick={() => setRsvpBy('')} className="flex-none text-[12.5px] font-semibold text-dim hover:text-brick-text hover:underline">
               Clear

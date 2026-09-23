@@ -43,6 +43,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { OverflowText } from '@/components/ui/OverflowText'
 import { TimeSelect } from '@/components/ui/TimeSelect'
 import { Popover } from '@/components/ui/Popover'
+import { DateField } from '@/components/ui/DateField'
 
 // Leaflet reads `window` when it loads, so the map only ever renders in the browser
 const EventMap = dynamic(() => import('@/components/EventMap').then((m) => m.EventMap), { ssr: false, loading: () => <div className="absolute inset-0 animate-pulse bg-s2" /> })
@@ -624,14 +625,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                     <div className="border-t border-border pt-2.5">
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Voting closes</div>
                       <div className="flex items-center gap-1.5">
-                        <input
-                          type="date"
-                          value={voteDeadline}
-                          min={todayKey()}
-                          onChange={(e) => changeDeadline(e.target.value)}
-                          className="h-8 min-w-0 flex-1 rounded-[8px] border border-border bg-s1 px-2 text-[13px] outline-none focus:border-accent-border"
-                          aria-label="Voting deadline"
-                        />
+                        <DateField label="Voting deadline" value={voteDeadline} min={todayKey()} onChange={changeDeadline} className="h-11 min-w-0 flex-1 !bg-s1 sm:h-8" />
                         {voteDeadline && (
                           <button onClick={() => changeDeadline('')} title="Remove the deadline" className="grid h-8 w-8 flex-none place-items-center rounded-[8px] border border-border2 text-dim hover:text-brick-text"><X size={14} /></button>
                         )}
