@@ -17,7 +17,7 @@ import { restampMe } from '@/lib/events'
 import { loadReminderPrefs, saveReminderPrefs } from '@/lib/mail'
 import { prefNotify, setPrefNotify, NOTIFY_DEFAULTS, type NotifyPrefs } from '@/lib/prefs'
 import { markWelcomed } from '@/lib/plan'
-import { resetAppearance, setTourWanted } from '@/lib/prefs'
+import { resetAppearance, resetHint, resetHints, setTourWanted } from '@/lib/prefs'
 import { ensurePracticeEvent } from '@/lib/practice'
 
 /* The steps after an account is made: the terms first, only when the account never
@@ -50,12 +50,14 @@ function Welcome() {
   const steps: Step[] = needsTerms || termsShown ? ['terms', 'settings', 'plan', 'tour'] : ['settings', 'plan', 'tour']
   const stepIndex = steps.indexOf(step) + 1
   // a new account starts from the house look with the theme following the device,
-  // whatever the last person on this browser chose; what they pick on the settings
-  // step below is theirs from then on
+  // and with every hint and the tour unseen, whatever the last person on this
+  // browser chose or dismissed; what they pick on the settings step is theirs
   useEffect(() => {
     if (!account.signedIn) return
     resetAppearance()
     setTheme('system')
+    // and the one-line hints are new to them too, not dismissed by whoever was here
+    resetHints()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account.signedIn, account.id])
   // does this account have the terms on record? Asked once; the answer decides the
@@ -127,6 +129,9 @@ function Welcome() {
   // when that is an event, otherwise a practice event of their own, where
   // everything on the cards can really be tried
   function showAround() {
+    // asked for in so many words, so it runs, even on a browser where someone
+    // (a deleted account, a previous user) already finished it once
+    resetHint('tour')
     setTourWanted(true)
     markWelcomed(account.id)
     router.replace(next.startsWith('/events/') ? next : `/events/${ensurePracticeEvent()}`)

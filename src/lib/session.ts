@@ -8,7 +8,7 @@
 // demo identity the app has always used — so every screen keeps working.
 
 import { supabase, backendOn } from './db'
-import { resetAppearance } from './prefs'
+import { resetAppearance, resetHints, setTourWanted } from './prefs'
 import { forgetPlan } from './plan'
 import type { PersonColor } from './colors'
 import { passwordProblem } from './password'
@@ -481,6 +481,9 @@ export async function deleteAccount(confirm: string): Promise<string | null> {
     try { localStorage.removeItem(LEGAL_KEY) } catch { /* private mode */ }
     forgetPlan(data.session!.user.id)
     resetAppearance()
+    // what it had learned goes too: the tour it finished and the hints it closed, so
+    // a new account on this browser (the same email included) starts from the start
+    resetHints(); setTourWanted(false)
     await supabase!.auth.signOut({ scope: 'local' }).catch(() => {})
     authGen++; writeCache(STUB)
   } catch {
