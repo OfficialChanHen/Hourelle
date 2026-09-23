@@ -499,12 +499,42 @@ export async function syncFromCloud(): Promise<void> {
   // "Not in the pull" is not enough to mean "born here": a visitor who opened an
   // invite has that event cached and is part of nothing, so the pull brings nothing —
   // only an event this identity is actually part of can be one of its own.
+  //
+  // And only one this identity HOSTS. Such an event was always made by its host;
+  // being on the list (a guest session, an invite) is no claim to it, and the
+  // database would refuse the insert anyway. It used to try: a guest session left
+  // behind on an event that was since deleted sent the event up (refused), then every
+  // chat line in it (refused again, for pointing at an event that is not there), and
+  // the notice said "that change arrived before the event did" on every page load.
+  // An event of someone else's that the pull does not bring back no longer exists,
+  // so this device forgets it, guest session and all.
+  const me = currentAccount()
+  const hosted = (e: AppEvent) => !!e.hostedByYou || (me.signedIn && hostIdOf(e) === me.id)
+  const gone: string[] = []
   for (const e of local) if (!cloud.has(e.id) && isMine(e)) {
+    if (!hosted(e)) { gone.push(e.id); continue }
     void supabase!.from('events').upsert({ id: e.id, data: docOf(e), host_id: hostIdOf(e) }).then(({ error }) => { if (error) rejected('save', error.message) })
     for (const m of e.messages) pushMessage(e.id, { ...m, mid: m.mid ?? crypto.randomUUID() })
     // an event that has only ever lived here has answers only in its document
     pushAnswers({ ...e, availIv: {}, votes: {}, unavailableIds: [] }, e)
   }
+  if (gone.length) forgetGone(gone)
+}
+
+/* Forget events that no longer exist: this device's copy, and the guest session on
+   them (and guest mode, if it pointed at one). Written against the storage keys
+   directly, since lib/events imports this module and not the other way round. */
+function forgetGone(ids: string[]): void {
+  const drop = new Set(ids)
+  writeCache(readCache().filter((e) => !drop.has(e.id)), true)
+  try {
+    for (const id of ids) localStorage.removeItem(GUEST_KEY_PREFIX + id)
+    const mode = localStorage.getItem('hourelle.guest-mode')
+    if (mode && drop.has(mode)) {
+      localStorage.removeItem('hourelle.guest-mode')
+      window.dispatchEvent(new Event('hourelle:guest-mode'))
+    }
+  } catch { /* private mode */ }
 }
 
 /* ── catching up after a gap ──
