@@ -4,6 +4,7 @@
    data URL until then (see lib/covers). */
 
 import { isPhotoCover } from '@/lib/cover-kind'
+import { CoverImg } from './CoverImg'
 
 export type CoverPreset = { id: string; name: string; from: string; to: string; scene: React.ReactNode }
 
@@ -94,16 +95,16 @@ export function Cover({
   // has been moved to Storage and is now a URL. Both draw identically.
   if (isPhotoCover(src)) {
     const whole = fit === 'fit'
+    // the photo sits on the event's default cover, so a picture that cannot load (a
+    // file since deleted, a dropped connection) shows that cover rather than a blank
     return (
-      <div className={`relative overflow-hidden ${rounded} ${className}`} style={whole ? { background: 'var(--s2)' } : undefined}>
+      <div className={`relative overflow-hidden ${rounded} ${className}`} style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}>
+        <DefaultMarks />
         {/* already downscaled on the way in, and a data URL has nothing for
             next/image to fetch, so both sources go straight to an <img> */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        {whole && <img src={src} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-xl" />}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={src}
-          alt=""
+        {whole && <CoverImg src={src!} hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-xl" />}
+        <CoverImg
+          src={src!}
           className={`absolute inset-0 h-full w-full ${whole ? 'object-contain' : 'object-cover'}`}
           style={!whole && pos ? { objectPosition: `${pos.x}% ${pos.y}%` } : undefined}
         />
@@ -125,8 +126,18 @@ export function Cover({
       className={`relative overflow-hidden ${rounded} ${className}`}
       style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}
     >
+      <DefaultMarks />
+    </div>
+  )
+}
+
+// the two soft circles of the default cover, drawn under a photo too so a picture
+// that fails to load leaves exactly the cover an event without one wears
+function DefaultMarks() {
+  return (
+    <>
       <span className="absolute -right-6 -top-10 h-32 w-32 rounded-full" style={{ background: 'rgba(255,255,255,.22)' }} />
       <span className="absolute -bottom-8 left-4 h-20 w-20 rounded-full" style={{ background: 'rgba(46,74,60,.07)' }} />
-    </div>
+    </>
   )
 }

@@ -26,7 +26,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { fetchEvent } from '@/lib/remote'
 import { CoverEditor, type ImageFit } from '@/components/ui/CoverEditor'
-import { uploadCover } from '@/lib/covers'
+import { copyCoverInto, uploadCover } from '@/lib/covers'
 import { isInlineCover, isPhotoCover } from '@/lib/cover-kind'
 import Link from 'next/link'
 import * as Slider from '@radix-ui/react-slider'
@@ -393,6 +393,10 @@ function CreateWizard() {
     // in the document draws the same picture until the URL replaces it.
     if (isInlineCover(ev.image)) {
       void uploadCover(ev.id, ev.image as string).then((url) => { if (url) patchEvent(ev.id, { image: url }) })
+    } else if (ev.image) {
+      // a duplicate carries the original's hosted photo: it gets a copy of its own, so
+      // deleting the original can never take this event's cover with it
+      void copyCoverInto(ev.id, ev.image).then((url) => { if (url) patchEvent(ev.id, { image: url }) })
     }
     // straight to the event: no screen in between. The email invitees get their
     // personal links in the background, the way the Created screen used to send them;

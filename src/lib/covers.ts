@@ -93,6 +93,29 @@ export async function uploadCover(eventId: string, dataUrl: string): Promise<str
   return data.publicUrl || null
 }
 
+/**
+ * Give an event its own copy of a cover that lives in another event's folder, and
+ * hand back the copy's URL. A duplicated event used to point at the original's file,
+ * and deleting the original took its folder with it, so the copy's cover vanished
+ * for everyone. Each event's photos live in its own folder from now on. Resolves
+ * null when the copy could not be made; the caller then keeps what it had.
+ */
+export async function copyCoverInto(eventId: string, url?: string): Promise<string | null> {
+  if (!backendOn || !url || !ourUpload(url)) return null
+  const from = pathOf(url)
+  if (!from || from.startsWith(`${eventId}/`)) return null // already this event's own
+  const { data: session } = await supabase!.auth.getSession()
+  if (!session.session) return null
+  const to = `${eventId}/${linkToken(16)}.jpg`
+  const { error } = await supabase!.storage.from(COVER_BUCKET).copy(from, to)
+  if (error) {
+    console.warn('hourelle: cover copy failed —', error.message)
+    return null
+  }
+  const { data } = supabase!.storage.from(COVER_BUCKET).getPublicUrl(to)
+  return data.publicUrl || null
+}
+
 /** Take a cover out of the bucket once nothing points at it. Best effort and silent:
  *  a cover that outlives its event costs a little space and nothing else, while an
  *  error here would interrupt something the person actually asked for. */
