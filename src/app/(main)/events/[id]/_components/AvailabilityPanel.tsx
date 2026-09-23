@@ -1326,7 +1326,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               <SegmentedControl size="sm" value={mode} onChange={(v) => { setMode(v as Mode); setSel(null); setDetail(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
               <Popover
                 align="end"
-                width={284}
+                // the host's panel holds the length track, which needs the room; anyone
+                // else's holds a toggle or two, and a panel twice their width round them
+                // was mostly empty. Captions wrap to the width and never set it.
+                width={isHost && !daysAnswer ? 284 : 'fit'}
                 trigger={(open) => (
                   <span className={`flex h-7 items-center gap-1.5 rounded-lg border px-[10px] text-[12.5px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
                     <SlidersHorizontal size={13} /> Settings
@@ -1346,7 +1349,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     {isHost && <div className={daysAnswer ? '' : 'border-t border-border pt-2.5'}>
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">{daysAnswer ? 'Best days favor' : 'Best time favors'}</div>
                       <Segment compact value={bestMode} onChange={(v) => changeBestMode(v as BestMode)} options={[{ v: 'full', l: 'Everyone stays' }, { v: 'crowd', l: 'Biggest crowd' }]} />
-                      <p className="mt-1.5 text-[12px] leading-[1.5] text-faint">
+                      <p className="mt-1.5 w-0 min-w-full text-[12px] leading-[1.5] text-faint">
                         {daysAnswer
                           ? bestMode === 'full'
                             ? 'Picks the days the most people can make from start to end.'
@@ -1368,7 +1371,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                           <span className="text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Whole week</span>
                           <Switch on={wholeWeek} onChange={setWholeWeek} label="Show the whole week" />
                         </div>
-                        <p className="mt-1.5 text-[12px] leading-[1.5] text-faint">Shows the days around the poll, greyed out.</p>
+                        <p className="mt-1.5 w-0 min-w-full text-[12px] leading-[1.5] text-faint">Shows the days around the poll, greyed out.</p>
                       </div>
                     )}
                     {youAny && (
@@ -2055,14 +2058,19 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   <>
                     <span className="text-[14px] font-semibold text-ochre">{bw.dayLabel}, {fmt(gridStartMin + bw.s)} – {fmt(gridStartMin + bw.e)}</span>
                     <TimezonePill tz={myTime && canConvert ? localTz : event.timezone} />
-                    {bestMode === 'crowd'
-                      // never round a partial attendee away: below one person on average,
-                      // count everyone who shows up at all instead
-                      ? Math.round(bw.avg) >= 1
-                        ? <span className="text-[12.5px] font-semibold text-teal-text">around {Math.round(bw.avg)} of {viewTotal} there{bw.count > 0 && <span className="font-normal text-dim">, {bw.count} the whole time</span>}</span>
-                        : <span className="text-[12.5px] font-semibold text-teal-text">{bw.anyIds.length} of {viewTotal} there for part of it</span>
-                      : <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {viewTotal} free</span>}
-                    <div className="ml-auto"><AvatarRow people={byRoster(bestMode === 'crowd' ? bw.anyIds : bw.ids).map(avatarOf)} size={22} max={8} overlap={5} /></div>
+                    {/* the faces and the count are one thing: who is free, and how many.
+                        Apart, the faces wrapped onto a line of their own on a phone and
+                        hung at the far edge, with nothing saying what they were */}
+                    <span className="flex min-w-0 items-center gap-2 sm:ml-auto">
+                      <AvatarRow people={byRoster(bestMode === 'crowd' ? bw.anyIds : bw.ids).map(avatarOf)} size={22} max={8} overlap={5} />
+                      {bestMode === 'crowd'
+                        // never round a partial attendee away: below one person on average,
+                        // count everyone who shows up at all instead
+                        ? Math.round(bw.avg) >= 1
+                          ? <span className="text-[12.5px] font-semibold text-teal-text">around {Math.round(bw.avg)} of {viewTotal} there{bw.count > 0 && <span className="font-normal text-dim">, {bw.count} the whole time</span>}</span>
+                          : <span className="text-[12.5px] font-semibold text-teal-text">{bw.anyIds.length} of {viewTotal} there for part of it</span>
+                        : <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {viewTotal} free</span>}
+                    </span>
                     {bwAllShown && (
                       <span className="flex w-full items-center gap-1.5 text-[12.5px] text-dim">
                         <span className="inline-block h-0 w-[18px] border-t-2 border-dashed border-ochre" aria-hidden />
@@ -2078,12 +2086,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   <span className="text-[14px] font-semibold text-ochre">
                     {blockLen === 1 ? blockDayLabel(block.startKey) : <>{blockDayLabel(block.startKey)} – {blockDayLabel(block.endKey)}</>}
                   </span>
-                  <span className="text-[12.5px] font-semibold text-teal-text">
-                    {blockLen === 1
-                      ? <>{block.count} of {viewTotal} free that day</>
-                      : bestMode === 'crowd'
-                        ? <>around {Math.round(block.avgPerDay)} of {viewTotal} there each day</>
-                        : <>{block.count} of {viewTotal} free every day</>}
+                  <span className="flex min-w-0 items-center gap-2 sm:order-last sm:ml-auto">
+                    <AvatarRow people={byRoster(bestMode === 'crowd' ? block.anyIds : block.ids).map(avatarOf)} size={22} max={8} overlap={5} />
+                    <span className="text-[12.5px] font-semibold text-teal-text">
+                      {blockLen === 1
+                        ? <>{block.count} of {viewTotal} free that day</>
+                        : bestMode === 'crowd'
+                          ? <>around {Math.round(block.avgPerDay)} of {viewTotal} there each day</>
+                          : <>{block.count} of {viewTotal} free every day</>}
+                    </span>
                   </span>
                   {dayPoll && onLockDays && (
                     <button
@@ -2094,7 +2105,6 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                       {blockLen === 1 ? 'Lock this day' : 'Lock these days'}
                     </button>
                   )}
-                  <span className="ml-auto"><AvatarRow people={byRoster(bestMode === 'crowd' ? block.anyIds : block.ids).map(avatarOf)} size={22} max={8} overlap={5} /></span>
                 </>
               ) : (
                 <span className="text-[12.5px] text-dim">No {blockLen} days in a row with replies yet.</span>
