@@ -48,7 +48,7 @@ import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/
 import { Hint } from '@/components/ui/Hint'
 import { Tour } from '@/components/Tour'
 import { AskTour } from '@/components/AskTour'
-import { forgetRemovedEvent, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
+import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -200,6 +200,10 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   // reload. The panels keep their own in-progress edits in local state, so a message
   // arriving mid-drag updates the page around you rather than under you.
   useLiveEvents(refresh)
+
+  // the first time an invitee opens the event, the room hears they arrived
+  const arrivingId = event && !event.demo ? event.participants.find((p) => p.you && !p.host && !p.joinedAt)?.id ?? null : null
+  useEffect(() => { if (arrivingId) { markArrived(id, arrivingId); refresh() } }, [arrivingId, id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // taken off the event by the host while here (or before coming back): there is
   // nothing left on this page that is yours, so it closes behind you. A guest has no

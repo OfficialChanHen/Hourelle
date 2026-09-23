@@ -35,6 +35,9 @@ export type Participant = {
   // set when the host invited them by email: a secret in their personal link, so
   // opening it lands them already named. Possession of the link is the identity.
   inviteToken?: string
+  // when they first opened the event. An invitee is on the list from the moment
+  // they are invited, so arriving is its own moment, and the room hears about it
+  joinedAt?: number
   // when this invitation was made. A guest's id is built from their address, so
   // removing someone and inviting them again rebuilds the same id, and the mail log
   // (keyed on it) would call the second invitation a repeat of the first and send
@@ -1357,6 +1360,24 @@ export function viewOf(ev: AppEvent): AppEvent {
 
 /* Put the signed-in account on an event's list. The way out of "you are looking at
    this event but nobody here is you" — one tap instead of a dead end. */
+/* The first time someone on the list opens the event, the room is told, the same
+   "joined the event" a guest gets on joining by name. An invitee is on the list from
+   the moment they are invited (by email or as an account), so opening their link or
+   the event claims an entry that already exists, and nothing used to say they had
+   arrived. Called by the event page for whoever is viewing: it stamps joinedAt once,
+   and speaks only for a genuine first arrival: no line from them in the chat yet and
+   no answer of theirs on the grid, so people who were already active before this
+   existed are marked as arrived without a late announcement. The host never is. */
+export function markArrived(id: string, pid: string): void {
+  const ev = getEvent(id)
+  const p = ev?.participants.find((x) => x.id === pid)
+  if (!ev || ev.demo || !p || p.host || p.joinedAt) return
+  patchEvent(id, { participants: ev.participants.map((x) => (x.id === pid ? { ...x, joinedAt: Date.now() } : x)) })
+  const spoke = ev.messages.some((m) => m.id === pid)
+  const answered = Object.values(availIvOf(ev)).some((byPid) => (byPid[pid] ?? []).length > 0) || (ev.unavailableIds ?? []).includes(pid)
+  if (!spoke && !answered) appendMessage(id, { id: pid, name: p.name, time: 'now', text: 'joined the event', you: false, system: true })
+}
+
 export function addMeToEvent(id: string): Participant | null {
   const ev = getEvent(id)
   const acc = currentAccount()
@@ -1393,7 +1414,7 @@ export function joinEvent(id: string, name: string, email?: string): Participant
   // an email comes with a personal link, the same kind an invited guest gets: it is
   // mailed to them once, and opening it on any device lands them back as themselves
   const guest: Participant = {
-    id: pid, initials, name: clean, color: pickColor(ev.participants, { initials, name: clean }), rsvp: 'pending', guest: true,
+    id: pid, initials, name: clean, color: pickColor(ev.participants, { initials, name: clean }), rsvp: 'pending', guest: true, joinedAt: Date.now(),
     ...(cleanEmail ? { email: cleanEmail, inviteToken: linkToken(16) } : {}),
   }
   if (ev.demo) {
