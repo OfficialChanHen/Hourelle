@@ -1320,7 +1320,14 @@ export function viewOf(ev: AppEvent): AppEvent {
    anyone with no arrival stamp who was already active (see arrivalOf). */
 function sinceArrival(ev: AppEvent): AppEvent {
   const me = ev.participants.find((p) => p.you)
-  if (!me || me.host || ev.demo) return ev
+  if (ev.demo) return ev
+  // nobody here is you: this device is not (or not yet) on the list. The moment
+  // after joining, a sync can bring back a list from before your entry landed, and
+  // with no arrival to measure from the whole history showed. Nothing shows until
+  // you are on it. The host is always on it; a device with no backend keeps its
+  // stored markers, so this only ever holds back someone who has not arrived.
+  if (!me) return ev.hostedByYou ? ev : { ...ev, messages: [] }
+  if (me.host) return ev
   const from = arrivalOf(ev, me)
   return from > 0 ? { ...ev, messages: ev.messages.filter((m) => (m.at ?? 0) >= from) } : ev
 }
@@ -1330,6 +1337,8 @@ function sinceArrival(ev: AppEvent): AppEvent {
  *  chat or an answer on the grid), whose history was theirs all along. */
 export function arrivalOf(ev: AppEvent, p: Participant): number {
   if (p.joinedAt) return p.joinedAt
+  // back after being removed: a newcomer again, whatever they said the first time
+  if ((ev.removedIds ?? []).includes(p.id)) return Date.now()
   const spoke = ev.messages.some((m) => m.id === p.id)
   const answered = Object.values(availIvOf(ev)).some((byPid) => (byPid[p.id] ?? []).length > 0) || (ev.unavailableIds ?? []).includes(p.id)
   return spoke || answered ? 0 : Date.now()

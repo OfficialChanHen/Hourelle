@@ -9,6 +9,7 @@ import { writeLocal } from './local'
 import { currentAccount } from './session'
 import { byDay, byParticipant, fullAvailIvOf, intervalsToGrid, stepOf, type PersonAnswer } from './availability'
 import type { AppEvent, ChatMessage } from './events'
+import { removedLineTest } from './removed'
 
 // fired on window whenever the cloud changed the local cache, so any open page
 // can re-read if it wants live updates (roadmap step 7 wires the listeners)
@@ -369,10 +370,9 @@ export function pushMessage(eventId: string, m: ChatMessage): void {
    test is the event's own: in removedIds and off the roster (a merge never puts an
    id in removedIds, so merged history is kept). */
 function withoutRemoved(messages: ChatMessage[], ev: Pick<AppEvent, 'removedIds' | 'participants'>): ChatMessage[] {
-  const gone = (ev.removedIds ?? []).filter((id) => !ev.participants.some((p) => p.id === id))
-  if (!gone.length) return messages
-  const g = new Set(gone)
-  return messages.filter((m) => !g.has(m.id))
+  if (!ev.removedIds?.length) return messages
+  const hidden = removedLineTest(ev)
+  return messages.filter((m) => !hidden(m))
 }
 
 // merge a batch of rows into the cached events, newest last, without duplicates

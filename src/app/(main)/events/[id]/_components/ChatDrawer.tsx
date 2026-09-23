@@ -9,6 +9,7 @@ import { fmtMinute, type AppEvent, type ChatMessage, type Participant } from '@/
 import { prefH24 } from '@/lib/prefs'
 import { typingLine, type Peer } from '@/lib/room'
 import { setWatchingChat } from '@/lib/sound'
+import { removedLineTest } from '@/lib/removed'
 import { usePhoneScreen } from '@/hooks/usePhoneScreen'
 
 /* ── event discussion, reachable from every tab ──
@@ -101,9 +102,10 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readO
     const initials = p?.initials ?? (n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?')
     return { initials, name: n, color: p?.color ?? ('stone' as Participant['color']) }
   }
-  // lines from people the host took off the event never show, whatever copy they came from
-  const gone = new Set((event.removedIds ?? []).filter((rid) => !pById.has(rid)))
-  const shown = gone.size ? messages.filter((m) => !gone.has(m.id)) : messages
+  // lines from people the host took off the event never show, whatever copy they came
+  // from, and not even once that person is back on the list
+  const hidden = removedLineTest(event)
+  const shown = event.removedIds?.length ? messages.filter((m) => !hidden(m)) : messages
   const body = <ChatBody messages={shown} unreadFrom={unreadFrom} onSend={onSend} onClose={close} avatarOf={avatarOf} readOnly={readOnly} typing={typing} onType={onType} onStopTyping={onStopTyping} />
 
   return (
