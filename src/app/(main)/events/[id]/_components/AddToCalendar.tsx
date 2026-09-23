@@ -4,6 +4,7 @@ import { CalendarPlus, ChevronDown, Download } from 'lucide-react'
 import { Popover, PopoverItem, PopoverTitle } from '@/components/ui/Popover'
 import { fmtMinute, type AppEvent } from '@/lib/events'
 import { icsFileName, icsFor } from '@/lib/ics'
+import { zonedToUtc } from '@/lib/tz'
 
 /* ── add-to-calendar export (Google / Outlook compose links) ──
    Shown once a time is locked in: adds the confirmed slot as a timed entry.
@@ -37,13 +38,15 @@ export function AddToCalendar({ event, slot, align = 'end' }: { event: AppEvent;
       o.set('allday', 'true')
     } else if (timed) {
       const hm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}${String(min % 60).padStart(2, '0')}00`
-      const hmc = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}:00`
       // a timed run starts on its first day and ends on its last
       const endKey = timed.endDayKey ?? timed.dayKey
       const d = timed.dayKey.replace(/-/g, ''), e = endKey.replace(/-/g, '')
       g.set('dates', `${d}T${hm(timed.startMin)}/${e}T${hm(timed.endMin)}`)
-      o.set('startdt', `${timed.dayKey}T${hmc(timed.startMin)}`)
-      o.set('enddt', `${endKey}T${hmc(timed.endMin)}`)
+      // Outlook's compose link has no time zone field and reads a bare time in the
+      // viewer's own zone, so a Chicago dinner added from New York landed an hour
+      // late. The two ends go as the exact instants, in UTC, which it reads correctly.
+      o.set('startdt', new Date(zonedToUtc(timed.dayKey, timed.startMin, event.timezone)).toISOString())
+      o.set('enddt', new Date(zonedToUtc(endKey, timed.endMin, event.timezone)).toISOString())
     } else {
       const end = plusDay(event.endDate || event.startDate) // end date is exclusive for all-day entries
       g.set('dates', `${event.startDate.replace(/-/g, '')}/${end.replace(/-/g, '')}`)
