@@ -1,5 +1,6 @@
 import { FeedbackForm } from './_components/FeedbackForm'
 import { HelpBackAfterClips } from './_components/HelpBack'
+import { LearnApp } from './_components/LearnApp'
 import { EventBack } from '@/components/EventBack'
 
 /* ── help & contact: the questions people actually hit, answered in plain words,
@@ -75,6 +76,10 @@ export default function HelpPage() {
         ))}
       </div>
       <HelpBackAfterClips />
+
+      {/* the tour and the hints, here rather than in Settings so a guest can reach them */}
+      <p id="learn" className="mb-2 mt-7 scroll-mt-24 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Learning the app</p>
+      <LearnApp />
 
       {GROUPS.map((g) => (
         <section key={g.title}>

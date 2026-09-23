@@ -16,9 +16,7 @@
 import { useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
-import { Compass, ExternalLink, Gift, Lightbulb, Loader2, Sparkles } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import { resetPracticeEvent } from '@/lib/practice'
+import { ChevronRight, ExternalLink, Gift, Loader2, Sparkles } from 'lucide-react'
 import { Switch } from '@/components/ui/Switch'
 import { PLANS } from '@/content/plans'
 import { usePlan } from '@/hooks/usePlan'
@@ -27,7 +25,7 @@ import { AppearancePicker } from '@/components/AppearancePicker'
 import { BackLink } from '@/components/ui/BackLink'
 import { SecurityCard } from './_components/SecurityCard'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { A11Y_DEFAULTS, prefA11y, setPrefA11y, type A11yPrefs, NOTIFY_DEFAULTS, prefH24, setPrefH24, prefNotify, setPrefNotify, prefSound, setPrefSound, prefWholeWeek, setPrefWholeWeek, resetHint, resetHints, resetPrefs, setTourWanted, type NotifyPrefs } from '@/lib/prefs'
+import { A11Y_DEFAULTS, prefA11y, setPrefA11y, type A11yPrefs, NOTIFY_DEFAULTS, prefH24, setPrefH24, prefNotify, setPrefNotify, prefSound, setPrefSound, prefWholeWeek, setPrefWholeWeek, resetPrefs, type NotifyPrefs } from '@/lib/prefs'
 import { useAccount } from '@/hooks/useAccount'
 import { backendOn } from '@/lib/db'
 import { loadReminderPrefs, saveReminderPrefs } from '@/lib/mail'
@@ -82,7 +80,6 @@ export default function SettingsPage() {
   // everything back to the start: this device's choices, and, logged in, the
   // account's name and colour. Asked twice, since it undoes every choice at once.
   const [resetAsk, setResetAsk] = useState(false)
-  const [hintsBack, setHintsBack] = useState(false)
   const planState = usePlan()
   const [billingErr, setBillingErr] = useState<string | null>(null)
   const [billingBusy, setBillingBusy] = useState(false)
@@ -91,7 +88,6 @@ export default function SettingsPage() {
     const e = await openBillingPortal()
     if (e) { setBillingErr(e); setBillingBusy(false) } // otherwise the browser is leaving for Stripe
   }
-  const router = useRouter()
   const [resetState, setResetState] = useState<'idle' | 'busy' | 'done' | 'failed'>('idle')
   const [resetErr, setResetErr] = useState<string | null>(null)
   async function restoreDefaults() {
@@ -306,33 +302,13 @@ export default function SettingsPage() {
         )}
       </div>
 
+      {/* the tour and the hints moved to Help, where a guest can reach them too;
+          this row is for anyone who still looks for them here */}
       <Eyebrow>Learning the app</Eyebrow>
-      <div className="overflow-hidden rounded-2xl border border-border bg-s1">
-        <div className="flex items-center justify-between gap-4 px-5 py-4">
-          <div className="min-w-0">
-            <div className="text-[14px] font-medium">The tour</div>
-            <div className="mt-0.5 text-[12.5px] text-dim">A few minutes on a practice event of your own, made fresh each time.</div>
-          </div>
-          <button
-            type="button" onClick={() => { resetHint('tour'); setTourWanted(true); router.push(`/events/${resetPracticeEvent()}`) }}
-            className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2 hover:text-text"
-          >
-            <Compass size={14} /> Take it again
-          </button>
-        </div>
-        <div className="flex items-center justify-between gap-4 border-t border-border px-5 py-4">
-          <div className="min-w-0">
-            <div className="text-[14px] font-medium">Hints</div>
-            <div className="mt-0.5 text-[12.5px] text-dim">{hintsBack ? 'They will show again.' : 'The one-line notes on the grid, the map and the lock-in.'}</div>
-          </div>
-          <button
-            type="button" onClick={() => { resetHints(); setHintsBack(true) }}
-            className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2 hover:text-text"
-          >
-            <Lightbulb size={14} /> Show them again
-          </button>
-        </div>
-      </div>
+      <Link href="/help#learn" className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-s1 px-5 py-4 hover:bg-s2">
+        <span className="text-[14px] font-medium">The tour and hints</span>
+        <span className="flex items-center gap-1 text-[13px] font-semibold text-accent-text">On the Help page <ChevronRight size={15} /></span>
+      </Link>
 
       <Eyebrow>Start over</Eyebrow>
       <div className="rounded-2xl border border-border bg-s1 px-5 py-4">
