@@ -22,10 +22,10 @@ import { reducedMotion } from '@/lib/prefs'
 gsap.registerPlugin(ScrollTrigger)
 
 const STEPS = [
-  { title: 'Name the plan', body: 'A title and a stretch of days. Thirty seconds, no settings to get right first.' },
-  { title: 'Share one link', body: 'Send it anywhere. Whoever opens it adds their name and they are in, no account needed.' },
-  { title: 'Everyone answers', body: 'People mark when they are free, suggest places, vote, and say if they are coming.' },
-  { title: 'Lock it in', body: 'The best window shows itself. One tap makes it the plan, and everyone gets the details.' },
+  { title: 'Name the plan', body: 'Give it a name and pick the days.' },
+  { title: 'Share one link', body: 'Send it in any chat. People add their name and they are in.' },
+  { title: 'Everyone answers', body: 'People mark when they are free and vote on where to go.' },
+  { title: 'Lock it in', body: 'Pick the best time. Everyone gets the details by email.' },
 ]
 
 const TITLE = 'Rooftop dinner'
@@ -419,7 +419,7 @@ export function HowItWorks() {
       {/* the four steps: each one is a scroll target for its scene */}
       <ol className="hiw-steps flex flex-col">
         {STEPS.map(({ title, body }, i) => (
-          <li key={title} className="hiw-step flex min-h-[44vh] items-center py-6 lg:min-h-[58vh]">
+          <li key={title} className="hiw-step flex min-h-[30vh] items-center py-5 lg:min-h-[40vh]">
             <button type="button" onClick={() => go(i)} aria-current={i === active ? 'step' : undefined} className={`hiw-step-text block rounded-xl text-left transition-opacity duration-300 ${i === active ? 'opacity-100' : 'opacity-45 hover:opacity-80'}`}>
               <p className="font-serif text-[26px] leading-tight tracking-[-0.01em] sm:text-[30px]">{title}</p>
               <p className="mt-2 max-w-[380px] text-[14.5px] leading-[1.6] text-dim">{body}</p>
