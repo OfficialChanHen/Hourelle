@@ -35,6 +35,7 @@ import { computeItinerary, legKm } from '@/lib/itinerary'
 import { centroidOf, coordsOf, searchPlaces, type LatLng } from '@/lib/geo'
 import { useRoute } from '@/hooks/useRoute'
 import { useFollow } from '@/hooks/useFollow'
+import { isPollKey, pollVotes } from '@/lib/polls'
 import type { MapPin as MapPinData, PanRequest } from '@/components/EventMap'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
@@ -256,7 +257,8 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
     if (has) {
       next[placeId] = without(placeId)
     } else if (maxVotes === 1) {
-      for (const id of Object.keys(base)) if (base[id].includes(YOU)) next[id] = without(id)
+      // places only: the same map holds chat poll picks, which a place vote never moves
+      for (const id of Object.keys(base)) if (!isPollKey(id) && base[id].includes(YOU)) next[id] = without(id)
       next[placeId] = [...without(placeId), YOU]
     } else {
       next[placeId] = [...without(placeId), YOU]
@@ -297,10 +299,12 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // with it (stops reference places); clearing the itinerary leaves the ballot alone
   function clearAllPlaces() {
     voteFlip.capture(); itinFlip.capture()
-    setPlaces([]); setVotes({}); setStops([]); setBuiltRank([]); setConfirmClear(null)
+    // the chat's poll picks share the votes map and are not the ballot's to clear
+    const kept = pollVotes(latestVotes())
+    setPlaces([]); setVotes(kept); setStops([]); setBuiltRank([]); setConfirmClear(null)
     persist({
       location: { ...loc, mode, places: [], guestsCanSuggest, meetingLink },
-      votes: {},
+      votes: kept,
       itinStops: [], itinDwell: [], itinRank: [],
     })
   }

@@ -3,6 +3,7 @@ import { av } from './people'
 import { isMine, purgeRemoved, pushAnswers, pushDelete, pushEvent, pushMessage, pushNewEvent } from './remote'
 import { currentAccount } from './session'
 import { writeLocal } from './local'
+import { placeVotes } from './polls'
 import { slotOver, slotWhen } from './slot'
 import type { AccountKind } from './session'
 import {
@@ -1079,10 +1080,10 @@ export function youReplied(ev: AppEvent): boolean {
   return Object.values(ev.avail).some((rows) => rows.some((cell) => cell.includes(my)))
 }
 
-// have you cast any location vote
+// have you cast any location vote (a pick in a chat poll is not one)
 export function youVoted(ev: AppEvent): boolean {
   const my = myIdIn(ev)
-  return Object.values(ev.votes ?? {}).some((ids) => ids.includes(my))
+  return Object.values(placeVotes(ev.votes ?? {})).some((ids) => ids.includes(my))
 }
 
 // where a card click should land: whatever the event is still waiting on YOU for —

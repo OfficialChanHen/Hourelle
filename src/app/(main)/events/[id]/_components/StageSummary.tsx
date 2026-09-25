@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { RotateCcw } from 'lucide-react'
 import { TimezonePill } from '@/components/ui/TimezonePill'
+import { placeVotes } from '@/lib/polls'
 import {
   availIvOf, bestBlock, bestWindow, confirmedSlotText, dateRangeText, fmtMinute, gridStartMinOf,
   longestRun, respondedCount, type AppEvent, type Phase,
@@ -97,7 +98,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
   // a date fixed at creation flips the strip: the time reads as fact and the place
   // vote carries the progress
   if (event.confirmed) {
-    const voted = new Set(Object.values(event.votes ?? {}).flat()).size
+    const voted = new Set(Object.values(placeVotes(event.votes ?? {})).flat()).size
     return (
       <div className="grid grid-cols-2 items-start gap-x-4 gap-y-3.5 lg:flex lg:flex-wrap lg:items-stretch lg:gap-x-0">
         <Stat label="When" value={confirmedSlotText(event)} caption={<>already set <TimezonePill tz={event.timezone} /></>} />

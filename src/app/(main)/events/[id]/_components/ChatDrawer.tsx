@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, Send, X } from 'lucide-react'
+import { ArrowDown, Plus, Send, X } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
@@ -11,6 +11,9 @@ import { typingLine, type Peer } from '@/lib/room'
 import { setWatchingChat } from '@/lib/sound'
 import { removedLineTest } from '@/lib/removed'
 import { usePhoneScreen } from '@/hooks/usePhoneScreen'
+import { decodePoll, encodePoll, messagePreview, type Poll } from '@/lib/polls'
+import { PollCard } from './chat/PollCard'
+import { PollComposer } from './chat/PollComposer'
 
 /* ── event discussion, reachable from every tab ──
    Desktop: a drawer sliding in from the right over a dimmed backdrop.
@@ -45,11 +48,12 @@ function whenLabel(m: ChatMessage, h24: boolean): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readOnly = false, typing = [], onType, onStopTyping }: {
+export function ChatDrawer({ event, messages, unreadFrom, onSend, onVote, onClose, readOnly = false, typing = [], onType, onStopTyping }: {
   event: AppEvent
   messages: ChatMessage[]
   unreadFrom?: number // index of the first message that arrived since the drawer was last open
   onSend: (text: string) => void
+  onVote?: (poll: Poll, optionId: string) => void // a tap on a poll option: moves or takes back your pick
   onClose: () => void
   readOnly?: boolean // a demo, or nobody here is you: the room can be read, not written
   // who is here now is said by the faces in the event header; in here the typing line
@@ -106,7 +110,12 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readO
   // from, and not even once that person is back on the list
   const hidden = removedLineTest(event)
   const shown = event.removedIds?.length ? messages.filter((m) => !hidden(m)) : messages
-  const body = <ChatBody messages={shown} unreadFrom={unreadFrom} onSend={onSend} onClose={close} avatarOf={avatarOf} readOnly={readOnly} typing={typing} onType={onType} onStopTyping={onStopTyping} />
+  // polls in the chat: picks live in event.votes, which the page reads live, so the
+  // counts move as other people vote. Once the plan is locked the polls are a record.
+  const me = event.participants.find((p) => p.you)?.id ?? null
+  const pollsClosed = event.status === 'confirmed'
+  const polls = { votes: event.votes, me, closed: pollsClosed, canVote: !readOnly && !pollsClosed && !!me && !!onVote, onVote }
+  const body = <ChatBody messages={shown} unreadFrom={unreadFrom} onSend={onSend} onClose={close} avatarOf={avatarOf} readOnly={readOnly} typing={typing} onType={onType} onStopTyping={onStopTyping} polls={polls} />
 
   return (
     <div ref={root} className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Event discussion">
@@ -136,19 +145,27 @@ type ChatProps = {
   typing: Peer[]; onType?: () => void; onStopTyping?: () => void
   avatarOf: (id: string, name?: string) => { initials: string; name: string; color: Participant['color'] }
   readOnly: boolean
+  polls: {
+    votes: Record<string, string[]> | undefined
+    me: string | null
+    closed: boolean
+    canVote: boolean
+    onVote?: (poll: Poll, optionId: string) => void
+  }
 }
 
 type Row =
   | { kind: 'day'; label: string; key: string }
   | { kind: 'new'; key: string }
-  | { kind: 'msg'; m: ChatMessage; key: string; first: boolean } // first: opens a sender run, so it wears the header
+  | { kind: 'msg'; m: ChatMessage; key: string; first: boolean; poll: Poll | null } // first: opens a sender run, so it wears the header
 
 // header + messages + composer, shared by the drawer and the sheet
-function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, typing, onType, onStopTyping }: ChatProps) {
+function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, typing, onType, onStopTyping, polls }: ChatProps) {
   const zone = useRef<HTMLDivElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const ta = useRef<HTMLTextAreaElement>(null)
   const [draft, setDraft] = useState('')
+  const [composingPoll, setComposingPoll] = useState(false)
   const h24 = prefH24()
 
   // messages become rows: day dividers where the date turns over, a "new" rule at
@@ -156,7 +173,10 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
   const rows = useMemo<Row[]>(() => {
     const out: Row[] = []
     let prev: ChatMessage | null = null
+    let prevPoll = false
     messages.forEach((m, i) => {
+      // read once here, not on every render of the row
+      const poll = m.system ? null : decodePoll(m.text)
       let broke = false
       const dk = dayKeyOf(m.at)
       if (dk && dk !== dayKeyOf(prev?.at)) {
@@ -167,10 +187,13 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
         out.push({ kind: 'new', key: 'new' })
         broke = true
       }
-      const sameRun = !broke && !!prev && !m.system && !prev.system && prev.id === m.id && prev.you === m.you
+      // a poll always opens a run of its own, so it wears its sender and time, and the
+      // line after it does too
+      const sameRun = !broke && !!prev && !m.system && !prev.system && !poll && !prevPoll && prev.id === m.id && prev.you === m.you
         && (m.at && prev.at ? m.at - prev.at < 5 * 60_000 : m.time === prev?.time)
-      out.push({ kind: 'msg', m, key: `m-${i}`, first: !sameRun })
+      out.push({ kind: 'msg', m, key: `m-${i}`, first: !sameRun, poll })
       prev = m
+      prevPoll = !!poll
     })
     return out
   }, [messages, unreadFrom])
@@ -232,6 +255,17 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
     onStopTyping?.() // the line clears the moment the message lands, not four seconds later
     requestAnimationFrame(autosize)
   }
+  // a poll goes out the same way a line does: one appended message, which also works
+  // for a guest and with no backend
+  function postPoll(p: Poll) {
+    onSend(encodePoll(p))
+    closePoll()
+  }
+  // the text box comes back holding whatever was half typed, at the height it needs
+  function closePoll() {
+    setComposingPoll(false)
+    requestAnimationFrame(autosize)
+  }
   const typingText = typingLine(typing)
 
   return (
@@ -262,7 +296,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                   <span className="h-px flex-1 bg-accent-border" />New<span className="h-px flex-1 bg-accent-border" />
                 </div>
               )
-              const { m, first } = r
+              const { m, first, poll } = r
               const a = avatarOf(m.id, m.name)
               // a line the app wrote ("Sam joined", "reopened the plan"): a quiet
               // centered note, never a bubble, so it reads as the room, not a person
@@ -271,7 +305,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                   <span className="text-[10.5px]">{whenLabel(m, h24)}</span>
                   <span className="flex items-center gap-2">
                     <Avatar initials={a.initials} color={a.color} size={16} font={7.5} />
-                    <span><span className="font-semibold text-dim">{m.name}</span> {m.text}</span>
+                    <span><span className="font-semibold text-dim">{m.name}</span> {messagePreview(m)}</span>
                   </span>
                 </div>
               )
@@ -285,6 +319,17 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                       <span className="font-semibold text-text">{m.name}</span>
                     </div>
                   )}
+                  {poll ? (
+                    <PollCard
+                      poll={poll}
+                      votes={polls.votes}
+                      me={polls.me}
+                      canVote={polls.canVote}
+                      closed={polls.closed}
+                      onPick={(optionId) => polls.onVote?.(poll, optionId)}
+                      avatarOf={avatarOf}
+                    />
+                  ) : (
                   <div
                     title={first ? undefined : whenLabel(m, h24)}
                     className={`max-w-[86%] whitespace-pre-wrap break-words rounded-[14px] border px-[11px] py-2 text-[13px] leading-[1.45] ${
@@ -295,6 +340,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                   >
                     {m.text}
                   </div>
+                  )}
                   {/* the time under the message and on its own side, one line of its
                       own, so a long name and a time can never stack into a column */}
                   {first && (
@@ -323,8 +369,19 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
         {typingText}
       </div>
 
-      {readOnly ? null : (
+      {readOnly ? null : composingPoll ? (
+        <PollComposer onPost={postPoll} onCancel={closePoll} />
+      ) : (
       <div className="flex flex-none items-end gap-2 border-t border-border p-[11px]">
+        <button
+          type="button"
+          onClick={() => { onStopTyping?.(); setComposingPoll(true) }}
+          aria-label="Add a poll"
+          title="Add a poll"
+          className="grid h-11 w-11 flex-none place-items-center rounded-[12px] border border-border bg-s1 text-dim hover:border-border2 hover:text-text sm:h-[38px] sm:w-[38px]"
+        >
+          <Plus size={17} />
+        </button>
         <textarea
           ref={ta}
           value={draft}
