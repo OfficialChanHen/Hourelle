@@ -470,3 +470,17 @@ input[type="date"]::-webkit-date-and-time-value {
   outline: 3px solid var(--accent) !important;
   outline-offset: 2px !important;
 }
+
+/* a modal surface that holds focus itself (see useFocusTrap) is not a control, so it
+   draws no ring of its own, even with the strong ring on */
+[data-focus-root]:focus,
+[data-focus="strong"] [data-focus-root]:focus-visible {
+  outline: none !important;
+}
+
+/* a control scrolled to by the keyboard lands clear of the sticky header, and on a
+   phone clear of the tab bar fixed along the bottom */
+html { scroll-padding-top: 64px; }
+@media (max-width: 767px) {
+  html { scroll-padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+}

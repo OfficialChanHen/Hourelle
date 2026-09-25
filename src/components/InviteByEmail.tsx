@@ -68,7 +68,7 @@ export function InviteByEmail({ event, onAdded, label = 'Or send it by email' }:
       </div>
       <div className="rounded-[13px] border border-border bg-s0 p-2">
         <div className="flex gap-1.5">
-          <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[9px] border border-border bg-s1 pl-3 pr-1 focus-within:border-accent-border">
+          <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[9px] border border-border bg-s1 pl-3 pr-1 focus-within:border-accent">
             <Mail size={15} className="flex-none text-dim" />
             <input
               value={draft}

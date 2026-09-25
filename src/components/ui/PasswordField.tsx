@@ -42,7 +42,7 @@ export function PasswordField({ id, label, value, onChange, autoComplete, invali
           onKeyUp={(e) => setCaps(e.getModifierState?.('CapsLock') ?? false)}
           onBlur={() => setCaps(false)}
           className={`h-11 w-full rounded-[10px] border bg-s0 pl-3.5 pr-12 text-[14px] outline-none ${
-            invalid ? 'border-brick focus:border-brick' : 'border-border focus:border-accent-border'
+            invalid ? 'border-brick focus:border-brick' : 'border-border focus:border-accent'
           }`}
         />
         <button

@@ -13,7 +13,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     <div className="flex flex-1 flex-col">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-[10px] focus:border focus:border-accent-border focus:bg-s1 focus:px-4 focus:py-2.5 focus:text-[14px] focus:font-semibold focus:text-accent-text focus:shadow-soft"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-[10px] focus:border focus:border-accent focus:bg-s1 focus:px-4 focus:py-2.5 focus:text-[14px] focus:font-semibold focus:text-accent-text focus:shadow-soft"
       >
         Skip to content
       </a>

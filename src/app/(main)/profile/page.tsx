@@ -108,7 +108,7 @@ export default function ProfilePage() {
                   onKeyDown={(e) => { if (e.key === 'Enter') void save(); if (e.key === 'Escape') cancel() }}
                   aria-invalid={clean.length < 2 || undefined}
                   aria-describedby="profile-name-hint"
-                  className="mt-2 h-11 w-full max-w-[360px] rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none focus:border-accent-border"
+                  className="mt-2 h-11 w-full max-w-[360px] rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none focus:border-accent"
                 />
                 <p id="profile-name-hint" className="mt-1.5 text-[12px] text-faint">{clean.length < 2 ? 'At least two characters.' : 'Shows on every event you are part of.'}</p>
               </div>

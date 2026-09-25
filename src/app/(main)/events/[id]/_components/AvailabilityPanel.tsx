@@ -1433,7 +1433,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               <button
                 type="button" onClick={() => setMyTime(false)} aria-pressed={!myTime}
                 title={`Event time (${tzAbbr(event.timezone)})`}
-                className={`flex h-full items-center px-2 ${!myTime ? 'bg-accent font-semibold text-on-accent' : 'text-dim hover:text-text'}`}
+                // the ring is drawn inside: the rounded frame clips anything outside it
+                className={`flex h-full items-center px-2 focus-visible:-outline-offset-2 ${!myTime ? 'bg-accent font-semibold text-on-accent' : 'text-dim hover:text-text'}`}
               >
                 {/* baseline-align the label and the smaller mono abbr so they sit on one line */}
                 <span className="flex items-baseline gap-1">Event <span className="font-mono text-[10.5px]">{tzAbbr(event.timezone)}</span></span>
@@ -1441,7 +1442,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               <button
                 type="button" onClick={() => setMyTime(true)} aria-pressed={myTime}
                 title={`Your time (${tzAbbr(localTz)})`}
-                className={`flex h-full items-center px-2 ${myTime ? 'bg-accent font-semibold text-on-accent' : 'text-dim hover:text-text'}`}
+                className={`flex h-full items-center px-2 focus-visible:-outline-offset-2 ${myTime ? 'bg-accent font-semibold text-on-accent' : 'text-dim hover:text-text'}`}
               >
                 <span className="flex items-baseline gap-1">Yours <span className="font-mono text-[10.5px]">{tzAbbr(localTz)}</span></span>
               </button>
@@ -1597,7 +1598,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 <span className="text-[12px] font-semibold text-accent-text">Selected</span>
                 <div className="inline-flex overflow-hidden rounded-full border border-border2 bg-s1 text-[11px] font-semibold">
                   {[5, 1].map((s) => (
-                    <button key={s} type="button" onClick={() => setNudgeStep(s)} className={`px-2.5 py-1 ${nudgeStep === s ? 'bg-accent text-on-accent' : 'text-dim hover:bg-s2'}`} aria-pressed={nudgeStep === s}>{s} min</button>
+                    <button key={s} type="button" onClick={() => setNudgeStep(s)} className={`px-2.5 py-1 focus-visible:-outline-offset-2 ${nudgeStep === s ? 'bg-accent text-on-accent' : 'text-dim hover:bg-s2'}`} aria-pressed={nudgeStep === s}>{s} min</button>
                   ))}
                 </div>
               </div>
@@ -1998,7 +1999,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                             type="button"
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={deleteSel}
-                            className="pointer-events-auto absolute right-0.5 z-[10] grid h-[15px] w-[15px] place-items-center rounded-full border bg-s1 text-brick shadow-soft"
+                            // the press area reaches 24px round the small cross, grown up, down and
+                            // inward only, so it never reaches into the next day's column
+                            className="pointer-events-auto absolute right-0.5 z-[10] grid h-[15px] w-[15px] place-items-center rounded-full border bg-s1 text-brick shadow-soft before:absolute before:-inset-y-[5px] before:-left-[9px] before:-right-[2px] before:content-['']"
                             // like the time chip, tuck fully inside the block when the edge hugs the grid top
                             style={{ top: `${topPct}%`, transform: topSide === 'below' ? 'translateY(3px)' : 'translateY(-50%)', borderColor: 'var(--border2)' }}
                             aria-label="Remove this block"
@@ -2062,7 +2065,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     value={blockLen}
                     onChange={(e) => setBlockLen(Number(e.target.value))}
                     aria-label="How many days in a row"
-                    className="h-7 cursor-pointer rounded-[7px] border border-border bg-s1 px-1.5 text-[12.5px] font-medium outline-none focus:border-accent-border"
+                    className="h-7 cursor-pointer rounded-[7px] border border-border bg-s1 px-1.5 text-[12.5px] font-medium outline-none focus:border-accent"
                   >
                     {Array.from({ length: maxRun }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n === 1 ? '1 day' : `${n} days`}</option>)}
                   </select>

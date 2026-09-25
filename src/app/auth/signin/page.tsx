@@ -185,7 +185,7 @@ function SignInForm() {
                   <input
                     id="signin-name" type="text" autoComplete="name" value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="mb-1 h-11 rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none focus:border-accent-border"
+                    className="mb-1 h-11 rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none focus:border-accent"
                   />
                 </>
               )}
@@ -194,7 +194,7 @@ function SignInForm() {
               <input
                 id="signin-email" type="email" autoComplete="email" inputMode="email" value={email}
                 onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com"
-                className="h-11 rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none placeholder:text-faint focus:border-accent-border"
+                className="h-11 rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none placeholder:text-faint focus:border-accent"
               />
 
               {mode !== 'forgot' && (

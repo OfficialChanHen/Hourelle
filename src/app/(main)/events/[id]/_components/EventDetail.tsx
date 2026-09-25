@@ -501,29 +501,29 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       {tab === 'details' && <div data-tour="details" role="tabpanel" id="panel-details" aria-labelledby="tab-details"><DetailsTab event={event} onDelete={handleDelete} onLeave={handleLeave} onGoToTab={goTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} /></div>}
 
       {/* discussion follows you down the page — the classic chat bubble, above the
-          mobile tab bar; it is the one and only way in, unread badge included */}
-      {!chatOpen && (
-        <button
-          ref={bubbleRef}
-          onClick={() => { setUnreadMark(unread > 0 ? seenMsgs ?? 0 : undefined); setChatOpen(true) }}
-          aria-label={unread > 0 ? `Open discussion, ${unread} unread` : 'Open discussion'}
-          data-tour="chat"
-          // on iOS the bubble is clear liquid glass (frost, rim, sheen — no fill);
-          // elsewhere it stays the solid accent dot
-          // the bar is 56 tall plus whatever the phone reserves at the bottom, and the
-          // bubble sits a thumb's width clear of it. A fixed 84 was fine on a phone
-          // with no home indicator and sat on the bar on one that has.
-          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 68px)' }}
-          className={`fixed right-4 z-40 grid h-12 w-12 place-items-center rounded-full md:!bottom-6 md:right-6 ${isIOS ? 'liquid-glass text-accent-text' : 'bg-accent text-on-accent shadow-soft'}`}
-        >
-          <MessageCircle size={21} />
-          {unread > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-s1 bg-brick px-1 text-[10px] font-bold text-white">
-              {unread}
-            </span>
-          )}
-        </button>
-      )}
+          mobile tab bar; it is the one and only way in, unread badge included. It stays
+          in the page (hidden) while the chat is open, so closing the chat has somewhere
+          to put focus back */}
+      <button
+        ref={bubbleRef}
+        onClick={() => { setUnreadMark(unread > 0 ? seenMsgs ?? 0 : undefined); setChatOpen(true) }}
+        aria-label={unread > 0 ? `Open discussion, ${unread} unread` : 'Open discussion'}
+        data-tour="chat"
+        // on iOS the bubble is clear liquid glass (frost, rim, sheen — no fill);
+        // elsewhere it stays the solid accent dot
+        // the bar is 56 tall plus whatever the phone reserves at the bottom, and the
+        // bubble sits a thumb's width clear of it. A fixed 84 was fine on a phone
+        // with no home indicator and sat on the bar on one that has.
+        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 68px)' }}
+        className={`fixed right-4 z-40 ${chatOpen ? 'hidden' : 'grid'} h-12 w-12 place-items-center rounded-full md:!bottom-6 md:right-6 ${isIOS ? 'liquid-glass text-accent-text' : 'bg-accent text-on-accent shadow-soft'}`}
+      >
+        <MessageCircle size={21} />
+        {unread > 0 && (
+          <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-s1 bg-brick px-1 text-[10px] font-bold text-white">
+            {unread}
+          </span>
+        )}
+      </button>
 
       {chatOpen && (
         <ChatDrawer
@@ -555,7 +555,7 @@ function EditableTitle({ title, editable, onSave }: { title: string; editable: b
         ref={ref} defaultValue={title} autoFocus maxLength={80} aria-label="Event name"
         onBlur={save}
         onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
-        className={`w-full max-w-[560px] rounded-[10px] border border-border bg-s0 px-3 py-0.5 outline-none focus:border-border2 ${h1}`}
+        className={`w-full max-w-[560px] rounded-[10px] border border-border bg-s0 px-3 py-0.5 outline-none focus:border-accent ${h1}`}
       />
     )
   }
@@ -696,7 +696,7 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
         </div>
       )}
       {sorted.length > 12 && (
-        <label className="mb-2 flex h-11 items-center gap-2 rounded-[10px] border border-border bg-s0 px-3 focus-within:border-accent-border sm:h-9">
+        <label className="mb-2 flex h-11 items-center gap-2 rounded-[10px] border border-border bg-s0 px-3 focus-within:border-accent sm:h-9">
           <Search size={14} className="flex-none text-faint" />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name" aria-label="Find a participant" className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-faint" />
         </label>
@@ -1002,7 +1002,7 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
   const [dur, setDur] = useState(event.durationMin ?? 60)
   const [excluded, setExcluded] = useState(() => deriveExclusions(event))
   const durations = DURATIONS.some(([m]) => m === dur) ? DURATIONS : [...DURATIONS, [dur, `${dur} minutes`] as [number, string]]
-  const inputCls = 'h-9 rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-border2'
+  const inputCls = 'h-9 rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-accent'
   // a day already gone can't be polled: new picks floor at today (an older start the
   // event already has stays as it is until the host moves it)
   const today = todayKey()
@@ -1199,7 +1199,7 @@ function CapacityValue({ event, editable, onPatch }: { event: AppEvent; editable
   return (
     <input
       value={v} onChange={(e) => change(e.target.value)} inputMode="numeric" placeholder="No limit" aria-label="Spots"
-      className="h-8 w-[110px] rounded-[8px] border border-border bg-s0 px-2.5 text-[13.5px] font-medium outline-none focus-within:border-border2"
+      className="h-8 w-[110px] rounded-[8px] border border-border bg-s0 px-2.5 text-[13.5px] font-medium outline-none focus-within:border-accent"
     />
   )
 }
@@ -1312,7 +1312,7 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
             <input
               ref={linkRef} defaultValue={link} autoFocus placeholder="Paste a meeting link" aria-label="Meeting link"
               onKeyDown={(e) => { if (e.key === 'Enter') saveOnline() }}
-              className="h-8 w-[240px] max-w-full rounded-[8px] border border-border bg-s0 px-2.5 font-mono text-[12.5px] outline-none focus:border-border2"
+              className="h-8 w-[240px] max-w-full rounded-[8px] border border-border bg-s0 px-2.5 font-mono text-[12.5px] outline-none focus:border-accent"
             />
             <button onClick={saveOnline} className="h-8 rounded-[8px] bg-accent px-2.5 text-[12.5px] font-semibold text-on-accent">Save</button>
             <button onClick={() => setEditingOnline(false)} className="h-8 rounded-[8px] border border-border2 bg-s1 px-2.5 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
@@ -1372,7 +1372,7 @@ function NameValue({ event, editable, onPatch }: { event: AppEvent; editable: bo
         ref={ref} defaultValue={event.title} autoFocus maxLength={80} aria-label="Event name"
         onBlur={save}
         onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
-        className="h-9 w-full max-w-[420px] rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-border2"
+        className="h-9 w-full max-w-[420px] rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-accent"
       />
     )
   }
@@ -1407,7 +1407,7 @@ function DescriptionValue({ event, editable, onPatch }: { event: AppEvent; edita
           ref={ref} defaultValue={desc} rows={3} autoFocus maxLength={500}
           aria-label="Description"
           placeholder="What is this event about?"
-          className="w-full resize-y rounded-[9px] border border-border bg-s0 px-3 py-2 text-[13.5px] leading-[1.5] outline-none focus:border-border2"
+          className="w-full resize-y rounded-[9px] border border-border bg-s0 px-3 py-2 text-[13.5px] leading-[1.5] outline-none focus:border-accent"
         />
         <div className="flex items-center gap-2">
           <button onClick={save} className="h-8 rounded-[8px] bg-accent px-3 text-[12.5px] font-semibold text-on-accent">Save</button>
@@ -1483,7 +1483,7 @@ function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Pa
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center gap-2">
-        <label className="flex h-8 w-[110px] items-center rounded-[8px] border border-border bg-s0 px-2.5 focus-within:border-border2">
+        <label className="flex h-8 w-[110px] items-center rounded-[8px] border border-border bg-s0 px-2.5 focus-within:border-accent">
           <span className="text-[13px] text-dim">$</span>
           <input
             value={budget} onChange={(e) => changeBudget(e.target.value)}
@@ -1625,9 +1625,9 @@ function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boo
             aria-label="What was it for" aria-required="true"
             aria-invalid={needLabel || undefined} aria-describedby={needLabel ? 'expense-label-err' : undefined}
             onKeyDown={(e) => { if (e.key === 'Enter') addExpense() }}
-            className={`h-9 min-w-[140px] flex-1 rounded-[9px] border bg-s0 px-3 text-[13.5px] outline-none ${needLabel ? 'border-brick-border' : 'border-border focus:border-border2'}`}
+            className={`h-9 min-w-[140px] flex-1 rounded-[9px] border bg-s0 px-3 text-[13.5px] outline-none ${needLabel ? 'border-brick-border focus:border-brick' : 'border-border focus:border-accent'}`}
           />
-          <label className="flex h-9 w-[96px] flex-none items-center rounded-[9px] border border-border bg-s0 px-2.5 focus-within:border-border2">
+          <label className="flex h-9 w-[96px] flex-none items-center rounded-[9px] border border-border bg-s0 px-2.5 focus-within:border-accent">
             <span className="text-[13px] text-dim">$</span>
             <input
               value={amt} onChange={(e) => setAmt(e.target.value.replace(/[^\d]/g, '').slice(0, 6))}
@@ -1636,7 +1636,7 @@ function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boo
               className="w-full min-w-0 bg-transparent px-1 text-[13.5px] font-medium outline-none"
             />
           </label>
-          <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} aria-label="Paid by" className="h-9 flex-none rounded-[9px] border border-border bg-s0 px-2.5 text-[13px] outline-none focus:border-border2">
+          <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} aria-label="Paid by" className="h-9 flex-none rounded-[9px] border border-border bg-s0 px-2.5 text-[13px] outline-none focus:border-accent">
             {event.participants.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
           <button onClick={addExpense} className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13px] font-semibold text-on-accent">

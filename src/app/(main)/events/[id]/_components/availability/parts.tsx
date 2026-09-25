@@ -3,13 +3,14 @@
 /* the availability panel's satellite components: people filter (strip + modal),
    calendar import menu, clear-times, drag handles, quick fills,
    the who's-missing popover, the cell breakdown, and small controls */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Bell, CalendarPlus, Check, ChevronDown, Eraser, GripHorizontal, Minus, Plus, Search, Users, X, Zap } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
 import type { Participant } from '@/lib/events'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import type { Band } from './grid-lib'
 
 /* ── clickable participant strip: tap a person to filter the grid to their free times.
@@ -68,12 +69,18 @@ export function FilterModal({ participants, filter, onToggle, onClear, onSelectA
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // the search field takes focus on its own when there is one; otherwise the first control does
+  useFocusTrap(root)
+  const titleId = useId()
   const [q, setQ] = useState('')
   const list = q.trim() ? participants.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase())) : participants
   const allOn = participants.every((p) => filter.has(p.id))
   return (
     <div
       ref={root}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
       className="fixed inset-0 z-50 grid place-items-center bg-[rgba(0,0,0,.25)] p-4"
       onPointerDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
@@ -81,7 +88,7 @@ export function FilterModal({ participants, filter, onToggle, onClear, onSelectA
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
             <div className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint">Filter the grid</div>
-            <div className="mt-0.5 text-[15.5px] font-semibold">Pick people</div>
+            <div id={titleId} className="mt-0.5 text-[15.5px] font-semibold">Pick people</div>
           </div>
           <button onClick={onClose} aria-label="Close" className="grid h-8 w-8 place-items-center rounded-[8px] text-dim hover:bg-s2 hover:text-text">
             <X size={16} />
@@ -89,7 +96,7 @@ export function FilterModal({ participants, filter, onToggle, onClear, onSelectA
         </div>
         <div className="flex min-h-0 flex-col px-3 py-2.5">
           {participants.length > 8 && (
-            <div className="mb-1.5 flex items-center gap-1.5 rounded-[8px] border border-border bg-s0 px-2 focus-within:border-border2">
+            <div className="mb-1.5 flex items-center gap-1.5 rounded-[8px] border border-border bg-s0 px-2 focus-within:border-accent">
               <Search size={12} className="flex-none text-faint" />
               <input
                 autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a person" aria-label="Find a person"
@@ -232,7 +239,7 @@ export function EdgeHandle({ pct, label, active, side, onDown }: { pct: number; 
       <button
         type="button"
         onPointerDown={onDown}
-        className="pointer-events-auto absolute left-1/2 top-0 grid h-[15px] w-[26px] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border bg-s1 shadow-soft"
+        className="pointer-events-auto absolute left-1/2 top-0 grid h-[15px] w-[26px] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border bg-s1 shadow-soft before:absolute before:-inset-y-[5px] before:inset-x-0 before:content-['']"
         style={{ borderColor: color, color, ...grab }}
         aria-label={`Adjust time, currently ${label}`}
       >
@@ -337,7 +344,7 @@ export function CellDetail({ bands, total, fmt, gridStartMin, dayLabel, avatarOf
     >
       <div className="mb-1.5 flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-[.1em] text-faint">Who&apos;s free</span>
-        <button onClick={onClose} aria-label="Close" className="text-faint hover:text-text"><X size={13} /></button>
+        <button type="button" onClick={onClose} aria-label="Close" className="relative text-faint hover:text-text before:absolute before:-inset-[6px] before:content-['']"><X size={13} /></button>
       </div>
       <div className="flex max-h-[240px] flex-col gap-2 overflow-auto scroll-slim">
         {bands.map((b, i) => (
@@ -388,9 +395,9 @@ export function EdgeNudge({ label, value, onLess, onMore }: { label: string; val
     <div className="flex items-center gap-2">
       <span className="w-9 flex-none text-[12px] text-dim">{label}</span>
       <div className="flex items-center overflow-hidden rounded-[8px] border border-border2 bg-s1">
-        <button type="button" onClick={onLess} className="grid h-8 w-8 place-items-center text-dim hover:bg-s2 active:bg-s3" aria-label={`Move ${label.toLowerCase()} earlier`}><Minus size={14} /></button>
+        <button type="button" onClick={onLess} className="grid h-8 w-8 place-items-center text-dim hover:bg-s2 focus-visible:-outline-offset-2 active:bg-s3" aria-label={`Move ${label.toLowerCase()} earlier`}><Minus size={14} /></button>
         <span className="min-w-[54px] px-1 text-center text-[12.5px] font-semibold tabular-nums">{value}</span>
-        <button type="button" onClick={onMore} className="grid h-8 w-8 place-items-center text-dim hover:bg-s2 active:bg-s3" aria-label={`Move ${label.toLowerCase()} later`}><Plus size={14} /></button>
+        <button type="button" onClick={onMore} className="grid h-8 w-8 place-items-center text-dim hover:bg-s2 focus-visible:-outline-offset-2 active:bg-s3" aria-label={`Move ${label.toLowerCase()} later`}><Plus size={14} /></button>
       </div>
     </div>
   )

@@ -15,7 +15,7 @@ export function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boo
       checked={on}
       onCheckedChange={onChange}
       aria-label={label}
-      className="relative h-[22px] w-[38px] flex-none rounded-full border border-border2 bg-s2 outline-none transition-colors after:absolute after:-inset-[11px] after:content-[''] focus-visible:ring-2 focus-visible:ring-accent-border data-[state=checked]:border-accent data-[state=checked]:bg-accent"
+      className="relative h-[22px] w-[38px] flex-none rounded-full border border-border2 bg-s2 outline-none transition-colors after:absolute after:-inset-[11px] after:content-[''] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-s1 data-[state=checked]:border-accent data-[state=checked]:bg-accent"
     >
       <RSwitch.Thumb className="block h-[16px] w-[16px] translate-x-[2px] rounded-full bg-s1 shadow-raised transition-transform data-[state=checked]:translate-x-[18px]" />
     </RSwitch.Root>
