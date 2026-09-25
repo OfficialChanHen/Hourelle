@@ -254,6 +254,40 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const pageCount = Math.max(1, Math.ceil(paddedDays.length / WEEK))
   const weekDays = paddedDays.slice(page * WEEK, page * WEEK + WEEK)
   const goWeek = (dir: -1 | 1) => { setPage((p) => Math.max(0, Math.min(pageCount - 1, p + dir))); setSel(null) }
+  const goToWeek = (i: number) => { setPage(Math.max(0, Math.min(pageCount - 1, i))); setSel(null) }
+
+  /* ── the week strip ──
+     A poll that runs over several weeks shows one at a time, so the other weeks need
+     to be in plain sight, with how many people have answered each. Built once per
+     render from the per-day data, O(people × days), never per chip or per cell. Your
+     own entry reads from `mine`, so a chip counts you the moment you paint. */
+  const weekChips = useMemo(() => {
+    if (pageCount < 2) return []
+    return Array.from({ length: pageCount }, (_, w) => {
+      const real = paddedDays.slice(w * WEEK, w * WEEK + WEEK).filter((d) => !d.pad)
+      const ids = new Set<string>()
+      let you = false
+      for (const d of real) {
+        for (const [id, ivs] of Object.entries(others[d.key] ?? {})) if (ivs.length) ids.add(id)
+        if ((mine[d.key]?.length ?? 0) > 0) you = true
+      }
+      if (you && meId) ids.add(meId)
+      const a = real[0]?.date ?? '', b = real[real.length - 1]?.date ?? ''
+      const [am] = a.split(' '), [bm, bd] = b.split(' ')
+      const label = real.length < 2 ? a : am === bm ? `${a} – ${bd}` : `${a} – ${b}`
+      return { label, count: ids.size, you }
+    })
+  }, [paddedDays, pageCount, others, mine, meId])
+  // keeps the current week's chip in view when the arrows move past the strip's edge.
+  // Scrolls the strip only, never the page
+  const stripRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const s = stripRef.current
+    const c = s?.querySelector<HTMLElement>('[aria-current="true"]')
+    if (!s || !c) return
+    if (c.offsetLeft < s.scrollLeft) s.scrollLeft = c.offsetLeft
+    else if (c.offsetLeft + c.offsetWidth > s.scrollLeft + s.clientWidth) s.scrollLeft = c.offsetLeft + c.offsetWidth - s.clientWidth
+  }, [page, pageCount])
 
   /* ── the days outside the poll, folded away ──
      A week is squared off with filler so the columns line up with a calendar, but
@@ -1407,7 +1441,6 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               <IconBtn onClick={() => goWeek(-1)} disabled={page === 0} label="Previous week"><ChevronLeft size={17} /></IconBtn>
               <span className="px-1 text-center text-[13.5px] font-semibold leading-tight">
                 {rangeLabel}
-                {pageCount > 1 && <> <span className="font-medium text-faint">(week {page + 1} of {pageCount})</span></>}
               </span>
               <IconBtn onClick={() => goWeek(1)} disabled={page >= pageCount - 1} label="Next week"><ChevronRight size={17} /></IconBtn>
             </div>
@@ -1619,6 +1652,41 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               : dayPoll ? 'Tap the days you can make. The greener a day, the more people can.'
                 : 'Switch to Edit mine and drag across the hours you can make. The greener a slot, the more people can.'}
           </Hint>
+        )}
+
+        {/* one chip per week, so a poll that runs over several weeks never hides the
+            later ones behind the arrows. Scrolls sideways on its own on a phone */}
+        {!dayPoll && weekChips.length > 1 && (
+          <div
+            ref={stripRef}
+            role="group"
+            aria-label="Weeks"
+            className="scroll-slim relative mb-2 grid snap-x auto-cols-[minmax(124px,156px)] grid-flow-col gap-2 overflow-x-auto"
+          >
+            {weekChips.map((w, i) => {
+              const on = i === page
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => goToWeek(i)}
+                  aria-current={on ? 'true' : undefined}
+                  className={`flex h-11 snap-start flex-col items-start justify-center rounded-lg border px-2.5 text-left leading-tight ${on ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-text hover:border-border2'}`}
+                >
+                  <span className="whitespace-nowrap text-[12.5px] font-semibold">{w.label}</span>
+                  <span className={`flex items-center gap-1.5 whitespace-nowrap text-[12px] sm:text-[11.5px] ${on ? 'text-accent-text' : 'text-dim'}`}>
+                    {w.count === 0 ? 'No answers' : `${w.count} answered`}
+                    {w.you && (
+                      <>
+                        <span aria-hidden className="h-[7px] w-[7px] flex-none rounded-full" style={{ background: 'var(--you-many)', boxShadow: 'inset 0 0 0 1px var(--you-text)' }} />
+                        <span className="sr-only">, including you</span>
+                      </>
+                    )}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
         )}
 
         {/* grid — a day poll gets the calendar, everything else the timetable */}
