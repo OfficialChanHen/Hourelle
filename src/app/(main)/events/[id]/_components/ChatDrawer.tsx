@@ -242,7 +242,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
       </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col">
-        <div ref={scroller} onScroll={onScroll} className="scroll-slim min-h-0 flex-1 overflow-auto overscroll-contain px-3.5 py-3">
+        <div ref={scroller} onScroll={onScroll} role="log" aria-live="polite" aria-label="Messages" className="scroll-slim min-h-0 flex-1 overflow-auto overscroll-contain px-3.5 py-3">
           {messages.length === 0 ? (
             <div className="flex h-full items-center justify-center">
               <div className="max-w-[220px] text-center">

@@ -127,7 +127,7 @@ export default function SettingsPage() {
           </div>
           {!ready && <span className="h-8 w-[196px] animate-pulse rounded-[9px] bg-s2" aria-hidden />}
           {ready && (
-            <SegmentedControl
+            <SegmentedControl label="Theme"
               size="sm"
               value={theme ?? 'light'}
               onChange={setTheme}
@@ -149,7 +149,7 @@ export default function SettingsPage() {
           </div>
           {!ready && <span className="h-8 w-[150px] animate-pulse rounded-[9px] bg-s2" aria-hidden />}
           {ready && (
-            <SegmentedControl
+            <SegmentedControl label="Reduce motion"
               size="sm"
               value={a11y.motion}
               onChange={(v) => changeA11y({ motion: v as A11yPrefs['motion'] })}
@@ -183,7 +183,7 @@ export default function SettingsPage() {
         </div>
         {!ready && <span className="h-8 w-[150px] animate-pulse rounded-[9px] bg-s2" aria-hidden />}
         {ready && (
-          <SegmentedControl
+          <SegmentedControl label="Clock style"
             size="sm"
             value={h24 ? '24' : '12'}
             onChange={changeClock}
@@ -200,7 +200,7 @@ export default function SettingsPage() {
         </div>
         {!ready && <span className="h-8 w-[170px] animate-pulse rounded-[9px] bg-s2" aria-hidden />}
         {ready && (
-          <SegmentedControl
+          <SegmentedControl label="Availability grid"
             size="sm"
             value={wholeWeek ? 'week' : 'event'}
             onChange={changeWholeWeek}

@@ -38,6 +38,7 @@ import { DaysPicker } from '@/components/ui/DaysPicker'
 import { TimeSelect } from '@/components/ui/TimeSelect'
 import { DateField } from '@/components/ui/DateField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { Announce } from '@/components/ui/Announce'
 import { isAllDay, slotWhen } from '@/lib/slot'
 import { Avatar } from '@/components/ui/Avatar'
 import { AvatarRow } from '@/components/ui/AvatarRow'
@@ -101,6 +102,21 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     const url = new URL(window.location.href)
     url.searchParams.set('tab', next)
     window.history.replaceState(null, '', url)
+  }
+  // arrow keys walk the tabs and open each one on arrival; Home and End jump to the ends
+  const onTabKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const i = TABS.findIndex((t) => t.key === tab)
+    const n = TABS.length
+    const to = e.key === 'ArrowRight' ? (i + 1) % n
+      : e.key === 'ArrowLeft' ? (i - 1 + n) % n
+        : e.key === 'Home' ? 0
+          : e.key === 'End' ? n - 1
+            : -1
+    if (to < 0) return
+    e.preventDefault()
+    const next = TABS[to].key
+    goTab(next)
+    document.getElementById(`tab-${next}`)?.focus()
   }
   const [event, setEvent] = useState<AppEvent | null | undefined>(undefined)
   // clicking a person or group elsewhere jumps to the availability grid filtered to
@@ -311,6 +327,8 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   return (
     <div className="mx-auto max-w-[1240px] px-4 pb-[92px] pt-5 sm:px-[26px] sm:pt-[34px]">
       <BackLink href={backTo.href} label={backTo.label} />
+      {/* the share button and the phone menu only swap their words; this says it out loud */}
+      <Announce text={copied ? 'Link copied' : ''} />
       {/* the tour, only when it was asked for, and the one question a new guest gets; both mount on the body */}
       {phase !== 'past' && <Tour host={event.hostedByYou} locked={phase !== 'planning'} />}
       {phase !== 'past' && <AskTour eventId={id} />}
@@ -442,12 +460,15 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
 
       {/* tabs — horizontally scrollable on narrow screens, with edge fades hinting more */}
       <div className="relative mb-4 sm:mb-6">
-        <div ref={tabsRef} data-tour="tabs" onScroll={checkTabFade} className="scroll-slim flex items-center gap-1 overflow-x-auto pb-1 sm:gap-1.5">
+        <div ref={tabsRef} data-tour="tabs" role="tablist" aria-label="Event sections" onKeyDown={onTabKey} onScroll={checkTabFade} className="scroll-slim flex items-center gap-1 overflow-x-auto pb-1 sm:gap-1.5">
           {TABS.map((t) => {
             const active = tab === t.key
             return (
               // words alone carry the tabs — the filled box says which one is active
-              <button key={t.key} data-active={active} data-tour-tab={t.key} onClick={() => goTab(t.key)} className={`flex flex-none items-center whitespace-nowrap rounded-[10px] px-3 py-3 text-[13.5px] transition-colors sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
+              <button
+                key={t.key} type="button" role="tab" id={`tab-${t.key}`} aria-selected={active} aria-controls={`panel-${t.key}`} tabIndex={active ? 0 : -1}
+                data-active={active} data-tour-tab={t.key} onClick={() => goTab(t.key)}
+                className={`flex flex-none items-center whitespace-nowrap rounded-[10px] px-3 py-3 text-[13.5px] transition-colors sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
                 <span className="sm:hidden">{t.short}</span>
                 <span className="hidden sm:inline">{t.label}</span>
               </button>
@@ -460,6 +481,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
 
       {/* body */}
       {tab === 'availability' && (
+        <div role="tabpanel" id="panel-availability" aria-labelledby="tab-availability">
         <AvailabilityPanel
           event={event}
           locked={locked}
@@ -471,11 +493,12 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           onRunChange={setRunLen}
           onPatch={patchLive}
         />
+        </div>
       )}
       {/* the wrappers give the tour something to point at on each tab */}
-      {tab === 'location' && <div data-tour="location"><LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} /></div>}
-      {tab === 'attendance' && <div data-tour="attendance"><AttendancePanel event={event} onGoToTab={goTab} onViewAvailability={goToAvailabilityFor} onViewAvailabilityGroup={goToAvailabilityGroup} onGoToBestWindow={goToBestWindow} /></div>}
-      {tab === 'details' && <div data-tour="details"><DetailsTab event={event} onDelete={handleDelete} onLeave={handleLeave} onGoToTab={goTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} /></div>}
+      {tab === 'location' && <div data-tour="location" role="tabpanel" id="panel-location" aria-labelledby="tab-location"><LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} /></div>}
+      {tab === 'attendance' && <div data-tour="attendance" role="tabpanel" id="panel-attendance" aria-labelledby="tab-attendance"><AttendancePanel event={event} onGoToTab={goTab} onViewAvailability={goToAvailabilityFor} onViewAvailabilityGroup={goToAvailabilityGroup} onGoToBestWindow={goToBestWindow} /></div>}
+      {tab === 'details' && <div data-tour="details" role="tabpanel" id="panel-details" aria-labelledby="tab-details"><DetailsTab event={event} onDelete={handleDelete} onLeave={handleLeave} onGoToTab={goTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} /></div>}
 
       {/* discussion follows you down the page — the classic chat bubble, above the
           mobile tab bar; it is the one and only way in, unread badge included */}
@@ -815,6 +838,7 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
           <PopoverItem onClick={copyPersonalLink} icon={linkCopied ? <Check size={15} /> : <Link2 size={15} />}>
             {linkCopied ? 'Link copied' : 'Copy their personal link'}
           </PopoverItem>
+          <Announce text={linkCopied ? 'Link copied' : ''} />
           <PopoverSep />
         </>
       )}
@@ -872,9 +896,12 @@ function CopyInviteLink({ id }: { id: string }) {
     navigator.clipboard?.writeText(`${window.location.origin}/events/${id}/join`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
   return (
-    <button onClick={copy} className={`flex h-9 w-full items-center justify-center gap-1.5 rounded-[9px] border text-[13px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
-      {copied ? <><Check size={14} /> Copied</> : <><Link2 size={14} /> Copy invite link</>}
-    </button>
+    <>
+      <button onClick={copy} className={`flex h-9 w-full items-center justify-center gap-1.5 rounded-[9px] border text-[13px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
+        {copied ? <><Check size={14} /> Copied</> : <><Link2 size={14} /> Copy invite link</>}
+      </button>
+      <Announce text={copied ? 'Link copied' : ''} />
+    </>
   )
 }
 
@@ -1105,7 +1132,7 @@ function FixedWhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch:
         <DateField label="Last day" value={endDay} min={day || today} onChange={(v) => setEndDay(v && v < day ? day : v)} className="h-11 min-w-0 flex-1 !bg-s0 sm:h-9" />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <SegmentedControl size="sm" value={allDay ? 'all' : 'times'} onChange={(v) => setAllDay(v === 'all')} options={[{ v: 'times', l: run ? 'Set times' : 'Set hours' }, { v: 'all', l: 'All day' }]} />
+        <SegmentedControl label="Hours" size="sm" value={allDay ? 'all' : 'times'} onChange={(v) => setAllDay(v === 'all')} options={[{ v: 'times', l: run ? 'Set times' : 'Set hours' }, { v: 'all', l: 'All day' }]} />
         {!allDay && (
           <span className="flex flex-wrap items-center gap-2">
             {run && <span className="text-[13px] text-dim">starts</span>}
@@ -1202,6 +1229,7 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
       <button onClick={copyLink} className={`flex h-7 flex-none items-center gap-1 rounded-[7px] border px-2 text-[12px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 text-dim hover:bg-s2'}`}>
         {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
       </button>
+      <Announce text={copied ? 'Link copied' : ''} />
     </span>
   )
 
@@ -1464,10 +1492,10 @@ function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Pa
           />
         </label>
         {/* same segmented treatment as the budget step in the create wizard */}
-        <div className="flex flex-wrap rounded-[9px] border border-border bg-s1 p-0.5">
+        <div role="group" aria-label="Budget type" className="flex flex-wrap rounded-[9px] border border-border bg-s1 p-0.5">
           {([{ v: 'total', l: 'Total' }, { v: 'person', l: 'Per person' }] as const).map((o) => (
             <button
-              key={o.v} type="button" onClick={() => changeMode(o.v)}
+              key={o.v} type="button" aria-pressed={mode === o.v} onClick={() => changeMode(o.v)}
               className="flex h-7 items-center rounded-[7px] px-3 text-[13px] font-semibold transition-colors"
               style={mode === o.v ? { background: 'var(--accent)', color: 'var(--on-accent)' } : { color: 'var(--dim)' }}
             >

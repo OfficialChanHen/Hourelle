@@ -304,7 +304,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
           <div className="flex flex-col gap-2">
             {/* one or the other — the winning ballot places, or the built route */}
             {hasItin && (
-              <SegmentedControl
+              <SegmentedControl label="Place from"
                 size="sm"
                 stretch
                 value={source}
