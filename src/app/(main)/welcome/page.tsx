@@ -261,7 +261,7 @@ function Welcome() {
         <div className="mt-7 max-w-[560px] rounded-2xl border border-border bg-s1 px-5 py-5">
           <p className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">What it shows</p>
           <ol className="mt-2 flex flex-col gap-1.5 text-[14px] leading-[1.55] text-dim">
-            <li><span className="font-medium text-text">The link.</span> One link, and everyone can answer without an account.</li>
+            <li><span className="font-medium text-text">The link.</span> Send it to your guests. They can answer without an account.</li>
             <li><span className="font-medium text-text">The grid.</span> Drag across the hours you can make.</li>
             <li><span className="font-medium text-text">Location.</span> Places on a ballot, votes, and a route.</li>
             <li><span className="font-medium text-text">Attendance and details.</span> Who is coming, and everything else.</li>

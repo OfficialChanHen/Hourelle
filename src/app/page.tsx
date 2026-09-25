@@ -125,7 +125,7 @@ export default function Landing() {
                 Find the hour everyone can meet.
               </h1>
               <p className="mt-5 max-w-[560px] text-[16px] leading-[1.6] text-dim sm:text-[17px]">
-                Making plans with friends? Send one link. Everyone marks when they are free and votes on where to go. Nobody needs an account.
+                Making plans with friends? Create an event, then send the invite link. Everyone marks when they are free and votes on where to go. Guests don't need an account.
               </p>
               <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
                 <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-accent px-6 text-[15px] font-semibold text-on-accent">
