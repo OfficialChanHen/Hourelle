@@ -81,7 +81,7 @@ function EventsList() {
           title={filter === 'all' ? 'No events yet' : `Nothing under ${match.label}`}
           body={filter === 'all' ? 'Make your first event and it shows up here.' : 'Events move here as their stage changes.'}
           action={filter === 'all' ? { label: 'Create an event', href: '/create' } : undefined}
-          secondary={filter === 'all' ? { label: 'Or poke around the demo events', href: '/demos' } : undefined}
+          secondary={filter === 'all' ? { label: 'Or open a demo event', href: '/demos' } : undefined}
         />
       )}
 

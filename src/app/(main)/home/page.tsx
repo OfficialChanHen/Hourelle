@@ -139,7 +139,7 @@ export default function HomePage() {
           title="Nothing going on yet"
           body="Create an event and it takes over this spot."
           action={{ label: 'Create an event', href: '/create' }}
-          secondary={{ label: 'Or poke around the demo events', href: '/demos' }}
+          secondary={{ label: 'Or open a demo event', href: '/demos' }}
         />
       )}
 
