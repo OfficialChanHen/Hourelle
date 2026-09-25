@@ -73,7 +73,7 @@ export function PollCard({ poll, votes, me, canVote, locked, canManage, onPick, 
   return (
     // what changes inside a card (a count, an option someone added) is not read out
     // as a new line in the chat around it
-    <div aria-live="off" className="w-full max-w-[92%] rounded-[14px] border border-border bg-s1 p-3">
+    <div aria-live="off" className="w-full max-w-[min(92%,360px)] rounded-[14px] border border-border bg-s1 p-3">
       <div className="flex items-center justify-between gap-2">
         <div className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Poll</div>
         {canManage && !locked && (

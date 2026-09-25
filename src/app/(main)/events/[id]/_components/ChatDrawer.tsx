@@ -364,7 +364,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                   ) : (
                   <div
                     title={first ? undefined : whenLabel(m, h24)}
-                    className={`max-w-[86%] whitespace-pre-wrap break-words rounded-[14px] border px-[11px] py-2 text-[13px] leading-[1.45] ${
+                    className={`max-w-[min(86%,480px)] whitespace-pre-wrap break-words rounded-[14px] border px-[11px] py-2 text-[13px] leading-[1.45] ${
                       m.you
                         ? `border-accent bg-accent text-on-accent ${first ? 'rounded-tr-[5px]' : ''}`
                         : `border-border bg-s2 text-text ${first ? 'rounded-tl-[5px]' : ''}`
