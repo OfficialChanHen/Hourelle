@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
 /* ───────────────────────── Themes — the only place hex lives ───────────────────────── */
+/* Contrast: every text token clears 4.5:1 (WCAG AA) on the surfaces it sits on, in
+   every palette and theme. --faint is the one that kept slipping: as a pale "quiet"
+   grey it read at 2.5 to 3:1, which fails for the eyebrows, captions and times it
+   carries. Check a new value against bg, s1 and s2 before changing one. */
 /* Light — warm neutral (default).
    The paper is warm without being tinted: a trace of red and yellow in the grays, not
    the yellow wash the first draft carried. The character lives in the deep green, the
@@ -9,7 +13,7 @@
 :root {
   --bg:#F7F6F4; --s0:#FBFAF9; --s1:#FFFFFF; --s2:#EFEEEB; --s3:#E3E2DE;
   --border:#E3E2DE; --border2:#CFCEC9;
-  --text:#1A1917; --dim:#67665F; --faint:#98978F;
+  --text:#1A1917; --dim:#67665F; --faint:#6D6C65;
   --accent:#2E4A3C; --accent-text:#2A4537; --accent-bg:#E8EEE9; --accent-border:#CBD9CF; --on-accent:#F8F7F3;
   --teal:#3F6B55; --teal-text:#31523F; --teal-bg:#E7EFE9; --teal-border:#C6DACC;
   --ochre:#8F6A33; --ochre-text:#72521F; --ochre-bg:#F3ECDF; --ochre-border:#E3D6BF;
@@ -21,7 +25,7 @@
 
   /* availability heat ramp */
   --heat-low:#EBF0EC; --heat-mid:#D0DFD4; --heat-high:#9FBBA6; --heat-full:#2E4A3C;
-  --you-only:#F1EBDF; --you-some:#E6DCC6; --you-many:#D8CBAE; --you-text:#6A5527;
+  --you-only:#F1EBDF; --you-some:#E6DCC6; --you-many:#D8CBAE; --you-text:#675326;
   /* grid slot lines — dark, so each time block reads instantly; redrawn above the
      heat fills so saturated cells can't wash them out */
   --grid-line:#7C7A73;
@@ -56,20 +60,20 @@
 [data-theme="dark"] {
   --bg:#151513; --s0:#1A1A18; --s1:#1F1F1C; --s2:#262622; --s3:#302F2A;
   --border:rgba(240,238,230,.10); --border2:rgba(240,238,230,.19);
-  --text:#EFEDE8; --dim:#ACA99F; --faint:#78766E;
-  --accent:#4C8A66; --accent-text:#A3D6BE; --accent-bg:rgba(127,183,154,.15); --accent-border:rgba(127,183,154,.38); --on-accent:#F8F7F3;
+  --text:#EFEDE8; --dim:#ACA99F; --faint:#8E8C83;
+  --accent:#437B5B; --accent-text:#A3D6BE; --accent-bg:rgba(127,183,154,.15); --accent-border:rgba(127,183,154,.38); --on-accent:#F8F7F3;
   --teal:#5B9A7C; --teal-text:#9BD2B7; --teal-bg:rgba(111,181,151,.14); --teal-border:rgba(111,181,151,.36);
   --ochre:#BD9A5E; --ochre-text:#E1C48F; --ochre-bg:rgba(200,165,100,.15); --ochre-border:rgba(200,165,100,.38);
   --brick:#C57F78; --brick-text:#E5ACA6; --brick-bg:rgba(205,138,130,.14); --brick-border:rgba(205,138,130,.36);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
 
   --heat-low:rgba(127,183,154,.14); --heat-mid:rgba(127,183,154,.30); --heat-high:rgba(127,183,154,.55); --heat-full:#5B9A7C;
-  --you-only:rgba(200,165,100,.18); --you-some:rgba(200,165,100,.34); --you-many:rgba(200,165,100,.5); --you-text:#E1C48F;
+  --you-only:rgba(200,165,100,.18); --you-some:rgba(200,165,100,.34); --you-many:rgba(200,165,100,.5); --you-text:#F4E2BF;
   --grid-line:rgba(240,238,230,.38);
   --grid-edge:rgba(240,238,230,.22);
   --grid-dash:rgba(240,238,230,.38);
   --best-head:#2E2A20;
-  --heat-count:#EFEDE8; --heat-count-full:#F7F6F4;
+  --heat-count:#EFEDE8; --heat-count-full:#151513;
 
   /* charcoal ascends s0→s3, so the pill that floats above an s2 track is s3 here —
      with s0 it sat BELOW the track and the active chip read as a dent. The lift
@@ -99,14 +103,14 @@
 [data-palette="studio"] {
   --bg:#F7F7F8; --s0:#FBFBFC; --s1:#FFFFFF; --s2:#F0F0F2; --s3:#E4E4E8;
   --border:#E6E6EA; --border2:#D2D2D8;
-  --text:#18181B; --dim:#63636B; --faint:#98989F;
+  --text:#18181B; --dim:#63636B; --faint:#6D6D75;
   --accent:#18181B; --accent-text:#34438A; --accent-bg:#EAECF3; --accent-border:#CCD2E5; --on-accent:#FFFFFF;
   --teal:#2F7A5A; --teal-text:#256448; --teal-bg:#E5F2EB; --teal-border:#C3DFD0;
   --ochre:#A16A1B; --ochre-text:#7F5314; --ochre-bg:#F6EEDD; --ochre-border:#E8D8B6;
   --brick:#B2413B; --brick-text:#93342F; --brick-bg:#F8E5E3; --brick-border:#EBC8C5;
   --shadow:0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
   --heat-low:#E7F1EB; --heat-mid:#C6E0D1; --heat-high:#8FBEA3; --heat-full:#2F7A5A;
-  --you-only:#F6EEDD; --you-some:#EBDDBC; --you-many:#DCC894; --you-text:#6B5A2C;
+  --you-only:#F6EEDD; --you-some:#EBDDBC; --you-many:#DCC894; --you-text:#625226;
   --grid-line:#7E8087; --grid-edge:#AAACB2; --grid-dash:#AAACB2;
   --best-head:#F6EEDD;
   --heat-count:#18181B; --heat-count-full:#FFFFFF;
@@ -116,14 +120,14 @@
 [data-palette="studio"][data-theme="dark"] {
   --bg:#0F0F10; --s0:#141416; --s1:#19191C; --s2:#202024; --s3:#2A2A30;
   --border:rgba(236,236,240,.10); --border2:rgba(236,236,240,.18);
-  --text:#ECECEE; --dim:#A1A1A9; --faint:#6E6E76;
+  --text:#ECECEE; --dim:#A1A1A9; --faint:#888890;
   --accent:#ECECEE; --accent-text:#A3B4EE; --accent-bg:rgba(163,180,238,.14); --accent-border:rgba(163,180,238,.36); --on-accent:#111113;
   --teal:#5FAF89; --teal-text:#9AD6B9; --teal-bg:rgba(95,175,137,.14); --teal-border:rgba(95,175,137,.36);
   --ochre:#C9A05A; --ochre-text:#E6C88E; --ochre-bg:rgba(201,160,90,.15); --ochre-border:rgba(201,160,90,.38);
   --brick:#D2837C; --brick-text:#EBB0AA; --brick-bg:rgba(210,131,124,.14); --brick-border:rgba(210,131,124,.36);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
   --heat-low:rgba(95,175,137,.14); --heat-mid:rgba(95,175,137,.30); --heat-high:rgba(95,175,137,.55); --heat-full:#5FAF89;
-  --you-only:rgba(201,160,90,.18); --you-some:rgba(201,160,90,.34); --you-many:rgba(201,160,90,.5); --you-text:#E6C88E;
+  --you-only:rgba(201,160,90,.18); --you-some:rgba(201,160,90,.34); --you-many:rgba(201,160,90,.5); --you-text:#EFD9AC;
   --grid-line:rgba(236,236,240,.36); --grid-edge:rgba(236,236,240,.2); --grid-dash:rgba(236,236,240,.36);
   --best-head:#2A2820;
   --heat-count:#ECECEE; --heat-count-full:#0F0F10;
@@ -135,32 +139,32 @@
 [data-palette="daylight"] {
   --bg:#F8FAFD; --s0:#FFFFFF; --s1:#FFFFFF; --s2:#F1F3F4; --s3:#E8EAED;
   --border:#E0E3E7; --border2:#C4C7C5;
-  --text:#1F1F1F; --dim:#5F6368; --faint:#9AA0A6;
+  --text:#1F1F1F; --dim:#5F6368; --faint:#6B6F74;
   --accent:#0B57D0; --accent-text:#0B57D0; --accent-bg:#E8F0FE; --accent-border:#C6DAFC; --on-accent:#FFFFFF;
   --teal:#188038; --teal-text:#137333; --teal-bg:#E6F4EA; --teal-border:#CEEAD6;
-  --ochre:#F29900; --ochre-text:#B06000; --ochre-bg:#FEF7E0; --ochre-border:#FEEFC3;
+  --ochre:#F29900; --ochre-text:#AA5C00; --ochre-bg:#FEF7E0; --ochre-border:#FEEFC3;
   --brick:#D93025; --brick-text:#C5221F; --brick-bg:#FCE8E6; --brick-border:#FAD2CF;
   --shadow:0 1px 2px rgba(60,64,67,.12), 0 8px 24px rgba(60,64,67,.10);
   --heat-low:#E8F0FE; --heat-mid:#AECBFA; --heat-high:#669DF6; --heat-full:#0B57D0;
   --you-only:#FEF7E0; --you-some:#FDE293; --you-many:#FDD663; --you-text:#7A5800;
   --grid-line:#80868B; --grid-edge:#AEB3B8; --grid-dash:#AEB3B8;
   --best-head:#FEF7E0;
-  --heat-count:#174EA6; --heat-count-full:#FFFFFF;
+  --heat-count:#0B316D; --heat-count-full:#FFFFFF;
 }
 [data-palette="daylight"][data-theme="dark"] {
   --bg:#131314; --s0:#1A1A1C; --s1:#1E1F21; --s2:#28292C; --s3:#333539;
   --border:rgba(232,234,237,.11); --border2:rgba(232,234,237,.20);
-  --text:#E8EAED; --dim:#9AA0A6; --faint:#6C7176;
+  --text:#E8EAED; --dim:#9AA0A6; --faint:#8A9096;
   --accent:#A8C7FA; --accent-text:#A8C7FA; --accent-bg:rgba(168,199,250,.14); --accent-border:rgba(168,199,250,.38); --on-accent:#062E6F;
   --teal:#81C995; --teal-text:#81C995; --teal-bg:rgba(129,201,149,.14); --teal-border:rgba(129,201,149,.36);
   --ochre:#FDD663; --ochre-text:#FDD663; --ochre-bg:rgba(253,214,99,.14); --ochre-border:rgba(253,214,99,.36);
   --brick:#F28B82; --brick-text:#F28B82; --brick-bg:rgba(242,139,130,.14); --brick-border:rgba(242,139,130,.36);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
   --heat-low:rgba(138,180,248,.14); --heat-mid:rgba(138,180,248,.30); --heat-high:rgba(138,180,248,.55); --heat-full:#8AB4F8;
-  --you-only:rgba(253,214,99,.16); --you-some:rgba(253,214,99,.32); --you-many:rgba(253,214,99,.5); --you-text:#FDD663;
+  --you-only:rgba(253,214,99,.12); --you-some:rgba(253,214,99,.22); --you-many:rgba(253,214,99,.34); --you-text:#FDD663;
   --grid-line:rgba(232,234,237,.38); --grid-edge:rgba(232,234,237,.22); --grid-dash:rgba(232,234,237,.38);
   --best-head:#33301C;
-  --heat-count:#A8C7FA; --heat-count-full:#0A2A5C;
+  --heat-count:#F3F7FE; --heat-count-full:#0A2A5C;
 }
 
 /* High contrast — strong lines, saturated color, true black-and-white bases; built for
@@ -178,7 +182,7 @@
   --you-only:#FFF3B8; --you-some:#FFE065; --you-many:#FFD02E; --you-text:#5C4A00;
   --grid-line:#000000; --grid-edge:#4D4D4D; --grid-dash:#4D4D4D;
   --best-head:#FFF0D0;
-  --heat-count:#002080; --heat-count-full:#FFFFFF;
+  --heat-count:#001657; --heat-count-full:#FFFFFF;
 }
 [data-palette="contrast"][data-theme="dark"] {
   --bg:#000000; --s0:#0A0A0A; --s1:#101010; --s2:#1C1C1C; --s3:#2A2A2A;
@@ -190,10 +194,10 @@
   --brick:#FF6161; --brick-text:#FF9C9C; --brick-bg:rgba(255,97,97,.16); --brick-border:rgba(255,97,97,.55);
   --shadow:0 1px 2px rgba(0,0,0,.8);
   --heat-low:rgba(125,169,255,.18); --heat-mid:rgba(125,169,255,.40); --heat-high:rgba(125,169,255,.65); --heat-full:#7DA9FF;
-  --you-only:rgba(255,197,61,.18); --you-some:rgba(255,197,61,.36); --you-many:rgba(255,197,61,.55); --you-text:#FFDC85;
+  --you-only:rgba(255,197,61,.16); --you-some:rgba(255,197,61,.28); --you-many:rgba(255,197,61,.43); --you-text:#FFDC85;
   --grid-line:rgba(255,255,255,.6); --grid-edge:rgba(255,255,255,.4); --grid-dash:rgba(255,255,255,.6);
   --best-head:#2E2609;
-  --heat-count:#A9C6FF; --heat-count-full:#00123D;
+  --heat-count:#FBFCFF; --heat-count-full:#00123D;
 }
 
 /* ───────────────── Map semantic tokens → Tailwind utilities (switch per theme) ───────────────── */
