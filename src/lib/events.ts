@@ -3,7 +3,7 @@ import { av } from './people'
 import { isMine, purgeRemoved, pushAnswers, pushDelete, pushEvent, pushMessage, pushNewEvent } from './remote'
 import { currentAccount } from './session'
 import { writeLocal } from './local'
-import { placeVotes } from './polls'
+import { isControlMessage, placeVotes } from './polls'
 import { slotOver, slotWhen } from './slot'
 import type { AccountKind } from './session'
 import {
@@ -1354,7 +1354,8 @@ export function arrivalOf(ev: AppEvent, p: Participant): number {
   if (p.joinedAt) return p.joinedAt
   // back after being removed: a newcomer again, whatever they said the first time
   if ((ev.removedIds ?? []).includes(p.id)) return Date.now()
-  const spoke = ev.messages.some((m) => m.id === p.id)
+  // a line in the chat, not a poll's option or settings change, which says nothing aloud
+  const spoke = ev.messages.some((m) => m.id === p.id && !isControlMessage(m))
   const answered = Object.values(availIvOf(ev)).some((byPid) => (byPid[p.id] ?? []).length > 0) || (ev.unavailableIds ?? []).includes(p.id)
   return spoke || answered ? 0 : Date.now()
 }

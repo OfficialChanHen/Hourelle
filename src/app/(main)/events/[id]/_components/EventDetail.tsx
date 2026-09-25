@@ -58,7 +58,7 @@ import { StageSummary } from './StageSummary'
 import { ConfirmBar } from './ConfirmBar'
 import { ConfirmedHero } from './ConfirmedHero'
 import { ChatDrawer } from './ChatDrawer'
-import { tapPollOption, type Poll } from '@/lib/polls'
+import { chatLines, pollClosed, tapPollOption, type PollState } from '@/lib/polls'
 import { useIsIOS } from '@/hooks/useIsIOS'
 import { useBounceOnNew } from '@/hooks/useAttention'
 import { useAccount } from '@/hooks/useAccount'
@@ -130,10 +130,11 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   const [copied, setCopied] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   // unread discussion count: what arrived since the drawer was last open, not the
-  // lifetime total. Read after mount (localStorage), marked seen while the drawer is up
+  // lifetime total. Read after mount (localStorage), marked seen while the drawer is up.
+  // Only lines people can see count: a poll's option or settings change is not news
   const [seenMsgs, setSeenMsgs] = useState<number | null>(null)
   useEffect(() => { setSeenMsgs(seenMessageCount(id)) }, [id])
-  const msgCount = event?.messages.length ?? 0
+  const msgCount = event ? chatLines(event.messages).length : 0
   useEffect(() => {
     if (!chatOpen) return
     setSeenMsgs(msgCount)
@@ -226,7 +227,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     // to it, so their bubble does not open on an unread badge for their own arrival
     if (markArrived(id, arrivingId)) {
       const raw = getEvent(id)
-      if (raw) { const n = viewOf(raw).messages.length; markMessagesSeen(id, n); setSeenMsgs(n) }
+      if (raw) { const n = chatLines(viewOf(raw).messages).length; markMessagesSeen(id, n); setSeenMsgs(n) }
     }
     refresh()
   }, [arrivingId, id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -319,9 +320,10 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   // a tap on a chat poll. The pick is yours alone, under that poll's keys in the votes
   // map, worked out from the copy saved on this device right now (never from this
   // screen's), so someone else's pick that landed a moment ago is not put back.
-  // A demo keeps it on the page.
-  function votePoll(poll: Poll, optionId: string) {
-    if (!event || event.status === 'confirmed') return
+  // A demo keeps it on the page. The poll's own rules (votes each, closing day) come
+  // with it, folded from the chat by the drawer.
+  function votePoll(poll: PollState, optionId: string) {
+    if (!event || event.status === 'confirmed' || pollClosed(poll.s)) return
     const voter = event.participants.find((p) => p.you)
     if (!voter) return
     if (event.demo) {

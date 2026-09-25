@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { makePoll, POLL_MAX_OPTIONS, POLL_MIN_OPTIONS, type Poll } from '@/lib/polls'
+import { distinctOptions, makePoll, POLL_MAX_OPTIONS, POLL_MIN_OPTIONS, POLL_OPTION_MAX_LEN, type Poll } from '@/lib/polls'
 
 /* The form for a new poll, in the chat where the composer was. A question and two to
    six options. It scrolls inside itself, so with a phone keyboard up it gives way to
@@ -12,7 +12,7 @@ import { makePoll, POLL_MAX_OPTIONS, POLL_MIN_OPTIONS, type Poll } from '@/lib/p
 
 const EXAMPLES = ['Catan', 'Codenames', 'Ticket to Ride', 'Wingspan', 'Mafia', 'Uno']
 const Q_MAX = 140
-const OPT_MAX = 60
+const OPT_MAX = POLL_OPTION_MAX_LEN
 
 const field = 'h-11 w-full min-w-0 rounded-[10px] border border-border bg-s1 px-3 text-[13.5px] outline-none placeholder:text-faint focus:border-accent sm:h-[38px]'
 
@@ -25,7 +25,8 @@ export function PollComposer({ onPost, onCancel }: { onPost: (p: Poll) => void; 
   // a new option row takes the cursor as it mounts, so "Add option" can be followed by typing
   const focusNext = useRef<number | null>(null)
 
-  const filled = opts.filter((o) => o.t.trim()).length
+  // repeats count once, as they will in the poll
+  const filled = distinctOptions(opts.map((o) => o.t)).length
   const ready = !!q.trim() && filled >= POLL_MIN_OPTIONS
 
   useEffect(() => { question.current?.focus() }, [])

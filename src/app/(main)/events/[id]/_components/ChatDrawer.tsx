@@ -12,7 +12,7 @@ import { setWatchingChat } from '@/lib/sound'
 import { removedLineTest } from '@/lib/removed'
 import { usePhoneScreen } from '@/hooks/usePhoneScreen'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
-import { decodePoll, encodePoll, messagePreview, type Poll } from '@/lib/polls'
+import { chatLines, decodePoll, encodePoll, encodePollOption, encodePollSettings, messagePreview, newOptionId, reducePolls, type Poll, type PollSettings, type PollState } from '@/lib/polls'
 import { PollCard } from './chat/PollCard'
 import { PollComposer } from './chat/PollComposer'
 
@@ -54,7 +54,7 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onVote, onClos
   messages: ChatMessage[]
   unreadFrom?: number // index of the first message that arrived since the drawer was last open
   onSend: (text: string) => void
-  onVote?: (poll: Poll, optionId: string) => void // a tap on a poll option: moves or takes back your pick
+  onVote?: (poll: PollState, optionId: string) => void // a tap on a poll option: casts, moves or takes back a vote
   onClose: () => void
   readOnly?: boolean // a demo, or nobody here is you: the room can be read, not written
   // who is here now is said by the faces in the event header; in here the typing line
@@ -95,7 +95,8 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onVote, onClos
   useFocusTrap(root)
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
+    // a popover open in here (a poll's settings) takes the first Escape for itself
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !e.defaultPrevented) close() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [close])
@@ -111,13 +112,31 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onVote, onClos
   }
   // lines from people the host took off the event never show, whatever copy they came
   // from, and not even once that person is back on the list
-  const hidden = removedLineTest(event)
-  const shown = event.removedIds?.length ? messages.filter((m) => !hidden(m)) : messages
-  // polls in the chat: picks live in event.votes, which the page reads live, so the
-  // counts move as other people vote. Once the plan is locked the polls are a record.
+  const all = useMemo(() => {
+    if (!event.removedIds?.length) return messages
+    const hidden = removedLineTest(event)
+    return messages.filter((m) => !hidden(m))
+  }, [messages, event])
+  // polls in the chat: each one folded from its own line and the option and settings
+  // lines after it, which are never drawn themselves. Picks live in event.votes, which
+  // the page reads live, so the counts move as other people vote. Once the plan is
+  // locked the polls are a record.
+  const hostKey = event.participants.filter((p) => p.host).map((p) => p.id).join('|')
+  const hostIds = useMemo(() => new Set(hostKey ? hostKey.split('|') : []), [hostKey])
+  const states = useMemo(() => reducePolls(all, hostIds), [all, hostIds])
+  const shown = useMemo(() => chatLines(all), [all])
   const me = event.participants.find((p) => p.you)?.id ?? null
-  const pollsClosed = event.status === 'confirmed'
-  const polls = { votes: event.votes, me, closed: pollsClosed, canVote: !readOnly && !pollsClosed && !!me && !!onVote, onVote }
+  const polls: PollsProps = {
+    states,
+    votes: event.votes,
+    me,
+    locked: event.status === 'confirmed',
+    canVote: !readOnly && !!me && !!onVote,
+    canManage: (p) => !readOnly && !!me && (p.by === me || hostIds.has(me)),
+    onVote,
+    onAdd: (pollId, text) => onSend(encodePollOption(pollId, newOptionId(), text)),
+    onSettings: (pollId, s) => onSend(encodePollSettings(pollId, s)),
+  }
   const body = <ChatBody messages={shown} unreadFrom={unreadFrom} onSend={onSend} onClose={close} avatarOf={avatarOf} readOnly={readOnly} typing={typing} onType={onType} onStopTyping={onStopTyping} polls={polls} />
 
   return (
@@ -148,19 +167,25 @@ type ChatProps = {
   typing: Peer[]; onType?: () => void; onStopTyping?: () => void
   avatarOf: (id: string, name?: string) => { initials: string; name: string; color: Participant['color'] }
   readOnly: boolean
-  polls: {
-    votes: Record<string, string[]> | undefined
-    me: string | null
-    closed: boolean
-    canVote: boolean
-    onVote?: (poll: Poll, optionId: string) => void
-  }
+  polls: PollsProps
+}
+
+type PollsProps = {
+  states: Map<string, PollState>
+  votes: Record<string, string[]> | undefined
+  me: string | null
+  locked: boolean
+  canVote: boolean
+  canManage: (p: PollState) => boolean
+  onVote?: (poll: PollState, optionId: string) => void
+  onAdd: (pollId: string, text: string) => void
+  onSettings: (pollId: string, s: PollSettings) => void
 }
 
 type Row =
   | { kind: 'day'; label: string; key: string }
   | { kind: 'new'; key: string }
-  | { kind: 'msg'; m: ChatMessage; key: string; first: boolean; poll: Poll | null } // first: opens a sender run, so it wears the header
+  | { kind: 'msg'; m: ChatMessage; key: string; first: boolean; poll: Poll | null } // first: opens a sender run, so it wears the header; poll: as posted, its current state is in polls.states
 
 // header + messages + composer, shared by the drawer and the sheet
 function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, typing, onType, onStopTyping, polls }: ChatProps) {
@@ -300,6 +325,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                 </div>
               )
               const { m, first, poll } = r
+              const state = poll ? polls.states.get(poll.id) : undefined
               const a = avatarOf(m.id, m.name)
               // a line the app wrote ("Sam joined", "reopened the plan"): a quiet
               // centered note, never a bubble, so it reads as the room, not a person
@@ -322,14 +348,17 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                       <span className="font-semibold text-text">{m.name}</span>
                     </div>
                   )}
-                  {poll ? (
+                  {state ? (
                     <PollCard
-                      poll={poll}
+                      poll={state}
                       votes={polls.votes}
                       me={polls.me}
                       canVote={polls.canVote}
-                      closed={polls.closed}
-                      onPick={(optionId) => polls.onVote?.(poll, optionId)}
+                      locked={polls.locked}
+                      canManage={polls.canManage(state)}
+                      onPick={(optionId) => polls.onVote?.(state, optionId)}
+                      onAdd={(text) => polls.onAdd(state.id, text)}
+                      onSettings={(s) => polls.onSettings(state.id, s)}
                       avatarOf={avatarOf}
                     />
                   ) : (
@@ -341,7 +370,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                         : `border-border bg-s2 text-text ${first ? 'rounded-tl-[5px]' : ''}`
                     }`}
                   >
-                    {m.text}
+                    {poll ? messagePreview(m) : m.text}
                   </div>
                   )}
                   {/* the time under the message and on its own side, one line of its
