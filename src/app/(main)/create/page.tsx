@@ -619,7 +619,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
     <div className="flex flex-col gap-4">
       <div>
         <Label htmlFor="ev-title">Event title <Req /></Label>
-        <input id="ev-title" value={form.title} onChange={(e) => update({ title: e.target.value })} placeholder="e.g. Team Meeting" className={inputCls(show(errs.title))} />
+        <input id="ev-title" value={form.title} onChange={(e) => update({ title: e.target.value })} placeholder="e.g. Friday dinner" className={inputCls(show(errs.title))} />
         {show(errs.title) && <FieldError>{errs.title}</FieldError>}
       </div>
 

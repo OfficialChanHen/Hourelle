@@ -53,10 +53,11 @@ const FEATURES = [
   },
 ] as const
 
+// friend plans first: the audience is friends making plans, not office meetings
 const DEMO_PICKS: Record<string, string> = {
-  'q3-offsite': 'Eight people, a week on the **availability grid**, and votes turned into a **three-stop route**.',
   'cabin-trip': 'A **day poll** for a long weekend, where whole days are the question.',
-  'trivia-night-anchor': 'A **fixed date and place**. The only question left is the **RSVP round**.',
+  'priyas-send-off': 'A **vote on the place**, closing soon, with the leader changing as votes come in.',
+  'trivia-night-anchor': 'A **fixed date and place**. The only question left is **who is coming**.',
 }
 
 export default function Landing() {
@@ -67,7 +68,10 @@ export default function Landing() {
 
   // an account has a home; this page is for people who do not have one yet
   useEffect(() => { if (ready && signedIn) router.replace('/home') }, [ready, signedIn, router])
-  useEffect(() => { setDemos(listDemos().filter((d) => d.id in DEMO_PICKS)) }, [])
+  useEffect(() => {
+    const order = Object.keys(DEMO_PICKS)
+    setDemos(listDemos().filter((d) => d.id in DEMO_PICKS).sort((x, y) => order.indexOf(x.id) - order.indexOf(y.id)))
+  }, [])
 
   useGSAP(() => {
     if (!ready || signedIn) return
@@ -121,7 +125,7 @@ export default function Landing() {
                 Find the hour everyone can meet.
               </h1>
               <p className="mt-5 max-w-[560px] text-[16px] leading-[1.6] text-dim sm:text-[17px]">
-                Send one link. People mark when they are free and vote on where to go. Guests don't need an account.
+                Making plans with friends? Send one link. Everyone marks when they are free and votes on where to go. Nobody needs an account.
               </p>
               <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
                 <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-accent px-6 text-[15px] font-semibold text-on-accent">
