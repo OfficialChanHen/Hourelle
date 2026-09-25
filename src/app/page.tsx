@@ -33,7 +33,7 @@ const FEATURES = [
   {
     eyebrow: 'When',
     title: 'See the day everyone can meet.',
-    body: 'Drag across the times you are free. The darker the green, the more people can make it. The best time is picked out for you.',
+    body: 'Drag across the times you are free. The darker the green, the more people are free. The best time is picked out for you.',
     points: ['Minute-precise edges, not just half-hour boxes', 'Day polls for trips and weekends', 'Or skip the poll when the date is already set'],
     demo: 'daypoll',
   },

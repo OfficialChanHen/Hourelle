@@ -1621,9 +1621,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             line about dragging, so the hint stays out of its way there */}
         {mode !== 'edit' && (
           <Hint name="grid" className="mb-2">
-            {!editable ? 'Darker green means more people are free.'
-              : dayPoll ? 'Tap the days you can make. Darker green means more people can.'
-                : 'Press Edit mine and drag across the hours you can make. Darker green means more people are free.'}
+            {!editable ? 'The darker the green, the more people are free.'
+              : dayPoll ? 'Tap the days you can make. The darker the green, the more people are free.'
+                : 'Press Edit mine and drag across the hours you can make. The darker the green, the more people are free.'}
           </Hint>
         )}
 
