@@ -15,13 +15,15 @@ import { CalendarDays } from 'lucide-react'
    and still does all the work: a tap opens the phone's own picker, a click asks
    for the desktop one with showPicker(), min and max still hold, and the keyboard
    still types into it. The box shows focus for it. */
-export function DateField({ value, onChange, label, min, max, invalid, empty = 'Not set', className = '' }: {
+export function DateField({ value, onChange, label, min, max, invalid, describedBy, empty = 'Not set', className = '' }: {
   value: string
   onChange: (v: string) => void
   label: string
   min?: string
   max?: string
   invalid?: boolean
+  // the id of the message that explains an error, when one is showing
+  describedBy?: string
   empty?: string
   className?: string
 }) {
@@ -41,6 +43,8 @@ export function DateField({ value, onChange, label, min, max, invalid, empty = '
       <input
         type="date"
         aria-label={label}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
         value={value}
         min={min}
         max={max}

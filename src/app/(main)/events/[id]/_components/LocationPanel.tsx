@@ -28,6 +28,7 @@ import dynamic from 'next/dynamic'
 import { gsap } from 'gsap'
 import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, SlidersHorizontal, Info, ExternalLink } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
+import { namesLabel } from '@/components/ui/AvatarRow'
 import { fromDay, todayKey, getEvent, patchEvent, fmtMinute, fmtMinuteDay, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
 import { hintDismissed as isHintDismissed, dismissHint as markHintDismissed } from '@/lib/prefs'
 import { fmtDuration, MODE_LABEL, ALL_MODES, type TravelMode, type ModeEstimate } from '@/lib/travel'
@@ -397,8 +398,21 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // what the map draws: on the ballot, one pin per located place with its vote count;
   // on the itinerary, one numbered pin per stop
   const mapPins: MapPinData[] = sub === 'vote'
-    ? places.flatMap((p) => { const c = coordsOf(p); return c ? [{ id: p.id, label: String(votesOf(p.id).length), name: p.name, lead: locked ? confirmedIds.has(p.id) : p.id === leadingId, ...c }] : [] })
-    : stops.flatMap((s, i) => { const c = coordsOf(placeAt(s.placeId)); return c ? [{ id: s.uid, label: String(i + 1), name: placeAt(s.placeId)?.name, lead: true, ...c }] : [] })
+    ? places.flatMap((p) => {
+        const c = coordsOf(p)
+        if (!c) return []
+        const n = votesOf(p.id).length
+        const lead = locked ? confirmedIds.has(p.id) : p.id === leadingId
+        // what the pin is called out loud: once the plan is locked the lead is the chosen place
+        const spoken = settled ? p.name : `${p.name}, ${n} ${n === 1 ? 'vote' : 'votes'}${lead ? (locked ? ', chosen' : ', leading') : ''}`
+        return [{ id: p.id, label: String(n), name: p.name, spoken, lead, ...c }]
+      })
+    : stops.flatMap((s, i) => {
+        const c = coordsOf(placeAt(s.placeId))
+        if (!c) return []
+        const name = placeAt(s.placeId)?.name
+        return [{ id: s.uid, label: String(i + 1), name, spoken: name ? `Stop ${i + 1}: ${name}` : `Stop ${i + 1}`, lead: true, ...c }]
+      })
   const unmapped = places.filter((p) => !coordsOf(p)).length
   // searches look near the places the event already has
   const near = centroidOf(places)
@@ -413,7 +427,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
               <div className="flex items-center gap-1.5">
                 <span className="text-[12px] font-bold text-teal-text">{votesOf(fp.id).length} vote{votesOf(fp.id).length === 1 ? '' : 's'}</span>
                 {!hideVoters && (
-                  <div className="flex">
+                  <div className="flex" role={votesOf(fp.id).length ? 'img' : undefined} aria-label={votesOf(fp.id).length ? `Voted: ${namesLabel(votesOf(fp.id).slice(0, 5).map((id) => avatarOf(id).name), votesOf(fp.id).length - 5)}` : undefined}>
                     {votesOf(fp.id).slice(0, 5).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={19} font={8.5} title={a.name} /></span> })}
                   </div>
                 )}
@@ -506,7 +520,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                     // host can set/change the link; it's kept if they switch venue type and back
                     <div className="mb-2.5 flex h-[38px] items-center gap-2 rounded-[10px] border border-border bg-s2 py-0 pl-3 pr-2 focus-within:border-accent-border">
                       <Link2 size={16} className="flex-none text-accent-text" />
-                      <input value={meetingLink} onChange={(e) => changeLink(e.target.value)} placeholder={`Paste a ${loc.platform} link`} className="min-w-0 flex-1 bg-transparent text-left font-mono text-[13px] outline-none placeholder:text-faint" />
+                      <input value={meetingLink} onChange={(e) => changeLink(e.target.value)} aria-label="Meeting link" placeholder={`Paste a ${loc.platform} link`} className="min-w-0 flex-1 bg-transparent text-left font-mono text-[13px] outline-none placeholder:text-faint" />
                       {meetingLink && (
                         <button onClick={copyLink} className="flex h-7 flex-none items-center gap-1 rounded-[7px] bg-accent px-2.5 text-[12.5px] font-semibold text-on-accent">
                           {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
@@ -595,8 +609,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
               <Popover
                 align="end"
                 width={236}
+                label="Voting settings"
                 trigger={(open) => (
-                  <span className={`flex h-8 flex-none items-center gap-1 rounded-[9px] border px-2.5 text-[13px] font-semibold ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`} aria-label="Voting settings">
+                  <span className={`flex h-8 flex-none items-center gap-1 rounded-[9px] border px-2.5 text-[13px] font-semibold ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
                     <SlidersHorizontal size={15} />
                   </span>
                 )}
@@ -633,9 +648,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                     <div className="border-t border-border pt-2.5">
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Voting closes</div>
                       <div className="flex items-center gap-1.5">
-                        <DateField label="Voting deadline" value={voteDeadline} min={todayKey()} onChange={changeDeadline} className="h-11 min-w-0 flex-1 !bg-s1 sm:h-8" />
+                        <DateField label="Voting closes" value={voteDeadline} min={todayKey()} onChange={changeDeadline} className="h-11 min-w-0 flex-1 !bg-s1 sm:h-8" />
                         {voteDeadline && (
-                          <button onClick={() => changeDeadline('')} title="Remove the deadline" className="grid h-8 w-8 flex-none place-items-center rounded-[8px] border border-border2 text-dim hover:text-brick-text"><X size={14} /></button>
+                          <button onClick={() => changeDeadline('')} title="Remove the deadline" aria-label="Remove the deadline" className="grid h-8 w-8 flex-none place-items-center rounded-[8px] border border-border2 text-dim hover:text-brick-text"><X size={14} /></button>
                         )}
                       </div>
                       <p className="mt-1.5 text-[12px] leading-[1.45] text-faint">Votes and ballot changes freeze after this day.</p>
@@ -736,7 +751,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                           )}
                         </div>
                         {!hideVoters && !settled && (
-                          <div className="flex">
+                          <div className="flex" role={ids.length ? 'img' : undefined} aria-label={ids.length ? `Voted: ${namesLabel(ids.slice(0, 6).map((id) => avatarOf(id).name), ids.length - 6)}` : undefined}>
                             {ids.slice(0, 6).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={20} font={8.5} title={a.name} /></span> })}
                           </div>
                         )}
@@ -1009,7 +1024,7 @@ function AddPlaceSearch({ onAdd, taken, near, placeholder = 'Add a place to the 
     <div className="relative">
       <div className="flex h-9 items-center gap-2 rounded-[10px] border border-border bg-s2 px-3 focus-within:border-accent-border">
         <Search size={15} className="flex-none text-faint" />
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={placeholder} className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-faint" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search for a place" placeholder={placeholder} className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-faint" />
       </div>
       {term && (
         <div className="scroll-slim absolute left-0 right-0 top-full z-20 mt-1 max-h-[240px] overflow-auto overscroll-contain rounded-[10px] border border-border bg-s1 p-1 shadow-soft">

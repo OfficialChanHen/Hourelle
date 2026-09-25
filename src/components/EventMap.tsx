@@ -13,9 +13,13 @@ import { MapContainer, Marker, Polyline, Popup, TileLayer, ZoomControl, useMap }
 import 'leaflet/dist/leaflet.css'
 import { TILE_ATTRIBUTION, TILE_URL, type LatLng } from '@/lib/geo'
 
-// `name` is what the pin is called out loud: the label in its head is a vote count
-// or a stop number, which tells a screen reader nothing about where it is
-export type MapPin = LatLng & { id: string; label: string; lead?: boolean; name?: string }
+// `name` is the place, shown as the pin's tooltip. `spoken` is what the pin is called
+// out loud ("Blue Bottle, 3 votes, leading" or "Stop 2: Blue Bottle"): the label in
+// its head is a vote count or a stop number, which tells a screen reader nothing
+// about where it is
+export type MapPin = LatLng & { id: string; label: string; lead?: boolean; name?: string; spoken?: string }
+
+const spokenOf = (p: MapPin) => p.spoken ?? p.name ?? `Place ${p.label}`
 
 const PIN_W = 32, PIN_H = 42
 
@@ -153,6 +157,15 @@ export function EventMap({ pins, route, dashed = false, focusId = null, panTo = 
   const markers = useMemo(() => new Map<string, L.Marker>(), [])
   const fitPoints = useMemo<LatLng[]>(() => (route && route.length > 1 ? [...pins, ...route] : pins), [pins, route])
   const center: [number, number] = pins.length ? [pins[0].lat, pins[0].lng] : [37.7749, -122.4194]
+  // Leaflet gives every marker role="button" and a tab stop, and the pin's own SVG is
+  // decorative, so without a name the keyboard lands on a control that announces
+  // nothing. Its `alt` option only reaches image icons, and these are div icons, so
+  // the name is written onto the element here: after every render, because a new
+  // icon (focus, a vote) swaps the element out, and on `add` below for a marker
+  // that joins the map later.
+  useEffect(() => {
+    for (const p of pins) markers.get(p.id)?.getElement()?.setAttribute('aria-label', spokenOf(p))
+  })
   return (
     <MapContainer center={center} zoom={13} scrollWheelZoom={false} className={`hourelle-map absolute inset-0 z-0 ${className}`} attributionControl zoomControl={false}>
       <ZoomControl position="bottomright" />
@@ -168,15 +181,11 @@ export function EventMap({ pins, route, dashed = false, focusId = null, panTo = 
           key={p.id}
           position={[p.lat, p.lng]}
           icon={pinIcon(p.label, !!p.lead, p.id === focusId)}
-          // Leaflet gives every marker role="button" and a tab stop, and the pin's own
-          // SVG is decorative, so without this the keyboard lands on a control that
-          // announces nothing at all. `alt` is what Leaflet writes onto the element.
-          alt={p.name ? `${p.name}${p.lead ? ', leading' : ''}` : `Place ${p.label}`}
           title={p.name ?? undefined}
           ref={(m) => { if (m) markers.set(p.id, m); else markers.delete(p.id) }}
           // a close only clears focus when it is the focused pin closing — opening
           // another pin's popup closes this one too, and that must not reset focus
-          eventHandlers={{ click: () => onFocus?.(p.id), popupclose: () => { if (focusId === p.id) onFocus?.(null) } }}
+          eventHandlers={{ add: (e) => { (e.target as L.Marker).getElement()?.setAttribute('aria-label', spokenOf(p)) }, click: () => onFocus?.(p.id), popupclose: () => { if (focusId === p.id) onFocus?.(null) } }}
           zIndexOffset={(p.lead ? 500 : 0) + (p.id === focusId ? 1000 : 0)}
         >
           {renderPopup && <Popup closeButton={false} autoPan className="hourelle-popup">{renderPopup(p.id)}</Popup>}

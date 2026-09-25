@@ -1530,8 +1530,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             <Popover
               align="end"
               width={232}
+              label="How to read the grid"
               trigger={(open) => (
-                <span aria-label="How to read the grid" title="How to read the grid" className={`grid h-6 w-6 place-items-center rounded-full ${open ? 'bg-s2 text-dim' : 'text-faint hover:bg-s2 hover:text-dim'}`}>
+                <span title="How to read the grid" className={`grid h-6 w-6 place-items-center rounded-full ${open ? 'bg-s2 text-dim' : 'text-faint hover:bg-s2 hover:text-dim'}`}>
                   <Info size={14} />
                 </span>
               )}
@@ -1892,6 +1893,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                                 people={byRoster(peak.ids).slice(0, shown).map(avatarOf)}
                                 size={PILE_AV} overlap={PILE_OVER} font={PILE_FONT} max={shown}
                                 more={chip ? `+${chip}` : ''}
+                                decorative
                               />
                             </div>
                           )
