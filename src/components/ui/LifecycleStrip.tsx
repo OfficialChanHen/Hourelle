@@ -50,8 +50,10 @@ export function LifecycleStrip({ phase, size = 'md', className = '' }: { phase: 
   )
 
   return (
-    <div ref={root} className={className}>
-      <div className="relative flex items-center justify-between" style={{ height: dot }}>
+    // read as one picture of where the event is ("Stage 2 of 5: RSVP"); the dots and
+    // the labels under them only draw that
+    <div ref={root} className={className} role="img" aria-label={`Stage ${idx + 1} of ${STEPS.length}: ${STEPS[idx]}`}>
+      <div className="relative flex items-center justify-between" style={{ height: dot }} aria-hidden>
         <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border" />
         <div
           className="ls-fill absolute top-1/2 h-px -translate-y-1/2"
@@ -76,7 +78,7 @@ export function LifecycleStrip({ phase, size = 'md', className = '' }: { phase: 
         })}
       </div>
       {size === 'md' && (
-        <div className="relative mt-1.5 h-[15px]">
+        <div className="relative mt-1.5 h-[15px]" aria-hidden>
           {/* phones: just the current step; wider screens: every step, current bold —
               the strip teaches the whole process at a glance */}
           <span

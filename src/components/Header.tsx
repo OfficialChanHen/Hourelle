@@ -138,7 +138,7 @@ export function Header() {
         <div className="hidden items-center gap-2 md:flex">
           <Link
             href="/notifications"
-            aria-label="Notifications"
+            aria-label={notifCount > 0 ? `Notifications, ${notifCount} unread` : 'Notifications'}
             title="Notifications"
             className={`relative grid h-[30px] w-[30px] place-items-center rounded-lg border ${
               pathname.startsWith('/notifications')
@@ -160,9 +160,9 @@ export function Header() {
           <Popover
             align="end"
             width={236}
+            label="Account menu"
             trigger={(open) => (
               <span
-                aria-label="Account menu"
                 title="Account"
                 className={`grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-full text-[12.5px] font-semibold ring-2 transition-shadow ${open ? 'ring-accent-border' : 'ring-transparent hover:ring-border2'}`}
                 style={{ background: avatar.bg, color: avatar.text }}

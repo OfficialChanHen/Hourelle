@@ -23,6 +23,7 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, Users, X } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
+import { namesLabel } from '@/components/ui/AvatarRow'
 import { Popover, PopoverNote, PopoverTitle } from '@/components/ui/Popover'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
@@ -578,7 +579,7 @@ function SingleVenue({
 
 function BestWindowInfo({ mode }: { mode: BestMode }) {
   return (
-    <Popover width={240} align="end" trigger={() => <Info size={13} className="text-faint hover:text-dim" />}>
+    <Popover width={240} align="end" label="How the best time is picked" trigger={() => <Info size={13} className="text-faint hover:text-dim" />}>
       {() => (
         <PopoverNote>
           {mode === 'crowd'
@@ -609,7 +610,7 @@ function QuorumControl({ quorum, onChange }: { quorum: number | null; onChange: 
           <PopoverTitle sub="Warns when fewer can stay">Minimum headcount</PopoverTitle>
           <div className="mt-2 flex items-center gap-2 px-1 pb-1">
             <input
-              ref={ref} type="number" min={1} max={999} defaultValue={quorum ?? ''} placeholder="e.g. 8"
+              ref={ref} type="number" min={1} max={999} defaultValue={quorum ?? ''} placeholder="e.g. 8" aria-label="Minimum headcount"
               className="h-9 w-[86px] rounded-[9px] border border-border bg-s0 px-3 text-[14px] outline-none focus:border-accent"
               onKeyDown={(e) => { if (e.key === 'Enter') save(close) }}
             />
@@ -1054,9 +1055,9 @@ function AvatarPile({ people, cap }: { people: Participant[]; cap: number }) {
   const shown = people.slice(0, cap)
   const extra = people.length - shown.length
   return (
-    <div className="flex items-center">
+    <div className="flex items-center" role={people.length ? 'img' : undefined} aria-label={people.length ? namesLabel(shown.map((p) => p.name), extra) : undefined}>
       {shown.map((p) => <span key={p.id} className="-mr-1.5"><Avatar initials={p.initials} color={p.color} size={25} font={9.5} ring /></span>)}
-      {extra > 0 && <span className="ml-2.5 text-[12.5px] font-semibold text-dim">+{extra}</span>}
+      {extra > 0 && <span aria-hidden className="ml-2.5 text-[12.5px] font-semibold text-dim">+{extra}</span>}
       {people.length === 0 && <span className="text-[12.5px] text-faint">nobody yet</span>}
     </div>
   )

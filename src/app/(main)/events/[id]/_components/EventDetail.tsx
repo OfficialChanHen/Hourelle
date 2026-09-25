@@ -360,10 +360,11 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           align="end"
           width={216}
           className="flex-none sm:hidden"
+          label="Share link and more"
           // a link rather than three dots: the first thing in here is the share
           // link, and on a phone this is the only way to it
           trigger={(open) => (
-            <span aria-label="Share link and more" data-tour="menu" className={`grid h-11 w-11 place-items-center rounded-[10px] border border-border2 bg-s1 ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
+            <span data-tour="menu" className={`grid h-11 w-11 place-items-center rounded-[10px] border border-border2 bg-s1 ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
               <Link2 size={16} />
             </span>
           )}
@@ -528,7 +529,7 @@ function EditableTitle({ title, editable, onSave }: { title: string; editable: b
     }
     return (
       <input
-        ref={ref} defaultValue={title} autoFocus maxLength={80}
+        ref={ref} defaultValue={title} autoFocus maxLength={80} aria-label="Event name"
         onBlur={save}
         onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
         className={`w-full max-w-[560px] rounded-[10px] border border-border bg-s0 px-3 py-0.5 outline-none focus:border-accent ${h1}`}
@@ -538,7 +539,7 @@ function EditableTitle({ title, editable, onSave }: { title: string; editable: b
   return (
     <span className="flex items-center gap-2.5">
       <h1 className={`min-w-0 ${h1}`}>{title}</h1>
-      <button onClick={() => setEditing(true)} title="Rename this event" className="grid h-8 w-8 flex-none place-items-center rounded-[8px] text-faint hover:bg-s2 hover:text-dim">
+      <button onClick={() => setEditing(true)} title="Rename this event" aria-label="Rename this event" className="grid h-8 w-8 flex-none place-items-center rounded-[8px] text-faint hover:bg-s2 hover:text-dim">
         <Pencil size={15} />
       </button>
     </span>
@@ -743,7 +744,7 @@ function InviteMore({ event, onPatch }: { event: AppEvent; onPatch: (patch: Part
 /* host actions per person: mark their reply for them, share the link, or remove them */
 function ParticipantMenu({ p, event, onPatch }: { p: AppEvent['participants'][number]; event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
   return (
-    <Popover width={216} align="end" className="flex-none" trigger={() => (
+    <Popover width={216} align="end" className="flex-none" label={`Options for ${p.name}`} trigger={() => (
       <span className="grid h-7 w-7 place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim"><EllipsisVertical size={14} /></span>
     )}>
       {(close) => <ParticipantMenuBody p={p} event={event} onPatch={onPatch} close={close} />}
@@ -1023,7 +1024,7 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
       {selErr && <p className="text-[12.5px] font-medium text-brick-text">{selErr}</p>}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[12.5px] text-dim">Needs about</span>
-        <select value={dur} onChange={(ev) => setDur(Number(ev.target.value))} className={inputCls}>
+        <select value={dur} onChange={(ev) => setDur(Number(ev.target.value))} aria-label="Needs about" className={inputCls}>
           {durations.map(([m, l]) => <option key={m} value={m}>{l}</option>)}
         </select>
       </div>
@@ -1170,7 +1171,7 @@ function CapacityValue({ event, editable, onPatch }: { event: AppEvent; editable
   }
   return (
     <input
-      value={v} onChange={(e) => change(e.target.value)} inputMode="numeric" placeholder="No limit"
+      value={v} onChange={(e) => change(e.target.value)} inputMode="numeric" placeholder="No limit" aria-label="Spots"
       className="h-8 w-[110px] rounded-[8px] border border-border bg-s0 px-2.5 text-[13.5px] font-medium outline-none focus-within:border-accent"
     />
   )
@@ -1281,7 +1282,7 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
         editingOnline ? (
           <span className="flex flex-wrap items-center gap-2">
             <input
-              ref={linkRef} defaultValue={link} autoFocus placeholder="Paste a meeting link"
+              ref={linkRef} defaultValue={link} autoFocus placeholder="Paste a meeting link" aria-label="Meeting link"
               onKeyDown={(e) => { if (e.key === 'Enter') saveOnline() }}
               className="h-8 w-[240px] max-w-full rounded-[8px] border border-border bg-s0 px-2.5 font-mono text-[12.5px] outline-none focus:border-accent"
             />
@@ -1350,7 +1351,7 @@ function NameValue({ event, editable, onPatch }: { event: AppEvent; editable: bo
   return (
     <span className="flex items-start gap-2">
       <span className="min-w-0 flex-1">{event.title}</span>
-      <button onClick={() => setEditing(true)} title="Rename this event" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
+      <button onClick={() => setEditing(true)} title="Rename this event" aria-label="Rename this event" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
         <Pencil size={13} />
       </button>
     </span>
@@ -1376,6 +1377,7 @@ function DescriptionValue({ event, editable, onPatch }: { event: AppEvent; edita
       <div className="flex flex-col gap-2">
         <textarea
           ref={ref} defaultValue={desc} rows={3} autoFocus maxLength={500}
+          aria-label="Description"
           placeholder="What is this event about?"
           className="w-full resize-y rounded-[9px] border border-border bg-s0 px-3 py-2 text-[13.5px] leading-[1.5] outline-none focus:border-accent"
         />
@@ -1389,7 +1391,7 @@ function DescriptionValue({ event, editable, onPatch }: { event: AppEvent; edita
   return (
     <span className="flex items-start gap-2">
       <span className="min-w-0 flex-1">{desc || <span className="text-faint">No description</span>}</span>
-      <button onClick={() => setEditing(true)} title="Edit description" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
+      <button onClick={() => setEditing(true)} title="Edit description" aria-label="Edit description" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
         <Pencil size={13} />
       </button>
     </span>
@@ -1457,7 +1459,7 @@ function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Pa
           <span className="text-[13px] text-dim">$</span>
           <input
             value={budget} onChange={(e) => changeBudget(e.target.value)}
-            inputMode="numeric" placeholder="0"
+            inputMode="numeric" placeholder="0" aria-label="Budget"
             className="w-full min-w-0 bg-transparent px-1 text-[13.5px] font-medium outline-none"
           />
         </label>
@@ -1592,6 +1594,8 @@ function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boo
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
           <input
             value={label} onChange={(e) => { setLabel(e.target.value); setNeedLabel(false) }} placeholder="What was it for? (required)" maxLength={60}
+            aria-label="What was it for" aria-required="true"
+            aria-invalid={needLabel || undefined} aria-describedby={needLabel ? 'expense-label-err' : undefined}
             onKeyDown={(e) => { if (e.key === 'Enter') addExpense() }}
             className={`h-9 min-w-[140px] flex-1 rounded-[9px] border bg-s0 px-3 text-[13.5px] outline-none ${needLabel ? 'border-brick-border focus:border-brick' : 'border-border focus:border-accent'}`}
           />
@@ -1599,18 +1603,18 @@ function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boo
             <span className="text-[13px] text-dim">$</span>
             <input
               value={amt} onChange={(e) => setAmt(e.target.value.replace(/[^\d]/g, '').slice(0, 6))}
-              inputMode="numeric" placeholder="0"
+              inputMode="numeric" placeholder="0" aria-label="Amount"
               onKeyDown={(e) => { if (e.key === 'Enter') addExpense() }}
               className="w-full min-w-0 bg-transparent px-1 text-[13.5px] font-medium outline-none"
             />
           </label>
-          <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} className="h-9 flex-none rounded-[9px] border border-border bg-s0 px-2.5 text-[13px] outline-none focus:border-accent">
+          <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} aria-label="Paid by" className="h-9 flex-none rounded-[9px] border border-border bg-s0 px-2.5 text-[13px] outline-none focus:border-accent">
             {event.participants.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
           <button onClick={addExpense} className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13px] font-semibold text-on-accent">
             <Plus size={14} /> Add
           </button>
-          {needLabel && <p className="w-full text-[12.5px] text-brick-text">Say what it was for before adding it.</p>}
+          {needLabel && <p id="expense-label-err" role="alert" className="w-full text-[12.5px] text-brick-text">Say what it was for before adding it.</p>}
         </div>
       )}
     </div>

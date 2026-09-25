@@ -234,6 +234,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
               <select
                 value={dayKey}
                 onChange={(e) => changeDay(e.target.value)}
+                aria-label={runMode ? 'First day' : 'Day'}
                 className="h-9 w-full appearance-none rounded-[9px] border border-border bg-s1 pl-3 pr-8 text-[13.5px] font-medium outline-none focus:border-accent"
               >
                 {event.days.map((d) => (
@@ -251,6 +252,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
                 <select
                   value={lastDay}
                   onChange={(e) => setLastDay(e.target.value)}
+                  aria-label="Last day"
                   className="h-9 w-full appearance-none rounded-[9px] border border-border bg-s1 pl-3 pr-8 text-[13.5px] font-medium outline-none focus:border-accent"
                 >
                   {lastOptions.map((k) => {
@@ -267,9 +269,9 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
           {!dayPoll && !runMode && <div>
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Time</div>
             <div className="flex items-center gap-2">
-              <TimeSelect value={startMin} onChange={changeStart} step={15} />
+              <TimeSelect value={startMin} onChange={changeStart} step={15} title="Start time" />
               <span className="text-[13px] text-dim">to</span>
-              <TimeSelect value={endMin} onChange={setEndMin} min={startMin + 15} step={15} />
+              <TimeSelect value={endMin} onChange={setEndMin} min={startMin + 15} step={15} title="End time" />
             </div>
             {bw && (
               <p className="mt-1.5 text-[12px] text-faint">

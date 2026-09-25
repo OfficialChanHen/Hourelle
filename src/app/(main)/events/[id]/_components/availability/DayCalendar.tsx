@@ -391,6 +391,7 @@ export function DayCalendar({
                           people={byRoster(ids).slice(0, shown).map(avatarOf)}
                           size={PILE_AV} overlap={PILE_OVER} font={PILE_FONT} max={shown}
                           more={chip ? `+${chip}` : ''}
+                          decorative
                         />
                       </span>
                     )

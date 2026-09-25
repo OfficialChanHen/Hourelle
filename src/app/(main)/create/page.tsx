@@ -490,6 +490,7 @@ function CreateWizard() {
             <textarea
               value={form.description}
               onChange={(e) => update({ description: e.target.value })}
+              aria-label="Description"
               placeholder="What's this event about?"
               className={`${inputCls(false)} h-[72px] resize-none py-[11px] leading-[1.5]`}
             />
@@ -506,18 +507,19 @@ function CreateWizard() {
           <Collapse icon={Wallet} title="Budget and spots" summary={moneySummary}>
             <div className="flex flex-wrap gap-3.5">
               <div className="min-w-[200px] flex-1">
-                <Label>Budget</Label>
+                <Label htmlFor="ev-budget">Budget</Label>
                 <div className="flex items-center gap-2">
                   <div className="relative min-w-0 flex-1">
                     <span className="pointer-events-none absolute left-[13px] top-1/2 -translate-y-1/2 text-dim">$</span>
-                    <input inputMode="numeric" placeholder="0" value={form.budget} onChange={(e) => update({ budget: e.target.value.replace(/[^\d]/g, '') })} className={`${inputCls(false)} pl-7`} />
+                    <input id="ev-budget" inputMode="numeric" placeholder="0" value={form.budget} onChange={(e) => update({ budget: e.target.value.replace(/[^\d]/g, '') })} className={`${inputCls(false)} pl-7`} />
                   </div>
                   <Segmented value={form.budgetMode} onChange={(v) => update({ budgetMode: v as 'total' | 'person' })} options={[{ v: 'total', l: 'Total' }, { v: 'person', l: 'Per person' }]} />
                 </div>
               </div>
               <div className="min-w-[140px] flex-1">
-                <Label>Spots</Label>
+                <Label htmlFor="ev-spots">Spots</Label>
                 <input
+                  id="ev-spots"
                   inputMode="numeric" placeholder="No limit" value={form.capacity}
                   onChange={(e) => update({ capacity: e.target.value.replace(/[^\d]/g, '').slice(0, 4) })}
                   className={`${inputCls(false)} !w-[110px]`}
@@ -637,8 +639,8 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
     <div className="flex flex-col gap-4">
       <div>
         <Label htmlFor="ev-title">Event title <Req /></Label>
-        <input id="ev-title" value={form.title} onChange={(e) => update({ title: e.target.value })} placeholder="e.g. Team Meeting" className={inputCls(show(errs.title))} />
-        {show(errs.title) && <FieldError>{errs.title}</FieldError>}
+        <input id="ev-title" value={form.title} onChange={(e) => update({ title: e.target.value })} placeholder="e.g. Team Meeting" aria-invalid={show(errs.title) || undefined} aria-describedby={show(errs.title) ? 'ev-title-err' : undefined} className={inputCls(show(errs.title))} />
+        {show(errs.title) && <FieldError id="ev-title-err">{errs.title}</FieldError>}
       </div>
 
       {/* events are hosted by the signed-in account — nothing to choose, the name is locked */}
@@ -678,7 +680,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
               <div className="min-w-0 flex-1 sm:min-w-[150px]">
                 <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> First day</span>
-                <DateField label="First day of the event" value={form.fixedDay} min={today || undefined} onChange={onFixedDay} invalid={show(errs.fixed) && !form.fixedDay} className="h-11 !bg-s1 sm:h-10" />
+                <DateField label="First day of the event" value={form.fixedDay} min={today || undefined} onChange={onFixedDay} invalid={show(errs.fixed) && !form.fixedDay} describedBy={show(errs.fixed) ? 'ev-fixed-err' : undefined} className="h-11 !bg-s1 sm:h-10" />
               </div>
               <span className="hidden pb-[11px] text-faint sm:block">→</span>
               <div className="min-w-0 flex-1 sm:min-w-[150px]">
@@ -714,13 +716,13 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
                 onChange={(fs, fe) => update({ fixedStart: fs, fixedEnd: fe })}
               />
             )}
-            {show(errs.fixed) && <FieldError>{errs.fixed}</FieldError>}
+            {show(errs.fixed) && <FieldError id="ev-fixed-err">{errs.fixed}</FieldError>}
             <div className="mt-3 border-t border-border pt-3">
               <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint">
                 <Check size={13} /> RSVP by <span className="normal-case tracking-normal">(Optional)</span>
               </span>
               <div className="flex items-center gap-2">
-                <DateField label="RSVP deadline" value={form.rsvpBy} min={today || undefined} max={form.fixedDay || undefined} onChange={(v) => update({ rsvpBy: v })} className="h-11 w-full max-w-[220px] !bg-s1 sm:h-10" />
+                <DateField label="RSVP by" value={form.rsvpBy} min={today || undefined} max={form.fixedDay || undefined} onChange={(v) => update({ rsvpBy: v })} className="h-11 w-full max-w-[220px] !bg-s1 sm:h-10" />
                 {form.rsvpBy && (
                   <button type="button" onClick={() => update({ rsvpBy: '' })} className="flex-none text-[12.5px] font-semibold text-dim hover:text-brick-text hover:underline">
                     Clear
@@ -737,15 +739,15 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
             <div className="min-w-0 flex-1 sm:min-w-[150px]">
               <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Earliest day</span>
-              <DateField label="Earliest day to poll" value={form.startDate} min={today || undefined} onChange={onStart} invalid={show(errs.start)} className="h-11 !bg-s1 sm:h-10" />
+              <DateField label="Earliest day to poll" value={form.startDate} min={today || undefined} onChange={onStart} invalid={show(errs.start)} describedBy={show(errs.start) ? 'ev-range-err' : undefined} className="h-11 !bg-s1 sm:h-10" />
             </div>
             <span className="hidden pb-[11px] text-faint sm:block">→</span>
             <div className="min-w-0 flex-1 sm:min-w-[150px]">
               <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Latest day</span>
-              <DateField label="Latest day to poll" value={form.endDate} min={form.startDate || today || undefined} onChange={onEnd} invalid={show(errs.end)} className="h-11 !bg-s1 sm:h-10" />
+              <DateField label="Latest day to poll" value={form.endDate} min={form.startDate || today || undefined} onChange={onEnd} invalid={show(errs.end)} describedBy={show(errs.end) ? 'ev-range-err' : undefined} className="h-11 !bg-s1 sm:h-10" />
             </div>
           </div>
-          {(show(errs.start) || show(errs.end)) && <FieldError>{errs.start || errs.end}</FieldError>}
+          {(show(errs.start) || show(errs.end)) && <FieldError id="ev-range-err">{errs.start || errs.end}</FieldError>}
 
           {/* which days inside the range are really being polled — weekends only,
               or single days turned off. Long ranges fit by turning days off. */}
@@ -809,7 +811,9 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
         <div className="relative">
           <select
             value={form.timezone}
-            aria-label="Time zone the event runs in"
+            aria-label="Times in"
+            aria-invalid={show(errs.tz) || undefined}
+            aria-describedby={show(errs.tz) ? 'ev-tz-err' : undefined}
             onChange={(e) => update({ timezone: e.target.value })}
             className={`h-11 sm:h-9 cursor-pointer appearance-none rounded-[9px] border ${show(errs.tz) ? 'border-brick-border' : 'border-border'} bg-s2 pl-3 pr-8 text-[13.5px] font-medium outline-none focus:border-accent`}
             style={form.timezone ? undefined : { color: 'var(--faint)' }}
@@ -820,7 +824,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           <ChevronDown size={15} className="pointer-events-none absolute right-[10px] top-1/2 -translate-y-1/2 text-dim" />
         </div>
         {show(errs.tz)
-          ? <FieldError>{errs.tz}</FieldError>
+          ? <FieldError id="ev-tz-err">{errs.tz}</FieldError>
           : <span className="text-[12.5px] text-faint">Double-check it if people join from elsewhere.</span>}
       </div>
     </div>
@@ -913,7 +917,7 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
           <div className="relative">
             <div className="flex h-[42px] items-center gap-2 rounded-[10px] border border-border bg-s2 px-[13px] focus-within:border-accent">
               <Search size={17} className="text-faint" />
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search any place, address, or city…" className="flex-1 bg-transparent text-[14px] outline-none placeholder:text-faint" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search for a place" placeholder="Search any place, address, or city…" className="flex-1 bg-transparent text-[14px] outline-none placeholder:text-faint" />
             </div>
             {term && (
               <div className="scroll-slim absolute left-0 right-0 top-full z-20 mt-1 max-h-[300px] overflow-auto overscroll-contain rounded-[10px] border border-border bg-s1 p-1 shadow-soft">
@@ -974,7 +978,7 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
                       className={`flex h-11 items-center gap-2 rounded-[10px] border bg-s2 pl-2 pr-2 ${itin && pickReorder.dragIndex === i ? 'border-accent-border opacity-60 shadow-soft' : 'border-border'}`}
                     >
                       {itin ? (
-                        <button type="button" {...pickReorder.handleProps(i)} aria-label="Drag to reorder" className="flex-none text-faint hover:text-dim"><GripVertical size={17} /></button>
+                        <button type="button" {...pickReorder.handleProps(i)} aria-label={`Drag to reorder ${l.name}`} className="flex-none text-faint hover:text-dim"><GripVertical size={17} /></button>
                       ) : (
                         <MapPin size={17} className="text-accent-text" />
                       )}
@@ -982,11 +986,11 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
                       <span className="min-w-0 flex-1"><OverflowText className="text-[14px] font-medium">{l.name}</OverflowText><OverflowText className="text-[12px] text-faint">{l.place}</OverflowText></span>
                       {itin && (
                         <div className="flex flex-none items-center">
-                          <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move up"><ChevronUp size={17} /></button>
-                          <button type="button" onClick={() => move(i, 1)} disabled={i === form.picked.length - 1} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label="Move down"><ChevronDown size={17} /></button>
+                          <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label={`Move ${l.name} up`}><ChevronUp size={17} /></button>
+                          <button type="button" onClick={() => move(i, 1)} disabled={i === form.picked.length - 1} className="grid h-6 w-6 place-items-center rounded-[6px] text-dim enabled:hover:text-text disabled:opacity-30" aria-label={`Move ${l.name} down`}><ChevronDown size={17} /></button>
                         </div>
                       )}
-                      <button type="button" onClick={() => remove(l.uid)} className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:text-brick-text" aria-label="Remove"><X size={17} /></button>
+                      <button type="button" onClick={() => remove(l.uid)} className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:text-brick-text" aria-label={`Remove ${l.name}`}><X size={17} /></button>
                     </div>
                   )
                 })}
@@ -1015,10 +1019,10 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
               })}
             </div>
           </div>
-          <Field label="Meeting link (optional)">
+          <Field label="Meeting link (optional)" id="ev-link">
             <div className="flex h-10 items-center gap-2 rounded-[10px] border border-border bg-s2 px-[13px] focus-within:border-accent">
               <Link2 size={17} className="text-accent-text" />
-              <input value={form.meetingLink} onChange={(e) => update({ meetingLink: e.target.value })} placeholder={`Paste a ${form.platform} link, or add it later`} className="flex-1 bg-transparent font-mono text-[14px] outline-none placeholder:text-faint" />
+              <input id="ev-link" value={form.meetingLink} onChange={(e) => update({ meetingLink: e.target.value })} placeholder={`Paste a ${form.platform} link, or add it later`} className="flex-1 bg-transparent font-mono text-[14px] outline-none placeholder:text-faint" />
             </div>
           </Field>
           <div className="flex items-start gap-2 rounded-[10px] border border-border bg-s2 px-[13px] py-[11px]">
@@ -1085,14 +1089,14 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <Field label="Invite by email">
+      <Field label="Invite by email" id="ev-invite">
         <div className="flex gap-2">
-          <input value={draft} onChange={(e) => { setDraft(e.target.value); setNote(null) }} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), void addEmail())} placeholder="name@company.com" className={inputCls()} />
+          <input id="ev-invite" aria-invalid={!!note || undefined} aria-describedby={note ? 'ev-invite-err' : undefined} value={draft} onChange={(e) => { setDraft(e.target.value); setNote(null) }} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), void addEmail())} placeholder="name@company.com" className={inputCls()} />
           <button type="button" onClick={() => void addEmail()} disabled={checking} className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-60">
             {checking ? <Loader2 size={15} className="animate-spin" /> : null} Add
           </button>
         </div>
-        {note && <FieldError>{note}</FieldError>}
+        {note && <FieldError id="ev-invite-err">{note}</FieldError>}
         {(form.emails.length > 0 || form.accounts.length > 0) && (
           <div className="mt-2.5 flex flex-wrap gap-2">
             {form.accounts.map((a) => (
@@ -1292,8 +1296,8 @@ function TimeRange({ start, end, onChange, err, step, labels }: {
         <Slider.Track className={`relative h-1.5 w-full rounded-full ${err ? 'bg-brick-bg' : 'bg-s3'}`}>
           <Slider.Range className="absolute h-full rounded-full bg-accent" />
         </Slider.Track>
-        <Slider.Thumb className={thumb} aria-label={labels[0]} />
-        <Slider.Thumb className={thumb} aria-label={labels[1]} />
+        <Slider.Thumb className={thumb} aria-label={labels[0]} aria-valuetext={fmtMinute(s)} />
+        <Slider.Thumb className={thumb} aria-label={labels[1]} aria-valuetext={fmtMinute(e)} />
       </Slider.Root>
       <div className="mt-1 flex items-center justify-between text-[13px] font-semibold tabular-nums">
         <span>{fmtMinute(s)}</span>
@@ -1307,15 +1311,15 @@ function TimeRange({ start, end, onChange, err, step, labels }: {
 function Req() {
   return <span className="font-bold text-brick-text">*</span>
 }
-function FieldError({ children }: { children: React.ReactNode }) {
-  return <p data-field-error className="mt-1.5 flex items-center gap-1 text-[12.5px] font-medium text-brick-text"><Info size={12} /> {children}</p>
+function FieldError({ children, id }: { children: React.ReactNode; id?: string }) {
+  return <p id={id} role="alert" data-field-error className="mt-1.5 flex items-center gap-1 text-[12.5px] font-medium text-brick-text"><Info size={12} /> {children}</p>
 }
 
 function Label({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
   return <label htmlFor={htmlFor} className="mb-[7px] block text-[13px] font-semibold text-dim">{children}</label>
 }
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><Label>{label}</Label>{children}</div>
+function Field({ label, id, children }: { label: string; id?: string; children: React.ReactNode }) {
+  return <div><Label htmlFor={id}>{label}</Label>{children}</div>
 }
 function Segmented({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { v: string; l: string }[] }) {
   return (

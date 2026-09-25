@@ -98,7 +98,7 @@ export function FilterModal({ participants, filter, onToggle, onClear, onSelectA
             <div className="mb-1.5 flex items-center gap-1.5 rounded-[8px] border border-border bg-s0 px-2 focus-within:border-accent">
               <Search size={12} className="flex-none text-faint" />
               <input
-                autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a person"
+                autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a person" aria-label="Find a person"
                 className="h-8 w-full min-w-0 bg-transparent text-[13px] outline-none placeholder:text-faint"
               />
             </div>

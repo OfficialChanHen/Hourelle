@@ -108,7 +108,7 @@ export function CoverEditor({ image, fit = 'fill', pos, title, eventId, onChange
           const on = image === `preset:${p.id}`
           return (
             <button
-              key={p.id} type="button" title={p.name} aria-pressed={on}
+              key={p.id} type="button" title={p.name} aria-label={`${p.name} cover`} aria-pressed={on}
               onClick={() => choose({ image: on ? undefined : `preset:${p.id}` })}
               className="overflow-hidden rounded-[8px]"
               style={{ boxShadow: on ? '0 0 0 2px var(--accent)' : '0 0 0 1px var(--border)' }}

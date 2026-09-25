@@ -320,6 +320,8 @@ export function JoinFlow({ id }: { id: string }) {
                         onChange={(e) => { setClaimEmail(e.target.value); setClaimErr(false); setAccountEmail(null) }}
                         onKeyDown={(e) => { if (e.key === 'Enter') claim() }}
                         aria-label="The email you joined with"
+                        aria-invalid={claimErr || undefined}
+                        aria-describedby={claimErr ? 'join-claim-err' : undefined}
                         placeholder="you@example.com"
                         className={`${field} min-w-0 flex-1`}
                       />
@@ -328,7 +330,7 @@ export function JoinFlow({ id }: { id: string }) {
                       </button>
                     </div>
                     {claimErr && (
-                      <p className="mt-2 text-[12.5px] font-medium text-brick-text">
+                      <p id="join-claim-err" role="alert" className="mt-2 text-[12.5px] font-medium text-brick-text">
                         That email doesn&apos;t match. If you&apos;re a different {collision.name.split(' ')[0]}, join with a fuller name below.
                       </p>
                     )}
@@ -385,9 +387,11 @@ export function JoinFlow({ id }: { id: string }) {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') void join() }}
+                    aria-invalid={cleanName.length === 1 || undefined}
+                    aria-describedby="join-name-hint"
                     className={field}
                   />
-                  <p className={`text-[12px] leading-[1.55] ${cleanName.length === 1 ? 'text-brick-text' : 'text-faint'}`}>
+                  <p id="join-name-hint" className={`text-[12px] leading-[1.55] ${cleanName.length === 1 ? 'text-brick-text' : 'text-faint'}`}>
                     {cleanName.length === 1
                       ? 'At least two characters.'
                       : nameOk && nameWords < 2
