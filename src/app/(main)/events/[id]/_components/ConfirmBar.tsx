@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { CalendarCheck, Check, ChevronDown, Lock, MapPin, Route, Video, Vote, Wallet, X } from 'lucide-react'
@@ -10,6 +10,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { canEmail, sendLockedMail } from '@/lib/mail'
 import { useAccount } from '@/hooks/useAccount'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { getEvent } from '@/lib/events'
 import {
   availIvOf, bestWindow, confirmedSlotText, confirmEvent, fmtMinute, gridStartMinOf, patchEvent, respondedCount,
@@ -62,10 +63,15 @@ function ConfirmModal({ event, close, onChanged, onGoToDetails, onGoToLocation, 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useFocusTrap(root)
+  const titleId = useId()
 
   return (
     <div
       ref={root}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
       className="fixed inset-0 z-50 grid place-items-center bg-[rgba(0,0,0,.25)] p-4"
       onPointerDown={(e) => { if (e.target === e.currentTarget) close() }}
     >
@@ -75,7 +81,7 @@ function ConfirmModal({ event, close, onChanged, onGoToDetails, onGoToLocation, 
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
             <div className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint">Final plan</div>
-            <div className="mt-0.5 text-[15.5px] font-semibold">{event.confirmed ? 'Lock in the place' : 'Lock it in'}</div>
+            <div id={titleId} className="mt-0.5 text-[15.5px] font-semibold">{event.confirmed ? 'Lock in the place' : 'Lock it in'}</div>
           </div>
           <button onClick={close} aria-label="Close" className="grid h-8 w-8 place-items-center rounded-[8px] text-dim hover:bg-s2 hover:text-text">
             <X size={16} />
@@ -228,7 +234,8 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
               <select
                 value={dayKey}
                 onChange={(e) => changeDay(e.target.value)}
-                className="h-9 w-full appearance-none rounded-[9px] border border-border bg-s1 pl-3 pr-8 text-[13.5px] font-medium outline-none focus:border-accent-border"
+                aria-label={runMode ? 'First day' : 'Day'}
+                className="h-9 w-full appearance-none rounded-[9px] border border-border bg-s1 pl-3 pr-8 text-[13.5px] font-medium outline-none focus:border-accent"
               >
                 {event.days.map((d) => (
                   <option key={d.key} value={d.key}>{d.dow}, {d.date}{bw?.dayKey === d.key ? ' (most are free)' : ''}</option>
@@ -245,7 +252,8 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
                 <select
                   value={lastDay}
                   onChange={(e) => setLastDay(e.target.value)}
-                  className="h-9 w-full appearance-none rounded-[9px] border border-border bg-s1 pl-3 pr-8 text-[13.5px] font-medium outline-none focus:border-accent-border"
+                  aria-label="Last day"
+                  className="h-9 w-full appearance-none rounded-[9px] border border-border bg-s1 pl-3 pr-8 text-[13.5px] font-medium outline-none focus:border-accent"
                 >
                   {lastOptions.map((k) => {
                     const d = event.days.find((x) => x.key === k)
@@ -261,9 +269,9 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
           {!dayPoll && !runMode && <div>
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Time</div>
             <div className="flex items-center gap-2">
-              <TimeSelect value={startMin} onChange={changeStart} step={15} />
+              <TimeSelect value={startMin} onChange={changeStart} step={15} title="Start time" />
               <span className="text-[13px] text-dim">to</span>
-              <TimeSelect value={endMin} onChange={setEndMin} min={startMin + 15} step={15} />
+              <TimeSelect value={endMin} onChange={setEndMin} min={startMin + 15} step={15} title="End time" />
             </div>
             {bw && (
               <p className="mt-1.5 text-[12px] text-faint">
@@ -302,7 +310,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
           <div className="flex flex-col gap-2">
             {/* one or the other — the winning ballot places, or the built route */}
             {hasItin && (
-              <SegmentedControl
+              <SegmentedControl label="Place from"
                 size="sm"
                 stretch
                 value={source}

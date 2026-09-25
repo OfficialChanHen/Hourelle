@@ -12,13 +12,14 @@ type Option = { v: string; l: string; icon?: React.ComponentType<{ size?: number
  * change reads as motion rather than a snap. Reserve it for prominent 2–3 way mode switches;
  * micro-toggles stay instant. Honors prefers-reduced-motion (pill jumps, no slide).
  */
-export function SegmentedControl({ value, onChange, options, size = 'md', stretch = false, className }: {
+export function SegmentedControl({ value, onChange, options, size = 'md', stretch = false, className, label }: {
   value: string
   onChange: (v: string) => void
   options: Option[]
   size?: 'sm' | 'md'
   stretch?: boolean // equal-width segments (fills its container)
   className?: string
+  label?: string // names the group for screen readers ("Mode", "Theme")
 }) {
   const wrap = useRef<HTMLDivElement>(null)
   const pill = useRef<HTMLSpanElement>(null)
@@ -57,7 +58,7 @@ export function SegmentedControl({ value, onChange, options, size = 'md', stretc
   const iconSize = size === 'sm' ? 13 : 14
 
   return (
-    <div ref={wrap} className={`relative flex rounded-[9px] bg-s2 p-0.5 ${className ?? ''}`}>
+    <div ref={wrap} role="group" aria-label={label} className={`relative flex rounded-[9px] bg-s2 p-0.5 ${className ?? ''}`}>
       {/* bg-raised, not bg-s0: dark surfaces ascend the other way, and an s0 pill
           there sat below its track — the active chip read as a dent, so a hovered
           neighbor looked more active than the real one */}
@@ -70,6 +71,7 @@ export function SegmentedControl({ value, onChange, options, size = 'md', stretc
             key={o.v}
             ref={(el) => { btns.current[i] = el }}
             type="button"
+            aria-pressed={on}
             onClick={() => onChange(o.v)}
             className={`relative z-[1] flex items-center justify-center gap-1.5 rounded-[7px] text-center font-semibold leading-tight transition-colors ${h} ${txt} ${pad} ${stretch ? 'flex-1' : ''} ${on ? 'text-text' : 'text-dim hover:text-text'}`}
           >

@@ -28,6 +28,7 @@ import dynamic from 'next/dynamic'
 import { gsap } from 'gsap'
 import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, SlidersHorizontal, Info, ExternalLink } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
+import { namesLabel } from '@/components/ui/AvatarRow'
 import { fromDay, todayKey, getEvent, patchEvent, fmtMinute, fmtMinuteDay, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
 import { hintDismissed as isHintDismissed, dismissHint as markHintDismissed } from '@/lib/prefs'
 import { fmtDuration, MODE_LABEL, ALL_MODES, type TravelMode, type ModeEstimate } from '@/lib/travel'
@@ -40,6 +41,7 @@ import type { MapPin as MapPinData, PanRequest } from '@/components/EventMap'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { usePhoneScreen } from '@/hooks/usePhoneScreen'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { OverflowText } from '@/components/ui/OverflowText'
 import { TimeSelect } from '@/components/ui/TimeSelect'
@@ -225,12 +227,29 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
     return () => { tw.kill(); gsap.set(el, { clearProps: 'transform' }) }
   }, [sheetOpen])
   const closing = useRef(false)
+  // where Cancel on a remove-all or clear-all confirm hands focus back
+  const clearPlacesBtn = useRef<HTMLButtonElement>(null)
+  const refocusClearStops = useRef(false)
   function closeSheet() {
     const el = sheetRef.current
     if (!el || closing.current) return
     closing.current = true
     gsap.to(el, { y: '100%', duration: 0.26, ease: 'power2.in', onComplete: () => { closing.current = false; setSheetOpen(false) } })
   }
+  // while it is the whole phone screen it is a modal: the keyboard stays in it, Escape
+  // puts it away, and focus goes back to the bar that raised it. On a desktop it is a
+  // plain column and none of that applies.
+  useFocusTrap(sheetRef, { active: sheetOpen, media: '(max-width: 1023px)' })
+  useEffect(() => {
+    if (!sheetOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      // a popover open inside the sheet takes the first Escape for itself
+      if (e.key !== 'Escape' || e.defaultPrevented || window.matchMedia('(min-width: 1024px)').matches) return
+      closeSheet()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [sheetOpen])
 
   const votesOf = (id: string) => votes[id] ?? []
   const ranked = [...places].sort((a, b) => votesOf(b.id).length - votesOf(a.id).length)
@@ -401,8 +420,21 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // what the map draws: on the ballot, one pin per located place with its vote count;
   // on the itinerary, one numbered pin per stop
   const mapPins: MapPinData[] = sub === 'vote'
-    ? places.flatMap((p) => { const c = coordsOf(p); return c ? [{ id: p.id, label: String(votesOf(p.id).length), name: p.name, lead: locked ? confirmedIds.has(p.id) : p.id === leadingId, ...c }] : [] })
-    : stops.flatMap((s, i) => { const c = coordsOf(placeAt(s.placeId)); return c ? [{ id: s.uid, label: String(i + 1), name: placeAt(s.placeId)?.name, lead: true, ...c }] : [] })
+    ? places.flatMap((p) => {
+        const c = coordsOf(p)
+        if (!c) return []
+        const n = votesOf(p.id).length
+        const lead = locked ? confirmedIds.has(p.id) : p.id === leadingId
+        // what the pin is called out loud: once the plan is locked the lead is the chosen place
+        const spoken = settled ? p.name : `${p.name}, ${n} ${n === 1 ? 'vote' : 'votes'}${lead ? (locked ? ', chosen' : ', leading') : ''}`
+        return [{ id: p.id, label: String(n), name: p.name, spoken, lead, ...c }]
+      })
+    : stops.flatMap((s, i) => {
+        const c = coordsOf(placeAt(s.placeId))
+        if (!c) return []
+        const name = placeAt(s.placeId)?.name
+        return [{ id: s.uid, label: String(i + 1), name, spoken: name ? `Stop ${i + 1}: ${name}` : `Stop ${i + 1}`, lead: true, ...c }]
+      })
   const unmapped = places.filter((p) => !coordsOf(p)).length
   // searches look near the places the event already has
   const near = centroidOf(places)
@@ -417,7 +449,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
               <div className="flex items-center gap-1.5">
                 <span className="text-[12px] font-bold text-teal-text">{votesOf(fp.id).length} vote{votesOf(fp.id).length === 1 ? '' : 's'}</span>
                 {!hideVoters && (
-                  <div className="flex">
+                  <div className="flex" role={votesOf(fp.id).length ? 'img' : undefined} aria-label={votesOf(fp.id).length ? `Voted: ${namesLabel(votesOf(fp.id).slice(0, 5).map((id) => avatarOf(id).name), votesOf(fp.id).length - 5)}` : undefined}>
                     {votesOf(fp.id).slice(0, 5).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={19} font={8.5} title={a.name} /></span> })}
                   </div>
                 )}
@@ -459,7 +491,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
       {/* venue-type switch (host) — switching keeps each mode's data */}
       {event.hostedByYou && !locked && (
         <div className="flex items-center gap-2">
-          <SegmentedControl
+          <SegmentedControl label="Meeting type"
             size="sm"
             value={mode === 'remote' ? 'remote' : 'vote'}
             onChange={(v) => { setFocusPin(null); changeMode(v === 'remote' ? 'remote' : inPerson.current) }}
@@ -508,9 +540,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                   <p className="mb-3.5 mt-1 text-[13px] leading-[1.55] text-dim">Everyone joins online, so there is no map. The link lives here and in every reminder.</p>
                   {event.hostedByYou ? (
                     // host can set/change the link; it's kept if they switch venue type and back
-                    <div className="mb-2.5 flex h-[38px] items-center gap-2 rounded-[10px] border border-border bg-s2 py-0 pl-3 pr-2 focus-within:border-accent-border">
+                    <div className="mb-2.5 flex h-[38px] items-center gap-2 rounded-[10px] border border-border bg-s2 py-0 pl-3 pr-2 focus-within:border-accent">
                       <Link2 size={16} className="flex-none text-accent-text" />
-                      <input value={meetingLink} onChange={(e) => changeLink(e.target.value)} placeholder={`Paste a ${loc.platform} link`} className="min-w-0 flex-1 bg-transparent text-left font-mono text-[13px] outline-none placeholder:text-faint" />
+                      <input value={meetingLink} onChange={(e) => changeLink(e.target.value)} aria-label="Meeting link" placeholder={`Paste a ${loc.platform} link`} className="min-w-0 flex-1 bg-transparent text-left font-mono text-[13px] outline-none placeholder:text-faint" />
                       {meetingLink && (
                         <button onClick={copyLink} className="flex h-7 flex-none items-center gap-1 rounded-[7px] bg-accent px-2.5 text-[12.5px] font-semibold text-on-accent">
                           {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
@@ -549,8 +581,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
       </div>
 
       {/* mobile: a bar that lifts the venues/itinerary panel up as a bottom sheet */}
-      {mode !== 'remote' && !sheetOpen && (
-        <button onClick={() => setSheetOpen(true)} className="flex items-center justify-between gap-2 rounded-[12px] border border-border bg-s1 px-4 py-3 text-left shadow-soft lg:hidden">
+      {/* kept in the page (hidden) while the sheet is up, so focus has somewhere to go back to */}
+      {mode !== 'remote' && (
+        <button type="button" onClick={() => setSheetOpen(true)} className={`${sheetOpen ? 'hidden' : 'flex'} items-center justify-between gap-2 rounded-[12px] border border-border bg-s1 px-4 py-3 text-left shadow-soft lg:hidden`}>
           <span className="flex items-center gap-2 text-[13.5px] font-semibold"><Route size={16} className="text-accent-text" /> {sub === 'itin' ? 'Itinerary' : 'Venue vote'}</span>
           <span className="flex items-center gap-1.5 text-[12.5px] text-dim">{places.length} {places.length === 1 ? 'place' : 'places'} <ChevronUp size={16} /></span>
         </button>
@@ -558,7 +591,12 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
 
       {/* side panel — only for in-person events; a bottom sheet on mobile, a column on desktop */}
       {mode !== 'remote' && (
-        <div ref={sheetRef} className={`flex flex-none flex-col lg:static lg:z-auto lg:flex lg:h-[580px] lg:w-[330px] lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none ${sheetOpen ? 'fixed inset-0 z-50 w-full bg-s1 px-3' : 'hidden'}`} style={{ paddingBottom: 'env(safe-area-inset-bottom)', ...(sheetOpen ? { paddingTop: 'calc(env(safe-area-inset-top) + 8px)' } : {}) }}>
+        <div
+          ref={sheetRef}
+          role={sheetOpen ? 'dialog' : undefined}
+          aria-modal={sheetOpen ? true : undefined}
+          aria-label={sheetOpen ? (sub === 'itin' ? 'Itinerary' : settled ? 'Venue' : 'Venue vote') : undefined}
+          className={`flex flex-none flex-col lg:static lg:z-auto lg:flex lg:h-[580px] lg:w-[330px] lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none ${sheetOpen ? 'fixed inset-0 z-50 w-full bg-s1 px-3' : 'hidden'}`} style={{ paddingBottom: 'env(safe-area-inset-bottom)', ...(sheetOpen ? { paddingTop: 'calc(env(safe-area-inset-top) + 8px)' } : {}) }}>
           {/* runs on past the bottom edge in the panel's own colour, so the frame the pin
               lags behind a keyboard or the browser's bar shows more panel, not the page */}
           {sheetOpen && <div className="pointer-events-none absolute inset-x-0 top-full h-[100lvh] bg-s1 lg:hidden" aria-hidden />}
@@ -567,7 +605,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 same as in person or remote above it. Everyone else is shown the one
                 that was chosen, and moves with it when the host changes their mind. */}
             {event.hostedByYou ? (
-              <SegmentedControl
+              <SegmentedControl label="Vote or route"
                 size="sm"
                 stretch
                 className="flex-1"
@@ -599,8 +637,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
               <Popover
                 align="end"
                 width={236}
+                label="Voting settings"
                 trigger={(open) => (
-                  <span className={`flex h-8 flex-none items-center gap-1 rounded-[9px] border px-2.5 text-[13px] font-semibold ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`} aria-label="Voting settings">
+                  <span className={`flex h-8 flex-none items-center gap-1 rounded-[9px] border px-2.5 text-[13px] font-semibold ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
                     <SlidersHorizontal size={15} />
                   </span>
                 )}
@@ -610,7 +649,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                     <div>
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Votes per person</div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <SegmentedControl
+                        <SegmentedControl label="Votes per person"
                           size="sm"
                           value={customVotes ? 'custom' : String(maxVotes)}
                           onChange={(v) => {
@@ -625,7 +664,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                             <input
                               type="number" min={1} max={voteCap} value={maxVotes}
                               onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) changeMaxVotes(n) }}
-                              className="h-7 w-11 rounded-[7px] border border-border bg-s1 px-1.5 text-center text-[13.5px] font-semibold text-text tabular-nums outline-none focus:border-accent-border"
+                              className="h-7 w-11 rounded-[7px] border border-border bg-s1 px-1.5 text-center text-[13.5px] font-semibold text-text tabular-nums outline-none focus:border-accent"
                               aria-label="Votes per person"
                             />
                             <button onClick={() => changeMaxVotes(maxVotes + 1)} disabled={maxVotes >= voteCap} className="grid h-7 w-7 place-items-center rounded-[7px] border border-border2 bg-s1 enabled:hover:bg-s2 disabled:opacity-30" aria-label="More votes"><Plus size={13} /></button>
@@ -637,9 +676,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                     <div className="border-t border-border pt-2.5">
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Voting closes</div>
                       <div className="flex items-center gap-1.5">
-                        <DateField label="Voting deadline" value={voteDeadline} min={todayKey()} onChange={changeDeadline} className="h-11 min-w-0 flex-1 !bg-s1 sm:h-8" />
+                        <DateField label="Voting closes" value={voteDeadline} min={todayKey()} onChange={changeDeadline} className="h-11 min-w-0 flex-1 !bg-s1 sm:h-8" />
                         {voteDeadline && (
-                          <button onClick={() => changeDeadline('')} title="Remove the deadline" className="grid h-8 w-8 flex-none place-items-center rounded-[8px] border border-border2 text-dim hover:text-brick-text"><X size={14} /></button>
+                          <button onClick={() => changeDeadline('')} title="Remove the deadline" aria-label="Remove the deadline" className="grid h-8 w-8 flex-none place-items-center rounded-[8px] border border-border2 text-dim hover:text-brick-text"><X size={14} /></button>
                         )}
                       </div>
                       <p className="mt-1.5 text-[12px] leading-[1.45] text-faint">Votes and ballot changes freeze after this day.</p>
@@ -666,7 +705,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
               <span className="min-w-0 flex-1 text-[12.5px] leading-[1.5] text-dim">
                 {settled ? 'The host set the place. Availability still decides the time.' : sub === 'vote' ? 'Add places and vote. The host locks in the winner.' : 'Votes pick the places. The route puts them in order.'}
               </span>
-              <button onClick={dismissHint} aria-label="Dismiss hint" className="flex-none text-faint hover:text-text"><X size={14} /></button>
+              <button type="button" onClick={dismissHint} aria-label="Dismiss hint" className="relative before:absolute before:-inset-[5px] before:content-[''] flex-none text-faint hover:text-text"><X size={14} /></button>
             </div>
           )}
 
@@ -693,7 +732,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                       : <span className={`rounded-[5px] border px-[6px] py-px text-[10.5px] font-semibold ${(deadlineDu ?? 9) <= 2 ? 'border-ochre-border bg-ochre-bg text-ochre-text' : 'border-border bg-s2 text-dim'}`}>Closes {deadlineText(voteDeadline)}</span>
                   )}
                   {event.hostedByYou && (
-                    <button onClick={() => setConfirmClear('places')} className="ml-auto flex items-center gap-1 text-[12px] font-medium text-faint hover:text-brick-text">
+                    <button ref={clearPlacesBtn} onClick={() => setConfirmClear('places')} className="ml-auto flex items-center gap-1 text-[12px] font-medium text-faint hover:text-brick-text">
                       <Trash2 size={13} /> Remove all
                     </button>
                   )}
@@ -705,7 +744,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                   <span className="min-w-0 flex-1 text-[12.5px] leading-[1.4] text-brick-text">
                     Remove all {places.length} places? Every vote{stops.length > 0 ? ' and the whole itinerary' : ''} goes with them.
                   </span>
-                  <button onClick={() => setConfirmClear(null)} className="flex h-7 flex-none items-center rounded-[7px] border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text">Cancel</button>
+                  <button type="button" autoFocus onClick={() => { setConfirmClear(null); clearPlacesBtn.current?.focus() }} className="flex h-7 flex-none items-center rounded-[7px] border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text">Cancel</button>
                   <button onClick={clearAllPlaces} className="flex h-7 flex-none items-center rounded-[7px] px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>Remove all</button>
                 </div>
               )}
@@ -722,7 +761,8 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                       <span className={`grid h-[30px] w-[30px] flex-none place-items-center rounded-full text-[13.5px] font-bold ${isLocked || isSet ? 'bg-teal-bg text-teal-text' : lead ? 'bg-accent text-on-accent' : 'bg-s2 text-dim'}`}>{isSet ? <MapPin size={15} /> : i + 1}</span>
                       <div className="min-w-0 flex-1">
                         <div className="mb-0.5 flex items-center gap-1.5">
-                          <span className="text-[14px] font-semibold">{p.name}</span>
+                          {/* the name is the keyboard's way to the pin; the card still takes a click anywhere */}
+                          <button type="button" onClick={(e) => { e.stopPropagation(); goToPin(p.id) }} className="text-left text-[14px] font-semibold">{p.name}</button>
                           {isLocked && <span className="flex flex-none items-center gap-1 rounded-[5px] border border-teal-border bg-teal-bg px-[5px] py-px text-[10px] font-semibold text-teal-text"><Check size={10} /> Locked in</span>}
                           {isSet && <span className="flex flex-none items-center gap-1 rounded-[5px] border border-teal-border bg-teal-bg px-[5px] py-px text-[10px] font-semibold text-teal-text"><Check size={10} /> Set</span>}
                           {!locked && lead && <span className="flex-none rounded-[5px] border border-accent-border bg-accent-bg px-[5px] py-px text-[10px] font-semibold text-accent-text">Leading</span>}
@@ -740,7 +780,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                           )}
                         </div>
                         {!hideVoters && !settled && (
-                          <div className="flex">
+                          <div className="flex" role={ids.length ? 'img' : undefined} aria-label={ids.length ? `Voted: ${namesLabel(ids.slice(0, 6).map((id) => avatarOf(id).name), ids.length - 6)}` : undefined}>
                             {ids.slice(0, 6).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={20} font={8.5} title={a.name} /></span> })}
                           </div>
                         )}
@@ -757,7 +797,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                             {you ? <Check size={18} /> : <ArrowUp size={18} />}
                           </button>}
                           {event.hostedByYou && (
-                            <button onClick={() => attemptRemovePlace(p.id)} title="Remove this place" aria-label={`Remove ${p.name}`} className="grid h-[34px] w-7 place-items-center rounded-[9px] text-faint hover:text-brick-text">
+                            <button data-remove-trigger onClick={() => attemptRemovePlace(p.id)} title="Remove this place" aria-label={`Remove ${p.name}`} className="grid h-[34px] w-7 place-items-center rounded-[9px] text-faint hover:text-brick-text">
                               <Trash2 size={16} />
                             </button>
                           )}
@@ -767,7 +807,16 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                         <div className="absolute inset-0 z-10 flex items-center gap-2 rounded-xl border border-brick-border bg-brick-bg px-2.5">
                           <TriangleAlert size={17} className="flex-none text-brick-text" />
                           <span className="min-w-0 flex-1 text-[12.5px] leading-[1.4] text-brick-text">Remove {p.name}? Its {ids.length} vote{ids.length === 1 ? '' : 's'} will be lost.</span>
-                          <button onClick={() => setConfirmRemove(null)} className="flex h-7 flex-none items-center rounded-[7px] border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text">Cancel</button>
+                          <button
+                            type="button"
+                            autoFocus // the confirm covers the trash button, so focus comes here, and goes back on Cancel
+                            onClick={(e) => {
+                              const trigger = e.currentTarget.closest('[data-flip-id]')?.querySelector<HTMLElement>('[data-remove-trigger]')
+                              setConfirmRemove(null)
+                              trigger?.focus()
+                            }}
+                            className="flex h-7 flex-none items-center rounded-[7px] border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text"
+                          >Cancel</button>
                           <button onClick={() => removePlace(p.id)} className="flex h-7 flex-none items-center rounded-[7px] px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>Remove</button>
                         </div>
                       )}
@@ -824,11 +873,15 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                       <div className="flex flex-none flex-wrap items-center gap-2 rounded-[10px] border border-brick-border bg-brick-bg px-2.5 py-2">
                         <TriangleAlert size={17} className="flex-none text-brick-text" />
                         <span className="min-w-0 flex-1 text-[12.5px] leading-[1.4] text-brick-text">Clear all {stops.length} stops? The places and votes stay.</span>
-                        <button onClick={() => setConfirmClear(null)} className="flex h-7 flex-none items-center rounded-[7px] border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text">Cancel</button>
+                        <button type="button" autoFocus onClick={() => { refocusClearStops.current = true; setConfirmClear(null) }} className="flex h-7 flex-none items-center rounded-[7px] border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text">Cancel</button>
                         <button onClick={clearAllStops} className="flex h-7 flex-none items-center rounded-[7px] px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>Clear</button>
                       </div>
                     ) : (
-                      <button onClick={() => setConfirmClear('stops')} className="flex flex-none items-center gap-1 self-end px-0.5 text-[12px] font-medium text-faint hover:text-brick-text">
+                      <button
+                        // the confirm takes this button's place; Cancel puts it back and focus with it
+                        ref={(el) => { if (el && refocusClearStops.current) { refocusClearStops.current = false; el.focus() } }}
+                        onClick={() => setConfirmClear('stops')}
+                        className="flex flex-none items-center gap-1 self-end px-0.5 text-[12px] font-medium text-faint hover:text-brick-text">
                         <Trash2 size={13} /> Clear itinerary
                       </button>
                     )
@@ -916,7 +969,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                             <span className="mt-px grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[12.5px] font-bold text-on-accent">{i + 1}</span>
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-1.5">
-                                <span onClick={() => goToPin(s.uid)} className="cursor-pointer text-[14px] font-semibold hover:underline">{p.name}</span>
+                                <button type="button" onClick={() => goToPin(s.uid)} className="text-left text-[14px] font-semibold hover:underline">{p.name}</button>
                                 {stops.filter((x) => x.placeId === s.placeId).length > 1 && <span className="flex-none rounded-[5px] border border-border2 bg-s2 px-[5px] py-px text-[9.5px] font-semibold text-dim">revisit</span>}
                               </div>
                               <div className="text-[12px] leading-[1.45] text-dim">{p.place} ({votesOf(s.placeId).length} vote{votesOf(s.placeId).length === 1 ? '' : 's'})</div>
@@ -924,9 +977,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                               <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
                                 <span className="flex items-center gap-1 text-[12px] font-semibold text-accent-text"><Clock size={12} /> {fmtMinuteDay(schedule[i].arrive)} – {fmtMinuteDay(schedule[i].depart)}</span>
                                 <span className="flex items-center gap-1 text-[12px] text-dim">
-                                  {canEditItin && <button onClick={() => changeDwell(i, s.dwell - 15)} disabled={s.dwell <= 15} className="grid h-[15px] w-[15px] place-items-center rounded border border-border enabled:hover:bg-s2 disabled:opacity-30" aria-label="Less time"><Minus size={10} /></button>}
+                                  {canEditItin && <button onClick={() => changeDwell(i, s.dwell - 15)} disabled={s.dwell <= 15} className="relative before:absolute before:-inset-[5px] before:content-[''] grid h-[15px] w-[15px] place-items-center rounded border border-border enabled:hover:bg-s2 disabled:opacity-30" aria-label="Less time"><Minus size={10} /></button>}
                                   {fmtDuration(s.dwell)} here
-                                  {canEditItin && <button onClick={() => changeDwell(i, s.dwell + 15)} className="grid h-[15px] w-[15px] place-items-center rounded border border-border hover:bg-s2" aria-label="More time"><Plus size={10} /></button>}
+                                  {canEditItin && <button onClick={() => changeDwell(i, s.dwell + 15)} className="relative before:absolute before:-inset-[5px] before:content-[''] grid h-[15px] w-[15px] place-items-center rounded border border-border hover:bg-s2" aria-label="More time"><Plus size={10} /></button>}
                                 </span>
                               </div>
                             </div>
@@ -1011,9 +1064,9 @@ function AddPlaceSearch({ onAdd, taken, near, placeholder = 'Add a place to the 
 
   return (
     <div className="relative">
-      <div className="flex h-9 items-center gap-2 rounded-[10px] border border-border bg-s2 px-3 focus-within:border-accent-border">
+      <div className="flex h-9 items-center gap-2 rounded-[10px] border border-border bg-s2 px-3 focus-within:border-accent">
         <Search size={15} className="flex-none text-faint" />
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={placeholder} className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-faint" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search for a place" placeholder={placeholder} className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-faint" />
       </div>
       {term && (
         <div className="scroll-slim absolute left-0 right-0 top-full z-20 mt-1 max-h-[240px] overflow-auto overscroll-contain rounded-[10px] border border-border bg-s1 p-1 shadow-soft">

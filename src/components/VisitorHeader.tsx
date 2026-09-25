@@ -21,7 +21,7 @@ export function VisitorHeader({ ready = true }: { ready?: boolean }) {
   // brings it back. Desktop keeps it planted (md:translate-y-0 outranks the hide).
   const hidden = useHideOnScroll()
   return (
-    <header className={`sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md transition-transform duration-300 md:translate-y-0 ${hidden ? '-translate-y-full' : 'translate-y-0'}`}>
+    <header className={`sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md transition-transform duration-300 has-[:focus-visible]:translate-y-0 md:translate-y-0 ${hidden ? '-translate-y-full' : 'translate-y-0'}`}>
       <div className="mx-auto flex h-[58px] w-full max-w-[1240px] items-center gap-[22px] px-[22px]">
         <Link href="/" className="flex items-center">
           <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Hourelle</span>

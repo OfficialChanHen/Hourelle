@@ -33,7 +33,7 @@ const FEATURES = [
   {
     eyebrow: 'When',
     title: 'See the day everyone can meet.',
-    body: 'Drag across the times you are free. The grid turns green where people overlap, and the best window is worked out for you, in every timezone at the table.',
+    body: 'Drag across the times you are free. The darker the green, the more people can make it. The best time is picked out for you.',
     points: ['Minute-precise edges, not just half-hour boxes', 'Day polls for trips and weekends', 'Or skip the poll when the date is already set'],
     demo: 'daypoll',
   },
@@ -47,16 +47,17 @@ const FEATURES = [
   {
     eyebrow: 'Who',
     title: 'Know who is coming, and talk it over.',
-    body: 'RSVPs, who arrives late, and the headcount at every stop. One chat per event, with the people who are actually in it.',
-    points: ['Going, maybe, and not yet, at a glance', 'A quiet note in the chat when someone joins', 'Nothing to install, and it works on any phone'],
+    body: 'See who is coming and who is running late. Each event has its own chat.',
+    points: ['Everyone RSVPs in one tap', 'The chat shows when someone joins', 'Works in any phone browser'],
     demo: 'chat',
   },
 ] as const
 
+// friend plans first: the audience is friends making plans, not office meetings
 const DEMO_PICKS: Record<string, string> = {
-  'q3-offsite': 'Eight people, a week on the **availability grid**, and votes turned into a **three-stop route**.',
   'cabin-trip': 'A **day poll** for a long weekend, where whole days are the question.',
-  'trivia-night-anchor': 'A **fixed date and place**. The only question left is the **RSVP round**.',
+  'priyas-send-off': 'A **vote on the place**, closing soon, with the leader changing as votes come in.',
+  'trivia-night-anchor': 'A **fixed date and place**. The only question left is **who is coming**.',
 }
 
 export default function Landing() {
@@ -67,7 +68,10 @@ export default function Landing() {
 
   // an account has a home; this page is for people who do not have one yet
   useEffect(() => { if (ready && signedIn) router.replace('/home') }, [ready, signedIn, router])
-  useEffect(() => { setDemos(listDemos().filter((d) => d.id in DEMO_PICKS)) }, [])
+  useEffect(() => {
+    const order = Object.keys(DEMO_PICKS)
+    setDemos(listDemos().filter((d) => d.id in DEMO_PICKS).sort((x, y) => order.indexOf(x.id) - order.indexOf(y.id)))
+  }, [])
 
   useGSAP(() => {
     if (!ready || signedIn) return
@@ -102,7 +106,7 @@ export default function Landing() {
     <div ref={root} className="flex min-h-dvh flex-col">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-[10px] focus:border focus:border-accent-border focus:bg-s1 focus:px-4 focus:py-2.5 focus:text-[14px] focus:font-semibold focus:text-accent-text focus:shadow-soft"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-[10px] focus:border focus:border-accent focus:bg-s1 focus:px-4 focus:py-2.5 focus:text-[14px] focus:font-semibold focus:text-accent-text focus:shadow-soft"
       >
         Skip to content
       </a>
@@ -121,7 +125,7 @@ export default function Landing() {
                 Find the hour everyone can meet.
               </h1>
               <p className="mt-5 max-w-[560px] text-[16px] leading-[1.6] text-dim sm:text-[17px]">
-                One link for the whole plan. People mark when they are free, vote on where to go, say if they are coming, and talk it over. No app to install, and your guests never need an account.
+                Making plans with friends? Send one link. Everyone marks when they are free and votes on where to go. Nobody needs an account.
               </p>
               <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
                 <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-accent px-6 text-[15px] font-semibold text-on-accent">
@@ -131,7 +135,7 @@ export default function Landing() {
                   Try a demo first
                 </Link>
               </div>
-              <p className="mt-4 text-[12.5px] text-faint">Invited to something? Open the link you were sent. That is all it takes.</p>
+              <p className="mt-4 text-[12.5px] text-faint">Invited to something? Just open the link you were sent.</p>
             </div>
 
             {/* built rather than photographed: a picture cannot follow the theme, and the
@@ -149,8 +153,7 @@ export default function Landing() {
         {/* ── how it works ── */}
         <section id="how" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pb-8 pt-14 sm:pt-28">
           <div className="ld-reveal max-w-[560px]">
-            <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-accent-text">How it works</p>
-            <h2 className="mt-2.5 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">Four simple steps.</h2>
+            <h2 className="font-serif font-normal text-[36px] leading-[1.06] tracking-[-0.01em] sm:text-[46px]">How it works</h2>
           </div>
           <HowItWorks />
         </section>
@@ -158,8 +161,7 @@ export default function Landing() {
         {/* ── features, alternating ── */}
         <section id="features" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pt-14 sm:pt-28">
           <div className="ld-reveal max-w-[560px]">
-            <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-accent-text">What it does</p>
-            <h2 className="mt-2.5 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">The whole plan, in one place.</h2>
+            <h2 className="font-serif font-normal text-[36px] leading-[1.06] tracking-[-0.01em] sm:text-[46px]">What it does</h2>
           </div>
           <div className="mt-6 flex flex-col gap-16 sm:gap-24">
             {FEATURES.map((f, i) => (
@@ -191,9 +193,8 @@ export default function Landing() {
         <section id="demos" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pt-20 sm:pt-28">
           <div className="ld-reveal flex flex-wrap items-end justify-between gap-4">
             <div className="max-w-[560px]">
-              <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-accent-text">Demos</p>
-              <h2 className="mt-2.5 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[42px]">Poke around before you commit to anything.</h2>
-              <p className="mt-3 text-[15px] leading-[1.6] text-dim">Finished plans, full of people and answers, grouped by the question each one answers. Open one and walk through every tab.</p>
+              <h2 className="font-serif font-normal text-[36px] leading-[1.06] tracking-[-0.01em] sm:text-[46px]">Demos</h2>
+              <p className="mt-3 text-[15px] leading-[1.6] text-dim">Open a finished plan and click through it.</p>
             </div>
             <Link href="/demos" className="flex h-10 items-center gap-1.5 rounded-[10px] border border-border2 bg-s1 px-4 text-[13.5px] font-semibold text-dim hover:bg-s2 hover:text-text">
               All demos <ArrowRight size={14} />
@@ -224,9 +225,6 @@ export default function Landing() {
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[.15em] opacity-70">Free to use</p>
               <h2 className="mt-3 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[44px]">The next plan takes a minute to start.</h2>
-              <p className="mt-3 max-w-[480px] text-[15px] leading-[1.6] opacity-85">
-                Make an account, name the plan, share the link. Everything your guests answer as guests follows them if they ever make an account of their own.
-              </p>
             </div>
             <div className="flex flex-col gap-2.5 lg:items-end">
               <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-on-accent px-6 text-[15px] font-semibold text-accent">

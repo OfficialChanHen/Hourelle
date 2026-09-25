@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Move, RotateCcw, X } from 'lucide-react'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 
 /* ── choosing which part of a photo survives the crop ──
    A cover is never shown at one shape. The card in a list is short and wide, the
@@ -44,6 +45,7 @@ export function CoverPosition({ src, value, onChange, onClose }: {
   onClose: () => void
 }) {
   const [pos, setPos] = useState<Pos>(value)
+  const root = useRef<HTMLDivElement>(null)
   const frame = useRef<HTMLDivElement>(null)
   const img = useRef<HTMLImageElement>(null)
   const drag = useRef<{ x: number; y: number; from: Pos } | null>(null)
@@ -98,12 +100,14 @@ export function CoverPosition({ src, value, onChange, onClose }: {
     document.body.style.overflow = 'hidden'
     return () => { window.removeEventListener('keydown', esc); document.body.style.overflow = prev }
   }, [onClose])
+  // focus starts on the photo, where the arrow keys already work
+  useFocusTrap(root, { initial: frame })
 
   // no mount guard: this only ever renders after the host has pressed Position, so
   // document.body is always there by the time the portal asks for it
   const objectPosition = `${pos.x}% ${pos.y}%`
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Position the cover photo">
+    <div ref={root} className="fixed inset-0 z-[70] flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Position the cover photo">
       <div className="max-h-[92dvh] w-full max-w-[560px] overflow-y-auto overscroll-contain rounded-t-2xl border border-border bg-s1 p-4 shadow-soft sm:rounded-2xl sm:p-5">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>

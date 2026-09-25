@@ -60,7 +60,7 @@ The paper is warm without being tinted: a trace of red and yellow in the grays, 
 :root {
   --bg:#F7F6F4; --s0:#FBFAF9; --s1:#FFFFFF; --s2:#EFEEEB; --s3:#E3E2DE;
   --border:#E3E2DE; --border2:#CFCEC9;
-  --text:#1A1917; --dim:#67665F; --faint:#98978F;
+  --text:#1A1917; --dim:#67665F; --faint:#6D6C65;
   --accent:#2E4A3C; --accent-text:#2A4537; --accent-bg:#E8EEE9; --accent-border:#CBD9CF; --on-accent:#F8F7F3;
   --teal:#3F6B55; --teal-text:#31523F; --teal-bg:#E7EFE9; --teal-border:#C6DACC;     /* going / confirmed / full */
   --ochre:#8F6A33; --ochre-text:#72521F; --ochre-bg:#F3ECDF; --ochre-border:#E3D6BF; /* planning / partial / caution */
@@ -71,8 +71,8 @@ The paper is warm without being tinted: a trace of red and yellow in the grays, 
 [data-theme="dark"] {
   --bg:#151513; --s0:#1A1A18; --s1:#1F1F1C; --s2:#262622; --s3:#302F2A;
   --border:rgba(240,238,230,.10); --border2:rgba(240,238,230,.19);
-  --text:#EFEDE8; --dim:#ACA99F; --faint:#78766E;
-  --accent:#4C8A66; --accent-text:#A3D6BE; --accent-bg:rgba(127,183,154,.15); --accent-border:rgba(127,183,154,.38); --on-accent:#F8F7F3;
+  --text:#EFEDE8; --dim:#ACA99F; --faint:#8E8C83;
+  --accent:#437B5B; --accent-text:#A3D6BE; --accent-bg:rgba(127,183,154,.15); --accent-border:rgba(127,183,154,.38); --on-accent:#F8F7F3;
   --teal:#5B9A7C; --teal-text:#9BD2B7; --teal-bg:rgba(111,181,151,.14); --teal-border:rgba(111,181,151,.36);
   --ochre:#BD9A5E; --ochre-text:#E1C48F; --ochre-bg:rgba(200,165,100,.15); --ochre-border:rgba(200,165,100,.38);
   --brick:#C57F78; --brick-text:#E5ACA6; --brick-bg:rgba(205,138,130,.14); --brick-border:rgba(205,138,130,.36);

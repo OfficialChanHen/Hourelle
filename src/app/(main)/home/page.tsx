@@ -139,7 +139,7 @@ export default function HomePage() {
           title="Nothing going on yet"
           body="Create an event and it takes over this spot."
           action={{ label: 'Create an event', href: '/create' }}
-          secondary={{ label: 'Or poke around the demo events', href: '/demos' }}
+          secondary={{ label: 'Or open a demo event', href: '/demos' }}
         />
       )}
 
@@ -220,8 +220,11 @@ function QuickCreate() {
           value={title}
           onChange={(e) => { setTitle(e.target.value); setNeed(false) }}
           onKeyDown={(e) => { if (e.key === 'Enter') go() }}
+          aria-label="Event name"
+          aria-invalid={need || undefined}
+          aria-describedby={need ? 'quick-title-err' : undefined}
           placeholder="What are you planning?"
-          className={`h-11 sm:h-10 min-w-[200px] flex-1 rounded-[10px] border ${need ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[14.5px] outline-none placeholder:text-faint focus:border-accent-border`}
+          className={`h-11 sm:h-10 min-w-[200px] flex-1 rounded-[10px] border ${need ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[14.5px] outline-none placeholder:text-faint focus:border-accent`}
         />
         <div className="flex w-full min-w-0 flex-none items-center gap-2 sm:w-auto">
           <span className="min-w-0 flex-1 sm:flex-none">
@@ -240,7 +243,7 @@ function QuickCreate() {
       <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[12.5px] text-dim">
         <span>
           {need
-            ? <span className="font-medium text-brick-text">Give it a name first.</span>
+            ? <span id="quick-title-err" role="alert" className="font-medium text-brick-text">Give it a name first.</span>
             : asDayPoll
               ? 'Over four weeks, so this asks which days work instead of times.'
               : 'Uses your time zone. Share the link and people mark when they are free.'}

@@ -204,7 +204,7 @@ export function HeroGrid() {
                     )}
                     {pile.shown > 0 && (
                       <span className="pointer-events-none absolute bottom-[3px] left-[4px] z-[1]">
-                        <AvatarRow people={facesFor(c, r, pile.shown)} size={20} overlap={4} font={9} max={pile.shown} more={pile.chip ? `+${pile.chip}` : ''} />
+                        <AvatarRow people={facesFor(c, r, pile.shown)} size={20} overlap={4} font={9} max={pile.shown} more={pile.chip ? `+${pile.chip}` : ''} decorative />
                       </span>
                     )}
                     <span
