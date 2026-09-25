@@ -78,7 +78,7 @@ export const CRUCIAL: Row[] = [
   { label: 'Helps pay for better maps and a faster app', free: false, plus: true },
   { label: 'A Plus mark and a reply within two days', free: false, plus: true },
   { label: 'New features first', free: false, plus: true },
-  { label: 'Your calendar kept in step on its own', free: false, plus: 'soon' },
+  { label: 'Calendar sync that keeps your times up to date', free: false, plus: 'soon' },
 ]
 
 /** What a Plus card lists: the whole of Free in one line, then only what it adds. */

@@ -36,24 +36,24 @@ type Stop = { tab?: string; targets: Candidate[] } | { end: true }
 // the host's tour: the link they send, the grid, the ballot, the rest, the lock-in
 const HOST_STOPS: Stop[] = [
   { tab: 'availability', targets: [
-    { sel: 'share', title: 'One link does it all', text: 'Send it to everyone. They open it, add a name and answer. Nobody needs an account.', tryIt: 'Open Share link and copy it.' },
-    { sel: 'menu', title: 'One link does it all', text: 'The share link is in this menu. Send it to everyone: they open it, add a name and answer. Nobody needs an account.', tryIt: 'Open the menu and copy the link.' },
+    { sel: 'share', title: 'One link does it all', text: 'Send this to everyone. They add a name and answer, no account needed.', tryIt: 'Copy the link.' },
+    { sel: 'menu', title: 'One link does it all', text: 'The share link is in this menu. Send it to everyone, no account needed.', tryIt: 'Copy the link.' },
   ] },
   { tab: 'availability', targets: [
-    { sel: 'grid-all', title: 'When people are free', text: 'In Edit mine, drag across the hours you can make. The greener a slot, the more people can. A block you painted has handles, so it can be trimmed to the minute.', tryIt: 'Press Edit mine, drag a block, then pull one of its edges.' },
+    { sel: 'grid-all', title: 'When people are free', text: 'Press Edit mine and drag across the hours you can make. Darker green means more people are free.', tryIt: 'Drag a block.' },
   ] },
   { tab: 'availability', targets: [
-    { sel: 'people', title: 'One person at a time', text: 'Tap a face to see only that person\u2019s times; tap it again for everyone. The count beside them opens who has answered and who has not.', tryIt: 'Tap a face, then tap it again.' },
+    { sel: 'people', title: 'One person at a time', text: 'Tap a face to see just their times. Tap again to see everyone.', tryIt: 'Tap a face.' },
   ] },
   { tab: 'location', targets: [
-    { sel: 'location', title: 'Where it happens', text: 'Places go on the ballot and everyone votes; the pins carry the count. You lock in the winner, or switch to Itinerary and build a route through the top picks.', tryIt: 'Search for a place and add it, vote for one, then open Itinerary.' },
+    { sel: 'location', title: 'Where it happens', text: 'Add places and everyone votes. You pick the winner when you lock in.', tryIt: 'Add a place and vote for it.' },
   ] },
   { tab: 'availability', targets: [
-    { sel: 'tabs', title: 'The rest of the plan', text: 'Attendance counts who is coming once the plan is locked in. Event details holds the description, the budget, the dates, the people and the invites by email.', tryIt: 'Open Attendance, then Event details, and come back to Availability.' },
+    { sel: 'tabs', title: 'The rest of the plan', text: 'Attendance shows who is coming. Event details has everything else, including invites by email.' },
   ] },
   { tab: 'availability', targets: [
-    { sel: 'lock', title: 'Lock it in', text: 'When the grid is green enough, lock in a time and a place. Everyone gets the plan, and the RSVPs open.', tryIt: 'Press it and look at the best window it proposes. Nothing is final until you confirm.' },
-    { sel: 'create', title: 'Your own event', text: 'This is where yours starts. Name it, pick some days, and the link is ready to send.', tryIt: 'Make one when you are ready.' },
+    { sel: 'lock', title: 'Lock it in', text: 'Pick a time and place. Everyone gets the plan and can RSVP.', tryIt: 'Press it to see the best time. Nothing is final until you confirm.' },
+    { sel: 'create', title: 'Your own event', text: 'Start your own event here.' },
   ] },
   { end: true },
 ]
@@ -63,16 +63,16 @@ const HOST_STOPS: Stop[] = [
 // them now is whether they are coming.
 const GUEST_LOCKED_STOPS: Stop[] = [
   { tab: 'availability', targets: [
-    { sel: 'rsvp', title: 'Say if you can make it', text: 'The time and the place are settled. All that is left is whether you are there.', tryIt: 'Answer going, maybe or cannot go. You can change it later.' },
+    { sel: 'rsvp', title: 'Say if you can make it', text: 'The time and place are set. Let the host know if you are coming.', tryIt: 'You can change your answer later.' },
   ] },
   { tab: 'availability', targets: [
-    { sel: 'grid-all', title: 'When it is', text: 'The grid shows the times everyone gave and the window that won. It is read-only now that the plan is locked.' },
+    { sel: 'grid-all', title: 'When it is', text: 'The time that won is marked on the grid.' },
   ] },
   { tab: 'attendance', targets: [
-    { sel: 'attendance', title: 'Who is coming', text: 'Everyone who has answered, and who the host is still waiting on.' },
+    { sel: 'attendance', title: 'Who is coming', text: 'See who has answered and who has not.' },
   ] },
   { tab: 'availability', targets: [
-    { sel: 'chat', title: 'Say something', text: 'The discussion is per event and everyone on it can write, guests included. It is the place to say you will be late.', tryIt: 'Open it and leave a line.' },
+    { sel: 'chat', title: 'Say something', text: 'Everyone on the event can chat here.' },
   ] },
   { end: true },
 ]
@@ -81,19 +81,19 @@ const GUEST_LOCKED_STOPS: Stop[] = [
 // host controls; the ballot and the discussion take the last two stops instead.
 const GUEST_STOPS: Stop[] = [
   { tab: 'availability', targets: [
-    { sel: 'grid-all', title: 'Start with your times', text: 'This is the whole point: in Edit mine, drag across the hours you can make. The greener a slot, the more people can. A block you painted has handles, so it can be trimmed to the minute.', tryIt: 'Press Edit mine, drag a block, then pull one of its edges.' },
+    { sel: 'grid-all', title: 'Start with your times', text: 'Press Edit mine and drag across the hours you can make. Darker green means more people are free.', tryIt: 'Drag a block.' },
   ] },
   { tab: 'availability', targets: [
-    { sel: 'people', title: 'Who else has answered', text: 'Tap a face to see only that person\u2019s times; tap it again for everyone. The count beside them says who has answered and who the host is still waiting on.', tryIt: 'Tap a face, then tap it again.' },
+    { sel: 'people', title: 'Who else has answered', text: 'Tap a face to see just their times. Tap again to see everyone.', tryIt: 'Tap a face.' },
   ] },
   { tab: 'location', targets: [
-    { sel: 'location', title: 'Have a say in the place', text: 'Every place on the ballot takes one vote from you, and the pins carry the count. The host settles on one in the end, but the votes are what they go by.', tryIt: 'Vote for a place, and add one of your own if the host allowed it.' },
+    { sel: 'location', title: 'Have a say in the place', text: 'Vote for the places you like. The host picks one based on the votes.', tryIt: 'Vote for a place.' },
   ] },
   { tab: 'availability', targets: [
-    { sel: 'tabs', title: 'The rest of the event', text: 'Attendance says who is coming once the host locks the plan in. Event details holds the description, the dates and the budget the host set. You can read all of it; only the host can change it.', tryIt: 'Open Attendance, then Event details, and come back to Availability.' },
+    { sel: 'tabs', title: 'The rest of the event', text: 'Attendance shows who is coming. Event details has the rest of the plan.' },
   ] },
   { tab: 'availability', targets: [
-    { sel: 'chat', title: 'Say something', text: 'The discussion is per event and everyone on it can write, guests included. It is the place to ask about the times, or say you will be late.', tryIt: 'Open it and leave a line.' },
+    { sel: 'chat', title: 'Say something', text: 'Everyone on the event can chat here.' },
   ] },
   { end: true },
 ]
@@ -335,7 +335,7 @@ export function Tour({ host = false, locked = false }: { host?: boolean; locked?
           <>
             <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">The end</div>
             <div id={titleId} className="mt-1 font-serif text-[21px] leading-[1.15] tracking-[-0.01em]">That is the tour</div>
-            <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">{host ? 'This practice event stays yours to play with. Four short clips on the Help page show each step from start to finish: making an event, marking times, picking a place and locking in.' : 'Your answers are saved as you go, and you can change them any time. Four short clips on the Help page show each step from start to finish.'}</p>
+            <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">{host ? 'This practice event is yours to play with. The Help page has a short clip of each step.' : 'Your answers save as you go. The Help page has a short clip of each step.'}</p>
             <div className="mt-3.5 flex items-center justify-between gap-3">
               <Link href={watchHref} onClick={finish} className="flex items-center gap-1.5 text-[13px] font-semibold text-accent-text hover:underline">
                 <PlayCircle size={15} /> Watch the clips
