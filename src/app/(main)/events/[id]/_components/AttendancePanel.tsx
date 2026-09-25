@@ -551,7 +551,7 @@ function SingleVenue({
       </div>
 
       {event.participants.length > 12 && (
-        <label className="mt-3 flex h-11 items-center gap-2 rounded-[10px] border border-border bg-s0 px-3 focus-within:border-accent-border sm:h-9 sm:max-w-[280px]">
+        <label className="mt-3 flex h-11 items-center gap-2 rounded-[10px] border border-border bg-s0 px-3 focus-within:border-accent sm:h-9 sm:max-w-[280px]">
           <Search size={14} className="flex-none text-faint" />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name" aria-label="Find a person" className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-faint" />
           {query && <button type="button" onClick={() => setQuery('')} aria-label="Clear" className="grid h-7 w-7 flex-none place-items-center rounded-[6px] text-faint hover:text-text"><X size={13} /></button>}
@@ -610,7 +610,7 @@ function QuorumControl({ quorum, onChange }: { quorum: number | null; onChange: 
           <div className="mt-2 flex items-center gap-2 px-1 pb-1">
             <input
               ref={ref} type="number" min={1} max={999} defaultValue={quorum ?? ''} placeholder="e.g. 8"
-              className="h-9 w-[86px] rounded-[9px] border border-border bg-s0 px-3 text-[14px] outline-none focus:border-border2"
+              className="h-9 w-[86px] rounded-[9px] border border-border bg-s0 px-3 text-[14px] outline-none focus:border-accent"
               onKeyDown={(e) => { if (e.key === 'Enter') save(close) }}
             />
             <button onClick={() => save(close)} className="h-9 flex-none rounded-[9px] bg-accent px-3 text-[13px] font-semibold text-on-accent">Save</button>
@@ -753,7 +753,7 @@ function HeadcountBars({
               <button
                 key={i} type="button" onClick={() => setSel(sel === i ? null : i)}
                 aria-label={`${fmtMinute(gridStart + winS + i * step)}, ${c} of ${attendees.length} free`}
-                className={`grid min-w-0 flex-1 place-items-center text-[12px] font-semibold tabular-nums ${i > 0 ? 'border-l border-bg/60' : ''} ${sel === i ? 'ring-2 ring-inset ring-accent' : ''}`}
+                className={`grid min-w-0 flex-1 place-items-center text-[12px] font-semibold tabular-nums focus-visible:-outline-offset-2 ${i > 0 ? 'border-l border-bg/60' : ''} ${sel === i ? 'ring-2 ring-inset ring-accent' : ''}`}
                 style={{ background: bg, color: short ? 'var(--brick-text)' : fg }}
               >
                 {labeled ? c : ''}

@@ -46,7 +46,7 @@ export function TimeSelect({
       <RSelect.Trigger
         aria-label={title ?? 'Time'}
         title={title}
-        className={`flex h-11 items-center gap-1.5 rounded-[9px] border border-border bg-s1 px-2.5 text-[13.5px] font-medium tabular-nums outline-none hover:border-border2 focus-visible:border-accent-border data-[state=open]:border-accent-border sm:h-8 sm:rounded-[8px] sm:px-2 sm:text-[12.5px] ${className ?? ''}`}
+        className={`flex h-11 items-center gap-1.5 rounded-[9px] border border-border bg-s1 px-2.5 text-[13.5px] font-medium tabular-nums outline-none hover:border-border2 focus-visible:border-accent data-[state=open]:border-accent-border sm:h-8 sm:rounded-[8px] sm:px-2 sm:text-[12.5px] ${className ?? ''}`}
       >
         <Clock size={13} className="flex-none text-dim" />
         <RSelect.Value>{fmtMinute(value)}</RSelect.Value>

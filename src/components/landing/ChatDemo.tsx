@@ -121,7 +121,7 @@ export function ChatDemo() {
                   ))}
                 </div>
                 <form onSubmit={(e) => { e.preventDefault(); send() }} className="flex items-center gap-1.5 border-t border-border p-2">
-                  <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Write a message" aria-label="Write a message" disabled={!done} className="h-9 min-w-0 flex-1 rounded-[8px] border border-border bg-s1 px-2.5 text-[13px] outline-none placeholder:text-faint focus:border-accent-border" />
+                  <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Write a message" aria-label="Write a message" disabled={!done} className="h-9 min-w-0 flex-1 rounded-[8px] border border-border bg-s1 px-2.5 text-[13px] outline-none placeholder:text-faint focus:border-accent" />
                   <button type="submit" aria-label="Send" disabled={!draft.trim()} className="grid h-9 w-9 flex-none place-items-center rounded-[8px] bg-accent text-on-accent disabled:opacity-40"><SendHorizontal size={15} /></button>
                 </form>
               </div>

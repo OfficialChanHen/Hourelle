@@ -33,7 +33,7 @@ export function DateField({ value, onChange, label, min, max, invalid, empty = '
       : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
     : ''
   return (
-    <span className={`@container relative flex min-w-0 items-center gap-2 rounded-[10px] border ${invalid ? 'border-brick-border' : 'border-border'} bg-s2 px-3 focus-within:border-accent-border ${className}`}>
+    <span className={`@container relative flex min-w-0 items-center gap-2 rounded-[10px] border ${invalid ? 'border-brick-border' : 'border-border'} bg-s2 px-3 focus-within:border-accent ${className}`}>
       {/* the icon gives way before the date does: a pair of fields on a 360 phone is
           too narrow for both */}
       <CalendarDays size={15} className="hidden flex-none text-dim @[108px]:block" aria-hidden />

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -166,6 +166,9 @@ export function Tour({ host = false, locked = false }: { host?: boolean; locked?
   const glow = useRef<SVGRectElement>(null)
   const card = useRef<HTMLDivElement>(null)
   const first = useRef(true)
+  // where the keyboard was when the tour began, so leaving it puts focus back there
+  const opener = useRef<HTMLElement | null>(null)
+  const titleId = useId()
 
   // the hole in the dim and the line drawn around it are the same rectangle, so
   // they are always moved together
@@ -195,7 +198,11 @@ export function Tour({ host = false, locked = false }: { host?: boolean; locked?
         // another page, closing the tab — used to leave it armed, and it would then
         // ambush the next event opened, days later and on an event that was never
         // the practice one. Escape, Skip and Done still mark it done properly.
-        if (have.length > 1) { first.current = true; setI(0); setPlan(have); setTourWanted(false) }
+        if (have.length > 1) {
+          const was = document.activeElement
+          opener.current = was instanceof HTMLElement && was !== document.body ? was : null
+          first.current = true; setI(0); setPlan(have); setTourWanted(false)
+        }
       }, delay)
     }
     begin(800)
@@ -208,6 +215,11 @@ export function Tour({ host = false, locked = false }: { host?: boolean; locked?
     dismissHint('tour')
     setTourWanted(false)
     setPlan(null)
+    // focus goes back to where it was, unless it has since moved on to the page
+    const back = opener.current
+    opener.current = null
+    const now = document.activeElement
+    if (back?.isConnected && (!now || now === document.body || card.current?.contains(now))) back.focus({ preventScroll: true })
   }, [])
 
   // point at the current stop: switch its tab, wait for the element, bring it on screen
@@ -251,10 +263,20 @@ export function Tour({ host = false, locked = false }: { host?: boolean; locked?
     return () => cancelAnimationFrame(raf)
   }, [plan])
 
-  // Escape leaves, but only from the page itself, never out of a field being typed in
+  // the card takes focus each time it shows a new stop, so the keyboard and a screen
+  // reader are always on what it says. It is not modal: Tab carries on into the page.
+  const shown = !plan?.[i] ? null : 'end' in plan[i] ? 'end' : cand ? `${cand.sel}|${cand.title}` : null
+  useEffect(() => {
+    if (shown) card.current?.focus({ preventScroll: true })
+  }, [shown])
+
+  // Escape leaves from the page itself or from the card, never out of a field being typed in
   useEffect(() => {
     if (!plan) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && document.activeElement === document.body) finish() }
+    const onKey = (e: KeyboardEvent) => {
+      const a = document.activeElement
+      if (e.key === 'Escape' && (a === document.body || !!card.current?.contains(a))) finish()
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [plan, finish])
@@ -285,7 +307,7 @@ export function Tour({ host = false, locked = false }: { host?: boolean; locked?
 
   return createPortal(
     // z-[42]: over the page and its header, under popovers (z-50) and the lock-in modal
-    <div ref={root} className="pointer-events-none fixed inset-0 z-[42]" role="dialog" aria-label="Tour">
+    <div ref={root} className="pointer-events-none fixed inset-0 z-[42]">
       <svg className="tour-dim absolute inset-0 h-full w-full" aria-hidden>
         <defs>
           <mask id="tour-hole">
@@ -301,11 +323,18 @@ export function Tour({ host = false, locked = false }: { host?: boolean; locked?
           style={{ filter: 'drop-shadow(0 0 5px var(--tour-lit)) drop-shadow(0 0 13px var(--tour-lit))' }}
         />
       </svg>
-      <div ref={card} className="tour-card pointer-events-auto absolute rounded-xl border border-border bg-s1 p-4 shadow-soft" style={pos}>
+      <div
+        ref={card}
+        role="dialog"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="tour-card pointer-events-auto absolute rounded-xl border border-border bg-s1 p-4 shadow-soft outline-none"
+        style={pos}
+      >
         {ending ? (
           <>
             <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">The end</div>
-            <div className="mt-1 font-serif text-[21px] leading-[1.15] tracking-[-0.01em]">That is the tour</div>
+            <div id={titleId} className="mt-1 font-serif text-[21px] leading-[1.15] tracking-[-0.01em]">That is the tour</div>
             <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">{host ? 'This practice event stays yours to play with. Four short clips on the Help page show each step from start to finish: making an event, marking times, picking a place and locking in.' : 'Your answers are saved as you go, and you can change them any time. Four short clips on the Help page show each step from start to finish.'}</p>
             <div className="mt-3.5 flex items-center justify-between gap-3">
               <Link href={watchHref} onClick={finish} className="flex items-center gap-1.5 text-[13px] font-semibold text-accent-text hover:underline">
@@ -322,7 +351,7 @@ export function Tour({ host = false, locked = false }: { host?: boolean; locked?
         ) : (
           <>
             <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Stop {i + 1} of {count}</div>
-            <div className="mt-1 font-serif text-[21px] leading-[1.15] tracking-[-0.01em]">{cand!.title}</div>
+            <div id={titleId} className="mt-1 font-serif text-[21px] leading-[1.15] tracking-[-0.01em]">{cand!.title}</div>
             <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">{cand!.text}</p>
             {cand!.tryIt && (
               <p className="mt-2 text-[13.5px] leading-[1.55]"><span className="font-semibold text-accent-text">Try it.</span> <span className="text-text">{cand!.tryIt}</span></p>

@@ -253,7 +253,7 @@ export function JoinFlow({ id }: { id: string }) {
   const [coverFrom, coverTo] = coverFor(event.id)
   const past = phase === 'past'
   const host = event.participants.find((p) => p.host)
-  const field = 'h-11 w-full rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none placeholder:text-faint focus:border-accent-border'
+  const field = 'h-11 w-full rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none placeholder:text-faint focus:border-accent'
 
   return (
     <div ref={root} className="mx-auto max-w-[600px] px-4 pb-[92px] pt-[34px] sm:px-[26px] sm:pt-[52px]">

@@ -46,7 +46,7 @@ export function Header() {
   // phones: reading scrolls the header away, scrolling back up recalls it.
   // Desktop keeps it planted (md:translate-y-0 outranks the hide).
   const hidden = useHideOnScroll()
-  const chrome = `sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md transition-transform duration-300 md:translate-y-0 ${hidden ? '-translate-y-full' : 'translate-y-0'}`
+  const chrome = `sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md transition-transform duration-300 has-[:focus-visible]:translate-y-0 md:translate-y-0 ${hidden ? '-translate-y-full' : 'translate-y-0'}`
 
   // a visitor's header is the landing page's header — one component, so the two
   // never drift. Until the browser knows who this is, the same bar minus the doors.

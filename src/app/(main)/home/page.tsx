@@ -221,7 +221,7 @@ function QuickCreate() {
           onChange={(e) => { setTitle(e.target.value); setNeed(false) }}
           onKeyDown={(e) => { if (e.key === 'Enter') go() }}
           placeholder="What are you planning?"
-          className={`h-11 sm:h-10 min-w-[200px] flex-1 rounded-[10px] border ${need ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[14.5px] outline-none placeholder:text-faint focus:border-accent-border`}
+          className={`h-11 sm:h-10 min-w-[200px] flex-1 rounded-[10px] border ${need ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[14.5px] outline-none placeholder:text-faint focus:border-accent`}
         />
         <div className="flex w-full min-w-0 flex-none items-center gap-2 sm:w-auto">
           <span className="min-w-0 flex-1 sm:flex-none">

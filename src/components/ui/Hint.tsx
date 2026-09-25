@@ -20,7 +20,7 @@ export function Hint({ name, children, className = '' }: { name: string; childre
     <div className={`flex items-start gap-2 rounded-[10px] border border-border bg-s2 px-3 py-2 ${className}`}>
       <Info size={14} className="mt-0.5 flex-none text-accent-text" />
       <span className="min-w-0 flex-1 text-[12.5px] leading-[1.5] text-dim">{children}</span>
-      <button type="button" onClick={() => dismissHint(name)} aria-label="Got it" className="flex-none text-faint hover:text-text"><X size={14} /></button>
+      <button type="button" onClick={() => dismissHint(name)} aria-label="Got it" className="relative flex-none text-faint hover:text-text before:absolute before:-inset-[5px] before:content-['']"><X size={14} /></button>
     </div>
   )
 }

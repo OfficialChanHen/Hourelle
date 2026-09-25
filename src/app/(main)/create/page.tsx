@@ -32,6 +32,7 @@ import Link from 'next/link'
 import * as Slider from '@radix-ui/react-slider'
 import { DateField } from '@/components/ui/DateField'
 import { TimeSelect } from '@/components/ui/TimeSelect'
+import { tabbablesIn } from '@/hooks/useFocusTrap'
 import {
   Check, ChevronDown, ChevronUp, Search, Plus, X, MapPin, Video, Clock,
   Info, Vote, ArrowRight, Mail, CalendarRange, Route, GripVertical,
@@ -202,6 +203,17 @@ function CreateWizard() {
   const [today, setToday] = useState('')
   const stopUid = useRef(0)
   const panel = useRef<HTMLDivElement>(null)
+  // a press on Create event with something still missing takes the keyboard to the
+  // first field that needs it (the one whose error is drawn highest on the form)
+  const [missingNonce, setMissingNonce] = useState(0)
+  useEffect(() => {
+    if (!missingNonce) return
+    const err = panel.current?.querySelector<HTMLElement>('[data-field-error]')
+    const box = err?.parentElement
+    const field = err && box ? tabbablesIn(box).find((el) => !!(el.compareDocumentPosition(err) & Node.DOCUMENT_POSITION_FOLLOWING)) : null
+    if (field) field.focus()
+    else panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [missingNonce])
 
   const update: Update = (patch) =>
     setForm((f) => ({ ...f, ...(typeof patch === 'function' ? patch(f) : patch) }))
@@ -372,7 +384,7 @@ function CreateWizard() {
   function create() {
     if (!basicsOk) {
       setAttempted(true)
-      panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      setMissingNonce((n) => n + 1)
       return
     }
     const ev = createEvent({
@@ -520,16 +532,22 @@ function CreateWizard() {
         <Link href="/home" className="flex h-11 sm:h-10 items-center rounded-[10px] border border-border2 bg-transparent px-4 text-[14px] font-semibold hover:bg-s2">
           Cancel
         </Link>
-        {/* faded until every field is right; a tap on the faded button lights up the
-            fields that still need something, since a disabled button says nothing */}
-        <span onClick={() => { if (!basicsOk) setAttempted(true) }} className={basicsOk ? '' : 'cursor-not-allowed'}>
-          <button onClick={create} disabled={!basicsOk} title={basicsOk ? undefined : firstMissing} className="flex h-11 sm:h-10 items-center gap-1.5 rounded-[10px] bg-accent px-[18px] text-[14px] font-semibold text-on-accent disabled:pointer-events-none disabled:opacity-40">
-            <Check size={17} /> Create event
-          </button>
-        </span>
+        {/* faded until every field is right; a press on the faded button lights up the
+            fields that still need something and takes focus to the first, since a
+            disabled button says nothing. aria-disabled rather than disabled, so the
+            keyboard can still reach it and be told why. */}
+        <button
+          type="button"
+          onClick={create}
+          aria-disabled={basicsOk ? undefined : true}
+          title={basicsOk ? undefined : firstMissing}
+          className="flex h-11 sm:h-10 items-center gap-1.5 rounded-[10px] bg-accent px-[18px] text-[14px] font-semibold text-on-accent aria-disabled:cursor-not-allowed aria-disabled:opacity-40"
+        >
+          <Check size={17} /> Create event
+        </button>
       </div>
       {!basicsOk && (
-        <p className={`mt-2 text-right text-[12.5px] ${attempted ? 'text-brick-text' : 'text-dim'}`}>{attempted ? 'Fix the highlighted fields above first.' : firstMissing}</p>
+        <p role="status" className={`mt-2 text-right text-[12.5px] ${attempted ? 'text-brick-text' : 'text-dim'}`}>{attempted ? 'Fix the highlighted fields above first.' : firstMissing}</p>
       )}
     </div>
   )
@@ -793,7 +811,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
             value={form.timezone}
             aria-label="Time zone the event runs in"
             onChange={(e) => update({ timezone: e.target.value })}
-            className={`h-11 sm:h-9 cursor-pointer appearance-none rounded-[9px] border ${show(errs.tz) ? 'border-brick-border' : 'border-border'} bg-s2 pl-3 pr-8 text-[13.5px] font-medium outline-none focus:border-accent-border`}
+            className={`h-11 sm:h-9 cursor-pointer appearance-none rounded-[9px] border ${show(errs.tz) ? 'border-brick-border' : 'border-border'} bg-s2 pl-3 pr-8 text-[13.5px] font-medium outline-none focus:border-accent`}
             style={form.timezone ? undefined : { color: 'var(--faint)' }}
           >
             <option value="" disabled>Choose a time zone…</option>
@@ -893,7 +911,7 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
 
           {/* search */}
           <div className="relative">
-            <div className="flex h-[42px] items-center gap-2 rounded-[10px] border border-border bg-s2 px-[13px] focus-within:border-accent-border">
+            <div className="flex h-[42px] items-center gap-2 rounded-[10px] border border-border bg-s2 px-[13px] focus-within:border-accent">
               <Search size={17} className="text-faint" />
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search any place, address, or city…" className="flex-1 bg-transparent text-[14px] outline-none placeholder:text-faint" />
             </div>
@@ -998,7 +1016,7 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
             </div>
           </div>
           <Field label="Meeting link (optional)">
-            <div className="flex h-10 items-center gap-2 rounded-[10px] border border-border bg-s2 px-[13px] focus-within:border-accent-border">
+            <div className="flex h-10 items-center gap-2 rounded-[10px] border border-border bg-s2 px-[13px] focus-within:border-accent">
               <Link2 size={17} className="text-accent-text" />
               <input value={form.meetingLink} onChange={(e) => update({ meetingLink: e.target.value })} placeholder={`Paste a ${form.platform} link, or add it later`} className="flex-1 bg-transparent font-mono text-[14px] outline-none placeholder:text-faint" />
             </div>
@@ -1230,7 +1248,7 @@ function Created({ event: initial }: { event: AppEvent }) {
 /* ── shared bits ── */
 function inputCls(err = false) {
   // 44px tall on phones, the tighter 40 from sm up
-  return `w-full h-11 sm:h-10 rounded-[10px] border ${err ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[14.5px] outline-none placeholder:text-faint focus:border-accent-border`
+  return `w-full h-11 sm:h-10 rounded-[10px] border ${err ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[14.5px] outline-none placeholder:text-faint focus:border-accent`
 }
 /* ── the daily time window, as a band of the day rather than two dropdowns ──
    It used to be two popovers, each with three scrolling columns: hours, minutes and
@@ -1259,7 +1277,7 @@ function TimeRange({ start, end, onChange, err, step, labels }: {
   const hhmm = hhmmOf
   const s = parseHM(start) ?? 10 * 60
   const e = parseHM(end) ?? 14 * 60
-  const thumb = 'block h-5 w-5 rounded-full border-2 border-accent bg-s1 shadow-soft outline-none focus-visible:ring-2 focus-visible:ring-accent-border'
+  const thumb = 'block h-5 w-5 rounded-full border-2 border-accent bg-s1 shadow-soft outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-s1'
   return (
     <div className="mt-2.5">
       <Slider.Root
@@ -1290,7 +1308,7 @@ function Req() {
   return <span className="font-bold text-brick-text">*</span>
 }
 function FieldError({ children }: { children: React.ReactNode }) {
-  return <p className="mt-1.5 flex items-center gap-1 text-[12.5px] font-medium text-brick-text"><Info size={12} /> {children}</p>
+  return <p data-field-error className="mt-1.5 flex items-center gap-1 text-[12.5px] font-medium text-brick-text"><Info size={12} /> {children}</p>
 }
 
 function Label({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {

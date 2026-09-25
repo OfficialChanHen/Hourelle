@@ -78,7 +78,7 @@ export function DurationField({ value, min = 15, max = DAY, onChange, label = 'E
         <Slider.Thumb
           aria-label={label}
           aria-valuetext={fmtDur(shown)}
-          className="relative block h-5 w-5 rounded-full border-2 border-accent bg-s1 shadow-soft outline-none before:absolute before:-inset-3 before:content-[''] focus-visible:ring-2 focus-visible:ring-accent-border"
+          className="relative block h-5 w-5 rounded-full border-2 border-accent bg-s1 shadow-soft outline-none before:absolute before:-inset-3 before:content-[''] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-s1"
         />
       </Slider.Root>
       {/* the ends, and the hour marks between them that have room to be read */}

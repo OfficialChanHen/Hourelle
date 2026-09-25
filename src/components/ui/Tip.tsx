@@ -30,6 +30,8 @@ export function Tip({ text, children, className = 'block w-fit max-w-full' }: { 
         <RTooltip.Trigger asChild>
           <span
             className={className}
+            // a keyboard reaches the words too, and Radix opens the bubble on focus
+            tabIndex={0}
             // read before Radix's own pointerdown, which closes the bubble
             onPointerDownCapture={(e) => { touch.current = e.pointerType === 'touch'; wasOpen.current = open }}
             onClick={(e) => {
