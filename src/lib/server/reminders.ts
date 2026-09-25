@@ -2,6 +2,7 @@
 // Kept apart from the route so it can be exercised without a server.
 
 import { phaseOf, type AppEvent, type Participant } from '@/lib/events'
+import { placeVotes } from '@/lib/polls'
 import type { MailKind } from './mail'
 
 export type Due = { kind: MailKind; day: string; people: Participant[]; pref: 'eventDay' | 'deadlines' }
@@ -50,7 +51,7 @@ export function dueFor(ev: AppEvent, now: Date): Due[] {
     if (ev.voteDeadline) {
       const vb = band(ev.voteDeadline)
       if (vb) {
-        const voted = new Set(Object.values(ev.votes ?? {}).flat())
+        const voted = new Set(Object.values(placeVotes(ev.votes)).flat())
         out.push({ kind: `vote-${vb}`, day: ev.voteDeadline, people: ev.participants.filter((p) => !voted.has(p.id) && p.rsvp !== 'not_going'), pref: 'deadlines' })
       }
     }

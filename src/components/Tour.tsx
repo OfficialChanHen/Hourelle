@@ -46,7 +46,7 @@ const HOST_STOPS: Stop[] = [
     { sel: 'people', title: 'One person at a time', text: 'Tap a face to see only that person\u2019s times; tap it again for everyone. The count beside them opens who has answered and who has not.', tryIt: 'Tap a face, then tap it again.' },
   ] },
   { tab: 'location', targets: [
-    { sel: 'location', title: 'Where it happens', text: 'Places go on the ballot and everyone votes; the pins carry the count. You lock in the winner, or switch to Itinerary and build a route through the top picks.', tryIt: 'Search for a place and add it, vote for one, then open Itinerary.' },
+    { sel: 'location', title: 'Where it happens', text: 'Places go on the ballot and everyone votes; the pins carry the count. You lock in the winner, or switch to Itinerary and build a route through the top picks. Below the map you can ask the group anything else, like which game to play.', tryIt: 'Search for a place and add it, vote for one, then open Itinerary.' },
   ] },
   { tab: 'availability', targets: [
     { sel: 'tabs', title: 'The rest of the plan', text: 'Attendance counts who is coming once the plan is locked in. Event details holds the description, the budget, the dates, the people and the invites by email.', tryIt: 'Open Attendance, then Event details, and come back to Availability.' },
@@ -87,7 +87,7 @@ const GUEST_STOPS: Stop[] = [
     { sel: 'people', title: 'Who else has answered', text: 'Tap a face to see only that person\u2019s times; tap it again for everyone. The count beside them says who has answered and who the host is still waiting on.', tryIt: 'Tap a face, then tap it again.' },
   ] },
   { tab: 'location', targets: [
-    { sel: 'location', title: 'Have a say in the place', text: 'Every place on the ballot takes one vote from you, and the pins carry the count. The host settles on one in the end, but the votes are what they go by.', tryIt: 'Vote for a place, and add one of your own if the host allowed it.' },
+    { sel: 'location', title: 'Have a say in the place', text: 'Every place on the ballot takes one vote from you, and the pins carry the count. The host settles on one in the end, but the votes are what they go by. Any other questions the host asks sit below the map.', tryIt: 'Vote for a place, and add one of your own if the host allowed it.' },
   ] },
   { tab: 'availability', targets: [
     { sel: 'tabs', title: 'The rest of the event', text: 'Attendance says who is coming once the host locks the plan in. Event details holds the description, the dates and the budget the host set. You can read all of it; only the host can change it.', tryIt: 'Open Attendance, then Event details, and come back to Availability.' },

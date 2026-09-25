@@ -3,6 +3,7 @@ import { av } from './people'
 import { isMine, purgeRemoved, pushAnswers, pushDelete, pushEvent, pushMessage, pushNewEvent } from './remote'
 import { currentAccount } from './session'
 import { writeLocal } from './local'
+import { placeVotes, type Poll } from './polls'
 import { slotOver, slotWhen } from './slot'
 import type { AccountKind } from './session'
 import {
@@ -87,7 +88,8 @@ export type AppEvent = {
   // (which also takes an id off the roster) can never be mistaken for a removal
   removedIds?: string[]
   importedIv?: AvailIntervals         // dayKey → participantId → ranges a calendar import showed as busy: drawn striped, kept apart from the answer so painting never loses them
-  votes?: Record<string, string[]>    // placeId → participant ids who voted for it
+  votes?: Record<string, string[]>    // placeId → participant ids who voted for it; poll picks ride here too under `poll:` keys (lib/polls)
+  polls?: Poll[]                      // the host's questions to the group ("Which game?"); written by the host only
   maxVotes?: number                   // votes each person gets (default 1)
   hideVoters?: boolean                // anonymous ballot: only counts show, never who voted for what
   voteDeadline?: string               // ISO date; voting closes at the end of this day
@@ -1079,10 +1081,10 @@ export function youReplied(ev: AppEvent): boolean {
   return Object.values(ev.avail).some((rows) => rows.some((cell) => cell.includes(my)))
 }
 
-// have you cast any location vote
+// have you cast any location vote (a pick on one of the host's questions is not one)
 export function youVoted(ev: AppEvent): boolean {
   const my = myIdIn(ev)
-  return Object.values(ev.votes ?? {}).some((ids) => ids.includes(my))
+  return Object.values(placeVotes(ev.votes)).some((ids) => ids.includes(my))
 }
 
 // where a card click should land: whatever the event is still waiting on YOU for —

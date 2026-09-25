@@ -59,7 +59,7 @@ export default function AboutPage() {
           <li><span className="font-semibold text-text">Guests.</span> A guest gives a name and, if they choose, an email. Nothing exists for them beyond their place on that event.</li>
           <li><span className="font-semibold text-text">Logged out.</span> Nothing you do leaves this browser. The demos are samples and are never uploaded.</li>
           <li><span className="font-semibold text-text">Removal.</span> A host can delete an event for everyone, anyone can leave one, and an account can be deleted from its profile page.</li>
-          <li><span className="font-semibold text-text">No tracking.</span> No analytics, no advertising, no third-party scripts. Map tiles are fetched from OpenStreetMap when the Location tab is open.</li>
+          <li><span className="font-semibold text-text">No tracking.</span> No analytics, no advertising, no third-party scripts. Map tiles are fetched from OpenStreetMap when the Vote tab is open.</li>
         </ul>
         <p className="mt-3 text-[13px] text-dim">
           The full terms are in the <Link href="/privacy" className="font-semibold text-accent-text hover:underline">Privacy Policy</Link> and the <Link href="/terms" className="font-semibold text-accent-text hover:underline">Terms and Conditions</Link>.

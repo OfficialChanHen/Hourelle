@@ -294,7 +294,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
             <span className="min-w-0 flex-1">No place yet. The plan needs one before it can lock.</span>
             {onGoToLocation && (
               <button onClick={() => { close(); onGoToLocation() }} className="flex-none text-[12.5px] font-semibold underline underline-offset-2">
-                Add one on the Location tab
+                Add one on the Vote tab
               </button>
             )}
           </div>
@@ -312,7 +312,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
             )}
             {source === 'itin' && hasItin ? (
               <div className="flex items-center gap-2 rounded-[9px] border border-border bg-s2 px-3 py-2 text-[13px] text-dim">
-                <Route size={15} className="flex-none text-accent-text" /> Your {stops.length}-stop itinerary, as built on the Location tab
+                <Route size={15} className="flex-none text-accent-text" /> Your {stops.length}-stop itinerary, as built on the Vote tab
               </div>
             ) : (
               <div className="scroll-slim flex max-h-[168px] flex-col gap-1 overflow-auto">

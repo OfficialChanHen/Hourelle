@@ -48,10 +48,11 @@ import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/
 import { Hint } from '@/components/ui/Hint'
 import { Tour } from '@/components/Tour'
 import { AskTour } from '@/components/AskTour'
-import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
+import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, patchEventWith, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
+import { QuestionsSection, questionsShown, type SaveWith } from './vote/QuestionsSection'
 import { AttendancePanel } from './AttendancePanel'
 import { StageSummary } from './StageSummary'
 import { ConfirmBar } from './ConfirmBar'
@@ -69,7 +70,8 @@ import { currentAccount } from '@/lib/session'
 
 const TABS = [
   { key: 'availability', label: 'Availability', short: 'Availability' },
-  { key: 'location', label: 'Location', short: 'Location' },
+  // the key stays 'location' so links made before the rename still land here
+  { key: 'location', label: 'Vote', short: 'Vote' },
   { key: 'attendance', label: 'Attendance', short: 'Attendance' },
   { key: 'details', label: 'Event details', short: 'Details' },
 ] as const
@@ -277,6 +279,14 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     if (!event.demo) patchEvent(event.id, patch)
     setEvent((ev) => (ev ? { ...ev, ...patch } : ev))
   }
+  // a change worked out from the event as saved right now (see patchEventWith), then
+  // laid over the page's copy. A demo keeps it on the page only.
+  const saveWith: SaveWith = (make) => {
+    if (!event) return
+    if (event.demo) { setEvent((ev) => (ev ? { ...ev, ...make(ev) } : ev)); return }
+    const patch = patchEventWith(event.id, make)
+    if (patch) setEvent((ev) => (ev ? { ...ev, ...patch } : ev))
+  }
   function goToAvailabilityFor(pid: string) {
     setAvailFocus([pid])
     goTab('availability')
@@ -472,7 +482,15 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         />
       )}
       {/* the wrappers give the tour something to point at on each tab */}
-      {tab === 'location' && <div data-tour="location"><LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} /></div>}
+      {/* the Vote tab: the place first, then the host's other questions. The eyebrow
+          only shows when there is a second section to tell it apart from. */}
+      {tab === 'location' && (
+        <div data-tour="location">
+          {questionsShown(event, locked) && <h2 className="mb-3 text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Where</h2>}
+          <LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} />
+          <QuestionsSection event={event} locked={locked} save={saveWith} />
+        </div>
+      )}
       {tab === 'attendance' && <div data-tour="attendance"><AttendancePanel event={event} onGoToTab={goTab} onViewAvailability={goToAvailabilityFor} onViewAvailabilityGroup={goToAvailabilityGroup} onGoToBestWindow={goToBestWindow} /></div>}
       {tab === 'details' && <div data-tour="details"><DetailsTab event={event} onDelete={handleDelete} onLeave={handleLeave} onGoToTab={goTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} /></div>}
 
@@ -1153,7 +1171,7 @@ function DeadlineValue({ label, value, editable, onChange, hint, max }: {
 }
 
 /* Where: the confirmed venue once locked; before that, the vote leader for a single venue,
-   or a pointer to the itinerary on the Location tab. */
+   or a pointer to the itinerary on the Vote tab. */
 /* Spots: the host caps the guest list; everyone sees the number, only the host edits it */
 function CapacityValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
   const [v, setV] = useState(event.capacity?.toString() ?? '')
@@ -1210,7 +1228,7 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
         <span>Online on {loc.platform || 'a platform to be decided'}</span>
         {link ? linkRow : event.hostedByYou ? (
           <button onClick={onGoToLocation} className="text-left text-[12.5px] font-medium text-accent-text hover:underline">
-            Add a meeting link on the Location tab so it lands in every reminder
+            Add a meeting link on the Vote tab so it lands in every reminder
           </button>
         ) : (
           <span className="text-[12.5px] text-faint">Link to follow</span>
@@ -1221,18 +1239,18 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
 
   const itineraryLink = (n: number) => (
     <button onClick={onGoToLocation} className="text-left font-medium text-accent-text hover:underline">
-      {n}-stop itinerary, see it on the Location tab
+      {n}-stop itinerary, see it on the Vote tab
     </button>
   )
   // a set of simultaneous venues (art walk, split-activity picnic), not a route
   const spotsLink = (n: number) => (
     <button onClick={onGoToLocation} className="text-left font-medium text-accent-text hover:underline">
-      Happening across {n} spots, see them on the Location tab
+      Happening across {n} spots, see them on the Vote tab
     </button>
   )
   const placeLink = (name: string, caption?: string) => (
     <span className="flex flex-wrap items-center gap-1.5">
-      <button onClick={onGoToLocation} title="Open it on the Location tab" className="text-left font-medium text-accent-text hover:underline">{name}</button>
+      <button onClick={onGoToLocation} title="Open it on the Vote tab" className="text-left font-medium text-accent-text hover:underline">{name}</button>
       {caption && <span className="text-dim">({caption})</span>}
     </span>
   )

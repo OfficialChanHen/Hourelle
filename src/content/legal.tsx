@@ -81,7 +81,7 @@ const PRIVACY: LegalDoc = {
         'Resend, which delivers the emails we send.',
         'Vercel, which hosts the website and keeps the request logs mentioned above.',
         'Google and Microsoft, when you choose to sign in with them or to import a calendar. Their handling of your data is governed by their own privacy policies.',
-        'OpenStreetMap, Photon and OSRM, which provide map tiles, place search and driving routes on the Location tab. The text you search for and the coordinates of a route are sent to them when you use those features.',
+        'OpenStreetMap, Photon and OSRM, which provide map tiles, place search and driving routes on the Vote tab. The text you search for and the coordinates of a route are sent to them when you use those features.',
         'Authorities, if the law requires us to, and only to the extent it requires.',
       ],
     },

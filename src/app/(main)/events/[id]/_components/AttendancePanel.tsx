@@ -649,7 +649,7 @@ function ShiftSuggestion({ shift }: { shift: { d: number; gain: number } }) {
   )
 }
 
-/* Leading place: the venue this headcount is for — tap through to the Location tab */
+/* Leading place: the venue this headcount is for — tap through to the Vote tab */
 function LeadingPlace({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab }) {
   if (event.location.mode === 'remote') {
     return (
@@ -668,7 +668,7 @@ function LeadingPlace({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab
   if (!lead) {
     return (
       <button onClick={() => onGoToTab?.('location')} className="mb-4 w-full rounded-xl border border-dashed border-border2 bg-s0 px-4 py-3 text-left text-[13px] leading-[1.5] text-dim transition-colors hover:bg-s2">
-        No votes yet. Once people vote on the Location tab, the leading place shows up here. <span className="font-semibold text-accent-text">Go vote</span>
+        No votes on a place yet. The leading place shows up here once people vote. <span className="font-semibold text-accent-text">Go vote</span>
       </button>
     )
   }
@@ -1076,7 +1076,7 @@ function EmptyState({ onGoToTab }: { onGoToTab?: GoTab }) {
         <p className="mt-1.5 text-[14px] text-dim">This tab fills in as people reply. It starts with two quick steps.</p>
         <div className="mx-auto mt-4 flex max-w-[360px] flex-col gap-2 text-left">
           <StepRow n={1} text="Mark when you're free" cta="Open availability" onClick={() => onGoToTab?.('availability')} />
-          <StepRow n={2} text="Vote on a place" cta="Open location" onClick={() => onGoToTab?.('location')} />
+          <StepRow n={2} text="Vote on a place" cta="Open Vote" onClick={() => onGoToTab?.('location')} />
         </div>
       </div>
     </div>

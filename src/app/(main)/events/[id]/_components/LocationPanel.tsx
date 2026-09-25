@@ -29,6 +29,7 @@ import { gsap } from 'gsap'
 import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, SlidersHorizontal, Info, ExternalLink } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { fromDay, todayKey, getEvent, patchEvent, fmtMinute, fmtMinuteDay, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
+import { isPollKey } from '@/lib/polls'
 import { hintDismissed as isHintDismissed, dismissHint as markHintDismissed } from '@/lib/prefs'
 import { fmtDuration, MODE_LABEL, ALL_MODES, type TravelMode, type ModeEstimate } from '@/lib/travel'
 import { computeItinerary, legKm } from '@/lib/itinerary'
@@ -256,7 +257,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
     if (has) {
       next[placeId] = without(placeId)
     } else if (maxVotes === 1) {
-      for (const id of Object.keys(base)) if (base[id].includes(YOU)) next[id] = without(id)
+      // your pick moves off the other places only; picks on the host's questions share
+      // this map and stay where they are
+      for (const id of Object.keys(base)) if (!isPollKey(id) && base[id].includes(YOU)) next[id] = without(id)
       next[placeId] = [...without(placeId), YOU]
     } else {
       next[placeId] = [...without(placeId), YOU]
@@ -297,10 +300,12 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // with it (stops reference places); clearing the itinerary leaves the ballot alone
   function clearAllPlaces() {
     voteFlip.capture(); itinFlip.capture()
-    setPlaces([]); setVotes({}); setStops([]); setBuiltRank([]); setConfirmClear(null)
+    // the place votes go; picks on the host's questions live in the same map and stay
+    const kept = Object.fromEntries(Object.entries(latestVotes()).filter(([k]) => isPollKey(k)))
+    setPlaces([]); setVotes(kept); setStops([]); setBuiltRank([]); setConfirmClear(null)
     persist({
       location: { ...loc, mode, places: [], guestsCanSuggest, meetingLink },
-      votes: {},
+      votes: kept,
       itinStops: [], itinDwell: [], itinRank: [],
     })
   }

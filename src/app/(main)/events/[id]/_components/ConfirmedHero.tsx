@@ -70,7 +70,7 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
             {event.location.mode === 'remote' ? (
               <><Video size={15} className="flex-none text-accent-text" /> Online on {event.location.platform}</>
             ) : itinLocked ? (
-              <><Route size={15} className="flex-none text-accent-text" /> {itin.length}-stop itinerary, on the Location tab</>
+              <><Route size={15} className="flex-none text-accent-text" /> {itin.length}-stop itinerary, on the Vote tab</>
             ) : placeNames.length > 1 ? (
               <><MapPin size={15} className="flex-none text-accent-text" /> <span className="min-w-0">Happening across {placeNames.length} spots: {placeNames.join(', ')}</span></>
             ) : placeNames.length > 0 ? (

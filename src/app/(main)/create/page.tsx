@@ -887,8 +887,8 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
             {form.locSettled
               ? <><MapPin size={16} className="mt-0.5 flex-none" /> Add the place. Guests see it as settled — no voting, no suggestions.</>
               : form.planMode === 'vote'
-                ? <><Vote size={16} className="mt-0.5 flex-none" /> Add a few ideas to start the vote. The one with the most votes wins, and anyone can add more places on the Location tab later.</>
-                : <><Route size={16} className="mt-0.5 flex-none" /> Add the places you&apos;ll visit in the order you&apos;ll go. The route stays editable on the Location tab.</>}
+                ? <><Vote size={16} className="mt-0.5 flex-none" /> Add a few ideas to start the vote. The one with the most votes wins, and anyone can add more places on the Vote tab later.</>
+                : <><Route size={16} className="mt-0.5 flex-none" /> Add the places you&apos;ll visit in the order you&apos;ll go. The route stays editable on the Vote tab.</>}
           </p>
 
           {/* search */}
@@ -936,7 +936,7 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
               <span className="text-[13px] leading-[1.5] text-dim">
                 {form.locSettled
                   ? 'No place yet. Search above to add where it happens.'
-                  : 'No places yet. You can start the vote empty and let everyone add ideas on the Location tab, or search above to seed it.'}
+                  : 'No places yet. You can start the vote empty and let everyone add ideas on the Vote tab, or search above to seed it.'}
               </span>
             </div>
           ) : (

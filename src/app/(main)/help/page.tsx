@@ -21,6 +21,7 @@ const GROUPS: { title: string; items: QA[] }[] = [
       { q: 'How do I plan something?', a: 'Log in, name the plan, and pick a stretch of days. That is enough to get a link. Everything else, the place, the budget, the time window, can be added later or never.' },
       { q: 'How do people join?', a: 'Copy the invite link from the event page or its card and send it anywhere. Whoever opens it adds their name and they are in. They can mark when they are free, vote on places, say if they are coming, and chat.' },
       { q: 'What does "Lock it in" do?', a: 'It turns the plan into fact: the chosen day, time, and place go out to everyone, and the event moves to the RSVP stretch where people say if they are coming. You can reopen planning later, which clears the RSVPs.' },
+      { q: 'Can we vote on something other than the place?', a: 'Yes. On the Vote tab the host can add a question with a few options, like which game to play. Everyone gets one pick and can change it until the plan is locked in.' },
       { q: 'What is the difference between a time poll and a day poll?', a: 'A time poll asks when during the day people are free, in slots. A day poll asks which whole days work, one tap each. Ranges longer than four weeks become day polls on their own, since trips are picked by day, not by hour.' },
     ],
   },

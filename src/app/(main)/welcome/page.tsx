@@ -263,7 +263,7 @@ function Welcome() {
           <ol className="mt-2 flex flex-col gap-1.5 text-[14px] leading-[1.55] text-dim">
             <li><span className="font-medium text-text">The link.</span> One link, and everyone can answer without an account.</li>
             <li><span className="font-medium text-text">The grid.</span> Drag across the hours you can make.</li>
-            <li><span className="font-medium text-text">Location.</span> Places on a ballot, votes, and a route.</li>
+            <li><span className="font-medium text-text">Vote.</span> Pick a place, or anything else the host asks.</li>
             <li><span className="font-medium text-text">Attendance and details.</span> Who is coming, and everything else.</li>
             <li><span className="font-medium text-text">The lock-in.</span> The host sets the plan and everyone gets it.</li>
           </ol>
