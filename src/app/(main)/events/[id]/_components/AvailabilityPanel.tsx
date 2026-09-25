@@ -35,7 +35,7 @@
    per cell, and the avatars in a cell cap hard (none at all on a phone, where the
    count carries it). Nothing here is allowed to cost cells x people. */
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, SlidersHorizontal, Trash2, Zap } from 'lucide-react'
@@ -50,7 +50,7 @@ import { Popover } from '@/components/ui/Popover'
 import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, MissingPopover, PresetFills, Segment } from './availability/parts'
 import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, PILE_AV, PILE_FONT, PILE_OVER, subtract, type Band, type GDay } from './availability/grid-lib'
 import { DayCalendar } from './availability/DayCalendar'
-import { prefH24, prefWholeWeek } from '@/lib/prefs'
+import { prefH24, prefWholeWeek, reducedMotion } from '@/lib/prefs'
 import { useAccount } from '@/hooks/useAccount'
 import { useFollow } from '@/hooks/useFollow'
 import { canEmail, sendNudges } from '@/lib/mail'
@@ -254,6 +254,48 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const pageCount = Math.max(1, Math.ceil(paddedDays.length / WEEK))
   const weekDays = paddedDays.slice(page * WEEK, page * WEEK + WEEK)
   const goWeek = (dir: -1 | 1) => { setPage((p) => Math.max(0, Math.min(pageCount - 1, p + dir))); setSel(null) }
+
+  /* ── the other weeks, so nobody fills in one and leaves ──
+     A poll longer than a week is paged, and the pager alone was easy to miss: people
+     marked the week they landed on and never saw the rest. Once you have marked
+     something in this week, a quiet bar says how many weeks still have nothing from you
+     and jumps to the nearest one. One pass over the days per change of `mine`, so it
+     follows a drag as it paints; never per cell. */
+  const weekMarked = useMemo<boolean[]>(() => {
+    const out: boolean[] = []
+    for (let p = 0; p < pageCount; p++) {
+      let marked = false
+      for (let i = p * WEEK; i < Math.min(paddedDays.length, p * WEEK + WEEK); i++) {
+        const d = paddedDays[i]
+        if (!d.pad && (mine[d.key]?.length ?? 0) > 0) { marked = true; break }
+      }
+      out.push(marked)
+    }
+    return out
+  }, [paddedDays, pageCount, mine])
+  const weeksLeft = weekMarked.filter((m) => !m).length
+  // the nearest empty week after this one, wrapping round to the earlier ones
+  let openWeek = -1
+  for (let i = 1; i < pageCount && openWeek < 0; i++) { const p = (page + i) % pageCount; if (!weekMarked[p]) openWeek = p }
+  const wantWeekNudge = !dayPoll && mode === 'edit' && pageCount > 1 && !!weekMarked[page] && openWeek >= 0
+  // the bar comes and goes between strokes, never during one: it sits above the grid,
+  // and a grid that shifted under a painting finger would paint the wrong rows
+  const [weekNudge, setWeekNudge] = useState(wantWeekNudge)
+  if (!drag && weekNudge !== wantWeekNudge) setWeekNudge(wantWeekNudge)
+  const weekNudgeRef = useRef<HTMLDivElement>(null)
+  const rangeRef = useRef<HTMLSpanElement>(null)
+  const weekNudgeMsgId = useId()
+  useGSAP(() => {
+    if (!weekNudge || !weekNudgeRef.current || reducedMotion()) return
+    gsap.fromTo(weekNudgeRef.current, { y: -6, opacity: 0 }, { y: 0, opacity: 1, duration: 0.28, ease: 'power3.out' })
+  }, { dependencies: [weekNudge] })
+  function goOpenWeek() {
+    if (openWeek < 0) return
+    setPage(openWeek); setSel(null)
+    // the bar leaves with the jump (the new week is empty), so focus goes to the
+    // week's own label rather than falling to the page
+    requestAnimationFrame(() => rangeRef.current?.focus())
+  }
 
   /* ── the days outside the poll, folded away ──
      A week is squared off with filler so the columns line up with a calendar, but
@@ -1405,9 +1447,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           ) : (
             <div className="flex items-center gap-[3px]">
               <IconBtn onClick={() => goWeek(-1)} disabled={page === 0} label="Previous week"><ChevronLeft size={17} /></IconBtn>
-              <span className="px-1 text-center text-[13.5px] font-semibold leading-tight">
+              <span ref={rangeRef} tabIndex={-1} className="rounded-[6px] px-1 text-center text-[13.5px] font-semibold leading-tight">
                 {rangeLabel}
-                {pageCount > 1 && <> <span className="font-medium text-faint">(week {page + 1} of {pageCount})</span></>}
+                {pageCount > 1 && <> <span className="font-medium text-dim">(week {page + 1} of {pageCount})</span></>}
               </span>
               <IconBtn onClick={() => goWeek(1)} disabled={page >= pageCount - 1} label="Next week"><ChevronRight size={17} /></IconBtn>
             </div>
@@ -1582,6 +1624,30 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             </div>
           )
         })()}
+
+        {/* the other weeks of a paged poll. The status region stays mounted so the line is
+            read out when it appears; it sits above the selected-block editor so that
+            editor coming and going never moves it. The button says "Next week" unless the
+            only empty weeks are behind you. */}
+        {!dayPoll && (
+          <div role="status">
+            {weekNudge && openWeek >= 0 && (
+              <div ref={weekNudgeRef} className="mb-2 flex items-center justify-between gap-3 rounded-lg bg-accent-bg py-1 pl-3 pr-1 text-accent-text">
+                <span id={weekNudgeMsgId} className="min-w-0 text-[13px] font-medium">
+                  {weeksLeft} more {weeksLeft === 1 ? 'week' : 'weeks'} to fill in.
+                </span>
+                <button
+                  type="button"
+                  onClick={goOpenWeek}
+                  aria-describedby={weekNudgeMsgId}
+                  className="flex h-11 flex-none items-center rounded-[8px] border border-accent-border bg-s1 px-3 text-[13px] font-semibold hover:border-accent sm:h-8"
+                >
+                  Go to week {openWeek + 1}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* selected-block editor — precise edge control that works by touch (no arrow keys on mobile) */}
         {mode === 'edit' && sel && (
