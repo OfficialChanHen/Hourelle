@@ -35,10 +35,10 @@
    per cell, and the avatars in a cell cap hard (none at all on a phone, where the
    count carries it). Nothing here is allowed to cost cells x people. */
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, SlidersHorizontal, Trash2, Zap } from 'lucide-react'
+import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, SlidersHorizontal, Trash2, Zap } from 'lucide-react'
 
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
@@ -48,9 +48,10 @@ import { Switch } from '@/components/ui/Switch'
 import { DurationField } from '@/components/ui/DurationField'
 import { Hint } from '@/components/ui/Hint'
 import { Popover } from '@/components/ui/Popover'
-import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, IconBtn, ImportFromCalendar, MissingPopover, PresetFills, Segment } from './availability/parts'
+import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, ImportFromCalendar, MissingPopover, PresetFills, Segment } from './availability/parts'
 import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, PILE_AV, PILE_FONT, PILE_OVER, subtract, type Band, type GDay } from './availability/grid-lib'
 import { DayCalendar } from './availability/DayCalendar'
+import { WeekStrip } from './availability/WeekStrip'
 import { prefH24, prefWholeWeek } from '@/lib/prefs'
 import { useAccount } from '@/hooks/useAccount'
 import { useFollow } from '@/hooks/useFollow'
@@ -254,14 +255,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const paddedDays = useMemo<GDay[]>(() => padToWeeks(event.days), [event.days])
   const pageCount = Math.max(1, Math.ceil(paddedDays.length / WEEK))
   const weekDays = paddedDays.slice(page * WEEK, page * WEEK + WEEK)
-  const goWeek = (dir: -1 | 1) => { setPage((p) => Math.max(0, Math.min(pageCount - 1, p + dir))); setSel(null) }
   const goToWeek = (i: number) => { setPage(Math.max(0, Math.min(pageCount - 1, i))); setSel(null) }
 
   /* ── the week strip ──
      A poll that runs over several weeks shows one at a time, so the other weeks need
-     to be in plain sight, with how many people have answered each. Built once per
-     render from the per-day data, O(people × days), never per chip or per cell. Your
-     own entry reads from `mine`, so a chip counts you the moment you paint. */
+     to be in plain sight, with how many people have answered each. It is the only
+     way between weeks (the grid is its tab panel), so it replaces the old arrows and
+     the range label they framed. Built once per render from the per-day data,
+     O(people × days), never per chip or per cell. Your own entry reads from `mine`,
+     so a chip counts you the moment you paint. */
   const weekChips = useMemo(() => {
     if (pageCount < 2) return []
     return Array.from({ length: pageCount }, (_, w) => {
@@ -279,16 +281,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       return { label, count: ids.size, you }
     })
   }, [paddedDays, pageCount, others, mine, meId])
-  // keeps the current week's chip in view when the arrows move past the strip's edge.
-  // Scrolls the strip only, never the page
-  const stripRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const s = stripRef.current
-    const c = s?.querySelector<HTMLElement>('[aria-current="true"]')
-    if (!s || !c) return
-    if (c.offsetLeft < s.scrollLeft) s.scrollLeft = c.offsetLeft
-    else if (c.offsetLeft + c.offsetWidth > s.scrollLeft + s.clientWidth) s.scrollLeft = c.offsetLeft + c.offsetWidth - s.clientWidth
-  }, [page, pageCount])
+  const weekStrip = !dayPoll && weekChips.length > 1
+  const weekTabId = useId(), gridPanelId = useId()
 
   /* ── the days outside the poll, folded away ──
      A week is squared off with filler so the columns line up with a calendar, but
@@ -1365,7 +1359,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     >
       <div ref={colRef} data-tour="grid-all" className="relative flex min-w-0 min-h-0 flex-1 flex-col p-4">
         {/* toolbar — first row pairs the mode toggle with Settings (always right-aligned);
-            the week nav and time controls flow on their own row below */}
+            the date range (a one-week poll only) and time controls flow on their own row below */}
         <div className="border-b border-border pb-[13px]">
           {editable && (
             <div className="mb-2.5 flex items-center justify-between gap-[9px]">
@@ -1437,14 +1431,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               {pollRange}
               <span className="font-medium text-faint"> ({event.days.length} days)</span>
             </span>
-          ) : (
-            <div className="flex items-center gap-[3px]">
-              <IconBtn onClick={() => goWeek(-1)} disabled={page === 0} label="Previous week"><ChevronLeft size={17} /></IconBtn>
-              <span className="px-1 text-center text-[13.5px] font-semibold leading-tight">
-                {rangeLabel}
-              </span>
-              <IconBtn onClick={() => goWeek(1)} disabled={page >= pageCount - 1} label="Next week"><ChevronRight size={17} /></IconBtn>
-            </div>
+          ) : !weekStrip && (
+            // a poll of one week names it here; longer ones name each week on the
+            // strip above the grid, so the toolbar does not say it twice
+            <span className="text-[13.5px] font-semibold leading-tight">{rangeLabel}</span>
           )}
           {/* it lives in Settings, which only a grid you can edit has; a read-only
               grid keeps it here so nobody loses the days around the poll */}
@@ -1660,39 +1650,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           </Hint>
         )}
 
-        {/* one chip per week, so a poll that runs over several weeks never hides the
-            later ones behind the arrows. Scrolls sideways on its own on a phone */}
-        {!dayPoll && weekChips.length > 1 && (
-          <div
-            ref={stripRef}
-            role="group"
-            aria-label="Weeks"
-            className="scroll-slim relative mb-2 grid snap-x auto-cols-[minmax(124px,156px)] grid-flow-col gap-2 overflow-x-auto"
-          >
-            {weekChips.map((w, i) => {
-              const on = i === page
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => goToWeek(i)}
-                  aria-current={on ? 'true' : undefined}
-                  className={`flex h-11 snap-start flex-col items-start justify-center rounded-lg border px-2.5 text-left leading-tight ${on ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-text hover:border-border2'}`}
-                >
-                  <span className="whitespace-nowrap text-[12.5px] font-semibold">{w.label}</span>
-                  <span className={`flex items-center gap-1.5 whitespace-nowrap text-[12px] sm:text-[11.5px] ${on ? 'text-accent-text' : 'text-dim'}`}>
-                    {w.count === 0 ? 'No answers' : `${w.count} answered`}
-                    {w.you && (
-                      <>
-                        <span aria-hidden className="h-[7px] w-[7px] flex-none rounded-full" style={{ background: 'var(--you-many)', boxShadow: 'inset 0 0 0 1px var(--you-text)' }} />
-                        <span className="sr-only">, including you</span>
-                      </>
-                    )}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
+        {/* one segment per week, so a poll that runs over several weeks keeps every
+            week in plain sight. The grid below is what it switches */}
+        {weekStrip && (
+          <WeekStrip weeks={weekChips} total={total} value={page} onChange={goToWeek} idBase={weekTabId} panelId={gridPanelId} />
         )}
 
         {/* grid — a day poll gets the calendar, everything else the timetable */}
@@ -1730,6 +1691,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           ref={scroller}
           data-tour="grid"
           onScroll={onGridScroll}
+          // the week strip's tab panel when there is one: its selected tab names the week
+          id={gridPanelId}
+          role={weekStrip ? 'tabpanel' : undefined}
+          aria-labelledby={weekStrip ? `${weekTabId}-${page}` : undefined}
           // a held finger is how painting starts on a phone — it must not open the long-press menu
           onContextMenu={(e) => { if (mode === 'edit') e.preventDefault() }}
           className={`scroll-slim min-h-0 flex-1 overflow-auto rounded-[10px] border border-border pb-2 ${panelH === null ? 'max-h-[calc(100dvh-200px)] lg:max-h-none' : ''}`}
