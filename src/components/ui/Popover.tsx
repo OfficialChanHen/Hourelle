@@ -47,7 +47,7 @@ const subscribeNarrow = (cb: () => void) => {
 }
 
 export function Popover({
-  trigger, children, align = 'end', width = 240, className,
+  trigger, children, align = 'end', width = 240, className, label,
 }: {
   trigger: (open: boolean) => ReactNode
   children: (close: () => void) => ReactNode
@@ -55,6 +55,9 @@ export function Popover({
   // a number is a fixed width; 'fit' sizes the panel to what is in it, up to 300
   width?: number | 'fit'
   className?: string
+  // the trigger's accessible name, for a trigger that is only an icon or whose
+  // visible text alone does not say what it opens
+  label?: string
 }) {
   const [open, setOpen] = useState(false)
   const narrow = useSyncExternalStore(subscribeNarrow, () => window.matchMedia(NARROW).matches, () => false)
@@ -70,7 +73,7 @@ export function Popover({
   return (
     <RPopover.Root open={open} onOpenChange={setOpen}>
       <RPopover.Trigger asChild>
-        <button type="button" className={className}>{trigger(open)}</button>
+        <button type="button" aria-label={label} className={className}>{trigger(open)}</button>
       </RPopover.Trigger>
       <RPopover.Portal>
         <RPopover.Content
