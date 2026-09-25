@@ -455,7 +455,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
       {/* venue-type switch (host) — switching keeps each mode's data */}
       {event.hostedByYou && !locked && (
         <div className="flex items-center gap-2">
-          <SegmentedControl
+          <SegmentedControl label="Meeting type"
             size="sm"
             value={mode === 'remote' ? 'remote' : 'vote'}
             onChange={(v) => { setFocusPin(null); changeMode(v === 'remote' ? 'remote' : inPerson.current) }}
@@ -563,7 +563,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 same as in person or remote above it. Everyone else is shown the one
                 that was chosen, and moves with it when the host changes their mind. */}
             {event.hostedByYou ? (
-              <SegmentedControl
+              <SegmentedControl label="Vote or route"
                 size="sm"
                 stretch
                 className="flex-1"
@@ -606,7 +606,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                     <div>
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Votes per person</div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <SegmentedControl
+                        <SegmentedControl label="Votes per person"
                           size="sm"
                           value={customVotes ? 'custom' : String(maxVotes)}
                           onChange={(v) => {

@@ -24,7 +24,9 @@ export function pushFlash(text: string, tone: Flash['tone'] = 'accent', { forNex
 }
 
 export function FlashToast() {
-  const [flash, setFlash] = useState<Flash | null>(null)
+  // n tells two flashes with the same words apart, so the second is still spoken
+  const [flash, setFlash] = useState<(Flash & { n: number }) | null>(null)
+  const seq = useRef(0)
   const box = useRef<HTMLDivElement>(null)
   // mounted once in the layout, which client-side navigation never remounts — so
   // the queue is checked again on every route change, not just on page load
@@ -36,7 +38,8 @@ export function FlashToast() {
         const raw = sessionStorage.getItem(KEY)
         if (!raw) return
         sessionStorage.removeItem(KEY)
-        setFlash(JSON.parse(raw) as Flash)
+        seq.current += 1
+        setFlash({ ...(JSON.parse(raw) as Flash), n: seq.current })
       } catch { /* private mode / bad payload */ }
     }
     read()
@@ -51,13 +54,15 @@ export function FlashToast() {
       .to(box.current, { y: -24, opacity: 0, duration: 0.4, ease: 'power3.in', delay: 4 })
   }, { dependencies: [flash] })
 
-  if (!flash) return null
-  const brick = flash.tone === 'brick'
+  const brick = flash?.tone === 'brick'
   // a zero-height sticky rail just under the header keeps the toast in view while the
   // page scrolls, the way the header itself stays; the toast still leaves on its own
   return (
-    <div className="pointer-events-none sticky top-[62px] z-[45] h-0">
-    <div ref={box} className="absolute left-1/2 top-0 w-max max-w-[calc(100vw-24px)] -translate-x-1/2 opacity-0">
+    // the rail stays mounted, empty or not: a screen reader speaks what lands in a
+    // live region it already knows, not one that arrives with its words inside
+    <div role="status" aria-live="polite" className="pointer-events-none sticky top-[62px] z-[45] h-0">
+    {flash && (
+    <div key={flash.n} ref={box} className="absolute left-1/2 top-0 w-max max-w-[calc(100vw-24px)] -translate-x-1/2 opacity-0">
       <div className="flex items-center gap-2.5 rounded-xl border border-border2 bg-s1 px-4 py-3 shadow-soft">
         <span className={`grid h-7 w-7 place-items-center rounded-full ${brick ? 'bg-brick-bg text-brick-text' : 'bg-accent-bg text-accent-text'}`}>
           {brick ? <Trash2 size={15} /> : <Check size={16} />}
@@ -65,6 +70,7 @@ export function FlashToast() {
         <span className="text-[14px] font-semibold">{flash.text}</span>
       </div>
     </div>
+    )}
     </div>
   )
 }

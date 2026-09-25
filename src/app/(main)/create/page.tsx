@@ -500,7 +500,7 @@ function CreateWizard() {
                     <span className="pointer-events-none absolute left-[13px] top-1/2 -translate-y-1/2 text-dim">$</span>
                     <input inputMode="numeric" placeholder="0" value={form.budget} onChange={(e) => update({ budget: e.target.value.replace(/[^\d]/g, '') })} className={`${inputCls(false)} pl-7`} />
                   </div>
-                  <Segmented value={form.budgetMode} onChange={(v) => update({ budgetMode: v as 'total' | 'person' })} options={[{ v: 'total', l: 'Total' }, { v: 'person', l: 'Per person' }]} />
+                  <Segmented label="Budget type" value={form.budgetMode} onChange={(v) => update({ budgetMode: v as 'total' | 'person' })} options={[{ v: 'total', l: 'Total' }, { v: 'person', l: 'Per person' }]} />
                 </div>
               </div>
               <div className="min-w-[140px] flex-1">
@@ -674,7 +674,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
                 it names each end on its own day rather than pretending to be a band. */}
             <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
               <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> {fxRun ? 'Times' : 'Hours'}</span>
-              <Segmented value={form.fixedAllDay ? 'all' : 'hours'} onChange={(v) => update({ fixedAllDay: v === 'all' })} options={[{ v: 'hours', l: fxRun ? 'Set times' : 'Set hours' }, { v: 'all', l: 'All day' }]} />
+              <Segmented label={fxRun ? 'Times' : 'Hours'} value={form.fixedAllDay ? 'all' : 'hours'} onChange={(v) => update({ fixedAllDay: v === 'all' })} options={[{ v: 'hours', l: fxRun ? 'Set times' : 'Set hours' }, { v: 'all', l: 'All day' }]} />
             </div>
             {fxRun && !form.fixedAllDay && (
               <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
@@ -748,13 +748,13 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           {form.granularity !== 'day' && (<>
           <div className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
             <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Time slot size</span>
-            <Segmented value={form.granularity} onChange={pickGranularity} options={[{ v: '15', l: '15 min' }, { v: '30', l: '30 min' }, { v: '60', l: '1 hour' }]} />
+            <Segmented label="Time slot size" value={form.granularity} onChange={pickGranularity} options={[{ v: '15', l: '15 min' }, { v: '30', l: '30 min' }, { v: '60', l: '1 hour' }]} />
           </div>
 
           {/* which hours of each day the poll covers */}
           <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
             <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Daily time window</span>
-            <Segmented value={form.windowPreset} onChange={pickWin} options={WIN_PRESETS.map((p) => ({ v: p.v, l: p.l }))} />
+            <Segmented label="Daily time window" value={form.windowPreset} onChange={pickWin} options={WIN_PRESETS.map((p) => ({ v: p.v, l: p.l }))} />
           </div>
           {form.windowPreset === 'custom' && (
             <TimeRange
@@ -858,7 +858,7 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
     <div className="flex flex-col gap-4">
       <div>
         <Label>Where will you meet?</Label>
-        <SegmentedControl
+        <SegmentedControl label="Where to meet"
           stretch
           className="w-full"
           value={form.locMode}
@@ -871,7 +871,7 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
         <div className="flex flex-col gap-3">
           <div>
             <Label>How is the location decided?</Label>
-            <SegmentedControl
+            <SegmentedControl label="How the place is picked"
               stretch
               className="w-full"
               value={form.locSettled ? 'set' : form.planMode}
@@ -986,7 +986,7 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
               {PLATFORMS.map((p) => {
                 const on = form.platform === p.name
                 return (
-                  <button key={p.name} type="button" onClick={() => update({ platform: p.name })} className={`flex h-[34px] items-center gap-1.5 rounded-[9px] px-3 text-[13.5px] font-semibold ${on ? 'border-[1.5px] border-accent-border bg-accent-bg text-accent-text' : 'border border-border bg-s2 text-dim'}`}>
+                  <button key={p.name} type="button" aria-pressed={on} onClick={() => update({ platform: p.name })} className={`flex h-[34px] items-center gap-1.5 rounded-[9px] px-3 text-[13.5px] font-semibold ${on ? 'border-[1.5px] border-accent-border bg-accent-bg text-accent-text' : 'border border-border bg-s2 text-dim'}`}>
                     {p.img && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={p.img} alt="" width={16} height={16} className="rounded-[3px]" />
@@ -1299,11 +1299,11 @@ function Label({ children, htmlFor }: { children: React.ReactNode; htmlFor?: str
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div><Label>{label}</Label>{children}</div>
 }
-function Segmented({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { v: string; l: string }[] }) {
+function Segmented({ value, onChange, options, label }: { value: string; onChange: (v: string) => void; options: { v: string; l: string }[]; label?: string }) {
   return (
-    <div className="flex flex-wrap rounded-[9px] border border-border bg-s1 p-0.5">
+    <div role="group" aria-label={label} className="flex flex-wrap rounded-[9px] border border-border bg-s1 p-0.5">
       {options.map((o) => (
-        <button key={o.v} type="button" onClick={() => onChange(o.v)} className="flex h-11 sm:h-7 items-center rounded-[7px] px-3 text-[13px] font-semibold transition-colors" style={value === o.v ? { background: 'var(--accent)', color: 'var(--on-accent)' } : { color: 'var(--dim)' }}>
+        <button key={o.v} type="button" aria-pressed={value === o.v} onClick={() => onChange(o.v)} className="flex h-11 sm:h-7 items-center rounded-[7px] px-3 text-[13px] font-semibold transition-colors" style={value === o.v ? { background: 'var(--accent)', color: 'var(--on-accent)' } : { color: 'var(--dim)' }}>
           {o.l}
         </button>
       ))}

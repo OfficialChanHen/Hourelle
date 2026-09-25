@@ -25,6 +25,7 @@ import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, 
 import { Avatar } from '@/components/ui/Avatar'
 import { Popover, PopoverNote, PopoverTitle } from '@/components/ui/Popover'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { Announce } from '@/components/ui/Announce'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import {
   availIvOf, bestWindow, byYouFirst, confirmedSlotText, dayLabel, gridStartMinOf, fmtMinute, fmtMinuteDay, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
@@ -164,7 +165,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
         <div className="flex flex-wrap items-center gap-2">
           <CopySummaryButton event={liveEvent} win={win} locked={locked} gridStart={gridStart} dayIv={dayIv} markedIds={markedIds} />
           {hasItinerary && (
-            <SegmentedControl
+            <SegmentedControl label="Attendance view"
               size="sm"
               value={model}
               onChange={(v) => setModel(v as 'single' | 'itin')}
@@ -375,9 +376,12 @@ function CopySummaryButton({ event, win, locked, gridStart, dayIv, markedIds }: 
     navigator.clipboard?.writeText(summaryOf(event, win, locked, gridStart, dayIv, markedIds)).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
   return (
-    <button onClick={copy} className={`flex h-11 items-center gap-1.5 rounded-[9px] border px-3 text-[13px] font-semibold sm:h-9 ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
-      {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy summary</>}
-    </button>
+    <>
+      <button onClick={copy} className={`flex h-11 items-center gap-1.5 rounded-[9px] border px-3 text-[13px] font-semibold sm:h-9 ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
+        {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy summary</>}
+      </button>
+      <Announce text={copied ? 'Summary copied' : ''} />
+    </>
   )
 }
 
@@ -527,7 +531,7 @@ function SingleVenue({
       )}
 
       {/* pick one group or read them all — the chips double as a headcount per group */}
-      <div className="-mx-5 mt-5 flex items-center gap-1.5 overflow-x-auto px-5 py-1.5 scroll-none sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+      <div role="group" aria-label="Show people" className="-mx-5 mt-5 flex items-center gap-1.5 overflow-x-auto px-5 py-1.5 scroll-none sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
         {([
           ['all', 'All', event.participants.length],
           ['whole', locked && hasVenue ? 'Whole time' : 'Free whole time', groups.whole.length],
@@ -540,7 +544,7 @@ function SingleVenue({
           const on = showGroup === k
           return (
             <button
-              key={k} onClick={() => setShowGroup(k)}
+              key={k} type="button" aria-pressed={on} onClick={() => setShowGroup(k)}
               // 32 to look at, 44 to touch: the pseudo-element takes the finger
               className={`relative flex h-8 flex-none items-center gap-1 whitespace-nowrap rounded-full border px-3 text-[12.5px] font-semibold before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] sm:h-7 sm:px-2.5 sm:before:hidden ${on ? 'border-accent bg-accent text-on-accent' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}
             >
@@ -751,7 +755,7 @@ function HeadcountBars({
             const short = quorum != null && c < quorum
             return (
               <button
-                key={i} type="button" onClick={() => setSel(sel === i ? null : i)}
+                key={i} type="button" aria-pressed={sel === i} onClick={() => setSel(sel === i ? null : i)}
                 aria-label={`${fmtMinute(gridStart + winS + i * step)}, ${c} of ${attendees.length} free`}
                 className={`grid min-w-0 flex-1 place-items-center text-[12px] font-semibold tabular-nums ${i > 0 ? 'border-l border-bg/60' : ''} ${sel === i ? 'ring-2 ring-inset ring-accent' : ''}`}
                 style={{ background: bg, color: short ? 'var(--brick-text)' : fg }}
@@ -804,7 +808,7 @@ function RosterGroup({ label, tone, people, cap: capIn, compact, action, onPerso
   const shown = all ? people : people.slice(0, cap)
   const extra = people.length - shown.length
   const more = extra > 0 || all ? (
-    <button type="button" onClick={() => setAll((a) => !a)} className="relative h-8 self-start rounded-full px-1 text-[12.5px] font-semibold text-accent-text before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] hover:underline">
+    <button type="button" aria-expanded={all} onClick={() => setAll((a) => !a)} className="relative h-8 self-start rounded-full px-1 text-[12.5px] font-semibold text-accent-text before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] hover:underline">
       {all ? 'Show fewer' : `Show all ${people.length}`}
     </button>
   ) : null
@@ -916,9 +920,12 @@ function CopyReminder({ event }: { event: AppEvent }) {
     navigator.clipboard?.writeText(msg).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
   return (
-    <button onClick={copy} className={`flex h-11 sm:h-7 items-center gap-1.5 rounded-[7px] border px-2 text-[12px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 text-dim hover:bg-s2'}`}>
-      {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy a reminder</>}
-    </button>
+    <>
+      <button onClick={copy} className={`flex h-11 sm:h-7 items-center gap-1.5 rounded-[7px] border px-2 text-[12px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 text-dim hover:bg-s2'}`}>
+        {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy a reminder</>}
+      </button>
+      <Announce text={copied ? 'Reminder copied' : ''} />
+    </>
   )
 }
 

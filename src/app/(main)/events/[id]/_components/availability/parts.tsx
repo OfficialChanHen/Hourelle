@@ -28,6 +28,7 @@ export function FilterAvatars({ participants, filter, onToggle, onClear, onSelec
         return (
           <button
             key={p.id} type="button" onClick={() => onToggle(p.id)}
+            aria-pressed={on} aria-label={p.name}
             title={on ? `${p.name}: click to unfilter` : `${p.name}: see when they are free`}
             className={`relative rounded-full transition-opacity ${i > 0 ? '-ml-[5px]' : ''}`}
             style={{ boxShadow: on ? '0 0 0 1.5px var(--s1), 0 0 0 3.5px var(--accent)' : undefined, opacity: active && !on ? 0.35 : 1, zIndex: on ? 1 : undefined }}
@@ -38,7 +39,7 @@ export function FilterAvatars({ participants, filter, onToggle, onClear, onSelec
       })}
       {extra.length > 0 && (
         <button
-          type="button" onClick={() => setPickerOpen(true)} title="Pick people to filter by"
+          type="button" onClick={() => setPickerOpen(true)} title="Pick people to filter by" aria-haspopup="dialog"
           className={`ml-1.5 grid h-[25px] min-w-[25px] place-items-center rounded-full border px-1.5 text-[10.5px] font-bold ${extraOn > 0 ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border2 bg-s1 text-dim'}`}
         >
           +{extra.length}
@@ -111,7 +112,7 @@ export function FilterModal({ participants, filter, onToggle, onClear, onSelectA
             {list.map((p) => {
               const on = filter.has(p.id)
               return (
-                <button key={p.id} type="button" onClick={() => onToggle(p.id)} className={`flex items-center gap-2.5 rounded-[8px] px-2 py-2 text-left text-[13.5px] font-medium hover:bg-s2 ${on ? 'bg-s2' : ''}`}>
+                <button key={p.id} type="button" aria-pressed={on} onClick={() => onToggle(p.id)} className={`flex items-center gap-2.5 rounded-[8px] px-2 py-2 text-left text-[13.5px] font-medium hover:bg-s2 ${on ? 'bg-s2' : ''}`}>
                   <Avatar initials={p.initials} color={p.color} size={24} font={9.5} />
                   <span className="min-w-0 flex-1 truncate">{p.name}{p.you && <span className="font-normal text-faint"> (You)</span>}</span>
                   {on && <span className="flex flex-none items-center gap-1 text-[11.5px] font-semibold text-accent-text">In filter <Check size={13} /></span>}
@@ -284,9 +285,9 @@ export function MissingPopover({ missing, nudged, canNudge = false, note = null,
   }, [onClose])
   const allNudged = missing.every((p) => nudged.has(p.id))
   return (
-    <div ref={wrap} className="absolute left-0 top-full z-[35] mt-1 w-[244px] rounded-[10px] border border-border bg-s1 p-2 shadow-soft">
+    <div ref={wrap} id="missing-popover" role="dialog" aria-labelledby="missing-popover-title" className="absolute left-0 top-full z-[35] mt-1 w-[244px] rounded-[10px] border border-border bg-s1 p-2 shadow-soft">
       <div className="flex items-center justify-between px-1 pb-1.5">
-        <span className="text-[12px] font-semibold uppercase tracking-[.1em] text-faint">Waiting on {missing.length}</span>
+        <span id="missing-popover-title" className="text-[12px] font-semibold uppercase tracking-[.1em] text-faint">Waiting on {missing.length}</span>
         {canNudge && <button onClick={onNudgeAll} disabled={allNudged} className="flex items-center gap-1 text-[12px] font-semibold text-accent-text disabled:text-faint"><Bell size={12} /> Nudge all</button>}
       </div>
       {note && <p className="px-1 pb-1.5 text-[12px] leading-[1.45] text-dim">{note}</p>}
@@ -370,11 +371,11 @@ export function CellDetail({ bands, total, fmt, gridStartMin, dayLabel, avatarOf
 }
 
 /* ── small controls ── */
-export function Segment({ value, onChange, options, compact }: { value: string; onChange: (v: string) => void; options: { v: string; l: string }[]; compact?: boolean }) {
+export function Segment({ value, onChange, options, compact, label }: { value: string; onChange: (v: string) => void; options: { v: string; l: string }[]; compact?: boolean; label?: string }) {
   return (
-    <div className="inline-flex w-fit rounded-[9px] bg-s2 p-0.5">
+    <div role="group" aria-label={label} className="inline-flex w-fit rounded-[9px] bg-s2 p-0.5">
       {options.map((o) => (
-        <button key={o.v} onClick={() => onChange(o.v)} className={`flex h-11 items-center rounded-[7px] font-semibold transition-colors sm:h-7 ${compact ? 'px-2.5 text-[12.5px]' : 'px-3 text-[13px]'} ${value === o.v ? 'bg-raised text-text shadow-raised' : 'text-dim hover:text-text'}`}>
+        <button key={o.v} type="button" aria-pressed={value === o.v} onClick={() => onChange(o.v)} className={`flex h-11 items-center rounded-[7px] font-semibold transition-colors sm:h-7 ${compact ? 'px-2.5 text-[12.5px]' : 'px-3 text-[13px]'} ${value === o.v ? 'bg-raised text-text shadow-raised' : 'text-dim hover:text-text'}`}>
           {o.l}
         </button>
       ))}
