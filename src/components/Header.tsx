@@ -46,7 +46,7 @@ export function Header() {
   // phones: reading scrolls the header away, scrolling back up recalls it.
   // Desktop keeps it planted (md:translate-y-0 outranks the hide).
   const hidden = useHideOnScroll()
-  const chrome = `sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md transition-transform duration-300 md:translate-y-0 ${hidden ? '-translate-y-full' : 'translate-y-0'}`
+  const chrome = `sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md transition-transform duration-300 has-[:focus-visible]:translate-y-0 md:translate-y-0 ${hidden ? '-translate-y-full' : 'translate-y-0'}`
 
   // a visitor's header is the landing page's header — one component, so the two
   // never drift. Until the browser knows who this is, the same bar minus the doors.
@@ -109,6 +109,7 @@ export function Header() {
               <Link
                 key={t.href}
                 href={t.href}
+                aria-current={active ? 'page' : undefined}
                 className={`rounded-[9px] px-[13px] py-2 transition-colors ${
                   active ? 'bg-accent font-medium text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'
                 }`}
@@ -138,7 +139,7 @@ export function Header() {
         <div className="hidden items-center gap-2 md:flex">
           <Link
             href="/notifications"
-            aria-label="Notifications"
+            aria-label={notifCount > 0 ? `Notifications, ${notifCount} unread` : 'Notifications'}
             title="Notifications"
             className={`relative grid h-[30px] w-[30px] place-items-center rounded-lg border ${
               pathname.startsWith('/notifications')
@@ -160,9 +161,9 @@ export function Header() {
           <Popover
             align="end"
             width={236}
+            label="Account menu"
             trigger={(open) => (
               <span
-                aria-label="Account menu"
                 title="Account"
                 className={`grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-full text-[12.5px] font-semibold ring-2 transition-shadow ${open ? 'ring-accent-border' : 'ring-transparent hover:ring-border2'}`}
                 style={{ background: avatar.bg, color: avatar.text }}

@@ -7,6 +7,7 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { answerTourAsk, startTour, tourAskPending } from '@/lib/prefs'
 import { AUTH_SETTLED, authSettled, currentAccount } from '@/lib/session'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 
 /* The one question a guest gets, the moment they arrive at an event new to them:
    have you been here before? "Show me around" starts the tour on this very event;
@@ -40,6 +41,20 @@ export function AskTour({ eventId }: { eventId: string }) {
     gsap.fromTo('.ask-back', { opacity: 0 }, { opacity: 1, duration: 0.2 })
     gsap.fromTo('.ask-card', { opacity: 0, y: 12, scale: 0.98 }, { opacity: 1, y: 0, scale: 1, duration: 0.28, ease: 'power3.out' })
   }, { dependencies: [open], scope: root })
+
+  // focus lands on "Show me around" and stays in the card until it is answered
+  useFocusTrap(root, { active: open })
+  // Escape is the same answer as "I know my way"
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      answerTourAsk()
+      setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
 
   if (!open) return null
   const choose = (tour: boolean) => {

@@ -321,7 +321,12 @@ export function DayCalendar({
                   type="button"
                   data-daykey={key}
                   onPointerDown={(e) => onCellDown(e, key)}
-                  onClick={(e) => { if (!edit) onOpenDetail(e, key) }}
+                  onClick={(e) => {
+                    if (!edit) { onOpenDetail(e, key); return }
+                    // Enter or Space (a click with no pointer behind it) flips the day the
+                    // way a tap does; a real press already flipped it on pointerdown
+                    if (e.detail === 0) { onSweep([key]); onDragEnd() }
+                  }}
                   aria-pressed={edit ? mineOn : undefined}
                   aria-label={title}
                   title={title}
@@ -386,6 +391,7 @@ export function DayCalendar({
                           people={byRoster(ids).slice(0, shown).map(avatarOf)}
                           size={PILE_AV} overlap={PILE_OVER} font={PILE_FONT} max={shown}
                           more={chip ? `+${chip}` : ''}
+                          decorative
                         />
                       </span>
                     )

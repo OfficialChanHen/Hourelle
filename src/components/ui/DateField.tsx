@@ -15,13 +15,15 @@ import { CalendarDays } from 'lucide-react'
    and still does all the work: a tap opens the phone's own picker, a click asks
    for the desktop one with showPicker(), min and max still hold, and the keyboard
    still types into it. The box shows focus for it. */
-export function DateField({ value, onChange, label, min, max, invalid, empty = 'Not set', className = '' }: {
+export function DateField({ value, onChange, label, min, max, invalid, describedBy, empty = 'Not set', className = '' }: {
   value: string
   onChange: (v: string) => void
   label: string
   min?: string
   max?: string
   invalid?: boolean
+  // the id of the message that explains an error, when one is showing
+  describedBy?: string
   empty?: string
   className?: string
 }) {
@@ -33,7 +35,7 @@ export function DateField({ value, onChange, label, min, max, invalid, empty = '
       : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
     : ''
   return (
-    <span className={`@container relative flex min-w-0 items-center gap-2 rounded-[10px] border ${invalid ? 'border-brick-border' : 'border-border'} bg-s2 px-3 focus-within:border-accent-border ${className}`}>
+    <span className={`@container relative flex min-w-0 items-center gap-2 rounded-[10px] border ${invalid ? 'border-brick-border' : 'border-border'} bg-s2 px-3 focus-within:border-accent ${className}`}>
       {/* the icon gives way before the date does: a pair of fields on a 360 phone is
           too narrow for both */}
       <CalendarDays size={15} className="hidden flex-none text-dim @[108px]:block" aria-hidden />
@@ -41,6 +43,8 @@ export function DateField({ value, onChange, label, min, max, invalid, empty = '
       <input
         type="date"
         aria-label={label}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
         value={value}
         min={min}
         max={max}

@@ -8,6 +8,7 @@ import { AvatarRow } from './AvatarRow'
 import { TimezonePill } from './TimezonePill'
 import { Cover } from './Cover'
 import { Tip } from './Tip'
+import { Announce } from './Announce'
 import { daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, eventTabFor, leadingPlaceOf, phaseOf, respondedCount, type AppEvent, type SameDayInfo } from '@/lib/events'
 import { PHASE_BADGE, PHASE_TINT } from './LifecycleStrip'
 
@@ -71,6 +72,7 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
   const goEdit = asAction(() => router.push(`/events/${e.id}?tab=details`))
 
   return (
+    <>
     <Link
       href={eventTabFor(e)}
       className="group flex flex-col overflow-hidden rounded-[13px] border border-border bg-s1 p-3.5 transition-all hover:-translate-y-0.5 hover:border-border2"
@@ -223,5 +225,9 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
         </div>
       </div>
     </Link>
+    {/* outside the link, so the words never become part of the card's name; it is
+        taken out of the flow, so the grid the cards sit in never sees it */}
+    {canShare && <Announce text={copied ? 'Link copied' : ''} />}
+    </>
   )
 }

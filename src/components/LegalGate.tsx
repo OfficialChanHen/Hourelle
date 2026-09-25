@@ -7,6 +7,7 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { LEGAL, LEGAL_EFFECTIVE, readingMinutes, type LegalKey } from '@/content/legal'
 import { LegalDocument } from './ui/LegalDocument'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 
 /* The sign-up gate: one box per document. A box stays locked until its document has
    been read to the end, so nobody agrees to something they never saw, and both boxes
@@ -66,6 +67,7 @@ export function LegalGate({ onChange }: { onChange: (accepted: boolean) => void 
 export function LegalSheet({ k, read = true, onRead, onClose }: { k: LegalKey; read?: boolean; onRead?: () => void; onClose: () => void }) {
   const root = useRef<HTMLDivElement>(null)
   const bar = useRef<HTMLDivElement>(null)
+  const text = useRef<HTMLDivElement | null>(null)
   const [atEnd, setAtEnd] = useState(read || !onRead)
   // the end is reported once; the ref callback below runs on every render, so
   // without this the report would feed the render that repeats it
@@ -92,6 +94,8 @@ export function LegalSheet({ k, read = true, onRead, onClose }: { k: LegalKey; r
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+  // focus starts on the text itself, so the arrow keys and Page Down read it to the end
+  useFocusTrap(root, { initial: text })
 
   // on the body, not inside the form: the sign-up card animates in with a transform,
   // and a fixed backdrop inside a transformed box only ever covers that box
@@ -111,7 +115,12 @@ export function LegalSheet({ k, read = true, onRead, onClose }: { k: LegalKey; r
         <div className="h-[3px] w-full bg-s2" aria-hidden>
           <div ref={bar} className="h-full bg-accent" style={{ width: '0%' }} />
         </div>
-        <div ref={check} onScroll={(e) => check(e.currentTarget)} className="scroll-slim min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7">
+        <div
+          ref={(el) => { text.current = el; check(el) }}
+          tabIndex={0}
+          onScroll={(e) => check(e.currentTarget)}
+          className="scroll-slim min-h-0 flex-1 overflow-y-auto px-5 py-5 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent sm:px-7"
+        >
           <LegalDocument k={k} compact />
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">

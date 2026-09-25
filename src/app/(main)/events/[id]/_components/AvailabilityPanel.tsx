@@ -43,6 +43,7 @@ import { ChevronLeft, ChevronRight, ChevronDown, ChevronsLeftRight, ChevronsRigh
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { Announce } from '@/components/ui/Announce'
 import { Switch } from '@/components/ui/Switch'
 import { DurationField } from '@/components/ui/DurationField'
 import { Hint } from '@/components/ui/Hint'
@@ -1368,7 +1369,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         <div className="border-b border-border pb-[13px]">
           {editable && (
             <div className="mb-2.5 flex items-center justify-between gap-[9px]">
-              <SegmentedControl size="sm" value={mode} onChange={(v) => { setMode(v as Mode); setSel(null); setDetail(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
+              <SegmentedControl label="Mode" size="sm" value={mode} onChange={(v) => { setMode(v as Mode); setSel(null); setDetail(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
               <Popover
                 align="end"
                 // the host's panel holds the length track, which needs the room; anyone
@@ -1393,7 +1394,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     )}
                     {isHost && <div className={daysAnswer ? '' : 'border-t border-border pt-2.5'}>
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">{daysAnswer ? 'Best days favor' : 'Best time favors'}</div>
-                      <Segment compact value={bestMode} onChange={(v) => changeBestMode(v as BestMode)} options={[{ v: 'full', l: 'Everyone stays' }, { v: 'crowd', l: 'Biggest crowd' }]} />
+                      <Segment compact label={daysAnswer ? 'Best days favor' : 'Best time favors'} value={bestMode} onChange={(v) => changeBestMode(v as BestMode)} options={[{ v: 'full', l: 'Everyone stays' }, { v: 'crowd', l: 'Biggest crowd' }]} />
                       <p className="mt-1.5 w-0 min-w-full text-[12px] leading-[1.5] text-faint">
                         {daysAnswer
                           ? bestMode === 'full'
@@ -1406,7 +1407,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     </div>}
                     {!daysAnswer && <div className={isHost ? 'border-t border-border pt-2.5' : ''}>
                       <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Time format</div>
-                      <Segment value={h24 ? '24' : '12'} onChange={(v) => setH24(v === '24')} options={[{ v: '12', l: '12-hour' }, { v: '24', l: '24-hour' }]} />
+                      <Segment label="Time format" value={h24 ? '24' : '12'} onChange={(v) => setH24(v === '24')} options={[{ v: '12', l: '12-hour' }, { v: '24', l: '24-hour' }]} />
                     </div>}
                     {/* the days that only square the week off. Out of the toolbar and
                         in here: it is a preference about the view, not an action */}
@@ -1465,7 +1466,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               <button
                 type="button" onClick={() => setMyTime(false)} aria-pressed={!myTime}
                 title={`Event time (${tzAbbr(event.timezone)})`}
-                className={`flex h-full items-center px-2 ${!myTime ? 'bg-accent font-semibold text-on-accent' : 'text-dim hover:text-text'}`}
+                // the ring is drawn inside: the rounded frame clips anything outside it
+                className={`flex h-full items-center px-2 focus-visible:-outline-offset-2 ${!myTime ? 'bg-accent font-semibold text-on-accent' : 'text-dim hover:text-text'}`}
               >
                 {/* baseline-align the label and the smaller mono abbr so they sit on one line */}
                 <span className="flex items-baseline gap-1">Event <span className="font-mono text-[10.5px]">{tzAbbr(event.timezone)}</span></span>
@@ -1473,7 +1475,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               <button
                 type="button" onClick={() => setMyTime(true)} aria-pressed={myTime}
                 title={`Your time (${tzAbbr(localTz)})`}
-                className={`flex h-full items-center px-2 ${myTime ? 'bg-accent font-semibold text-on-accent' : 'text-dim hover:text-text'}`}
+                className={`flex h-full items-center px-2 focus-visible:-outline-offset-2 ${myTime ? 'bg-accent font-semibold text-on-accent' : 'text-dim hover:text-text'}`}
               >
                 <span className="flex items-baseline gap-1">Yours <span className="font-mono text-[10.5px]">{tzAbbr(localTz)}</span></span>
               </button>
@@ -1499,6 +1501,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           <div className="relative">
             <button
               onClick={() => missing.length && setShowMissing((s) => !s)}
+              aria-expanded={missing.length > 0 ? showMissing : undefined}
+              aria-haspopup={missing.length > 0 ? 'dialog' : undefined}
+              aria-controls={showMissing && missing.length > 0 ? 'missing-popover' : undefined}
               // keep this pointerdown from reaching the popover's outside-click listener —
               // it would close the popover first and the click would instantly reopen it
               onPointerDown={(e) => e.stopPropagation()}
@@ -1563,8 +1568,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             <Popover
               align="end"
               width={232}
+              label="How to read the grid"
               trigger={(open) => (
-                <span aria-label="How to read the grid" title="How to read the grid" className={`grid h-6 w-6 place-items-center rounded-full ${open ? 'bg-s2 text-dim' : 'text-faint hover:bg-s2 hover:text-dim'}`}>
+                <span title="How to read the grid" className={`grid h-6 w-6 place-items-center rounded-full ${open ? 'bg-s2 text-dim' : 'text-faint hover:bg-s2 hover:text-dim'}`}>
                   <Info size={14} />
                 </span>
               )}
@@ -1625,7 +1631,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 <span className="text-[12px] font-semibold text-accent-text">Selected</span>
                 <div className="inline-flex overflow-hidden rounded-full border border-border2 bg-s1 text-[11px] font-semibold">
                   {[5, 1].map((s) => (
-                    <button key={s} type="button" onClick={() => setNudgeStep(s)} className={`px-2.5 py-1 ${nudgeStep === s ? 'bg-accent text-on-accent' : 'text-dim hover:bg-s2'}`} aria-pressed={nudgeStep === s}>{s} min</button>
+                    <button key={s} type="button" onClick={() => setNudgeStep(s)} className={`px-2.5 py-1 focus-visible:-outline-offset-2 ${nudgeStep === s ? 'bg-accent text-on-accent' : 'text-dim hover:bg-s2'}`} aria-pressed={nudgeStep === s}>{s} min</button>
                   ))}
                 </div>
               </div>
@@ -1648,9 +1654,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             line about dragging, so the hint stays out of its way there */}
         {mode !== 'edit' && (
           <Hint name="grid" className="mb-2">
-            {!editable ? 'The greener a slot, the more people are free then.'
-              : dayPoll ? 'Tap the days you can make. The greener a day, the more people can.'
-                : 'Switch to Edit mine and drag across the hours you can make. The greener a slot, the more people can.'}
+            {!editable ? 'Darker green means more people are free.'
+              : dayPoll ? 'Tap the days you can make. Darker green means more people can.'
+                : 'Press Edit mine and drag across the hours you can make. Darker green means more people are free.'}
           </Hint>
         )}
 
@@ -1769,6 +1775,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   key={d.key}
                   type="button"
                   onClick={() => toggleDay(d.key)}
+                  aria-pressed={mode === 'edit' ? dayFull : undefined}
                   className={`sticky top-0 z-20 border-b border-r border-grid-edge px-1.5 py-2 text-center ${ownLeft(di) ? 'border-l border-l-grid-edge' : ''}`}
                   style={{
                     gridColumn: di + 2,
@@ -1819,6 +1826,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 <button
                   type="button"
                   onClick={() => toggleTime(ti)}
+                  aria-pressed={mode === 'edit' ? rowFull : undefined}
                   /* the rail reads like a chart axis: the time sits ON the line that
                      opens its row, not floating in the middle of it, and the rule is a
                      tick between the label and the grid — clear of the label, and with
@@ -1960,6 +1968,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                                 people={byRoster(peak.ids).slice(0, shown).map(avatarOf)}
                                 size={PILE_AV} overlap={PILE_OVER} font={PILE_FONT} max={shown}
                                 more={chip ? `+${chip}` : ''}
+                                decorative
                               />
                             </div>
                           )
@@ -2058,7 +2067,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                             type="button"
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={deleteSel}
-                            className="pointer-events-auto absolute right-0.5 z-[10] grid h-[15px] w-[15px] place-items-center rounded-full border bg-s1 text-brick shadow-soft"
+                            // the press area reaches 24px round the small cross, grown up, down and
+                            // inward only, so it never reaches into the next day's column
+                            className="pointer-events-auto absolute right-0.5 z-[10] grid h-[15px] w-[15px] place-items-center rounded-full border bg-s1 text-brick shadow-soft before:absolute before:-inset-y-[5px] before:-left-[9px] before:-right-[2px] before:content-['']"
                             // like the time chip, tuck fully inside the block when the edge hugs the grid top
                             style={{ top: `${topPct}%`, transform: topSide === 'below' ? 'translateY(3px)' : 'translateY(-50%)', borderColor: 'var(--border2)' }}
                             aria-label="Remove this block"
@@ -2122,7 +2133,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     value={blockLen}
                     onChange={(e) => setBlockLen(Number(e.target.value))}
                     aria-label="How many days in a row"
-                    className="h-7 cursor-pointer rounded-[7px] border border-border bg-s1 px-1.5 text-[12.5px] font-medium outline-none focus:border-accent-border"
+                    className="h-7 cursor-pointer rounded-[7px] border border-border bg-s1 px-1.5 text-[12.5px] font-medium outline-none focus:border-accent"
                   >
                     {Array.from({ length: maxRun }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n === 1 ? '1 day' : `${n} days`}</option>)}
                   </select>
@@ -2193,7 +2204,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         </div>}
       </div>
 
-      {/* undo toast — drops in under the header, gone after 8s */}
+      {/* undo toast — drops in under the header, gone after 8s. The toast comes and
+          goes, so its words are spoken from a region that stays put */}
+      <Announce text={undo?.label ?? ''} />
       {undo && (
         <div ref={toastRef} className="pointer-events-none fixed inset-x-0 top-[72px] z-50 flex justify-center px-4 md:top-[68px]">
           <div className={`pointer-events-auto flex items-center gap-2.5 rounded-full border border-border bg-s1 py-1.5 pl-4 text-[13px] shadow-soft ${undo.times ? 'pr-1.5' : 'pr-4'}`}>

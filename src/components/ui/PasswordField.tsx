@@ -37,12 +37,12 @@ export function PasswordField({ id, label, value, onChange, autoComplete, invali
           value={value}
           autoComplete={autoComplete}
           aria-invalid={invalid || undefined}
-          aria-describedby={hint ? `${id}-hint` : undefined}
+          aria-describedby={[caps && `${id}-caps`, hint && `${id}-hint`].filter(Boolean).join(' ') || undefined}
           onChange={(e) => onChange(e.target.value)}
           onKeyUp={(e) => setCaps(e.getModifierState?.('CapsLock') ?? false)}
           onBlur={() => setCaps(false)}
           className={`h-11 w-full rounded-[10px] border bg-s0 pl-3.5 pr-12 text-[14px] outline-none ${
-            invalid ? 'border-brick focus:border-brick' : 'border-border focus:border-accent-border'
+            invalid ? 'border-brick focus:border-brick' : 'border-border focus:border-accent'
           }`}
         />
         <button
@@ -55,7 +55,7 @@ export function PasswordField({ id, label, value, onChange, autoComplete, invali
           {shown ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
       </div>
-      {caps && <p className="text-[12px] text-ochre-text">Caps lock is on.</p>}
+      {caps && <p id={`${id}-caps`} role="status" className="text-[12px] text-ochre-text">Caps lock is on.</p>}
       {hint && <div id={`${id}-hint`}>{hint}</div>}
     </>
   )

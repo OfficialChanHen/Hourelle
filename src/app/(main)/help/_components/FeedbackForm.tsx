@@ -53,7 +53,7 @@ export function FeedbackForm() {
     }
   }
 
-  const field = 'w-full rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none placeholder:text-faint focus:border-accent-border'
+  const field = 'w-full rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none placeholder:text-faint focus:border-accent'
 
   return (
     <form onSubmit={submit} className="rounded-2xl border border-border bg-s1 p-5">

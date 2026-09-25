@@ -18,9 +18,9 @@ const GROUPS: Group[] = [
     title: 'When can everyone make it?',
     sub: 'The availability grid in its three shapes: hours, half hours, and whole days.',
     picks: {
-      'design-team-dinner': 'A **30-minute grid** with a **deadline** to settle by. Look for the **best window**, and who has not replied yet.',
       'cabin-trip': 'A **day poll**: whole days are the question, not hours. Look for the **longest run** everyone can make.',
       'brunch-at-mamas': 'The **place is already set**, so only the time is open. Look for how the plan narrows to one question.',
+      'design-team-dinner': 'A **30-minute grid** with a **deadline** to settle by. Look for the **best window**, and who has not replied yet.',
     },
   },
   {
@@ -28,8 +28,8 @@ const GROUPS: Group[] = [
     title: 'Where should it happen?',
     sub: 'A ballot on a map, and what a vote turns into once it is won.',
     picks: {
-      'harvest-fair': '**Three votes each** and a **closing date**, with a **cap on spots** and a **minimum to go ahead**. Look for the ballot and the capacity note.',
       'priyas-send-off': '**One vote each**, closing soon. Look for how the **leader** changes as the votes move.',
+      'harvest-fair': '**Three votes each** and a **closing date**, with a **cap on spots** and a **minimum to go ahead**. Look for the ballot and the capacity note.',
       'q3-offsite': 'Votes turned into a **three-stop route** with **travel time** between them. Look for the **itinerary**, and who makes every stop.',
     },
   },

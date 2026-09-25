@@ -11,6 +11,7 @@ import { typingLine, type Peer } from '@/lib/room'
 import { setWatchingChat } from '@/lib/sound'
 import { removedLineTest } from '@/lib/removed'
 import { usePhoneScreen } from '@/hooks/usePhoneScreen'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 
 /* ── event discussion, reachable from every tab ──
    Desktop: a drawer sliding in from the right over a dimmed backdrop.
@@ -86,6 +87,8 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onClose, readO
 
   // on a phone the room is the screen, keyboard or not
   usePhoneScreen(root, { lockWide: true })
+  // the keyboard stays in the room while it is open, and goes back to the chat button after
+  useFocusTrap(root)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
@@ -242,7 +245,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
       </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col">
-        <div ref={scroller} onScroll={onScroll} className="scroll-slim min-h-0 flex-1 overflow-auto overscroll-contain px-3.5 py-3">
+        <div ref={scroller} onScroll={onScroll} role="log" aria-live="polite" aria-label="Messages" className="scroll-slim min-h-0 flex-1 overflow-auto overscroll-contain px-3.5 py-3">
           {messages.length === 0 ? (
             <div className="flex h-full items-center justify-center">
               <div className="max-w-[220px] text-center">
@@ -336,7 +339,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
           }}
           placeholder="Add a comment…"
           aria-label="Write a message"
-          className="scroll-slim min-h-11 sm:min-h-[38px] flex-1 resize-none rounded-[12px] border border-border bg-s1 px-[11px] py-[11px] sm:py-[9px] text-[13.5px] leading-[1.4] outline-none placeholder:text-faint focus:border-accent-border"
+          className="scroll-slim min-h-11 sm:min-h-[38px] flex-1 resize-none rounded-[12px] border border-border bg-s1 px-[11px] py-[11px] sm:py-[9px] text-[13.5px] leading-[1.4] outline-none placeholder:text-faint focus:border-accent"
         />
         <button
           onClick={send}

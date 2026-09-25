@@ -15,6 +15,10 @@ import { selectedDayKeys } from '@/lib/events'
    the form, not here. */
 
 const DOW_L = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+// what a screen reader says for a header that shows one letter on a phone
+const DOW_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+// a day cell shows only its number; out loud it is the whole date
+const fullDate = (key: string) => parse(key).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
 const MONTH_L = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 const parse = (key: string) => { const [y, m, d] = key.split('-').map(Number); return new Date(y, m - 1, d) }
@@ -125,6 +129,7 @@ export function DaysPicker({ startDate, endDate, excludedDows, excludedDays, onC
           return present ? (
             <button
               key={l} type="button" onClick={() => toggleDow(d)} aria-pressed={on}
+              aria-label={DOW_FULL[d]}
               title={on ? `Turn every ${l} off` : `Turn every ${l} back on`}
               className={`h-8 rounded-[7px] text-[11px] font-semibold uppercase sm:tracking-[.08em] ${on ? 'text-dim hover:bg-s2 hover:text-text' : 'text-faint line-through hover:bg-s2'}`}
             >
@@ -132,7 +137,7 @@ export function DaysPicker({ startDate, endDate, excludedDows, excludedDays, onC
               <span className="sm:hidden">{l[0]}</span><span className="hidden sm:inline">{l}</span>
             </button>
           ) : (
-            <span key={l} className="flex h-8 items-center justify-center text-[11px] font-semibold uppercase text-faint/60 sm:tracking-[.08em]"><span className="sm:hidden">{l[0]}</span><span className="hidden sm:inline">{l}</span></span>
+            <span key={l} className="flex h-8 items-center justify-center text-[11px] font-semibold uppercase text-faint/60 sm:tracking-[.08em]"><span className="sm:hidden" aria-hidden>{l[0]}</span><span className="hidden sm:inline" aria-hidden>{l}</span><span className="sr-only">{DOW_FULL[d]}</span></span>
           )
         })}
         {weeks.map((w) => {
@@ -152,6 +157,7 @@ export function DaysPicker({ startDate, endDate, excludedDows, excludedDays, onC
                 c.inRange ? (
                   <button
                     key={c.key} type="button" disabled={dowOff(c.key)} onClick={() => toggleDay(c.key)} aria-pressed={isOn(c.key)}
+                    aria-label={fullDate(c.key)}
                     title={dowOff(c.key) ? `Off with every ${DOW_L[dowOf(c.key)]}` : `${DOW_L[dowOf(c.key)]} ${c.day}`}
                     className={cellCls(isOn(c.key), dowOff(c.key))}
                   >

@@ -194,7 +194,7 @@ function Welcome() {
               <p className="mt-0.5 text-[12.5px] text-dim">How you appear on events and in the chat. First and last is best.</p>
               <input
                 id="welcome-name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name"
-                className="mt-2.5 h-11 w-full max-w-[380px] rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none focus:border-accent-border"
+                className="mt-2.5 h-11 w-full max-w-[380px] rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none focus:border-accent"
               />
             </div>
             <div className="flex items-center justify-between gap-4 border-t border-border px-5 py-4">
@@ -210,7 +210,7 @@ function Welcome() {
                 <div className="mt-0.5 text-[12.5px] text-dim">System follows your device.</div>
               </div>
               {ready ? (
-                <SegmentedControl size="sm" value={themeValue} onChange={setTheme} options={[{ v: 'light', l: 'Light' }, { v: 'dark', l: 'Dark' }, { v: 'system', l: 'System' }]} />
+                <SegmentedControl label="Theme" size="sm" value={themeValue} onChange={setTheme} options={[{ v: 'light', l: 'Light' }, { v: 'dark', l: 'Dark' }, { v: 'system', l: 'System' }]} />
               ) : <span className="h-8 w-[196px] animate-pulse rounded-[9px] bg-s2" aria-hidden />}
             </div>
             {/* the four appearances, the same picker Settings has */}
