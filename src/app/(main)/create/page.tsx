@@ -639,7 +639,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
     <div className="flex flex-col gap-4">
       <div>
         <Label htmlFor="ev-title">Event title <Req /></Label>
-        <input id="ev-title" value={form.title} onChange={(e) => update({ title: e.target.value })} placeholder="e.g. Team Meeting" aria-invalid={show(errs.title) || undefined} aria-describedby={show(errs.title) ? 'ev-title-err' : undefined} className={inputCls(show(errs.title))} />
+        <input id="ev-title" value={form.title} onChange={(e) => update({ title: e.target.value })} placeholder="e.g. Friday dinner" aria-invalid={show(errs.title) || undefined} aria-describedby={show(errs.title) ? 'ev-title-err' : undefined} className={inputCls(show(errs.title))} />
         {show(errs.title) && <FieldError id="ev-title-err">{errs.title}</FieldError>}
       </div>
 
