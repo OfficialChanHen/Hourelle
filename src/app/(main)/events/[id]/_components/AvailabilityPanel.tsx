@@ -1623,7 +1623,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           <Hint name="grid" className="mb-2">
             {!editable ? 'The darker the green, the more people are free.'
               : dayPoll ? 'Tap the days you can make. The darker the green, the more people are free.'
-                : 'Press Edit mine and drag across the hours you can make. The darker the green, the more people are free.'}
+                : 'Press Edit mine and drag across the hours you can meet. The darker the green, the more people are free.'}
           </Hint>
         )}
 

@@ -40,7 +40,7 @@ const HOST_STOPS: Stop[] = [
     { sel: 'menu', title: 'One link does it all', text: 'The share link is in this menu. Send it to everyone, no account needed.', tryIt: 'Copy the link.' },
   ] },
   { tab: 'availability', targets: [
-    { sel: 'grid-all', title: 'When people are free', text: 'Press Edit mine and drag across the hours you can make. The darker the green, the more people are free.', tryIt: 'Drag a block.' },
+    { sel: 'grid-all', title: 'When people are free', text: 'Press Edit mine and drag across the hours you can meet. The darker the green, the more people are free.', tryIt: 'Drag a block.' },
   ] },
   { tab: 'availability', targets: [
     { sel: 'people', title: 'One person at a time', text: 'Tap a face to see just their times. Tap again to see everyone.', tryIt: 'Tap a face.' },
@@ -81,7 +81,7 @@ const GUEST_LOCKED_STOPS: Stop[] = [
 // host controls; the ballot and the discussion take the last two stops instead.
 const GUEST_STOPS: Stop[] = [
   { tab: 'availability', targets: [
-    { sel: 'grid-all', title: 'Start with your times', text: 'Press Edit mine and drag across the hours you can make. The darker the green, the more people are free.', tryIt: 'Drag a block.' },
+    { sel: 'grid-all', title: 'Start with your times', text: 'Press Edit mine and drag across the hours you can meet. The darker the green, the more people are free.', tryIt: 'Drag a block.' },
   ] },
   { tab: 'availability', targets: [
     { sel: 'people', title: 'Who else has answered', text: 'Tap a face to see just their times. Tap again to see everyone.', tryIt: 'Tap a face.' },
