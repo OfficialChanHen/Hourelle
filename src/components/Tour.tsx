@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, Check, PlayCircle } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { TOUR_START, dismissHint, hintDismissed, setTourWanted, tourWanted, reducedMotion } from '@/lib/prefs'
+import { useHeatLine, withHeatLine } from '@/hooks/useHeatLine'
 
 /* The tour: a spotlight on one element at a time, a card that says where it is and
    how it works, and, where it makes sense, a line inviting the person to try it
@@ -40,7 +41,7 @@ const HOST_STOPS: Stop[] = [
     { sel: 'menu', title: 'One link does it all', text: 'The share link is in this menu. Send it to everyone, no account needed.', tryIt: 'Copy the link.' },
   ] },
   { tab: 'availability', targets: [
-    { sel: 'grid-all', title: 'When people are free', text: 'Press Edit mine and drag across the hours you can meet. The darker the green, the more people are free.', tryIt: 'Drag a block.' },
+    { sel: 'grid-all', title: 'When people are free', text: 'Press Edit mine and drag across the hours you can meet. {heat}', tryIt: 'Drag a block.' },
   ] },
   { tab: 'availability', targets: [
     { sel: 'people', title: 'One person at a time', text: 'Tap a face to see just their times. Tap again to see everyone.', tryIt: 'Tap a face.' },
@@ -81,7 +82,7 @@ const GUEST_LOCKED_STOPS: Stop[] = [
 // host controls; the ballot and the discussion take the last two stops instead.
 const GUEST_STOPS: Stop[] = [
   { tab: 'availability', targets: [
-    { sel: 'grid-all', title: 'Start with your times', text: 'Press Edit mine and drag across the hours you can meet. The darker the green, the more people are free.', tryIt: 'Drag a block.' },
+    { sel: 'grid-all', title: 'Start with your times', text: 'Press Edit mine and drag across the hours you can meet. {heat}', tryIt: 'Drag a block.' },
   ] },
   { tab: 'availability', targets: [
     { sel: 'people', title: 'Who else has answered', text: 'Tap a face to see just their times. Tap again to see everyone.', tryIt: 'Tap a face.' },
@@ -152,6 +153,7 @@ function placeCard(b: Box | null, cardH: number): { left: number; top: number; w
 }
 
 export function Tour({ host = false, locked = false }: { host?: boolean; locked?: boolean }) {
+  const heatLine = useHeatLine() // what the grid colours mean, in this theme's words
   // the clips link carries the event it was followed from, so Help can offer the way back
   const pathname = usePathname()
   const eventId = /^\/events\/([^/]+)/.exec(pathname ?? '')?.[1]
@@ -352,7 +354,7 @@ export function Tour({ host = false, locked = false }: { host?: boolean; locked?
           <>
             <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Stop {i + 1} of {count}</div>
             <div id={titleId} className="mt-1 font-serif text-[21px] leading-[1.15] tracking-[-0.01em]">{cand!.title}</div>
-            <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">{cand!.text}</p>
+            <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">{withHeatLine(cand!.text, heatLine)}</p>
             {cand!.tryIt && (
               <p className="mt-2 text-[13.5px] leading-[1.55]"><span className="font-semibold text-accent-text">Try it.</span> <span className="text-text">{cand!.tryIt}</span></p>
             )}

@@ -26,6 +26,7 @@ import { CARD_COVER_H, coverFor } from '@/components/ui/StoredEventCard'
 import { useAccess } from '@/hooks/useAccess'
 import { listDemos, type AppEvent } from '@/lib/events'
 import { reducedMotion } from '@/lib/prefs'
+import { useHeatLine, withHeatLine } from '@/hooks/useHeatLine'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -33,7 +34,7 @@ const FEATURES = [
   {
     eyebrow: 'When',
     title: 'See the day everyone can meet.',
-    body: 'Drag across the times you are free. The darker the green, the more people are free. The best time is picked out for you.',
+    body: 'Drag across the times you are free. {heat} The best time is picked out for you.',
     points: ['Minute-precise edges, not just half-hour boxes', 'Day polls for trips and weekends', 'Or skip the poll when the date is already set'],
     demo: 'daypoll',
   },
@@ -61,6 +62,7 @@ const DEMO_PICKS: Record<string, string> = {
 }
 
 export default function Landing() {
+  const heatLine = useHeatLine()
   const router = useRouter()
   const { ready, signedIn } = useAccess()
   const root = useRef<HTMLDivElement>(null)
@@ -169,7 +171,7 @@ export default function Landing() {
                 <div className="ld-reveal min-w-0 lg:col-span-5">
                   <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">{f.eyebrow}</p>
                   <h3 className="mt-2 font-serif font-normal text-[29px] leading-[1.08] tracking-[-0.01em] sm:text-[34px]">{f.title}</h3>
-                  <p className="mt-3.5 text-[15px] leading-[1.6] text-dim">{f.body}</p>
+                  <p className="mt-3.5 text-[15px] leading-[1.6] text-dim">{withHeatLine(f.body, heatLine)}</p>
                   <ul className="ld-stagger mt-5 flex flex-col gap-2.5">
                     {f.points.map((pt) => (
                       <li key={pt} className="flex items-start gap-2.5 text-[13.5px] leading-[1.5] text-dim">

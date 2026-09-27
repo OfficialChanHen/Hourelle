@@ -455,7 +455,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
 
       {/* the host's one line about the lock-in, gone once dismissed */}
       {event.hostedByYou && phase === 'planning' && (
-        <Hint name="lock" className="mb-4">When enough of the grid is green, Lock it in sets the time and place and everyone gets the plan.</Hint>
+        <Hint name="lock" className="mb-4">Once enough people are free at the same time, Lock it in sets the plan and tells everyone.</Hint>
       )}
 
       {/* tabs — horizontally scrollable on narrow screens, with edge fades hinting more */}
