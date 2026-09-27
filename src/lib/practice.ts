@@ -15,10 +15,12 @@ const PLACES = [
   { id: 'pr-presidio', name: 'Presidio Picnic Lawn', place: 'Presidio, San Francisco', lat: 37.7989, lng: -122.4662 },
   { id: 'pr-ferry', name: 'Ferry Building', place: '1 Ferry Building, San Francisco', lat: 37.7955, lng: -122.3937 },
 ]
-// who is free when, in clock minutes, by day index into the event's days
+// who is free when, in clock minutes, by day index into the event's days. The event
+// runs two weeks so the week strip has something to show: everyone answered the
+// first week, only two of them got to the second, which is the usual shape
 const ANSWERS: [string, number, number, number][] = [
-  ['p-sr', 0, 10 * 60, 14 * 60], ['p-sr', 2, 9 * 60, 15 * 60],
-  ['p-kl', 2, 10 * 60, 16 * 60], ['p-kl', 3, 13 * 60, 17 * 60],
+  ['p-sr', 0, 10 * 60, 14 * 60], ['p-sr', 2, 9 * 60, 15 * 60], ['p-sr', 8, 10 * 60, 15 * 60],
+  ['p-kl', 2, 10 * 60, 16 * 60], ['p-kl', 3, 13 * 60, 17 * 60], ['p-kl', 9, 12 * 60, 16 * 60],
   ['p-pr', 1, 9 * 60, 11 * 60], ['p-pr', 2, 9 * 60, 12 * 60],
   ['p-mn', 2, 11 * 60, 17 * 60], ['p-mn', 4, 9 * 60, 12 * 60],
   ['p-at', 2, 9 * 60, 13 * 60], ['p-at', 0, 13 * 60, 17 * 60],
@@ -44,10 +46,10 @@ export function ensurePracticeEvent(): string {
   // without a word to the server, which would refuse the delete anyway
   for (const e of practice) if (!mine(e, me.id)) leaveEvent(e.id)
 
-  // the coming week, Monday to Friday
+  // two weeks: next Monday to the Friday after
   const start = new Date(); start.setHours(12, 0, 0, 0)
   start.setDate(start.getDate() + ((8 - start.getDay()) % 7 || 7))
-  const end = new Date(start); end.setDate(end.getDate() + 4)
+  const end = new Date(start); end.setDate(end.getDate() + 11)
   let tz = 'UTC'
   try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' } catch { /* UTC */ }
   const ev = createEvent({
