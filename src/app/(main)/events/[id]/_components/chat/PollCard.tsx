@@ -25,7 +25,7 @@ import type { Avatar as Person } from '@/lib/people'
 
 const PILE = 3
 
-type Row = { id: string; t: string; ids: string[]; you: boolean; i: number }
+type Row = { id: string; t: string; ids: string[]; you: boolean; i: number; by?: string }
 
 function closesText(day: string): string {
   const [y, m, d] = day.split('-').map(Number)
@@ -54,7 +54,7 @@ export function PollCard({ poll, votes, me, canVote, locked, canManage, onPick, 
   const { ranked, leadId, mine, total } = useMemo(() => {
     const rows: Row[] = poll.o.map((o, i) => {
       const ids = votes?.[pollKey(poll.id, o.id)] ?? []
-      return { id: o.id, t: o.t, ids, you: !!me && ids.includes(me), i }
+      return { id: o.id, t: o.t, ids, you: !!me && ids.includes(me), i, by: o.by }
     })
     // most votes first, ties in the order they were added
     const ranked = [...rows].sort((a, b) => (b.ids.length - a.ids.length) || (a.i - b.i))
@@ -136,7 +136,14 @@ export function PollCard({ poll, votes, me, canVote, locked, canManage, onPick, 
                   {r.you && <Check size={12} strokeWidth={3} />}
                 </span>
               )}
-              <span aria-hidden className="relative min-w-0 flex-1 break-words text-[14px] font-medium leading-[1.3] text-text">{r.t}</span>
+              <span aria-hidden className="relative min-w-0 flex-1 break-words text-[14px] font-medium leading-[1.3] text-text">
+                {r.t}
+                {/* who put it there, while the poll lets others add options: the poll's
+                    own options need no credit, and with adding off nobody else can */}
+                {s.add && r.by && r.by !== poll.by && (
+                  <span className="block text-[12px] font-normal text-faint sm:text-[11.5px]">Added by {r.by === me ? 'you' : avatarOf(r.by).name.split(' ')[0]}</span>
+                )}
+              </span>
               {!s.hide && n > 0 && (
                 <span aria-hidden className="relative flex-none">
                   <AvatarRow people={r.ids.slice(0, PILE).map(avatarOf)} more={n > PILE ? `+${n - PILE}` : undefined} max={PILE} size={20} font={8.5} overlap={5} decorative />

@@ -10,7 +10,6 @@ import { distinctOptions, makePoll, POLL_MAX_OPTIONS, POLL_MIN_OPTIONS, POLL_OPT
    six options. It scrolls inside itself, so with a phone keyboard up it gives way to
    the space that is left instead of pushing the chat off the screen. */
 
-const EXAMPLES = ['Catan', 'Codenames', 'Ticket to Ride', 'Wingspan', 'Mafia', 'Uno']
 const Q_MAX = 140
 const OPT_MAX = POLL_OPTION_MAX_LEN
 
@@ -66,7 +65,7 @@ export function PollComposer({ onPost, onCancel }: { onPost: (p: Poll) => void; 
           value={q}
           maxLength={Q_MAX}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Which game?"
+          placeholder="e.g. What should we do?"
           className={field}
         />
       </label>
@@ -81,7 +80,7 @@ export function PollComposer({ onPost, onCancel }: { onPost: (p: Poll) => void; 
                 value={o.t}
                 maxLength={OPT_MAX}
                 onChange={(e) => setOpts(opts.map((x) => (x.key === o.key ? { ...x, t: e.target.value } : x)))}
-                placeholder={EXAMPLES[i % EXAMPLES.length]}
+                placeholder={`Option ${i + 1}`}
                 aria-label={`Option ${i + 1}`}
                 className={field}
               />

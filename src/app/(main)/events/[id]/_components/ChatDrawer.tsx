@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, Plus, Send, X } from 'lucide-react'
+import { ArrowDown, ListChecks, Plus, Send, X } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
@@ -15,6 +15,7 @@ import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { chatLines, decodePoll, encodePoll, encodePollOption, encodePollSettings, messagePreview, newOptionId, reducePolls, type Poll, type PollSettings, type PollState } from '@/lib/polls'
 import { PollCard } from './chat/PollCard'
 import { PollComposer } from './chat/PollComposer'
+import { Popover, PopoverItem } from '@/components/ui/Popover'
 
 /* ── event discussion, reachable from every tab ──
    Desktop: a drawer sliding in from the right over a dimmed backdrop.
@@ -405,15 +406,23 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
         <PollComposer onPost={postPoll} onCancel={closePoll} />
       ) : (
       <div className="flex flex-none items-end gap-2 border-t border-border p-[11px]">
-        <button
-          type="button"
-          onClick={() => { onStopTyping?.(); setComposingPoll(true) }}
-          aria-label="Add a poll"
-          title="Add a poll"
-          className="grid h-11 w-11 flex-none place-items-center rounded-[12px] border border-border bg-s1 text-dim hover:border-border2 hover:text-text sm:h-[38px] sm:w-[38px]"
+        {/* a menu, not a poll straight away: polls are the first of the things that can
+            be added to the chat, and more will sit here beside them */}
+        <Popover
+          align="start"
+          width={200}
+          label="Add to the chat"
+          className="flex-none"
+          trigger={(open) => (
+            <span className={`grid h-11 w-11 place-items-center rounded-[12px] border sm:h-[38px] sm:w-[38px] ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}>
+              <Plus size={17} />
+            </span>
+          )}
         >
-          <Plus size={17} />
-        </button>
+          {(close) => (
+            <PopoverItem icon={<ListChecks size={15} />} onClick={() => { close(); onStopTyping?.(); setComposingPoll(true) }}>Poll</PopoverItem>
+          )}
+        </Popover>
         <textarea
           ref={ta}
           value={draft}
