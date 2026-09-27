@@ -23,7 +23,7 @@ gsap.registerPlugin(ScrollTrigger)
 
 const STEPS = [
   { title: 'Name the plan', body: 'Give it a name and pick the days.' },
-  { title: 'Share one link', body: 'Send it in any chat. People add their name and they are in.' },
+  { title: 'Send the invite link', body: 'Share it in any chat. Guests add their name and they are in.' },
   { title: 'Everyone answers', body: 'People mark when they are free and vote on where to go.' },
   { title: 'Lock it in', body: 'Pick the best time. Everyone gets the details by email.' },
 ]

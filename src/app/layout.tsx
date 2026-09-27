@@ -24,7 +24,7 @@ const instrumentSans = Instrument_Sans({
 export const metadata: Metadata = {
   title: "Hourelle: find the hour everyone can meet",
   description:
-    "Plan with friends in one link. Everyone marks when they are free and votes on where to go.",
+    "Plan with friends: create an event, then send the invite link. Everyone marks when they are free and votes on where to go.",
 };
 
 export default function RootLayout({

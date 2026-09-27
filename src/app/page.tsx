@@ -33,7 +33,7 @@ const FEATURES = [
   {
     eyebrow: 'When',
     title: 'See the day everyone can meet.',
-    body: 'Drag across the times you are free. The darker the green, the more people can make it. The best time is picked out for you.',
+    body: 'Drag across the times you are free. The darker the green, the more people are free. The best time is picked out for you.',
     points: ['Minute-precise edges, not just half-hour boxes', 'Day polls for trips and weekends', 'Or skip the poll when the date is already set'],
     demo: 'daypoll',
   },
@@ -125,7 +125,7 @@ export default function Landing() {
                 Find the hour everyone can meet.
               </h1>
               <p className="mt-5 max-w-[560px] text-[16px] leading-[1.6] text-dim sm:text-[17px]">
-                Making plans with friends? Send one link. Everyone marks when they are free and votes on where to go. Nobody needs an account.
+                Making plans with friends? Create an event, then send the invite link. Everyone marks when they are free and votes on where to go. Guests don't need an account.
               </p>
               <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
                 <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-accent px-6 text-[15px] font-semibold text-on-accent">
