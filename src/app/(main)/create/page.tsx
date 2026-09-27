@@ -2,12 +2,13 @@
 
 /* ── the create wizard ──
    One card, not a series of steps, and it asks three things in the open: a name,
-   what the event is asking friends for, and the days. Everything else sits in a
-   list of one-line rows under More options, each already set to a sensible
-   default and each saying what it is set to: which days in the range, the hours
-   of the day, the slot size, the length, the time zone, the host, and the extras
-   (description, cover, place, people, money). A row opens by itself when it holds
-   the thing Create is waiting on.
+   what the event is asking friends for, and the days. Everything else waits behind
+   one closed More options button, in three short groups of one-line rows, each row
+   already set to a sensible default and saying what it is set to: timing (which
+   days in the range, the hours of the day, the slot size, the length, the time
+   zone, an RSVP deadline), place and people, and the details (description, cover,
+   money). The host is the signed-in account, so it is not asked. When Create is
+   waiting on something in there, the button and the row open by themselves.
 
    THE SHAPE OF A PLAN. Two questions decide what gets built: is the time already
    set, and is the place. "Find a time" builds a poll; "the date is set" builds an
@@ -24,11 +25,13 @@
    the answers and moves the dates to the next week that fits. All three arrive as
    search params, which this page has to read the careful way (see CreatePage). */
 
-import { Suspense, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { Suspense, useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { fetchEvent } from '@/lib/remote'
 import { CoverEditor, type ImageFit } from '@/components/ui/CoverEditor'
+import { coverPresetOf } from '@/components/ui/Cover'
+import { reducedMotion } from '@/lib/prefs'
 import { copyCoverInto, uploadCover } from '@/lib/covers'
 import { isInlineCover, isPhotoCover } from '@/lib/cover-kind'
 import Link from 'next/link'
@@ -41,7 +44,7 @@ import {
   Info, Vote, ArrowRight, Mail, Route, GripVertical,
   Loader2, Link2, Copy, UserPlus, Users, PartyPopper, AlignLeft, Wallet, ImagePlus,
   Map, Presentation, Repeat, Utensils, Dices, CookingPot, CalendarDays, LayoutGrid, Timer, Globe,
-  CalendarCheck, UserRound, type LucideIcon,
+  CalendarCheck, type LucideIcon,
 } from 'lucide-react'
 import { personColors, type PersonColor } from '@/lib/colors'
 import { gsap } from 'gsap'
@@ -152,16 +155,17 @@ const initialForm: Form = {
 type Update = (patch: Partial<Form> | ((f: Form) => Partial<Form>)) => void
 type BasicsErrs = { title: string; start: string; end: string; days: string; win: string; tz: string; fixed: string }
 
-// template starting points (/create?template=…) — structure only; dates stay a conscious choice
+// template starting points (/create?template=…) — structure and a cover scene only;
+// dates stay a conscious choice. Each scene matches the template's card on /templates.
 const TEMPLATE_PRESETS: Record<string, Partial<Form>> = {
-  offsite: { title: 'Team Offsite', description: 'A few days of strategy and team time.', granularity: '60', locMode: 'vote', planMode: 'itinerary', budgetMode: 'person' },
-  trip: { title: 'Weekend Trip', description: 'Pick the dates together and vote on where to go.', granularity: 'day', locMode: 'vote', planMode: 'itinerary' },
-  birthday: { title: 'Birthday Party', description: 'One night, one spot.', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 180, locMode: 'vote', planMode: 'vote' },
-  conference: { title: 'Conference', granularity: '60', locMode: 'vote', planMode: 'itinerary' },
-  'one-on-one': { title: 'Weekly 1:1', granularity: '15', durationMin: 30, locMode: 'remote' },
-  dinner: { title: 'Dinner And Drinks', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 120, locMode: 'vote', planMode: 'vote' },
-  'game-night': { title: 'Game Night', description: 'Bring a game or just show up.', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 180, locMode: 'vote', planMode: 'vote' },
-  potluck: { title: 'Potluck', description: 'Everyone brings a dish.', granularity: '30', durationMin: 180, locMode: 'vote', planMode: 'vote' },
+  offsite: { title: 'Team Offsite', description: 'A few days of strategy and team time.', granularity: '60', locMode: 'vote', planMode: 'itinerary', budgetMode: 'person', image: 'preset:coast' },
+  trip: { title: 'Weekend Trip', description: 'Pick the dates together and vote on where to go.', granularity: 'day', locMode: 'vote', planMode: 'itinerary', image: 'preset:meadow' },
+  birthday: { title: 'Birthday Party', description: 'One night, one spot.', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 180, locMode: 'vote', planMode: 'vote', image: 'preset:party' },
+  conference: { title: 'Conference', granularity: '60', locMode: 'vote', planMode: 'itinerary', image: 'preset:city' },
+  'one-on-one': { title: 'Weekly 1:1', granularity: '15', durationMin: 30, locMode: 'remote', image: 'preset:garden' },
+  dinner: { title: 'Dinner And Drinks', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 120, locMode: 'vote', planMode: 'vote', image: 'preset:dusk' },
+  'game-night': { title: 'Game Night', description: 'Bring a game or just show up.', granularity: '30', windowPreset: 'evening', windowStart: '17:00', windowEnd: '21:00', durationMin: 180, locMode: 'vote', planMode: 'vote', image: 'preset:evening' },
+  potluck: { title: 'Potluck', description: 'Everyone brings a dish.', granularity: '30', durationMin: 180, locMode: 'vote', planMode: 'vote', image: 'preset:harvest' },
 }
 
 // a template that sets whole-day slots is a day poll, so the "When" switch says so;
@@ -313,6 +317,39 @@ function CreateWizard() {
 
   useGSAP(() => { gsap.fromTo(panel.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out' }) }, [])
 
+  /* More options starts closed, templates and duplicates included: what they set is
+     already in the rows, and nobody needs to read it to create. A press opens it
+     with a short unfold; Create waiting on a row in there opens it without one, so
+     the focus can go straight to the field. It stays mounted while closed, so a row
+     keeps what it was showing. */
+  // 'closing' is the fold on its way shut: still drawn, already not expanded
+  const [more, setMore] = useState<'closed' | 'open' | 'closing'>('closed')
+  const [moreByHand, setMoreByHand] = useState(false)
+  const [moreAlertWas, setMoreAlertWas] = useState(false)
+  const moreBody = useRef<HTMLDivElement>(null)
+  useGSAP(() => {
+    const el = moreBody.current
+    if (!el) return
+    gsap.killTweensOf(el)
+    if (more === 'closing') {
+      gsap.to(el, { height: 0, opacity: 0, overflow: 'hidden', duration: 0.22, ease: 'power2.in', onComplete: () => setMore('closed') })
+      return
+    }
+    gsap.set(el, { clearProps: 'height,opacity,overflow' })
+    if (more === 'open' && moreByHand && !reducedMotion()) {
+      gsap.fromTo(el, { height: 0, opacity: 0, overflow: 'hidden' }, { height: 'auto', opacity: 1, duration: 0.3, ease: 'power2.out', clearProps: 'height,opacity,overflow' })
+    }
+  }, { dependencies: [more] })
+  function toggleMore() {
+    if (more === 'open') { setMore(reducedMotion() ? 'closed' : 'closing'); return }
+    setMoreByHand(true)
+    setMore('open')
+  }
+  function openMore() {
+    setMoreByHand(false)
+    setMore('open')
+  }
+
   if (created) return <Created event={created} />
   if (resolving) return <div className="mx-auto max-w-[560px] px-[26px] pt-[72px]"><div className="mx-auto h-8 w-56 animate-pulse rounded-lg bg-s2" /></div>
 
@@ -380,6 +417,14 @@ function CreateWizard() {
   const basicsOk = !basicsErr.title && !basicsErr.start && !basicsErr.end && !basicsErr.days && !basicsErr.win && !basicsErr.tz && !basicsErr.fixed
   // the first thing still missing, in the order the form asks for it
   const firstMissing = [basicsErr.title, basicsErr.fixed, basicsErr.start, basicsErr.end, basicsErr.days, basicsErr.win, basicsErr.tz].find(Boolean) ?? ''
+  // something Create is waiting on lives behind More options: once it is showing,
+  // More options opens by itself, the way a row does (see Collapse)
+  const moreHidden = !!(basicsErr.days || basicsErr.win || basicsErr.tz)
+  const moreAlert = attempted && moreHidden
+  if (moreAlert !== moreAlertWas) {
+    setMoreAlertWas(moreAlert)
+    if (moreAlert) openMore()
+  }
 
   // tap a template to seed the form; tap it again to start blank. The detected
   // defaults (dates, zone) survive the reset.
@@ -395,6 +440,8 @@ function CreateWizard() {
   function create() {
     if (!basicsOk) {
       setAttempted(true)
+      // a later press reopens it too, after it was closed with the problem still there
+      if (moreHidden) openMore()
       setMissingNonce((n) => n + 1)
       return
     }
@@ -493,56 +540,69 @@ function CreateWizard() {
       <div ref={panel} className="rounded-2xl border border-border bg-s1 px-4 py-[22px] sm:px-6">
         <StepBasics form={form} update={update} today={zToday} attempted={attempted} errs={basicsErr} />
 
-        {/* everything else, one line each and already set to a default. A row opens by
-            itself when it holds the thing Create is waiting on. */}
-        <div className="mt-6 border-t border-border pt-4">
-          <div className="mb-1 text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">More options</div>
-          <WhenOptions form={form} update={update} today={zToday} attempted={attempted} errs={basicsErr} zoneName={zoneName} />
-          <Collapse icon={MapPin} title="Place" summary={placeSummary}>
-            <StepLocation form={form} update={update} stopUid={stopUid} />
-          </Collapse>
-          <Collapse icon={Users} title="People" summary={peopleSummary}>
-            <StepInvite form={form} update={update} />
-          </Collapse>
-          <Collapse icon={AlignLeft} title="Description" summary={form.description || 'What is it about?'}>
-            <textarea
-              value={form.description}
-              onChange={(e) => update({ description: e.target.value })}
-              aria-label="Description"
-              placeholder="What's this event about?"
-              className={`${inputCls(false)} h-[72px] resize-none py-[11px] leading-[1.5]`}
-            />
-          </Collapse>
-          <Collapse icon={ImagePlus} title="Cover" summary={isPhotoCover(form.image) ? `Your photo, ${form.imageFit === 'fit' ? 'fitted' : 'filling the frame'}` : form.image ? 'A scene' : 'A scene or a photo of your own'}>
-            <CoverEditor image={form.image} fit={form.imageFit} pos={form.imagePos} title={form.title} onChange={(p) => update(p)} />
-          </Collapse>
-          <Collapse icon={Wallet} title="Budget and spots" summary={moneySummary}>
-            <div className="flex flex-wrap gap-3.5">
-              <div className="min-w-[200px] flex-1">
-                <Label htmlFor="ev-budget">Budget</Label>
-                <div className="flex items-center gap-2">
-                  <div className="relative min-w-0 flex-1">
-                    <span className="pointer-events-none absolute left-[13px] top-1/2 -translate-y-1/2 text-dim">$</span>
-                    <input id="ev-budget" inputMode="numeric" placeholder="0" value={form.budget} onChange={(e) => update({ budget: e.target.value.replace(/[^\d]/g, '') })} className={`${inputCls(false)} pl-7`} />
-                  </div>
-                  <Segmented label="Budget type" value={form.budgetMode} onChange={(v) => update({ budgetMode: v as 'total' | 'person' })} options={[{ v: 'total', l: 'Total' }, { v: 'person', l: 'Per person' }]} />
-                </div>
-              </div>
-              <div className="min-w-[140px] flex-1">
-                <Label htmlFor="ev-spots">Spots</Label>
-                <input
-                  id="ev-spots"
-                  inputMode="numeric" placeholder="No limit" value={form.capacity}
-                  onChange={(e) => update({ capacity: e.target.value.replace(/[^\d]/g, '').slice(0, 4) })}
-                  className={`${inputCls(false)} !w-[110px]`}
+        {/* everything else, behind one quiet button: three short groups of one-line
+            rows, each already set to a default. */}
+        <div className="mt-6 border-t border-border pt-2">
+          <button
+            type="button"
+            onClick={toggleMore}
+            aria-expanded={more === 'open'}
+            aria-controls="create-more"
+            className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-[10px] text-left text-[14px] font-semibold ${attempted && moreHidden && more !== 'open' ? 'text-brick-text' : 'text-dim hover:text-text'}`}
+          >
+            More options
+            <ChevronDown size={16} className={`flex-none text-faint transition-transform ${more === 'open' ? 'rotate-180' : ''}`} />
+          </button>
+          <div id="create-more" ref={moreBody} hidden={more === 'closed'}>
+            <OptionGroup label="Timing" first>
+              <WhenOptions form={form} update={update} today={zToday} attempted={attempted} errs={basicsErr} zoneName={zoneName} />
+            </OptionGroup>
+            <OptionGroup label="Place and people">
+              <Collapse icon={MapPin} title="Place" summary={placeSummary}>
+                <StepLocation form={form} update={update} stopUid={stopUid} />
+              </Collapse>
+              <Collapse icon={Users} title="People" summary={peopleSummary}>
+                <StepInvite form={form} update={update} />
+              </Collapse>
+            </OptionGroup>
+            <OptionGroup label="Details">
+              <Collapse icon={AlignLeft} title="Description" summary={form.description || 'What is it about?'}>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => update({ description: e.target.value })}
+                  aria-label="Description"
+                  placeholder="What's this event about?"
+                  className={`${inputCls(false)} h-[72px] resize-none py-[11px] leading-[1.5]`}
                 />
-              </div>
-            </div>
-          </Collapse>
-          {/* events are hosted by the signed-in account: nothing to choose, the name is locked */}
-          <Collapse icon={UserRound} title="Hosted by" summary={account.name}>
-            <input id="ev-host" aria-label="Hosted by" value={account.name} readOnly disabled className={`${inputCls(false)} max-w-[320px] cursor-not-allowed opacity-60`} />
-          </Collapse>
+              </Collapse>
+              <Collapse icon={ImagePlus} title="Cover" summary={isPhotoCover(form.image) ? `Your photo, ${form.imageFit === 'fit' ? 'fitted' : 'filling the frame'}` : form.image ? coverPresetOf(form.image)?.name ?? 'A scene' : 'A scene or a photo of your own'}>
+                <CoverEditor image={form.image} fit={form.imageFit} pos={form.imagePos} title={form.title} onChange={(p) => update(p)} />
+              </Collapse>
+              <Collapse icon={Wallet} title="Budget and spots" summary={moneySummary}>
+                <div className="flex flex-wrap gap-3.5">
+                  <div className="min-w-[200px] flex-1">
+                    <Label htmlFor="ev-budget">Budget</Label>
+                    <div className="flex items-center gap-2">
+                      <div className="relative min-w-0 flex-1">
+                        <span className="pointer-events-none absolute left-[13px] top-1/2 -translate-y-1/2 text-dim">$</span>
+                        <input id="ev-budget" inputMode="numeric" placeholder="0" value={form.budget} onChange={(e) => update({ budget: e.target.value.replace(/[^\d]/g, '') })} className={`${inputCls(false)} pl-7`} />
+                      </div>
+                      <Segmented label="Budget type" value={form.budgetMode} onChange={(v) => update({ budgetMode: v as 'total' | 'person' })} options={[{ v: 'total', l: 'Total' }, { v: 'person', l: 'Per person' }]} />
+                    </div>
+                  </div>
+                  <div className="min-w-[140px] flex-1">
+                    <Label htmlFor="ev-spots">Spots</Label>
+                    <input
+                      id="ev-spots"
+                      inputMode="numeric" placeholder="No limit" value={form.capacity}
+                      onChange={(e) => update({ capacity: e.target.value.replace(/[^\d]/g, '').slice(0, 4) })}
+                      className={`${inputCls(false)} !w-[110px]`}
+                    />
+                  </div>
+                </div>
+              </Collapse>
+            </OptionGroup>
+          </div>
         </div>
       </div>
 
@@ -567,6 +627,17 @@ function CreateWizard() {
       {!basicsOk && (
         <p role="status" className={`mt-2 text-right text-[12.5px] ${attempted ? 'text-brick-text' : 'text-dim'}`}>{attempted ? 'Fix the highlighted fields above first.' : firstMissing}</p>
       )}
+    </div>
+  )
+}
+
+// one titled group of rows under More options
+function OptionGroup({ label, first = false, children }: { label: string; first?: boolean; children: React.ReactNode }) {
+  const id = useId()
+  return (
+    <div role="group" aria-labelledby={id} className={first ? 'mt-2' : 'mt-5'}>
+      <div id={id} className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">{label}</div>
+      <div>{children}</div>
     </div>
   )
 }

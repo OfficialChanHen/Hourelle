@@ -64,6 +64,43 @@ export const COVER_PRESETS: CoverPreset[] = [
       </>
     ),
   },
+  {
+    // three balloons on loose strings, a little confetti, a low rise of ground
+    id: 'party', name: 'Party', from: '#F0E3E4', to: '#E5CFD3', scene: (
+      <>
+        <circle cx="62" cy="40" r="4" fill="rgba(255,255,255,.7)" />
+        <circle cx="118" cy="72" r="3" fill="#E0AEB4" opacity=".7" />
+        <rect x="150" y="32" width="9" height="4" rx="1" transform="rotate(24 154 34)" fill="#E6C29F" opacity=".7" />
+        <rect x="88" y="100" width="8" height="4" rx="1" transform="rotate(-18 92 102)" fill="#C7B2D4" opacity=".7" />
+        <circle cx="196" cy="54" r="3" fill="rgba(255,255,255,.65)" />
+        <path d="M0 138 Q 130 122 260 140 T 400 134 V 160 H 0 Z" fill="#D8B1B5" opacity=".45" />
+        <path d="M258 106 Q 264 124 254 146" stroke="#C49CA3" strokeWidth="1.5" fill="none" opacity=".7" />
+        <path d="M292 94 Q 284 118 296 142" stroke="#C49CA3" strokeWidth="1.5" fill="none" opacity=".7" />
+        <path d="M330 78 Q 340 108 328 140" stroke="#C49CA3" strokeWidth="1.5" fill="none" opacity=".7" />
+        <ellipse cx="258" cy="86" rx="17" ry="20" fill="#C7B2D4" opacity=".6" />
+        <ellipse cx="292" cy="70" rx="20" ry="24" fill="#E0AEB4" opacity=".7" />
+        <ellipse cx="330" cy="52" rx="22" ry="26" fill="#E6C29F" opacity=".65" />
+      </>
+    ),
+  },
+  {
+    // two rows of rooftops, the far one paler, under a soft sun
+    id: 'city', name: 'City', from: '#E6E3DB', to: '#D6D0C2', scene: (
+      <>
+        <circle cx="86" cy="40" r="22" fill="rgba(255,255,255,.55)" />
+        <path d="M0 160 V84 H36 V70 H62 V96 H100 V58 H126 V88 H168 V74 H198 V100 H240 V64 H268 V90 H312 V78 H338 V94 H374 V72 H400 V160 Z" fill="#BFB8A8" opacity=".45" />
+        <g fill="rgba(255,255,255,.35)">
+          <rect x="106" y="66" width="5" height="5" />
+          <rect x="115" y="66" width="5" height="5" />
+          <rect x="106" y="76" width="5" height="5" />
+          <rect x="246" y="72" width="5" height="5" />
+          <rect x="256" y="72" width="5" height="5" />
+          <rect x="256" y="82" width="5" height="5" />
+        </g>
+        <path d="M0 160 V112 H50 V100 H80 V118 H122 V104 H158 V122 H208 V96 H238 V116 H280 V108 H318 V124 H356 V110 H400 V160 Z" fill="#A89F8C" opacity=".5" />
+      </>
+    ),
+  },
 ]
 
 export function coverPresetOf(src?: string): CoverPreset | null {
