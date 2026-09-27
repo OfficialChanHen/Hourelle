@@ -112,7 +112,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   const pById = new Map(event.participants.map((p) => [p.id, p]))
   const avatarOf = (id: string) => {
     const p = pById.get(id)
-    return { initials: p?.initials ?? id, name: p?.name ?? id, color: p?.color ?? ('gray' as Participant['color']), you: !!p?.you }
+    return { initials: p?.initials ?? id, name: p?.name ?? id, color: p?.color ?? ('gray' as Participant['color']), face: p?.face, you: !!p?.you }
   }
 
   const [votes, setVotes] = useState<Record<string, string[]>>(() => event.votes ?? {})
@@ -450,7 +450,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 <span className="text-[12px] font-bold text-teal-text">{votesOf(fp.id).length} vote{votesOf(fp.id).length === 1 ? '' : 's'}</span>
                 {!hideVoters && (
                   <div className="flex" role={votesOf(fp.id).length ? 'img' : undefined} aria-label={votesOf(fp.id).length ? `Voted: ${namesLabel(votesOf(fp.id).slice(0, 5).map((id) => avatarOf(id).name), votesOf(fp.id).length - 5)}` : undefined}>
-                    {votesOf(fp.id).slice(0, 5).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={19} font={8.5} title={a.name} /></span> })}
+                    {votesOf(fp.id).slice(0, 5).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} face={a.face} size={19} font={8.5} title={a.name} /></span> })}
                   </div>
                 )}
               </div>
@@ -775,13 +775,13 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                           </a>
                           {adder && (
                             <span className="inline-flex items-center gap-1 text-faint" title={`Added by ${adder.name}`}>
-                              <Avatar initials={adder.initials} color={adder.color} size={14} font={7} /> added by {adder.you ? 'you' : adder.name.split(' ')[0]}
+                              <Avatar initials={adder.initials} color={adder.color} face={adder.face} size={14} font={7} /> added by {adder.you ? 'you' : adder.name.split(' ')[0]}
                             </span>
                           )}
                         </div>
                         {!hideVoters && !settled && (
                           <div className="flex" role={ids.length ? 'img' : undefined} aria-label={ids.length ? `Voted: ${namesLabel(ids.slice(0, 6).map((id) => avatarOf(id).name), ids.length - 6)}` : undefined}>
-                            {ids.slice(0, 6).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} size={20} font={8.5} title={a.name} /></span> })}
+                            {ids.slice(0, 6).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} face={a.face} size={20} font={8.5} title={a.name} /></span> })}
                           </div>
                         )}
                       </div>

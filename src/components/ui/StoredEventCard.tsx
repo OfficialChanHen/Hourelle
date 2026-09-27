@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Calendar, CalendarClock, Check, CopyPlus, Link2, MapPin, Pencil, Reply, Trash2, UserRound, UserRoundX, UsersRound, Vote } from 'lucide-react'
 import { AvatarRow } from './AvatarRow'
+import { PeekCard, peopleIn } from './PeekCard'
 import { TimezonePill } from './TimezonePill'
 import { Cover } from './Cover'
 import { Tip } from './Tip'
@@ -73,9 +74,12 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
 
   return (
     <>
+    {/* the faces of the people in rise from behind the card's top edge on hover or
+        focus; they are only a picture of the room, so the pile below still names them */}
+    <PeekCard people={peopleIn(e)} size={30} upShow={24}>
     <Link
       href={eventTabFor(e)}
-      className="group flex flex-col overflow-hidden rounded-[13px] border border-border bg-s1 p-3.5 transition-all hover:-translate-y-0.5 hover:border-border2"
+      className="group flex flex-1 flex-col overflow-hidden rounded-[13px] border border-border bg-s1 p-3.5 transition-all hover:-translate-y-0.5 hover:border-border2"
       // status reads from the frame, not from chips: the border wears the phase color
       style={tint.border ? { borderColor: tint.border } : undefined}
     >
@@ -176,7 +180,7 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
           the row even when neighbors carry more metadata lines */}
       <div className="mt-auto flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <AvatarRow people={e.participants.map((p) => ({ initials: p.initials, name: p.name, color: p.color }))} size={24} max={4} />
+          <AvatarRow people={e.participants.map((p) => ({ initials: p.initials, name: p.name, color: p.color, face: p.face }))} size={24} max={4} />
           {/* while planning, nobody has committed yet — count invites; "going" only
               means something once a time is locked and RSVPs are real */}
           <span className="truncate text-[12.5px] text-dim">
@@ -225,6 +229,7 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
         </div>
       </div>
     </Link>
+    </PeekCard>
     {/* outside the link, so the words never become part of the card's name; it is
         taken out of the flow, so the grid the cards sit in never sees it */}
     {canShare && <Announce text={copied ? 'Link copied' : ''} />}

@@ -29,6 +29,7 @@ import 'swiper/css/pagination'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { coverFor, StoredEventCard } from '@/components/ui/StoredEventCard'
 import { Cover } from '@/components/ui/Cover'
+import { PeekCard, peopleIn } from '@/components/ui/PeekCard'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Tip } from '@/components/ui/Tip'
@@ -127,12 +128,12 @@ export default function HomePage() {
               and the card fills it — otherwise each slide sizes to its own content */}
           {heroes.map((x) => (
             <SwiperSlide key={x.e.id} className="!h-auto">
-              <HeroCard e={x.e} phase={x.phase} sameDay={sameDay(x.e)} />
+              <HeroPeek e={x.e}><HeroCard e={x.e} phase={x.phase} sameDay={sameDay(x.e)} /></HeroPeek>
             </SwiperSlide>
           ))}
         </Swiper>
       ) : heroes.length === 1 ? (
-        <HeroCard e={heroes[0].e} phase={heroes[0].phase} sameDay={sameDay(heroes[0].e)} />
+        <HeroPeek e={heroes[0].e}><HeroCard e={heroes[0].e} phase={heroes[0].phase} sameDay={sameDay(heroes[0].e)} /></HeroPeek>
       ) : (
         <EmptyState
           icon={CalendarPlus}
@@ -258,6 +259,13 @@ function QuickCreate() {
       </div>
     </div>
   )
+}
+
+/* the faces of the people who are in, peeking over the hero's top edge. A little of
+   each shows at rest, so phones (no hover) see them too; hover or focus raises them,
+   and a tap turns one over to show whose it is. */
+function HeroPeek({ e, children }: { e: AppEvent; children: React.ReactNode }) {
+  return <PeekCard people={peopleIn(e)} size={40} restShow={26} upShow={36} flippable className="h-full">{children}</PeekCard>
 }
 
 /* the hero: wide card with the lifecycle strip and one contextual action.

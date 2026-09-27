@@ -26,7 +26,8 @@ import { useAccess } from '@/hooks/useAccess'
 import { useHideOnScroll } from '@/hooks/useHideOnScroll'
 import { initialsOf } from '@/lib/events'
 import { signOut } from '@/lib/session'
-import { personColors } from '@/lib/colors'
+import { FaceSvg } from '@/components/ui/FaceSvg'
+import { defaultFace } from '@/lib/faces'
 
 const TABS = [
   { href: '/home', label: 'Home' },
@@ -42,7 +43,6 @@ export function Header() {
   const bellRef = useRef<SVGSVGElement>(null)
   useSwingOnNew(bellRef, notifCount)
   const { ready, guestEventId, visitor, account } = useAccess()
-  const avatar = personColors[account.color] ?? personColors.gray
   // phones: reading scrolls the header away, scrolling back up recalls it.
   // Desktop keeps it planted (md:translate-y-0 outranks the hide).
   const hidden = useHideOnScroll()
@@ -165,10 +165,9 @@ export function Header() {
             trigger={(open) => (
               <span
                 title="Account"
-                className={`grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-full text-[12.5px] font-semibold ring-2 transition-shadow ${open ? 'ring-accent-border' : 'ring-transparent hover:ring-border2'}`}
-                style={{ background: avatar.bg, color: avatar.text }}
+                className={`grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-full ring-2 transition-shadow ${open ? 'ring-accent-border' : 'ring-transparent hover:ring-border2'}`}
               >
-                {initialsOf(account.name)}
+                <FaceSvg face={account.face ?? defaultFace(initialsOf(account.name), account.color)} color={account.color} size={30} />
               </span>
             )}
           >

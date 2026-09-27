@@ -1,4 +1,5 @@
 import type { PersonColor } from './colors'
+import type { Face } from './faces'
 
 /* The cast the built-in demos are played by, keyed by initials. Demo events are
    fixtures, so their people are fixtures too: fixed names and fixed colours, so a
@@ -26,7 +27,7 @@ export const people: Record<string, { name: string; color: PersonColor }> = {
   OB: { name: 'Omar B', color: 'gray' },
 }
 
-export type Avatar = { initials: string; name: string; color: PersonColor }
+export type Avatar = { initials: string; name: string; color: PersonColor; face?: Face }
 
 export function av(id: string): Avatar {
   const p = people[id] ?? { name: id, color: 'gray' as PersonColor }

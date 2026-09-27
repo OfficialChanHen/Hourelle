@@ -384,14 +384,18 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
               >
                 <span className="flex-none text-[12.5px] font-medium text-dim">Active</span>
                 {/* the pile sits on the page, not on a card, so its separation rings take the page colour */}
-                <AvatarRow people={room.here} size={21} max={4} ringColor="var(--bg)" />
+                {/* presence carries names, not faces: each is looked up on the roster */}
+                {(() => {
+                  const faceById = new Map(event.participants.map((p) => [p.id, p.face]))
+                  return <AvatarRow people={room.here.map((h) => ({ ...h, face: faceById.get(h.id) }))} size={21} max={4} ringColor="var(--bg)" flippable />
+                })()}
               </span>
             )}
             {/* the join flow put a name on this browser — say whose answers these are.
                 Leaving lives on the Event details tab, with the other rare actions */}
             {me?.guest && (
               <span className="flex items-center gap-1.5 rounded-lg border border-accent-border bg-accent-bg px-2 py-0.5 text-[12px] font-medium text-accent-text">
-                <Avatar initials={me.initials} color={me.color} size={16} font={7.5} />
+                <Avatar initials={me.initials} color={me.color} face={me.face} size={16} font={7.5} />
                 Joined as {me.name}
               </span>
             )}
@@ -741,11 +745,12 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability, openInvi
             : PLAN_GROUP[groupOf(p)]
           return (
             <div key={p.id} className={`flex items-center gap-2.5 py-2 ${i > 0 ? 'border-t border-border' : ''}`}>
+              {/* the face turns over to show the initials; the name opens their times */}
+              <Avatar initials={p.initials} color={p.color} face={p.face} size={29} font={10.5} title={p.name} flippable />
               <button
                 type="button" onClick={() => onViewAvailability(p.id)} title={`See when ${p.name} is free`}
-                className="-mx-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-[8px] px-1 py-0.5 text-left hover:bg-s2"
+                className="-mx-1 flex min-h-[29px] min-w-0 flex-1 items-center rounded-[8px] px-1 py-0.5 text-left hover:bg-s2"
               >
-                <Avatar initials={p.initials} color={p.color} size={29} font={10.5} />
                 <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}{p.you && <span className="font-normal text-faint"> (You)</span>}</span>
               </button>
               {p.host && <span className="flex-none rounded-md border border-accent-border bg-accent-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-accent-text">Host</span>}
@@ -902,7 +907,7 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
           <p className="mb-1.5 px-1.5 text-[12px] leading-[1.45] text-dim">Fold {first} into which entry? Their answers move over and this one goes away.</p>
           <div className="scroll-slim max-h-[190px] overflow-auto">
             {others.map((o) => (
-              <PopoverItem key={o.id} onClick={() => mergeInto(o.id)} icon={<Avatar initials={o.initials} color={o.color} size={18} font={8} />}>
+              <PopoverItem key={o.id} onClick={() => mergeInto(o.id)} icon={<Avatar initials={o.initials} color={o.color} face={o.face} size={18} font={8} />}>
                 {o.name}{o.you ? <span className="text-faint"> (You)</span> : null}
               </PopoverItem>
             ))}
@@ -1631,7 +1636,7 @@ function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boo
                 <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{x.label}</span>
                 {payer && (
                   <span className="flex flex-none items-center gap-1.5 text-[12.5px] text-dim">
-                    <Avatar initials={payer.initials} color={payer.color} size={20} font={8.5} /> {payer.name.split(' ')[0]}
+                    <Avatar initials={payer.initials} color={payer.color} face={payer.face} size={20} font={8.5} /> {payer.name.split(' ')[0]}
                   </span>
                 )}
                 <span className="w-[72px] flex-none text-right text-[13.5px] font-semibold">${x.amount.toLocaleString()}</span>

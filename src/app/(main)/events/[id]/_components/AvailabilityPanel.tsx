@@ -134,7 +134,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const nameSorted = useMemo(() => [...event.participants].sort(byYouFirst), [event])
   const avatarOf = (id: string) => {
     const p = pById.get(id)
-    return { initials: p?.initials ?? id, name: p?.name ?? id, color: p?.color ?? ('gray' as Participant['color']) }
+    return { initials: p?.initials ?? id, name: p?.name ?? id, color: p?.color ?? ('gray' as Participant['color']), face: p?.face }
   }
 
   // whose cells "Edit mine" writes: wherever the `you` marker sits — the stubbed

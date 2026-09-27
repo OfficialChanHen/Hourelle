@@ -231,7 +231,7 @@ function DayRunAttendance({ days, participants, availIv, onPerson }: {
         <div className="mt-3.5 flex flex-col gap-1.5 border-t border-border pt-3">
           {someDays.map((p) => (
             <button key={p.id} type="button" onClick={() => onPerson?.(p.id)} title="See their days on the grid" className="flex flex-wrap items-center gap-1.5 rounded-[8px] px-1 py-0.5 text-left hover:bg-s2">
-              <Avatar initials={p.initials} color={p.color} size={20} font={8.5} />
+              <Avatar initials={p.initials} color={p.color} face={p.face} size={20} font={8.5} />
               <span className="text-[13px] font-medium">{p.name}</span>
               <span className="text-[12.5px] text-dim">misses</span>
               {days.filter((d) => !covered(p.id, d.key)).map((d) => (
@@ -870,7 +870,7 @@ function RosterGroup({ label, tone, people, cap: capIn, compact, action, onPerso
               title={onPerson ? `See when ${p.name} is free` : undefined}
               className="relative flex h-8 max-w-full items-center gap-2 rounded-full border border-border bg-s0 pl-1 pr-3 before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] enabled:hover:border-border2 enabled:hover:bg-s2 sm:before:hidden"
             >
-              <Avatar initials={p.initials} color={p.color} size={24} font={9} />
+              <Avatar initials={p.initials} color={p.color} face={p.face} size={24} font={9} />
               <span className="min-w-0 truncate text-[13px]">{p.name}{p.you && <span className="text-faint"> (You)</span>}</span>
             </button>
           ))}
@@ -880,14 +880,17 @@ function RosterGroup({ label, tone, people, cap: capIn, compact, action, onPerso
       <div className="flex flex-col gap-1.5">
         {shown.map(({ p, note, bar }) => (
           <div key={p.id} className="flex items-center gap-2.5">
-            <button
-              type="button" onClick={onPerson ? () => onPerson(p.id) : undefined} disabled={!onPerson}
-              title={onPerson ? `See when ${p.name} is free` : undefined}
-              className={`flex min-w-0 items-center gap-2.5 rounded-[8px] text-left ${hasBars ? 'w-[42%] sm:w-[160px] flex-none' : 'flex-1'} ${onPerson ? '-mx-1 px-1 py-0.5 hover:bg-s2' : ''}`}
-            >
-              <Avatar initials={p.initials} color={p.color} size={27} font={10} />
-              <span className="min-w-0 flex-1 truncate text-[14px]">{p.name}{p.you && <span className="text-faint"> (You)</span>}</span>
-            </button>
+            {/* the face turns over to show the initials; the name opens their times */}
+            <span className={`flex min-w-0 items-center gap-2.5 ${hasBars ? 'w-[42%] sm:w-[160px] flex-none' : 'flex-1'}`}>
+              <Avatar initials={p.initials} color={p.color} face={p.face} size={27} font={10} title={p.name} flippable />
+              <button
+                type="button" onClick={onPerson ? () => onPerson(p.id) : undefined} disabled={!onPerson}
+                title={onPerson ? `See when ${p.name} is free` : undefined}
+                className={`flex min-h-[27px] min-w-0 flex-1 items-center rounded-[8px] text-left ${onPerson ? '-mx-1 px-1 py-0.5 hover:bg-s2' : ''}`}
+              >
+                <span className="min-w-0 flex-1 truncate text-[14px]">{p.name}{p.you && <span className="text-faint"> (You)</span>}</span>
+              </button>
+            </span>
             {hasBars && (
               <div className="relative h-5 min-w-0 flex-1 rounded-[6px] bg-s2">
                 {bar && bar.length > 0
@@ -1063,7 +1066,7 @@ function AvatarPile({ people, cap }: { people: Participant[]; cap: number }) {
   const extra = people.length - shown.length
   return (
     <div className="flex items-center" role={people.length ? 'img' : undefined} aria-label={people.length ? namesLabel(shown.map((p) => p.name), extra) : undefined}>
-      {shown.map((p) => <span key={p.id} className="-mr-1.5"><Avatar initials={p.initials} color={p.color} size={25} font={9.5} ring /></span>)}
+      {shown.map((p) => <span key={p.id} className="-mr-1.5"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} ring /></span>)}
       {extra > 0 && <span aria-hidden className="ml-2.5 text-[12.5px] font-semibold text-dim">+{extra}</span>}
       {people.length === 0 && <span className="text-[12.5px] text-faint">nobody yet</span>}
     </div>

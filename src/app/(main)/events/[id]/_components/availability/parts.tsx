@@ -34,7 +34,7 @@ export function FilterAvatars({ participants, filter, onToggle, onClear, onSelec
             className={`relative rounded-full transition-opacity ${i > 0 ? '-ml-[5px]' : ''}`}
             style={{ boxShadow: on ? '0 0 0 1.5px var(--s1), 0 0 0 3.5px var(--accent)' : undefined, opacity: active && !on ? 0.35 : 1, zIndex: on ? 1 : undefined }}
           >
-            <Avatar initials={p.initials} color={p.color} size={25} font={9.5} ring />
+            <Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} ring />
           </button>
         )
       })}
@@ -120,7 +120,7 @@ export function FilterModal({ participants, filter, onToggle, onClear, onSelectA
               const on = filter.has(p.id)
               return (
                 <button key={p.id} type="button" aria-pressed={on} onClick={() => onToggle(p.id)} className={`flex items-center gap-2.5 rounded-[8px] px-2 py-2 text-left text-[13.5px] font-medium hover:bg-s2 ${on ? 'bg-s2' : ''}`}>
-                  <Avatar initials={p.initials} color={p.color} size={24} font={9.5} />
+                  <Avatar initials={p.initials} color={p.color} face={p.face} size={24} font={9.5} />
                   <span className="min-w-0 flex-1 truncate">{p.name}{p.you && <span className="font-normal text-faint"> (You)</span>}</span>
                   {on && <span className="flex flex-none items-center gap-1 text-[11.5px] font-semibold text-accent-text">In filter <Check size={13} /></span>}
                 </button>
@@ -303,7 +303,7 @@ export function MissingPopover({ missing, nudged, canNudge = false, note = null,
           const done = nudged.has(p.id)
           return (
             <div key={p.id} className="flex items-center gap-2 rounded-[7px] px-1 py-1">
-              <Avatar initials={p.initials} color={p.color} size={25} font={10} />
+              <Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={10} />
               <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}</span>
               {canNudge && (
                 <button onClick={() => onNudge(p.id)} disabled={done} className={`flex h-6 items-center gap-1 rounded-[6px] px-2 text-[12px] font-semibold ${done ? 'text-teal-text' : 'border border-border2 hover:bg-s2'}`}>

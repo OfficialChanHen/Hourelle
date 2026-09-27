@@ -10,7 +10,11 @@ import type { Avatar as Person } from '@/lib/people'
 
    To a screen reader the pile is one image named for the people in it ("Jane Miller,
    Alex Tan and 3 more"). `decorative` hides it instead, for piles whose meaning is
-   already carried by text beside them, like the count in a grid cell. */
+   already carried by text beside them, like the count in a grid cell.
+
+   `flippable` turns each face into a button that shows the initials on its back.
+   The pile is then a group of named buttons rather than one image. Never inside a
+   link or a button. */
 
 // "Jane", "Jane and Alex", "Jane, Alex and Sam", "Jane, Alex and 3 more"
 export function namesLabel(names: string[], extra = 0): string {
@@ -28,6 +32,7 @@ export function AvatarRow({
   font,
   ringColor = 'var(--s1)',
   decorative = false,
+  flippable = false,
 }: {
   people: Person[]
   size?: number
@@ -37,6 +42,7 @@ export function AvatarRow({
   font?: number
   ringColor?: string
   decorative?: boolean
+  flippable?: boolean
 }) {
   const shown = people.slice(0, max)
   const extra = more ?? (people.length > max ? `+${people.length - max}` : '')
@@ -45,13 +51,13 @@ export function AvatarRow({
   return (
     <div
       className="flex items-center"
-      role={decorative || !label ? undefined : 'img'}
+      role={decorative || !label ? undefined : flippable ? 'group' : 'img'}
       aria-label={decorative || !label ? undefined : label}
       aria-hidden={decorative || !label ? true : undefined}
     >
       {shown.map((p, i) => (
-        <span key={i} style={{ marginRight: i === shown.length - 1 && !extra ? 0 : -overlap }}>
-          <Avatar initials={p.initials} color={p.color} size={size} font={font} ring ringColor={ringColor} title={p.name} />
+        <span key={i} className="flex" style={{ marginRight: i === shown.length - 1 && !extra ? 0 : -overlap }}>
+          <Avatar initials={p.initials} color={p.color} face={p.face} size={size} font={font} ring ringColor={ringColor} title={p.name} flippable={flippable && !decorative} />
         </span>
       ))}
       {extra && (

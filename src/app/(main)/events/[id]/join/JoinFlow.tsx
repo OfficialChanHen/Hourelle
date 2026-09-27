@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { gsap } from 'gsap'
@@ -19,11 +19,13 @@ import { pushFlash } from '@/components/ui/FlashToast'
 import { backendOn } from '@/lib/db'
 import { cloudSynced, fetchEvent } from '@/lib/remote'
 import { useAccount } from '@/hooks/useAccount'
-import { askAboutTour } from '@/lib/prefs'
+import { askAboutTour, reducedMotion } from '@/lib/prefs'
+import { FaceSvg } from '@/components/ui/FaceSvg'
+import { pickFace, type Face } from '@/lib/faces'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import {
   addMeToEvent, adoptParticipant, claimGuestSession, confirmedSlotText, dateRangeText, getEvent, guestSessionId, isAccountId,
-  joinEvent, leadingPlaceOf, participantByInvite, phaseOf, type AppEvent, type Participant,
+  joinEvent, leadingPlaceOf, participantByInvite, phaseOf, pickColor, type AppEvent, type Participant,
 } from '@/lib/events'
 
 // names compare loosely — case and stray spaces shouldn't decide whether two
@@ -69,6 +71,13 @@ export function JoinFlow({ id }: { id: string }) {
   // the typed email belongs to an account: the page says so and offers the log-in,
   // since joining as a guest under it would make a double of that person
   const [accountEmail, setAccountEmail] = useState<string | null>(null)
+  // the face they will join with: dealt to stand apart from the people already in,
+  // and a tap on it deals another. Kept on their entry when they join.
+  const [face, setFace] = useState<Face | null>(null)
+  const [deals, setDeals] = useState(0)
+  const faceBox = useRef<HTMLSpanElement>(null)
+  // worked out once per roster, not on every keystroke in the name field
+  const dealt = useMemo(() => (event ? pickFace(event.participants, `${id}:join`) : null), [event, id])
 
   // re-run the resolution when the account settles (sign-in restored after mount)
   const account = useAccount()
@@ -107,7 +116,7 @@ export function JoinFlow({ id }: { id: string }) {
     // a personal invite link names its guest — no form
     const invited = participantByInvite(ev, inviteToken)
     if (invited) {
-      if (signedIn) adoptParticipant(id, invited.id, acc.id, { name: acc.name })
+      if (signedIn) adoptParticipant(id, invited.id, acc.id, { name: acc.name, ...(acc.face ? { face: acc.face } : {}) })
       // a guest arriving by their personal link for the first time is new here and is
       // asked if they know their way; one coming back to it (on another device) is not
       else { claimGuestSession(id, invited.id); if (!invited.joinedAt) askAboutTour(id) }
@@ -125,7 +134,7 @@ export function JoinFlow({ id }: { id: string }) {
       if (ev.participants.some((p) => p.id === acc.id) || (ownerless && ev.hostedByYou)) { go(); return }
       // an entry made with this email before there was an account: it becomes yours
       const mine = acc.email ? ev.participants.find((p) => p.guest && p.email === acc.email) : undefined
-      if (mine) adoptParticipant(id, mine.id, acc.id, { name: acc.name })
+      if (mine) adoptParticipant(id, mine.id, acc.id, { name: acc.name, ...(acc.face ? { face: acc.face } : {}) })
       else addMeToEvent(id)
       go(); return
     }
@@ -155,10 +164,19 @@ export function JoinFlow({ id }: { id: string }) {
     { dependencies: [emailOpen] },
   )
 
+  // a small turn on the face when a tap deals a new one
+  useGSAP(
+    () => {
+      if (!deals || !faceBox.current || reducedMotion()) return
+      gsap.fromTo(faceBox.current, { rotate: -14, scale: 0.86 }, { rotate: 0, scale: 1, duration: 0.5, ease: 'back.out(2.6)' })
+    },
+    { dependencies: [deals] },
+  )
+
   function doJoin(n: string) {
     if (joining) return
     setJoining(true)
-    const guest = joinEvent(id, n, email)
+    const guest = joinEvent(id, n, email, face ?? dealt ?? undefined)
     // an email comes with the way back: the server mails their personal link once,
     // in the background, and the event page says so when it arrives
     if (guest?.email) void sendJoinedLink(id, guest.id).then((ok) => { if (ok) pushFlash(`Your link is on its way to ${guest.email}. Keep it to get back here from any device.`) })
@@ -267,6 +285,17 @@ export function JoinFlow({ id }: { id: string }) {
   const past = phase === 'past'
   const host = event.participants.find((p) => p.host)
   const emailShown = emailOpen || email !== ''
+  // the preview wears what joining will hand them: this face, and the colour the
+  // event would deal the name typed so far
+  const myFace = face ?? dealt ?? pickFace(event.participants, `${id}:join`)
+  const myInitials = (cleanName.split(' ').map((w) => w[0]).join('').slice(0, 2) || 'G').toUpperCase()
+  const myColor = pickColor(event.participants, { initials: myInitials, name: cleanName })
+  function shuffleMine() {
+    const next = deals + 1
+    // the face on show counts as taken, so a tap always deals a different one
+    setFace(pickFace([...event!.participants, { face: myFace, initials: myInitials, color: myColor }], `${id}:join:${next}`))
+    setDeals(next)
+  }
   const field = 'h-11 w-full rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none placeholder:text-faint focus:border-accent'
 
   return (
@@ -281,7 +310,7 @@ export function JoinFlow({ id }: { id: string }) {
           <h1 className="font-serif font-normal text-[31px] leading-[1.06] tracking-[-0.01em] sm:text-[34px]">{event.title}</h1>
           <div className="mt-3 flex flex-col gap-2 text-[13.5px] text-dim sm:mt-3.5 sm:gap-[9px]">
             <span className="flex items-center gap-2">
-              {host ? <Avatar initials={host.initials} color={host.color} size={22} /> : <User size={14} className="flex-none" />}
+              {host ? <Avatar initials={host.initials} color={host.color} face={host.face} size={22} /> : <User size={14} className="flex-none" />}
               Hosted by {event.hostName}
             </span>
             <span className="flex flex-wrap items-center gap-1.5">
@@ -296,7 +325,7 @@ export function JoinFlow({ id }: { id: string }) {
             )}
             <span className="flex items-center gap-2">
               <UsersRound size={14} className="flex-none" />
-              <AvatarRow people={event.participants.map((p) => ({ initials: p.initials, name: p.name, color: p.color }))} size={20} max={5} />
+              <AvatarRow people={event.participants.map((p) => ({ initials: p.initials, name: p.name, color: p.color, face: p.face }))} size={20} max={5} />
               {event.participants.length} {event.participants.length === 1 ? 'person is' : 'people are'} in
             </span>
           </div>
@@ -392,18 +421,28 @@ export function JoinFlow({ id }: { id: string }) {
                 <p className="text-[15px] font-semibold leading-[1.4]">Add your name to join.</p>
                 <div className="mt-3 flex flex-col gap-1.5">
                   <label htmlFor="join-name" className="text-[12.5px] font-semibold text-dim">Your name</label>
-                  <input
-                    id="join-name"
-                    autoComplete="name"
-                    autoFocus
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') void join() }}
-                    placeholder="e.g. Sam"
-                    aria-invalid={nameShort || undefined}
-                    aria-describedby={nameShort ? 'join-name-err' : undefined}
-                    className={field}
-                  />
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button" onClick={shuffleMine} aria-label="Shuffle your face" title="Shuffle your face"
+                      className="grid h-11 w-11 flex-none place-items-center rounded-full"
+                    >
+                      <span ref={faceBox} className="block">
+                        <FaceSvg face={myFace} color={myColor} size={44} />
+                      </span>
+                    </button>
+                    <input
+                      id="join-name"
+                      autoComplete="name"
+                      autoFocus
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') void join() }}
+                      placeholder="e.g. Sam"
+                      aria-invalid={nameShort || undefined}
+                      aria-describedby={nameShort ? 'join-name-err' : undefined}
+                      className={`${field} min-w-0 flex-1`}
+                    />
+                  </div>
                   {nameShort && (
                     <p id="join-name-err" role="alert" className="text-[12px] leading-[1.55] text-brick-text">At least two characters.</p>
                   )}

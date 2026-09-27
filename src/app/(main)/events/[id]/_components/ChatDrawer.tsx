@@ -109,7 +109,7 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onVote, onClos
     const p = pById.get(id)
     const n = p?.name ?? name ?? 'Someone'
     const initials = p?.initials ?? (n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?')
-    return { initials, name: n, color: p?.color ?? ('stone' as Participant['color']) }
+    return { initials, name: n, color: p?.color ?? ('stone' as Participant['color']), face: p?.face }
   }
   // lines from people the host took off the event never show, whatever copy they came
   // from, and not even once that person is back on the list
@@ -166,7 +166,7 @@ type ChatProps = {
   messages: ChatMessage[]; unreadFrom?: number
   onSend: (t: string) => void; onClose: () => void
   typing: Peer[]; onType?: () => void; onStopTyping?: () => void
-  avatarOf: (id: string, name?: string) => { initials: string; name: string; color: Participant['color'] }
+  avatarOf: (id: string, name?: string) => { initials: string; name: string; color: Participant['color']; face?: Participant['face'] }
   readOnly: boolean
   polls: PollsProps
 }
@@ -334,7 +334,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                 <div key={r.key} className="mt-3 flex flex-col items-center gap-0.5 text-[11.5px] text-faint">
                   <span className="text-[10.5px]">{whenLabel(m, h24)}</span>
                   <span className="flex items-center gap-2">
-                    <Avatar initials={a.initials} color={a.color} size={16} font={7.5} />
+                    <Avatar initials={a.initials} color={a.color} face={a.face} size={16} font={7.5} />
                     <span><span className="font-semibold text-dim">{m.name}</span> {messagePreview(m)}</span>
                   </span>
                 </div>
@@ -345,7 +345,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                       accent on the right, which says whose they are without a label. */}
                   {first && !m.you && (
                     <div className="mb-1 flex items-center gap-1.5 text-[11px] text-dim">
-                      <Avatar initials={a.initials} color={a.color} size={18} font={8.5} />
+                      <Avatar initials={a.initials} color={a.color} face={a.face} size={18} font={8.5} />
                       <span className="font-semibold text-text">{m.name}</span>
                     </div>
                   )}

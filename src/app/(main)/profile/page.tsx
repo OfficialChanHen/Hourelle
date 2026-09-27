@@ -7,10 +7,11 @@ import { Check, ChevronRight, CircleHelp, Info, Loader2, LogIn, LogOut, Pencil, 
 import { Avatar } from '@/components/ui/Avatar'
 import { useAccount } from '@/hooks/useAccount'
 import { deleteAccount, signOut, updateProfile } from '@/lib/session'
+import { backendOn } from '@/lib/db'
 import { PasswordField } from '@/components/ui/PasswordField'
 import { initialsOf, restampMe } from '@/lib/events'
 import { SignInMethods } from './_components/SignInMethods'
-import { personColors, type PersonColor } from '@/lib/colors'
+import { YourFace } from './_components/YourFace'
 
 // eyebrow labels give the page the sectioned shape settings pages are expected to
 // have — account first, the rest of the account surface after, the exit at the end
@@ -26,36 +27,30 @@ const LINKS = [
   { href: '/about', label: 'About Hourelle', sub: 'What this is and where your data lives', icon: Info },
 ]
 
-const COLORS = Object.keys(personColors) as PersonColor[]
-
 export default function ProfilePage() {
   const account = useAccount()
   const router = useRouter()
 
-  // editing: the name and colour, saved together
+  // editing: the name. The colour is picked with the face, in Your face below
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(account.name)
-  const [color, setColor] = useState<PersonColor>(account.color)
   const [saving, setSaving] = useState(false)
   const [saveErr, setSaveErr] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const clean = name.trim().replace(/\s+/g, ' ')
-  const dirty = clean !== account.name || color !== account.color
+  const dirty = clean !== account.name
 
   async function save() {
     if (!dirty || clean.length < 2) return
     setSaving(true); setSaveErr(null)
-    // a colour the person changed here is a choice, and it follows them onto every
-    // event; a colour they merely kept stays whatever each event dealt them
-    const picked = color !== account.color || account.colorChosen
-    const err = await updateProfile({ name: clean, ...(picked ? { color } : {}) })
+    const err = await updateProfile({ name: clean })
     setSaving(false)
     if (err) { setSaveErr(err); return }
-    // every event this account sits on shows the new name (and the chosen colour)
-    restampMe({ name: clean, ...(picked ? { color } : {}) })
+    // every event this account sits on shows the new name
+    restampMe({ name: clean })
     setEditing(false); setSaved(true); setTimeout(() => setSaved(false), 1800)
   }
-  function cancel() { setEditing(false); setName(account.name); setColor(account.color); setSaveErr(null) }
+  function cancel() { setEditing(false); setName(account.name); setSaveErr(null) }
 
   // the end of the account: a second step spells out what goes with it and asks
   // for the words "delete my account" typed out, the way most services confirm
@@ -83,7 +78,7 @@ export default function ProfilePage() {
       <div className="rounded-2xl border border-border bg-s1 p-5">
         {!editing ? (
           <div className="flex items-center gap-3.5">
-            <Avatar initials={initialsOf(account.name)} color={account.color} size={52} font={19} />
+            <Avatar initials={initialsOf(account.name)} color={account.color} face={account.face} size={52} font={19} />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 text-[16px] font-semibold">{account.name}{saved && <span className="flex items-center gap-1 text-[12px] font-medium text-teal-text"><Check size={13} /> Saved</span>}</div>
               <div className="truncate text-[13px] text-dim">
@@ -91,7 +86,7 @@ export default function ProfilePage() {
               </div>
             </div>
             {account.signedIn && (
-              <button onClick={() => { setName(account.name); setColor(account.color); setSaveErr(null); setEditing(true) }} className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2 hover:text-text">
+              <button onClick={() => { setName(account.name); setSaveErr(null); setEditing(true) }} className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2 hover:text-text">
                 <Pencil size={14} /> Edit
               </button>
             )}
@@ -99,7 +94,7 @@ export default function ProfilePage() {
         ) : (
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3.5">
-              <Avatar initials={initialsOf(clean || account.name)} color={color} size={52} font={19} />
+              <Avatar initials={initialsOf(clean || account.name)} color={account.color} face={account.face} size={52} font={19} />
               <div className="min-w-0 flex-1">
                 <label htmlFor="profile-name" className="block text-[12.5px] font-semibold text-dim">Your name</label>
                 <input
@@ -113,20 +108,6 @@ export default function ProfilePage() {
                 <p id="profile-name-hint" className="mt-1.5 text-[12px] text-faint">{clean.length < 2 ? 'At least two characters.' : 'Shows on every event you are part of.'}</p>
               </div>
             </div>
-            <div>
-              <div className="text-[12.5px] font-semibold text-dim">Avatar colour</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {COLORS.map((c) => (
-                  <button
-                    key={c} type="button" onClick={() => setColor(c)} aria-label={c} aria-pressed={color === c}
-                    className={`grid h-9 w-9 place-items-center rounded-full border-2 transition-colors ${color === c ? 'border-accent' : 'border-transparent hover:border-border2'}`}
-                    style={{ background: personColors[c].bg, color: personColors[c].text }}
-                  >
-                    {color === c && <Check size={16} />}
-                  </button>
-                ))}
-              </div>
-            </div>
             {saveErr && <p role="alert" className="text-[12.5px] font-medium text-brick-text">{saveErr}</p>}
             <div className="flex items-center gap-2">
               <button onClick={() => void save()} disabled={!dirty || clean.length < 2 || saving} className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-40">
@@ -137,6 +118,15 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {/* the face everyone sees on your events. It belongs to an account, or to this
+          browser when there is no backend; a visitor with neither has none to make */}
+      {(account.signedIn || !backendOn) && (
+        <>
+          <Eyebrow>Your face</Eyebrow>
+          <YourFace account={account} />
+        </>
+      )}
 
       {/* both doors to this account, and the way out of having made two */}
       {account.signedIn && (

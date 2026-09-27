@@ -11,6 +11,7 @@ import { supabase, backendOn } from './db'
 import { resetAppearance, resetHints, setTourWanted } from './prefs'
 import { forgetPlan } from './plan'
 import type { PersonColor } from './colors'
+import { cleanFace, type Face } from './faces'
 import { passwordProblem } from './password'
 
 export type AccountKind = 'person' | 'org'
@@ -24,12 +25,18 @@ export type Account = {
   // the colour was picked on the profile page, not dealt at sign-up: it then wins
   // over the distinct colour a new face is handed when joining an event
   colorChosen?: boolean
+  // the face made on the profile page. Kept in the auth user's metadata, so it needs
+  // no table; absent until the person makes one
+  face?: Face
 }
 
 // the stubbed identity: what the app is when nobody has signed in
 export const STUB: Account = { id: 'JM', name: 'Jordan Miller', color: 'purple', kind: 'person', signedIn: false }
 
 const CACHE_KEY = 'hourelle.account'
+// with no backend the app is the stub, whose cache is never written; the face made
+// on the profile page is kept here instead, so local mode keeps it across reloads
+const LOCAL_FACE_KEY = 'hourelle.account.face'
 export const ACCOUNT_CHANGED = 'hourelle:account-changed'
 
 let cached: Account | null = null
@@ -42,7 +49,12 @@ function readCache(): Account {
   if (typeof window === 'undefined') return STUB
   try {
     const raw = localStorage.getItem(CACHE_KEY)
-    cached = raw ? (JSON.parse(raw) as Account) : STUB
+    if (raw) {
+      cached = JSON.parse(raw) as Account
+    } else {
+      const face = backendOn ? undefined : cleanFace(JSON.parse(localStorage.getItem(LOCAL_FACE_KEY) ?? 'null'))
+      cached = face ? { ...STUB, face } : STUB
+    }
   } catch {
     cached = STUB
   }
@@ -85,7 +97,7 @@ function markSettled(): void {
 /* ── the account behind a signed-in session ──
    auth.users holds the credentials; profiles holds the name and color the UI shows.
    One read of profiles turns a session into an Account. */
-async function accountFromSession(userId: string, email: string | undefined): Promise<Account> {
+async function accountFromSession(userId: string, email: string | undefined, meta?: Record<string, unknown>): Promise<Account> {
   // every column, so a profile row from before a later migration still reads
   const { data } = await supabase!.from('profiles').select('*').eq('id', userId).single()
   const row = data as { name?: string; color?: string; color_set?: boolean } | null
@@ -97,6 +109,7 @@ async function accountFromSession(userId: string, email: string | undefined): Pr
     email,
     signedIn: true,
     colorChosen: !!row?.color_set,
+    face: cleanFace(meta?.face),
   }
 }
 
@@ -116,7 +129,7 @@ export function startAuth(): () => void {
       markSettled()
       return
     }
-    void accountFromSession(session.user.id, session.user.email ?? undefined)
+    void accountFromSession(session.user.id, session.user.email ?? undefined, session.user.user_metadata)
       .then((acc) => { if (gen === authGen) writeCache(acc) })
       .finally(markSettled)
     // an acceptance made before a Google or Microsoft sign-up lands on the profile now
@@ -330,6 +343,24 @@ export async function updateProfile(patch: { name?: string; color?: PersonColor 
     if (patch.color) await supabase!.from('profiles').update({ color_set: true }).eq('id', acc.id)
   }
   writeCache({ ...acc, ...(name ? { name } : {}), ...(patch.color ? { color: patch.color, colorChosen: true } : {}) })
+  return null
+}
+
+/** Keep the face made on the profile page. Signed in, it goes to the auth user's
+ *  metadata (no table needed) and the account cache; with no backend, to this
+ *  browser only. The caller restamps the events it sits on. */
+export async function updateFace(face: Face): Promise<string | null> {
+  const acc = readCache()
+  if (acc.signedIn) {
+    if (backendOn) {
+      const { error } = await supabase!.auth.updateUser({ data: { face } })
+      if (error) return error.message
+    }
+  } else {
+    if (backendOn) return 'Log in first.'
+    try { localStorage.setItem(LOCAL_FACE_KEY, JSON.stringify(face)) } catch { /* private mode */ }
+  }
+  writeCache({ ...acc, face })
   return null
 }
 
