@@ -10,7 +10,7 @@ type QA = { q: string; a: React.ReactNode }
 
 const CLIPS: { id: string; title: string; text: string }[] = [
   { id: 'make', title: 'Make an event', text: 'Name it, pick the days, and the link is ready.' },
-  { id: 'mark', title: 'Mark when you are free', text: 'Drag across the grid. Green is where others already are.' },
+  { id: 'mark', title: 'Mark when you are free', text: 'Drag across the grid. Colored slots show when others are free.' },
   { id: 'place', title: 'Pick a place', text: 'Add places to the ballot and vote.' },
   { id: 'lock', title: 'Lock it in', text: 'The host sets the time and place. Everyone gets the plan.' },
 ]
