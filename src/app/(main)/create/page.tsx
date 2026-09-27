@@ -1,10 +1,13 @@
 'use client'
 
 /* ── the create wizard ──
-   One card, not a series of steps. Only four things are actually required — a name,
-   the days to ask about, a time zone, and (for a fixed date) the hours — and they
-   sit in the open at the top. Everything else lives in a drawer you open if you
-   want it: description, cover, place, people, money.
+   One card, not a series of steps, and it asks three things in the open: a name,
+   what the event is asking friends for, and the days. Everything else sits in a
+   list of one-line rows under More options, each already set to a sensible
+   default and each saying what it is set to: which days in the range, the hours
+   of the day, the slot size, the length, the time zone, the host, and the extras
+   (description, cover, place, people, money). A row opens by itself when it holds
+   the thing Create is waiting on.
 
    THE SHAPE OF A PLAN. Two questions decide what gets built: is the time already
    set, and is the place. "Find a time" builds a poll; "the date is set" builds an
@@ -35,9 +38,10 @@ import { TimeSelect } from '@/components/ui/TimeSelect'
 import { tabbablesIn } from '@/hooks/useFocusTrap'
 import {
   Check, ChevronDown, ChevronUp, Search, Plus, X, MapPin, Video, Clock,
-  Info, Vote, ArrowRight, Mail, CalendarRange, Route, GripVertical,
+  Info, Vote, ArrowRight, Mail, Route, GripVertical,
   Loader2, Link2, Copy, UserPlus, Users, PartyPopper, AlignLeft, Wallet, ImagePlus,
-  Map, Presentation, Repeat, Utensils, Dices, CookingPot, type LucideIcon,
+  Map, Presentation, Repeat, Utensils, Dices, CookingPot, CalendarDays, LayoutGrid, Timer, Globe,
+  CalendarCheck, UserRound, type LucideIcon,
 } from 'lucide-react'
 import { personColors, type PersonColor } from '@/lib/colors'
 import { gsap } from 'gsap'
@@ -73,11 +77,12 @@ type WinPreset = 'any' | 'morning' | 'afternoon' | 'evening' | 'custom'
 /* ── the one question the whole event hangs on ──
    Asking in whole days is not a setting, it is one of the three things an event can
    be, and it changes what everybody sees: a calendar to tap rather than a grid to
-   drag. It spent too long as a pill inside a collapsed drawer. */
-const SCHEDULE_MODES: { v: 'find' | 'days' | 'set'; l: string; hint: string; icon: LucideIcon }[] = [
-  { v: 'find', l: 'Times of day', hint: 'People drag across the hours they are free.', icon: Clock },
-  { v: 'days', l: 'Whole days', hint: 'People tap the days they can make. Best for trips.', icon: CalendarRange },
-  { v: 'set', l: 'The date is set', hint: 'You already know. Guests just say yes or no.', icon: Check },
+   drag. So it sits up top, as a three-way switch with one line under it that says
+   what friends will do with the answer. */
+const SCHEDULE_MODES: { v: 'find' | 'days' | 'set'; l: string; hint: string }[] = [
+  { v: 'find', l: 'A time', hint: 'Friends drag across the hours they’re free.' },
+  { v: 'days', l: 'Some days', hint: 'Friends tap the days they can make it.' },
+  { v: 'set', l: 'Date’s set', hint: 'You pick the day. Friends say if they’re in.' },
 ]
 
 // daily time-window presets — 'any' means the grid covers the whole day
@@ -159,6 +164,12 @@ const TEMPLATE_PRESETS: Record<string, Partial<Form>> = {
   potluck: { title: 'Potluck', description: 'Everyone brings a dish.', granularity: '30', durationMin: 180, locMode: 'vote', planMode: 'vote' },
 }
 
+// a template that sets whole-day slots is a day poll, so the "When" switch says so;
+// without this the Weekend trip ran a day poll under "A time"
+function modeFromSlots<F extends { granularity: string; scheduleMode: string }>(f: F): F {
+  return f.granularity === 'day' && f.scheduleMode === 'find' ? { ...f, scheduleMode: 'days' } : f
+}
+
 // the same presets, as tappable chips on the wizard's first step
 // same order and identity hues as the templates page — keep the two in step
 const WIZ_TEMPLATES: { key: string; label: string; icon: LucideIcon; chip: PersonColor }[] = [
@@ -198,7 +209,7 @@ function CreateWizard() {
   // wizard never flashes before the event's own screen
   const [resolving, setResolving] = useState(!!createdParam)
   const [tpl, setTpl] = useState<string | null>(template && TEMPLATE_PRESETS[template] ? template : null)
-  const [form, setForm] = useState<Form>(() => ({ ...initialForm, ...(template ? TEMPLATE_PRESETS[template] : undefined) }))
+  const [form, setForm] = useState<Form>(() => modeFromSlots({ ...initialForm, ...(template ? TEMPLATE_PRESETS[template] : undefined) }))
   const [attempted, setAttempted] = useState(false)
   const [today, setToday] = useState('')
   const stopUid = useRef(0)
@@ -373,7 +384,7 @@ function CreateWizard() {
   // tap a template to seed the form; tap it again to start blank. The detected
   // defaults (dates, zone) survive the reset.
   function applyTemplate(key: string) {
-    setForm((f) => ({
+    setForm((f) => modeFromSlots({
       ...initialForm,
       timezone: f.timezone, startDate: f.startDate, endDate: f.endDate, fixedDay: f.fixedDay, fixedEndDay: f.fixedEndDay,
       ...(tpl === key ? {} : TEMPLATE_PRESETS[key]),
@@ -449,15 +460,14 @@ function CreateWizard() {
 
   return (
     <div className="mx-auto max-w-[760px] px-4 pb-[92px] pt-6 sm:px-[26px] sm:pt-[34px]">
-      <div className="mb-4 text-center sm:mb-[22px]">
-        <h1 className="font-serif sm:font-normal text-[27px] leading-[1.04] tracking-[-0.01em] sm:text-[33.5px]">Create event</h1>
-        <p className="mt-1.5 hidden text-[13.5px] text-dim sm:block">Name it, check the days, create. Everything else can wait.</p>
-      </div>
+      <h1 className="mb-4 text-center font-serif sm:font-normal text-[27px] leading-[1.04] tracking-[-0.01em] sm:mb-5 sm:text-[33.5px]">Create event</h1>
 
-      {/* start from a template — one tap seeds the form, tap again to go blank */}
-      <div className="mb-4">
-        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Start from a template</div>
-        <div className="flex flex-wrap gap-1.5">
+      {/* start from a template: one tap seeds the form, tap again to go blank. On a
+          phone it is a single row that scrolls sideways inside itself, so it costs
+          the name field one line; from sm up it wraps. */}
+      <div className="mb-3 sm:mb-4">
+        <div id="create-tpl-label" className="mb-1 text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Start from a template</div>
+        <div role="group" aria-labelledby="create-tpl-label" className="scroll-none -mx-4 flex gap-1.5 overflow-x-auto px-4 py-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
           {WIZ_TEMPLATES.map((t) => {
             const Icon = t.icon
             const on = tpl === t.key
@@ -470,7 +480,7 @@ function CreateWizard() {
                 aria-pressed={on}
                 // each chip wears its template's identity hue from the templates page;
                 // the picked one steps forward with the accent ring
-                className={`flex h-11 flex-none items-center gap-1.5 rounded-[9px] border px-3.5 text-[13px] font-medium transition-shadow sm:h-8 sm:px-3 ${on ? 'border-accent ring-1 ring-accent' : 'border-transparent hover:brightness-[.97]'}`}
+                className={`flex h-11 flex-none items-center gap-1.5 whitespace-nowrap rounded-[9px] border px-3.5 text-[13px] font-medium transition-shadow sm:h-8 sm:px-3 ${on ? 'border-accent ring-1 ring-accent' : 'border-transparent hover:brightness-[.97]'}`}
                 style={{ background: c.bg, color: c.text }}
               >
                 <Icon size={14} /> {t.label}
@@ -483,9 +493,17 @@ function CreateWizard() {
       <div ref={panel} className="rounded-2xl border border-border bg-s1 px-4 py-[22px] sm:px-6">
         <StepBasics form={form} update={update} today={zToday} attempted={attempted} errs={basicsErr} />
 
-        {/* everything optional lives in drawers — open what you need, skip the rest */}
-        <div className="mt-5 border-t border-border pt-4">
-          <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">More options, all editable on the event page too</div>
+        {/* everything else, one line each and already set to a default. A row opens by
+            itself when it holds the thing Create is waiting on. */}
+        <div className="mt-6 border-t border-border pt-4">
+          <div className="mb-1 text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">More options</div>
+          <WhenOptions form={form} update={update} today={zToday} attempted={attempted} errs={basicsErr} zoneName={zoneName} />
+          <Collapse icon={MapPin} title="Place" summary={placeSummary}>
+            <StepLocation form={form} update={update} stopUid={stopUid} />
+          </Collapse>
+          <Collapse icon={Users} title="People" summary={peopleSummary}>
+            <StepInvite form={form} update={update} />
+          </Collapse>
           <Collapse icon={AlignLeft} title="Description" summary={form.description || 'What is it about?'}>
             <textarea
               value={form.description}
@@ -497,12 +515,6 @@ function CreateWizard() {
           </Collapse>
           <Collapse icon={ImagePlus} title="Cover" summary={isPhotoCover(form.image) ? `Your photo, ${form.imageFit === 'fit' ? 'fitted' : 'filling the frame'}` : form.image ? 'A scene' : 'A scene or a photo of your own'}>
             <CoverEditor image={form.image} fit={form.imageFit} pos={form.imagePos} title={form.title} onChange={(p) => update(p)} />
-          </Collapse>
-          <Collapse icon={MapPin} title="Place" summary={placeSummary}>
-            <StepLocation form={form} update={update} stopUid={stopUid} />
-          </Collapse>
-          <Collapse icon={Users} title="People" summary={peopleSummary}>
-            <StepInvite form={form} update={update} />
           </Collapse>
           <Collapse icon={Wallet} title="Budget and spots" summary={moneySummary}>
             <div className="flex flex-wrap gap-3.5">
@@ -526,6 +538,10 @@ function CreateWizard() {
                 />
               </div>
             </div>
+          </Collapse>
+          {/* events are hosted by the signed-in account: nothing to choose, the name is locked */}
+          <Collapse icon={UserRound} title="Hosted by" summary={account.name}>
+            <input id="ev-host" aria-label="Hosted by" value={account.name} readOnly disabled className={`${inputCls(false)} max-w-[320px] cursor-not-allowed opacity-60`} />
           </Collapse>
         </div>
       </div>
@@ -555,28 +571,37 @@ function CreateWizard() {
   )
 }
 
-/* a closed drawer shows its one-line state; open, it is the full section */
-function Collapse({ icon: Icon, title, summary, children }: {
-  icon: LucideIcon; title: string; summary?: React.ReactNode; children: React.ReactNode
+/* a closed row shows its one-line state; open, it is the full section. A row that
+   holds the thing Create is waiting on (`alert`) opens itself and says so in brick,
+   and stays open once it is fixed, so the answer does not vanish under the finger. */
+function Collapse({ icon: Icon, title, summary, alert = false, children }: {
+  icon: LucideIcon; title: string; summary?: React.ReactNode; alert?: boolean; children: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
+  const [wasAlert, setWasAlert] = useState(alert)
+  if (alert !== wasAlert) {
+    setWasAlert(alert)
+    if (alert) setOpen(true)
+  }
+  const shown = open || alert
   return (
     <div className="border-b border-border last:border-b-0">
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-2.5 py-3.5 text-left">
+      <button type="button" onClick={() => setOpen(!shown)} aria-expanded={shown} className="flex min-h-11 w-full items-center gap-2.5 py-2.5 text-left">
         <Icon size={16} className="flex-none text-dim" />
         <span className="flex-none text-[14px] font-semibold">{title}</span>
-        <span className={`min-w-0 flex-1 truncate text-right text-[12.5px] text-dim ${open ? 'invisible' : ''}`}>{summary}</span>
-        <ChevronDown size={16} className={`flex-none text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
+        <span className={`min-w-0 flex-1 truncate text-right text-[12.5px] ${alert ? 'text-brick-text' : 'text-dim'} ${shown ? 'invisible' : ''}`}>{summary}</span>
+        <ChevronDown size={16} className={`flex-none text-faint transition-transform ${shown ? 'rotate-180' : ''}`} />
       </button>
-      {open && <div className="pb-4">{children}</div>}
+      {shown && <div className="pb-4">{children}</div>}
     </div>
   )
 }
 
-/* ── Step 1: Basics ── */
+// a date key as a short day, "Sat, Oct 3"
+const dayWord = (k: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(k); return m ? new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : '' }
+
+/* ── the three things asked in the open: the name, what friends answer, the days ── */
 function StepBasics({ form, update, today, attempted, errs }: { form: Form; update: Update; today: string; attempted: boolean; errs: BasicsErrs }) {
-  // events are hosted by whoever is logged in, so the field only shows the name
-  const hostName = useAccount().name
   function onStart(v: string) {
     const clamped = today && v && v < today ? today : v
     update((f) => ({ startDate: clamped, endDate: f.endDate && clamped && f.endDate < clamped ? clamped : f.endDate }))
@@ -600,7 +625,102 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
   }
   const fxEnd = form.fixedEndDay && form.fixedEndDay > form.fixedDay ? form.fixedEndDay : form.fixedDay
   const fxRun = !!form.fixedDay && fxEnd !== form.fixedDay
-  const dayWord = (k: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(k); return m ? new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : '' }
+  const show = (e: string) => attempted && !!e
+  const mode = SCHEDULE_MODES.find((m) => m.v === form.scheduleMode) ?? SCHEDULE_MODES[0]
+  const small = 'mb-1.5 block text-[13px] font-semibold text-dim'
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <Label htmlFor="ev-title">Event title <Req /></Label>
+        <input id="ev-title" value={form.title} onChange={(e) => update({ title: e.target.value })} placeholder="e.g. Friday dinner" aria-invalid={show(errs.title) || undefined} aria-describedby={show(errs.title) ? 'ev-title-err' : undefined} className={inputCls(show(errs.title))} />
+        {show(errs.title) && <FieldError id="ev-title-err">{errs.title}</FieldError>}
+      </div>
+
+      {/* The three real answers to "when", and asking in whole days is one of them.
+          A switch rather than cards: the one line under it speaks for the picked
+          option only, so the other two cost nothing to read. */}
+      <div>
+        <Label>When <Req /></Label>
+        <SegmentedControl
+          label="When"
+          stretch
+          className="w-full"
+          value={form.scheduleMode}
+          onChange={(v) => pickMode(v as 'find' | 'days' | 'set')}
+          options={SCHEDULE_MODES.map((m) => ({ v: m.v, l: m.l }))}
+        />
+        <p className="mt-2 text-[12.5px] leading-[1.45] text-dim">{mode.hint}</p>
+      </div>
+
+      {form.scheduleMode === 'set' ? (
+        <div>
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="min-w-0">
+              <span className={small}>From</span>
+              <DateField label="First day of the event" value={form.fixedDay} min={today || undefined} onChange={onFixedDay} invalid={show(errs.fixed) && !form.fixedDay} describedBy={show(errs.fixed) ? 'ev-fixed-err' : undefined} className="h-11 sm:h-10" />
+            </div>
+            <div className="min-w-0">
+              <span className={small}>To</span>
+              <DateField label="Last day of the event" value={fxEnd} min={form.fixedDay || today || undefined} onChange={(v) => update({ fixedEndDay: v && form.fixedDay && v < form.fixedDay ? form.fixedDay : v })} className="h-11 sm:h-10" />
+            </div>
+          </div>
+
+          {/* the time. One day has hours, drawn as a band of that day. A run of days
+              has two ends on two different days, Friday at six to Sunday at noon, so
+              it names each end on its own day rather than pretending to be a band. */}
+          <div className="mt-3 flex flex-wrap items-center gap-2.5">
+            <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> {fxRun ? 'Times' : 'Hours'}</span>
+            <Segmented label={fxRun ? 'Times' : 'Hours'} value={form.fixedAllDay ? 'all' : 'hours'} onChange={(v) => update({ fixedAllDay: v === 'all' })} options={[{ v: 'hours', l: fxRun ? 'Set times' : 'Set hours' }, { v: 'all', l: 'All day' }]} />
+          </div>
+          {fxRun && !form.fixedAllDay && (
+            <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
+              {([['Starts', form.fixedDay, 'fixedStart', 'Start time on the first day'], ['Ends', fxEnd, 'fixedEnd', 'End time on the last day']] as const).map(([word, key, field, title]) => (
+                <div key={field} className="flex items-center justify-between gap-2 rounded-[10px] border border-border bg-s2 px-3 py-2">
+                  <span className="min-w-0 text-[13px] text-dim">{word} <span className="font-semibold text-text">{dayWord(key)}</span></span>
+                  <TimeSelect value={parseHM(form[field]) ?? 0} onChange={(m) => update({ [field]: hhmmOf(m) })} step={15} title={title} />
+                </div>
+              ))}
+            </div>
+          )}
+          {!fxRun && !form.fixedAllDay && (
+            <TimeRange
+              start={form.fixedStart}
+              end={form.fixedEnd}
+              step={15}
+              labels={['Start time', 'End time']}
+              err={show(errs.fixed) && !!form.fixedDay}
+              onChange={(fs, fe) => update({ fixedStart: fs, fixedEnd: fe })}
+            />
+          )}
+          {show(errs.fixed) && <FieldError id="ev-fixed-err">{errs.fixed}</FieldError>}
+        </div>
+      ) : (
+        <div>
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="min-w-0">
+              <span className={small}>From</span>
+              <DateField label="Earliest day to poll" value={form.startDate} min={today || undefined} onChange={onStart} invalid={show(errs.start)} describedBy={show(errs.start) ? 'ev-range-err' : undefined} className="h-11 sm:h-10" />
+            </div>
+            <div className="min-w-0">
+              <span className={small}>To</span>
+              <DateField label="Latest day to poll" value={form.endDate} min={form.startDate || today || undefined} onChange={onEnd} invalid={show(errs.end)} describedBy={show(errs.end) ? 'ev-range-err' : undefined} className="h-11 sm:h-10" />
+            </div>
+          </div>
+          {(show(errs.start) || show(errs.end)) && <FieldError id="ev-range-err">{errs.start || errs.end}</FieldError>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── the fine print of "when", as rows under More options ──
+   Each one starts on the default the poll has always had, and says it in its closed
+   line: every day in the range, the whole day, half-hour slots, an hour long, the
+   zone this browser is in. The window's slider steps by the slot size, so a poll
+   of hour slots cannot ask about half past. None of the time-of-day rows shows for
+   a day poll, which has nothing to say about hours. */
+function WhenOptions({ form, update, today, attempted, errs, zoneName }: { form: Form; update: Update; today: string; attempted: boolean; errs: BasicsErrs; zoneName: string }) {
   // a new slot size snaps a custom window outward onto its steps, the way the grid
   // itself will be built, so the slider never sits between two of its own stops
   function pickGranularity(v: string) {
@@ -628,208 +748,115 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
     })
   }
   const show = (e: string) => attempted && !!e
+  const polling = form.scheduleMode !== 'set'
+  const timed = polling && form.granularity !== 'day'
+  // the whole range, and the part of it still switched on
+  const allDays = polling ? selectedDayKeys(form.startDate, form.endDate, [], []).length : 0
+  const onDays = polling ? selectedDayKeys(form.startDate, form.endDate, form.excludedDows, form.excludedDays).length : 0
   const winS = parseHM(form.windowStart), winE = parseHM(form.windowEnd)
-  const winText = form.windowPreset !== 'any' && winS !== null && winE !== null && winE > winS
-    ? `${fmtMinute(winS)} and ${fmtMinute(winE)}`
-    : ''
+  const winOk = form.windowPreset !== 'any' && winS !== null && winE !== null && winE > winS
+  const winSummary = form.windowPreset === 'custom'
+    ? winOk ? `${fmtMinute(winS as number)} to ${fmtMinute(winE as number)}` : 'Custom'
+    : WIN_PRESETS.find((p) => p.v === form.windowPreset)?.l ?? 'All day'
   // event length is bounded by the daily window: 1 minute up to the whole window
   const winLen = winLenOf(form.windowPreset, form.windowStart, form.windowEnd)
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <Label htmlFor="ev-title">Event title <Req /></Label>
-        <input id="ev-title" value={form.title} onChange={(e) => update({ title: e.target.value })} placeholder="e.g. Friday dinner" aria-invalid={show(errs.title) || undefined} aria-describedby={show(errs.title) ? 'ev-title-err' : undefined} className={inputCls(show(errs.title))} />
-        {show(errs.title) && <FieldError id="ev-title-err">{errs.title}</FieldError>}
-      </div>
+    <>
+      {/* which days inside the range are really being polled: weekends only, or
+          single days turned off. Long ranges fit by turning days off. The picker
+          brings its own rule and top margin for sitting under other fields, which
+          a row of its own does not need. */}
+      {polling && (allDays >= 2 || show(errs.days)) && (
+        <Collapse icon={CalendarDays} title="Days" summary={onDays === allDays ? `All ${allDays} days` : `${onDays} of ${allDays} days`} alert={show(errs.days)}>
+          <div className="[&>div:first-child]:mt-0 [&>div:first-child]:border-t-0 [&>div:first-child]:pt-0">
+            <DaysPicker
+              startDate={form.startDate}
+              endDate={form.endDate}
+              excludedDows={form.excludedDows}
+              excludedDays={form.excludedDays}
+              onChange={(p) => update(p)}
+            />
+            {show(errs.days) && <FieldError>{errs.days}</FieldError>}
+          </div>
+        </Collapse>
+      )}
 
-      {/* events are hosted by the signed-in account — nothing to choose, the name is locked */}
-      <div>
-        <Label htmlFor="ev-host">Hosted by</Label>
-        <input id="ev-host" value={hostName} readOnly disabled className={`${inputCls(false)} max-w-[320px] cursor-not-allowed opacity-60`} />
-      </div>
-
-      <div>
-        <Label>When does it happen? <Req /></Label>
-        {/* The three real answers to "when", and asking in whole days is one of them.
-            It used to be a pill inside a drawer below the calendar, which made a whole
-            mode of the app look like a setting nobody needed to find. Cards rather than
-            segments: each one needs a line saying who it is for, and three segments on
-            a phone truncate to nothing. */}
-        <div className="mb-2.5 grid gap-2.5 sm:grid-cols-3">
-          {SCHEDULE_MODES.map((m) => {
-            const on = form.scheduleMode === m.v
-            return (
-              <button
-                key={m.v}
-                type="button"
-                onClick={() => pickMode(m.v)}
-                aria-pressed={on}
-                className={`flex flex-col items-start gap-1 rounded-xl border p-3.5 text-left ${on ? 'border-accent bg-accent-bg' : 'border-border bg-s1 hover:border-border2 hover:bg-s2'}`}
-              >
-                <span className={`flex items-center gap-1.5 text-[14px] font-semibold ${on ? 'text-accent-text' : ''}`}>
-                  <m.icon size={15} className={on ? 'text-accent-text' : 'text-dim'} /> {m.l}
-                </span>
-                <span className="text-[12.5px] leading-[1.45] text-dim">{m.hint}</span>
-              </button>
-            )
-          })}
-        </div>
-        {form.scheduleMode === 'set' ? (
-          <div className="rounded-[12px] border border-border bg-s2 p-3.5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-              <div className="min-w-0 flex-1 sm:min-w-[150px]">
-                <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> First day</span>
-                <DateField label="First day of the event" value={form.fixedDay} min={today || undefined} onChange={onFixedDay} invalid={show(errs.fixed) && !form.fixedDay} describedBy={show(errs.fixed) ? 'ev-fixed-err' : undefined} className="h-11 !bg-s1 sm:h-10" />
-              </div>
-              <span className="hidden pb-[11px] text-faint sm:block">→</span>
-              <div className="min-w-0 flex-1 sm:min-w-[150px]">
-                <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Last day</span>
-                <DateField label="Last day of the event" value={fxEnd} min={form.fixedDay || today || undefined} onChange={(v) => update({ fixedEndDay: v && form.fixedDay && v < form.fixedDay ? form.fixedDay : v })} className="h-11 !bg-s1 sm:h-10" />
-              </div>
-            </div>
-
-            {/* the time. One day has hours, drawn as a band of that day. A run of days
-                has two ends on two different days, Friday at six to Sunday at noon, so
-                it names each end on its own day rather than pretending to be a band. */}
-            <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
-              <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> {fxRun ? 'Times' : 'Hours'}</span>
-              <Segmented label={fxRun ? 'Times' : 'Hours'} value={form.fixedAllDay ? 'all' : 'hours'} onChange={(v) => update({ fixedAllDay: v === 'all' })} options={[{ v: 'hours', l: fxRun ? 'Set times' : 'Set hours' }, { v: 'all', l: 'All day' }]} />
-            </div>
-            {fxRun && !form.fixedAllDay && (
-              <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
-                {([['Starts', form.fixedDay, 'fixedStart', 'Start time on the first day'], ['Ends', fxEnd, 'fixedEnd', 'End time on the last day']] as const).map(([word, key, field, title]) => (
-                  <div key={field} className="flex items-center justify-between gap-2 rounded-[10px] border border-border bg-s1 px-3 py-2">
-                    <span className="min-w-0 text-[13px] text-dim">{word} <span className="font-semibold text-text">{dayWord(key)}</span></span>
-                    <TimeSelect value={parseHM(form[field]) ?? 0} onChange={(m) => update({ [field]: hhmmOf(m) })} step={15} title={title} />
-                  </div>
-                ))}
-              </div>
-            )}
-            {!fxRun && !form.fixedAllDay && (
+      {timed && (<>
+        {/* which hours of each day the poll covers */}
+        <Collapse icon={Clock} title="Time of day" summary={winSummary} alert={show(errs.win)}>
+          <div>
+            <Segmented label="Daily time window" value={form.windowPreset} onChange={pickWin} options={WIN_PRESETS.map((p) => ({ v: p.v, l: p.l }))} />
+            {form.windowPreset === 'custom' && (
               <TimeRange
-                start={form.fixedStart}
-                end={form.fixedEnd}
-                step={15}
-                labels={['Start time', 'End time']}
-                err={show(errs.fixed) && !!form.fixedDay}
-                onChange={(fs, fe) => update({ fixedStart: fs, fixedEnd: fe })}
+                start={form.windowStart}
+                end={form.windowEnd}
+                step={Number(form.granularity) || 30}
+                labels={['Window start', 'Window end']}
+                err={show(errs.win)}
+                onChange={(ws, we) => update((f) => ({ windowStart: ws, windowEnd: we, durationMin: Math.min(f.durationMin, winLenOf(f.windowPreset, ws, we)) }))}
               />
             )}
-            {show(errs.fixed) && <FieldError id="ev-fixed-err">{errs.fixed}</FieldError>}
-            <div className="mt-3 border-t border-border pt-3">
-              <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint">
-                <Check size={13} /> RSVP by <span className="normal-case tracking-normal">(Optional)</span>
-              </span>
-              <div className="flex items-center gap-2">
-                <DateField label="RSVP by" value={form.rsvpBy} min={today || undefined} max={form.fixedDay || undefined} onChange={(v) => update({ rsvpBy: v })} className="h-11 w-full max-w-[220px] !bg-s1 sm:h-10" />
-                {form.rsvpBy && (
-                  <button type="button" onClick={() => update({ rsvpBy: '' })} className="flex-none text-[12.5px] font-semibold text-dim hover:text-brick-text hover:underline">
-                    Clear
-                  </button>
-                )}
-              </div>
-            </div>
-            <p className="mt-2.5 border-t border-border pt-2.5 text-[12.5px] leading-[1.5] text-faint">
-              The plan starts out locked in. Invites skip the scheduling and go straight to yes or no{form.rsvpBy ? ', with a reminder before the RSVP date' : ''}.
-            </p>
+            {show(errs.win) && <FieldError>{errs.win}</FieldError>}
+            {winOk && form.windowPreset !== 'custom' && (
+              <p className="mt-2 text-[12.5px] leading-[1.5] text-faint">Friends can only pick times between {fmtMinute(winS as number)} and {fmtMinute(winE as number)}.</p>
+            )}
           </div>
-        ) : (
-        <div className="rounded-[12px] border border-border bg-s2 p-3.5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-            <div className="min-w-0 flex-1 sm:min-w-[150px]">
-              <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Earliest day</span>
-              <DateField label="Earliest day to poll" value={form.startDate} min={today || undefined} onChange={onStart} invalid={show(errs.start)} describedBy={show(errs.start) ? 'ev-range-err' : undefined} className="h-11 !bg-s1 sm:h-10" />
-            </div>
-            <span className="hidden pb-[11px] text-faint sm:block">→</span>
-            <div className="min-w-0 flex-1 sm:min-w-[150px]">
-              <span className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[.1em] text-faint"><CalendarRange size={13} /> Latest day</span>
-              <DateField label="Latest day to poll" value={form.endDate} min={form.startDate || today || undefined} onChange={onEnd} invalid={show(errs.end)} describedBy={show(errs.end) ? 'ev-range-err' : undefined} className="h-11 !bg-s1 sm:h-10" />
-            </div>
-          </div>
-          {(show(errs.start) || show(errs.end)) && <FieldError id="ev-range-err">{errs.start || errs.end}</FieldError>}
+        </Collapse>
 
-          {/* which days inside the range are really being polled — weekends only,
-              or single days turned off. Long ranges fit by turning days off. */}
-          <DaysPicker
-            startDate={form.startDate}
-            endDate={form.endDate}
-            excludedDows={form.excludedDows}
-            excludedDays={form.excludedDays}
-            onChange={(p) => update(p)}
-          />
-          {show(errs.days) && <FieldError>{errs.days}</FieldError>}
+        <Collapse icon={LayoutGrid} title="Slot size" summary={SLOT_SIZES.find((s) => s.v === form.granularity)?.l}>
+          <Segmented label="Time slot size" value={form.granularity} onChange={pickGranularity} options={SLOT_SIZES} />
+        </Collapse>
 
-          {/* every control in here is about times of day, so a day poll never shows it:
-              the slot size, the window and the event length have nothing to say when
-              the question is which days. Slot size comes first because it is the
-              window's unit: the slider below steps by it, so a poll of hour slots
-              cannot ask about half past. */}
-          {form.granularity !== 'day' && (<>
-          <div className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
-            <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Time slot size</span>
-            <Segmented label="Time slot size" value={form.granularity} onChange={pickGranularity} options={[{ v: '15', l: '15 min' }, { v: '30', l: '30 min' }, { v: '60', l: '1 hour' }]} />
-          </div>
+        {/* how long the event needs, which drives the best-time search on the grid.
+            The same control the grid's own settings use, and it cannot be stepped
+            or typed past the daily window this event is allowed to happen in. */}
+        <Collapse icon={Timer} title="Length" summary={fmtDur(form.durationMin)}>
+          <DurationField value={form.durationMin} max={winLen} onChange={(m) => update({ durationMin: m })} />
+        </Collapse>
+      </>)}
 
-          {/* which hours of each day the poll covers */}
-          <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-border pt-3">
-            <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Daily time window</span>
-            <Segmented label="Daily time window" value={form.windowPreset} onChange={pickWin} options={WIN_PRESETS.map((p) => ({ v: p.v, l: p.l }))} />
+      {/* the zone defaults to the visitor's own, so it is here to check, not to fill in */}
+      <Collapse icon={Globe} title="Time zone" summary={form.timezone ? zoneName : <span className="text-brick-text">Pick one</span>} alert={show(errs.tz)}>
+        <div>
+          <div className="relative max-w-[320px]">
+            <select
+              value={form.timezone}
+              aria-label="Times in"
+              aria-invalid={show(errs.tz) || undefined}
+              aria-describedby={show(errs.tz) ? 'ev-tz-err' : undefined}
+              onChange={(e) => update({ timezone: e.target.value })}
+              className={`h-11 w-full cursor-pointer appearance-none rounded-[10px] border sm:h-10 ${show(errs.tz) ? 'border-brick-border' : 'border-border'} bg-s2 pl-3 pr-8 text-[14px] font-medium outline-none focus:border-accent`}
+              style={form.timezone ? undefined : { color: 'var(--faint)' }}
+            >
+              <option value="" disabled>Choose a time zone…</option>
+              {TZ.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
+            </select>
+            <ChevronDown size={15} className="pointer-events-none absolute right-[10px] top-1/2 -translate-y-1/2 text-dim" />
           </div>
-          {form.windowPreset === 'custom' && (
-            <TimeRange
-              start={form.windowStart}
-              end={form.windowEnd}
-              step={Number(form.granularity) || 30}
-              labels={['Window start', 'Window end']}
-              err={show(errs.win)}
-              onChange={(ws, we) => update((f) => ({ windowStart: ws, windowEnd: we, durationMin: Math.min(f.durationMin, winLenOf(f.windowPreset, ws, we)) }))}
-            />
-          )}
-          {show(errs.win) && <FieldError>{errs.win}</FieldError>}
-          {winText && (
-            <p className="mt-2 text-[12.5px] leading-[1.5] text-faint">People will only be asked when they&apos;re free between {winText} on each day.</p>
-          )}
-
-          {/* how long the event needs — drives the best-time search on the grid. The
-              same control the grid's own settings use, and it cannot be stepped or
-              typed past the daily window this event is allowed to happen in. */}
-          <div className="mt-3.5 border-t border-border pt-3">
-            <DurationField
-              value={form.durationMin} max={winLen} onChange={(m) => update({ durationMin: m })}
-              title={<span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> Event length</span>}
-            />
-          </div>
-          </>)}
+          {show(errs.tz) && <FieldError id="ev-tz-err">{errs.tz}</FieldError>}
         </div>
-        )}
-      </div>
+      </Collapse>
 
-      {/* the zone defaults to the visitor's own — it's here to check, not to fill in */}
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-        <span className="text-[13px] font-semibold text-dim">Times in</span>
-        <div className="relative">
-          <select
-            value={form.timezone}
-            aria-label="Times in"
-            aria-invalid={show(errs.tz) || undefined}
-            aria-describedby={show(errs.tz) ? 'ev-tz-err' : undefined}
-            onChange={(e) => update({ timezone: e.target.value })}
-            className={`h-11 sm:h-9 cursor-pointer appearance-none rounded-[9px] border ${show(errs.tz) ? 'border-brick-border' : 'border-border'} bg-s2 pl-3 pr-8 text-[13.5px] font-medium outline-none focus:border-accent`}
-            style={form.timezone ? undefined : { color: 'var(--faint)' }}
-          >
-            <option value="" disabled>Choose a time zone…</option>
-            {TZ.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
-          </select>
-          <ChevronDown size={15} className="pointer-events-none absolute right-[10px] top-1/2 -translate-y-1/2 text-dim" />
-        </div>
-        {show(errs.tz)
-          ? <FieldError id="ev-tz-err">{errs.tz}</FieldError>
-          : <span className="text-[12.5px] text-faint">Double-check it if people join from elsewhere.</span>}
-      </div>
-    </div>
+      {/* a set date opens the RSVP round at birth; a deadline is optional */}
+      {!polling && (
+        <Collapse icon={CalendarCheck} title="RSVP by" summary={form.rsvpBy ? dayWord(form.rsvpBy) : 'No deadline'}>
+          <div className="flex items-center gap-2">
+            <DateField label="RSVP by" value={form.rsvpBy} min={today || undefined} max={form.fixedDay || undefined} onChange={(v) => update({ rsvpBy: v })} className="h-11 w-full max-w-[220px] sm:h-10" />
+            {form.rsvpBy && (
+              <button type="button" onClick={() => update({ rsvpBy: '' })} className="flex h-11 flex-none items-center px-1 text-[12.5px] font-semibold text-dim hover:text-brick-text hover:underline sm:h-auto">
+                Clear
+              </button>
+            )}
+          </div>
+          {form.rsvpBy && <p className="mt-2 text-[12.5px] leading-[1.5] text-faint">Friends get a reminder before then.</p>}
+        </Collapse>
+      )}
+    </>
   )
 }
+
+const SLOT_SIZES = [{ v: '15', l: '15 min' }, { v: '30', l: '30 min' }, { v: '60', l: '1 hour' }]
 
 /* ── Step 2: Location ── */
 function StepLocation({ form, update, stopUid }: { form: Form; update: Update; stopUid: RefObject<number> }) {
