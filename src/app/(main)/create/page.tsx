@@ -2,7 +2,7 @@
 
 /* ── the create wizard ──
    One card, not a series of steps, and it asks three things in the open: a name,
-   what the event is asking friends for, and the days. Everything else waits behind
+   what the event is asking people for, and the days. Everything else waits behind
    one closed More options button, in three short groups of one-line rows, each row
    already set to a sensible default and saying what it is set to: timing (which
    days in the range, the hours of the day, the slot size, the length, the time
@@ -81,11 +81,11 @@ type WinPreset = 'any' | 'morning' | 'afternoon' | 'evening' | 'custom'
    Asking in whole days is not a setting, it is one of the three things an event can
    be, and it changes what everybody sees: a calendar to tap rather than a grid to
    drag. So it sits up top, as a three-way switch with one line under it that says
-   what friends will do with the answer. */
+   what people will do with the answer. */
 const SCHEDULE_MODES: { v: 'find' | 'days' | 'set'; l: string; hint: string }[] = [
-  { v: 'find', l: 'A time', hint: 'Friends drag across the hours they’re free.' },
-  { v: 'days', l: 'Some days', hint: 'Friends tap the days they can make it.' },
-  { v: 'set', l: 'Date’s set', hint: 'You pick the day. Friends say if they’re in.' },
+  { v: 'find', l: 'A time', hint: 'Everyone drags across the hours they’re free.' },
+  { v: 'days', l: 'Some days', hint: 'Everyone taps the days they can make.' },
+  { v: 'set', l: 'Date’s set', hint: 'You pick the day. Everyone says if they’re in.' },
 ]
 
 // daily time-window presets — 'any' means the grid covers the whole day
@@ -671,7 +671,7 @@ function Collapse({ icon: Icon, title, summary, alert = false, children }: {
 // a date key as a short day, "Sat, Oct 3"
 const dayWord = (k: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(k); return m ? new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : '' }
 
-/* ── the three things asked in the open: the name, what friends answer, the days ── */
+/* ── the three things asked in the open: the name, what people answer, the days ── */
 function StepBasics({ form, update, today, attempted, errs }: { form: Form; update: Update; today: string; attempted: boolean; errs: BasicsErrs }) {
   function onStart(v: string) {
     const clamped = today && v && v < today ? today : v
@@ -870,7 +870,7 @@ function WhenOptions({ form, update, today, attempted, errs, zoneName }: { form:
             )}
             {show(errs.win) && <FieldError>{errs.win}</FieldError>}
             {winOk && form.windowPreset !== 'custom' && (
-              <p className="mt-2 text-[12.5px] leading-[1.5] text-faint">Friends can only pick times between {fmtMinute(winS as number)} and {fmtMinute(winE as number)}.</p>
+              <p className="mt-2 text-[12.5px] leading-[1.5] text-faint">People can only pick times between {fmtMinute(winS as number)} and {fmtMinute(winE as number)}.</p>
             )}
           </div>
         </Collapse>
@@ -920,7 +920,7 @@ function WhenOptions({ form, update, today, attempted, errs, zoneName }: { form:
               </button>
             )}
           </div>
-          {form.rsvpBy && <p className="mt-2 text-[12.5px] leading-[1.5] text-faint">Friends get a reminder before then.</p>}
+          {form.rsvpBy && <p className="mt-2 text-[12.5px] leading-[1.5] text-faint">Everyone gets a reminder before then.</p>}
         </Collapse>
       )}
     </>
