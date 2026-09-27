@@ -9,12 +9,12 @@ import { personColors, type PersonColor } from '@/lib/colors'
 const TEMPLATES: { key: string; icon: LucideIcon; src?: string; from: string; to: string; chip: PersonColor; title: string; body: string }[] = [
   { key: 'dinner', icon: Utensils, src: 'preset:dusk', from: '', to: '', chip: 'coral', title: 'Dinner & Drinks', body: 'A casual night out. Find a day, pick a place, see who’s in.' },
   { key: 'game-night', icon: Dices, src: 'preset:evening', from: '', to: '', chip: 'purple', title: 'Game Night', body: 'Cards or a board, someone’s table. Find the night that works.' },
-  { key: 'birthday', icon: PartyPopper, from: '#EAD6D3', to: '#DFC2BD', chip: 'pink', title: 'Birthday Party', body: 'One night, one spot. See who can come in a couple of taps.' },
+  { key: 'birthday', icon: PartyPopper, src: 'preset:party', from: '', to: '', chip: 'pink', title: 'Birthday Party', body: 'One night, one spot. See who can come in a couple of taps.' },
   { key: 'potluck', icon: CookingPot, src: 'preset:harvest', from: '', to: '', chip: 'amber', title: 'Potluck', body: 'Everyone brings a dish. Find a day and a kitchen that fits.' },
   { key: 'trip', icon: Map, src: 'preset:meadow', from: '', to: '', chip: 'green', title: 'Weekend Trip', body: 'Pick the dates together, vote on where to go, and share the costs.' },
   { key: 'offsite', icon: Route, src: 'preset:coast', from: '', to: '', chip: 'blue', title: 'Team Offsite', body: 'A few days away. Find the dates, vote on where to go, and plan each stop.' },
   { key: 'one-on-one', icon: Repeat, src: 'preset:garden', from: '', to: '', chip: 'teal', title: 'Recurring 1:1', body: 'A regular time for two people that stays in sync with both calendars.' },
-  { key: 'conference', icon: Presentation, from: '#E2DED3', to: '#D2CCBC', chip: 'gray', title: 'Conference Or Summit', body: 'Lots of people and a full agenda. Keep track of who shows up to what.' },
+  { key: 'conference', icon: Presentation, src: 'preset:city', from: '', to: '', chip: 'gray', title: 'Conference Or Summit', body: 'Lots of people and a full agenda. Keep track of who shows up to what.' },
 ]
 
 export default function TemplatesPage() {
