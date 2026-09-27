@@ -54,6 +54,17 @@
      line drawn around it. Dark needs both stronger, since a dim charcoal over a
      charcoal page barely reads and the deep green all but disappears on it. */
   --tour-dim: rgba(20, 18, 14, .45); --tour-lit: var(--accent);
+  /* person colours: faces and initials chips, decorative identity only. A pale
+     fill with a dark feature shade on paper; features clear 4.5:1 on their fill in
+     every theme, so the initials on a face's back read too. */
+  --person-purple-bg:#E1D8E4; --person-purple-fg:#4A2F52;
+  --person-teal-bg:#D6E4D6;   --person-teal-fg:#2E4A3C;
+  --person-coral-bg:#ECD9CE;  --person-coral-fg:#6B3F2A;
+  --person-blue-bg:#D6E1EA;   --person-blue-fg:#2C4A5C;
+  --person-amber-bg:#EFE4C9;  --person-amber-fg:#6E5523;
+  --person-pink-bg:#EAD6D3;   --person-pink-fg:#6E3B38;
+  --person-green-bg:#DCE6D2;  --person-green-fg:#3A5223;
+  --person-gray-bg:#E2DED3;   --person-gray-fg:#4A463C;
 }
 
 /* Dark — warm charcoal, the same warmth held at the same distance */
@@ -87,6 +98,16 @@
   --glass-rim-weak:rgba(255,255,255,.06);
   --glass-sheen:rgba(255,255,255,.08);
   --tour-dim: rgba(0, 0, 0, .66); --tour-lit: var(--accent-text);
+  /* faces on charcoal: a deeper, muted fill and a light feature shade, so a face
+     sits with the page instead of glowing on it. Studio and Daylight dark use these too. */
+  --person-purple-bg:#4A3D52; --person-purple-fg:#E6D8EC;
+  --person-teal-bg:#35493E;   --person-teal-fg:#CFE5D5;
+  --person-coral-bg:#553F33;  --person-coral-fg:#F1D6C6;
+  --person-blue-bg:#354756;   --person-blue-fg:#D3E2EE;
+  --person-amber-bg:#524630;  --person-amber-fg:#F0E0B8;
+  --person-pink-bg:#553B39;   --person-pink-fg:#F1D3CF;
+  --person-green-bg:#3D4B31;  --person-green-fg:#D8E8C6;
+  --person-gray-bg:#46433B;   --person-gray-fg:#E4DFD3;
 }
 
 /* ── Appearances — optional palettes layered over the same tokens ──
@@ -183,6 +204,15 @@
   --grid-line:#000000; --grid-edge:#4D4D4D; --grid-dash:#4D4D4D;
   --best-head:#FFF0D0;
   --heat-count:#001657; --heat-count-full:#FFFFFF;
+  /* faces: a touch more colour in the fill and near-black features */
+  --person-purple-bg:#DCCDE1; --person-purple-fg:#240F2C;
+  --person-teal-bg:#CADDCC;   --person-teal-fg:#0F2A1B;
+  --person-coral-bg:#EACCBB;  --person-coral-fg:#3A1A0B;
+  --person-blue-bg:#C9D9E6;   --person-blue-fg:#0E2433;
+  --person-amber-bg:#EDDDB5;  --person-amber-fg:#352605;
+  --person-pink-bg:#E8CBC6;   --person-pink-fg:#3A1512;
+  --person-green-bg:#D2E2C3;  --person-green-fg:#172909;
+  --person-gray-bg:#DAD5C8;   --person-gray-fg:#221F18;
 }
 [data-palette="contrast"][data-theme="dark"] {
   --bg:#000000; --s0:#0A0A0A; --s1:#101010; --s2:#1C1C1C; --s3:#2A2A2A;
@@ -198,6 +228,15 @@
   --grid-line:rgba(255,255,255,.6); --grid-edge:rgba(255,255,255,.4); --grid-dash:rgba(255,255,255,.6);
   --best-head:#2E2609;
   --heat-count:#FBFCFF; --heat-count-full:#00123D;
+  /* faces on black: fills bright enough to see the shape, white features */
+  --person-purple-bg:#4B3854; --person-purple-fg:#FFFFFF;
+  --person-teal-bg:#2F4D3C;   --person-teal-fg:#FFFFFF;
+  --person-coral-bg:#5A3B2A;  --person-coral-fg:#FFFFFF;
+  --person-blue-bg:#2E4A5E;   --person-blue-fg:#FFFFFF;
+  --person-amber-bg:#574624;  --person-amber-fg:#FFFFFF;
+  --person-pink-bg:#5C3734;   --person-pink-fg:#FFFFFF;
+  --person-green-bg:#3A5028;  --person-green-fg:#FFFFFF;
+  --person-gray-bg:#48453D;   --person-gray-fg:#FFFFFF;
 }
 
 /* ───────────────── Map semantic tokens → Tailwind utilities (switch per theme) ───────────────── */

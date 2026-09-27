@@ -17,7 +17,7 @@ import { useSwingOnNew } from '@/hooks/useAttention'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRouter } from 'next/navigation'
-import { Plus, Bell, UserRound, LogIn, LogOut, Settings, CircleHelp, Info } from 'lucide-react'
+import { Plus, Bell, UserRound, LogIn, LogOut, Settings, CircleHelp, Info, Smile } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { VisitorHeader } from './VisitorHeader'
 import { Popover, PopoverItem, PopoverSep } from './ui/Popover'
@@ -181,6 +181,7 @@ export function Header() {
                   </div>
                 </div>
                 <PopoverItem href="/profile" onClick={close} icon={<UserRound size={15} />}>Profile</PopoverItem>
+                <PopoverItem href="/profile#face" onClick={close} icon={<Smile size={15} />}>Your face</PopoverItem>
                 <PopoverItem href="/settings" onClick={close} icon={<Settings size={15} />}>Settings</PopoverItem>
                 <PopoverSep />
                 <PopoverItem href="/help" onClick={close} icon={<CircleHelp size={15} />}>Help &amp; contact</PopoverItem>

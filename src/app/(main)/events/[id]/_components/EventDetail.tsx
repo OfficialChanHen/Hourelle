@@ -42,6 +42,8 @@ import { Announce } from '@/components/ui/Announce'
 import { isAllDay, slotWhen } from '@/lib/slot'
 import { Avatar } from '@/components/ui/Avatar'
 import { AvatarRow } from '@/components/ui/AvatarRow'
+import type { Face } from '@/lib/faces'
+import { ChangeFace } from './ChangeFace'
 import { BackLink } from '@/components/ui/BackLink'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
@@ -301,6 +303,16 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     if (!event.demo) patchEvent(event.id, patch)
     setEvent((ev) => (ev ? { ...ev, ...patch } : ev))
   }
+  // your own face on this event, from Change face on the participant list. Only
+  // your entry is touched, worked out from the copy saved on this device right now
+  function setMyFace(face: Face) {
+    if (!event) return
+    const me = event.participants.find((p) => p.you)
+    if (!me) return
+    const wear = (list: AppEvent['participants']) => list.map((p) => (p.id === me.id ? { ...p, face } : p))
+    if (!event.demo) patchEventWith(event.id, (cur) => ({ participants: wear(cur.participants) }))
+    setEvent((ev) => (ev ? { ...ev, participants: wear(ev.participants) } : ev))
+  }
   function goToAvailabilityFor(pid: string) {
     setAvailFocus([pid])
     goTab('availability')
@@ -532,7 +544,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       {/* the wrappers give the tour something to point at on each tab */}
       {tab === 'location' && <div data-tour="location" role="tabpanel" id="panel-location" aria-labelledby="tab-location"><LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} /></div>}
       {tab === 'attendance' && <div data-tour="attendance" role="tabpanel" id="panel-attendance" aria-labelledby="tab-attendance"><AttendancePanel event={event} onGoToTab={goTab} onViewAvailability={goToAvailabilityFor} onViewAvailabilityGroup={goToAvailabilityGroup} onGoToBestWindow={goToBestWindow} /></div>}
-      {tab === 'details' && <div data-tour="details" role="tabpanel" id="panel-details" aria-labelledby="tab-details"><DetailsTab event={event} onDelete={handleDelete} onLeave={handleLeave} onGoToTab={goTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} openInvite={inviteAsk} /></div>}
+      {tab === 'details' && <div data-tour="details" role="tabpanel" id="panel-details" aria-labelledby="tab-details"><DetailsTab event={event} onDelete={handleDelete} onLeave={handleLeave} onGoToTab={goTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onSetMyFace={setMyFace} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} openInvite={inviteAsk} /></div>}
 
       {/* discussion follows you down the page — the classic chat bubble, above the
           mobile tab bar; it is the one and only way in, unread badge included. It stays
@@ -606,9 +618,9 @@ function EditableTitle({ title, editable, onSave }: { title: string; editable: b
 type DetailsGoTab = (t: 'availability' | 'location') => void
 
 /* ── Details tab ── */
-function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onPatch, onViewAvailability, spotlightDelete = false, openInvite = 0 }: {
+function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onPatch, onSetMyFace, onViewAvailability, spotlightDelete = false, openInvite = 0 }: {
   event: AppEvent; onDelete: () => void; onLeave: () => void; onGoToTab: DetailsGoTab; onGoToBestWindow: () => void
-  onPatch: (patch: Partial<AppEvent>) => void; onViewAvailability: (pid: string) => void; spotlightDelete?: boolean
+  onPatch: (patch: Partial<AppEvent>) => void; onSetMyFace: (face: Face) => void; onViewAvailability: (pid: string) => void; spotlightDelete?: boolean
   openInvite?: number
 }) {
   const isHost = event.hostedByYou
@@ -658,7 +670,7 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
       {locked && <ExpensesCard event={event} isHost={isHost} onPatch={onPatch} />}
       </div>
 
-      <ParticipantsCard event={event} isHost={isHost} onPatch={onPatch} onViewAvailability={onViewAvailability} openInvite={openInvite} />
+      <ParticipantsCard event={event} isHost={isHost} onPatch={onPatch} onSetMyFace={onSetMyFace} onViewAvailability={onViewAvailability} openInvite={openInvite} />
 
       {event.hostedByYou && !event.demo && <div className="min-w-0 lg:col-span-2"><DangerZone title={event.title} onDelete={onDelete} spotlight={spotlightDelete} /></div>}
       {/* someone else's event: you can't delete it, but you can take it off your side */}
@@ -677,8 +689,8 @@ const PLAN_GROUP: Record<PlanGroup, { label: string; color: string; bg: string }
   cant: { label: 'Can’t make it', color: 'var(--brick-text)', bg: 'var(--brick-bg)' },
   none: { label: 'No reply', color: 'var(--faint)', bg: 'var(--s2)' },
 }
-function ParticipantsCard({ event, isHost, onPatch, onViewAvailability, openInvite = 0 }: {
-  event: AppEvent; isHost: boolean; onPatch: (patch: Partial<AppEvent>) => void; onViewAvailability: (pid: string) => void
+function ParticipantsCard({ event, isHost, onPatch, onSetMyFace, onViewAvailability, openInvite = 0 }: {
+  event: AppEvent; isHost: boolean; onPatch: (patch: Partial<AppEvent>) => void; onSetMyFace: (face: Face) => void; onViewAvailability: (pid: string) => void
   openInvite?: number
 }) {
   const locked = event.status === 'confirmed' && !!event.confirmed
@@ -755,6 +767,7 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability, openInvi
               </button>
               {p.host && <span className="flex-none rounded-md border border-accent-border bg-accent-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-accent-text">Host</span>}
               {!usual(p) && <span className="flex-none rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: chip.color, background: chip.bg }}>{chip.label}</span>}
+              {p.you && !event.demo && <ChangeFace me={p} onSave={onSetMyFace} />}
               {isHost && !p.you && <ParticipantMenu p={p} event={event} onPatch={onPatch} />}
             </div>
           )

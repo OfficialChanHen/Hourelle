@@ -12,6 +12,7 @@ import { PasswordField } from '@/components/ui/PasswordField'
 import { initialsOf, restampMe } from '@/lib/events'
 import { SignInMethods } from './_components/SignInMethods'
 import { YourFace } from './_components/YourFace'
+import { reducedMotion } from '@/lib/prefs'
 
 // eyebrow labels give the page the sectioned shape settings pages are expected to
 // have — account first, the rest of the account surface after, the exit at the end
@@ -30,6 +31,20 @@ const LINKS = [
 export default function ProfilePage() {
   const account = useAccount()
   const router = useRouter()
+
+  // /profile#face (the account menu's Your face, an event's Change face) lands on
+  // the face. The section only renders once the account is known, which can be after
+  // the router has already looked for it, so it is looked for again when it appears.
+  const faceShown = account.signedIn || !backendOn
+  useEffect(() => {
+    const go = () => {
+      if (window.location.hash !== '#face') return
+      document.getElementById('face')?.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' })
+    }
+    go()
+    window.addEventListener('hashchange', go)
+    return () => window.removeEventListener('hashchange', go)
+  }, [faceShown])
 
   // editing: the name. The colour is picked with the face, in Your face below
   const [editing, setEditing] = useState(false)
@@ -121,11 +136,11 @@ export default function ProfilePage() {
 
       {/* the face everyone sees on your events. It belongs to an account, or to this
           browser when there is no backend; a visitor with neither has none to make */}
-      {(account.signedIn || !backendOn) && (
-        <>
+      {faceShown && (
+        <section id="face" aria-label="Your face" className="scroll-mt-[72px]">
           <Eyebrow>Your face</Eyebrow>
           <YourFace account={account} />
-        </>
+        </section>
       )}
 
       {/* both doors to this account, and the way out of having made two */}

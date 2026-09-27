@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Route, Map, PartyPopper, Presentation, Repeat, Utensils, Dices, CookingPot, ArrowRight, Plus, type LucideIcon } from 'lucide-react'
 import { Cover } from '@/components/ui/Cover'
-import { personColors, type PersonColor } from '@/lib/colors'
+import { personVar, type PersonColor } from '@/lib/colors'
 
 // each template dresses as the event it becomes: its own cover on top and an icon
 // chip in its own decorative hue — identity colors, never semantic ones. Ordered by
@@ -29,7 +29,7 @@ export default function TemplatesPage() {
       <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
         {TEMPLATES.map((t) => {
           const Icon = t.icon
-          const c = personColors[t.chip]
+          const c = personVar(t.chip)
           return (
             <Link
               key={t.key}

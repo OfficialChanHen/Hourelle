@@ -1,6 +1,10 @@
-// Person avatar colors: warm & muted, decorative identity ONLY.
-// Light bg + dark text so the chip reads on both themes. Never reuse for semantic meaning.
+// Person avatar colors: warm & muted, decorative identity ONLY. Never reuse for semantic meaning.
 // Keys + hexes match the Gatherly Editorial reference palette.
+//
+// These are the light-theme values, kept for anything that needs a raw colour
+// (an email, a canvas). The UI paints people with personVar below: the same colours
+// live in globals.css as --person-<key>-bg / --person-<key>-fg, redefined for every
+// theme and appearance, so a face sits calmly on charcoal as well as on paper.
 export const personColors = {
   purple: { bg: '#E1D8E4', text: '#4A2F52' },
   teal:   { bg: '#D6E4D6', text: '#2E4A3C' },
@@ -13,3 +17,10 @@ export const personColors = {
 } as const
 
 export type PersonColor = keyof typeof personColors
+
+/** A person colour as theme-aware CSS: the fill and the feature (text) shade.
+ *  An unknown key falls back on gray. */
+export function personVar(color: string): { bg: string; text: string } {
+  const k = color in personColors ? color : 'gray'
+  return { bg: `var(--person-${k}-bg)`, text: `var(--person-${k}-fg)` }
+}

@@ -13,19 +13,13 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Check, Loader2, Shuffle, X } from 'lucide-react'
 import { FaceSvg } from '@/components/ui/FaceSvg'
-import { personColors, type PersonColor } from '@/lib/colors'
-import { defaultFace, FACE_PARTS, sameFace, shuffleFace, type Face } from '@/lib/faces'
+import { FaceParts } from '@/components/ui/FaceParts'
+import { personColors, personVar, type PersonColor } from '@/lib/colors'
+import { defaultFace, sameFace, shuffleFace, type Face } from '@/lib/faces'
 import { initialsOf, restampMe, stampMyFace } from '@/lib/events'
 import { updateFace, updateProfile, type Account } from '@/lib/session'
 import { reducedMotion } from '@/lib/prefs'
 
-const ROWS: { key: keyof Face; label: string }[] = [
-  { key: 'shape', label: 'Shape' },
-  { key: 'eyes', label: 'Eyes' },
-  { key: 'mouth', label: 'Mouth' },
-  { key: 'hair', label: 'Hair' },
-  { key: 'accessory', label: 'Extra' },
-]
 const COLORS = Object.keys(personColors) as PersonColor[]
 
 export function YourFace({ account }: { account: Account }) {
@@ -91,25 +85,7 @@ export function YourFace({ account }: { account: Account }) {
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col gap-3.5">
-          {ROWS.map((row) => (
-            <div key={row.key} role="group" aria-labelledby={`${ids}-${row.key}`} className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
-              <span id={`${ids}-${row.key}`} className="text-[12.5px] font-semibold text-dim sm:w-[52px] sm:flex-none">{row.label}</span>
-              <div className="flex flex-wrap gap-1.5">
-                {FACE_PARTS[row.key].map(([value, label]) => {
-                  const on = face[row.key] === value
-                  return (
-                    <button
-                      key={value} type="button" aria-pressed={on} aria-label={label} title={label}
-                      onClick={() => pick({ ...face, [row.key]: value })}
-                      className={`grid h-11 w-11 place-items-center rounded-[10px] border ${on ? 'border-accent bg-accent-bg' : 'border-border bg-s0 hover:border-border2'}`}
-                    >
-                      <FaceSvg face={{ ...face, [row.key]: value }} color={color} size={32} />
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
+          <FaceParts face={face} color={color} onPick={pick} />
           {/* the colour is the account's, so it needs an account to keep it */}
           {account.signedIn && (
             <div role="group" aria-labelledby={`${ids}-color`} className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
@@ -119,7 +95,7 @@ export function YourFace({ account }: { account: Account }) {
                   <button
                     key={c} type="button" onClick={() => { setDraftColor(c); setSaved(false); setErr(null) }} aria-label={c} aria-pressed={color === c}
                     className={`grid h-11 w-11 place-items-center rounded-full border-2 sm:h-9 sm:w-9 ${color === c ? 'border-accent' : 'border-transparent hover:border-border2'}`}
-                    style={{ background: personColors[c].bg, color: personColors[c].text }}
+                    style={{ background: personVar(c).bg, color: personVar(c).text }}
                   >
                     {color === c && <Check size={16} />}
                   </button>

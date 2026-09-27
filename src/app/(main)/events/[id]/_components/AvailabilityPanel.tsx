@@ -2065,7 +2065,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         {/* view-mode cell breakdown — anchored to the cell but outside the scroller so nothing clips it */}
         {detail && (() => {
           const bands = cellBands(viewCombinedByDay[detail.day] ?? {}, detail.ti * step, (detail.ti + 1) * step)
-          const W = 222, half = W / 2 + 6
+          const W = 248, half = W / 2 + 6
           const colW = colRef.current?.clientWidth ?? 400
           const left = Math.max(half, Math.min(colW - half, detail.cx))
           return (
@@ -2122,7 +2122,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         Apart, the faces wrapped onto a line of their own on a phone and
                         hung at the far edge, with nothing saying what they were */}
                     <span className="flex min-w-0 items-center gap-2 sm:ml-auto">
-                      <AvatarRow people={byRoster(bestMode === 'crowd' ? bw.anyIds : bw.ids).map(avatarOf)} size={22} max={8} overlap={5} />
+                      <AvatarRow people={byRoster(bestMode === 'crowd' ? bw.anyIds : bw.ids).map(avatarOf)} size={32} max={6} overlap={8} />
                       {bestMode === 'crowd'
                         // never round a partial attendee away: below one person on average,
                         // count everyone who shows up at all instead
@@ -2147,7 +2147,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     {blockLen === 1 ? blockDayLabel(block.startKey) : <>{blockDayLabel(block.startKey)} – {blockDayLabel(block.endKey)}</>}
                   </span>
                   <span className="flex min-w-0 items-center gap-2 sm:order-last sm:ml-auto">
-                    <AvatarRow people={byRoster(bestMode === 'crowd' ? block.anyIds : block.ids).map(avatarOf)} size={22} max={8} overlap={5} />
+                    <AvatarRow people={byRoster(bestMode === 'crowd' ? block.anyIds : block.ids).map(avatarOf)} size={32} max={6} overlap={8} />
                     <span className="text-[12.5px] font-semibold text-teal-text">
                       {blockLen === 1
                         ? <>{block.count} of {viewTotal} free that day</>

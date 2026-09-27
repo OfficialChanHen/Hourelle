@@ -324,7 +324,7 @@ export function CellDetail({ bands, total, fmt, gridStartMin, dayLabel, avatarOf
   bands: Band[]; total: number; fmt: (m: number) => string; gridStartMin: number
   // a day poll has no times to name — the date heads the list instead of a clock range
   dayLabel?: string
-  avatarOf: (id: string) => { initials: string; name: string; color: Participant['color'] }
+  avatarOf: (id: string) => { initials: string; name: string; color: Participant['color']; face?: Participant['face'] }
   onPerson: (id: string) => void; filter: Set<string>
   style: React.CSSProperties; onClose: () => void
 }) {
@@ -340,7 +340,7 @@ export function CellDetail({ bands, total, fmt, gridStartMin, dayLabel, avatarOf
       ref={wrap}
       onClick={(e) => e.stopPropagation()}
       style={style}
-      className="absolute z-40 w-[222px] rounded-[11px] border border-border2 bg-s1 p-2.5 shadow-soft"
+      className="absolute z-40 w-[248px] rounded-[11px] border border-border2 bg-s1 p-2.5 shadow-soft"
     >
       <div className="mb-1.5 flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-[.1em] text-faint">Who&apos;s free</span>
@@ -356,15 +356,15 @@ export function CellDetail({ bands, total, fmt, gridStartMin, dayLabel, avatarOf
             {b.ids.length === 0 ? (
               <span className="text-[12px] text-faint">No one free</span>
             ) : (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1.5">
                 {b.ids.map((id) => { const a = avatarOf(id); const on = filter.has(id); return (
                   <button
                     key={id} type="button" onClick={() => onPerson(id)}
                     title={on ? `Stop filtering to ${a.name}` : `Filter the grid to ${a.name}`}
-                    className={`flex items-center gap-1 rounded-full py-0.5 pl-0.5 pr-1.5 ${on ? 'bg-accent-bg text-accent-text' : 'bg-s2 hover:bg-s3'}`}
+                    className={`flex min-w-0 max-w-full items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2 ${on ? 'bg-accent-bg text-accent-text' : 'bg-s2 hover:bg-s3'}`}
                   >
-                    <Avatar initials={a.initials} color={a.color} size={18} font={8.5} />
-                    <span className="text-[11px] font-medium">{a.name}</span>
+                    <Avatar initials={a.initials} color={a.color} face={a.face} size={26} />
+                    <span className="truncate text-[12px] font-medium">{a.name}</span>
                     {on && <Check size={11} className="text-accent-text" />}
                   </button>
                 ) })}

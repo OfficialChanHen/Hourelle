@@ -1,9 +1,12 @@
 /* ── faces: everyone's avatar is a small drawn face ──
    A filled shape in the person's colour with eyes, a mouth and maybe hair and one
-   extra, drawn in the colour's text shade on a 40x40 box. Five small choices, so a
+   extra, drawn in the colour's feature shade on a 40x40 box. Five small choices, so a
    face is a few bytes on the participant entry and costs one SVG to draw.
 
-   The strokes are thick enough to read at 18px and plain enough to hold at 150px.
+   One weight for everything: every line (eyes drawn as lines, mouths, glasses) is
+   LINE units wide, and every dot is a real filled circle, so a face scales with its
+   box and keeps the same even weight from 18px to 150px. A dot is never a zero-length
+   stroke, which rasterises as a soft square at small sizes.
    Every path is drawn for a shape centred in the box, reaching from 1 to 39. */
 
 export type FaceShape = 'circle' | 'squircle' | 'flower' | 'arch' | 'blob'
@@ -14,6 +17,20 @@ export type FaceAccessory = 'none' | 'glasses' | 'freckles' | 'blush'
 
 export type Face = { shape: FaceShape; eyes: FaceEyes; mouth: FaceMouth; hair: FaceHair; accessory: FaceAccessory }
 
+/** The width of every line in a face, in the 40 box. */
+export const LINE = 2.4
+
+/** A part as drawn: `d` is stroked LINE wide with round caps and joins, `dots` are
+ *  filled circles of radius `r`, `tint` is filled ellipses [cx, cy, rx, ry] at
+ *  `o` opacity. Everything is in the feature shade. */
+export type FacePart = {
+  d?: string
+  dots?: readonly (readonly [number, number])[]
+  r?: number
+  tint?: readonly (readonly [number, number, number, number])[]
+  o?: number
+}
+
 export const SHAPES: Record<FaceShape, string> = {
   circle: 'M20 1 a19 19 0 1 1 0 38 a19 19 0 1 1 0 -38z',
   squircle: 'M20 1 C35 1 39 5 39 20 S35 39 20 39 S1 35 1 20 S5 1 20 1z',
@@ -22,18 +39,19 @@ export const SHAPES: Record<FaceShape, string> = {
   blob: 'M21 1 C33 2 40 10 39 21 C38 33 30 40 19 39 C8 38 1 31 1 20 C2 9 10 0 21 1z',
 }
 
-// eyes are strokes: a zero-length segment with a round cap is a dot
-export const EYES: Record<FaceEyes, { d: string; w: number }> = {
-  dots: { d: 'M14.5 18.5 l0 0 M25.5 18.5 l0 0', w: 3.6 },
-  happy: { d: 'M12 19 q2.5 -3 5 0 M23 19 q2.5 -3 5 0', w: 2.4 },
-  wink: { d: 'M14.5 18.5 l0 0 M23 19 q2.5 -3 5 0', w: 3.2 },
-  sleepy: { d: 'M12.5 18.5 h4 M23.5 18.5 h4', w: 2.4 },
+const EYE_L = [14.5, 18.5] as const
+const EYE_R = [25.5, 18.5] as const
+export const EYES: Record<FaceEyes, FacePart> = {
+  dots: { dots: [EYE_L, EYE_R], r: 2 },
+  happy: { d: 'M12 19.2 q2.5 -3 5 0 M23 19.2 q2.5 -3 5 0' },
+  wink: { dots: [EYE_L], r: 2, d: 'M23 19.2 q2.5 -3 5 0' },
+  sleepy: { d: 'M12.5 18.5 h4 M23.5 18.5 h4' },
 }
 
 export const MOUTHS: Record<FaceMouth, string> = {
   smile: 'M14 25 q6 5.5 12 0',
   grin: 'M13 24 q7 8 14 0 z',
-  oh: 'M18.4 26 a1.8 1.8 0 1 0 3.6 0 a1.8 1.8 0 1 0 -3.6 0',
+  oh: 'M18.2 26 a1.8 1.8 0 1 0 3.6 0 a1.8 1.8 0 1 0 -3.6 0',
   smirk: 'M15 26.5 q5 2 10 -1.5',
 }
 
@@ -45,12 +63,12 @@ export const HAIR: Record<FaceHair, string> = {
   bun: 'M15 5 a5 4 0 1 1 10 0 a5 4 0 1 1 -10 0z',
 }
 
-// one small extra, strokes in the same style. `o` is its opacity (blush is a tint).
-export const ACCESSORIES: Record<FaceAccessory, { d: string; w: number; o?: number }> = {
-  none: { d: '', w: 0 },
-  glasses: { d: 'M10.3 18.5 a4.2 4.2 0 1 0 8.4 0 a4.2 4.2 0 1 0 -8.4 0 M21.3 18.5 a4.2 4.2 0 1 0 8.4 0 a4.2 4.2 0 1 0 -8.4 0 M18.7 18 q1.3 -1.2 2.6 0', w: 1.7 },
-  freckles: { d: 'M9.4 22.6 l0 0 M11.7 23.7 l0 0 M9.8 25 l0 0 M30.6 22.6 l0 0 M28.3 23.7 l0 0 M30.2 25 l0 0', w: 1.8 },
-  blush: { d: 'M8.6 24.2 h1.8 M29.6 24.2 h1.8', w: 3.4, o: 0.3 },
+// one small extra, in the same shade and the same line weight; blush is a tint
+export const ACCESSORIES: Record<FaceAccessory, FacePart> = {
+  none: {},
+  glasses: { d: 'M10.1 18.5 a4.4 4.4 0 1 0 8.8 0 a4.4 4.4 0 1 0 -8.8 0 M21.1 18.5 a4.4 4.4 0 1 0 8.8 0 a4.4 4.4 0 1 0 -8.8 0 M18.9 18.2 h2.2' },
+  freckles: { dots: [[9.4, 22.8], [11.8, 24], [9.9, 25.4], [30.6, 22.8], [28.2, 24], [30.1, 25.4]], r: 0.95 },
+  blush: { tint: [[9.6, 24.4, 2.6, 1.6], [30.4, 24.4, 2.6, 1.6]], o: 0.3 },
 }
 
 /* the picker's labels, in the order the rows show them */

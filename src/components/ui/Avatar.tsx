@@ -1,6 +1,6 @@
 'use client'
 
-import { personColors, type PersonColor } from '@/lib/colors'
+import { personVar, type PersonColor } from '@/lib/colors'
 import { defaultFace, type Face } from '@/lib/faces'
 import { useFaceFlip } from '@/hooks/useFaceFlip'
 import { FaceSvg } from './FaceSvg'
@@ -31,7 +31,7 @@ export function Avatar({
   initials,
   color = 'gray',
   face,
-  size = 26,
+  size: rawSize = 26,
   font,
   ring = false,
   ringColor = 'var(--s1)',
@@ -51,6 +51,8 @@ export function Avatar({
   flippable?: boolean
 }) {
   const look = face ?? defaultFace(initials, color)
+  // whole pixels only: a fractional box smears every edge of the drawing
+  const size = Math.max(1, Math.round(rawSize))
   if (flippable) {
     return (
       <FlipFace
@@ -80,7 +82,7 @@ function FlipFace({ initials, color, face, size, font, ringColor, name }: {
   initials: string; color: PersonColor; face: Face; size: number; font?: number; ringColor?: string; name: string
 }) {
   const { scope, flipped, toggle } = useFaceFlip()
-  const c = personColors[color] ?? personColors.gray
+  const c = personVar(color)
   const reach = Math.max(0, (44 - size) / 2)
   return (
     <button

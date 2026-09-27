@@ -46,7 +46,7 @@ import {
   Map, Presentation, Repeat, Utensils, Dices, CookingPot, CalendarDays, LayoutGrid, Timer, Globe,
   CalendarCheck, type LucideIcon,
 } from 'lucide-react'
-import { personColors, type PersonColor } from '@/lib/colors'
+import { personVar, type PersonColor } from '@/lib/colors'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
@@ -518,7 +518,7 @@ function CreateWizard() {
           {WIZ_TEMPLATES.map((t) => {
             const Icon = t.icon
             const on = tpl === t.key
-            const c = personColors[t.chip]
+            const c = personVar(t.chip)
             return (
               <button
                 key={t.key}
