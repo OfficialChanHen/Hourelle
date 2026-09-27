@@ -122,7 +122,7 @@ export function PollComposer({ onPost, onCancel }: { onPost: (p: Poll) => void; 
           disabled={!ready}
           className="h-11 rounded-[12px] bg-accent px-4 text-[13.5px] font-semibold text-on-accent disabled:opacity-40 sm:h-[38px]"
         >
-          Post poll
+          Post
         </button>
       </div>
     </form>
