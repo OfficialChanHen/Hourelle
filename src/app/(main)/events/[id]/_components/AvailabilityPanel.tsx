@@ -1574,7 +1574,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     ))}
                     <span>{filterOn ? 'All selected' : 'Everyone'}</span>
                   </div>
-                  <p>Darker cells mean more people are free then. The corner count is exact.</p>
+                  <p>The stronger the color, the more people are free. The corner count is exact.</p>
                   <div className="flex items-center gap-1.5 border-t border-border pt-2">
                     <span className="h-[11px] w-[11px] flex-none rounded-[3px]" style={{ background: 'var(--you-some)', border: '1.5px solid var(--you-text)' }} />
                     <span>Your own marked times, in Edit mine.</span>
@@ -1640,13 +1640,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           </div>
         )}
 
-        {/* one line of how the grid works, gone once dismissed. Edit mode has its own
-            line about dragging, so the hint stays out of its way there */}
-        {mode !== 'edit' && (
+        {/* one line of what to do, gone once dismissed. What the colours mean lives in
+            the grid's info button, so it is not said twice. Edit mode has its own line
+            about dragging, and a grid you cannot edit has nothing to ask of you */}
+        {mode !== 'edit' && editable && (
           <Hint name="grid" className="mb-2">
-            {!editable ? 'The stronger the color, the more people are free.'
-              : dayPoll ? 'Tap the days you can make. The stronger the color, the more people are free.'
-                : 'Press Edit mine and drag across the hours you can meet. The stronger the color, the more people are free.'}
+            {dayPoll ? 'Tap the days you can make.' : 'Press Edit mine and drag across the hours you can meet.'}
           </Hint>
         )}
 
