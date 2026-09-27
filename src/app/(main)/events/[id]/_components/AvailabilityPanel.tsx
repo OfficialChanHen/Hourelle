@@ -1977,8 +1977,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         const cs = Math.max(iv.s, w0), ce = Math.min(iv.e, w1)
                         if (ce <= cs) return null
                         // solid outline only at the block's true start/end + both sides, so a
-                        // multi-cell block reads as one crisp shape over the green heat
-                        const line = '1.5px solid #7A531F'
+                        // multi-cell block reads as one crisp shape over the heat. The line is the
+                        // theme's own "you" ink: a fixed dark brown vanished on the dark themes
+                        const line = '1.5px solid var(--you-text)'
                         return (
                           <div
                             key={k}
@@ -1986,7 +1987,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                             style={{
                               top: `${((cs - w0) / step) * 100}%`,
                               height: `${((ce - cs) / step) * 100}%`,
-                              background: clay,
+                              // laid over the plain cell, not over the others' heat: the dark
+                              // themes' clay is see-through, and over green it went olive, close
+                              // enough to green that your own times were hard to pick out
+                              background: `linear-gradient(${clay}, ${clay}), var(--s1)`,
                               boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.35)',
                               borderLeft: line,
                               borderRight: line,

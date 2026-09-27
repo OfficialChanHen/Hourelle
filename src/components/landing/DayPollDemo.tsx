@@ -128,7 +128,7 @@ export function DayPollDemo() {
                       {isMine && (
                         <span
                           className="pointer-events-none absolute inset-0"
-                          style={{ background: 'var(--you-some)', border: '1.5px solid #7A531F', boxShadow: pressing ? 'inset 0 0 0 2px rgba(255,255,255,.45)' : 'inset 0 0 0 1px rgba(255,255,255,.35)' }}
+                          style={{ background: 'var(--you-some)', border: '1.5px solid var(--you-text)', boxShadow: pressing ? 'inset 0 0 0 2px rgba(255,255,255,.45)' : 'inset 0 0 0 1px rgba(255,255,255,.35)' }}
                         />
                       )}
                       {inBest && (
