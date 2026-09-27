@@ -227,7 +227,7 @@ function Welcome() {
           <div className="flex flex-col gap-2">
             <p className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Preview</p>
             <div className="rounded-2xl border border-border bg-s0 p-4">
-              <div className="overflow-hidden rounded-[13px] border border-border bg-s1 p-3.5">
+              <div className="overflow-hidden rounded-2xl border border-border bg-s1 p-3.5">
                 <div className="-mx-3.5 -mt-3.5 mb-3 h-[64px]" style={{ background: dark ? 'linear-gradient(135deg, #2A3A31, #1F2A24)' : 'linear-gradient(135deg, #E4EDE7, #CFE0D5)' }} />
                 <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium text-dim">
                   <span className="h-2 w-2 rounded-full bg-ochre" /> Planning
@@ -267,7 +267,7 @@ function Welcome() {
             <li><span className="font-medium text-text">Attendance and details.</span> Who is coming, and everything else.</li>
             <li><span className="font-medium text-text">The lock-in.</span> The host sets the plan and everyone gets it.</li>
           </ol>
-          <button type="button" onClick={showAround} className="mt-4 flex h-11 items-center gap-2 rounded-[10px] bg-accent px-5 text-[14px] font-semibold text-on-accent">
+          <button type="button" onClick={showAround} className="mt-4 flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent">
             Show me around <ArrowRight size={15} />
           </button>
         </div>
@@ -280,14 +280,14 @@ function Welcome() {
         {step === 'terms' ? (
           <>
             <span className="text-[12.5px] text-faint">This step cannot be skipped.</span>
-            <button type="button" onClick={acceptTerms} disabled={!legalOk} className="flex h-11 items-center gap-2 rounded-[10px] bg-accent px-5 text-[14px] font-semibold text-on-accent disabled:opacity-40">
+            <button type="button" onClick={acceptTerms} disabled={!legalOk} className="flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent disabled:opacity-40">
               Continue <ArrowRight size={15} />
             </button>
           </>
         ) : step === 'settings' ? (
           <>
             <button type="button" onClick={finish} className="text-[13px] font-semibold text-dim hover:text-text">Skip for now</button>
-            <button type="button" onClick={() => void continueToPlans()} disabled={saving} className="flex h-11 items-center gap-2 rounded-[10px] bg-accent px-5 text-[14px] font-semibold text-on-accent disabled:opacity-60">
+            <button type="button" onClick={() => void continueToPlans()} disabled={saving} className="flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent disabled:opacity-60">
               Continue <ArrowRight size={15} />
             </button>
           </>
@@ -301,7 +301,7 @@ function Welcome() {
         ) : (
           <>
             <button type="button" onClick={() => setStep('plan')} className="text-[13px] font-semibold text-dim hover:text-text">Back</button>
-            <button type="button" onClick={finish} className="flex h-11 items-center gap-2 rounded-[10px] border border-border2 bg-s1 px-5 text-[14px] font-semibold hover:bg-s2">
+            <button type="button" onClick={finish} className="flex h-11 items-center gap-2 rounded-full border border-border2 bg-s1 px-5 text-[14px] font-semibold hover:bg-s2">
               Not now <ArrowRight size={15} />
             </button>
           </>

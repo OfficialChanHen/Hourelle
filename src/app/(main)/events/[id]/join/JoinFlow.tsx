@@ -272,7 +272,7 @@ export function JoinFlow({ id }: { id: string }) {
         <p className="mx-auto mt-2 max-w-sm text-[14.5px] leading-[1.55] text-dim">
           The link may have a typo, or the event was deleted. Ask the host to send it again, or plan something of your own.
         </p>
-        <Link href="/create" className="mt-5 inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent">Create an event</Link>
+        <Link href="/create" className="mt-5 inline-flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent">Create an event</Link>
       </div>
     )
   }
@@ -337,7 +337,7 @@ export function JoinFlow({ id }: { id: string }) {
               <p className="text-[13.5px] leading-[1.55] text-dim">This event already happened.</p>
             ) : sent ? (
               /* the link is on its way; opening it on this device finishes the join */
-              <div className="flex items-start gap-3 rounded-[12px] border border-teal-border bg-teal-bg px-4 py-3.5">
+              <div className="flex items-start gap-3 rounded-xl border border-teal-border bg-teal-bg px-4 py-3.5">
                 <MailCheck size={17} className="mt-0.5 flex-none text-teal-text" />
                 <div className="min-w-0">
                   <p className="text-[14px] font-semibold text-teal-text">Check your inbox</p>
@@ -368,7 +368,7 @@ export function JoinFlow({ id }: { id: string }) {
                         placeholder="you@example.com"
                         className={`${field} min-w-0 flex-1`}
                       />
-                      <button onClick={() => void claim()} disabled={!claimEmail.trim() || joining} className="h-11 flex-none rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-40">
+                      <button onClick={() => void claim()} disabled={!claimEmail.trim() || joining} className="h-11 flex-none rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-40">
                         That&apos;s me
                       </button>
                     </div>
@@ -398,7 +398,7 @@ export function JoinFlow({ id }: { id: string }) {
                     <button
                       onClick={joinRenamed}
                       disabled={!dupeName.trim() || norm(dupeName) === norm(collision.name) || joining}
-                      className="h-11 flex-none rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-40"
+                      className="h-11 flex-none rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-40"
                     >
                       Join with this name
                     </button>
@@ -493,7 +493,7 @@ export function JoinFlow({ id }: { id: string }) {
                 </p>
                 <Link
                   href={`/auth/signin?mode=login&email=${encodeURIComponent(accountEmail)}&next=${encodeURIComponent(`/events/${id}/join${inviteToken ? `?invite=${inviteToken}` : ''}`)}`}
-                  className="flex h-10 w-fit items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent"
+                  className="flex h-10 w-fit items-center gap-1.5 rounded-full bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent"
                 >
                   Log in <ArrowRight size={14} />
                 </Link>

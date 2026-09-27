@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { MessageCircle } from 'lucide-react'
 import { SupportLink } from './ui/Support'
 import { FooterLinks, type FooterPage } from './FooterLinks'
+import { Wordmark } from '@/components/ui/Em'
 
 // One footer for the whole site: the front door has it, and so does every app page.
 // The name and the promise on one side, the pages in two short labelled groups on
@@ -20,7 +21,7 @@ export function SiteFooter() {
       <div className="mx-auto w-full max-w-[1240px] px-[22px] pb-[88px] pt-9 md:pb-8 md:pt-12">
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between sm:gap-12">
           <div className="min-w-0 max-w-[360px]">
-            <Link href="/" className="font-serif text-[28px] leading-none text-text">Hourelle</Link>
+            <Link href="/" className="text-text"><Wordmark className="text-[28px]" /></Link>
             <p className="mt-3 text-[14px] leading-[1.55] text-dim">Find the hour everyone can meet.</p>
             <SupportLink />
           </div>

@@ -305,7 +305,7 @@ export function HowItWorks() {
                   <span className={`rounded-[8px] border px-2.5 py-1.5 transition-colors ${dates ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border text-faint'}`}>Fri, Aug 24</span>
                 </div>
                 <div className="mt-5 flex justify-end">
-                  <span className={`flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent transition-transform ${pressed ? 'scale-95' : ''} ${dates ? '' : 'opacity-40'}`}><Check size={16} /> Create event</span>
+                  <span className={`flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent transition-transform ${pressed ? 'scale-95' : ''} ${dates ? '' : 'opacity-40'}`}><Check size={16} /> Create event</span>
                 </div>
               </Scene>
 
@@ -315,7 +315,7 @@ export function HowItWorks() {
                 <div className="mt-3 flex h-10 items-center gap-2 rounded-[10px] border border-border2 bg-s2 pl-3 pr-1.5">
                   <Link2 size={15} className="flex-none text-accent-text" />
                   <span className="flex-1 truncate font-mono text-[12.5px]">hourelle.com/e/rooftop-dinner/join</span>
-                  <span className="flex h-7 items-center gap-1 rounded-[7px] bg-accent px-2.5 text-[12px] font-semibold text-on-accent">{copied ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Copy</>}</span>
+                  <span className="flex h-7 items-center gap-1 rounded-full bg-accent px-2.5 text-[12px] font-semibold text-on-accent">{copied ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Copy</>}</span>
                 </div>
                 <div className="mt-5">
                   <p className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Who is in</p>
@@ -376,7 +376,7 @@ export function HowItWorks() {
                     <p className="font-serif text-[22px] leading-tight tracking-[-0.01em] sm:text-[24px]">{TITLE}</p>
                     <div className="mt-1.5"><Badge variant={locked ? 'teal' : 'ochre'}>{locked ? 'RSVPs open' : 'Planning'}</Badge></div>
                   </div>
-                  <span className={`flex h-9 flex-none items-center gap-1.5 rounded-[9px] px-3 text-[13px] font-semibold transition-all ${locked ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'} ${lockPressed ? 'scale-95' : ''}`}>
+                  <span className={`flex h-9 flex-none items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition-all ${locked ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'} ${lockPressed ? 'scale-95' : ''}`}>
                     {locked ? <><Check size={14} /> Locked in</> : <><Lock size={14} /> Lock it in</>}
                   </span>
                 </div>

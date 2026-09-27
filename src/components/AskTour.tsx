@@ -72,10 +72,10 @@ export function AskTour({ eventId }: { eventId: string }) {
         {/* stacked on a phone, where each one is a thumb's target and gets the height
             to match; side by side from sm up, where they can be the usual size */}
         <div className="mt-5 flex flex-col gap-2.5 sm:mt-4 sm:flex-row-reverse sm:gap-2">
-          <button type="button" onClick={() => choose(true)} className="flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-accent sm:w-auto sm:flex-1 px-5 text-[15px] font-semibold text-on-accent sm:h-11 sm:rounded-[10px] sm:text-[14px]">
+          <button type="button" onClick={() => choose(true)} className="flex h-[52px] w-full items-center justify-center gap-2 rounded-full bg-accent sm:w-auto sm:flex-1 px-5 text-[15px] font-semibold text-on-accent sm:h-11 sm:text-[14px]">
             Show me around
           </button>
-          <button type="button" onClick={() => choose(false)} className="flex h-[52px] w-full items-center justify-center rounded-xl border border-border2 bg-s1 sm:w-auto sm:flex-1 px-5 text-[15px] font-semibold hover:bg-s2 sm:h-11 sm:rounded-[10px] sm:text-[14px]">
+          <button type="button" onClick={() => choose(false)} className="flex h-[52px] w-full items-center justify-center rounded-full border border-border2 bg-s1 sm:w-auto sm:flex-1 px-5 text-[15px] font-semibold hover:bg-s2 sm:h-11 sm:text-[14px]">
             I know my way
           </button>
         </div>

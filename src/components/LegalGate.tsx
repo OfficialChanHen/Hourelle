@@ -127,7 +127,7 @@ export function LegalSheet({ k, read = true, onRead, onClose }: { k: LegalKey; r
           <span className="text-[12.5px] text-dim">{onRead && !atEnd ? 'Scroll to the end to continue.' : ''}</span>
           <button
             type="button" onClick={onClose} disabled={!atEnd}
-            className="flex h-10 items-center gap-1.5 rounded-[9px] bg-accent px-4 text-[13.5px] font-semibold text-on-accent disabled:opacity-40"
+            className="flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[13.5px] font-semibold text-on-accent disabled:opacity-40"
           >
             <Check size={15} /> Done
           </button>

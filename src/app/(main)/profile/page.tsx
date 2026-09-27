@@ -101,7 +101,7 @@ export default function ProfilePage() {
               </div>
             </div>
             {account.signedIn && (
-              <button onClick={() => { setName(account.name); setSaveErr(null); setEditing(true) }} className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2 hover:text-text">
+              <button onClick={() => { setName(account.name); setSaveErr(null); setEditing(true) }} className="flex h-9 flex-none items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2 hover:text-text">
                 <Pencil size={14} /> Edit
               </button>
             )}
@@ -125,10 +125,10 @@ export default function ProfilePage() {
             </div>
             {saveErr && <p role="alert" className="text-[12.5px] font-medium text-brick-text">{saveErr}</p>}
             <div className="flex items-center gap-2">
-              <button onClick={() => void save()} disabled={!dirty || clean.length < 2 || saving} className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-40">
+              <button onClick={() => void save()} disabled={!dirty || clean.length < 2 || saving} className="flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-40">
                 {saving ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Save
               </button>
-              <button onClick={cancel} className="flex h-10 items-center gap-1.5 rounded-[10px] border border-border2 px-4 text-[14px] font-semibold text-dim hover:bg-s2"><X size={15} /> Cancel</button>
+              <button onClick={cancel} className="flex h-10 items-center gap-1.5 rounded-full border border-border2 px-4 text-[14px] font-semibold text-dim hover:bg-s2"><X size={15} /> Cancel</button>
             </div>
           </div>
         )}
@@ -196,7 +196,7 @@ export default function ProfilePage() {
                   <div className="text-[14px] font-medium">Delete your account</div>
                   <div className="mt-0.5 text-[12.5px] text-dim">Removes you and the events you host. This cannot be undone.</div>
                 </div>
-                <button onClick={() => setConfirmDelete(true)} className="flex h-9 items-center gap-1.5 rounded-[9px] border border-brick-border bg-brick-bg px-3 text-[13px] font-semibold text-brick-text hover:opacity-90">
+                <button onClick={() => setConfirmDelete(true)} className="flex h-9 items-center gap-1.5 rounded-full border border-brick-border bg-brick-bg px-3 text-[13px] font-semibold text-brick-text hover:opacity-90">
                   <Trash2 size={14} /> Delete account
                 </button>
               </div>
@@ -214,10 +214,10 @@ export default function ProfilePage() {
                 />
                 {deleteErr && <p role="alert" className="mt-2 text-[12.5px] font-medium text-brick-text">{deleteErr} If it keeps failing, write to us from the Help page and we will do it by hand.</p>}
                 <div className="mt-3 flex items-center gap-2">
-                  <button onClick={() => void destroy()} disabled={deleting || !phraseOk} className="flex h-10 items-center gap-1.5 rounded-[10px] bg-brick px-4 text-[14px] font-semibold text-on-accent disabled:opacity-60">
+                  <button onClick={() => void destroy()} disabled={deleting || !phraseOk} className="flex h-10 items-center gap-1.5 rounded-full bg-brick px-4 text-[14px] font-semibold text-on-accent disabled:opacity-60">
                     {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />} Delete my account
                   </button>
-                  <button onClick={() => { setConfirmDelete(false); setDeleteErr(null); setTyped('') }} disabled={deleting} className="flex h-10 items-center rounded-[10px] border border-border2 px-4 text-[14px] font-semibold text-dim hover:bg-s2">Keep it</button>
+                  <button onClick={() => { setConfirmDelete(false); setDeleteErr(null); setTyped('') }} disabled={deleting} className="flex h-10 items-center rounded-full border border-border2 px-4 text-[14px] font-semibold text-dim hover:bg-s2">Keep it</button>
                 </div>
               </div>
             )}

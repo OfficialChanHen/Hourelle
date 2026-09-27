@@ -66,7 +66,7 @@ export function InviteByEmail({ event, onAdded, label = 'Or send it by email' }:
         <span className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{label}</span>
         <span className="h-px flex-1 bg-border" />
       </div>
-      <div className="rounded-[13px] border border-border bg-s0 p-2">
+      <div className="rounded-2xl border border-border bg-s0 p-2">
         <div className="flex gap-1.5">
           <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-[9px] border border-border bg-s1 pl-3 pr-1 focus-within:border-accent">
             <Mail size={15} className="flex-none text-dim" />
@@ -83,14 +83,14 @@ export function InviteByEmail({ event, onAdded, label = 'Or send it by email' }:
               className="h-full min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-faint"
             />
             {draft.trim() && (
-              <button type="button" onClick={add} className="flex h-7 flex-none items-center rounded-[7px] px-2.5 text-[12.5px] font-semibold text-accent-text hover:bg-accent-bg">Add</button>
+              <button type="button" onClick={add} className="flex h-7 flex-none items-center rounded-full px-2.5 text-[12.5px] font-semibold text-accent-text hover:bg-accent-bg">Add</button>
             )}
           </div>
           <button
             type="button"
             onClick={() => void send()}
             disabled={count === 0 || state.kind === 'sending'}
-            className="flex h-10 flex-none items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent disabled:opacity-40"
+            className="flex h-10 flex-none items-center gap-1.5 rounded-full bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent disabled:opacity-40"
           >
             {state.kind === 'sending' ? <Loader2 size={15} className="animate-spin" /> : <Send size={14} />}
             {count > 1 ? `Send ${count}` : 'Send'}

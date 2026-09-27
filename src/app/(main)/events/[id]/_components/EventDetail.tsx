@@ -274,7 +274,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       <div className="mx-auto max-w-[560px] px-[26px] pt-[72px] text-center">
         <p className="font-serif font-normal text-[33.5px] tracking-[-0.01em]">Event not found</p>
         <p className="mx-auto mt-2 max-w-sm text-[14.5px] text-dim">This event doesn&apos;t exist on this device, or the link is wrong.</p>
-        <Link href="/create" className="mt-5 inline-flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent">Create an event</Link>
+        <Link href="/create" className="mt-5 inline-flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent">Create an event</Link>
       </div>
     )
   }
@@ -458,7 +458,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             width={312}
             className="hidden sm:block"
             trigger={(open) => (
-              <span data-tour="share" className={`flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[14px] font-semibold ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
+              <span data-tour="share" className={`flex h-9 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3.5 text-[14px] font-semibold ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
                 <Link2 size={16} /> Share link
               </span>
             )}
@@ -471,7 +471,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
                     <Link2 size={15} className="flex-none text-dim" />
                     <span className="truncate font-mono text-[12.5px] text-dim">{shareLink}</span>
                   </div>
-                  <button onClick={copy} className={`flex h-9 flex-none items-center gap-1.5 rounded-[9px] px-3 text-[13px] font-semibold ${copied ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'}`}>
+                  <button onClick={copy} className={`flex h-9 flex-none items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold ${copied ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'}`}>
                     {copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy</>}
                   </button>
                 </div>
@@ -514,7 +514,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
               <button
                 key={t.key} type="button" role="tab" id={`tab-${t.key}`} aria-selected={active} aria-controls={`panel-${t.key}`} tabIndex={active ? 0 : -1}
                 data-active={active} data-tour-tab={t.key} onClick={() => goTab(t.key)}
-                className={`flex flex-none items-center whitespace-nowrap rounded-[10px] px-3 py-3 text-[13.5px] transition-colors sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
+                className={`flex flex-none items-center whitespace-nowrap rounded-full px-3 py-3 text-[13.5px] transition-colors sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
                 <span className="sm:hidden">{t.short}</span>
                 <span className="hidden sm:inline">{t.label}</span>
               </button>
@@ -608,7 +608,7 @@ function EditableTitle({ title, editable, onSave }: { title: string; editable: b
   return (
     <span className="flex items-center gap-2.5">
       <h1 className={`min-w-0 ${h1}`}>{title}</h1>
-      <button onClick={() => setEditing(true)} title="Rename this event" aria-label="Rename this event" className="grid h-8 w-8 flex-none place-items-center rounded-[8px] text-faint hover:bg-s2 hover:text-dim">
+      <button onClick={() => setEditing(true)} title="Rename this event" aria-label="Rename this event" className="grid h-8 w-8 flex-none place-items-center rounded-full text-faint hover:bg-s2 hover:text-dim">
         <Pencil size={15} />
       </button>
     </span>
@@ -660,7 +660,7 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
             slot={event.confirmed ? { dayKey: event.confirmed.dayKey, endDayKey: event.confirmed.endDayKey, startMin: event.confirmed.startMin, endMin: event.confirmed.endMin } : null}
             align="start"
           />
-          <Link href={`/create?from=${event.id}`} className="flex h-8 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2">
+          <Link href={`/create?from=${event.id}`} className="flex h-8 items-center gap-1.5 rounded-full border border-border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2">
             <CopyPlus size={15} /> Duplicate this event
           </Link>
         </div>
@@ -1121,8 +1121,8 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
         Replies are saved per day. If you drop a day and bring it back later, the replies for it come back too.
       </p>
       <div className="flex items-center gap-2">
-        <button onClick={save} disabled={!!selErr} className="h-8 rounded-[8px] bg-accent px-3 text-[12.5px] font-semibold text-on-accent disabled:opacity-40">Save</button>
-        <button onClick={onDone} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
+        <button onClick={save} disabled={!!selErr} className="h-8 rounded-full bg-accent px-3 text-[12.5px] font-semibold text-on-accent disabled:opacity-40">Save</button>
+        <button onClick={onDone} className="h-8 rounded-full border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
       </div>
     </div>
   )
@@ -1210,8 +1210,8 @@ function FixedWhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch:
         </p>
       )}
       <div className="flex items-center gap-2">
-        <button onClick={save} disabled={!valid} className="h-8 rounded-[8px] bg-accent px-3 text-[12.5px] font-semibold text-on-accent disabled:opacity-40">Save</button>
-        <button onClick={onDone} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
+        <button onClick={save} disabled={!valid} className="h-8 rounded-full bg-accent px-3 text-[12.5px] font-semibold text-on-accent disabled:opacity-40">Save</button>
+        <button onClick={onDone} className="h-8 rounded-full border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
       </div>
     </div>
   )
@@ -1282,13 +1282,13 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
   // the host sees the address with a Copy beside it. Everyone else gets a way into the
   // call and nothing to pass on.
   const linkRow = !event.hostedByYou ? (
-    <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex h-11 w-fit items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13px] font-semibold text-on-accent sm:h-8">
+    <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex h-11 w-fit items-center gap-1.5 rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent sm:h-8">
       <Video size={14} /> Join the call
     </a>
   ) : (
     <span className="flex max-w-[420px] items-center gap-2">
       <span className="min-w-0 flex-1 truncate rounded-[7px] border border-border bg-s0 px-2.5 py-1 font-mono text-[12px] text-dim">{link}</span>
-      <button onClick={copyLink} className={`flex h-7 flex-none items-center gap-1 rounded-[7px] border px-2 text-[12px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 text-dim hover:bg-s2'}`}>
+      <button onClick={copyLink} className={`flex h-7 flex-none items-center gap-1 rounded-full border px-2 text-[12px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 text-dim hover:bg-s2'}`}>
         {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
       </button>
       <Announce text={copied ? 'Link copied' : ''} />
@@ -1376,8 +1376,8 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
               onKeyDown={(e) => { if (e.key === 'Enter') saveOnline() }}
               className="h-8 w-[240px] max-w-full rounded-[8px] border border-border bg-s0 px-2.5 font-mono text-[12.5px] outline-none focus:border-accent"
             />
-            <button onClick={saveOnline} className="h-8 rounded-[8px] bg-accent px-2.5 text-[12.5px] font-semibold text-on-accent">Save</button>
-            <button onClick={() => setEditingOnline(false)} className="h-8 rounded-[8px] border border-border2 bg-s1 px-2.5 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
+            <button onClick={saveOnline} className="h-8 rounded-full bg-accent px-2.5 text-[12.5px] font-semibold text-on-accent">Save</button>
+            <button onClick={() => setEditingOnline(false)} className="h-8 rounded-full border border-border2 bg-s1 px-2.5 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
           </span>
         ) : (
           <button onClick={() => setEditingOnline(true)} className="text-left text-[12.5px] font-medium text-accent-text hover:underline">
@@ -1411,7 +1411,7 @@ function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Par
       {/* a demo is never persisted, so it has nothing to file a photo under */}
       <CoverEditor image={event.image} fit={event.imageFit} pos={event.imagePos} title={event.title} eventId={event.demo ? undefined : event.id} onChange={(p) => onPatch(p)} />
       <div>
-        <button onClick={() => setEditing(false)} className="h-8 rounded-[8px] px-2 text-[12.5px] font-semibold text-dim hover:bg-s2">Done</button>
+        <button onClick={() => setEditing(false)} className="h-8 rounded-full px-2 text-[12.5px] font-semibold text-dim hover:bg-s2">Done</button>
       </div>
     </div>
   )
@@ -1472,8 +1472,8 @@ function DescriptionValue({ event, editable, onPatch }: { event: AppEvent; edita
           className="w-full resize-y rounded-[9px] border border-border bg-s0 px-3 py-2 text-[13.5px] leading-[1.5] outline-none focus:border-accent"
         />
         <div className="flex items-center gap-2">
-          <button onClick={save} className="h-8 rounded-[8px] bg-accent px-3 text-[12.5px] font-semibold text-on-accent">Save</button>
-          <button onClick={() => setEditing(false)} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
+          <button onClick={save} className="h-8 rounded-full bg-accent px-3 text-[12.5px] font-semibold text-on-accent">Save</button>
+          <button onClick={() => setEditing(false)} className="h-8 rounded-full border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
         </div>
       </div>
     )
@@ -1554,11 +1554,11 @@ function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Pa
           />
         </label>
         {/* same segmented treatment as the budget step in the create wizard */}
-        <div role="group" aria-label="Budget type" className="flex flex-wrap rounded-[9px] border border-border bg-s1 p-0.5">
+        <div role="group" aria-label="Budget type" className="flex flex-wrap rounded-[22px] border border-border bg-s1 p-0.5">
           {([{ v: 'total', l: 'Total' }, { v: 'person', l: 'Per person' }] as const).map((o) => (
             <button
               key={o.v} type="button" aria-pressed={mode === o.v} onClick={() => changeMode(o.v)}
-              className="flex h-7 items-center rounded-[7px] px-3 text-[13px] font-semibold transition-colors"
+              className="flex h-7 items-center rounded-full px-3 text-[13px] font-semibold transition-colors"
               style={mode === o.v ? { background: 'var(--accent)', color: 'var(--on-accent)' } : { color: 'var(--dim)' }}
             >
               {o.l}
@@ -1701,7 +1701,7 @@ function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boo
           <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} aria-label="Paid by" className="h-9 flex-none rounded-[9px] border border-border bg-s0 px-2.5 text-[13px] outline-none focus:border-accent">
             {event.participants.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
-          <button onClick={addExpense} className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13px] font-semibold text-on-accent">
+          <button onClick={addExpense} className="flex h-9 flex-none items-center gap-1.5 rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent">
             <Plus size={14} /> Add
           </button>
           {needLabel && <p id="expense-label-err" role="alert" className="w-full text-[12.5px] text-brick-text">Say what it was for before adding it.</p>}
@@ -1741,10 +1741,10 @@ function LeaveZone({ title, onLeave, spotlight = false }: { title: string; onLea
         This takes <span className="font-semibold text-text">{title}</span> off your lists. The host&apos;s plan isn&apos;t touched, and the invite link can bring you back.
       </p>
       <div className="flex flex-none items-center gap-2">
-        <button onClick={onLeave} className="h-8 rounded-[8px] px-3 text-[13px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
+        <button onClick={onLeave} className="h-8 rounded-full px-3 text-[13px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
           Remove
         </button>
-        <button onClick={() => setOpen(false)} className="h-8 rounded-[8px] border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2">
+        <button onClick={() => setOpen(false)} className="h-8 rounded-full border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2">
           Keep it
         </button>
       </div>
@@ -1790,7 +1790,7 @@ function DangerZone({ title, onDelete, spotlight = false }: { title: string; onD
       >
         <X size={15} />
       </button>
-      <div ref={box} className="rounded-[11px] border border-brick-border bg-brick-bg p-4">
+      <div ref={box} className="rounded-xl border border-brick-border bg-brick-bg p-4">
         <div className="flex items-start gap-2.5">
           <TriangleAlert size={18} className="mt-px flex-none text-brick-text" />
           <div className="min-w-0 flex-1">
@@ -1799,10 +1799,10 @@ function DangerZone({ title, onDelete, spotlight = false }: { title: string; onD
               This deletes the event for everyone. All availability responses, location votes, and messages go with it. There is no undo.
             </div>
             <div className="mt-3 flex items-center gap-2">
-              <button onClick={onDelete} className="flex h-9 items-center rounded-[9px] px-3.5 text-[13.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
+              <button onClick={onDelete} className="flex h-9 items-center rounded-full px-3.5 text-[13.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
                 Yes, delete it
               </button>
-              <button onClick={() => setOpen(false)} className="flex h-9 items-center rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13.5px] font-semibold hover:bg-s2">
+              <button onClick={() => setOpen(false)} className="flex h-9 items-center rounded-full border border-border2 bg-s1 px-3.5 text-[13.5px] font-semibold hover:bg-s2">
                 Cancel
               </button>
             </div>

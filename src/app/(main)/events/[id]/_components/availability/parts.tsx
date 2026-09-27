@@ -90,7 +90,7 @@ export function FilterModal({ participants, filter, onToggle, onClear, onSelectA
             <div className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint">Filter the grid</div>
             <div id={titleId} className="mt-0.5 text-[15.5px] font-semibold">Pick people</div>
           </div>
-          <button onClick={onClose} aria-label="Close" className="grid h-8 w-8 place-items-center rounded-[8px] text-dim hover:bg-s2 hover:text-text">
+          <button onClick={onClose} aria-label="Close" className="grid h-8 w-8 place-items-center rounded-full text-dim hover:bg-s2 hover:text-text">
             <X size={16} />
           </button>
         </div>
@@ -136,7 +136,7 @@ export function FilterModal({ participants, filter, onToggle, onClear, onSelectA
           >
             Clear filter{filter.size > 0 ? ` (${filter.size})` : ''}
           </button>
-          <button type="button" onClick={onClose} className="flex h-9 items-center rounded-[9px] bg-accent px-4 text-[13.5px] font-semibold text-on-accent">
+          <button type="button" onClick={onClose} className="flex h-9 items-center rounded-full bg-accent px-4 text-[13.5px] font-semibold text-on-accent">
             Done
           </button>
         </div>
@@ -155,7 +155,7 @@ export function ImportFromCalendar({ onPick, providers = ['Google Calendar', 'Ou
       align="start"
       width={248}
       trigger={(open) => (
-        <span className={`flex h-11 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2 sm:h-7 ${open ? 'border-border2' : 'border-border'}`}>
+        <span className={`flex h-11 items-center gap-1.5 rounded-full border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2 sm:h-7 ${open ? 'border-border2' : 'border-border'}`}>
           <CalendarPlus size={15} /> <span className="sm:hidden">Import</span><span className="hidden sm:inline">Import from calendar</span> <ChevronDown size={13} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
         </span>
       )}
@@ -202,7 +202,7 @@ export function ClearTimes({ onClear }: { onClear: () => void }) {
     <button
       type="button"
       onClick={onClear}
-      className="flex h-11 sm:h-7 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[13px] font-medium text-dim hover:border-border2 hover:text-brick-text"
+      className="flex h-11 sm:h-7 items-center gap-1.5 rounded-full border border-border bg-s1 px-[11px] text-[13px] font-medium text-dim hover:border-border2 hover:text-brick-text"
     >
       <Eraser size={15} /> <span className="sm:hidden">Clear</span><span className="hidden sm:inline">Clear my times</span>
     </button>
@@ -261,7 +261,7 @@ export function PresetFills({ onFill, onFillAll }: { onFill: (startClock: number
     <Popover
       width={216}
       trigger={(open) => (
-        <span className={`flex h-11 sm:h-7 items-center gap-1.5 rounded-lg border px-[10px] text-[12.5px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
+        <span className={`flex h-11 sm:h-7 items-center gap-1.5 rounded-full border px-[10px] text-[12.5px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
           <Zap size={13} /> Quick fill <ChevronDown size={12} className={open ? 'rotate-180' : ''} />
         </span>
       )}
@@ -306,7 +306,7 @@ export function MissingPopover({ missing, nudged, canNudge = false, note = null,
               <Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={10} />
               <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}</span>
               {canNudge && (
-                <button onClick={() => onNudge(p.id)} disabled={done} className={`flex h-6 items-center gap-1 rounded-[6px] px-2 text-[12px] font-semibold ${done ? 'text-teal-text' : 'border border-border2 hover:bg-s2'}`}>
+                <button onClick={() => onNudge(p.id)} disabled={done} className={`flex h-6 items-center gap-1 rounded-full px-2 text-[12px] font-semibold ${done ? 'text-teal-text' : 'border border-border2 hover:bg-s2'}`}>
                   {done ? <><Check size={12} /> Nudged</> : <><Bell size={12} /> Nudge</>}
                 </button>
               )}
@@ -340,7 +340,7 @@ export function CellDetail({ bands, total, fmt, gridStartMin, dayLabel, avatarOf
       ref={wrap}
       onClick={(e) => e.stopPropagation()}
       style={style}
-      className="absolute z-40 w-[248px] rounded-[11px] border border-border2 bg-s1 p-2.5 shadow-soft"
+      className="absolute z-40 w-[248px] rounded-xl border border-border2 bg-s1 p-2.5 shadow-soft"
     >
       <div className="mb-1.5 flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-[.1em] text-faint">Who&apos;s free</span>
@@ -380,9 +380,9 @@ export function CellDetail({ bands, total, fmt, gridStartMin, dayLabel, avatarOf
 /* ── small controls ── */
 export function Segment({ value, onChange, options, compact, label }: { value: string; onChange: (v: string) => void; options: { v: string; l: string }[]; compact?: boolean; label?: string }) {
   return (
-    <div role="group" aria-label={label} className="inline-flex w-fit rounded-[9px] bg-s2 p-0.5">
+    <div role="group" aria-label={label} className="inline-flex w-fit rounded-full bg-s2 p-0.5">
       {options.map((o) => (
-        <button key={o.v} type="button" aria-pressed={value === o.v} onClick={() => onChange(o.v)} className={`flex h-11 items-center rounded-[7px] font-semibold transition-colors sm:h-7 ${compact ? 'px-2.5 text-[12.5px]' : 'px-3 text-[13px]'} ${value === o.v ? 'bg-raised text-text shadow-raised' : 'text-dim hover:text-text'}`}>
+        <button key={o.v} type="button" aria-pressed={value === o.v} onClick={() => onChange(o.v)} className={`flex h-11 items-center rounded-full font-semibold transition-colors sm:h-7 ${compact ? 'px-2.5 text-[12.5px]' : 'px-3 text-[13px]'} ${value === o.v ? 'bg-raised text-text shadow-raised' : 'text-dim hover:text-text'}`}>
           {o.l}
         </button>
       ))}

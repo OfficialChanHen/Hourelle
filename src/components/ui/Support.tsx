@@ -10,7 +10,7 @@ export const SUPPORT_URL = process.env.NEXT_PUBLIC_SUPPORT_URL || 'https://www.b
 export function SupportLink() {
   if (!SUPPORT_URL) return null
   return (
-    <Link href={SUPPORT_URL} target="_blank" rel="noopener" className="mt-5 inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-s1 px-3.5 text-[13px] font-medium text-dim hover:border-border2 hover:text-text sm:h-9">
+    <Link href={SUPPORT_URL} target="_blank" rel="noopener" className="mt-5 inline-flex h-11 items-center gap-2 rounded-full border border-border bg-s1 px-3.5 text-[13px] font-medium text-dim hover:border-border2 hover:text-text sm:h-9">
       <Coffee size={14} aria-hidden /> Buy me a coffee
     </Link>
   )

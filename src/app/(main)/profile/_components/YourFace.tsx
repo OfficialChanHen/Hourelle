@@ -78,7 +78,7 @@ export function YourFace({ account }: { account: Account }) {
           </div>
           <button
             type="button" onClick={() => pick(shuffleFace(face, String(Date.now())))}
-            className="flex h-11 items-center gap-1.5 rounded-[10px] border border-border2 bg-s1 px-4 text-[13.5px] font-semibold text-text hover:bg-s2 sm:h-9"
+            className="flex h-11 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-4 text-[13.5px] font-semibold text-text hover:bg-s2 sm:h-9"
           >
             <Shuffle size={15} /> Shuffle
           </button>
@@ -110,10 +110,10 @@ export function YourFace({ account }: { account: Account }) {
       <div className="mt-4 flex min-h-10 flex-wrap items-center gap-2 border-t border-border pt-4">
         {dirty ? (
           <>
-            <button onClick={() => void save()} disabled={saving} className="flex h-11 items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-40 sm:h-10">
+            <button onClick={() => void save()} disabled={saving} className="flex h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-40 sm:h-10">
               {saving ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Save
             </button>
-            <button onClick={cancel} disabled={saving} className="flex h-11 items-center gap-1.5 rounded-[10px] border border-border2 px-4 text-[14px] font-semibold text-dim hover:bg-s2 sm:h-10"><X size={15} /> Cancel</button>
+            <button onClick={cancel} disabled={saving} className="flex h-11 items-center gap-1.5 rounded-full border border-border2 px-4 text-[14px] font-semibold text-dim hover:bg-s2 sm:h-10"><X size={15} /> Cancel</button>
           </>
         ) : saved ? (
           <span role="status" className="flex items-center gap-1 text-[13px] font-medium text-teal-text"><Check size={14} /> Saved</span>

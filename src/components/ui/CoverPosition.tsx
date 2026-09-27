@@ -114,7 +114,7 @@ export function CoverPosition({ src, value, onChange, onClose }: {
             <h2 className="font-serif text-[22px] leading-[1.15] tracking-[-0.01em]">Position the photo</h2>
             <p className="mt-1 text-[12.5px] leading-[1.5] text-dim">Drag to choose what stays in frame. Arrow keys nudge it, and Shift moves it further.</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="-m-1 flex-none rounded-[8px] p-1 text-faint hover:bg-s2 hover:text-text"><X size={18} /></button>
+          <button type="button" onClick={onClose} aria-label="Close" className="-m-1 flex-none rounded-full p-1 text-faint hover:bg-s2 hover:text-text"><X size={18} /></button>
         </div>
 
         {/* the frame the gesture happens in: the tightest of the shapes, so a point
@@ -154,16 +154,16 @@ export function CoverPosition({ src, value, onChange, onClose }: {
           <button
             type="button"
             onClick={() => setPos({ x: 50, y: 50 })}
-            className="flex h-10 items-center gap-1.5 rounded-[10px] px-2.5 text-[13.5px] font-semibold text-dim hover:bg-s2 hover:text-text"
+            className="flex h-10 items-center gap-1.5 rounded-full px-2.5 text-[13.5px] font-semibold text-dim hover:bg-s2 hover:text-text"
           >
             <RotateCcw size={14} /> Middle
           </button>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={onClose} className="flex h-10 items-center rounded-[10px] border border-border2 bg-s1 px-4 text-[14px] font-semibold hover:bg-s2">Cancel</button>
+            <button type="button" onClick={onClose} className="flex h-10 items-center rounded-full border border-border2 bg-s1 px-4 text-[14px] font-semibold hover:bg-s2">Cancel</button>
             <button
               type="button"
               onClick={() => { onChange(pos); onClose() }}
-              className="flex h-10 items-center rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent"
+              className="flex h-10 items-center rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent"
             >
               Save position
             </button>

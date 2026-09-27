@@ -72,7 +72,7 @@ export function ChatDemo() {
   const reset = () => { setTaken(false); setDone(false); setMsgs([]); setRsvp(null); setDraft(''); setRun((r) => r + 1) }
 
   const seg = (r: Exclude<Rsvp, null>, label: string, Icon: typeof Check) => (
-    <button type="button" onClick={() => answer(r)} aria-pressed={rsvp === r} disabled={!done} className={`flex h-9 flex-1 items-center justify-center gap-1.5 rounded-[8px] text-[13px] font-semibold transition-colors disabled:cursor-default ${rsvp === r ? 'bg-accent text-on-accent' : 'text-dim hover:bg-s2 hover:text-text'}`}>
+    <button type="button" onClick={() => answer(r)} aria-pressed={rsvp === r} disabled={!done} className={`flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full text-[13px] font-semibold transition-colors disabled:cursor-default ${rsvp === r ? 'bg-accent text-on-accent' : 'text-dim hover:bg-s2 hover:text-text'}`}>
       <Icon size={14} /> {label}
     </button>
   )
@@ -122,7 +122,7 @@ export function ChatDemo() {
                 </div>
                 <form onSubmit={(e) => { e.preventDefault(); send() }} className="flex items-center gap-1.5 border-t border-border p-2">
                   <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Write a message" aria-label="Write a message" disabled={!done} className="h-9 min-w-0 flex-1 rounded-[8px] border border-border bg-s1 px-2.5 text-[13px] outline-none placeholder:text-faint focus:border-accent" />
-                  <button type="submit" aria-label="Send" disabled={!draft.trim()} className="grid h-9 w-9 flex-none place-items-center rounded-[8px] bg-accent text-on-accent disabled:opacity-40"><SendHorizontal size={15} /></button>
+                  <button type="submit" aria-label="Send" disabled={!draft.trim()} className="grid h-9 w-9 flex-none place-items-center rounded-full bg-accent text-on-accent disabled:opacity-40"><SendHorizontal size={15} /></button>
                 </form>
               </div>
             </>

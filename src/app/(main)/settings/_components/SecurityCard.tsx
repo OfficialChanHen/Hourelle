@@ -71,14 +71,14 @@ export function SecurityCard({ account }: { account: Account }) {
             </div>
           </div>
           {done ? (
-            <span className="flex h-9 items-center gap-1.5 rounded-[9px] border border-teal-border bg-teal-bg px-3 text-[13px] font-semibold text-teal-text">
+            <span className="flex h-9 items-center gap-1.5 rounded-full border border-teal-border bg-teal-bg px-3 text-[13px] font-semibold text-teal-text">
               <Check size={15} /> Saved
             </span>
           ) : (
             <button
               type="button"
               onClick={() => (open ? reset() : setOpen(true))}
-              className="flex h-9 flex-none items-center rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2"
+              className="flex h-9 flex-none items-center rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2"
             >
               {open ? 'Cancel' : googleOnly ? 'Set a password' : 'Change password'}
             </button>
@@ -136,7 +136,7 @@ export function SecurityCard({ account }: { account: Account }) {
                 type="button"
                 onClick={() => void endAll()}
                 disabled={outBusy}
-                className="flex h-9 items-center gap-1.5 rounded-[9px] bg-brick px-3.5 text-[13px] font-semibold text-white disabled:opacity-50"
+                className="flex h-9 items-center gap-1.5 rounded-full bg-brick px-3.5 text-[13px] font-semibold text-white disabled:opacity-50"
               >
                 {outBusy && <Loader2 size={14} className="animate-spin" />} Log out everywhere
               </button>
@@ -148,7 +148,7 @@ export function SecurityCard({ account }: { account: Account }) {
             <button
               type="button"
               onClick={() => setConfirmOut(true)}
-              className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2"
+              className="flex h-9 flex-none items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2"
             >
               <ShieldCheck size={15} /> Log out everywhere
             </button>

@@ -507,7 +507,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
       {/* map */}
       <div className="relative flex min-w-0 flex-1">
         <div
-          className="relative min-h-[54dvh] flex-1 overflow-hidden rounded-[13px] border border-border bg-s2 transition-[filter] duration-300 lg:min-h-[580px]"
+          className="relative min-h-[54dvh] flex-1 overflow-hidden rounded-2xl border border-border bg-s2 transition-[filter] duration-300 lg:min-h-[580px]"
           style={{ filter: blurred ? 'blur(4px) saturate(.85)' : 'none' }}
         >
           {!blurred && (
@@ -544,7 +544,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                       <Link2 size={16} className="flex-none text-accent-text" />
                       <input value={meetingLink} onChange={(e) => changeLink(e.target.value)} aria-label="Meeting link" placeholder={`Paste a ${loc.platform} link`} className="min-w-0 flex-1 bg-transparent text-left font-mono text-[13px] outline-none placeholder:text-faint" />
                       {meetingLink && (
-                        <button onClick={copyLink} className="flex h-7 flex-none items-center gap-1 rounded-[7px] bg-accent px-2.5 text-[12.5px] font-semibold text-on-accent">
+                        <button onClick={copyLink} className="flex h-7 flex-none items-center gap-1 rounded-full bg-accent px-2.5 text-[12.5px] font-semibold text-on-accent">
                           {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
                         </button>
                       )}
@@ -583,7 +583,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
       {/* mobile: a bar that lifts the venues/itinerary panel up as a bottom sheet */}
       {/* kept in the page (hidden) while the sheet is up, so focus has somewhere to go back to */}
       {mode !== 'remote' && (
-        <button type="button" onClick={() => setSheetOpen(true)} className={`${sheetOpen ? 'hidden' : 'flex'} items-center justify-between gap-2 rounded-[12px] border border-border bg-s1 px-4 py-3 text-left shadow-soft lg:hidden`}>
+        <button type="button" onClick={() => setSheetOpen(true)} className={`${sheetOpen ? 'hidden' : 'flex'} items-center justify-between gap-2 rounded-xl border border-border bg-s1 px-4 py-3 text-left shadow-soft lg:hidden`}>
           <span className="flex items-center gap-2 text-[13.5px] font-semibold"><Route size={16} className="text-accent-text" /> {sub === 'itin' ? 'Itinerary' : 'Venue vote'}</span>
           <span className="flex items-center gap-1.5 text-[12.5px] text-dim">{places.length} {places.length === 1 ? 'place' : 'places'} <ChevronUp size={16} /></span>
         </button>
@@ -625,7 +625,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 width={300}
                 className="flex-none"
                 trigger={(open) => (
-                  <span className={`flex h-8 flex-none items-center gap-1 rounded-[9px] border px-2.5 text-[13px] font-semibold ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
+                  <span className={`flex h-8 flex-none items-center gap-1 rounded-full border px-2.5 text-[13px] font-semibold ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
                     <Plus size={16} /> Add stop
                   </span>
                 )}
@@ -639,7 +639,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 width={236}
                 label="Voting settings"
                 trigger={(open) => (
-                  <span className={`flex h-8 flex-none items-center gap-1 rounded-[9px] border px-2.5 text-[13px] font-semibold ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
+                  <span className={`flex h-8 flex-none items-center gap-1 rounded-full border px-2.5 text-[13px] font-semibold ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
                     <SlidersHorizontal size={15} />
                   </span>
                 )}
@@ -695,7 +695,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 )}
               </Popover>
             )}
-            <button onClick={closeSheet} aria-label="Close" className="-mr-1.5 grid h-11 w-11 flex-none place-items-center rounded-lg text-dim hover:text-text lg:hidden"><X size={18} /></button>
+            <button onClick={closeSheet} aria-label="Close" className="-mr-1.5 grid h-11 w-11 flex-none place-items-center rounded-full text-dim hover:text-text lg:hidden"><X size={18} /></button>
           </div>
 
           {/* one line of how this tab works, gone once dismissed */}
@@ -744,8 +744,8 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                   <span className="min-w-0 flex-1 text-[12.5px] leading-[1.4] text-brick-text">
                     Remove all {places.length} places? Every vote{stops.length > 0 ? ' and the whole itinerary' : ''} goes with them.
                   </span>
-                  <button type="button" autoFocus onClick={() => { setConfirmClear(null); clearPlacesBtn.current?.focus() }} className="flex h-7 flex-none items-center rounded-[7px] border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text">Cancel</button>
-                  <button onClick={clearAllPlaces} className="flex h-7 flex-none items-center rounded-[7px] px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>Remove all</button>
+                  <button type="button" autoFocus onClick={() => { setConfirmClear(null); clearPlacesBtn.current?.focus() }} className="flex h-7 flex-none items-center rounded-full border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text">Cancel</button>
+                  <button onClick={clearAllPlaces} className="flex h-7 flex-none items-center rounded-full px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>Remove all</button>
                 </div>
               )}
               <div ref={voteFlip.scope} className="scroll-slim flex max-h-[55vh] min-h-0 flex-1 flex-col gap-2 overflow-auto py-0.5 pr-0.5 lg:max-h-none">
@@ -815,9 +815,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                               setConfirmRemove(null)
                               trigger?.focus()
                             }}
-                            className="flex h-7 flex-none items-center rounded-[7px] border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text"
+                            className="flex h-7 flex-none items-center rounded-full border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text"
                           >Cancel</button>
-                          <button onClick={() => removePlace(p.id)} className="flex h-7 flex-none items-center rounded-[7px] px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>Remove</button>
+                          <button onClick={() => removePlace(p.id)} className="flex h-7 flex-none items-center rounded-full px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>Remove</button>
                         </div>
                       )}
                     </div>
@@ -836,8 +836,8 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                     <p className="text-[13px] leading-[1.5] text-ochre-text">Votes have changed since this itinerary was built, and the ranking is different now.</p>
                   </div>
                   <div className="mt-2 flex gap-2">
-                    <button onClick={buildFromVotes} className="flex h-7 items-center rounded-[7px] px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--ochre)' }}>Rebuild from votes</button>
-                    <button onClick={keepCurrentItin} className="flex h-7 items-center rounded-[7px] border border-ochre-border bg-s1 px-2.5 text-[12.5px] font-semibold text-ochre-text">Keep as is</button>
+                    <button onClick={buildFromVotes} className="flex h-7 items-center rounded-full px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--ochre)' }}>Rebuild from votes</button>
+                    <button onClick={keepCurrentItin} className="flex h-7 items-center rounded-full border border-ochre-border bg-s1 px-2.5 text-[12.5px] font-semibold text-ochre-text">Keep as is</button>
                   </div>
                 </div>
               )}
@@ -858,7 +858,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                       <button
                         onClick={buildFromVotes}
                         disabled={places.length === 0}
-                        className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent disabled:opacity-40"
+                        className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent disabled:opacity-40"
                       >
                         <Route size={15} /> Build from top votes
                       </button>
@@ -873,8 +873,8 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                       <div className="flex flex-none flex-wrap items-center gap-2 rounded-[10px] border border-brick-border bg-brick-bg px-2.5 py-2">
                         <TriangleAlert size={17} className="flex-none text-brick-text" />
                         <span className="min-w-0 flex-1 text-[12.5px] leading-[1.4] text-brick-text">Clear all {stops.length} stops? The places and votes stay.</span>
-                        <button type="button" autoFocus onClick={() => { refocusClearStops.current = true; setConfirmClear(null) }} className="flex h-7 flex-none items-center rounded-[7px] border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text">Cancel</button>
-                        <button onClick={clearAllStops} className="flex h-7 flex-none items-center rounded-[7px] px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>Clear</button>
+                        <button type="button" autoFocus onClick={() => { refocusClearStops.current = true; setConfirmClear(null) }} className="flex h-7 flex-none items-center rounded-full border border-brick-border bg-s1 px-2.5 text-[12.5px] font-semibold text-brick-text">Cancel</button>
+                        <button onClick={clearAllStops} className="flex h-7 flex-none items-center rounded-full px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>Clear</button>
                       </div>
                     ) : (
                       <button
@@ -911,7 +911,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                           align="end"
                           width={228}
                           trigger={(open) => (
-                            <span className={`flex h-7 items-center gap-1.5 rounded-lg border px-[10px] text-[12px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-dim hover:border-border2'}`}>
+                            <span className={`flex h-7 items-center gap-1.5 rounded-full border px-[10px] text-[12px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-dim hover:border-border2'}`}>
                               Getting around
                               <span className="flex items-center gap-0.5">
                                 {travelModes.map((m) => { const Icon = MODE_ICON[m]; return <Icon key={m} size={11} /> })}

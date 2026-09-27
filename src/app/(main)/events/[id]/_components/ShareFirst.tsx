@@ -97,16 +97,21 @@ function ShareFirstCard({ title, joinUrl, copied, onCopy, onInviteByEmail, onHid
   }
 
   return (
-    <section ref={root} aria-labelledby={headingId} className="mb-4 rounded-xl border border-border bg-s1 p-5 shadow-soft sm:mb-6 sm:p-6">
+    <section ref={root} aria-labelledby={headingId} className="mb-4 rounded-2xl border border-moment-border bg-s1 p-5 shadow-soft sm:mb-6 sm:p-6">
       <div className="flex items-start gap-3">
-        <h2 id={headingId} className="min-w-0 flex-1 pt-1 font-serif text-[22px] leading-tight tracking-[-0.01em] sm:pt-0.5 sm:text-[24px]">
-          Send the invite link
-        </h2>
+        {/* coral: the moment role. This card is the one thing the page is asking of
+            the host right now, so its kicker carries the moment colour */}
+        <div className="min-w-0 flex-1 pt-1 sm:pt-0.5">
+          <p className="mb-1 text-[11.5px] font-semibold uppercase tracking-[.13em] text-moment-text">Your turn</p>
+          <h2 id={headingId} className="font-serif text-[22px] leading-tight tracking-[-0.01em] sm:text-[24px]">
+            Send the invite link
+          </h2>
+        </div>
         <button
           type="button"
           onClick={onHide}
           aria-label="Hide"
-          className="-mr-2.5 -mt-2 grid h-11 w-11 flex-none place-items-center rounded-[10px] text-faint hover:bg-s2 hover:text-dim sm:-mr-2 sm:h-9 sm:w-9"
+          className="-mr-2.5 -mt-2 grid h-11 w-11 flex-none place-items-center rounded-full text-faint hover:bg-s2 hover:text-dim sm:-mr-2 sm:h-9 sm:w-9"
         >
           <X size={16} />
         </button>
@@ -128,7 +133,7 @@ function ShareFirstCard({ title, joinUrl, copied, onCopy, onInviteByEmail, onHid
           <button
             type="button"
             onClick={onCopy}
-            className={`flex h-11 flex-1 items-center justify-center gap-1.5 rounded-[10px] px-4 text-[14px] font-semibold sm:h-10 sm:min-w-[120px] sm:flex-none ${copied ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'}`}
+            className={`flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-[14px] font-semibold sm:h-10 sm:min-w-[120px] sm:flex-none ${copied ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'}`}
           >
             {copied ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy link</>}
           </button>
@@ -136,7 +141,7 @@ function ShareFirstCard({ title, joinUrl, copied, onCopy, onInviteByEmail, onHid
             <button
               type="button"
               onClick={share}
-              className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-border2 bg-s1 px-4 text-[14px] font-semibold hover:bg-s2 sm:h-10 sm:flex-none"
+              className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full border border-border2 bg-s1 px-4 text-[14px] font-semibold hover:bg-s2 sm:h-10 sm:flex-none"
             >
               <Share size={16} /> Share
             </button>

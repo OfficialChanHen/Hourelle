@@ -76,7 +76,7 @@ export function AddToCalendar({ event, slot, align = 'end' }: { event: AppEvent;
       align={align}
       width={228}
       trigger={(open) => (
-        <span className={`flex h-11 items-center gap-1.5 rounded-lg border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2 sm:h-8 ${open ? 'border-border2' : 'border-border'}`}>
+        <span className={`flex h-11 items-center gap-1.5 rounded-full border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2 sm:h-8 ${open ? 'border-border2' : 'border-border'}`}>
           <CalendarPlus size={15} /> Add to calendar <ChevronDown size={13} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
         </span>
       )}

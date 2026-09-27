@@ -58,11 +58,11 @@ export function SegmentedControl({ value, onChange, options, size = 'md', stretc
   const iconSize = size === 'sm' ? 13 : 14
 
   return (
-    <div ref={wrap} role="group" aria-label={label} className={`relative flex rounded-[9px] bg-s2 p-0.5 ${className ?? ''}`}>
+    <div ref={wrap} role="group" aria-label={label} className={`relative flex rounded-full bg-s2 p-0.5 ${className ?? ''}`}>
       {/* bg-raised, not bg-s0: dark surfaces ascend the other way, and an s0 pill
           there sat below its track — the active chip read as a dent, so a hovered
           neighbor looked more active than the real one */}
-      <span ref={pill} className="pointer-events-none absolute left-0 top-0 rounded-[7px] bg-raised shadow-raised" style={{ width: 0, height: 0 }} />
+      <span ref={pill} className="pointer-events-none absolute left-0 top-0 rounded-full bg-raised shadow-raised" style={{ width: 0, height: 0 }} />
       {options.map((o, i) => {
         const on = o.v === value
         const Icon = o.icon
@@ -73,7 +73,7 @@ export function SegmentedControl({ value, onChange, options, size = 'md', stretc
             type="button"
             aria-pressed={on}
             onClick={() => onChange(o.v)}
-            className={`relative z-[1] flex items-center justify-center gap-1.5 rounded-[7px] text-center font-semibold leading-tight transition-colors ${h} ${txt} ${pad} ${stretch ? 'flex-1' : ''} ${on ? 'text-text' : 'text-dim hover:text-text'}`}
+            className={`relative z-[1] flex items-center justify-center gap-1.5 rounded-full text-center font-semibold leading-tight transition-colors ${h} ${txt} ${pad} ${stretch ? 'flex-1' : ''} ${on ? 'text-text' : 'text-dim hover:text-text'}`}
           >
             {Icon && <Icon size={iconSize} />}
             {o.l}

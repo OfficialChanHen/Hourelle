@@ -52,7 +52,7 @@ export default function AuthCallbackPage() {
         <div className="max-w-[320px]">
           <p className="font-serif text-[22px] leading-tight">Log-in didn&apos;t finish</p>
           <p className="mt-2 text-[13px] leading-[1.55] text-dim">{error}</p>
-          <a href="/auth/signin" className="mt-4 inline-flex h-10 items-center rounded-[10px] bg-accent px-4 text-[13.5px] font-semibold text-on-accent">
+          <a href="/auth/signin" className="mt-4 inline-flex h-10 items-center rounded-full bg-accent px-4 text-[13.5px] font-semibold text-on-accent">
             Back to log in
           </a>
         </div>

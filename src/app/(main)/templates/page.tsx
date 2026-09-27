@@ -34,7 +34,7 @@ export default function TemplatesPage() {
             <Link
               key={t.key}
               href={`/create?template=${t.key}`}
-              className="group flex flex-col overflow-hidden rounded-[13px] border border-border bg-s1 transition-all hover:-translate-y-0.5 hover:border-border2"
+              className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-s1 transition-all hover:-translate-y-0.5 hover:border-border2"
             >
               <Cover src={t.src} from={t.from} to={t.to} className="h-[64px]" />
               <div className="flex flex-1 flex-col p-4 pt-0">
@@ -57,7 +57,7 @@ export default function TemplatesPage() {
         {/* the way out of every template gallery: none of these, thanks */}
         <Link
           href="/create"
-          className="group flex flex-col rounded-[13px] border border-dashed border-border2 bg-s0 p-4 transition-all hover:-translate-y-0.5 hover:border-accent-border"
+          className="group flex flex-col rounded-2xl border border-dashed border-border2 bg-s0 p-4 transition-all hover:-translate-y-0.5 hover:border-accent-border"
         >
           <span className="mb-3 grid h-[38px] w-[38px] place-items-center rounded-[10px] border border-border bg-s1 text-dim">
             <Plus size={20} />

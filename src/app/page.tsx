@@ -27,6 +27,7 @@ import { useAccess } from '@/hooks/useAccess'
 import { listDemos, type AppEvent } from '@/lib/events'
 import { reducedMotion } from '@/lib/prefs'
 import { useHeatLine, withHeatLine } from '@/hooks/useHeatLine'
+import { Em } from '@/components/ui/Em'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -124,16 +125,16 @@ export default function Landing() {
             <div className="ld-hero min-w-0 lg:col-span-5">
               <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">The little hour when people meet</p>
               <h1 className="mt-3 font-serif font-normal text-[46px] leading-[1.0] tracking-[-0.015em] sm:text-[62px] lg:text-[54px] xl:text-[62px]">
-                Find the hour everyone can meet.
+                Find the hour <Em>everyone</Em> can meet.
               </h1>
               <p className="mt-5 max-w-[560px] text-[16px] leading-[1.6] text-dim sm:text-[17px]">
                 Making plans with friends? Create an event, then send the invite link. Everyone marks when they are free and votes on where to go. Guests don't need an account.
               </p>
               <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
-                <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-accent px-6 text-[15px] font-semibold text-on-accent">
+                <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-full bg-accent px-6 text-[15px] font-semibold text-on-accent">
                   Sign up <ArrowRight size={16} />
                 </Link>
-                <Link href="/demos" className="flex h-12 items-center justify-center rounded-[11px] border border-border2 bg-s1 px-6 text-[15px] font-semibold text-dim hover:bg-s2 hover:text-text">
+                <Link href="/demos" className="flex h-12 items-center justify-center rounded-full border border-border2 bg-s1 px-6 text-[15px] font-semibold text-dim hover:bg-s2 hover:text-text">
                   Try a demo first
                 </Link>
               </div>
@@ -198,7 +199,7 @@ export default function Landing() {
               <h2 className="font-serif font-normal text-[36px] leading-[1.06] tracking-[-0.01em] sm:text-[46px]">Demos</h2>
               <p className="mt-3 text-[15px] leading-[1.6] text-dim">Open a finished plan and click through it.</p>
             </div>
-            <Link href="/demos" className="flex h-10 items-center gap-1.5 rounded-[10px] border border-border2 bg-s1 px-4 text-[13.5px] font-semibold text-dim hover:bg-s2 hover:text-text">
+            <Link href="/demos" className="flex h-10 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-4 text-[13.5px] font-semibold text-dim hover:bg-s2 hover:text-text">
               All demos <ArrowRight size={14} />
             </Link>
           </div>
@@ -229,10 +230,10 @@ export default function Landing() {
               <h2 className="mt-3 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[44px]">The next plan takes a minute to start.</h2>
             </div>
             <div className="flex flex-col gap-2.5 lg:items-end">
-              <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-[11px] bg-on-accent px-6 text-[15px] font-semibold text-accent">
+              <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-full bg-on-accent px-6 text-[15px] font-semibold text-accent">
                 Sign up <ArrowRight size={16} />
               </Link>
-              <Link href="/auth/signin" className="flex h-12 items-center justify-center rounded-[11px] border border-[rgba(248,245,236,.4)] px-6 text-[15px] font-semibold text-on-accent hover:bg-[rgba(248,245,236,.1)]">
+              <Link href="/auth/signin" className="flex h-12 items-center justify-center rounded-full border border-[rgba(248,245,236,.4)] px-6 text-[15px] font-semibold text-on-accent hover:bg-[rgba(248,245,236,.1)]">
                 Log in
               </Link>
             </div>

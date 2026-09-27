@@ -14,6 +14,7 @@ import { hasSession, updatePassword } from '@/lib/session'
 import { PasswordField } from '@/components/ui/PasswordField'
 import { PasswordRules } from '@/components/ui/PasswordRules'
 import { passwordOk } from '@/lib/password'
+import { Wordmark } from '@/components/ui/Em'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -61,7 +62,7 @@ export default function ResetPasswordPage() {
           <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-accent text-on-accent">
             <CalendarRange size={16} />
           </span>
-          <span className="font-serif text-[21px] tracking-[-0.01em]">Hourelle</span>
+          <Wordmark className="text-[21px] tracking-[-0.01em]" />
         </Link>
 
         {ready === null && <p className="mt-7 text-[13.5px] text-dim">Checking your link…</p>}

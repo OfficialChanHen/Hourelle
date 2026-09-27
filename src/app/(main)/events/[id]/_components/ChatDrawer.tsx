@@ -301,7 +301,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
     <div ref={zone} className="flex h-full min-h-0 w-full flex-col">
       <div className="flex flex-none items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0 font-serif text-[19px] leading-tight tracking-[-0.01em]">Discussion</div>
-        <button onClick={onClose} aria-label="Close chat" className="-mr-2 grid h-11 w-11 place-items-center sm:-mr-1 sm:h-[34px] sm:w-[34px] rounded-lg text-dim hover:text-text"><X size={18} /></button>
+        <button onClick={onClose} aria-label="Close chat" className="-mr-2 grid h-11 w-11 place-items-center sm:-mr-1 sm:h-[34px] sm:w-[34px] rounded-full text-dim hover:text-text"><X size={18} /></button>
       </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col">
@@ -365,7 +365,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                   ) : (
                   <div
                     title={first ? undefined : whenLabel(m, h24)}
-                    className={`max-w-[min(86%,480px)] whitespace-pre-wrap break-words rounded-[14px] border px-[11px] py-2 text-[13px] leading-[1.45] ${
+                    className={`max-w-[min(86%,480px)] whitespace-pre-wrap break-words rounded-2xl border px-[11px] py-2 text-[13px] leading-[1.45] ${
                       m.you
                         ? `border-accent bg-accent text-on-accent ${first ? 'rounded-tr-[5px]' : ''}`
                         : `border-border bg-s2 text-text ${first ? 'rounded-tl-[5px]' : ''}`
@@ -414,7 +414,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
           label="Add to the chat"
           className="flex-none"
           trigger={(open) => (
-            <span className={`grid h-11 w-11 place-items-center rounded-[12px] border sm:h-[38px] sm:w-[38px] ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}>
+            <span className={`grid h-11 w-11 place-items-center rounded-full border sm:h-[38px] sm:w-[38px] ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}>
               <Plus size={17} />
             </span>
           )}
@@ -440,7 +440,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
           onClick={send}
           disabled={!draft.trim()}
           aria-label="Send"
-          className="grid h-11 w-11 sm:h-[38px] sm:w-[38px] flex-none place-items-center rounded-[12px] bg-accent text-on-accent transition-opacity disabled:opacity-40"
+          className="grid h-11 w-11 sm:h-[38px] sm:w-[38px] flex-none place-items-center rounded-full bg-accent text-on-accent transition-opacity disabled:opacity-40"
         >
           <Send size={16} />
         </button>

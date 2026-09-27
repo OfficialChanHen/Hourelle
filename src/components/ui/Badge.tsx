@@ -9,14 +9,16 @@ import type { LucideIcon } from 'lucide-react'
      ochre    planning, partial, caution, arriving late
      brick    absent, conflict, declined, danger
      accent   selected, interactive, a date that is close
+     moment   asks for you now or celebrates (your turn, just locked in)
      neutral  a state with no weight to it */
-type Variant = 'teal' | 'ochre' | 'brick' | 'accent' | 'neutral'
+type Variant = 'teal' | 'ochre' | 'brick' | 'accent' | 'moment' | 'neutral'
 
 const variants: Record<Variant, string> = {
   teal: 'bg-teal-bg text-teal-text border-teal-border',
   ochre: 'bg-ochre-bg text-ochre-text border-ochre-border',
   brick: 'bg-brick-bg text-brick-text border-brick-border',
   accent: 'bg-accent-bg text-accent-text border-accent-border',
+  moment: 'bg-moment-bg text-moment-text border-moment-border',
   neutral: 'bg-s2 text-dim border-border',
 }
 
@@ -31,7 +33,7 @@ export function Badge({
 }) {
   return (
     <span
-      className={`inline-flex h-[21px] items-center gap-1 rounded-md border px-2 text-[12px] font-semibold leading-none ${variants[variant]}`}
+      className={`inline-flex h-[21px] items-center gap-1 rounded-full border px-2 text-[12px] font-semibold leading-none ${variants[variant]}`}
     >
       {Icon && <Icon size={12} />}
       {children}

@@ -11,17 +11,23 @@
    serif, the hairlines and the spacing, so it survives the cooler ground and sits
    beside a work calendar without looking like a filter. */
 :root {
-  --bg:#F7F6F4; --s0:#FBFAF9; --s1:#FFFFFF; --s2:#EFEEEB; --s3:#E3E2DE;
-  --border:#E3E2DE; --border2:#CFCEC9;
-  --text:#1A1917; --dim:#67665F; --faint:#6D6C65;
-  --accent:#2E4A3C; --accent-text:#2A4537; --accent-bg:#E8EEE9; --accent-border:#CBD9CF; --on-accent:#F8F7F3;
+  --bg:#FAF6EF; --s0:#FCF9F4; --s1:#FFFDF9; --s2:#F3EDE3; --s3:#EAE2D5;
+  --border:#EAE2D5; --border2:#D6CCBC;
+  --text:#1F1B16; --dim:#655D52; --faint:#6B6358;
+  --accent:#2E6B4E; --accent-text:#23543D; --accent-bg:#E4F0E7; --accent-border:#C3DCCB; --on-accent:#FFFDF9;
   --teal:#3F6B55; --teal-text:#31523F; --teal-bg:#E7EFE9; --teal-border:#C6DACC;
-  --ochre:#8F6A33; --ochre-text:#72521F; --ochre-bg:#F3ECDF; --ochre-border:#E3D6BF;
-  --brick:#9C4A46; --brick-text:#823C39; --brick-bg:#F3E4E2; --brick-border:#E4CBC8;
-  --shadow:0 1px 2px rgba(30,28,24,.04), 0 10px 30px rgba(30,28,24,.06);
+  --ochre:#8F6A33; --ochre-text:#72521F; --ochre-bg:#F5ECDC; --ochre-border:#E6D6BA;
+  --brick:#9C4A46; --brick-text:#823C39; --brick-bg:#F5E3E0; --brick-border:#E8CAC5;
+  /* coral: the moment role. Things that ask for you now or celebrate: "Your turn",
+     the Up next eyebrow, the share-first card, a plan locking in. A role like ochre
+     and brick, never a button, link or selected state (those stay the accent). */
+  --moment:#C4603F; --moment-text:#A0452A; --moment-bg:#FBE8DF; --moment-border:#F1C9B8;
+  --shadow:0 1px 2px rgba(60,40,20,.05), 0 12px 32px rgba(60,40,20,.07);
 
   /* the display face — a palette may swap it (see Studio) */
   --display:var(--font-lora), Georgia, serif;
+  /* the italic accent word's ink (see Em.tsx) */
+  --em:var(--accent-text);
 
   /* availability heat ramp */
   --heat-low:#EBF0EC; --heat-mid:#D0DFD4; --heat-high:#9FBBA6; --heat-full:#2E4A3C;
@@ -46,7 +52,7 @@
   --raised-shadow:0 1px 2px rgba(30,28,24,.10);
 
   /* liquid glass (iOS chrome): a near-clear tint, rim light, and sheen */
-  --glass-tint:rgba(253,252,250,.26);
+  --glass-tint:rgba(255,252,246,.26);
   --glass-rim:rgba(255,255,255,.5);
   --glass-rim-weak:rgba(255,255,255,.18);
   --glass-sheen:rgba(255,255,255,.22);
@@ -69,13 +75,14 @@
 
 /* Dark — warm charcoal, the same warmth held at the same distance */
 [data-theme="dark"] {
-  --bg:#151513; --s0:#1A1A18; --s1:#1F1F1C; --s2:#262622; --s3:#302F2A;
-  --border:rgba(240,238,230,.10); --border2:rgba(240,238,230,.19);
-  --text:#EFEDE8; --dim:#ACA99F; --faint:#8E8C83;
-  --accent:#437B5B; --accent-text:#A3D6BE; --accent-bg:rgba(127,183,154,.15); --accent-border:rgba(127,183,154,.38); --on-accent:#F8F7F3;
+  --bg:#171512; --s0:#1C1A16; --s1:#211E1A; --s2:#292520; --s3:#332F28;
+  --border:rgba(245,236,220,.10); --border2:rgba(245,236,220,.19);
+  --text:#F1ECE4; --dim:#B0A99D; --faint:#938C80;
+  --accent:#2F7A56; --accent-text:#9FDCBC; --accent-bg:rgba(111,196,152,.15); --accent-border:rgba(111,196,152,.38); --on-accent:#FFFDF9;
   --teal:#5B9A7C; --teal-text:#9BD2B7; --teal-bg:rgba(111,181,151,.14); --teal-border:rgba(111,181,151,.36);
   --ochre:#BD9A5E; --ochre-text:#E1C48F; --ochre-bg:rgba(200,165,100,.15); --ochre-border:rgba(200,165,100,.38);
   --brick:#C57F78; --brick-text:#E5ACA6; --brick-bg:rgba(205,138,130,.14); --brick-border:rgba(205,138,130,.36);
+  --moment:#E08868; --moment-text:#F4B8A0; --moment-bg:rgba(224,136,104,.15); --moment-border:rgba(224,136,104,.40);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
 
   --heat-low:rgba(127,183,154,.14); --heat-mid:rgba(127,183,154,.30); --heat-high:rgba(127,183,154,.55); --heat-full:#5B9A7C;
@@ -129,6 +136,7 @@
   --teal:#2F7A5A; --teal-text:#256448; --teal-bg:#E5F2EB; --teal-border:#C3DFD0;
   --ochre:#A16A1B; --ochre-text:#7F5314; --ochre-bg:#F6EEDD; --ochre-border:#E8D8B6;
   --brick:#B2413B; --brick-text:#93342F; --brick-bg:#F8E5E3; --brick-border:#EBC8C5;
+  --moment:#C0583A; --moment-text:#9A3F24; --moment-bg:#FAEAE3; --moment-border:#EDCBBE;
   --shadow:0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
   --heat-low:#E7F1EB; --heat-mid:#C6E0D1; --heat-high:#8FBEA3; --heat-full:#2F7A5A;
   --you-only:#F6EEDD; --you-some:#EBDDBC; --you-many:#DCC894; --you-text:#625226;
@@ -136,6 +144,7 @@
   --best-head:#F6EEDD;
   --heat-count:#18181B; --heat-count-full:#FFFFFF;
   --raised-shadow:0 1px 2px rgba(0,0,0,.10);
+  --em:var(--text);
   --glass-tint:rgba(251,251,252,.26);
 }
 [data-palette="studio"][data-theme="dark"] {
@@ -146,6 +155,7 @@
   --teal:#5FAF89; --teal-text:#9AD6B9; --teal-bg:rgba(95,175,137,.14); --teal-border:rgba(95,175,137,.36);
   --ochre:#C9A05A; --ochre-text:#E6C88E; --ochre-bg:rgba(201,160,90,.15); --ochre-border:rgba(201,160,90,.38);
   --brick:#D2837C; --brick-text:#EBB0AA; --brick-bg:rgba(210,131,124,.14); --brick-border:rgba(210,131,124,.36);
+  --moment:#E08C6E; --moment-text:#F2BBA6; --moment-bg:rgba(224,140,110,.15); --moment-border:rgba(224,140,110,.40);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
   --heat-low:rgba(95,175,137,.14); --heat-mid:rgba(95,175,137,.30); --heat-high:rgba(95,175,137,.55); --heat-full:#5FAF89;
   --you-only:rgba(201,160,90,.18); --you-some:rgba(201,160,90,.34); --you-many:rgba(201,160,90,.5); --you-text:#EFD9AC;
@@ -165,6 +175,7 @@
   --teal:#188038; --teal-text:#137333; --teal-bg:#E6F4EA; --teal-border:#CEEAD6;
   --ochre:#F29900; --ochre-text:#AA5C00; --ochre-bg:#FEF7E0; --ochre-border:#FEEFC3;
   --brick:#D93025; --brick-text:#C5221F; --brick-bg:#FCE8E6; --brick-border:#FAD2CF;
+  --moment:#E0623A; --moment-text:#B2401C; --moment-bg:#FDECE4; --moment-border:#F9CDBB;
   --shadow:0 1px 2px rgba(60,64,67,.12), 0 8px 24px rgba(60,64,67,.10);
   --heat-low:#E8F0FE; --heat-mid:#AECBFA; --heat-high:#669DF6; --heat-full:#0B57D0;
   --you-only:#FEF7E0; --you-some:#FDE293; --you-many:#FDD663; --you-text:#7A5800;
@@ -180,6 +191,7 @@
   --teal:#81C995; --teal-text:#81C995; --teal-bg:rgba(129,201,149,.14); --teal-border:rgba(129,201,149,.36);
   --ochre:#FDD663; --ochre-text:#FDD663; --ochre-bg:rgba(253,214,99,.14); --ochre-border:rgba(253,214,99,.36);
   --brick:#F28B82; --brick-text:#F28B82; --brick-bg:rgba(242,139,130,.14); --brick-border:rgba(242,139,130,.36);
+  --moment:#F59E7C; --moment-text:#F7AE92; --moment-bg:rgba(245,158,124,.14); --moment-border:rgba(245,158,124,.38);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
   --heat-low:rgba(138,180,248,.14); --heat-mid:rgba(138,180,248,.30); --heat-high:rgba(138,180,248,.55); --heat-full:#8AB4F8;
   --you-only:rgba(253,214,99,.12); --you-some:rgba(253,214,99,.22); --you-many:rgba(253,214,99,.34); --you-text:#FDD663;
@@ -198,6 +210,7 @@
   --teal:#006B21; --teal-text:#005A1C; --teal-bg:#DDF5E2; --teal-border:#006B21;
   --ochre:#9A5B00; --ochre-text:#7A4800; --ochre-bg:#FFF0D0; --ochre-border:#9A5B00;
   --brick:#C40000; --brick-text:#A30000; --brick-bg:#FFE1E1; --brick-border:#C40000;
+  --moment:#B8400F; --moment-text:#8F2F08; --moment-bg:#FFE7DA; --moment-border:#B8400F;
   --shadow:0 1px 2px rgba(0,0,0,.25);
   --heat-low:#E4EBFF; --heat-mid:#A9BFFF; --heat-high:#5B7FF2; --heat-full:#0033CC;
   --you-only:#FFF3B8; --you-some:#FFE065; --you-many:#FFD02E; --you-text:#5C4A00;
@@ -222,6 +235,7 @@
   --teal:#4DDB77; --teal-text:#86EFA5; --teal-bg:rgba(77,219,119,.16); --teal-border:rgba(77,219,119,.55);
   --ochre:#FFC53D; --ochre-text:#FFDC85; --ochre-bg:rgba(255,197,61,.16); --ochre-border:rgba(255,197,61,.55);
   --brick:#FF6161; --brick-text:#FF9C9C; --brick-bg:rgba(255,97,97,.16); --brick-border:rgba(255,97,97,.55);
+  --moment:#FF8A5C; --moment-text:#FFB899; --moment-bg:rgba(255,138,92,.16); --moment-border:rgba(255,138,92,.55);
   --shadow:0 1px 2px rgba(0,0,0,.8);
   --heat-low:rgba(125,169,255,.18); --heat-mid:rgba(125,169,255,.40); --heat-high:rgba(125,169,255,.65); --heat-full:#7DA9FF;
   --you-only:rgba(255,197,61,.16); --you-some:rgba(255,197,61,.28); --you-many:rgba(255,197,61,.43); --you-text:#FFDC85;
@@ -248,6 +262,7 @@
   --color-teal:var(--teal); --color-teal-text:var(--teal-text); --color-teal-bg:var(--teal-bg); --color-teal-border:var(--teal-border);
   --color-ochre:var(--ochre); --color-ochre-text:var(--ochre-text); --color-ochre-bg:var(--ochre-bg); --color-ochre-border:var(--ochre-border);
   --color-brick:var(--brick); --color-brick-text:var(--brick-text); --color-brick-bg:var(--brick-bg); --color-brick-border:var(--brick-border);
+  --color-moment:var(--moment); --color-moment-text:var(--moment-text); --color-moment-bg:var(--moment-bg); --color-moment-border:var(--moment-border);
   /* grid slot lines — a real color token: border-[var(--grid-line)] is ambiguous to
      Tailwind and silently fell back to the global border-color */
   --color-grid-line:var(--grid-line);
@@ -259,6 +274,22 @@
   --font-sans:var(--font-instrument-sans), system-ui, sans-serif;
 
   --shadow-soft:var(--shadow);
+}
+
+/* ── shape: one step rounder than the first editorial pass ──
+   The scale itself is moved, so every card, panel and chip follows without a
+   per-file edit. Buttons and chips are pills (rounded-full); inputs stay slightly
+   rounded rectangles (the 9 to 12px arbitrary values they carry). */
+@theme {
+  --radius-lg: 10px;   /* small controls, icon buttons */
+  --radius-xl: 16px;   /* inner panels, callouts, popovers, toasts */
+  --radius-2xl: 20px;  /* cards, panels, modals, sheets */
+  --radius-3xl: 24px;  /* hero cards (Up next, the locked-in card) */
+}
+
+/* the italic accent word (Em.tsx): the display face in italic, the accent's ink */
+@layer components {
+  .em-accent { font-style: italic; color: var(--em); }
 }
 
 /* ── liquid glass, the iOS chrome finish: frost + rim light + sheen ──

@@ -96,14 +96,14 @@ export function SignInMethods({ account }: { account: Account }) {
             <button
               type="button" onClick={() => void disconnect(provider)} disabled={busy !== null || onlyDoor}
               title={onlyDoor ? 'This is the only way in to your account' : undefined}
-              className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2 disabled:opacity-40"
+              className="flex h-9 flex-none items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2 disabled:opacity-40"
             >
               {busy === 'unlink' && busyOn === provider ? <Loader2 size={14} className="animate-spin" /> : <Link2Off size={15} />} Disconnect
             </button>
           ) : (
             <button
               type="button" onClick={() => void connect(provider)} disabled={busy !== null || !backendOn}
-              className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13px] font-semibold text-on-accent disabled:opacity-40"
+              className="flex h-9 flex-none items-center gap-1.5 rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent disabled:opacity-40"
             >
               {busy === 'link' && busyOn === provider ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={15} />} Connect
             </button>
@@ -123,7 +123,7 @@ export function SignInMethods({ account }: { account: Account }) {
               {hasPassword ? account.email ?? 'Set up' : 'Not set up'}
             </div>
           </div>
-          {hasPassword && <span className="flex h-7 flex-none items-center gap-1.5 rounded-[8px] border border-teal-border bg-teal-bg px-2.5 text-[12px] font-semibold text-teal-text"><Check size={13} /> On</span>}
+          {hasPassword && <span className="flex h-7 flex-none items-center gap-1.5 rounded-full border border-teal-border bg-teal-bg px-2.5 text-[12px] font-semibold text-teal-text"><Check size={13} /> On</span>}
         </div>
       </Row>
 

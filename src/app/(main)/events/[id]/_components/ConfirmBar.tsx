@@ -41,7 +41,7 @@ export function ConfirmBar({ event, onChanged, onGoToDetails, onGoToLocation, pr
         type="button"
         data-tour="lock"
         onClick={() => setOpen(true)}
-        className="flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[14px] font-semibold text-on-accent"
+        className="flex h-9 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[14px] font-semibold text-on-accent"
       >
         <Lock size={15} /> {event.confirmed ? 'Lock in the place' : 'Lock it in'}
       </button>
@@ -83,7 +83,7 @@ function ConfirmModal({ event, close, onChanged, onGoToDetails, onGoToLocation, 
             <div className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint">Final plan</div>
             <div id={titleId} className="mt-0.5 text-[15.5px] font-semibold">{event.confirmed ? 'Lock in the place' : 'Lock it in'}</div>
           </div>
-          <button onClick={close} aria-label="Close" className="grid h-8 w-8 place-items-center rounded-[8px] text-dim hover:bg-s2 hover:text-text">
+          <button onClick={close} aria-label="Close" className="grid h-8 w-8 place-items-center rounded-full text-dim hover:bg-s2 hover:text-text">
             <X size={16} />
           </button>
         </div>

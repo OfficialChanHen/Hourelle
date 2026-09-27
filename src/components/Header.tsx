@@ -28,6 +28,7 @@ import { initialsOf } from '@/lib/events'
 import { signOut } from '@/lib/session'
 import { FaceSvg } from '@/components/ui/FaceSvg'
 import { defaultFace } from '@/lib/faces'
+import { Wordmark } from '@/components/ui/Em'
 
 const TABS = [
   { href: '/home', label: 'Home' },
@@ -58,7 +59,7 @@ export function Header() {
       <header className={chrome}>
         <div className="mx-auto flex h-[54px] max-w-[1240px] items-center px-[22px]">
           <span className="flex items-center">
-            <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Hourelle</span>
+            <Wordmark className="text-[24.5px] tracking-[.01em]" />
           </span>
         </div>
       </header>
@@ -73,7 +74,7 @@ export function Header() {
       <header className={chrome}>
         <div className="mx-auto flex h-[58px] max-w-[1240px] items-center gap-3 px-[22px]">
           <Link href="/" className="flex items-center">
-            <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Hourelle</span>
+            <Wordmark className="text-[24.5px] tracking-[.01em]" />
           </Link>
           <div className="flex-1" />
           <div className="flex items-center gap-2">
@@ -81,10 +82,10 @@ export function Header() {
             {/* both doors, worded and weighted exactly as the landing page words them:
                 a guest has no account yet, and signing up is the one that keeps their
                 answers. Both show at every width, a phone included. */}
-            <Link href="/auth/signin" className="flex h-[34px] items-center whitespace-nowrap rounded-[9px] px-[13px] text-[14px] font-medium text-dim hover:bg-s3 hover:text-text">
+            <Link href="/auth/signin" className="flex h-[34px] items-center whitespace-nowrap rounded-full px-[13px] text-[14px] font-medium text-dim hover:bg-s3 hover:text-text">
               Log in
             </Link>
-            <Link href="/auth/signin?mode=up" className="flex h-[34px] items-center whitespace-nowrap rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent">
+            <Link href="/auth/signin?mode=up" className="flex h-[34px] items-center whitespace-nowrap rounded-full bg-accent px-[14px] text-[14px] font-semibold text-on-accent">
               Sign up
             </Link>
           </div>
@@ -98,7 +99,7 @@ export function Header() {
       <div className="mx-auto flex h-[54px] max-w-[1240px] items-center gap-[22px] px-[22px]">
         {/* logo — the serif wordmark, on its own */}
         <Link href="/home" className="flex items-center">
-          <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Hourelle</span>
+          <Wordmark className="text-[24.5px] tracking-[.01em]" />
         </Link>
 
         {/* nav — filled accent box when active, no underlines */}
@@ -110,7 +111,7 @@ export function Header() {
                 key={t.href}
                 href={t.href}
                 aria-current={active ? 'page' : undefined}
-                className={`rounded-[9px] px-[13px] py-2 transition-colors ${
+                className={`rounded-full px-[13px] py-2 transition-colors ${
                   active ? 'bg-accent font-medium text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'
                 }`}
               >
@@ -128,7 +129,7 @@ export function Header() {
         <Link
           href="/create"
           data-tour="create"
-          className="hidden h-[34px] items-center gap-[7px] rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent md:flex"
+          className="hidden h-[34px] items-center gap-[7px] rounded-full bg-accent px-[14px] text-[14px] font-semibold text-on-accent md:flex"
         >
           <Plus size={17} />
           <span>New event</span>
@@ -141,7 +142,7 @@ export function Header() {
             href="/notifications"
             aria-label={notifCount > 0 ? `Notifications, ${notifCount} unread` : 'Notifications'}
             title="Notifications"
-            className={`relative grid h-[30px] w-[30px] place-items-center rounded-lg border ${
+            className={`relative grid h-[30px] w-[30px] place-items-center rounded-full border ${
               pathname.startsWith('/notifications')
                 ? 'border-accent-border bg-accent-bg text-accent-text'
                 : 'border-border text-dim hover:text-text'

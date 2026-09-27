@@ -15,6 +15,7 @@ import { LEGAL_VERSION, type LegalKey } from '@/content/legal'
 import { passwordOk } from '@/lib/password'
 import { PasswordField } from '@/components/ui/PasswordField'
 import { PasswordRules } from '@/components/ui/PasswordRules'
+import { Wordmark } from '@/components/ui/Em'
 
 /* ── log in, sign up, or ask for a new password ──
    Split like the sign-in pages people know: the form on the left, the pitch on the
@@ -172,7 +173,7 @@ function SignInForm() {
               <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-accent text-on-accent">
                 <CalendarRange size={16} />
               </span>
-              <span className="font-serif text-[21px] tracking-[-0.01em]">Hourelle</span>
+              <Wordmark className="text-[21px] tracking-[-0.01em]" />
             </Link>
 
             <h1 className="mt-7 font-serif font-normal text-[31px] leading-[1.05] tracking-[-0.01em]">{copy.title}</h1>

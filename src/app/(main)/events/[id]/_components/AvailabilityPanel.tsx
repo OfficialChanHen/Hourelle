@@ -1373,7 +1373,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 // was mostly empty. Captions wrap to the width and never set it.
                 width={isHost && !daysAnswer ? 284 : 'fit'}
                 trigger={(open) => (
-                  <span className={`flex h-7 items-center gap-1.5 rounded-lg border px-[10px] text-[12.5px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
+                  <span className={`flex h-7 items-center gap-1.5 rounded-full border px-[10px] text-[12.5px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
                     <SlidersHorizontal size={13} /> Settings
                   </span>
                 )}
@@ -1446,7 +1446,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               onClick={() => setWholeWeek((w) => !w)}
               aria-pressed={wholeWeek}
               title={wholeWeek ? 'Show only the days this poll asks about' : 'Show the whole week around the days this poll asks about'}
-              className={`flex h-7 flex-none items-center gap-1.5 rounded-lg border px-[9px] text-[12.5px] font-medium ${wholeWeek ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}
+              className={`flex h-7 flex-none items-center gap-1.5 rounded-full border px-[9px] text-[12.5px] font-medium ${wholeWeek ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}
             >
               {wholeWeek ? <ChevronsRightLeft size={13} /> : <ChevronsLeftRight size={13} />}
               Whole week
@@ -1454,7 +1454,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           )}
           {dayPoll ? null : canConvert ? (
             // a two-sided toggle, so it reads as "event zone vs your zone" at a glance
-            <div className="flex h-7 items-center overflow-hidden rounded-lg border border-border bg-s1 text-[12px] font-medium" role="group" aria-label="Show times in">
+            <div className="flex h-7 items-center overflow-hidden rounded-full border border-border bg-s1 text-[12px] font-medium" role="group" aria-label="Show times in">
               <button
                 type="button" onClick={() => setMyTime(false)} aria-pressed={!myTime}
                 title={`Event time (${tzAbbr(event.timezone)})`}
@@ -1512,7 +1512,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 <button
                   type="button"
                   onClick={fillAllDays}
-                  className="flex h-11 items-center gap-1.5 rounded-lg border border-border bg-s1 px-[11px] text-[12.5px] font-medium hover:border-border2 sm:h-7"
+                  className="flex h-11 items-center gap-1.5 rounded-full border border-border bg-s1 px-[11px] text-[12.5px] font-medium hover:border-border2 sm:h-7"
                 >
                   <Zap size={13} /> Free for all of it
                 </button>
@@ -1548,7 +1548,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               <button
                 type="button"
                 onClick={() => { const added = addMeToEvent(event.id); if (added) onPatch?.({ participants: [...event.participants, added] }) }}
-                className="flex h-8 items-center rounded-[9px] bg-accent px-3 text-[12.5px] font-semibold text-on-accent"
+                className="flex h-8 items-center rounded-full bg-accent px-3 text-[12.5px] font-semibold text-on-accent"
               >
                 Add me
               </button>
@@ -1634,10 +1634,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             </div>
             {/* right: Remove / Done pinned bottom-right */}
             <div className="flex flex-none flex-col items-end justify-end gap-1.5">
-              <button onClick={deleteSel} className="flex h-11 items-center gap-1.5 rounded-[8px] border border-brick-border bg-s1 px-3 text-[12.5px] font-semibold text-brick-text hover:bg-brick-bg sm:h-8 sm:px-2.5">
+              <button onClick={deleteSel} className="flex h-11 items-center gap-1.5 rounded-full border border-brick-border bg-s1 px-3 text-[12.5px] font-semibold text-brick-text hover:bg-brick-bg sm:h-8 sm:px-2.5">
                 <Trash2 size={14} /> Remove
               </button>
-              <button onClick={() => setSel(null)} className="flex h-11 items-center rounded-[8px] border border-border2 bg-s1 px-3 text-[12.5px] font-semibold hover:bg-s2 sm:h-8 sm:px-2.5">Done</button>
+              <button onClick={() => setSel(null)} className="flex h-11 items-center rounded-full border border-border2 bg-s1 px-3 text-[12.5px] font-semibold hover:bg-s2 sm:h-8 sm:px-2.5">Done</button>
             </div>
           </div>
         )}
