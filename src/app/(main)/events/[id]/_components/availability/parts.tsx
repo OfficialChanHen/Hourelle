@@ -210,7 +210,7 @@ export function ClearTimes({ onClear }: { onClear: () => void }) {
 }
 
 export function EdgeHandle({ pct, label, active, side, onDown }: { pct: number; label: string; active: boolean; side: 'above' | 'below'; onDown: (e: React.PointerEvent) => void }) {
-  const color = active ? '#8A6A2E' : '#C2A468'
+  const color = active ? 'var(--you-text)' : 'color-mix(in srgb, var(--you-text) 55%, transparent)'
   const grab = { cursor: 'ns-resize' as const, touchAction: 'none' as const }
   return (
     <div className="pointer-events-none absolute inset-x-0 z-[9]" style={{ top: `${pct}%` }}>
@@ -231,7 +231,7 @@ export function EdgeHandle({ pct, label, active, side, onDown }: { pct: number; 
       <span
         onPointerDown={onDown}
         className="pointer-events-auto absolute left-1/2 whitespace-nowrap rounded-full border bg-s1 px-1.5 py-px text-[10px] font-semibold tabular-nums shadow-soft"
-        style={{ top: 0, transform: `translate(-50%, ${side === 'above' ? 'calc(-50% - 15px)' : 'calc(-50% + 15px)'})`, borderColor: color, color: '#7A531F', ...grab }}
+        style={{ top: 0, transform: `translate(-50%, ${side === 'above' ? 'calc(-50% - 15px)' : 'calc(-50% + 15px)'})`, borderColor: color, color: 'var(--you-text)', ...grab }}
       >
         {label}
       </span>

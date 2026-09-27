@@ -342,7 +342,7 @@ export function DayCalendar({
                   {edit && mineOn && (
                     <span
                       className="pointer-events-none absolute inset-0"
-                      style={{ background: clayFor(oCount), boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.35)', border: '1.5px solid #7A531F' }}
+                      style={{ background: `linear-gradient(${clayFor(oCount)}, ${clayFor(oCount)}), var(--s1)`, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.35)', border: '1.5px solid var(--you-text)' }}
                     />
                   )}
                   {inBest && (

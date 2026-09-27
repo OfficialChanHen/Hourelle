@@ -188,7 +188,7 @@ export function HeroGrid() {
                     {isMine && (
                       <span
                         className="pointer-events-none absolute inset-0"
-                        style={{ background: 'var(--you-some)', border: '1.5px solid #7A531F', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.35)' }}
+                        style={{ background: 'var(--you-some)', border: '1.5px solid var(--you-text)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.35)' }}
                       />
                     )}
                     {inBest && (
