@@ -12,6 +12,7 @@ import { useEffect, useRef } from 'react'
 import { EVENTS_SYNCED } from '@/lib/remote'
 import { NOTIFICATIONS_CHANGED, unseenNotificationCount } from '@/lib/notifications'
 import { guestSessionId, listEvents } from '@/lib/events'
+import { isControlMessage } from '@/lib/polls'
 import { currentAccount } from '@/lib/session'
 import { playMessage, playNotification, primeSound, watchingChat } from '@/lib/sound'
 
@@ -36,6 +37,7 @@ export function AlertSounds() {
           if (at > newest) newest = at
           if (seenAt.current === null || at <= seenAt.current) continue
           if (m.system) continue            // "Sam joined" is the room, not a person
+          if (isControlMessage(m)) continue // a poll's option or settings change, never shown
           if (m.you || m.id === me || m.id === asGuest) continue // your own line
           if (watchingChat() === e.id) continue // you are looking straight at it
           heard = true

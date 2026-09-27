@@ -49,7 +49,7 @@ import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/
 import { Hint } from '@/components/ui/Hint'
 import { Tour } from '@/components/Tour'
 import { AskTour } from '@/components/AskTour'
-import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
+import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, patchEventWith, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -59,6 +59,7 @@ import { ConfirmBar } from './ConfirmBar'
 import { ConfirmedHero } from './ConfirmedHero'
 import { ChatDrawer } from './ChatDrawer'
 import { ShareFirst } from './ShareFirst'
+import { chatLines, pollClosed, tapPollOption, type PollState } from '@/lib/polls'
 import { useIsIOS } from '@/hooks/useIsIOS'
 import { useBounceOnNew } from '@/hooks/useAttention'
 import { useAccount } from '@/hooks/useAccount'
@@ -135,10 +136,11 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   const [copied, setCopied] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   // unread discussion count: what arrived since the drawer was last open, not the
-  // lifetime total. Read after mount (localStorage), marked seen while the drawer is up
+  // lifetime total. Read after mount (localStorage), marked seen while the drawer is up.
+  // Only lines people can see count: a poll's option or settings change is not news
   const [seenMsgs, setSeenMsgs] = useState<number | null>(null)
   useEffect(() => { setSeenMsgs(seenMessageCount(id)) }, [id])
-  const msgCount = event?.messages.length ?? 0
+  const msgCount = event ? chatLines(event.messages).length : 0
   useEffect(() => {
     if (!chatOpen) return
     setSeenMsgs(msgCount)
@@ -231,7 +233,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     // to it, so their bubble does not open on an unread badge for their own arrival
     if (markArrived(id, arrivingId)) {
       const raw = getEvent(id)
-      if (raw) { const n = viewOf(raw).messages.length; markMessagesSeen(id, n); setSeenMsgs(n) }
+      if (raw) { const n = chatLines(viewOf(raw).messages).length; markMessagesSeen(id, n); setSeenMsgs(n) }
     }
     refresh()
   }, [arrivingId, id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -320,6 +322,22 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     // viewOf remaps it. Messages go out as their own rows, so nobody's chat is overwritten.
     const saved = event.demo ? msg : appendMessage(event.id, { ...msg, you: !sender.guest })
     setEvent({ ...event, messages: [...event.messages, { ...saved, you: true }] })
+  }
+  // a tap on a chat poll. The pick is yours alone, under that poll's keys in the votes
+  // map, worked out from the copy saved on this device right now (never from this
+  // screen's), so someone else's pick that landed a moment ago is not put back.
+  // A demo keeps it on the page. The poll's own rules (votes each, closing day) come
+  // with it, folded from the chat by the drawer.
+  function votePoll(poll: PollState, optionId: string) {
+    if (!event || event.status === 'confirmed' || pollClosed(poll.s)) return
+    const voter = event.participants.find((p) => p.you)
+    if (!voter) return
+    if (event.demo) {
+      setEvent({ ...event, votes: tapPollOption(event.votes ?? {}, poll, voter.id, optionId) })
+      return
+    }
+    const patch = patchEventWith(event.id, (cur) => ({ votes: tapPollOption(cur.votes ?? {}, poll, voter.id, optionId) }))
+    if (patch?.votes) setEvent((ev) => (ev ? { ...ev, votes: patch.votes } : ev))
   }
 
   // the way back out. A demo always returns to the demo shelf; otherwise it is
@@ -540,7 +558,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       {chatOpen && (
         <ChatDrawer
           event={event} messages={event.messages} unreadFrom={unreadMark}
-          onSend={sendMessage} onClose={() => setChatOpen(false)} readOnly={!!event.demo}
+          onSend={sendMessage} onVote={votePoll} onClose={() => setChatOpen(false)} readOnly={!!event.demo}
           typing={room.typing} onType={room.onType} onStopTyping={room.onStopTyping}
         />
       )}
