@@ -51,6 +51,11 @@ export function JoinFlow({ id }: { id: string }) {
   const [event, setEvent] = useState<AppEvent | null | undefined>(undefined)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  // the email is optional and folded away behind a quiet button; once it holds
+  // anything it stays open, so nothing typed is ever hidden
+  const [emailOpen, setEmailOpen] = useState(false)
+  const emailBox = useRef<HTMLDivElement>(null)
+  const focusEmail = useRef(false)
   const [joining, setJoining] = useState(false)
   // a magic link went out to prove an email — the page waits here
   const [sent, setSent] = useState<string | null>(null)
@@ -140,6 +145,16 @@ export function JoinFlow({ id }: { id: string }) {
     { dependencies: [event === undefined] },
   )
 
+  // the email field opens in place, and the person who asked for it lands in it
+  useGSAP(
+    () => {
+      if (!emailOpen || !emailBox.current) return
+      gsap.fromTo(emailBox.current, { opacity: 0, y: -6 }, { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' })
+      if (focusEmail.current) { focusEmail.current = false; emailBox.current.querySelector('input')?.focus() }
+    },
+    { dependencies: [emailOpen] },
+  )
+
   function doJoin(n: string) {
     if (joining) return
     setJoining(true)
@@ -165,11 +180,10 @@ export function JoinFlow({ id }: { id: string }) {
     setSent(addr)
   }
 
-  // two characters is the floor; a first and last name is what the roster and the
-  // chat avatars want, so the field says so without insisting
+  // two characters is the floor; the placeholder's example says the rest
   const cleanName = name.trim().replace(/\s+/g, ' ')
   const nameOk = cleanName.length >= 2
-  const nameWords = cleanName.split(' ').length
+  const nameShort = cleanName.length === 1
 
   // an email that already has an account is a way in, not a guest name: the person
   // logs in and joins as themselves. Asked of the database before anything else.
@@ -247,25 +261,25 @@ export function JoinFlow({ id }: { id: string }) {
 
   const phase = phaseOf(event)
   const badge = PHASE_BADGE[phase]
-  const locked = phase !== 'planning'
   const slot = confirmedSlotText(event)
   const lead = leadingPlaceOf(event)
   const [coverFrom, coverTo] = coverFor(event.id)
   const past = phase === 'past'
   const host = event.participants.find((p) => p.host)
+  const emailShown = emailOpen || email !== ''
   const field = 'h-11 w-full rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none placeholder:text-faint focus:border-accent'
 
   return (
-    <div ref={root} className="mx-auto max-w-[600px] px-4 pb-[92px] pt-[34px] sm:px-[26px] sm:pt-[52px]">
+    <div ref={root} className="mx-auto max-w-[600px] px-4 pb-[92px] pt-5 sm:px-[26px] sm:pt-[52px]">
       {/* the event as a teaser — enough to know what this is, none of the answers */}
       <div className="overflow-hidden rounded-2xl border border-border bg-s1 shadow-soft">
-        <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from={coverFrom} to={coverTo} className="h-[120px] sm:h-[150px]" />
-        <div className="p-6 sm:p-7">
+        <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from={coverFrom} to={coverTo} className="h-[96px] sm:h-[150px]" />
+        <div className="p-5 sm:p-7">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <Badge variant={badge.variant}>{badge.label}</Badge>
           </div>
           <h1 className="font-serif font-normal text-[31px] leading-[1.06] tracking-[-0.01em] sm:text-[34px]">{event.title}</h1>
-          <div className="mt-3.5 flex flex-col gap-[9px] text-[13.5px] text-dim">
+          <div className="mt-3 flex flex-col gap-2 text-[13.5px] text-dim sm:mt-3.5 sm:gap-[9px]">
             <span className="flex items-center gap-2">
               {host ? <Avatar initials={host.initials} color={host.color} size={22} /> : <User size={14} className="flex-none" />}
               Hosted by {event.hostName}
@@ -286,12 +300,12 @@ export function JoinFlow({ id }: { id: string }) {
               {event.participants.length} {event.participants.length === 1 ? 'person is' : 'people are'} in
             </span>
           </div>
-          {event.description && <p className="mt-3 text-[13.5px] leading-[1.6] text-dim">{event.description}</p>}
+          {event.description && <p className="mt-3 line-clamp-3 text-[13.5px] leading-[1.6] text-dim sm:line-clamp-none">{event.description}</p>}
 
           {/* the one ask — everything else waits behind it */}
-          <div className="mt-5 border-t border-border pt-5">
+          <div className="mt-4 border-t border-border pt-4 sm:mt-5 sm:pt-5">
             {past ? (
-              <p className="text-[13.5px] leading-[1.55] text-dim">This event has already happened, so there is nothing left to join.</p>
+              <p className="text-[13.5px] leading-[1.55] text-dim">This event already happened.</p>
             ) : sent ? (
               /* the link is on its way; opening it on this device finishes the join */
               <div className="flex items-start gap-3 rounded-[12px] border border-teal-border bg-teal-bg px-4 py-3.5">
@@ -299,7 +313,7 @@ export function JoinFlow({ id }: { id: string }) {
                 <div className="min-w-0">
                   <p className="text-[14px] font-semibold text-teal-text">Check your inbox</p>
                   <p className="mt-1 text-[13px] leading-[1.55] text-teal-text">
-                    We sent a link to {sent}. Open it on this device and you&apos;ll pick up right where you left off.
+                    We sent a link to {sent}. Open it on this device to pick up where you left off.
                   </p>
                 </div>
               </div>
@@ -375,10 +389,8 @@ export function JoinFlow({ id }: { id: string }) {
               </>
             ) : (
               <>
-                <p className="text-[15px] font-semibold leading-[1.4]">
-                  {locked ? 'Add your name to see the plan and say if you are coming.' : 'Add your name to say when you are free and help pick the place.'}
-                </p>
-                <div className="mt-4 flex flex-col gap-1.5">
+                <p className="text-[15px] font-semibold leading-[1.4]">Add your name to join.</p>
+                <div className="mt-3 flex flex-col gap-1.5">
                   <label htmlFor="join-name" className="text-[12.5px] font-semibold text-dim">Your name</label>
                   <input
                     id="join-name"
@@ -387,46 +399,58 @@ export function JoinFlow({ id }: { id: string }) {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') void join() }}
-                    aria-invalid={cleanName.length === 1 || undefined}
-                    aria-describedby="join-name-hint"
+                    placeholder="e.g. Sam"
+                    aria-invalid={nameShort || undefined}
+                    aria-describedby={nameShort ? 'join-name-err' : undefined}
                     className={field}
                   />
-                  <p id="join-name-hint" className={`text-[12px] leading-[1.55] ${cleanName.length === 1 ? 'text-brick-text' : 'text-faint'}`}>
-                    {cleanName.length === 1
-                      ? 'At least two characters.'
-                      : nameOk && nameWords < 2
-                        ? 'Add a last name too, so people can tell who you are.'
-                        : 'First and last name is best, so people can tell who you are.'}
-                  </p>
+                  {nameShort && (
+                    <p id="join-name-err" role="alert" className="text-[12px] leading-[1.55] text-brick-text">At least two characters.</p>
+                  )}
                 </div>
-                <div className="mt-3 flex flex-col gap-1.5">
-                  <label htmlFor="join-email" className="text-[12.5px] font-semibold text-dim">Email (Recommended)</label>
-                  <input
-                    id="join-email"
-                    type="email"
-                    autoComplete="email"
-                    inputMode="email"
-                    value={email}
-                    onChange={(e) => { setEmail(e.target.value); setAccountEmail(null) }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') void join() }}
-                    placeholder="you@example.com"
-                    className={field}
-                  />
-                  <p className="text-[12px] leading-[1.55] text-faint">For reminders, and to find your answers again from another device.</p>
-                </div>
+                {emailShown && (
+                  <div ref={emailBox} className="mt-3 flex flex-col gap-1.5">
+                    <label htmlFor="join-email" className="text-[12.5px] font-semibold text-dim">Email</label>
+                    <input
+                      id="join-email"
+                      type="email"
+                      autoComplete="email"
+                      inputMode="email"
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); setAccountEmail(null) }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') void join() }}
+                      placeholder="you@example.com"
+                      aria-describedby="join-email-hint"
+                      className={field}
+                    />
+                    <p id="join-email-hint" className="text-[12px] leading-[1.55] text-faint">
+                      We&apos;ll email you your link, so you can get back in from any device.
+                    </p>
+                  </div>
+                )}
                 <button
                   onClick={() => void join()}
                   disabled={!nameOk || joining}
-                  className="mt-5 flex h-11 w-full items-center justify-center gap-1.5 rounded-[10px] bg-accent text-[14.5px] font-semibold text-on-accent disabled:opacity-40"
+                  className="mt-4 flex h-11 w-full items-center justify-center gap-1.5 rounded-[10px] bg-accent text-[14.5px] font-semibold text-on-accent disabled:opacity-40"
                 >
-                  Join event <ArrowRight size={15} />
+                  Join <ArrowRight size={15} />
                 </button>
+                {!emailShown && (
+                  <button
+                    type="button"
+                    onClick={() => { focusEmail.current = true; setEmailOpen(true) }}
+                    aria-expanded={false}
+                    className="mt-1 flex h-11 w-full items-center justify-center text-[13px] font-medium text-dim hover:text-text hover:underline sm:h-9"
+                  >
+                    Get reminders by email
+                  </button>
+                )}
               </>
             )}
             {accountEmail && (
               <div role="status" className="mt-4 flex flex-col gap-2.5 rounded-[10px] border border-accent-border bg-accent-bg px-3.5 py-3">
                 <p className="text-[12.5px] leading-[1.55] text-accent-text">
-                  <span className="font-semibold">{accountEmail}</span> is registered to a Hourelle account. Log in to it and you join as yourself, with everything you answered before.
+                  <span className="font-semibold">{accountEmail}</span> has a Hourelle account. Log in to join as yourself, with your earlier answers.
                 </p>
                 <Link
                   href={`/auth/signin?mode=login&email=${encodeURIComponent(accountEmail)}&next=${encodeURIComponent(`/events/${id}/join${inviteToken ? `?invite=${inviteToken}` : ''}`)}`}
