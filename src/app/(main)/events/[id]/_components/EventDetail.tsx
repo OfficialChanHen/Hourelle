@@ -58,6 +58,7 @@ import { StageSummary } from './StageSummary'
 import { ConfirmBar } from './ConfirmBar'
 import { ConfirmedHero } from './ConfirmedHero'
 import { ChatDrawer } from './ChatDrawer'
+import { ShareFirst } from './ShareFirst'
 import { useIsIOS } from '@/hooks/useIsIOS'
 import { useBounceOnNew } from '@/hooks/useAttention'
 import { useAccount } from '@/hooks/useAccount'
@@ -67,6 +68,7 @@ import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { removeEventCovers } from '@/lib/covers'
 import { purgeRemoved } from '@/lib/remote'
 import { currentAccount } from '@/lib/session'
+import { reducedMotion } from '@/lib/prefs'
 
 const TABS = [
   { key: 'availability', label: 'Availability', short: 'Availability' },
@@ -126,6 +128,10 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   // nonce: each best-window click re-centers the grid, even mid-visit
   const [bestFocus, setBestFocus] = useState(0)
   if (tab !== 'availability' && bestFocus) setBestFocus(0)
+  // nonce: the share card's "Invite by email" opens the email box on the Details tab;
+  // cleared once the user moves off that tab, so a later visit opens it closed
+  const [inviteAsk, setInviteAsk] = useState(0)
+  if (tab !== 'details' && inviteAsk) setInviteAsk(0)
   const [copied, setCopied] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   // unread discussion count: what arrived since the drawer was last open, not the
@@ -450,6 +456,12 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         )}
       </div>
 
+      {/* a new event's one job: the host hands out the link. Gone once a guest arrives */}
+      <ShareFirst
+        event={event} joinUrl={joinUrl} copied={copied} onCopy={copy}
+        onInviteByEmail={() => { setInviteAsk((n) => n + 1); goTab('details') }}
+      />
+
       {/* the locked-in plan leads the page once confirmed */}
       {locked && phase !== 'past' && <ConfirmedHero event={event} onChanged={refresh} />}
 
@@ -498,7 +510,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       {/* the wrappers give the tour something to point at on each tab */}
       {tab === 'location' && <div data-tour="location" role="tabpanel" id="panel-location" aria-labelledby="tab-location"><LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} /></div>}
       {tab === 'attendance' && <div data-tour="attendance" role="tabpanel" id="panel-attendance" aria-labelledby="tab-attendance"><AttendancePanel event={event} onGoToTab={goTab} onViewAvailability={goToAvailabilityFor} onViewAvailabilityGroup={goToAvailabilityGroup} onGoToBestWindow={goToBestWindow} /></div>}
-      {tab === 'details' && <div data-tour="details" role="tabpanel" id="panel-details" aria-labelledby="tab-details"><DetailsTab event={event} onDelete={handleDelete} onLeave={handleLeave} onGoToTab={goTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} /></div>}
+      {tab === 'details' && <div data-tour="details" role="tabpanel" id="panel-details" aria-labelledby="tab-details"><DetailsTab event={event} onDelete={handleDelete} onLeave={handleLeave} onGoToTab={goTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} openInvite={inviteAsk} /></div>}
 
       {/* discussion follows you down the page — the classic chat bubble, above the
           mobile tab bar; it is the one and only way in, unread badge included. It stays
@@ -572,9 +584,10 @@ function EditableTitle({ title, editable, onSave }: { title: string; editable: b
 type DetailsGoTab = (t: 'availability' | 'location') => void
 
 /* ── Details tab ── */
-function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onPatch, onViewAvailability, spotlightDelete = false }: {
+function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onPatch, onViewAvailability, spotlightDelete = false, openInvite = 0 }: {
   event: AppEvent; onDelete: () => void; onLeave: () => void; onGoToTab: DetailsGoTab; onGoToBestWindow: () => void
   onPatch: (patch: Partial<AppEvent>) => void; onViewAvailability: (pid: string) => void; spotlightDelete?: boolean
+  openInvite?: number
 }) {
   const isHost = event.hostedByYou
   const locked = event.status === 'confirmed' && !!event.confirmed
@@ -623,7 +636,7 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
       {locked && <ExpensesCard event={event} isHost={isHost} onPatch={onPatch} />}
       </div>
 
-      <ParticipantsCard event={event} isHost={isHost} onPatch={onPatch} onViewAvailability={onViewAvailability} />
+      <ParticipantsCard event={event} isHost={isHost} onPatch={onPatch} onViewAvailability={onViewAvailability} openInvite={openInvite} />
 
       {event.hostedByYou && !event.demo && <div className="min-w-0 lg:col-span-2"><DangerZone title={event.title} onDelete={onDelete} spotlight={spotlightDelete} /></div>}
       {/* someone else's event: you can't delete it, but you can take it off your side */}
@@ -642,8 +655,9 @@ const PLAN_GROUP: Record<PlanGroup, { label: string; color: string; bg: string }
   cant: { label: 'Can’t make it', color: 'var(--brick-text)', bg: 'var(--brick-bg)' },
   none: { label: 'No reply', color: 'var(--faint)', bg: 'var(--s2)' },
 }
-function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
+function ParticipantsCard({ event, isHost, onPatch, onViewAvailability, openInvite = 0 }: {
   event: AppEvent; isHost: boolean; onPatch: (patch: Partial<AppEvent>) => void; onViewAvailability: (pid: string) => void
+  openInvite?: number
 }) {
   const locked = event.status === 'confirmed' && !!event.confirmed
   // who actually marked a free time on a day the event still spans
@@ -692,7 +706,7 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
       {isHost && (
         <div className="mb-3 flex flex-col gap-2 border-b border-border pb-4">
           <CopyInviteLink id={event.id} />
-          {!event.demo && <InviteMore event={event} onPatch={onPatch} />}
+          {!event.demo && <InviteMore event={event} onPatch={onPatch} openNonce={openInvite} />}
         </div>
       )}
       {sorted.length > 12 && (
@@ -734,9 +748,21 @@ function ParticipantsCard({ event, isHost, onPatch, onViewAvailability }: {
 
 /* the host can keep inviting by email after the event exists: a row that opens into
    the same chip box the created screen has. Only when the app can send. */
-function InviteMore({ event, onPatch }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
+function InviteMore({ event, onPatch, openNonce = 0 }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void; openNonce?: number }) {
   const account = useAccount()
-  const [open, setOpen] = useState(false)
+  // asked open from elsewhere (the share card): open on arrival, and again on a repeat ask
+  const [open, setOpen] = useState(openNonce > 0)
+  const [seenNonce, setSeenNonce] = useState(openNonce)
+  if (openNonce !== seenNonce) { setSeenNonce(openNonce); if (openNonce) setOpen(true) }
+  const wrap = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!openNonce) return
+    // bring the box into view and put the cursor in it, so the ask lands somewhere
+    const el = wrap.current
+    if (!el) return
+    el.scrollIntoView({ block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' })
+    el.querySelector<HTMLElement>('input, textarea')?.focus({ preventScroll: true })
+  }, [openNonce])
   if (!canEmail(account.signedIn)) return null
   // nobody is invited to something that already happened; the copy is where the
   // next one starts, and that one is open again from the moment it is made
@@ -744,7 +770,7 @@ function InviteMore({ event, onPatch }: { event: AppEvent; onPatch: (patch: Part
     return <p className="rounded-[9px] border border-border bg-s0 px-3.5 py-2.5 text-[12.5px] leading-[1.5] text-dim">This event is over, so invitations are closed. Duplicate it to plan the next one.</p>
   }
   return (
-    <div>
+    <div ref={wrap}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
