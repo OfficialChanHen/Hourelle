@@ -5,6 +5,7 @@ import { Check } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { reducedMotion } from '@/lib/prefs'
+import { Tape } from '@/components/ui/Tape'
 
 // how long after the lock-in the card still celebrates it: long enough for the host
 // who pressed the button and anyone watching live, short enough that a later visit
@@ -36,8 +37,12 @@ export function JustLocked({ confirmedAt }: { confirmedAt?: number }) {
   }, { scope: root, dependencies: [fresh] })
 
   if (!fresh) return null
+  // a note taped to the top of the locked-in card, tilted a degree: the one moment
+  // on this page that gets the scrapbook touch. It holds no buttons, so the tilt
+  // never moves anything you tap, and the answers below it stay straight.
   return (
-    <div ref={root} className="mb-4 flex items-center gap-3 rounded-xl border border-moment-border bg-moment-bg px-4 py-3">
+    <div ref={root} className="relative mb-5 mt-1 flex w-fit max-w-full -rotate-1 items-center gap-3 rounded-xl border border-moment-border bg-moment-bg py-3 pl-4 pr-6">
+      <Tape className="-top-2.5 left-1/2 -ml-8" tilt={-4} width={64} />
       <span className="relative grid h-9 w-9 flex-none place-items-center">
         {SPARKS.map((s, i) => (
           <span key={i} data-spark aria-hidden className={`absolute left-1/2 top-1/2 -ml-[3px] -mt-[3px] rounded-full bg-moment opacity-0 ${s.big ? 'h-1.5 w-1.5' : 'h-1 w-1'}`} />
@@ -48,7 +53,7 @@ export function JustLocked({ confirmedAt }: { confirmedAt?: number }) {
       </span>
       <div className="min-w-0">
         <p className="font-serif text-[20px] leading-tight text-moment-text">It&apos;s on</p>
-        <p className="text-[13px] text-moment-text">Locked in just now.</p>
+        <p className="font-serif text-[14px] italic text-moment-text">Locked in just now.</p>
       </div>
     </div>
   )

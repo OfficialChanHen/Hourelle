@@ -4,6 +4,7 @@ import { useRef } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import type { Phase } from '@/lib/events'
+import { reducedMotion } from '@/lib/prefs'
 
 // how each phase reads on cards and headers — one badge, strict role colors.
 // Labels echo the strip steps (Deciding/RSVP/Soon/Today/Done) so the two never disagree.
@@ -31,6 +32,28 @@ export const PHASE_TINT: Record<Phase, { dot: string; border?: string }> = {
 // It ends on its own: the host's RSVP deadline or the day before, whichever first.
 const STEPS = ['Deciding', 'RSVP', 'Soon', 'Today', 'Done'] as const
 const PHASE_STEP: Record<Phase, number> = { planning: 0, upcoming: 1, soon: 2, today: 3, past: 4 }
+
+/* The same five steps said as a line: the current one is a filled pill, the rest
+   plain words around it ("Deciding, then RSVP, Soon, Today, Done"). The plan header
+   uses it; the pill pops in when the stage changes, and just sits there with reduced
+   motion. */
+export function LifecycleLine({ phase, className = '' }: { phase: Phase; className?: string }) {
+  const root = useRef<HTMLDivElement>(null)
+  const idx = PHASE_STEP[phase]
+  useGSAP(() => {
+    if (reducedMotion()) return
+    gsap.fromTo('.ll-now', { scale: 0.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(2)' })
+  }, { scope: root, dependencies: [idx] })
+  const before = STEPS.slice(0, idx)
+  const after = STEPS.slice(idx + 1)
+  return (
+    <div ref={root} className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] ${className}`} role="img" aria-label={`Stage ${idx + 1} of ${STEPS.length}: ${STEPS[idx]}`}>
+      {before.length > 0 && <span aria-hidden className="text-dim">{before.join(', ')}</span>}
+      <span aria-hidden className="ll-now inline-block rounded-full bg-accent px-3 py-1 font-semibold text-on-accent">{STEPS[idx]}</span>
+      {after.length > 0 && <span aria-hidden className="text-dim">then {after.join(', ')}</span>}
+    </div>
+  )
+}
 
 // a quiet hint at where the event sits in its life: hairline + dots, only the
 // current step labeled. `sm` drops the label entirely for cards.

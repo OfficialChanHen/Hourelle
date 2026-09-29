@@ -124,7 +124,7 @@ The ramp stays green in every appearance, Studio included: "free" has to read as
 
 ### Typography — serif display + grotesk body
 - **Display / headlines:** the display serif (Lora: 400 at display sizes, 500 under 28px), tracking `-0.01em`. Page titles, event names, big stat values, the RSVP donut figure. Sizes 24–52px by context — be generous; this carries the editorial feel. Maps to Tailwind `font-serif`.
-- **Italic accent words:** a word or two in a serif headline set in italic and the accent ink, through `<Em>` (and `<Wordmark>`) from `src/components/ui/Em.tsx`, which use the `.em-accent` class and the `--em` token (Studio sets it to plain ink). Shipped uses: the wordmark ("Hour" + italic "elle"), the name in the Home greeting, the landing headline ("everyone"), and "Your event is *live*". Restraint: never a whole line, never body text, never two in one heading, never on a coloured fill; a new one has to be a real headline moment. No ad-hoc `italic text-accent` styles.
+- **Italic accent words:** a word or two in a serif headline set in italic and the accent ink, through `<Em>` (and `<Wordmark>`) from `src/components/ui/Em.tsx`, which use the `.em-accent` class and the `--em` token (Studio sets it to plain ink). Shipped uses: the wordmark ("Hour" + italic "elle"), the one word in the Home headline ("is *happening*"), the landing headline ("everyone"), and "Your event is *live*". Restraint: never a whole line, never body text, never two in one heading, never on a coloured fill; a new one has to be a real headline moment. No ad-hoc `italic text-accent` styles.
 - **Body / UI:** `Instrument Sans` (300–700), base 13–14px; card titles & buttons 13–15px / 600. Maps to `font-sans`. (Geist / Inter / Roboto are retired.)
 - **Eyebrow labels:** `text-[10px]`–`text-[11px] font-semibold tracking-[.13em] uppercase text-[--faint]` — above stat values and section starts.
 - **Mono:** only raw data (hex, IDs), sparingly.
@@ -147,6 +147,12 @@ Rounder than the first editorial pass. The Tailwind radius scale itself is moved
 - Inputs, selects and textareas stay slightly rounded rectangles (their 9–12px values); a field is not a pill.
 - The mobile create FAB is a rounded square (`rounded-[16px]`) tilted `-4deg`, the one playful tilt in the app.
 - Borders are **hairlines** (`--border`); shadows are soft and rare (`--shadow`). No glows, no decorative gradients, no left-accent-border cards.
+
+### Scrapbook + soft flow — moments vs decision surfaces (the core rule)
+Two layers on top of the editorial system. **Scrapbook touches** (taped, slightly tilted photo frames, sticker faces, sticky notes, small italic serif notes) go **only on moments**: covers, the Home Up next card, the It's on / locked-in moment, empty states. **Decision surfaces stay flat, straight and uncovered**: the availability grid (nothing overlaps or tilts onto it), place voting and the map, who's coming, the create form, chat, and anything you tap to answer. Those may take **soft flow** warmth only: soft organic colour shapes behind a page region, rounded containers, status said as a sentence ("4 of 5 have answered. Fri, Oct 2, 7:00 PM to 9:00 PM CDT works for the most people so far."). Tilts stay at 3deg or less (sticky notes 2deg), a tilted thing never holds an answer control, and a button that sits on a frame's corner is not itself tilted.
+- Components (`src/components/ui/`): `SoftShapes` (flat blobs behind a region, full width, aria-hidden, parent needs `relative isolate`; hidden in High contrast), `Tape`, `PhotoFrame` (frame + tape + tilt, capped at 3deg, optional GSAP `settle`), `StickyNote` ("Your turn"), `WavyRule` (masked wave in `--border2`), `FaceRibbon` (sticker faces in a wave, capped at 6 then +N), `Avatar tilt` (sticker contexts only), `LifecycleLine` (current stage as a filled accent pill, the rest as plain words).
+- Tokens, defined in every theme and palette block: `--shape-a/b/c` (green, peach, lilac; pale enough that dim and faint text clear 4.5:1 on them), `--tape`, `--frame` + `--frame-shadow`, `--sticky` + `--sticky-text` / `--sticky-dim` / `--sticky-kicker` + `--sticky-shadow`. Utilities: `bg-frame`, `bg-tape`, `bg-sticky`, `text-sticky-*`, `shadow-frame`, `shadow-sticky`.
+- Where it lives today: Home (greeting line, sentence headline with one `<Em>` word, Up next as a taped photo with faces peeking over it, the next thing you owe as a sticky note, other plans as pills capped at four each), the plan header (taped cover beside the title, face ribbon, "Hosted by" note, status sentence, lifecycle line, soft shapes behind the header only), `JustLocked`, `EmptyState`. On touch screens `PeekCard` faces rest half up and rise once when a card scrolls into view.
 
 ### Theme wiring (provider + Tailwind)
 
@@ -538,7 +544,7 @@ Avatar piles overlap with a `2px solid --s1` ring and cap at 6–7 with a `+N` c
 **Buttons:** primary `rounded-full bg-accent text-on-accent font-semibold`, secondary `rounded-full border border-border2 bg-s1 hover:bg-s2`; heights 44px on phones (`h-11`), 32–40px from `sm`.
 **Moments of life:** the fun is small and earned: the faces, an italic accent word, a coral "Your turn", the It's on burst when a plan locks in (GSAP, skipped under `reducedMotion()`), and empty states that speak like a person ("Your next plan goes here", "Waiting on the group"). No emoji, no confetti rain, no poster layouts.
 **Section headers:** `flex items-center justify-between` with an **eyebrow** label (`text-[11px] font-semibold tracking-[.13em] uppercase text-[--faint]`) on the left; generous `mb-4` before content. The Home **Up next** eyebrow is coral (`--moment-text`).
-**Open stat strip (event header):** stats are **borderless** — eyebrow label → big **Instrument Serif** value → muted caption — in a row separated by whitespace (`gap-8`) with a hairline divider beneath. No per-stat boxes.
+**Plan header status:** where planning stands is one **sentence** (`StageSummary`), not a stat strip: replies, the best time so far (a link to it on the grid, with its timezone pill) and the place, each a clause. No per-stat boxes.
 
 ### Scalability — design for dozens to hundreds
 Assume the busy case, not the demo case: an event can have dozens to hundreds of participants and many places/stops. Every feature must stay correct and responsive at that scale.
@@ -567,7 +573,8 @@ The app must be fully usable from a ~360px phone to a large desktop. This is a h
 - **Never** use poster layouts (big titles over full-bleed art); the warmth comes from faces, italic accents, rounder shapes and small moments
 - **Never** make a button or chip square-cornered — buttons and chips are pills (`rounded-full`); fields stay slightly rounded rectangles
 - **Never** use underline-style tabs — the selected tab is a filled `--accent` pill; inactive tabs have no background
-- **Never** box the event-header stats — they are open (eyebrow + serif value + caption)
+- **Never** box the plan-header status — it is a sentence
+- **Never** tilt, tape or overlap anything onto a decision surface (the grid, voting, the map, who's coming, the create form, chat, answer buttons); scrapbook touches are for moments only, and tilts stay at 3deg or less
 - **Never** set headlines in the body grotesk — display type is **Instrument Serif**; never use Geist/Inter
 - **Never** hardcode hex in components — read the theme CSS variables so light + dark both work
 - **Never** render an O(people × stops) attendance matrix — use the exceptions list / single-venue roster

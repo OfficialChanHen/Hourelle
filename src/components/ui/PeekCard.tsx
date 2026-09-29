@@ -2,6 +2,7 @@
 
 import { Avatar } from './Avatar'
 import { usePeek } from '@/hooks/usePeek'
+import { useNoHover } from '@/hooks/useNoHover'
 import type { AppEvent, Participant } from '@/lib/events'
 
 /* A card with the faces of the people in it tucked behind its top edge. Hover or
@@ -14,7 +15,13 @@ import type { AppEvent, Participant } from '@/lib/events'
 
    `restShow` is how much of each face shows at rest (0 hides them until hover, which
    phones never do); `upShow` is how much shows raised. Up to six faces; the rest are
-   not drawn. Only a mouse raises them: a touch would move the face it is tapping. */
+   not drawn. Only a mouse raises them: a touch would move the face it is tapping.
+
+   A screen with no hover never gets the hover, so there every card rests with its
+   faces half up (a card that hides them at rest shows half of each), and the first
+   time a card scrolls into view they rise once and settle back. The room above the
+   card is reserved either way, so nothing shifts when a phone is detected. On those
+   screens the faces of a card that is itself the link take no taps. */
 
 const MAX = 6
 
@@ -45,9 +52,11 @@ export function PeekCard({
 }) {
   const shown = people.slice(0, MAX)
   const up = upShow ?? size - 6
-  const restY = restShow > 0 ? -restShow : 6
-  const restTilt = restShow > 0 ? 3 : 0
-  const { scope, rise, settle } = usePeek({ restY, upY: -up, restTilt, upTilt: 8 })
+  const touch = useNoHover()
+  const rest = restShow > 0 ? restShow : touch ? Math.round(size / 2) : 0
+  const restY = rest > 0 ? -rest : 6
+  const restTilt = rest > 0 ? 3 : 0
+  const { scope, rise, settle } = usePeek({ restY, upY: -up, restTilt, upTilt: 8, intro: touch && shown.length > 0 })
   // room for the raised faces and their tilt, above the card
   const room = up + 6
   return (
@@ -66,7 +75,7 @@ export function PeekCard({
       {shown.length > 0 && (
         <div
           aria-hidden={flippable ? undefined : true}
-          className="pointer-events-auto absolute left-5 right-5 z-0 flex gap-2"
+          className={`${touch && !flippable ? 'pointer-events-none' : 'pointer-events-auto'} absolute left-5 right-5 z-0 flex gap-2`}
           style={{ top: room }}
         >
           {shown.map((p, i) => (
