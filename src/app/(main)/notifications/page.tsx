@@ -63,7 +63,7 @@ export default function NotificationsPage() {
           <div className="max-w-sm">
             <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl border border-border bg-s2 text-dim"><Bell size={22} /></span>
             <p className="font-serif text-[25px] tracking-[-0.01em]">You&apos;re all caught up</p>
-            <p className="mt-1.5 text-[13px] leading-[1.55] text-dim">Once an event is locked in, its reminders show up here until the day itself.</p>
+            <p className="mt-1.5 text-[13px] leading-[1.55] text-dim">When a plan locks in, its reminders land here.</p>
           </div>
         </div>
       ) : (

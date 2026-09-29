@@ -75,13 +75,14 @@ export function MobileTabBar() {
       <div className="mx-auto flex h-[56px] max-w-[560px] items-stretch">
         {left.map((t) => <TabItem key={t.href} {...t} active={isActive(t.href)} />)}
 
-        {/* center create FAB — pokes above the bar with a bg-colored ring cutout */}
+        {/* center create FAB — pokes above the bar with a bg-colored ring cutout. A
+            rounded square set a few degrees off true, the one playful tilt in the app */}
         <div className="flex flex-1 items-start justify-center">
           <Link
             href="/create"
             aria-label="Create event"
             data-tour="create"
-            className="-mt-4 grid h-[48px] w-[48px] place-items-center rounded-full bg-accent text-on-accent shadow-soft ring-4 ring-bg active:scale-95"
+            className="-mt-4 grid h-[48px] w-[48px] -rotate-[4deg] place-items-center rounded-[16px] bg-accent text-on-accent shadow-soft ring-4 ring-bg active:scale-95"
           >
             <Plus size={23} />
           </Link>

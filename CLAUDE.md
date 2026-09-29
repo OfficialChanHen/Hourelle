@@ -4,7 +4,7 @@
 Hourelle is a modern replacement for when2meet.com. It handles the full lifecycle of event coordination: scheduling via an availability grid, collaborative location voting on a map, itinerary building for multi-stop events, real-time chat per event, and attendance tracking (multi-stop itinerary **and** single-venue). Both authenticated users and guests (via share link) can participate.
 
 ### Visual direction — the editorial system, designed past its first draft
-The design is **editorial**: warm neutral / warm-charcoal surfaces, a single deep-green signature accent, Instrument Serif display headlines over a grotesk body, hairline rules, restrained shadows, and generous whitespace — shipped in two equally-finished themes (light + dark). The HTML reference files in `public/examples/` were the **early iteration** of this design, not a 1:1 target — the built app is expected to exceed them:
+The design is **warmer editorial**: warm paper / warm-charcoal surfaces, a single lively green signature accent, a serif display with a few italic accent words over a grotesk body, hairline rules, soft rounded shapes (pill buttons and chips), restrained shadows, generous whitespace, and one coral role colour for moments — shipped in two equally-finished themes (light + dark). The audience is busy people planning with a group (friends, clubs, strangers at an open event), so it should read friendly and a little fun, never like an office meeting tool. The fun comes from the faces, the italic accents, the rounder shapes and small moments, not from poster layouts: no big titles over full-bleed art (we are not Partiful). The references for this pass are `docs/design/Combined.dc.html` and `docs/design/Faces.dc.html` (look, not markup). The HTML reference files in `public/examples/` were the **early iteration** of this design, not a 1:1 target — the built app is expected to exceed them:
 - `Gatherly Editorial.dc.html` — early full desktop app, light + dark
 - `Gatherly Mobile.dc.html` — early mobile version (bottom tab bar, status bar)
 - `Premium Directions.dc.html` — the side-by-side exploration the editorial direction (option 1a) came from
@@ -53,34 +53,38 @@ Treat the editorial system below (tokens, type, spacing, color roles) as the sou
 
 Two themes, switched via `data-theme` on the root element. Map Tailwind semantic tokens to these CSS custom properties; never hardcode hex in components. Light (warm neutral) is the default; dark (warm charcoal) is equally finished.
 
-The paper is warm without being tinted: a trace of red and yellow in the grays, not the yellow wash the first draft carried. The character lives in the deep green, the serif, the hairlines and the spacing, so it survives a cooler ground.
+The paper is warm: a cream page and near-white cards with a trace of yellow, calm enough to sit beside a calendar. The green is livelier than the first editorial pass (which read as a bank), and coral carries the moments. `src/app/globals.css` is the source of truth; the house values are:
 
 ```css
-/* Light — warm neutral (default) */
+/* Light — warm paper (default) */
 :root {
-  --bg:#F7F6F4; --s0:#FBFAF9; --s1:#FFFFFF; --s2:#EFEEEB; --s3:#E3E2DE;
-  --border:#E3E2DE; --border2:#CFCEC9;
-  --text:#1A1917; --dim:#67665F; --faint:#6D6C65;
-  --accent:#2E4A3C; --accent-text:#2A4537; --accent-bg:#E8EEE9; --accent-border:#CBD9CF; --on-accent:#F8F7F3;
+  --bg:#FAF6EF; --s0:#FCF9F4; --s1:#FFFDF9; --s2:#F3EDE3; --s3:#EAE2D5;
+  --border:#EAE2D5; --border2:#D6CCBC;
+  --text:#1F1B16; --dim:#655D52; --faint:#6B6358;
+  --accent:#2E6B4E; --accent-text:#23543D; --accent-bg:#E4F0E7; --accent-border:#C3DCCB; --on-accent:#FFFDF9;
   --teal:#3F6B55; --teal-text:#31523F; --teal-bg:#E7EFE9; --teal-border:#C6DACC;     /* going / confirmed / full */
-  --ochre:#8F6A33; --ochre-text:#72521F; --ochre-bg:#F3ECDF; --ochre-border:#E3D6BF; /* planning / partial / caution */
-  --brick:#9C4A46; --brick-text:#823C39; --brick-bg:#F3E4E2; --brick-border:#E4CBC8; /* absent / conflict / not-going */
-  --shadow:0 1px 2px rgba(30,28,24,.04), 0 10px 30px rgba(30,28,24,.06);
+  --ochre:#8F6A33; --ochre-text:#72521F; --ochre-bg:#F5ECDC; --ochre-border:#E6D6BA; /* planning / partial / caution */
+  --brick:#9C4A46; --brick-text:#823C39; --brick-bg:#F5E3E0; --brick-border:#E8CAC5; /* absent / conflict / not-going */
+  --moment:#C4603F; --moment-text:#A0452A; --moment-bg:#FBE8DF; --moment-border:#F1C9B8; /* your turn / up next / it's on */
+  --shadow:0 1px 2px rgba(60,40,20,.05), 0 12px 32px rgba(60,40,20,.07);
 }
 /* Dark — warm charcoal */
 [data-theme="dark"] {
-  --bg:#151513; --s0:#1A1A18; --s1:#1F1F1C; --s2:#262622; --s3:#302F2A;
-  --border:rgba(240,238,230,.10); --border2:rgba(240,238,230,.19);
-  --text:#EFEDE8; --dim:#ACA99F; --faint:#8E8C83;
-  --accent:#437B5B; --accent-text:#A3D6BE; --accent-bg:rgba(127,183,154,.15); --accent-border:rgba(127,183,154,.38); --on-accent:#F8F7F3;
+  --bg:#171512; --s0:#1C1A16; --s1:#211E1A; --s2:#292520; --s3:#332F28;
+  --border:rgba(245,236,220,.10); --border2:rgba(245,236,220,.19);
+  --text:#F1ECE4; --dim:#B0A99D; --faint:#938C80;
+  --accent:#2F7A56; --accent-text:#9FDCBC; --accent-bg:rgba(111,196,152,.15); --accent-border:rgba(111,196,152,.38); --on-accent:#FFFDF9;
   --teal:#5B9A7C; --teal-text:#9BD2B7; --teal-bg:rgba(111,181,151,.14); --teal-border:rgba(111,181,151,.36);
   --ochre:#BD9A5E; --ochre-text:#E1C48F; --ochre-bg:rgba(200,165,100,.15); --ochre-border:rgba(200,165,100,.38);
   --brick:#C57F78; --brick-text:#E5ACA6; --brick-bg:rgba(205,138,130,.14); --brick-border:rgba(205,138,130,.36);
+  --moment:#E08868; --moment-text:#F4B8A0; --moment-bg:rgba(224,136,104,.15); --moment-border:rgba(224,136,104,.40);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
 }
 ```
 
-**Appearances.** Four, and only four, each with a job. The house warm neutral (no `data-palette`); **Studio** (`data-palette="studio"`), cool neutral with ink as the accent and the grotesk as the display face; **Daylight** (`data-palette="daylight"`), bright white and a clear blue; **High contrast** (`data-palette="contrast"`) for glare and low vision. Each redefines the whole token set in `globals.css`, and `data-theme` still picks light or dark inside it. Never add a novelty palette; a new one has to earn a job none of these does.
+Every text/background pair clears WCAG AA (4.5:1), the accent clears 3:1 against the page, and `--on-accent` clears 4.5:1 on the accent, in every palette and theme. Check with `python3 docs/verify/contrast.py` from the repo root (it reads `src/app/globals.css`); keep FAILURES at 0 before changing a token.
+
+**Appearances.** Four, and only four, each with a job. The house warm neutral (no `data-palette`); **Studio** (`data-palette="studio"`), cool neutral with ink as the accent and the grotesk as the display face; **Daylight** (`data-palette="daylight"`), bright white and a clear blue; **High contrast** (`data-palette="contrast"`) for glare and low vision. Each redefines the whole token set in `globals.css` (the `--moment` role included), and `data-theme` still picks light or dark inside it. Never add a novelty palette; a new one has to earn a job none of these does.
 
 ```ts
 // src/lib/colors.ts — person avatar colors: warm & muted, decorative identity ONLY.
@@ -93,13 +97,16 @@ export const personColors: Record<string, { bg: string; text: string }> = {
 }
 ```
 
+Person colours now live as CSS variables (`--person-<key>-bg` / `-fg`, per theme and palette) in `globals.css`; components read them through `personVar()` from `src/lib/colors.ts` and never hardcode person hex.
+
 **Color role rules — never break these:**
-- `--accent` (deep green): the single signature color — every CTA, link, active/selected state, the **filled selected-tab box** (with `--on-accent` cream text), primary buttons, and urgency date pills (≤14 days). Exactly one accent; never add a second brand hue.
+- `--accent` (green): the single signature color — every CTA, link, active/selected state, focus ring, the **filled selected-tab box** (with `--on-accent` cream text), primary buttons, and urgency date pills (≤14 days). Exactly one accent; never add a second brand hue.
+- `--moment` (coral): a role colour, not a brand accent. For moments that ask for you now or celebrate: "Your turn" chips and strips (your reply or your times are missing), the Home **Up next** eyebrow, the share-first card (border + "Your turn" kicker), and the **It's on** celebration when a plan locks in (`JustLocked.tsx`). Use `text-moment-text` on `bg-moment-bg` with `border-moment-border`; the solid `bg-moment` is for small icons and dots only. Never a button, link, selected state or focus ring (those stay `--accent`), and keep it rare: one coral thing per screen is the norm.
 - `--teal`: confirmed / going / success / full-attendance; the availability heat-map ramp.
 - `--ochre`: planning / partial-attendance / caution; "arrives late / leaves early".
 - `--brick`: absent / conflict / danger / not-going / declined.
 - Person-avatar colors: purely decorative identity — never reuse for semantic meaning.
-- **Retired palette — never use again:** blue `#2563EB`, teal `#0D9488`, sienna `#B45309`, rose `#E11D48`, and the older `#16A34A` / `#D97706` / `#DC2626`. The editorial accent green + warm neutrals + ochre/brick replace them all.
+- **Retired palette — never use again:** blue `#2563EB`, teal `#0D9488`, sienna `#B45309`, rose `#E11D48`, the older `#16A34A` / `#D97706` / `#DC2626`, and the first editorial deep green accent `#2E4A3C` / `#437B5B` (it lives on only as the full step of the heat ramp). The lively accent green + warm paper + ochre/brick/coral replace them all.
 
 ### Availability heat map — green ramp (5 steps)
 ```
@@ -116,7 +123,8 @@ You only:    #F1EBDF     You + some: #E6DCC6     You + many: #D8CBAE   (count te
 The ramp stays green in every appearance, Studio included: "free" has to read as free whatever the chrome is doing.
 
 ### Typography — serif display + grotesk body
-- **Display / headlines:** `Instrument Serif`, weight 400 (its only weight), tracking `-0.01em`. Page titles, event names, big stat values, the RSVP donut figure. Sizes 24–52px by context — be generous; this carries the editorial feel. Maps to Tailwind `font-serif`.
+- **Display / headlines:** the display serif (Lora: 400 at display sizes, 500 under 28px), tracking `-0.01em`. Page titles, event names, big stat values, the RSVP donut figure. Sizes 24–52px by context — be generous; this carries the editorial feel. Maps to Tailwind `font-serif`.
+- **Italic accent words:** a word or two in a serif headline set in italic and the accent ink, through `<Em>` (and `<Wordmark>`) from `src/components/ui/Em.tsx`, which use the `.em-accent` class and the `--em` token (Studio sets it to plain ink). Shipped uses: the wordmark ("Hour" + italic "elle"), the name in the Home greeting, the landing headline ("everyone"), and "Your event is *live*". Restraint: never a whole line, never body text, never two in one heading, never on a coloured fill; a new one has to be a real headline moment. No ad-hoc `italic text-accent` styles.
 - **Body / UI:** `Instrument Sans` (300–700), base 13–14px; card titles & buttons 13–15px / 600. Maps to `font-sans`. (Geist / Inter / Roboto are retired.)
 - **Eyebrow labels:** `text-[10px]`–`text-[11px] font-semibold tracking-[.13em] uppercase text-[--faint]` — above stat values and section starts.
 - **Mono:** only raw data (hex, IDs), sparingly.
@@ -130,9 +138,14 @@ The redesign deliberately loosened the old dense layout.
 - Inner element gaps `gap-2.5`–`gap-3`.
 
 ### Border radius & elevation
-- `rounded-lg` (10px) — chips, segmented toggles, small controls
-- `rounded-xl` (14px) — cards, panels, inputs
-- `rounded-2xl` (18–22px) — hero cards, modals, mobile sheets
+Rounder than the first editorial pass. The Tailwind radius scale itself is moved in `globals.css` (`@theme`), so the named steps below are the real values:
+- `rounded-full` — **every button** (primary, secondary, danger, text buttons with a hover fill), chips, badges, tabs (top nav and event tabs), segmented controls (track and thumb; a track that can wrap uses `rounded-[22px]`), toolbar toggles, and round icon buttons
+- `rounded-lg` (10px) — small square controls
+- `rounded-xl` (16px) — inner panels, callouts, strips, popovers, toasts
+- `rounded-2xl` (20px) — cards, panels, modals, sheets, empty states
+- `rounded-3xl` (24px) — hero cards (the Home Up next card, the locked-in card)
+- Inputs, selects and textareas stay slightly rounded rectangles (their 9–12px values); a field is not a pill.
+- The mobile create FAB is a rounded square (`rounded-[16px]`) tilted `-4deg`, the one playful tilt in the app.
 - Borders are **hairlines** (`--border`); shadows are soft and rare (`--shadow`). No glows, no decorative gradients, no left-accent-border cards.
 
 ### Theme wiring (provider + Tailwind)
@@ -477,7 +490,7 @@ Tracked on `events.status`. Shown as a 5-dot progress strip (GSAP fill animation
 ```
 "Create event" is NEVER a nav tab — always a separate button.
 
-**Selected-tab style — filled box, not underline:** the active tab (both the top nav AND the event-detail tabs Availability/Location/Attendance/Details) is a **filled `--accent` box with `--on-accent` cream text** and `rounded-lg`/`rounded-xl`; inactive tabs have **no background** (`--dim` text). No underline indicators anywhere.
+**Selected-tab style — filled box, not underline:** the active tab (both the top nav AND the event-detail tabs Availability/Location/Attendance/Details) is a **filled `--accent` pill with `--on-accent` cream text** (`rounded-full`); inactive tabs have **no background** (`--dim` text). No underline indicators anywhere.
 
 **Mobile:** a fixed **bottom tab bar** — Home · Events · center **+** (create, green circular FAB) · Alerts · Profile — plus a faux status bar and a sticky top app bar (back chevron on detail screens). Phone width ~412px. See `Gatherly Mobile.dc.html`.
 
@@ -502,15 +515,16 @@ Never show a time without timezone context. For events with participants in mult
 <Badge variant="teal">Confirmed</Badge>     // confirmed, going, full availability
 <Badge variant="ochre">Planning</Badge>     // planning, partial, caution
 <Badge variant="brick">Absent</Badge>       // absent, conflict, not going
-<Badge variant="accent">Attending</Badge>   // interactive, selected, urgent dates (deep green)
+<Badge variant="accent">Attending</Badge>   // interactive, selected, urgent dates (green)
+<Badge variant="moment">Your turn</Badge>    // asks for you now, or celebrates (coral)
 <Badge variant="neutral">Draft</Badge>      // neutral states
 ```
-Badges are soft: `--{role}-bg` fill, `--{role}-text` text, `1px solid --{role}-border`.
+Badges are soft pills: `--{role}-bg` fill, `--{role}-text` text, `1px solid --{role}-border`, `rounded-full`.
 
 **Date urgency pills:**
-- ≤ 14 days: blue accent bg (`dp-s` class) — signals "soon"
+- ≤ 14 days: accent (green) — signals "soon"
 - > 14 days: neutral surface bg
-- Today: sienna/warning bg with clock icon
+- Today: ochre/warning bg with clock icon
 
 **Avatar sizes — circular, three standard sizes:**
 - `sm` (20–22px, 8–9px font) — inline in cards, host rows, piles
@@ -518,8 +532,10 @@ Badges are soft: `--{role}-bg` fill, `--{role}-text` text, `1px solid --{role}-b
 - `lg` (34–36px, 12px font) — guest list, profile contexts
 Avatar piles overlap with a `2px solid --s1` ring and cap at 6–7 with a `+N` chip.
 
-**Cards:** `rounded-xl border border-[--border] bg-[--s1] p-5` — hairline border, soft `--shadow`, generous padding; hero/mobile cards `rounded-2xl`.
-**Section headers:** `flex items-center justify-between` with an **eyebrow** label (`text-[11px] font-semibold tracking-[.13em] uppercase text-[--faint]`) on the left; generous `mb-4` before content.
+**Cards:** `rounded-2xl border border-border bg-s1 p-5` — hairline border, soft `--shadow`, generous padding; hero cards `rounded-3xl`.
+**Buttons:** primary `rounded-full bg-accent text-on-accent font-semibold`, secondary `rounded-full border border-border2 bg-s1 hover:bg-s2`; heights 44px on phones (`h-11`), 32–40px from `sm`.
+**Moments of life:** the fun is small and earned: the faces, an italic accent word, a coral "Your turn", the It's on burst when a plan locks in (GSAP, skipped under `reducedMotion()`), and empty states that speak like a person ("Your next plan goes here", "Waiting on the group"). No emoji, no confetti rain, no poster layouts.
+**Section headers:** `flex items-center justify-between` with an **eyebrow** label (`text-[11px] font-semibold tracking-[.13em] uppercase text-[--faint]`) on the left; generous `mb-4` before content. The Home **Up next** eyebrow is coral (`--moment-text`).
 **Open stat strip (event header):** stats are **borderless** — eyebrow label → big **Instrument Serif** value → muted caption — in a row separated by whitespace (`gap-8`) with a hairline divider beneath. No per-stat boxes.
 
 ### Scalability — design for dozens to hundreds
@@ -545,8 +561,10 @@ The app must be fully usable from a ~360px phone to a large desktop. This is a h
 ## What to avoid
 
 - **Never** use the retired palette: `#2563EB`, `#0D9488`, `#B45309`, `#E11D48`, `#16A34A`, `#D97706`, `#DC2626` — use the editorial accent green + ochre/brick + warm neutrals
-- **Never** introduce a second brand accent — there is exactly one (`--accent`, deep green)
-- **Never** use underline-style tabs — the selected tab is a filled `--accent` box; inactive tabs have no background
+- **Never** introduce a second brand accent — there is exactly one (`--accent`, green). Coral (`--moment`) is a role colour like ochre and brick: never a button, link or selected state
+- **Never** use poster layouts (big titles over full-bleed art); the warmth comes from faces, italic accents, rounder shapes and small moments
+- **Never** make a button or chip square-cornered — buttons and chips are pills (`rounded-full`); fields stay slightly rounded rectangles
+- **Never** use underline-style tabs — the selected tab is a filled `--accent` pill; inactive tabs have no background
 - **Never** box the event-header stats — they are open (eyebrow + serif value + caption)
 - **Never** set headlines in the body grotesk — display type is **Instrument Serif**; never use Geist/Inter
 - **Never** hardcode hex in components — read the theme CSS variables so light + dark both work

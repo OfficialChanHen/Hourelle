@@ -101,7 +101,7 @@ export function PollComposer({ onPost, onCancel }: { onPost: (p: Poll) => void; 
           <button
             type="button"
             onClick={add}
-            className="mt-1.5 flex h-11 items-center gap-1.5 rounded-[10px] px-2 text-[13px] font-semibold text-accent-text hover:bg-accent-bg sm:h-9"
+            className="mt-1.5 flex h-11 items-center gap-1.5 rounded-full px-2 text-[13px] font-semibold text-accent-text hover:bg-accent-bg sm:h-9"
           >
             <Plus size={15} /> Add option
           </button>
@@ -112,14 +112,14 @@ export function PollComposer({ onPost, onCancel }: { onPost: (p: Poll) => void; 
         <button
           type="button"
           onClick={onCancel}
-          className="h-11 rounded-[12px] px-3.5 text-[13.5px] font-semibold text-dim hover:bg-s2 hover:text-text sm:h-[38px]"
+          className="h-11 rounded-full px-3.5 text-[13.5px] font-semibold text-dim hover:bg-s2 hover:text-text sm:h-[38px]"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={!ready}
-          className="h-11 rounded-[12px] bg-accent px-4 text-[13.5px] font-semibold text-on-accent disabled:opacity-40 sm:h-[38px]"
+          className="h-11 rounded-full bg-accent px-4 text-[13.5px] font-semibold text-on-accent disabled:opacity-40 sm:h-[38px]"
         >
           Post
         </button>

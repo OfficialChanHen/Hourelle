@@ -8,7 +8,7 @@
 import { useEffect } from 'react'
 import { EVENTS_SYNCED, forgetCloudEvents, resyncOnReturn, startRealtime, syncFromCloud } from '@/lib/remote'
 import { ACCOUNT_CHANGED, currentAccount, startAuth } from '@/lib/session'
-import { adoptMine } from '@/lib/events'
+import { adoptMine, stampMyFace } from '@/lib/events'
 
 export function BackendSync() {
   useEffect(() => {
@@ -23,16 +23,18 @@ export function BackendSync() {
     // the identity decides which events are pulled, so a change in identity pulls
     // again: signing in brings the account's events, signing out takes them away
     let lastId = currentAccount().id
+    // the same account can change too: a face made on another device arrives with
+    // the session, and every entry of its on this device takes it up
     const onAccount = () => {
       const acc = currentAccount()
-      if (acc.id === lastId) return
+      if (acc.id === lastId) { stampMyFace(); return }
       lastId = acc.id
-      if (acc.signedIn) { adoptMine(); void syncFromCloud() } // guest entries on this browser become the account's now
+      if (acc.signedIn) { adoptMine(); stampMyFace(); void syncFromCloud() } // guest entries on this browser become the account's now
       else forgetCloudEvents()
     }
     // after every pull, guest entries made with the account's email become the
     // account's — how events answered before sign-up follow the person in
-    const onSynced = () => { adoptMine() }
+    const onSynced = () => { adoptMine(); stampMyFace() }
     window.addEventListener(ACCOUNT_CHANGED, onAccount)
     window.addEventListener(EVENTS_SYNCED, onSynced)
     return () => {

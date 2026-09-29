@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ThemeToggle } from './ThemeToggle'
 import { useHideOnScroll } from '@/hooks/useHideOnScroll'
+import { Wordmark } from '@/components/ui/Em'
 
 const LINKS = [
   { href: '/#how', label: 'How it works', match: () => false },
@@ -24,13 +25,13 @@ export function VisitorHeader({ ready = true }: { ready?: boolean }) {
     <header className={`sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md transition-transform duration-300 has-[:focus-visible]:translate-y-0 md:translate-y-0 ${hidden ? '-translate-y-full' : 'translate-y-0'}`}>
       <div className="mx-auto flex h-[58px] w-full max-w-[1240px] items-center gap-[22px] px-[22px]">
         <Link href="/" className="flex items-center">
-          <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Hourelle</span>
+          <Wordmark className="text-[24.5px] tracking-[.01em]" />
         </Link>
         <nav className="hidden items-center gap-[3px] text-[14px] md:flex">
           {LINKS.map((l) => {
             const active = l.match(pathname)
             return (
-              <Link key={l.href} href={l.href} className={`rounded-[9px] px-[13px] py-2 font-medium transition-colors ${active ? 'bg-accent text-on-accent' : 'text-dim hover:bg-s3 hover:text-text'}`}>
+              <Link key={l.href} href={l.href} className={`rounded-full px-[13px] py-2 font-medium transition-colors ${active ? 'bg-accent text-on-accent' : 'text-dim hover:bg-s3 hover:text-text'}`}>
                 {l.label}
               </Link>
             )
@@ -42,10 +43,10 @@ export function VisitorHeader({ ready = true }: { ready?: boolean }) {
           {/* nothing account-shaped until the browser knows who this is */}
           {ready && (
             <>
-              <Link href="/auth/signin" className="flex h-[34px] items-center whitespace-nowrap rounded-[9px] px-[13px] text-[14px] font-medium text-dim hover:bg-s3 hover:text-text">
+              <Link href="/auth/signin" className="flex h-[34px] items-center whitespace-nowrap rounded-full px-[13px] text-[14px] font-medium text-dim hover:bg-s3 hover:text-text">
                 Log in
               </Link>
-              <Link href="/auth/signin?mode=up" className="flex h-[34px] items-center whitespace-nowrap rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent">
+              <Link href="/auth/signin?mode=up" className="flex h-[34px] items-center whitespace-nowrap rounded-full bg-accent px-[14px] text-[14px] font-semibold text-on-accent">
                 Sign up
               </Link>
             </>

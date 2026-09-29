@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import { Plus, type LucideIcon } from 'lucide-react'
 
-/* Nothing here yet, said the same way everywhere. A dashed box rather than a solid
-   card, because the shape should read as a gap waiting to be filled rather than as
+/* Nothing here yet, said the same way everywhere, and said warmly: the title is a
+   short friendly line, the body says what fills the spot. A dashed box rather than
+   a solid card, because the shape should read as a gap waiting to be filled rather than as
    content. Always offer a way out: `action` is the thing to do, `secondary` is the
    quieter alternative (usually the demo shelf, for someone with nothing of their
    own yet). `compact` is for an empty section inside a fuller page. */
@@ -24,12 +25,12 @@ export function EmptyState({
 }) {
   return (
     <div
-      className={`grid place-items-center rounded-[14px] border border-dashed border-border2 bg-s1 px-6 text-center ${
+      className={`grid place-items-center rounded-2xl border border-dashed border-border2 bg-s1 px-6 text-center ${
         compact ? 'py-10' : 'py-14'
       }`}
     >
       <div>
-        <span className="mx-auto mb-3.5 grid h-11 w-11 place-items-center rounded-[11px] border border-border bg-s2 text-dim">
+        <span className="mx-auto mb-3.5 grid h-11 w-11 place-items-center rounded-xl border border-border bg-s2 text-dim">
           <Icon size={22} />
         </span>
         <p className="font-serif text-[24.5px] tracking-[-0.01em]">{title}</p>
@@ -37,7 +38,7 @@ export function EmptyState({
         {action && (
           <Link
             href={action.href}
-            className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent"
+            className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent"
           >
             <Plus size={17} /> {action.label}
           </Link>

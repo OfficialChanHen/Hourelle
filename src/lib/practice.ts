@@ -2,6 +2,7 @@
 
 import { createEvent, deleteEvent, getEvent, initialsOf, leaveEvent, listEvents, patchEvent, pickColor, type AppEvent, type Participant } from './events'
 import { currentAccount } from './session'
+import { pickFace } from './faces'
 
 /* A practice event: the tour runs on it, and everything can be tried on it because
    it is the person's own, not a read-only sample. Five made-up people have already
@@ -65,7 +66,7 @@ export function ensurePracticeEvent(): string {
   const participants: Participant[] = [...fresh.participants]
   for (const [name, id] of PEOPLE) {
     const initials = initialsOf(name)
-    participants.push({ id, initials, name, color: pickColor(participants, { initials, name }), rsvp: 'pending' })
+    participants.push({ id, initials, name, color: pickColor(participants, { initials, name }), face: pickFace(participants, id), rsvp: 'pending' })
   }
   const avail: AppEvent['avail'] = Object.fromEntries(Object.entries(fresh.avail).map(([k, v]) => [k, v.map((ids) => [...ids])]))
   const availIv: NonNullable<AppEvent['availIv']> = Object.fromEntries(fresh.days.map((d) => [d.key, { ...(fresh.availIv?.[d.key] ?? {}) }]))

@@ -58,7 +58,7 @@ export function TimeSelect({
           sideOffset={4}
           collisionPadding={8}
           // over the full-screen phone surfaces and the popovers a picker can sit in
-          className="z-[56] w-[128px] overflow-hidden rounded-[12px] border border-border bg-s1 shadow-soft"
+          className="z-[56] w-[128px] overflow-hidden rounded-xl border border-border bg-s1 shadow-soft"
           style={{ maxHeight: 'min(260px, var(--radix-select-content-available-height))' }}
         >
           <RSelect.ScrollUpButton className="flex h-6 items-center justify-center text-faint"><ChevronUp size={14} /></RSelect.ScrollUpButton>

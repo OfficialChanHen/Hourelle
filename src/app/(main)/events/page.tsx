@@ -66,7 +66,7 @@ function EventsList() {
         /* localStorage only exists after mount — pulse card shapes, never a flash of "empty" */
         <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="h-[240px] animate-pulse rounded-[13px] bg-s2" />
+            <div key={i} className="h-[240px] animate-pulse rounded-2xl bg-s2" />
           ))}
         </div>
       ) : shown.length > 0 ? (
@@ -78,8 +78,8 @@ function EventsList() {
       ) : (
         <EmptyState
           icon={CalendarX2}
-          title={filter === 'all' ? 'No events yet' : `Nothing under ${match.label}`}
-          body={filter === 'all' ? 'Make your first event and it shows up here.' : 'Events move here as their stage changes.'}
+          title={filter === 'all' ? 'Nothing planned yet' : `Nothing under ${match.label}`}
+          body={filter === 'all' ? 'Start a plan and it shows up here.' : 'Events move here as their stage changes.'}
           action={filter === 'all' ? { label: 'Create an event', href: '/create' } : undefined}
           secondary={filter === 'all' ? { label: 'Or open a demo event', href: '/demos' } : undefined}
         />

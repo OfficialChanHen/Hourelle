@@ -91,7 +91,7 @@ export function CoverEditor({ image, fit = 'fill', pos, title, eventId, onChange
     <div className="flex flex-col gap-3">
       {/* the preview: the card's frame and the event page's wider one, side by side */}
       <div className="grid gap-3 sm:grid-cols-[188px_minmax(0,1fr)]">
-        <div className="overflow-hidden rounded-[13px] border border-border bg-s1 p-3.5">
+        <div className="overflow-hidden rounded-2xl border border-border bg-s1 p-3.5">
           <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="-mx-3.5 -mt-3.5 mb-3 h-[92px]" />
           <div className="truncate text-[14px] font-semibold tracking-[-0.01em]">{name}</div>
           <div className="mt-1 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">On a card</div>
@@ -120,17 +120,17 @@ export function CoverEditor({ image, fit = 'fill', pos, title, eventId, onChange
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" disabled={busy} onClick={() => fileRef.current?.click()} className="flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[13px] font-semibold hover:bg-s2 disabled:opacity-50 sm:h-8 sm:px-2.5 sm:text-[12.5px]">
+        <button type="button" disabled={busy} onClick={() => fileRef.current?.click()} className="flex h-9 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3 text-[13px] font-semibold hover:bg-s2 disabled:opacity-50 sm:h-8 sm:px-2.5 sm:text-[12.5px]">
           {busy ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />}
           {busy ? 'Adding' : photo ? 'Replace photo' : 'Upload a photo'}
         </button>
         {photo && (
           // fill crops to the frame; fit keeps the whole picture, letterboxed on a blur of itself
-          <div className="flex rounded-[9px] border border-border bg-s1 p-0.5" role="group" aria-label="How the photo fills the frame">
+          <div className="flex rounded-full border border-border bg-s1 p-0.5" role="group" aria-label="How the photo fills the frame">
             {([{ v: 'fill', l: 'Fill' }, { v: 'fit', l: 'Fit' }] as const).map((o) => (
               <button
                 key={o.v} type="button" onClick={() => onChange({ imageFit: o.v })} aria-pressed={fit === o.v}
-                className="flex h-8 items-center rounded-[7px] px-3 text-[13px] font-semibold transition-colors sm:h-7"
+                className="flex h-8 items-center rounded-full px-3 text-[13px] font-semibold transition-colors sm:h-7"
                 style={fit === o.v ? { background: 'var(--accent)', color: 'var(--on-accent)' } : { color: 'var(--dim)' }}
               >
                 {o.l}
@@ -141,12 +141,12 @@ export function CoverEditor({ image, fit = 'fill', pos, title, eventId, onChange
         {/* only Fill crops, so only Fill has anything to position: a fitted photo is
             shown whole and there is nothing being lost to choose between */}
         {photo && fit !== 'fit' && (
-          <button type="button" onClick={() => setPosing(true)} className="flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[13px] font-semibold hover:bg-s2 sm:h-8 sm:px-2.5 sm:text-[12.5px]">
+          <button type="button" onClick={() => setPosing(true)} className="flex h-9 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3 text-[13px] font-semibold hover:bg-s2 sm:h-8 sm:px-2.5 sm:text-[12.5px]">
             <Crop size={14} /> Position
           </button>
         )}
         {image && (
-          <button type="button" onClick={() => choose({ image: undefined })} className="h-9 rounded-[9px] px-2.5 text-[13px] font-semibold text-brick-text hover:bg-brick-bg sm:h-8 sm:text-[12.5px]">Remove</button>
+          <button type="button" onClick={() => choose({ image: undefined })} className="h-9 rounded-full px-2.5 text-[13px] font-semibold text-brick-text hover:bg-brick-bg sm:h-8 sm:text-[12.5px]">Remove</button>
         )}
         <input ref={fileRef} type="file" accept={ACCEPTED_IMAGE_TYPES} className="hidden" onChange={(e) => { void pickFile(e.target.files?.[0]); e.target.value = '' }} />
       </div>

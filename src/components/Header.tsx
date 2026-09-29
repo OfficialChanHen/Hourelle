@@ -12,12 +12,12 @@
    desktop keeps it planted. Nothing account-shaped renders until `ready`, because
    the server cannot know which of the four this is. */
 
-import { useRef } from 'react'
+import { useRef, type CSSProperties } from 'react'
 import { useSwingOnNew } from '@/hooks/useAttention'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRouter } from 'next/navigation'
-import { Plus, Bell, UserRound, LogIn, LogOut, Settings, CircleHelp, Info } from 'lucide-react'
+import { Plus, Bell, UserRound, LogIn, LogOut, Settings, CircleHelp, Info, Smile } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { VisitorHeader } from './VisitorHeader'
 import { Popover, PopoverItem, PopoverSep } from './ui/Popover'
@@ -26,7 +26,9 @@ import { useAccess } from '@/hooks/useAccess'
 import { useHideOnScroll } from '@/hooks/useHideOnScroll'
 import { initialsOf } from '@/lib/events'
 import { signOut } from '@/lib/session'
-import { personColors } from '@/lib/colors'
+import { FaceSvg } from '@/components/ui/FaceSvg'
+import { defaultFace, ringGap } from '@/lib/faces'
+import { Wordmark } from '@/components/ui/Em'
 
 const TABS = [
   { href: '/home', label: 'Home' },
@@ -42,7 +44,6 @@ export function Header() {
   const bellRef = useRef<SVGSVGElement>(null)
   useSwingOnNew(bellRef, notifCount)
   const { ready, guestEventId, visitor, account } = useAccess()
-  const avatar = personColors[account.color] ?? personColors.gray
   // phones: reading scrolls the header away, scrolling back up recalls it.
   // Desktop keeps it planted (md:translate-y-0 outranks the hide).
   const hidden = useHideOnScroll()
@@ -51,6 +52,7 @@ export function Header() {
   // a visitor's header is the landing page's header — one component, so the two
   // never drift. Until the browser knows who this is, the same bar minus the doors.
   if (visitor || !ready) return <VisitorHeader ready={ready} />
+  const myFace = account.face ?? defaultFace(initialsOf(account.name), account.color)
 
   // the welcome steps: nothing to go to yet, so the bar is the name alone
   if (pathname.startsWith('/welcome')) {
@@ -58,7 +60,7 @@ export function Header() {
       <header className={chrome}>
         <div className="mx-auto flex h-[54px] max-w-[1240px] items-center px-[22px]">
           <span className="flex items-center">
-            <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Hourelle</span>
+            <Wordmark className="text-[24.5px] tracking-[.01em]" />
           </span>
         </div>
       </header>
@@ -73,7 +75,7 @@ export function Header() {
       <header className={chrome}>
         <div className="mx-auto flex h-[58px] max-w-[1240px] items-center gap-3 px-[22px]">
           <Link href="/" className="flex items-center">
-            <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Hourelle</span>
+            <Wordmark className="text-[24.5px] tracking-[.01em]" />
           </Link>
           <div className="flex-1" />
           <div className="flex items-center gap-2">
@@ -81,10 +83,10 @@ export function Header() {
             {/* both doors, worded and weighted exactly as the landing page words them:
                 a guest has no account yet, and signing up is the one that keeps their
                 answers. Both show at every width, a phone included. */}
-            <Link href="/auth/signin" className="flex h-[34px] items-center whitespace-nowrap rounded-[9px] px-[13px] text-[14px] font-medium text-dim hover:bg-s3 hover:text-text">
+            <Link href="/auth/signin" className="flex h-[34px] items-center whitespace-nowrap rounded-full px-[13px] text-[14px] font-medium text-dim hover:bg-s3 hover:text-text">
               Log in
             </Link>
-            <Link href="/auth/signin?mode=up" className="flex h-[34px] items-center whitespace-nowrap rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent">
+            <Link href="/auth/signin?mode=up" className="flex h-[34px] items-center whitespace-nowrap rounded-full bg-accent px-[14px] text-[14px] font-semibold text-on-accent">
               Sign up
             </Link>
           </div>
@@ -98,7 +100,7 @@ export function Header() {
       <div className="mx-auto flex h-[54px] max-w-[1240px] items-center gap-[22px] px-[22px]">
         {/* logo — the serif wordmark, on its own */}
         <Link href="/home" className="flex items-center">
-          <span className="font-serif text-[24.5px] leading-none tracking-[.01em]">Hourelle</span>
+          <Wordmark className="text-[24.5px] tracking-[.01em]" />
         </Link>
 
         {/* nav — filled accent box when active, no underlines */}
@@ -110,7 +112,7 @@ export function Header() {
                 key={t.href}
                 href={t.href}
                 aria-current={active ? 'page' : undefined}
-                className={`rounded-[9px] px-[13px] py-2 transition-colors ${
+                className={`rounded-full px-[13px] py-2 transition-colors ${
                   active ? 'bg-accent font-medium text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'
                 }`}
               >
@@ -128,7 +130,7 @@ export function Header() {
         <Link
           href="/create"
           data-tour="create"
-          className="hidden h-[34px] items-center gap-[7px] rounded-[9px] bg-accent px-[14px] text-[14px] font-semibold text-on-accent md:flex"
+          className="hidden h-[34px] items-center gap-[7px] rounded-full bg-accent px-[14px] text-[14px] font-semibold text-on-accent md:flex"
         >
           <Plus size={17} />
           <span>New event</span>
@@ -141,7 +143,7 @@ export function Header() {
             href="/notifications"
             aria-label={notifCount > 0 ? `Notifications, ${notifCount} unread` : 'Notifications'}
             title="Notifications"
-            className={`relative grid h-[30px] w-[30px] place-items-center rounded-lg border ${
+            className={`relative grid h-[30px] w-[30px] place-items-center rounded-full border ${
               pathname.startsWith('/notifications')
                 ? 'border-accent-border bg-accent-bg text-accent-text'
                 : 'border-border text-dim hover:text-text'
@@ -158,17 +160,21 @@ export function Header() {
           </Link>
 
           {/* the avatar opens the account menu — the pattern every app trains */}
+          {/* the hover and open rings are outlines set out far enough to clear the face's
+              shape (an arch's corners reach past a plain circle); the focus ring matches */}
+          <span className="contents" style={{ '--ring-gap': `${ringGap(myFace, 30, 1.5)}px` } as CSSProperties}>
           <Popover
             align="end"
             width={236}
             label="Account menu"
+            className="face-ring grid place-items-center rounded-full [-webkit-tap-highlight-color:transparent]"
             trigger={(open) => (
               <span
                 title="Account"
-                className={`grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-full text-[12.5px] font-semibold ring-2 transition-shadow ${open ? 'ring-accent-border' : 'ring-transparent hover:ring-border2'}`}
-                style={{ background: avatar.bg, color: avatar.text }}
+                style={{ outlineOffset: 'var(--ring-gap)' }}
+                className={`grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-full outline-2 ${open ? 'outline-accent-border' : 'outline-transparent hover:outline-border2'}`}
               >
-                {initialsOf(account.name)}
+                <FaceSvg face={myFace} color={account.color} size={30} />
               </span>
             )}
           >
@@ -182,6 +188,7 @@ export function Header() {
                   </div>
                 </div>
                 <PopoverItem href="/profile" onClick={close} icon={<UserRound size={15} />}>Profile</PopoverItem>
+                <PopoverItem href="/profile#face" onClick={close} icon={<Smile size={15} />}>Your face</PopoverItem>
                 <PopoverItem href="/settings" onClick={close} icon={<Settings size={15} />}>Settings</PopoverItem>
                 <PopoverSep />
                 <PopoverItem href="/help" onClick={close} icon={<CircleHelp size={15} />}>Help &amp; contact</PopoverItem>
@@ -201,6 +208,7 @@ export function Header() {
               </>
             )}
           </Popover>
+          </span>
         </div>
       </div>
     </header>

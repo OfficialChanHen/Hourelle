@@ -23,7 +23,7 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, Users, X } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
-import { namesLabel } from '@/components/ui/AvatarRow'
+import { namesLabel, pileCut } from '@/components/ui/AvatarRow'
 import { Popover, PopoverNote, PopoverTitle } from '@/components/ui/Popover'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Announce } from '@/components/ui/Announce'
@@ -231,7 +231,7 @@ function DayRunAttendance({ days, participants, availIv, onPerson }: {
         <div className="mt-3.5 flex flex-col gap-1.5 border-t border-border pt-3">
           {someDays.map((p) => (
             <button key={p.id} type="button" onClick={() => onPerson?.(p.id)} title="See their days on the grid" className="flex flex-wrap items-center gap-1.5 rounded-[8px] px-1 py-0.5 text-left hover:bg-s2">
-              <Avatar initials={p.initials} color={p.color} size={20} font={8.5} />
+              <Avatar initials={p.initials} color={p.color} face={p.face} size={20} font={8.5} />
               <span className="text-[13px] font-medium">{p.name}</span>
               <span className="text-[12.5px] text-dim">misses</span>
               {days.filter((d) => !covered(p.id, d.key)).map((d) => (
@@ -251,10 +251,10 @@ function DayRunAttendance({ days, participants, availIv, onPerson }: {
 /* while planning, the useful nudge is the grid, not an RSVP */
 function YourTimesStrip({ onGo }: { onGo: () => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-accent-border bg-accent-bg px-4 py-3">
-      <span className="text-[14px] font-semibold text-accent-text">You haven&apos;t marked your times yet.</span>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-moment-border bg-moment-bg px-4 py-3">
+      <span className="text-[14px] font-semibold text-moment-text">You haven&apos;t marked your times yet.</span>
       <span className="text-[13px] text-dim">The best window can&apos;t count you until you do.</span>
-      <button onClick={onGo} className="ml-auto h-8 rounded-[8px] bg-accent px-3 text-[13px] font-semibold text-on-accent">
+      <button onClick={onGo} className="ml-auto h-8 rounded-full bg-accent px-3 text-[13px] font-semibold text-on-accent">
         Add your availability
       </button>
     </div>
@@ -264,19 +264,19 @@ function YourTimesStrip({ onGo }: { onGo: () => void }) {
 /* ── your own reply, right where the counts are ── */
 function YourRsvpStrip({ onPick, full }: { onPick: (r: Rsvp) => void; full: boolean }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-accent-border bg-accent-bg px-4 py-3">
-      <span className="text-[14px] font-semibold text-accent-text">You haven&apos;t replied yet.</span>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-moment-border bg-moment-bg px-4 py-3">
+      <span className="text-[14px] font-semibold text-moment-text">Your turn to reply.</span>
       <span className="text-[13px] text-dim">{full ? 'The event is full, spots went to whoever replied first.' : 'Are you coming?'}</span>
       <div className="ml-auto flex items-center gap-1.5">
         <button
           onClick={() => onPick('attending')} disabled={full}
           title={full ? 'All spots are taken' : undefined}
-          className="h-11 rounded-[8px] bg-accent px-3.5 text-[13px] font-semibold text-on-accent disabled:opacity-40 sm:h-8 sm:px-3"
+          className="h-11 rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent disabled:opacity-40 sm:h-8 sm:px-3"
         >
           Going
         </button>
-        <button onClick={() => onPick('maybe')} className="h-11 rounded-[8px] border border-border2 bg-s1 px-3.5 text-[13px] font-semibold text-dim hover:bg-s2 sm:h-8 sm:px-3">Maybe</button>
-        <button onClick={() => onPick('not_going')} className="h-11 rounded-[8px] border border-border2 bg-s1 px-3.5 text-[13px] font-semibold text-dim hover:bg-s2 sm:h-8 sm:px-3">Can&apos;t go</button>
+        <button onClick={() => onPick('maybe')} className="h-11 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-semibold text-dim hover:bg-s2 sm:h-8 sm:px-3">Maybe</button>
+        <button onClick={() => onPick('not_going')} className="h-11 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-semibold text-dim hover:bg-s2 sm:h-8 sm:px-3">Can&apos;t go</button>
       </div>
     </div>
   )
@@ -378,7 +378,7 @@ function CopySummaryButton({ event, win, locked, gridStart, dayIv, markedIds }: 
   }
   return (
     <>
-      <button onClick={copy} className={`flex h-11 items-center gap-1.5 rounded-[9px] border px-3 text-[13px] font-semibold sm:h-9 ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
+      <button onClick={copy} className={`flex h-11 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold sm:h-9 ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
         {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy summary</>}
       </button>
       <Announce text={copied ? 'Summary copied' : ''} />
@@ -605,7 +605,7 @@ function QuorumControl({ quorum, onChange }: { quorum: number | null; onChange: 
   }
   return (
     <Popover width={252} align="end" trigger={(open) => (
-      <span className={`flex h-11 sm:h-7 items-center gap-1.5 rounded-[8px] border border-border2 px-2.5 text-[12px] font-semibold ${open ? 'bg-s2' : 'bg-s1 hover:bg-s2'}`}>
+      <span className={`flex h-11 sm:h-7 items-center gap-1.5 rounded-full border border-border2 px-2.5 text-[12px] font-semibold ${open ? 'bg-s2' : 'bg-s1 hover:bg-s2'}`}>
         <Users size={13} /> {quorum != null ? `Need ${quorum}` : 'Set a minimum'}
       </span>
     )}>
@@ -618,9 +618,9 @@ function QuorumControl({ quorum, onChange }: { quorum: number | null; onChange: 
               className="h-9 w-[86px] rounded-[9px] border border-border bg-s0 px-3 text-[14px] outline-none focus:border-accent"
               onKeyDown={(e) => { if (e.key === 'Enter') save(close) }}
             />
-            <button onClick={() => save(close)} className="h-9 flex-none rounded-[9px] bg-accent px-3 text-[13px] font-semibold text-on-accent">Save</button>
+            <button onClick={() => save(close)} className="h-9 flex-none rounded-full bg-accent px-3 text-[13px] font-semibold text-on-accent">Save</button>
             {quorum != null && (
-              <button onClick={() => { onChange(null); close() }} className="h-9 flex-none rounded-[9px] px-2 text-[13px] font-semibold text-dim hover:bg-s2">Clear</button>
+              <button onClick={() => { onChange(null); close() }} className="h-9 flex-none rounded-full px-2 text-[13px] font-semibold text-dim hover:bg-s2">Clear</button>
             )}
           </div>
         </div>
@@ -870,7 +870,7 @@ function RosterGroup({ label, tone, people, cap: capIn, compact, action, onPerso
               title={onPerson ? `See when ${p.name} is free` : undefined}
               className="relative flex h-8 max-w-full items-center gap-2 rounded-full border border-border bg-s0 pl-1 pr-3 before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] enabled:hover:border-border2 enabled:hover:bg-s2 sm:before:hidden"
             >
-              <Avatar initials={p.initials} color={p.color} size={24} font={9} />
+              <Avatar initials={p.initials} color={p.color} face={p.face} size={24} font={9} />
               <span className="min-w-0 truncate text-[13px]">{p.name}{p.you && <span className="text-faint"> (You)</span>}</span>
             </button>
           ))}
@@ -880,14 +880,17 @@ function RosterGroup({ label, tone, people, cap: capIn, compact, action, onPerso
       <div className="flex flex-col gap-1.5">
         {shown.map(({ p, note, bar }) => (
           <div key={p.id} className="flex items-center gap-2.5">
-            <button
-              type="button" onClick={onPerson ? () => onPerson(p.id) : undefined} disabled={!onPerson}
-              title={onPerson ? `See when ${p.name} is free` : undefined}
-              className={`flex min-w-0 items-center gap-2.5 rounded-[8px] text-left ${hasBars ? 'w-[42%] sm:w-[160px] flex-none' : 'flex-1'} ${onPerson ? '-mx-1 px-1 py-0.5 hover:bg-s2' : ''}`}
-            >
-              <Avatar initials={p.initials} color={p.color} size={27} font={10} />
-              <span className="min-w-0 flex-1 truncate text-[14px]">{p.name}{p.you && <span className="text-faint"> (You)</span>}</span>
-            </button>
+            {/* the face turns over to show the initials; the name opens their times */}
+            <span className={`flex min-w-0 items-center gap-2.5 ${hasBars ? 'w-[42%] sm:w-[160px] flex-none' : 'flex-1'}`}>
+              <Avatar initials={p.initials} color={p.color} face={p.face} size={27} font={10} title={p.name} flippable />
+              <button
+                type="button" onClick={onPerson ? () => onPerson(p.id) : undefined} disabled={!onPerson}
+                title={onPerson ? `See when ${p.name} is free` : undefined}
+                className={`flex min-h-[27px] min-w-0 flex-1 items-center rounded-[8px] text-left ${onPerson ? '-mx-1 px-1 py-0.5 hover:bg-s2' : ''}`}
+              >
+                <span className="min-w-0 flex-1 truncate text-[14px]">{p.name}{p.you && <span className="text-faint"> (You)</span>}</span>
+              </button>
+            </span>
             {hasBars && (
               <div className="relative h-5 min-w-0 flex-1 rounded-[6px] bg-s2">
                 {bar && bar.length > 0
@@ -922,7 +925,7 @@ function CopyReminder({ event }: { event: AppEvent }) {
   }
   return (
     <>
-      <button onClick={copy} className={`flex h-11 sm:h-7 items-center gap-1.5 rounded-[7px] border px-2 text-[12px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 text-dim hover:bg-s2'}`}>
+      <button onClick={copy} className={`flex h-11 sm:h-7 items-center gap-1.5 rounded-full border px-2 text-[12px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 text-dim hover:bg-s2'}`}>
         {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy a reminder</>}
       </button>
       <Announce text={copied ? 'Reminder copied' : ''} />
@@ -1063,7 +1066,7 @@ function AvatarPile({ people, cap }: { people: Participant[]; cap: number }) {
   const extra = people.length - shown.length
   return (
     <div className="flex items-center" role={people.length ? 'img' : undefined} aria-label={people.length ? namesLabel(shown.map((p) => p.name), extra) : undefined}>
-      {shown.map((p) => <span key={p.id} className="-mr-1.5"><Avatar initials={p.initials} color={p.color} size={25} font={9.5} ring /></span>)}
+      {shown.map((p, i) => <span key={p.id} className="-mr-1.5 flex"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} cut={i < shown.length - 1 ? pileCut(25, 6) : undefined} /></span>)}
       {extra > 0 && <span aria-hidden className="ml-2.5 text-[12.5px] font-semibold text-dim">+{extra}</span>}
       {people.length === 0 && <span className="text-[12.5px] text-faint">nobody yet</span>}
     </div>
@@ -1080,8 +1083,8 @@ function EmptyState({ onGoToTab }: { onGoToTab?: GoTab }) {
     <div className="grid min-h-[280px] place-items-center rounded-2xl border border-dashed border-border2 bg-s1 px-6 py-8 text-center">
       <div className="max-w-md">
         <span className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-xl border border-border bg-s2 text-dim"><MapPin size={22} /></span>
-        <p className="font-serif text-[27px] tracking-[-0.01em]">No responses yet</p>
-        <p className="mt-1.5 text-[14px] text-dim">This tab fills in as people reply. It starts with two quick steps.</p>
+        <p className="font-serif text-[27px] tracking-[-0.01em]">Waiting on the group</p>
+        <p className="mt-1.5 text-[14px] text-dim">This fills in as people reply. You can go first.</p>
         <div className="mx-auto mt-4 flex max-w-[360px] flex-col gap-2 text-left">
           <StepRow n={1} text="Mark when you're free" cta="Open availability" onClick={() => onGoToTab?.('availability')} />
           <StepRow n={2} text="Vote on a place" cta="Open location" onClick={() => onGoToTab?.('location')} />

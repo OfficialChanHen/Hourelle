@@ -61,7 +61,7 @@ export function FeedbackForm() {
         {KINDS.map(({ key, label, icon: Icon }) => (
           <button
             key={key} type="button" onClick={() => setKind(key)} aria-pressed={kind === key}
-            className={`flex h-9 items-center gap-1.5 rounded-[9px] border px-3 text-[13px] font-semibold ${kind === key ? 'border-accent bg-accent text-on-accent' : 'border-border bg-s1 text-dim hover:bg-s2 hover:text-text'}`}
+            className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold ${kind === key ? 'border-accent bg-accent text-on-accent' : 'border-border bg-s1 text-dim hover:bg-s2 hover:text-text'}`}
           >
             <Icon size={14} /> {label}
           </button>
@@ -101,7 +101,7 @@ export function FeedbackForm() {
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button
           type="submit" disabled={!message.trim() || busy}
-          className="flex h-11 items-center gap-2 rounded-[10px] bg-accent px-5 text-[14px] font-semibold text-on-accent disabled:opacity-40"
+          className="flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent disabled:opacity-40"
         >
           {busy && <Loader2 size={15} className="animate-spin" />} Send
         </button>

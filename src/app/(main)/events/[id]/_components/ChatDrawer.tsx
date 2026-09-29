@@ -109,7 +109,7 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onVote, onClos
     const p = pById.get(id)
     const n = p?.name ?? name ?? 'Someone'
     const initials = p?.initials ?? (n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?')
-    return { initials, name: n, color: p?.color ?? ('stone' as Participant['color']) }
+    return { initials, name: n, color: p?.color ?? ('stone' as Participant['color']), face: p?.face }
   }
   // lines from people the host took off the event never show, whatever copy they came
   // from, and not even once that person is back on the list
@@ -166,7 +166,7 @@ type ChatProps = {
   messages: ChatMessage[]; unreadFrom?: number
   onSend: (t: string) => void; onClose: () => void
   typing: Peer[]; onType?: () => void; onStopTyping?: () => void
-  avatarOf: (id: string, name?: string) => { initials: string; name: string; color: Participant['color'] }
+  avatarOf: (id: string, name?: string) => { initials: string; name: string; color: Participant['color']; face?: Participant['face'] }
   readOnly: boolean
   polls: PollsProps
 }
@@ -301,7 +301,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
     <div ref={zone} className="flex h-full min-h-0 w-full flex-col">
       <div className="flex flex-none items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0 font-serif text-[19px] leading-tight tracking-[-0.01em]">Discussion</div>
-        <button onClick={onClose} aria-label="Close chat" className="-mr-2 grid h-11 w-11 place-items-center sm:-mr-1 sm:h-[34px] sm:w-[34px] rounded-lg text-dim hover:text-text"><X size={18} /></button>
+        <button onClick={onClose} aria-label="Close chat" className="-mr-2 grid h-11 w-11 place-items-center sm:-mr-1 sm:h-[34px] sm:w-[34px] rounded-full text-dim hover:text-text"><X size={18} /></button>
       </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col">
@@ -334,7 +334,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                 <div key={r.key} className="mt-3 flex flex-col items-center gap-0.5 text-[11.5px] text-faint">
                   <span className="text-[10.5px]">{whenLabel(m, h24)}</span>
                   <span className="flex items-center gap-2">
-                    <Avatar initials={a.initials} color={a.color} size={16} font={7.5} />
+                    <Avatar initials={a.initials} color={a.color} face={a.face} size={16} font={7.5} />
                     <span><span className="font-semibold text-dim">{m.name}</span> {messagePreview(m)}</span>
                   </span>
                 </div>
@@ -345,7 +345,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                       accent on the right, which says whose they are without a label. */}
                   {first && !m.you && (
                     <div className="mb-1 flex items-center gap-1.5 text-[11px] text-dim">
-                      <Avatar initials={a.initials} color={a.color} size={18} font={8.5} />
+                      <Avatar initials={a.initials} color={a.color} face={a.face} size={18} font={8.5} />
                       <span className="font-semibold text-text">{m.name}</span>
                     </div>
                   )}
@@ -365,7 +365,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                   ) : (
                   <div
                     title={first ? undefined : whenLabel(m, h24)}
-                    className={`max-w-[min(86%,480px)] whitespace-pre-wrap break-words rounded-[14px] border px-[11px] py-2 text-[13px] leading-[1.45] ${
+                    className={`max-w-[min(86%,480px)] whitespace-pre-wrap break-words rounded-2xl border px-[11px] py-2 text-[13px] leading-[1.45] ${
                       m.you
                         ? `border-accent bg-accent text-on-accent ${first ? 'rounded-tr-[5px]' : ''}`
                         : `border-border bg-s2 text-text ${first ? 'rounded-tl-[5px]' : ''}`
@@ -414,7 +414,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
           label="Add to the chat"
           className="flex-none"
           trigger={(open) => (
-            <span className={`grid h-11 w-11 place-items-center rounded-[12px] border sm:h-[38px] sm:w-[38px] ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}>
+            <span className={`grid h-11 w-11 place-items-center rounded-full border sm:h-[38px] sm:w-[38px] ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}>
               <Plus size={17} />
             </span>
           )}
@@ -440,7 +440,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
           onClick={send}
           disabled={!draft.trim()}
           aria-label="Send"
-          className="grid h-11 w-11 sm:h-[38px] sm:w-[38px] flex-none place-items-center rounded-[12px] bg-accent text-on-accent transition-opacity disabled:opacity-40"
+          className="grid h-11 w-11 sm:h-[38px] sm:w-[38px] flex-none place-items-center rounded-full bg-accent text-on-accent transition-opacity disabled:opacity-40"
         >
           <Send size={16} />
         </button>

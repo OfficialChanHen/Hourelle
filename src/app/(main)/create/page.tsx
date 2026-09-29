@@ -46,7 +46,7 @@ import {
   Map, Presentation, Repeat, Utensils, Dices, CookingPot, CalendarDays, LayoutGrid, Timer, Globe,
   CalendarCheck, type LucideIcon,
 } from 'lucide-react'
-import { personColors, type PersonColor } from '@/lib/colors'
+import { personVar, type PersonColor } from '@/lib/colors'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
@@ -62,6 +62,7 @@ import { DaysPicker } from '@/components/ui/DaysPicker'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { Em } from '@/components/ui/Em'
 
 const TZ = [
   { v: 'America/Los_Angeles', l: 'Pacific Time (PT)' },
@@ -519,7 +520,7 @@ function CreateWizard() {
           {WIZ_TEMPLATES.map((t) => {
             const Icon = t.icon
             const on = tpl === t.key
-            const c = personColors[t.chip]
+            const c = personVar(t.chip)
             return (
               <button
                 key={t.key}
@@ -608,7 +609,7 @@ function CreateWizard() {
       </div>
 
       <div className="mt-4 flex items-center justify-between">
-        <Link href="/home" className="flex h-11 sm:h-10 items-center rounded-[10px] border border-border2 bg-transparent px-4 text-[14px] font-semibold hover:bg-s2">
+        <Link href="/home" className="flex h-11 sm:h-10 items-center rounded-full border border-border2 bg-transparent px-4 text-[14px] font-semibold hover:bg-s2">
           Cancel
         </Link>
         {/* faded until every field is right; a press on the faded button lights up the
@@ -620,7 +621,7 @@ function CreateWizard() {
           onClick={create}
           aria-disabled={basicsOk ? undefined : true}
           title={basicsOk ? undefined : firstMissing}
-          className="flex h-11 sm:h-10 items-center gap-1.5 rounded-[10px] bg-accent px-[18px] text-[14px] font-semibold text-on-accent aria-disabled:cursor-not-allowed aria-disabled:opacity-40"
+          className="flex h-11 sm:h-10 items-center gap-1.5 rounded-full bg-accent px-[18px] text-[14px] font-semibold text-on-accent aria-disabled:cursor-not-allowed aria-disabled:opacity-40"
         >
           <Check size={17} /> Create event
         </button>
@@ -1107,7 +1108,7 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
               {PLATFORMS.map((p) => {
                 const on = form.platform === p.name
                 return (
-                  <button key={p.name} type="button" aria-pressed={on} onClick={() => update({ platform: p.name })} className={`flex h-[34px] items-center gap-1.5 rounded-[9px] px-3 text-[13.5px] font-semibold ${on ? 'border-[1.5px] border-accent-border bg-accent-bg text-accent-text' : 'border border-border bg-s2 text-dim'}`}>
+                  <button key={p.name} type="button" aria-pressed={on} onClick={() => update({ platform: p.name })} className={`flex h-[34px] items-center gap-1.5 rounded-full px-3 text-[13.5px] font-semibold ${on ? 'border-[1.5px] border-accent-border bg-accent-bg text-accent-text' : 'border border-border bg-s2 text-dim'}`}>
                     {p.img && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={p.img} alt="" width={16} height={16} className="rounded-[3px]" />
@@ -1191,7 +1192,7 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
       <Field label="Invite by email" id="ev-invite">
         <div className="flex gap-2">
           <input id="ev-invite" aria-invalid={!!note || undefined} aria-describedby={note ? 'ev-invite-err' : undefined} value={draft} onChange={(e) => { setDraft(e.target.value); setNote(null) }} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), void addEmail())} placeholder="name@company.com" className={inputCls()} />
-          <button type="button" onClick={() => void addEmail()} disabled={checking} className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-60">
+          <button type="button" onClick={() => void addEmail()} disabled={checking} className="flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-60">
             {checking ? <Loader2 size={15} className="animate-spin" /> : null} Add
           </button>
         </div>
@@ -1236,7 +1237,7 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
                     <div className="flex items-center gap-2 text-[14px] font-semibold">{r.name}{r.account && <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[11px] font-medium text-faint">has an account</span>}</div>
                     <div className="truncate text-[12.5px] text-faint">{r.email ?? 'joined by link'}</div>
                   </div>
-                  <span className={`flex h-[26px] items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold ${on ? 'bg-accent text-on-accent' : 'border border-border2 text-dim'}`}>
+                  <span className={`flex h-[26px] items-center gap-1.5 rounded-full px-2.5 text-[13px] font-semibold ${on ? 'bg-accent text-on-accent' : 'border border-border2 text-dim'}`}>
                     {on ? <><Check size={15} /> Added</> : <><Plus size={15} /> Add</>}
                   </span>
                 </button>
@@ -1309,7 +1310,7 @@ function Created({ event: initial }: { event: AppEvent }) {
       <div className="mx-auto max-w-[560px] px-[26px] pb-[92px] pt-[64px]">
         <div ref={card} className="rounded-2xl border border-border bg-s1 px-7 py-9 text-center shadow-soft">
           <span className="created-check mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full border border-teal-border bg-teal-bg text-teal-text"><Check size={34} /></span>
-          <h1 className="font-serif font-normal text-[33.5px] leading-[1.05] tracking-[-0.01em]">Your event is live</h1>
+          <h1 className="font-serif font-normal text-[33.5px] leading-[1.05] tracking-[-0.01em]">Your event is <Em>live</Em></h1>
           <p className="mx-auto mt-2 max-w-[380px] text-[14.5px] leading-[1.55] text-dim">
             <span className="font-semibold text-text">{event.title}</span> has been created. Share the link below so anyone can join, say when they&apos;re free, and chat.
           </p>
@@ -1317,7 +1318,7 @@ function Created({ event: initial }: { event: AppEvent }) {
           <div className="mx-auto mt-6 flex h-11 w-full max-w-[420px] items-center gap-2 rounded-[11px] border border-border2 bg-s2 py-0 pl-3.5 pr-2">
             <Link2 size={17} className="flex-none text-accent-text" />
             <span className="flex-1 truncate text-left font-mono text-[14px]">{link}</span>
-            <button type="button" onClick={copy} className="flex h-8 flex-none items-center gap-1.5 rounded-[9px] bg-accent px-3 text-[13.5px] font-semibold text-on-accent">
+            <button type="button" onClick={copy} className="flex h-8 flex-none items-center gap-1.5 rounded-full bg-accent px-3 text-[13.5px] font-semibold text-on-accent">
               {copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy</>}
             </button>
           </div>
@@ -1329,10 +1330,10 @@ function Created({ event: initial }: { event: AppEvent }) {
           {mailOn && <InviteByEmail event={event} onAdded={setEvent} />}
 
           <div className="mt-7 flex items-center justify-center gap-2.5">
-            <Link href={`/events/${slug}?tab=availability`} className="flex h-10 items-center gap-1.5 rounded-[10px] bg-accent px-5 text-[14px] font-semibold text-on-accent">
+            <Link href={`/events/${slug}?tab=availability`} className="flex h-10 items-center gap-1.5 rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent">
               Go to event <ArrowRight size={17} />
             </Link>
-            <Link href="/home" className="flex h-10 items-center rounded-[10px] border border-border2 px-4 text-[14px] font-semibold hover:bg-s2">Back home</Link>
+            <Link href="/home" className="flex h-10 items-center rounded-full border border-border2 px-4 text-[14px] font-semibold hover:bg-s2">Back home</Link>
           </div>
         </div>
       </div>
@@ -1422,9 +1423,9 @@ function Field({ label, id, children }: { label: string; id?: string; children: 
 }
 function Segmented({ value, onChange, options, label }: { value: string; onChange: (v: string) => void; options: { v: string; l: string }[]; label?: string }) {
   return (
-    <div role="group" aria-label={label} className="flex flex-wrap rounded-[9px] border border-border bg-s1 p-0.5">
+    <div role="group" aria-label={label} className="flex flex-wrap rounded-[22px] border border-border bg-s1 p-0.5">
       {options.map((o) => (
-        <button key={o.v} type="button" aria-pressed={value === o.v} onClick={() => onChange(o.v)} className="flex h-11 sm:h-7 items-center rounded-[7px] px-3 text-[13px] font-semibold transition-colors" style={value === o.v ? { background: 'var(--accent)', color: 'var(--on-accent)' } : { color: 'var(--dim)' }}>
+        <button key={o.v} type="button" aria-pressed={value === o.v} onClick={() => onChange(o.v)} className="flex h-11 sm:h-7 items-center rounded-full px-3 text-[13px] font-semibold transition-colors" style={value === o.v ? { background: 'var(--accent)', color: 'var(--on-accent)' } : { color: 'var(--dim)' }}>
           {o.l}
         </button>
       ))}

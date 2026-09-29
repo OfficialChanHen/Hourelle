@@ -81,7 +81,7 @@ export function Popover({
           align={align}
           sideOffset={6}
           collisionPadding={{ top: 8, right: 8, bottom: narrow ? 92 : 8, left: 8 }}
-          className="z-[55] max-w-[calc(100vw-16px)] rounded-[14px] border border-border bg-s1 p-1.5 shadow-soft"
+          className="z-[55] max-w-[calc(100vw-16px)] rounded-xl border border-border bg-s1 p-1.5 shadow-soft"
           style={{ width: width === 'fit' ? 'max-content' : width, ...(width === 'fit' ? { maxWidth: 'min(300px, calc(100vw - 16px))' } : {}), transformOrigin: 'var(--radix-popover-content-transform-origin)' }}
         >
           {children(() => setOpen(false))}

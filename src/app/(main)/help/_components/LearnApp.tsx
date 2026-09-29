@@ -27,7 +27,7 @@ import { resetHint, resetHints, setTourWanted } from '@/lib/prefs'
    An invitee with an account who came from an event gets both. A visitor with
    neither has nothing a tour could run on, so the row is left out; the clips above
    are theirs. The hints are per device and anyone can bring them back. */
-const btn = 'flex h-11 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2 hover:text-text sm:h-9'
+const btn = 'flex h-11 flex-none items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2 hover:text-text sm:h-9'
 
 function Learn() {
   const router = useRouter()

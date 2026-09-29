@@ -10,6 +10,7 @@ import { useRef, useState } from 'react'
 import { useGSAP } from '@gsap/react'
 import { Check, HelpCircle, SendHorizontal, X } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
+import { pileCut } from '@/components/ui/AvatarRow'
 import type { PersonColor } from '@/lib/colors'
 import { prefersReducedMotion, useInView, VignetteFrame } from './Vignette'
 
@@ -72,7 +73,7 @@ export function ChatDemo() {
   const reset = () => { setTaken(false); setDone(false); setMsgs([]); setRsvp(null); setDraft(''); setRun((r) => r + 1) }
 
   const seg = (r: Exclude<Rsvp, null>, label: string, Icon: typeof Check) => (
-    <button type="button" onClick={() => answer(r)} aria-pressed={rsvp === r} disabled={!done} className={`flex h-9 flex-1 items-center justify-center gap-1.5 rounded-[8px] text-[13px] font-semibold transition-colors disabled:cursor-default ${rsvp === r ? 'bg-accent text-on-accent' : 'text-dim hover:bg-s2 hover:text-text'}`}>
+    <button type="button" onClick={() => answer(r)} aria-pressed={rsvp === r} disabled={!done} className={`flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full text-[13px] font-semibold transition-colors disabled:cursor-default ${rsvp === r ? 'bg-accent text-on-accent' : 'text-dim hover:bg-s2 hover:text-text'}`}>
       <Icon size={14} /> {label}
     </button>
   )
@@ -95,8 +96,8 @@ export function ChatDemo() {
                   <p className="font-serif text-[30px] leading-none tracking-[-0.01em]">{going}<span className="ml-1.5 text-[14px] text-dim">going</span></p>
                   <p className="mt-1.5 text-[12.5px] text-dim">{maybe} maybe, {no} can&apos;t, {rsvp ? 0 : 1} no reply</p>
                   <div className="mt-2.5 flex">
-                    {OTHERS.filter((p) => p.r === 'going').map((p, i) => <span key={p.i} className={`rounded-full ring-2 ring-s0 ${i ? '-ml-1.5' : ''}`}><Avatar initials={p.i} color={p.c} size={24} font={9} /></span>)}
-                    {rsvp === 'going' && <span className="-ml-1.5 rounded-full ring-2 ring-s0"><Avatar initials="JM" color="purple" size={24} font={9} /></span>}
+                    {OTHERS.filter((p) => p.r === 'going').map((p, i, all) => <span key={p.i} className={`flex ${i ? '-ml-1.5' : ''}`}><Avatar initials={p.i} color={p.c} size={24} font={9} cut={i < all.length - 1 || rsvp === 'going' ? pileCut(24, 6) : undefined} /></span>)}
+                    {rsvp === 'going' && <span className="-ml-1.5 flex"><Avatar initials="JM" color="purple" size={24} font={9} /></span>}
                   </div>
                 </div>
               </div>
@@ -122,7 +123,7 @@ export function ChatDemo() {
                 </div>
                 <form onSubmit={(e) => { e.preventDefault(); send() }} className="flex items-center gap-1.5 border-t border-border p-2">
                   <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Write a message" aria-label="Write a message" disabled={!done} className="h-9 min-w-0 flex-1 rounded-[8px] border border-border bg-s1 px-2.5 text-[13px] outline-none placeholder:text-faint focus:border-accent" />
-                  <button type="submit" aria-label="Send" disabled={!draft.trim()} className="grid h-9 w-9 flex-none place-items-center rounded-[8px] bg-accent text-on-accent disabled:opacity-40"><SendHorizontal size={15} /></button>
+                  <button type="submit" aria-label="Send" disabled={!draft.trim()} className="grid h-9 w-9 flex-none place-items-center rounded-full bg-accent text-on-accent disabled:opacity-40"><SendHorizontal size={15} /></button>
                 </form>
               </div>
             </>

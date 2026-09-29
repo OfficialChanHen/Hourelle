@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { dateRangeText, daysUntil, daysUntilLabel, fmtMinute, reopenEvent, setMyRsvp, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
+import { JustLocked } from './JustLocked'
 import { slotWhen } from '@/lib/slot'
 
 // your answer to the locked-in plan — strict role colors: teal going, ochre maybe, brick out
@@ -47,7 +48,8 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
   }
 
   return (
-    <div className="mb-6 rounded-2xl border border-teal-border bg-s1 p-5">
+    <div className="mb-6 rounded-3xl border border-teal-border bg-s1 p-5">
+      <JustLocked confirmedAt={event.confirmedAt} />
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
           <div className="mb-2 flex items-center gap-2">
@@ -85,15 +87,15 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
           <AddToCalendar event={event} slot={{ dayKey: c.dayKey, endDayKey: c.endDayKey, startMin: c.startMin, endMin: c.endMin }} />
           {/* reopening is consequential — everyone's RSVPs reset — so it asks once */}
           {event.hostedByYou && !confirmReopen && (
-            <button onClick={() => setConfirmReopen(true)} className="flex h-11 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-dim hover:bg-s2 hover:text-text sm:h-8">
+            <button onClick={() => setConfirmReopen(true)} className="flex h-11 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-medium text-dim hover:bg-s2 hover:text-text sm:h-8">
               <Undo2 size={14} /> Reopen planning
             </button>
           )}
           {event.hostedByYou && confirmReopen && (
-            <span className="flex flex-wrap items-center gap-2 rounded-[9px] border border-ochre-border bg-ochre-bg px-2.5 py-1.5">
+            <span className="flex flex-wrap items-center gap-2 rounded-xl border border-ochre-border bg-ochre-bg px-2.5 py-1.5">
               <span className="text-[12.5px] font-medium text-ochre-text">Unlocks the plan for everyone and clears the RSVPs.</span>
-              <button onClick={reopen} className="h-7 rounded-[7px] px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--ochre)' }}>Reopen</button>
-              <button onClick={() => setConfirmReopen(false)} className="h-7 rounded-[7px] border border-border2 bg-s1 px-2.5 text-[12.5px] font-semibold text-dim hover:bg-s2">Keep it locked</button>
+              <button onClick={reopen} className="h-7 rounded-full px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--ochre)' }}>Reopen</button>
+              <button onClick={() => setConfirmReopen(false)} className="h-7 rounded-full border border-border2 bg-s1 px-2.5 text-[12.5px] font-semibold text-dim hover:bg-s2">Keep it locked</button>
             </span>
           )}
         </div>
@@ -111,7 +113,7 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
                 key={o.v}
                 onClick={() => answer(o.v)}
                 aria-pressed={on}
-                className={`flex h-11 items-center gap-1.5 rounded-[9px] border px-3.5 text-[13px] font-semibold sm:h-8 sm:px-3 ${on ? o.on : 'border-border2 bg-s1 text-dim hover:bg-s2 hover:text-text'}`}
+                className={`flex h-11 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold sm:h-8 sm:px-3 ${on ? o.on : 'border-border2 bg-s1 text-dim hover:bg-s2 hover:text-text'}`}
               >
                 <Icon size={14} /> {o.label}
               </button>

@@ -1,4 +1,5 @@
 import type { PersonColor } from './colors'
+import { defaultFace, pickFace, sameFace, type Face } from './faces'
 import { av } from './people'
 import { isMine, purgeRemoved, pushAnswers, pushDelete, pushEvent, pushMessage, pushNewEvent } from './remote'
 import { currentAccount } from './session'
@@ -26,6 +27,10 @@ export type EventStatus = 'planning' | 'confirmed'
 export type ConfirmedSlot = { dayKey: string; endDayKey?: string; startMin: number; endMin: number; placeIds: string[] }
 export type Participant = {
   id: string; initials: string; name: string; color: PersonColor; rsvp: Rsvp
+  // the drawn face: the account's own when it chose one, otherwise dealt at join by
+  // pickFace so it stands apart from the others here. Absent on older entries, which
+  // draw a face from their initials and colour instead.
+  face?: Face
   // set when lock-in answered for them from their availability — cleared the moment
   // they answer themselves, so the UI can say "marked going from your times"
   rsvpAuto?: boolean
@@ -237,7 +242,7 @@ export function adoptMine(): number {
   const email = acc.email?.toLowerCase()
   // the adopted entry keeps the colour it was dealt on that event unless the
   // account picked one for itself
-  const as = { name: acc.name, initials: initialsOf(acc.name), ...(acc.colorChosen ? { color: acc.color } : {}) }
+  const as = { name: acc.name, initials: initialsOf(acc.name), ...(acc.colorChosen ? { color: acc.color } : {}), ...(acc.face ? { face: acc.face } : {}) }
   let n = 0
   for (const ev of readAll()) {
     // an entry this browser joined as a guest belongs to whoever just signed in here:
@@ -263,14 +268,40 @@ export function adoptMine(): number {
   return n
 }
 
-/* The account changed its name or colour: every event it sits on shows the new
-   one. Only this browser's copies are touched directly; each patch syncs up. */
-export function restampMe(as: { name: string; color?: PersonColor }): number {
+/* The account changed its name, colour or face: every event it sits on shows the
+   new one. Only this browser's copies are touched directly, and only the account's
+   own entry in each; each patch syncs up. */
+export function restampMe(as: { name?: string; color?: PersonColor; face?: Face }): number {
   const acc = currentAccount()
   let n = 0
   for (const ev of readAll()) {
     if (!ev.participants.some((p) => p.id === acc.id)) continue
-    patchEvent(ev.id, { participants: ev.participants.map((p) => (p.id === acc.id ? { ...p, name: as.name, initials: initialsOf(as.name), ...(as.color ? { color: as.color } : {}) } : p)) })
+    patchEventWith(ev.id, (cur) => ({
+      participants: cur.participants.map((p) => (p.id === acc.id ? {
+        ...p,
+        ...(as.name ? { name: as.name, initials: initialsOf(as.name) } : {}),
+        ...(as.color ? { color: as.color } : {}),
+        ...(as.face ? { face: as.face } : {}),
+      } : p)),
+    }))
+    n++
+  }
+  return n
+}
+
+/* The face this account chose, on every event this device holds where its entry
+   still wears another: a face changed on another device, or an entry made for the
+   account by a host who could not know its face. Runs after every pull; a no-op
+   once they match, and for an account that never chose a face. */
+export function stampMyFace(): number {
+  const acc = currentAccount()
+  const face = acc.face
+  if (!face) return 0
+  let n = 0
+  for (const ev of readAll()) {
+    const mine = ev.participants.find((p) => p.id === acc.id)
+    if (!mine || sameFace(mine.face, face)) continue
+    patchEventWith(ev.id, (cur) => ({ participants: cur.participants.map((p) => (p.id === acc.id ? { ...p, face } : p)) }))
     n++
   }
   return n
@@ -1137,7 +1168,7 @@ function guestFromEmail(raw: string, roster: Participant[]): Participant {
   const local = email.split('@')[0] || email
   const name = local.replace(/[._-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).trim() || email
   const initials = (name.split(' ').filter(Boolean).map((w) => w[0]).join('').slice(0, 2) || email[0] || 'G').toUpperCase()
-  return { id: `g:${email}`, initials, name, color: pickColor(roster, { initials, name }), rsvp: 'pending', guest: true, email, inviteToken: linkToken(16), invitedAt: Date.now() }
+  return { id: `g:${email}`, initials, name, color: pickColor(roster, { initials, name }), face: pickFace(roster, `g:${email}`), rsvp: 'pending', guest: true, email, inviteToken: linkToken(16), invitedAt: Date.now() }
 }
 
 /** Invite more people by email after the event exists: each new address becomes a
@@ -1175,7 +1206,7 @@ export function addInvitees(id: string, people: { email: string; account?: Accou
     let next: Participant
     if (account) {
       const initials = initialsOf(account.name)
-      next = { id: account.id, initials, name: account.name, color: account.colorChosen ? account.color : pickColor(roster, { initials, name: account.name }), rsvp: 'pending', email, invitedAt: Date.now() }
+      next = { id: account.id, initials, name: account.name, color: account.colorChosen ? account.color : pickColor(roster, { initials, name: account.name }), face: pickFace(roster, account.id), rsvp: 'pending', email, invitedAt: Date.now() }
       ids.add(account.id)
     } else {
       next = guestFromEmail(email, roster)
@@ -1237,7 +1268,7 @@ export function claimEvent(eventId: string): boolean {
   if (!host || host.id === acc.id || UUID_RE.test(host.id)) return false
   // already on the list under your own id: you joined this event, you did not make it
   if (ev.participants.some((p) => p.id === acc.id)) return false
-  adoptParticipant(eventId, host.id, acc.id, { name: acc.name, initials: initialsOf(acc.name), ...(acc.colorChosen ? { color: acc.color } : {}) })
+  adoptParticipant(eventId, host.id, acc.id, { name: acc.name, initials: initialsOf(acc.name), ...(acc.colorChosen ? { color: acc.color } : {}), ...(acc.face ? { face: acc.face } : {}) })
   patchEvent(eventId, { hostName: acc.name, hostKind: acc.kind })
   return true
 }
@@ -1443,6 +1474,8 @@ export function addMeToEvent(id: string): Participant | null {
     name: acc.name,
     // a colour you picked is yours; a dealt one gives way to whatever stands apart here
     color: acc.colorChosen ? acc.color : pickColor(ev.participants, { initials, name: acc.name }),
+    // the same for the face: the account's own, or one that stands apart here
+    face: acc.face ?? pickFace(ev.participants, acc.id),
     rsvp: 'pending',
     you: true,
   }
@@ -1453,7 +1486,7 @@ export function addMeToEvent(id: string): Participant | null {
 // A guest joins under a device-local id: no account, nothing minted on the server.
 // Their claim to the entry is this browser (hourelle.me.<eventId>) and, if they gave
 // one, their email — proven by magic link when they return on another device.
-export function joinEvent(id: string, name: string, email?: string): Participant | null {
+export function joinEvent(id: string, name: string, email?: string, face?: Face): Participant | null {
   const ev = getEvent(id)
   const clean = name.trim().replace(/\s+/g, ' ')
   if (!ev || !clean) return null
@@ -1468,7 +1501,10 @@ export function joinEvent(id: string, name: string, email?: string): Participant
   // an email comes with a personal link, the same kind an invited guest gets: it is
   // mailed to them once, and opening it on any device lands them back as themselves
   const guest: Participant = {
-    id: pid, initials, name: clean, color: pickColor(ev.participants, { initials, name: clean }), rsvp: 'pending', guest: true, joinedAt: Date.now(),
+    id: pid, initials, name: clean, color: pickColor(ev.participants, { initials, name: clean }),
+    // the face they picked on the join page, or one dealt to stand apart
+    face: face ?? pickFace(ev.participants, pid),
+    rsvp: 'pending', guest: true, joinedAt: Date.now(),
     ...(cleanEmail ? { email: cleanEmail, inviteToken: linkToken(16) } : {}),
   }
   if (ev.demo) {
@@ -1501,11 +1537,12 @@ export function createEvent(input: CreateInput): AppEvent {
   // the list is built one person at a time so each colour is picked against
   // everyone already on it
   const participants: Participant[] = [
-    { id: host.id, initials: initialsOf(host.name), name: host.name, color: host.color, rsvp: 'attending', you: true, host: true },
+    // the host's face is the one their account shows everywhere else
+    { id: host.id, initials: initialsOf(host.name), name: host.name, color: host.color, face: host.face ?? defaultFace(initialsOf(host.name), host.color), rsvp: 'attending', you: true, host: true },
   ]
   for (const a of input.accounts) {
     const initials = initialsOf(a.name)
-    participants.push({ id: a.id, initials, name: a.name, color: a.colorChosen ? a.color : pickColor(participants, { initials, name: a.name }), rsvp: 'pending' as Rsvp, ...(a.email ? { email: a.email } : {}) })
+    participants.push({ id: a.id, initials, name: a.name, color: a.colorChosen ? a.color : pickColor(participants, { initials, name: a.name }), face: pickFace(participants, a.id), rsvp: 'pending' as Rsvp, ...(a.email ? { email: a.email } : {}) })
   }
   for (const email of input.emails) participants.push(guestFromEmail(email, participants))
 

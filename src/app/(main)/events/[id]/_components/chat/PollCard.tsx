@@ -79,7 +79,7 @@ export function PollCard({ poll, votes, me, canVote, locked, canManage, onPick, 
   return (
     // what changes inside a card (a count, an option someone added) is not read out
     // as a new line in the chat around it
-    <div aria-live="off" className="w-full max-w-[min(92%,360px)] rounded-[14px] border border-border bg-s1 p-3">
+    <div aria-live="off" className="w-full max-w-[min(92%,360px)] rounded-2xl border border-border bg-s1 p-3">
       <div className="flex items-start gap-2">
         <p className="min-w-0 flex-1 break-words text-[14px] font-semibold leading-[1.35] text-text">{poll.q}</p>
         {canManage && !locked && (
@@ -247,7 +247,7 @@ function AddOption({ taken, onAdd }: { taken: string[]; onAdd: (t: string) => vo
           <button
             type="submit"
             disabled={dup}
-            className="h-11 flex-none rounded-[10px] bg-accent px-3.5 text-[13px] font-semibold text-on-accent disabled:opacity-40 sm:h-9"
+            className="h-11 flex-none rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent disabled:opacity-40 sm:h-9"
           >
             Add
           </button>

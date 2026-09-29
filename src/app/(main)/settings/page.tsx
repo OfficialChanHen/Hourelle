@@ -251,11 +251,11 @@ export default function SettingsPage() {
           </div>
           <div className="flex flex-none flex-wrap items-center gap-2">
             {planState.plan === 'plus' && planState.source === 'stripe' && canBuy(account.signedIn) && (
-              <button type="button" onClick={() => void manageBilling()} disabled={billingBusy} className="flex h-9 items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2 disabled:opacity-60">
+              <button type="button" onClick={() => void manageBilling()} disabled={billingBusy} className="flex h-9 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2 disabled:opacity-60">
                 {billingBusy ? <Loader2 size={14} className="animate-spin" /> : <ExternalLink size={13} />} Manage billing
               </button>
             )}
-            <Link href="/plans" className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2">
+            <Link href="/plans" className="flex h-9 flex-none items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2">
               <Sparkles size={14} className="text-accent-text" /> {planState.plan === 'plus' ? 'What Plus includes' : 'See Hourelle Plus'}
             </Link>
           </div>
@@ -320,7 +320,7 @@ export default function SettingsPage() {
           {!resetAsk && (
             <button
               type="button" onClick={() => { setResetAsk(true); setResetState('idle') }}
-              className="flex h-9 flex-none items-center gap-1.5 rounded-[9px] border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2 hover:text-text"
+              className="flex h-9 flex-none items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2 hover:text-text"
             >
               <RotateCcw size={14} /> Restore defaults
             </button>
@@ -329,8 +329,8 @@ export default function SettingsPage() {
         {resetAsk && (
           <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
             <span className="mr-auto text-[13px] text-dim">Your events are not touched.</span>
-            <button type="button" onClick={() => setResetAsk(false)} className="flex h-9 items-center rounded-[9px] border border-border2 px-3 text-[13px] font-semibold hover:bg-s2">Keep my settings</button>
-            <button type="button" onClick={() => void restoreDefaults()} disabled={resetState === 'busy'} className="flex h-9 items-center rounded-[9px] bg-accent px-3.5 text-[13px] font-semibold text-on-accent disabled:opacity-60">
+            <button type="button" onClick={() => setResetAsk(false)} className="flex h-9 items-center rounded-full border border-border2 px-3 text-[13px] font-semibold hover:bg-s2">Keep my settings</button>
+            <button type="button" onClick={() => void restoreDefaults()} disabled={resetState === 'busy'} className="flex h-9 items-center rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent disabled:opacity-60">
               {resetState === 'busy' ? 'Restoring…' : 'Restore'}
             </button>
           </div>

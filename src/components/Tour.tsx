@@ -390,7 +390,7 @@ export function Tour({ host = false, locked = false, ctx = PLAIN }: { host?: boo
               </Link>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={() => setI(i - 1)} aria-label="Back" className="grid h-9 w-9 place-items-center rounded-[9px] border border-border2 text-dim hover:bg-s2 hover:text-text"><ArrowLeft size={15} /></button>
-                <button type="button" onClick={finish} className="flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent">
+                <button type="button" onClick={finish} className="flex h-9 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent">
                   Done <Check size={14} />
                 </button>
               </div>
@@ -413,7 +413,7 @@ export function Tour({ host = false, locked = false, ctx = PLAIN }: { host?: boo
                 <button
                   type="button"
                   onClick={() => (isLast ? finish() : setI(i + 1))}
-                  className="flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent"
+                  className="flex h-9 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent"
                 >
                   Next <ArrowRight size={14} />
                 </button>

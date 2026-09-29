@@ -76,7 +76,7 @@ export default function DemosPage() {
                   {e ? (
                     <StoredEventCard e={e} sameDay={sameDay(e)} />
                   ) : (
-                    <div className="h-[240px] animate-pulse rounded-[13px] bg-s2" />
+                    <div className="h-[240px] animate-pulse rounded-2xl bg-s2" />
                   )}
                   <p className="px-1 text-[12.5px] leading-[1.55] text-dim">{rich(look)}</p>
                 </div>

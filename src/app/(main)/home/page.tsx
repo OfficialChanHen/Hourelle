@@ -27,8 +27,10 @@ import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/pagination'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { Em } from '@/components/ui/Em'
 import { coverFor, StoredEventCard } from '@/components/ui/StoredEventCard'
 import { Cover } from '@/components/ui/Cover'
+import { PeekCard, peopleIn } from '@/components/ui/PeekCard'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Tip } from '@/components/ui/Tip'
@@ -94,7 +96,7 @@ export default function HomePage() {
     <div className="relative mx-auto max-w-[1240px] px-[26px] pb-[92px] pt-[34px]">
       {/* greeting */}
       <div className="mb-5">
-        <h1 className="mb-[9px] font-serif font-normal text-[37px] leading-[1.02] tracking-[-0.01em]" suppressHydrationWarning>{greeting}, {firstName}</h1>
+        <h1 className="mb-[9px] font-serif font-normal text-[37px] leading-[1.02] tracking-[-0.01em]" suppressHydrationWarning>{greeting}, <Em>{firstName}</Em></h1>
         <div className="flex items-center gap-1.5 text-[13.5px] text-dim">
           <Calendar size={15} /> {waiting ? <span className="inline-block h-3.5 w-[104px] animate-pulse rounded bg-s2" /> : active.length > 0 ? `${active.length} event${active.length === 1 ? '' : 's'} in motion` : 'No events yet'}
         </div>
@@ -107,11 +109,11 @@ export default function HomePage() {
       {/* localStorage only exists after mount — pulse shapes, never a flash of "empty" */}
       {(events === null || waiting) && (
         <>
-          <SectionHeader color="var(--accent-text)" title="Up next" />
-          <div className="h-[240px] animate-pulse rounded-2xl bg-s2" />
+          <SectionHeader color="var(--moment-text)" title="Up next" />
+          <div className="h-[240px] animate-pulse rounded-3xl bg-s2" />
           <div className="mt-[26px] grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 3 }, (_, i) => (
-              <div key={i} className="h-[220px] animate-pulse rounded-[13px] bg-s2" />
+              <div key={i} className="h-[220px] animate-pulse rounded-2xl bg-s2" />
             ))}
           </div>
         </>
@@ -119,25 +121,25 @@ export default function HomePage() {
 
       {events !== null && !waiting && (
       <>
-      {/* accent: the spotlight — what's asking for you now */}
-      <SectionHeader color="var(--accent-text)" title="Up next" count={heroes.length > 1 ? heroes.length : undefined} />
+      {/* coral, the moment role: the spotlight is what's asking for you now */}
+      <SectionHeader color="var(--moment-text)" title="Up next" count={heroes.length > 1 ? heroes.length : undefined} />
       {heroes.length > 1 ? (
         <Swiper modules={[Navigation, Pagination, A11y]} slidesPerView={1} spaceBetween={18} navigation pagination={{ clickable: true }} className="upnext-swiper !pb-9">
           {/* !h-auto lets the flex wrapper stretch every slide to the tallest one,
               and the card fills it — otherwise each slide sizes to its own content */}
           {heroes.map((x) => (
             <SwiperSlide key={x.e.id} className="!h-auto">
-              <HeroCard e={x.e} phase={x.phase} sameDay={sameDay(x.e)} />
+              <HeroPeek e={x.e}><HeroCard e={x.e} phase={x.phase} sameDay={sameDay(x.e)} /></HeroPeek>
             </SwiperSlide>
           ))}
         </Swiper>
       ) : heroes.length === 1 ? (
-        <HeroCard e={heroes[0].e} phase={heroes[0].phase} sameDay={sameDay(heroes[0].e)} />
+        <HeroPeek e={heroes[0].e}><HeroCard e={heroes[0].e} phase={heroes[0].phase} sameDay={sameDay(heroes[0].e)} /></HeroPeek>
       ) : (
         <EmptyState
           icon={CalendarPlus}
-          title="Nothing going on yet"
-          body="Create an event and it takes over this spot."
+          title="Your next plan goes here"
+          body="Start one and your group can pick a time together."
           action={{ label: 'Create an event', href: '/create' }}
           secondary={{ label: 'Or open a demo event', href: '/demos' }}
         />
@@ -236,7 +238,7 @@ function QuickCreate() {
             <DateField value={end} min={start || undefined} label="Latest day" className={dateCls} onChange={(v) => setEnd(fromDay(v, start))} />
           </span>
         </div>
-        <button onClick={go} className="flex h-11 sm:h-10 flex-none items-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent">
+        <button onClick={go} className="flex h-11 sm:h-10 flex-none items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent">
           <CalendarPlus size={16} /> Create
         </button>
       </div>
@@ -261,6 +263,13 @@ function QuickCreate() {
   )
 }
 
+/* the faces of the people who are in, peeking over the hero's top edge. A little of
+   each shows at rest, so phones (no hover) see them too; hover or focus raises them,
+   and a tap turns one over to show whose it is. */
+function HeroPeek({ e, children }: { e: AppEvent; children: React.ReactNode }) {
+  return <PeekCard people={peopleIn(e)} size={40} restShow={26} upShow={36} flippable className="h-full">{children}</PeekCard>
+}
+
 /* the hero: wide card with the lifecycle strip and one contextual action.
    The whole card opens the event's details; only elements with their own job don't. */
 function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo }) {
@@ -282,7 +291,7 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
   return (
     <div
       onClick={() => router.push(dest)}
-      className="relative flex h-full cursor-pointer flex-col justify-end overflow-hidden rounded-2xl border border-border bg-s1 transition-colors hover:border-border2"
+      className="relative flex h-full cursor-pointer flex-col justify-end overflow-hidden rounded-3xl border border-border bg-s1 transition-colors hover:border-border2"
       style={tint.border ? { borderColor: tint.border } : undefined}
     >
       {/* The cover is the whole card on every Up next slide, photo or scene or the
@@ -318,8 +327,7 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
             )}
             {e.participants.some((p) => p.you && p.rsvp === 'pending') && (
               <>
-                <span className="h-3 w-px flex-none bg-border2" aria-hidden />
-                <span className="text-accent-text">your reply is waiting</span>
+                <span className="rounded-full border border-moment-border bg-moment-bg px-2 py-px font-semibold text-moment-text">Your turn to reply</span>
               </>
             )}
             {/* the host's side of the RSVP round: how many answers are still out */}
@@ -353,13 +361,13 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
           <LifecycleStrip phase={phase} className="mt-4 max-w-[380px]" />
         </div>
         <div className="flex w-full flex-none flex-col gap-2 sm:w-auto sm:flex-row-reverse sm:items-center">
-          <Link href={action.href} onClick={(ev) => ev.stopPropagation()} className="flex h-11 sm:h-10 w-full flex-none items-center justify-center gap-1.5 rounded-[10px] bg-accent px-4 text-[14px] font-semibold text-on-accent sm:w-auto">
+          <Link href={action.href} onClick={(ev) => ev.stopPropagation()} className="flex h-11 sm:h-10 w-full flex-none items-center justify-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent sm:w-auto">
             {action.label} <ArrowRight size={15} />
           </Link>
           {e.hostedByYou && (
             <button
               type="button" onClick={copyLink}
-              className={`flex h-11 sm:h-10 w-full flex-none items-center justify-center gap-1.5 rounded-[10px] border px-4 text-[14px] font-semibold sm:w-auto ${copied ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border2 bg-s1 text-text hover:bg-s2'}`}
+              className={`flex h-11 sm:h-10 w-full flex-none items-center justify-center gap-1.5 rounded-full border px-4 text-[14px] font-semibold sm:w-auto ${copied ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border2 bg-s1 text-text hover:bg-s2'}`}
             >
               {copied ? <><Check size={15} /> Link copied</> : <><Link2 size={15} /> Share link</>}
             </button>
@@ -367,7 +375,7 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
           {!e.demo && (
             <Link
               href={`/create?from=${e.id}`} onClick={(ev) => ev.stopPropagation()} title="Duplicate this event"
-              className="flex h-11 sm:h-10 w-full flex-none items-center justify-center gap-1.5 rounded-[10px] border border-border2 bg-s1 px-4 text-[14px] font-semibold text-text hover:bg-s2 sm:w-auto"
+              className="flex h-11 sm:h-10 w-full flex-none items-center justify-center gap-1.5 rounded-full border border-border2 bg-s1 px-4 text-[14px] font-semibold text-text hover:bg-s2 sm:w-auto"
             >
               <CopyPlus size={15} /> Duplicate
             </Link>
