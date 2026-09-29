@@ -323,7 +323,8 @@ function CreateWizard() {
      the focus can go straight to the field. It stays mounted while closed, so a row
      keeps what it was showing. */
   // 'closing' is the fold on its way shut: still drawn, already not expanded
-  const [more, setMore] = useState<'closed' | 'open' | 'closing'>('closed')
+  // Home's quick create has its own More options link, which lands here with it open
+  const [more, setMore] = useState<'closed' | 'open' | 'closing'>(() => (params.get('more') === '1' ? 'open' : 'closed'))
   const [moreByHand, setMoreByHand] = useState(false)
   const [moreAlertWas, setMoreAlertWas] = useState(false)
   const moreBody = useRef<HTMLDivElement>(null)
