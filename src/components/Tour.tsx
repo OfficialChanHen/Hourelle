@@ -57,7 +57,7 @@ function gridCard(ctx: TourContext, title: string): Candidate {
 // the host's place stop: what there is to do depends on how the place is decided
 function hostPlaceCard(ctx: TourContext): Candidate {
   const title = 'Where it happens'
-  if (ctx.placeMode === 'remote') return { sel: 'location', title, text: 'This one is online. Add the meeting link here so it goes out with the plan.' }
+  if (ctx.placeMode === 'remote') return { sel: 'location', title, text: 'This one is online. Add the meeting link here so everyone gets it when you lock it in.' }
   if (ctx.placeMode === 'set') return { sel: 'location', title, text: 'The place is set. You can change it here any time before you lock in.' }
   if (ctx.itinerary) return { sel: 'location', title, text: 'Add the stops and put them in order. Everyone sees the route.', tryIt: 'Add a stop.' }
   if (!ctx.places) return { sel: 'location', title, text: 'Add a few places and everyone votes. You pick the winner when you lock in.', tryIt: 'Add a place.' }
@@ -94,11 +94,11 @@ function hostStops(ctx: TourContext): Stop[] {
     ...peopleStop(ctx, 'One person at a time'),
     { tab: 'location', targets: [hostPlaceCard(ctx)] },
     { tab: 'availability', targets: [
-      { sel: 'tabs', title: 'The rest of the plan', text: 'Attendance shows who is coming. Event details has everything else, including invites by email.' },
+      { sel: 'tabs', title: 'The other tabs', text: 'Attendance shows who is coming. Details has the rest, including invites by email.' },
     ] },
     { tab: 'availability', targets: [
-      { sel: 'lock', title: 'Lock it in', text: ctx.placeMode === 'remote' ? 'Pick a time. Everyone gets the plan and can RSVP.' : 'Pick a time and place. Everyone gets the plan and can RSVP.', tryIt: 'Press it to see the best time. Nothing is final until you confirm.' },
-      { sel: 'create', title: 'Your own event', text: 'Start your own event here.' },
+      { sel: 'lock', title: 'Lock it in', text: ctx.placeMode === 'remote' ? 'Pick a time. Everyone gets the details and can RSVP.' : 'Pick a time and place. Everyone gets the details and can RSVP.', tryIt: 'Press it to see the best time. Nothing is final until you confirm.' },
+      { sel: 'create', title: 'Your own plan', text: 'Start your own plan here.' },
     ] },
     { end: true },
   ]
@@ -119,7 +119,7 @@ function guestLockedStops(ctx: TourContext): Stop[] {
       { sel: 'attendance', title: 'Who is coming', text: 'See who has answered and who has not.' },
     ] },
     { tab: 'availability', targets: [
-      { sel: 'chat', title: 'Say something', text: 'Everyone on the event can chat here.' },
+      { sel: 'chat', title: 'Say something', text: 'Everyone on the plan can chat here.' },
     ] },
     { end: true },
   ]
@@ -133,10 +133,10 @@ function guestStops(ctx: TourContext): Stop[] {
     ...peopleStop(ctx, 'Who else has answered'),
     { tab: 'location', targets: [guestPlaceCard(ctx)] },
     { tab: 'availability', targets: [
-      { sel: 'tabs', title: 'The rest of the event', text: 'Attendance shows who is coming. Event details has the rest of the plan.' },
+      { sel: 'tabs', title: 'The other tabs', text: 'Attendance shows who is coming. Details has the rest.' },
     ] },
     { tab: 'availability', targets: [
-      { sel: 'chat', title: 'Say something', text: 'Everyone on the event can chat here.' },
+      { sel: 'chat', title: 'Say something', text: 'Everyone on the plan can chat here.' },
     ] },
     { end: true },
   ]
@@ -383,7 +383,7 @@ export function Tour({ host = false, locked = false, ctx = PLAIN }: { host?: boo
           <>
             <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">The end</div>
             <div id={titleId} className="mt-1 font-serif text-[21px] leading-[1.15] tracking-[-0.01em]">That is the tour</div>
-            <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">{host ? 'This practice event is yours to play with. The Help page has a short clip of each step.' : 'Your answers save as you go. The Help page has a short clip of each step.'}</p>
+            <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">{host ? 'This practice plan is yours to play with. The Help page has a short clip of each step.' : 'Your answers save as you go. The Help page has a short clip of each step.'}</p>
             <div className="mt-3.5 flex items-center justify-between gap-3">
               <Link href={watchHref} onClick={finish} className="flex items-center gap-1.5 text-[13px] font-semibold text-accent-text hover:underline">
                 <PlayCircle size={15} /> Watch the clips

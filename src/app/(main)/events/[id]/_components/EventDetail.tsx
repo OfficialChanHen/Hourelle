@@ -77,7 +77,7 @@ const TABS = [
   { key: 'availability', label: 'Availability', short: 'Availability' },
   { key: 'location', label: 'Location', short: 'Location' },
   { key: 'attendance', label: 'Attendance', short: 'Attendance' },
-  { key: 'details', label: 'Event details', short: 'Details' },
+  { key: 'details', label: 'Details', short: 'Details' },
 ] as const
 type TabKey = (typeof TABS)[number]['key']
 
@@ -167,7 +167,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     // `you` markers on them, host powers off. Raw storage is untouched.
     // an event this browser hosts but nobody owns, opened by a real account: it is
     // yours now — the host entry takes your identity and the row gains a host_id
-    if (claimEvent(id)) pushFlash('This event is now on your account', 'accent')
+    if (claimEvent(id)) pushFlash('This plan is now on your account', 'accent')
     const raw = getEvent(id)
     const ev = raw ? viewOf(raw) : raw
     setEvent(ev)
@@ -207,7 +207,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     // the photos filed under it have nothing left to belong to
     void removeEventCovers(id)
     deleteEvent(id)
-    pushFlash(title ? `${title} was deleted` : 'Event deleted', 'brick')
+    pushFlash(title ? `${title} was deleted` : 'Plan deleted', 'brick')
     // back to wherever they came from; a straight-to-URL visit falls back to home
     if (typeof window !== 'undefined' && window.history.length > 1) router.back()
     else router.push('/home')
@@ -216,7 +216,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   function handleLeave() {
     const title = event?.title
     leaveEvent(id)
-    pushFlash(title ? `${title} was removed from your events` : 'Removed from your events', 'brick')
+    pushFlash(title ? `${title} was removed from your plans` : 'Removed from your plans', 'brick')
     if (typeof window !== 'undefined' && window.history.length > 1) router.back()
     else router.push('/home')
   }
@@ -272,9 +272,9 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   if (event === null) {
     return (
       <div className="mx-auto max-w-[560px] px-[26px] pt-[72px] text-center">
-        <p className="font-serif font-normal text-[33.5px] tracking-[-0.01em]">Event not found</p>
-        <p className="mx-auto mt-2 max-w-sm text-[14.5px] text-dim">This event doesn&apos;t exist on this device, or the link is wrong.</p>
-        <Link href="/create" className="mt-5 inline-flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent">Create an event</Link>
+        <p className="font-serif font-normal text-[33.5px] tracking-[-0.01em]">Plan not found</p>
+        <p className="mx-auto mt-2 max-w-sm text-[14.5px] text-dim">This plan doesn&apos;t exist on this device, or the link is wrong.</p>
+        <Link href="/create" className="mt-5 inline-flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent">Start a plan</Link>
       </div>
     )
   }
@@ -358,7 +358,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     ? { href: '/demos', label: 'All demos' }
     : lastListPage() === 'home'
       ? { href: '/home', label: 'Home' }
-      : { href: '/events', label: 'All events' }
+      : { href: '/events', label: 'All plans' }
 
   return (
     <div className="mx-auto max-w-[1240px] px-4 pb-[92px] pt-5 sm:px-[26px] sm:pt-[34px]">
@@ -430,7 +430,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           {() => (
             // the same rule as the desktop button: nothing to hand out once it is over
             phase === 'past' ? (
-              <p className="px-3.5 py-3 text-[12.5px] leading-[1.5] text-dim">This event is over, so its link is closed. Duplicate it to plan the next one.</p>
+              <p className="px-3.5 py-3 text-[12.5px] leading-[1.5] text-dim">This plan is over, so its link is closed. Duplicate it to start the next one.</p>
             ) : (
             <PopoverItem onClick={copy} icon={copied ? <Check size={15} className="text-teal-text" /> : <Link2 size={15} />}>
               {copied ? 'Link copied' : 'Copy invite link'}
@@ -501,12 +501,12 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
 
       {/* the host's one line about the lock-in, gone once dismissed */}
       {event.hostedByYou && phase === 'planning' && (
-        <Hint name="lock" className="mb-4">Once enough people are free at the same time, Lock it in sets the plan and tells everyone.</Hint>
+        <Hint name="lock" className="mb-4">Once enough people are free at the same time, Lock it in sets the time and tells everyone.</Hint>
       )}
 
       {/* tabs — horizontally scrollable on narrow screens, with edge fades hinting more */}
       <div className="relative mb-4 sm:mb-6">
-        <div ref={tabsRef} data-tour="tabs" role="tablist" aria-label="Event sections" onKeyDown={onTabKey} onScroll={checkTabFade} className="scroll-slim flex items-center gap-1 overflow-x-auto pb-1 sm:gap-1.5">
+        <div ref={tabsRef} data-tour="tabs" role="tablist" aria-label="Plan sections" onKeyDown={onTabKey} onScroll={checkTabFade} className="scroll-slim flex items-center gap-1 overflow-x-auto pb-1 sm:gap-1.5">
           {TABS.map((t) => {
             const active = tab === t.key
             return (
@@ -598,7 +598,7 @@ function EditableTitle({ title, editable, onSave }: { title: string; editable: b
     }
     return (
       <input
-        ref={ref} defaultValue={title} autoFocus maxLength={80} aria-label="Event name"
+        ref={ref} defaultValue={title} autoFocus maxLength={80} aria-label="Plan name"
         onBlur={save}
         onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
         className={`w-full max-w-[560px] rounded-[10px] border border-border bg-s0 px-3 py-0.5 outline-none focus:border-accent ${h1}`}
@@ -608,7 +608,7 @@ function EditableTitle({ title, editable, onSave }: { title: string; editable: b
   return (
     <span className="flex items-center gap-2.5">
       <h1 className={`min-w-0 ${h1}`}>{title}</h1>
-      <button onClick={() => setEditing(true)} title="Rename this event" aria-label="Rename this event" className="grid h-8 w-8 flex-none place-items-center rounded-full text-faint hover:bg-s2 hover:text-dim">
+      <button onClick={() => setEditing(true)} title="Rename this plan" aria-label="Rename this plan" className="grid h-8 w-8 flex-none place-items-center rounded-full text-faint hover:bg-s2 hover:text-dim">
         <Pencil size={15} />
       </button>
     </span>
@@ -642,7 +642,7 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
         {/* optional deadlines — each reminds everyone the day before and the day of.
             Plan-by belongs to planning, RSVP-by to the locked plan. */}
         {!locked && (isHost || event.planDeadline) && (
-          <DetailRow k="Plan by" v={<DeadlineValue label="Plan by" value={event.planDeadline} editable={isHost} onChange={(v) => onPatch({ planDeadline: v })} hint="Reminders go out the day before and the day of." max={event.endDate} />} />
+          <DetailRow k="Decide by" v={<DeadlineValue label="Decide by" value={event.planDeadline} editable={isHost} onChange={(v) => onPatch({ planDeadline: v })} hint="Reminders go out the day before and the day of." max={event.endDate} />} />
         )}
         {locked && (isHost || event.rsvpDeadline) && (
           <DetailRow k="RSVP by" v={<DeadlineValue label="RSVP by" value={event.rsvpDeadline} editable={isHost} onChange={(v) => onPatch({ rsvpDeadline: v })} hint="Everyone gets a reminder the day before and the day of. Late answers still count." max={event.confirmed?.dayKey} />} />
@@ -661,7 +661,7 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
             align="start"
           />
           <Link href={`/create?from=${event.id}`} className="flex h-8 items-center gap-1.5 rounded-full border border-border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2">
-            <CopyPlus size={15} /> Duplicate this event
+            <CopyPlus size={15} /> Duplicate this plan
           </Link>
         </div>
       </div>
@@ -803,7 +803,7 @@ function InviteMore({ event, onPatch, openNonce = 0 }: { event: AppEvent; onPatc
   // nobody is invited to something that already happened; the copy is where the
   // next one starts, and that one is open again from the moment it is made
   if (phaseOf(event) === 'past') {
-    return <p className="rounded-[9px] border border-border bg-s0 px-3.5 py-2.5 text-[12.5px] leading-[1.5] text-dim">This event is over, so invitations are closed. Duplicate it to plan the next one.</p>
+    return <p className="rounded-[9px] border border-border bg-s0 px-3.5 py-2.5 text-[12.5px] leading-[1.5] text-dim">This plan is over, so invitations are closed. Duplicate it to start the next one.</p>
   }
   return (
     <div ref={wrap}>
@@ -944,7 +944,7 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
           {others.length > 0 && (
             <PopoverItem onClick={() => setMerging(true)} icon={<Merge size={15} />}>Merge into someone else</PopoverItem>
           )}
-          <PopoverItem onClick={() => setConfirmRemove(true)} tone="brick">Remove from event</PopoverItem>
+          <PopoverItem onClick={() => setConfirmRemove(true)} tone="brick">Remove from plan</PopoverItem>
         </>
       )}
     </>
@@ -1012,7 +1012,7 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
       <span className="flex flex-wrap items-center gap-1.5">
         {dow ? `${dow}, ` : ''}{dateRangeText(event)}
         {editable && (
-          <button onClick={() => setEditing(true)} title="Change the dates or event length" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
+          <button onClick={() => setEditing(true)} title="Change the dates or length" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
             <Pencil size={13} />
           </button>
         )}
@@ -1431,7 +1431,7 @@ function NameValue({ event, editable, onPatch }: { event: AppEvent; editable: bo
     }
     return (
       <input
-        ref={ref} defaultValue={event.title} autoFocus maxLength={80} aria-label="Event name"
+        ref={ref} defaultValue={event.title} autoFocus maxLength={80} aria-label="Plan name"
         onBlur={save}
         onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
         className="h-9 w-full max-w-[420px] rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-accent"
@@ -1441,7 +1441,7 @@ function NameValue({ event, editable, onPatch }: { event: AppEvent; editable: bo
   return (
     <span className="flex items-start gap-2">
       <span className="min-w-0 flex-1">{event.title}</span>
-      <button onClick={() => setEditing(true)} title="Rename this event" aria-label="Rename this event" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
+      <button onClick={() => setEditing(true)} title="Rename this plan" aria-label="Rename this plan" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
         <Pencil size={13} />
       </button>
     </span>
@@ -1468,7 +1468,7 @@ function DescriptionValue({ event, editable, onPatch }: { event: AppEvent; edita
         <textarea
           ref={ref} defaultValue={desc} rows={3} autoFocus maxLength={500}
           aria-label="Description"
-          placeholder="What is this event about?"
+          placeholder="Dinner, then drinks nearby"
           className="w-full resize-y rounded-[9px] border border-border bg-s0 px-3 py-2 text-[13.5px] leading-[1.5] outline-none focus:border-accent"
         />
         <div className="flex items-center gap-2">
@@ -1730,7 +1730,7 @@ function LeaveZone({ title, onLeave, spotlight = false }: { title: string; onLea
     return (
       <div className="w-full">
         <button onClick={() => setOpen(true)} className="flex items-center gap-2 rounded-[9px] px-2.5 py-2 text-[13px] font-medium text-dim hover:bg-s2 hover:text-brick-text">
-          <UserRoundX size={15} /> Remove from my events…
+          <UserRoundX size={15} /> Leave this plan…
         </button>
       </div>
     )
@@ -1742,7 +1742,7 @@ function LeaveZone({ title, onLeave, spotlight = false }: { title: string; onLea
       </p>
       <div className="flex flex-none items-center gap-2">
         <button onClick={onLeave} className="h-8 rounded-full px-3 text-[13px] font-semibold text-white" style={{ background: 'var(--brick)' }}>
-          Remove
+          Leave
         </button>
         <button onClick={() => setOpen(false)} className="h-8 rounded-full border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2">
           Keep it
@@ -1776,7 +1776,7 @@ function DangerZone({ title, onDelete, spotlight = false }: { title: string; onD
     return (
       <div className="w-full">
         <button onClick={() => setOpen(true)} className="flex items-center gap-2 rounded-[9px] px-2.5 py-2 text-[13px] font-medium text-brick-text hover:bg-brick-bg">
-          <Trash2 size={15} /> Delete this event…
+          <Trash2 size={15} /> Delete this plan…
         </button>
       </div>
     )
@@ -1785,7 +1785,7 @@ function DangerZone({ title, onDelete, spotlight = false }: { title: string; onD
     <div ref={zone} className="relative w-full rounded-2xl border border-border bg-s1 p-5">
       <button
         onClick={() => setOpen(false)}
-        aria-label="Close" title="Keep the event"
+        aria-label="Close" title="Keep the plan"
         className="absolute right-3 top-3 grid h-7 w-7 place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim"
       >
         <X size={15} />
@@ -1796,7 +1796,7 @@ function DangerZone({ title, onDelete, spotlight = false }: { title: string; onD
           <div className="min-w-0 flex-1">
             <div className="text-[14px] font-semibold text-brick-text">Delete &ldquo;{title}&rdquo;?</div>
             <div className="mt-1 text-[13.5px] leading-[1.5] text-brick-text/90">
-              This deletes the event for everyone. All availability responses, location votes, and messages go with it. There is no undo.
+              This deletes the plan for everyone. All availability responses, location votes, and messages go with it. There is no undo.
             </div>
             <div className="mt-3 flex items-center gap-2">
               <button onClick={onDelete} className="flex h-9 items-center rounded-full px-3.5 text-[13.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>

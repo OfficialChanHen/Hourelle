@@ -105,7 +105,7 @@ export function HeroGrid() {
         </span>
         <span className="text-[13.5px] font-semibold">Sep 10 – Sep 15 <span className="font-medium text-faint">(week 1 of 2)</span></span>
         <span className="flex h-7 items-center overflow-hidden rounded-full border border-border bg-s1 text-[12px] font-medium" aria-hidden>
-          <span className="flex h-full items-baseline gap-1 bg-accent px-2 pt-[6px] font-semibold text-on-accent">Event <span className="font-mono text-[10.5px]">PDT</span></span>
+          <span className="flex h-full items-baseline gap-1 bg-accent px-2 pt-[6px] font-semibold text-on-accent">Plan <span className="font-mono text-[10.5px]">PDT</span></span>
           <span className="flex h-full items-baseline gap-1 px-2 pt-[6px] text-dim">Yours <span className="font-mono text-[10.5px]">CDT</span></span>
         </span>
       </div>

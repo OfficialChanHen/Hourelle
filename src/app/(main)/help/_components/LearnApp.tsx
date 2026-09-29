@@ -58,12 +58,12 @@ function Learn() {
             <div className="mt-0.5 text-[12.5px] text-dim">
               {invited
                 ? <>A minute round <span className="font-semibold text-text">{invited.title}</span>, trying each thing as you go.</>
-                : 'A few minutes on a practice event of your own, made fresh each time.'}
+                : 'A few minutes on a practice plan of your own, made fresh each time.'}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {invited && <button type="button" onClick={tourHere} className={btn}><Compass size={14} /> Tour this event</button>}
-            {canPractice && <button type="button" onClick={tourPractice} className={btn}><Compass size={14} /> {invited ? 'Practice event' : 'Take the tour'}</button>}
+            {invited && <button type="button" onClick={tourHere} className={btn}><Compass size={14} /> Tour this plan</button>}
+            {canPractice && <button type="button" onClick={tourPractice} className={btn}><Compass size={14} /> {invited ? 'Practice plan' : 'Take the tour'}</button>}
           </div>
         </div>
       )}

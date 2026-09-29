@@ -378,7 +378,7 @@ function CreateWizard() {
     ? selectedDayKeys(form.startDate, form.endDate, form.excludedDows, form.excludedDays)
     : null
   const basicsErr: BasicsErrs = {
-    title: form.title.trim() ? '' : 'Add an event title.',
+    title: form.title.trim() ? '' : 'Name the plan.',
     start: startErr,
     end: endErr,
     days: !selKeys
@@ -397,7 +397,7 @@ function CreateWizard() {
           : polling && form.granularity !== 'day' && clock && form.startDate === zToday && form.endDate === zToday && (parseHM(form.windowEnd) ?? 1440) <= clock.minute
             ? `That window has already passed today in ${zoneName}.`
             : '',
-    tz: form.timezone ? '' : 'Pick the time zone this event runs in.',
+    tz: form.timezone ? '' : 'Pick the time zone this plan runs in.',
     fixed: polling
       ? ''
       : !form.fixedDay
@@ -481,10 +481,10 @@ function CreateWizard() {
       void sendInvites(ev.id).then((r) => {
         const went = r.ok ? r.data.sent + r.data.already : 0
         if (r.ok && (went > 0 || r.data.failed === 0)) return
-        pushFlash(`The invites could not be emailed. ${r.ok ? r.data.reason ?? '' : r.error} Personal links are on the event page.`.replace('  ', ' '), 'brick')
+        pushFlash(`The invites could not be emailed. ${r.ok ? r.data.reason ?? '' : r.error} Personal links are on the plan page.`.replace('  ', ' '), 'brick')
       })
     }
-    pushFlash(sending ? `Your event is live. Emailing ${emailed} ${emailed === 1 ? 'invite' : 'invites'}.` : 'Your event is live. Share the link so people can join.')
+    pushFlash(sending ? `Your plan is live. Emailing ${emailed} ${emailed === 1 ? 'invite' : 'invites'}.` : 'Your plan is live. Share the link so people can join.')
     router.push(`/events/${ev.id}`)
   }
 
@@ -509,7 +509,7 @@ function CreateWizard() {
 
   return (
     <div className="mx-auto max-w-[760px] px-4 pb-[92px] pt-6 sm:px-[26px] sm:pt-[34px]">
-      <h1 className="mb-4 text-center font-serif sm:font-normal text-[27px] leading-[1.04] tracking-[-0.01em] sm:mb-5 sm:text-[33.5px]">Create event</h1>
+      <h1 className="mb-4 text-center font-serif sm:font-normal text-[27px] leading-[1.04] tracking-[-0.01em] sm:mb-5 sm:text-[33.5px]">Start a plan</h1>
 
       {/* start from a template: one tap seeds the form, tap again to go blank. On a
           phone it is a single row that scrolls sideways inside itself, so it costs
@@ -573,7 +573,7 @@ function CreateWizard() {
                   value={form.description}
                   onChange={(e) => update({ description: e.target.value })}
                   aria-label="Description"
-                  placeholder="What's this event about?"
+                  placeholder="Dinner, then drinks nearby"
                   className={`${inputCls(false)} h-[72px] resize-none py-[11px] leading-[1.5]`}
                 />
               </Collapse>
@@ -623,7 +623,7 @@ function CreateWizard() {
           title={basicsOk ? undefined : firstMissing}
           className="flex h-11 sm:h-10 items-center gap-1.5 rounded-full bg-accent px-[18px] text-[14px] font-semibold text-on-accent aria-disabled:cursor-not-allowed aria-disabled:opacity-40"
         >
-          <Check size={17} /> Create event
+          <Check size={17} /> Start the plan
         </button>
       </div>
       {!basicsOk && (
@@ -705,7 +705,7 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <Label htmlFor="ev-title">Event title <Req /></Label>
+        <Label htmlFor="ev-title">Plan name <Req /></Label>
         <input id="ev-title" value={form.title} onChange={(e) => update({ title: e.target.value })} placeholder="e.g. Friday dinner" aria-invalid={show(errs.title) || undefined} aria-describedby={show(errs.title) ? 'ev-title-err' : undefined} className={inputCls(show(errs.title))} />
         {show(errs.title) && <FieldError id="ev-title-err">{errs.title}</FieldError>}
       </div>
@@ -731,11 +731,11 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
           <div className="grid grid-cols-2 gap-2.5">
             <div className="min-w-0">
               <span className={small}>From</span>
-              <DateField label="First day of the event" value={form.fixedDay} min={today || undefined} onChange={onFixedDay} invalid={show(errs.fixed) && !form.fixedDay} describedBy={show(errs.fixed) ? 'ev-fixed-err' : undefined} className="h-11 sm:h-10" />
+              <DateField label="First day" value={form.fixedDay} min={today || undefined} onChange={onFixedDay} invalid={show(errs.fixed) && !form.fixedDay} describedBy={show(errs.fixed) ? 'ev-fixed-err' : undefined} className="h-11 sm:h-10" />
             </div>
             <div className="min-w-0">
               <span className={small}>To</span>
-              <DateField label="Last day of the event" value={fxEnd} min={form.fixedDay || today || undefined} onChange={(v) => update({ fixedEndDay: v && form.fixedDay && v < form.fixedDay ? form.fixedDay : v })} className="h-11 sm:h-10" />
+              <DateField label="Last day" value={fxEnd} min={form.fixedDay || today || undefined} onChange={(v) => update({ fixedEndDay: v && form.fixedDay && v < form.fixedDay ? form.fixedDay : v })} className="h-11 sm:h-10" />
             </div>
           </div>
 
@@ -1127,7 +1127,7 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
           </Field>
           <div className="flex items-start gap-2 rounded-[10px] border border-border bg-s2 px-[13px] py-[11px]">
             <Info size={16} className="mt-0.5 text-accent-text" />
-            <span className="text-[13px] leading-[1.5] text-dim">You don&apos;t need the link right away. Add it whenever you have it and everyone will see it on the event page and in their reminders. There&apos;s no map for online events.</span>
+            <span className="text-[13px] leading-[1.5] text-dim">You don&apos;t need the link right away. Add it whenever you have it and everyone will see it on the plan page and in their reminders. There&apos;s no map for online plans.</span>
           </div>
         </div>
       )}
@@ -1220,7 +1220,7 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
         <div>
           <div className="mb-2 flex items-center gap-2">
             <UserPlus size={16} className="text-dim" />
-            <span className="text-[13px] font-semibold text-dim">People from your other events</span>
+            <span className="text-[13px] font-semibold text-dim">People from your other plans</span>
           </div>
           <div className="overflow-hidden rounded-xl border border-border">
             {recent.map((r, i) => {
@@ -1249,7 +1249,7 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
 
       <div className="flex items-center gap-1.5 text-[13px] text-dim">
         <Users size={15} />
-        {total === 0 ? 'No one added yet. You can also invite people after the event is created.' : `${total} ${total === 1 ? 'person' : 'people'} will be invited when you create the event.`}
+        {total === 0 ? 'No one added yet. You can also invite people after the plan is started.' : `${total} ${total === 1 ? 'person' : 'people'} will be invited when you start the plan.`}
       </div>
     </div>
   )
@@ -1299,10 +1299,10 @@ function Created({ event: initial }: { event: AppEvent }) {
   const inviteLine = emailCount > 0 && (
     invites.state === 'sending' ? `Emailing ${emailCount} ${emailCount === 1 ? 'invite' : 'invites'}…`
       : invites.state === 'sent' ? `${invites.sent} ${invites.sent === 1 ? 'invite' : 'invites'} emailed with a personal link.${invites.error ? ` ${invites.error}` : ''}`
-        : invites.state === 'failed' ? `The invites could not be emailed${invites.error ? `: ${invites.error}` : '.'} Their personal links are on the event page.`
+        : invites.state === 'failed' ? `The invites could not be emailed${invites.error ? `: ${invites.error}` : '.'} Their personal links are on the plan page.`
           : account.signedIn
-            ? `Email is not switched on for this site yet, so the ${emailCount === 1 ? 'personal link is' : `${emailCount} personal links are`} waiting on the event page.`
-            : `${emailCount} ${emailCount === 1 ? 'person has' : 'people have'} a personal link waiting on the event page. Log in to email invites.`
+            ? `Email is not switched on for this site yet, so the ${emailCount === 1 ? 'personal link is' : `${emailCount} personal links are`} waiting on the plan page.`
+            : `${emailCount} ${emailCount === 1 ? 'person has' : 'people have'} a personal link waiting on the plan page. Log in to email invites.`
   )
 
   return (
@@ -1310,7 +1310,7 @@ function Created({ event: initial }: { event: AppEvent }) {
       <div className="mx-auto max-w-[560px] px-[26px] pb-[92px] pt-[64px]">
         <div ref={card} className="rounded-2xl border border-border bg-s1 px-7 py-9 text-center shadow-soft">
           <span className="created-check mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full border border-teal-border bg-teal-bg text-teal-text"><Check size={34} /></span>
-          <h1 className="font-serif font-normal text-[33.5px] leading-[1.05] tracking-[-0.01em]">Your event is <Em>live</Em></h1>
+          <h1 className="font-serif font-normal text-[33.5px] leading-[1.05] tracking-[-0.01em]">Your plan is <Em>live</Em></h1>
           <p className="mx-auto mt-2 max-w-[380px] text-[14.5px] leading-[1.55] text-dim">
             <span className="font-semibold text-text">{event.title}</span> has been created. Share the link below so anyone can join, say when they&apos;re free, and chat.
           </p>
@@ -1331,7 +1331,7 @@ function Created({ event: initial }: { event: AppEvent }) {
 
           <div className="mt-7 flex items-center justify-center gap-2.5">
             <Link href={`/events/${slug}?tab=availability`} className="flex h-10 items-center gap-1.5 rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent">
-              Go to event <ArrowRight size={17} />
+              Open the plan <ArrowRight size={17} />
             </Link>
             <Link href="/home" className="flex h-10 items-center rounded-full border border-border2 px-4 text-[14px] font-semibold hover:bg-s2">Back home</Link>
           </div>
@@ -1342,7 +1342,7 @@ function Created({ event: initial }: { event: AppEvent }) {
       <div ref={toast} className="pointer-events-none absolute left-1/2 top-4 w-max max-w-[calc(100vw-24px)] -translate-x-1/2 opacity-0">
         <div className="flex items-center gap-2.5 rounded-xl border border-border2 bg-s1 px-4 py-3 shadow-soft">
           <span className="grid h-7 w-7 place-items-center rounded-full bg-accent-bg text-accent-text"><PartyPopper size={17} /></span>
-          <span className="text-[14px] font-semibold">Event created</span>
+          <span className="text-[14px] font-semibold">Plan started</span>
         </div>
       </div>
     </div>

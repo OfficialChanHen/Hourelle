@@ -144,7 +144,7 @@ function Welcome() {
     <div className="mx-auto max-w-[860px] px-4 pb-[92px] pt-[34px] sm:px-[26px]">
       <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">Welcome</p>
       <h1 className="mt-2 font-serif font-normal text-[40px] leading-[1.06] tracking-[-0.01em]">
-        {waiting ? 'One moment.' : step === 'terms' ? 'Before you start.' : step === 'settings' ? 'Make it yours.' : step === 'plan' ? 'Pick a plan.' : 'One more thing.'}
+        {waiting ? 'One moment.' : step === 'terms' ? 'Before you start.' : step === 'settings' ? 'Make it yours.' : step === 'plan' ? 'Free or Plus.' : 'One more thing.'}
       </h1>
       <p className="mt-3 max-w-[560px] text-[15px] leading-[1.65] text-dim">
         {waiting
@@ -153,7 +153,7 @@ function Welcome() {
           ? 'Two short documents say what Hourelle keeps and how it may be used. Open each one, then tick its box.'
           : step === 'settings' ? 'Three things people set first. Everything here can be changed in Settings later.'
             : step === 'plan' ? 'Hosting is free and stays free. Plus is a thank-you with a few extras, and it is not on sale yet.'
-              : 'A short tour walks through an event and lets you try each thing as you go. It runs on a practice event of your own, and you can leave it at any point.'}
+              : 'A short tour walks through a plan and lets you try each thing as you go. It runs on a practice plan of your own, and you can leave it at any point.'}
       </p>
 
       {/* the dots, the way the event lifecycle strip counts */}
@@ -168,7 +168,7 @@ function Welcome() {
           return (
             <span key={s} className="flex items-center gap-2">
               <span className={`grid h-6 w-6 place-items-center rounded-full border text-[11px] ${n < stepIndex ? 'border-teal-border bg-teal-bg text-teal-text' : n === stepIndex ? 'border-accent bg-accent text-on-accent' : 'border-border2 text-faint'}`}>{n < stepIndex ? <Check size={12} /> : n}</span>
-              <span className={n === stepIndex ? 'text-text' : ''}>{s === 'terms' ? 'Terms' : s === 'settings' ? 'Settings' : s === 'plan' ? 'Plan' : 'Tour'}</span>
+              <span className={n === stepIndex ? 'text-text' : ''}>{s === 'terms' ? 'Terms' : s === 'settings' ? 'Settings' : s === 'plan' ? 'Pricing' : 'Tour'}</span>
               {n < steps.length && <span className="mx-1 h-px w-8 bg-border2" aria-hidden />}
             </span>
           )
@@ -191,7 +191,7 @@ function Welcome() {
           <div className="overflow-hidden rounded-2xl border border-border bg-s1">
             <div className="px-5 py-4">
               <label htmlFor="welcome-name" className="block text-[14px] font-medium">Your name</label>
-              <p className="mt-0.5 text-[12.5px] text-dim">How you appear on events and in the chat. First and last is best.</p>
+              <p className="mt-0.5 text-[12.5px] text-dim">How you appear on plans and in the chat. First and last is best.</p>
               <input
                 id="welcome-name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name"
                 className="mt-2.5 h-11 w-full max-w-[380px] rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none focus:border-accent"
@@ -200,7 +200,7 @@ function Welcome() {
             <div className="flex items-center justify-between gap-4 border-t border-border px-5 py-4">
               <div className="min-w-0">
                 <div className="text-[14px] font-medium">Email reminders</div>
-                <div className="mt-0.5 truncate text-[12.5px] text-dim">{account.email ? `Sent to ${account.email}, the day before and the day of.` : 'The day before and the day of an event.'}</div>
+                <div className="mt-0.5 truncate text-[12.5px] text-dim">{account.email ? `Sent to ${account.email}, the day before and the day of.` : 'The day before and the day it happens.'}</div>
               </div>
               {ready ? <Switch on={notify.email} onChange={changeEmail} label="Email reminders" /> : <span className="h-6 w-11 animate-pulse rounded-full bg-s2" aria-hidden />}
             </div>
@@ -265,7 +265,7 @@ function Welcome() {
             <li><span className="font-medium text-text">The grid.</span> Drag across the hours you can meet.</li>
             <li><span className="font-medium text-text">Location.</span> Places on a ballot, votes, and a route.</li>
             <li><span className="font-medium text-text">Attendance and details.</span> Who is coming, and everything else.</li>
-            <li><span className="font-medium text-text">The lock-in.</span> The host sets the plan and everyone gets it.</li>
+            <li><span className="font-medium text-text">The lock-in.</span> The host picks the time and everyone gets the details.</li>
           </ol>
           <button type="button" onClick={showAround} className="mt-4 flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent">
             Show me around <ArrowRight size={15} />

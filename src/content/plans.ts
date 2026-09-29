@@ -32,7 +32,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     priceNote: 'always',
     tagline: 'The whole thing, for everyone.',
     features: [
-      'Unlimited events, guests and places',
+      'Unlimited plans, guests and places',
       'The availability grid, day polls and quick fills',
       'Place votes, itineraries and driving routes',
       'Chat, RSVPs and attendance',
@@ -72,7 +72,7 @@ export type Row = { label: string; free: Answer; plus: Answer }
 
 export const CRUCIAL: Row[] = [
   { label: 'Times, places, attendance and chat', free: true, plus: true },
-  { label: 'Any number of events, guests and places', free: true, plus: true },
+  { label: 'Any number of plans, guests and places', free: true, plus: true },
   { label: 'Guests answer without an account', free: true, plus: true },
   { label: 'Invites, reminders and add to calendar', free: true, plus: true },
   { label: 'Helps pay for better maps and a faster app', free: false, plus: true },

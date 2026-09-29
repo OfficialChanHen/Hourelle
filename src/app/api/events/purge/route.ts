@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     ev = (data?.data as AppEvent | undefined) ?? null
     if (ev && asked.every((id) => gone(ev!, id))) break
   }
-  if (!ev) return NextResponse.json({ error: 'No such event.' }, { status: 404 })
+  if (!ev) return NextResponse.json({ error: 'No such plan.' }, { status: 404 })
   const ids = asked.filter((id) => gone(ev!, id))
   if (!ids.length) return NextResponse.json({ cleared: 0 })
 

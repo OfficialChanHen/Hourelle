@@ -294,7 +294,7 @@ export function HowItWorks() {
             <div className="relative h-[268px] sm:h-[300px]">
               {/* scene 1: the plan gets named */}
               <Scene on={scene === 0}>
-                <p className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">New event</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">New plan</p>
                 <div className="mt-2 flex h-11 items-center rounded-[10px] border border-accent-border bg-s0 px-3.5 text-[15px]">
                   {typed || <span className="text-faint">What are you planning?</span>}
                   {typed.length < TITLE.length && <span className="ml-px inline-block h-[18px] w-px animate-pulse bg-text" />}
@@ -306,13 +306,13 @@ export function HowItWorks() {
                   <span className={`rounded-[8px] border px-2.5 py-1.5 transition-colors ${dates ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border text-faint'}`}>Fri, Aug 24</span>
                 </div>
                 <div className="mt-5 flex justify-end">
-                  <span className={`flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent transition-transform ${pressed ? 'scale-95' : ''} ${dates ? '' : 'opacity-40'}`}><Check size={16} /> Create event</span>
+                  <span className={`flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent transition-transform ${pressed ? 'scale-95' : ''} ${dates ? '' : 'opacity-40'}`}><Check size={16} /> Start the plan</span>
                 </div>
               </Scene>
 
               {/* scene 2: the link goes out, people arrive */}
               <Scene on={scene === 1}>
-                <p className="font-serif text-[24px] leading-tight tracking-[-0.01em]">Your event is live</p>
+                <p className="font-serif text-[24px] leading-tight tracking-[-0.01em]">Your plan is live</p>
                 <div className="mt-3 flex h-10 items-center gap-2 rounded-[10px] border border-border2 bg-s2 pl-3 pr-1.5">
                   <Link2 size={15} className="flex-none text-accent-text" />
                   <span className="flex-1 truncate font-mono text-[12.5px]">hourelle.com/e/rooftop-dinner/join</span>
@@ -383,7 +383,7 @@ export function HowItWorks() {
                 </div>
                 <div className="mt-4"><LifecycleStrip phase={locked ? 'upcoming' : 'planning'} size="sm" /></div>
                 <div className={`mt-4 rounded-[10px] border px-3.5 py-3 transition-colors ${locked ? 'border-teal-border bg-teal-bg/40' : 'border-border bg-s0'}`}>
-                  <p className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{locked ? 'The plan' : 'Best window'}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{locked ? 'Locked in' : 'Best window'}</p>
                   <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[13.5px] font-medium">
                     <span>Wed, Aug 22, 6:00 – 8:00 PM</span>
                     <span className="rounded-[5px] border border-border bg-s2 px-1.5 text-[10.5px] font-semibold text-dim">PDT</span>

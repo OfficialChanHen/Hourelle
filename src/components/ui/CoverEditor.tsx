@@ -42,7 +42,7 @@ export function CoverEditor({ image, fit = 'fill', pos, title, eventId, onChange
   const preset = COVER_PRESETS.find((p) => image === `preset:${p.id}`)
   const photo = isPhotoCover(image)
   const from = preset?.from ?? '#E4EDE7', to = preset?.to ?? '#CFE0D5'
-  const name = title.trim() || 'Your event'
+  const name = title.trim() || 'Your plan'
 
   // move an old inline cover up, once, in the background. Keyed on the data URL so a
   // patch coming back through the parent cannot start it again, and a different
@@ -99,7 +99,7 @@ export function CoverEditor({ image, fit = 'fill', pos, title, eventId, onChange
         <div className="min-w-0">
           <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[92px] border border-border sm:h-[124px]" rounded="rounded-2xl" />
           <div className="mt-2 truncate font-serif text-[21px] leading-[1.1] tracking-[-0.01em]">{name}</div>
-          <div className="mt-1 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">On the event page</div>
+          <div className="mt-1 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">On the plan page</div>
         </div>
       </div>
 

@@ -81,5 +81,5 @@ export function icsFor(ev: AppEvent, link: string, now = Date.now()): string | n
 /** A safe file name for the entry: the title's letters and digits, hyphenated. */
 export function icsFileName(ev: AppEvent): string {
   const stem = ev.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-  return `${stem || 'event'}.ics`
+  return `${stem || 'plan'}.ics`
 }

@@ -19,7 +19,7 @@ const GROUPS: Group[] = [
     sub: 'The availability grid in its three shapes: hours, half hours, and whole days.',
     picks: {
       'cabin-trip': 'A **day poll**: whole days are the question, not hours. Look for the **longest run** everyone can make.',
-      'brunch-at-mamas': 'The **place is already set**, so only the time is open. Look for how the plan narrows to one question.',
+      'brunch-at-mamas': 'The **place is already set**, so only the time is open. Look for how it narrows to one question.',
       'design-team-dinner': 'A **30-minute grid** with a **deadline** to settle by. Look for the **best window**, and who has not replied yet.',
     },
   },
@@ -35,12 +35,12 @@ const GROUPS: Group[] = [
   },
   {
     key: 'who', eyebrow: "Who's coming", tone: 'text-accent-text',
-    title: 'Once the plan is locked, who is in?',
+    title: 'Once it is locked in, who is coming?',
     sub: 'The RSVP round, the roster, and the headcount through the day.',
     picks: {
       'sarahs-housewarming': 'Time and place **locked in**, replies due by an **RSVP deadline**. Look for the **roster** grouped by who is in, unsure, or out.',
       'trivia-night-anchor': 'A **fixed date and place** from the start. Look for the **RSVP round** and the **headcount**.',
-      'shoreline-cleanup': 'A vote that **settled into a plan**. Look for **attendance**, and who **arrives late or leaves early**.',
+      'shoreline-cleanup': 'A vote that **got locked in**. Look for **attendance**, and who **arrives late or leaves early**.',
     },
   },
 ]

@@ -985,7 +985,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // shows the result right away, so the toast (what landed, Undo) is confirmation enough.
   async function startImport(provider: string, opts: { returned?: boolean } = {}) {
     if (!event.days.every((d) => ISO_DAY.test(d.key))) {
-      stashUndo(null, 'Calendar import works on events you create, not this sample.')
+      stashUndo(null, 'Calendar import works on plans you start, not this sample.')
       return
     }
     // with a backend the calendars are real: no token yet means a trip to the provider
@@ -1385,7 +1385,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     {isHost && !daysAnswer && (
                       <DurationField
                         value={durationMin} max={Math.max(step, event.times.length * step)} onChange={changeDuration}
-                        title={<span className="text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Event length</span>}
+                        title={<span className="text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Length</span>}
                       />
                     )}
                     {isHost && <div className={daysAnswer ? '' : 'border-t border-border pt-2.5'}>
@@ -1457,12 +1457,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             <div className="flex h-7 items-center overflow-hidden rounded-full border border-border bg-s1 text-[12px] font-medium" role="group" aria-label="Show times in">
               <button
                 type="button" onClick={() => setMyTime(false)} aria-pressed={!myTime}
-                title={`Event time (${tzAbbr(event.timezone)})`}
+                title={`Plan time (${tzAbbr(event.timezone)})`}
                 // the ring is drawn inside: the rounded frame clips anything outside it
                 className={`flex h-full items-center px-2 focus-visible:-outline-offset-2 ${!myTime ? 'bg-accent font-semibold text-on-accent' : 'text-dim hover:text-text'}`}
               >
                 {/* baseline-align the label and the smaller mono abbr so they sit on one line */}
-                <span className="flex items-baseline gap-1">Event <span className="font-mono text-[10.5px]">{tzAbbr(event.timezone)}</span></span>
+                <span className="flex items-baseline gap-1">Plan <span className="font-mono text-[10.5px]">{tzAbbr(event.timezone)}</span></span>
               </button>
               <button
                 type="button" onClick={() => setMyTime(true)} aria-pressed={myTime}
@@ -1544,7 +1544,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           {locked && <span className="text-[12.5px] text-faint">Planning is locked. The grid stays for reference.</span>}
           {notListed && !locked && !event.demo && (
             <span className="flex flex-wrap items-center gap-2 text-[12.5px] text-dim">
-              You are not on this event yet, so the grid is read only.
+              You are not on this plan yet, so the grid is read only.
               <button
                 type="button"
                 onClick={() => { const added = addMeToEvent(event.id); if (added) onPatch?.({ participants: [...event.participants, added] }) }}
@@ -1837,7 +1837,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         key={d.key}
                         className="min-h-[50px] border-b border-r border-border"
                         style={{ background: 'repeating-linear-gradient(-45deg, var(--s0) 0 5px, var(--s2) 5px 6px)' }}
-                        title="Outside this event's dates"
+                        title="Outside this plan's dates"
                       />
                     )
                   }
@@ -2139,7 +2139,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     )}
                   </>
                 ) : (
-                  <span className="text-[12.5px] text-dim">No block long enough for a <span className="font-semibold text-text">{fmtDur(durationMin)}</span> event yet. Try a shorter length, or wait for more responses.</span>
+                  <span className="text-[12.5px] text-dim">No block long enough for a <span className="font-semibold text-text">{fmtDur(durationMin)}</span> plan yet. Try a shorter length, or wait for more responses.</span>
                 )
               ) : block ? (
                 <>

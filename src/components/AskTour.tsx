@@ -68,7 +68,7 @@ export function AskTour({ eventId }: { eventId: string }) {
       <div className="ask-card relative w-full max-w-[400px] rounded-2xl border border-border bg-s1 p-5 shadow-soft">
         <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-accent-bg text-accent-text"><Compass size={18} /></span>
         <div className="mt-3 font-serif text-[24px] leading-[1.12] tracking-[-0.01em]">First time on Hourelle?</div>
-        <p className="mt-2 text-[13.5px] leading-[1.55] text-dim">A short tour shows where things are on this event and lets you try them as you go. It takes about a minute, and you can leave it at any point.</p>
+        <p className="mt-2 text-[13.5px] leading-[1.55] text-dim">A short tour shows where things are on this plan and lets you try them as you go. It takes about a minute, and you can leave it at any point.</p>
         {/* stacked on a phone, where each one is a thumb's target and gets the height
             to match; side by side from sm up, where they can be the usual size */}
         <div className="mt-5 flex flex-col gap-2.5 sm:mt-4 sm:flex-row-reverse sm:gap-2">

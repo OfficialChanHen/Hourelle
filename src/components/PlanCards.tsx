@@ -90,7 +90,7 @@ export function PlanCards({ onContinueFree, onPicked }: {
               <p className="mt-2 text-[13.5px] leading-[1.55] text-dim">{PLANS.free.tagline}</p>
             </div>
             {ready && plan === 'free' && (
-              <span className="flex-none rounded-md border border-teal-border bg-teal-bg px-2 py-0.5 text-[11px] font-semibold text-teal-text">Your plan</span>
+              <span className="flex-none rounded-md border border-teal-border bg-teal-bg px-2 py-0.5 text-[11px] font-semibold text-teal-text">Current</span>
             )}
           </div>
           <Lines rows={CRUCIAL} side="free" />
@@ -117,7 +117,7 @@ export function PlanCards({ onContinueFree, onPicked }: {
             </div>
             {onPlus && (
               <span className="flex flex-none items-center gap-1 rounded-md border border-teal-border bg-teal-bg px-2 py-0.5 text-[11px] font-semibold text-teal-text">
-                {source === 'comped' && <Gift size={11} />} Your plan
+                {source === 'comped' && <Gift size={11} />} Current
               </span>
             )}
           </div>

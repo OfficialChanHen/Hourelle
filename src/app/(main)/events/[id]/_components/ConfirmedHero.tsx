@@ -93,7 +93,7 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
           )}
           {event.hostedByYou && confirmReopen && (
             <span className="flex flex-wrap items-center gap-2 rounded-xl border border-ochre-border bg-ochre-bg px-2.5 py-1.5">
-              <span className="text-[12.5px] font-medium text-ochre-text">Unlocks the plan for everyone and clears the RSVPs.</span>
+              <span className="text-[12.5px] font-medium text-ochre-text">Unlocks it for everyone and clears the RSVPs.</span>
               <button onClick={reopen} className="h-7 rounded-full px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--ochre)' }}>Reopen</button>
               <button onClick={() => setConfirmReopen(false)} className="h-7 rounded-full border border-border2 bg-s1 px-2.5 text-[12.5px] font-semibold text-dim hover:bg-s2">Keep it locked</button>
             </span>

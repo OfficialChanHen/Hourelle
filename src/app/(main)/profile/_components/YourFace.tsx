@@ -118,7 +118,7 @@ export function YourFace({ account }: { account: Account }) {
         ) : saved ? (
           <span role="status" className="flex items-center gap-1 text-[13px] font-medium text-teal-text"><Check size={14} /> Saved</span>
         ) : (
-          <span className="text-[13px] text-dim">People in your events see this face.</span>
+          <span className="text-[13px] text-dim">People in your plans see this face.</span>
         )}
       </div>
     </div>

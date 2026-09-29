@@ -97,7 +97,7 @@ export default function ProfilePage() {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 text-[16px] font-semibold">{account.name}{saved && <span className="flex items-center gap-1 text-[12px] font-medium text-teal-text"><Check size={13} /> Saved</span>}</div>
               <div className="truncate text-[13px] text-dim">
-                {account.signedIn ? account.email : 'Not logged in. Your events live on this device.'}
+                {account.signedIn ? account.email : 'Not logged in. Your plans live on this device.'}
               </div>
             </div>
             {account.signedIn && (
@@ -120,7 +120,7 @@ export default function ProfilePage() {
                   aria-describedby="profile-name-hint"
                   className="mt-2 h-11 w-full max-w-[360px] rounded-[10px] border border-border bg-s0 px-3.5 text-[14px] outline-none focus:border-accent"
                 />
-                <p id="profile-name-hint" className="mt-1.5 text-[12px] text-faint">{clean.length < 2 ? 'At least two characters.' : 'Shows on every event you are part of.'}</p>
+                <p id="profile-name-hint" className="mt-1.5 text-[12px] text-faint">{clean.length < 2 ? 'At least two characters.' : 'Shows on every plan you are part of.'}</p>
               </div>
             </div>
             {saveErr && <p role="alert" className="text-[12.5px] font-medium text-brick-text">{saveErr}</p>}
@@ -194,7 +194,7 @@ export default function ProfilePage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-[14px] font-medium">Delete your account</div>
-                  <div className="mt-0.5 text-[12.5px] text-dim">Removes you and the events you host. This cannot be undone.</div>
+                  <div className="mt-0.5 text-[12.5px] text-dim">Removes you and the plans you host. This cannot be undone.</div>
                 </div>
                 <button onClick={() => setConfirmDelete(true)} className="flex h-9 items-center gap-1.5 rounded-full border border-brick-border bg-brick-bg px-3 text-[13px] font-semibold text-brick-text hover:opacity-90">
                   <Trash2 size={14} /> Delete account
@@ -204,7 +204,7 @@ export default function ProfilePage() {
               <div>
                 <p className="text-[14px] font-semibold">Delete {account.email ?? 'this account'}?</p>
                 <p className="mt-1 text-[13px] leading-[1.55] text-dim">
-                  The events you host are deleted for everyone in them. On events other people host, your name, your times and your votes are removed. Your chat messages go too. There is no way back.
+                  The plans you host are deleted for everyone in them. On plans other people host, your name, your times and your votes are removed. Your chat messages go too. There is no way back.
                 </p>
                 <label htmlFor="delete-phrase" className="mt-3 block text-[12.5px] font-semibold text-dim">Type <span className="font-mono text-text">delete my account</span> to confirm</label>
                 <input

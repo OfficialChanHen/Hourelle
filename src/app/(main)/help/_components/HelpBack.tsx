@@ -13,7 +13,7 @@ function AfterClips() {
   if (!id) return null
   return (
     <Link href={`/events/${id}`} className="mt-4 flex h-11 w-full items-center justify-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent sm:h-10 sm:w-auto sm:justify-start">
-      <ArrowLeft size={16} className="flex-none" /> <span className="truncate">{title ? `Back to ${title}` : 'Back to the event'}</span>
+      <ArrowLeft size={16} className="flex-none" /> <span className="truncate">{title ? `Back to ${title}` : 'Back to the plan'}</span>
     </Link>
   )
 }

@@ -80,7 +80,7 @@ function ConfirmModal({ event, close, onChanged, onGoToDetails, onGoToLocation, 
       <div ref={card} className="flex max-h-[calc(100dvh-32px)] w-full max-w-[400px] flex-col rounded-2xl border border-border bg-s1 shadow-soft">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <div className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint">Final plan</div>
+            <div className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint">Locking in</div>
             <div id={titleId} className="mt-0.5 text-[15.5px] font-semibold">{event.confirmed ? 'Lock in the place' : 'Lock it in'}</div>
           </div>
           <button onClick={close} aria-label="Close" className="grid h-8 w-8 place-items-center rounded-full text-dim hover:bg-s2 hover:text-text">
@@ -299,7 +299,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
         ) : !hasBallot ? (
           <div className="flex flex-wrap items-center gap-2 rounded-[9px] border border-ochre-border bg-ochre-bg px-3 py-2 text-[13px] text-ochre-text">
             <MapPin size={15} className="flex-none" />
-            <span className="min-w-0 flex-1">No place yet. The plan needs one before it can lock.</span>
+            <span className="min-w-0 flex-1">No place yet. Pick one before locking it in.</span>
             {onGoToLocation && (
               <button onClick={() => { close(); onGoToLocation() }} className="flex-none text-[12.5px] font-semibold underline underline-offset-2">
                 Add one on the Location tab
@@ -364,7 +364,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
           {onGoToDetails && (
             <button
               onClick={() => { close(); onGoToDetails() }}
-              title="Adjust it on the Event details tab"
+              title="Adjust it on the Details tab"
               className="flex-none text-[12.5px] font-semibold text-accent-text hover:underline"
             >
               Change
@@ -374,7 +374,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
       </div>
 
       <div className="border-t border-border pt-2.5">
-        <p className="mb-2.5 text-[12.5px] leading-[1.5] text-faint">Everyone with the link sees this as the final plan. You can reopen planning later.</p>
+        <p className="mb-2.5 text-[12.5px] leading-[1.5] text-faint">Everyone with the link sees this as final. You can reopen planning later.</p>
         {blockedReason && (
           <p className="mb-2 text-[12.5px] font-medium text-brick-text">{blockedReason}</p>
         )}
@@ -386,7 +386,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
           disabled={!!blockedReason}
           className="flex h-9 w-full items-center justify-center gap-1.5 rounded-[9px] bg-accent text-[14px] font-semibold text-on-accent disabled:opacity-40"
         >
-          <Check size={16} /> {timeSet ? 'Confirm the place' : 'Confirm the plan'}
+          <Check size={16} /> {timeSet ? 'Confirm the place' : 'Lock it in'}
         </button>
       </div>
     </div>

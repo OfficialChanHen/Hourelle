@@ -8,9 +8,9 @@ import { SupportCard } from '@/components/ui/Support'
 const PRINCIPLES: { title: string; text: string }[] = [
   { title: 'Answering never needs an account.', text: 'A link and a name are enough. The people you invite should not have to sign up for anything to tell you when they are free.' },
   { title: 'The group informs, the host decides.', text: 'Everyone answers, the picture becomes clear, and one person locks it in. Nothing is left hanging on a vote nobody closes.' },
-  { title: 'Time zones are never a surprise.', text: 'Every time is shown with its zone, and anyone can see the plan in their own.' },
+  { title: 'Time zones are never a surprise.', text: 'Every time is shown with its zone, and anyone can see it in their own.' },
   { title: 'The whole plan, not just the hour.', text: 'Where to go, who is coming, what it costs, and the reminders before the day: all of it lives on the same page as the time.' },
-  { title: 'Private by default.', text: 'An event is visible to the people holding its link and to no one else, and nothing you put in it is sold.' },
+  { title: 'Private by default.', text: 'A plan is visible to the people holding its link and to no one else, and nothing you put in it is sold.' },
   { title: 'Free to host.', text: 'Planning something with people is not a premium feature. Hosting is free and stays free.' },
 ]
 
@@ -24,7 +24,7 @@ export default function AboutPage() {
       </h1>
       <p className="mt-4 text-[15px] leading-[1.65] text-dim">
         Hourelle is an independent service for settling plans with other people: when, where, and
-        who is coming. One link goes out, everyone answers in a minute, and the host locks in the plan.
+        who is coming. One link goes out, everyone answers in a minute, and the host locks it in.
       </p>
 
       <h2 className="mt-9 font-serif font-normal text-[26px] leading-[1.15] tracking-[-0.01em]">Why it exists</h2>
@@ -54,11 +54,11 @@ export default function AboutPage() {
       <h2 className="mt-9 font-serif font-normal text-[26px] leading-[1.15] tracking-[-0.01em]">How your data is handled</h2>
       <div className="mt-4 rounded-2xl border border-border bg-s1 px-5 py-4">
         <ul className="flex flex-col gap-2.5 text-[13.5px] leading-[1.6] text-dim">
-          <li><span className="font-semibold text-text">What is kept.</span> Your account (name and email), the events you host or take part in, and what you answered in them: free time, votes, RSVPs, messages.</li>
-          <li><span className="font-semibold text-text">Who can see it.</span> Anyone holding an event’s link can see that event. Only the host can change its details or lock it in, and the database enforces this, not just the screen.</li>
-          <li><span className="font-semibold text-text">Guests.</span> A guest gives a name and, if they choose, an email. Nothing exists for them beyond their place on that event.</li>
+          <li><span className="font-semibold text-text">What is kept.</span> Your account (name and email), the plans you host or take part in, and what you answered in them: free time, votes, RSVPs, messages.</li>
+          <li><span className="font-semibold text-text">Who can see it.</span> Anyone holding a plan’s link can see that plan. Only the host can change its details or lock it in, and the database enforces this, not just the screen.</li>
+          <li><span className="font-semibold text-text">Guests.</span> A guest gives a name and, if they choose, an email. Nothing exists for them beyond their place on that plan.</li>
           <li><span className="font-semibold text-text">Logged out.</span> Nothing you do leaves this browser. The demos are samples and are never uploaded.</li>
-          <li><span className="font-semibold text-text">Removal.</span> A host can delete an event for everyone, anyone can leave one, and an account can be deleted from its profile page.</li>
+          <li><span className="font-semibold text-text">Removal.</span> A host can delete a plan for everyone, anyone can leave one, and an account can be deleted from its profile page.</li>
           <li><span className="font-semibold text-text">No tracking.</span> No analytics, no advertising, no third-party scripts. Map tiles are fetched from OpenStreetMap when the Location tab is open.</li>
         </ul>
         <p className="mt-3 text-[13px] text-dim">

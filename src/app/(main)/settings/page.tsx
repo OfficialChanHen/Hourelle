@@ -105,10 +105,10 @@ export default function SettingsPage() {
   }
 
   const notifyRows: { key: keyof NotifyPrefs; label: string; sub: string }[] = [
-    { key: 'lockIn', label: 'Lock-in announcements', sub: 'When a host locks in the time and place of an event you are on.' },
-    { key: 'eventDay', label: 'Event reminders', sub: 'The day before and the morning of a locked-in plan.' },
-    { key: 'deadlines', label: 'Deadline reminders', sub: 'When a vote, plan-by, or RSVP date is about to pass.' },
-    { key: 'replies', label: 'Reply activity', sub: 'The first time each person marks their times on an event you host.' },
+    { key: 'lockIn', label: 'Lock-in announcements', sub: 'When a host locks in the time and place of a plan you are on.' },
+    { key: 'eventDay', label: 'Day-of reminders', sub: 'The day before and the morning of a locked-in plan.' },
+    { key: 'deadlines', label: 'Deadline reminders', sub: 'When a vote, decide-by, or RSVP date is about to pass.' },
+    { key: 'replies', label: 'Reply activity', sub: 'The first time each person marks their times on a plan you host.' },
   ]
 
   return (
@@ -196,7 +196,7 @@ export default function SettingsPage() {
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-2xl border border-border bg-s1 px-5 py-4">
         <div className="min-w-0">
           <div className="text-[14px] font-medium">Availability grid</div>
-          <div className="mt-0.5 text-[12.5px] text-dim">An event that starts midweek is squared off with days it never asked about.</div>
+          <div className="mt-0.5 text-[12.5px] text-dim">A plan that starts midweek is squared off with days it never asked about.</div>
         </div>
         {!ready && <span className="h-8 w-[170px] animate-pulse rounded-[9px] bg-s2" aria-hidden />}
         {ready && (
@@ -204,7 +204,7 @@ export default function SettingsPage() {
             size="sm"
             value={wholeWeek ? 'week' : 'event'}
             onChange={changeWholeWeek}
-            options={[{ v: 'event', l: 'Event days' }, { v: 'week', l: 'Whole week' }]}
+            options={[{ v: 'event', l: 'Plan days' }, { v: 'week', l: 'Whole week' }]}
           />
         )}
       </div>
@@ -227,13 +227,13 @@ export default function SettingsPage() {
         </>
       )}
 
-      <Eyebrow>Plan</Eyebrow>
+      <Eyebrow>Pricing</Eyebrow>
       <div className="rounded-2xl border border-border bg-s1 px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 text-[14px] font-medium">
               {PLANS[planState.plan].name}
-              <span className="rounded-md border border-teal-border bg-teal-bg px-1.5 py-px text-[11px] font-semibold text-teal-text">Your plan</span>
+              <span className="rounded-md border border-teal-border bg-teal-bg px-1.5 py-px text-[11px] font-semibold text-teal-text">Current</span>
               {planState.plan === 'plus' && planState.source === 'comped' && (
                 <span className="flex items-center gap-1 rounded-md border border-accent-border bg-accent-bg px-1.5 py-px text-[11px] font-semibold text-accent-text"><Gift size={11} /> On the house</span>
               )}
@@ -255,7 +255,7 @@ export default function SettingsPage() {
                 {billingBusy ? <Loader2 size={14} className="animate-spin" /> : <ExternalLink size={13} />} Manage billing
               </button>
             )}
-            <Link href="/plans" className="flex h-9 flex-none items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2">
+            <Link href="/pricing" className="flex h-9 flex-none items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2">
               <Sparkles size={14} className="text-accent-text" /> {planState.plan === 'plus' ? 'What Plus includes' : 'See Hourelle Plus'}
             </Link>
           </div>
@@ -328,7 +328,7 @@ export default function SettingsPage() {
         </div>
         {resetAsk && (
           <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
-            <span className="mr-auto text-[13px] text-dim">Your events are not touched.</span>
+            <span className="mr-auto text-[13px] text-dim">Your plans are not touched.</span>
             <button type="button" onClick={() => setResetAsk(false)} className="flex h-9 items-center rounded-full border border-border2 px-3 text-[13px] font-semibold hover:bg-s2">Keep my settings</button>
             <button type="button" onClick={() => void restoreDefaults()} disabled={resetState === 'busy'} className="flex h-9 items-center rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent disabled:opacity-60">
               {resetState === 'busy' ? 'Restoring…' : 'Restore'}

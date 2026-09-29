@@ -329,7 +329,7 @@ export function joinedMail(ev: AppEvent, p: Participant, to: string, site: strin
     'This is your own link to it. Open it on any phone or computer and you are back as yourself, with your answers where you left them. No account or password needed.',
   ]
   const facts = [when ? `When: ${when}` : '', place ? `Where: ${place}` : ''].filter(Boolean)
-  const footer = `You're getting this because you joined ${host}'s event with this address. If that wasn't you, you can ignore it.`
+  const footer = `You're getting this because you joined ${host}'s plan with this address. If that wasn't you, you can ignore it.`
   const text = [lines[0], ...facts, '', lines[1], '', link, '', footer].join('\n')
   const html = note([lines[0], ...(facts.length ? [facts.join('\n')] : []), lines[1]], link, footer)
   return { to, subject: `Your link to ${ev.title}`, text, html, fromName: 'Hourelle', thread: ev.id }
@@ -337,7 +337,7 @@ export function joinedMail(ev: AppEvent, p: Participant, to: string, site: strin
 
 export function nudgeMail(ev: AppEvent, p: Participant, to: string, site: string, hostEmail?: string | null): Mail {
   const host = hostNameOf(ev), link = joinLink(site, ev, p)
-  const lines = [`Hi ${firstName(p)}, ${host} is still waiting on your times for ${ev.title}.`, 'Mark when you are free so the plan can be settled. Even a rough answer helps.']
+  const lines = [`Hi ${firstName(p)}, ${host} is still waiting on your times for ${ev.title}.`, 'Mark when you are free so the host can pick a time. Even a rough answer helps.']
   const text = [...lines, '', link].join('\n')
   return { to, subject: `${host} is waiting on your times for ${ev.title}`, text, html: shell({ title: `A quick one from ${host}`, lines, cta: { label: 'Mark when you are free', href: link }, preheader: lines[0], footer: `Sent by Hourelle on behalf of ${host}. Reply to this email to reach them.` }), replyTo: hostEmail ?? undefined, fromName: `${host} via Hourelle`, thread: ev.id }
 }
@@ -382,7 +382,7 @@ export function replyMail(ev: AppEvent, p: Participant, host: Participant, to: s
 export function accountDeletedMail(to: string, name: string | null, site: string): Mail {
   const first = (name ?? '').split(' ')[0] || 'there'
   const lines = [
-    `Hi ${first}, the Hourelle account for ${to} was deleted just now, together with the events it hosted, its answers on other people’s events and its messages. Nothing about it is kept.`,
+    `Hi ${first}, the Hourelle account for ${to} was deleted just now, together with the plans it hosted, its answers on other people’s plans and its messages. Nothing about it is kept.`,
     'If that was you, there is nothing more to do. If it was not, someone else had your login: they cannot get in again, and you can write to us from the Help page.',
   ]
   const cta = { label: 'Write to us', href: `${site}/help` }
@@ -400,8 +400,8 @@ export function reminderMail(kind: MailKind, ev: AppEvent, p: Participant, to: s
   if (kind === 'event-eve' || kind === 'event-day') {
     const title = `${soon === 'today' ? 'Today' : 'Tomorrow'}: ${ev.title}`
     const attachments = calendarAttachment(ev, link)
-    const lines = [`Hi ${first}, ${ev.title} is ${soon}${when ? `: ${when}` : ''}${place ? `, at ${place}` : ''}.`, `Everything the group settled on is on the event page.${attachments ? ' The calendar entry is attached.' : ''}`]
-    return { to, subject: title, text: text(lines), html: shell({ title, lines, details: [{ label: 'When', value: when }, { label: 'Where', value: place }], cta: { label: 'Open the event', href: link }, preheader: lines[0], footer }), attachments, thread: ev.id }
+    const lines = [`Hi ${first}, ${ev.title} is ${soon}${when ? `: ${when}` : ''}${place ? `, at ${place}` : ''}.`, `Everything the group settled on is on the plan page.${attachments ? ' The calendar entry is attached.' : ''}`]
+    return { to, subject: title, text: text(lines), html: shell({ title, lines, details: [{ label: 'When', value: when }, { label: 'Where', value: place }], cta: { label: 'Open the plan', href: link }, preheader: lines[0], footer }), attachments, thread: ev.id }
   }
   if (kind === 'plan-eve' || kind === 'plan-day') {
     const title = `Lock in ${ev.title} by ${soon}`
@@ -414,6 +414,6 @@ export function reminderMail(kind: MailKind, ev: AppEvent, p: Participant, to: s
     return { to, subject: title, text: text(lines), html: shell({ title, lines, cta: { label: 'Cast your vote', href: link }, preheader: lines[0], footer }), thread: ev.id }
   }
   const title = `Say if you can make ${ev.title} by ${soon}`
-  const lines = [`Hi ${first}, ${hostNameOf(ev)} asked for answers on ${ev.title} by ${soon}${when ? ` (${when})` : ''}.`, 'A yes, a maybe, or a no all help the host plan.']
+  const lines = [`Hi ${first}, ${hostNameOf(ev)} asked for answers on ${ev.title} by ${soon}${when ? ` (${when})` : ''}.`, 'Any answer helps the host, even a no.']
   return { to, subject: title, text: text(lines), html: shell({ title, lines, details: [{ label: 'When', value: when }], cta: { label: 'Answer now', href: link }, preheader: lines[0], footer }), thread: ev.id }
 }
