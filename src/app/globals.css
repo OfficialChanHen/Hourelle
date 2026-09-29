@@ -392,6 +392,11 @@ input[type="date"]::-webkit-date-and-time-value {
 [data-theme="dark"] .only-dark { display: block; }
 [data-theme="dark"] .only-light { display: none; }
 
+/* the preset cover scenes (Cover.tsx) are pictures, so they keep their colours in
+   both themes; the dark theme only takes the brightness down a touch, like the map
+   tiles below, so a pale sky does not glare out of the charcoal page */
+[data-theme="dark"] .hourelle-cover-scene { filter: brightness(.86) saturate(.94); }
+
 
 /* the serif: 500 by default (headings, card titles, stat figures), 400 only where the
    markup says `font-normal` (display sizes, 28px and up). Lives in the base layer so
