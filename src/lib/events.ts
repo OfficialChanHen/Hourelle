@@ -313,7 +313,8 @@ export function listDemos(): AppEvent[] {
   const stored = readAll()
   return DEMOS.map((d) => stored.find((e) => e.id === d.id) ?? d)
 }
-export function getEvent(id: string): AppEvent | null {
+export function getEvent(raw: string): AppEvent | null {
+  const id = DEMO_ALIASES[raw] ?? raw
   return readAll().find((e) => e.id === id) ?? DEMOS.find((d) => d.id === id) ?? null
 }
 export function deleteEvent(id: string): void {
@@ -396,6 +397,7 @@ export function linkToken(len = 12): string {
 function uniqueSlug(base: string): string {
   const taken = new Set(readAll().map((e) => e.id))
   for (const d of DEMOS) taken.add(d.id)
+  for (const old of Object.keys(DEMO_ALIASES)) taken.add(old)
   let id = `${base}-${linkToken()}`
   while (taken.has(id)) id = `${base}-${linkToken()}` // collision is theoretical, handled anyway
   return id
@@ -1653,18 +1655,18 @@ export function createEvent(input: CreateInput): AppEvent {
 /* ── the built-in populated demo (reachable by URL, not listed) ── */
 const DEMO: AppEvent = {
   id: 'q3-offsite',
-  title: 'Q3 Team Offsite Planning',
+  title: 'Q3 Team Offsite',
   hostName: 'Jordan Miller',
   hostedByYou: true,
   hostKind: 'person',
-  description: 'Two days of strategy, workshops, and a team dinner to align on Q3 goals. Travel is reimbursed for out-of-town folks.',
+  description: 'A day out of the office for the whole team. Workshops in the morning, then lunch on the grass at Tunnel Tops. Travel is reimbursed for anyone coming from out of town.',
   timezone: 'America/Los_Angeles',
   startDate: '2029-08-20',
   endDate: '2029-08-24',
   granularity: '60',
   budget: '4200',
   planDeadline: '2029-08-16',
-  image: 'preset:dusk',
+  image: 'preset:coast',
   location: {
     mode: 'vote',
     // the offsite runs as a route, not a single room — the demo that shows the
@@ -1672,8 +1674,8 @@ const DEMO: AppEvent = {
     planMode: 'itinerary',
     places: [
       { id: 'cavallo', name: 'Cavallo Point Lodge', place: 'Sausalito, CA', addedBy: 'SR', lat: 37.8339, lng: -122.478 },
-      { id: 'terrapin', name: 'Terrapin Crossroads', place: 'San Rafael, CA', addedBy: 'JM', lat: 37.9647, lng: -122.505 },
-      { id: 'presidio', name: 'Odeum at the Presidio', place: 'San Francisco, CA', addedBy: 'DW', lat: 37.7989, lng: -122.4662 },
+      { id: 'tunnel-tops', name: 'Presidio Tunnel Tops', place: 'San Francisco, CA', addedBy: 'JM', lat: 37.8027, lng: -122.4566 },
+      { id: 'presidio', name: 'Presidio Officers’ Club', place: 'San Francisco, CA', addedBy: 'DW', lat: 37.7986, lng: -122.4589 },
     ],
     platform: 'Google Meet',
     meetingLink: '',
@@ -1681,15 +1683,15 @@ const DEMO: AppEvent = {
   },
   votes: {
     cavallo: ['SR', 'KL', 'PR', 'MN', 'CL'],
-    terrapin: ['AT', 'JM'],
+    'tunnel-tops': ['AT', 'JM'],
     presidio: ['DW'],
   },
   maxVotes: 2,
   durationMin: 120,
   itinStartMin: 9 * 60,
-  // morning workshops in Sausalito, lunch and music in San Rafael, evening wrap at
-  // the Presidio — stop order follows the route, dwell minutes align by index
-  itinStops: ['cavallo', 'terrapin', 'presidio'],
+  // morning workshops in Sausalito, a picnic lunch on the Tunnel Tops lawn, the
+  // wrap-up at the Officers' Club — stop order follows the route, dwell minutes align by index
+  itinStops: ['cavallo', 'tunnel-tops', 'presidio'],
   itinDwell: [180, 120, 90],
   participants: demoIds.map((id) => ({
     id,
@@ -1791,12 +1793,12 @@ BIG_PARTICIPANTS.forEach((p, i) => {
 })
 
 const BIG_DEMO: AppEvent = {
-  id: 'harvest-fair',
-  title: 'Fall Harvest Fair',
+  id: 'harvest-potluck',
+  title: 'Harvest Potluck',
   hostName: 'Jordan Miller',
   hostedByYou: true,
   hostKind: 'person',
-  description: 'The whole crew, one afternoon outdoors. Twelve venues on the ballot, three votes each — may the best park win.',
+  description: 'Open to anyone nearby. Bring a dish that feeds six and a blanket to sit on. Twelve parks on the ballot and three votes each.',
   timezone: 'America/Los_Angeles',
   startDate: '2029-09-10',
   endDate: '2029-09-21',
@@ -1831,123 +1833,143 @@ const BIG_DEMO: AppEvent = {
   unavailableIds: ['HK'],
   image: 'preset:harvest',
   messages: [
-    { id: 'AT', name: 'Alex Turner', time: 'Tue', text: 'Three votes each people, spend them wisely', you: false },
-    { id: 'ZC', name: 'Zoe Clark', time: 'Tue', text: 'Bandshell has power outlets for the speakers, just saying', you: false },
-    { id: 'OD', name: 'Omar Diaz', time: 'Wed', text: 'Berkeley Marina if you want wind, which you do not', you: false },
+    { id: 'AT', name: 'Alex Turner', time: 'Tue', text: 'Three votes each, spend them wisely', you: false },
+    { id: 'ZC', name: 'Zoe Clark', time: 'Tue', text: 'Bandshell has outlets if anyone brings a slow cooker', you: false },
+    { id: 'UR', name: 'Uma Reddy', time: 'Wed', text: 'Signing up for dessert so nobody else has to', you: false },
+    { id: 'OD', name: 'Omar Diaz', time: 'Wed', text: 'Berkeley Marina if you want wind in the salad, which you do not', you: false },
   ],
   createdAt: 0,
   demo: true,
   status: 'planning',
 }
 
-/* ── invited demos: events someone else is hosting, so home has a "You're invited" lane.
+/* ── invited demos: plans someone else is hosting, so the shelf shows the guest's side.
    Both land on the same Saturday on purpose — the same-day flag needs something to show. ── */
-const HW_DAYS = buildDays('2029-08-17', '2029-08-20')
-const HW_TIMES = buildTimes('60', 12 * 60, 22 * 60)
-// grid minutes measured from noon (times[0]); Sarah is free all day, others trickle in
-const HW_IV: AvailIntervals = {
-  '2029-08-18': { SR: [{ s: 0, e: 600 }], AT: [{ s: 240, e: 600 }], MN: [{ s: 300, e: 540 }] },
-  '2029-08-19': { SR: [{ s: 0, e: 600 }], AT: [{ s: 300, e: 600 }], MN: [{ s: 300, e: 540 }], CL: [{ s: 360, e: 600 }] },
+
+// Conference: locked in, one room all day, and people who come late or leave early
+// (grid minutes from 9 AM, times[0])
+const CONF_DAYS = buildDays('2029-08-18', '2029-08-18')
+const CONF_TIMES = buildTimes('60', 9 * 60, 17 * 60)
+const CONF_ALL: Iv[] = [{ s: 0, e: 480 }]
+const CONF_IV: AvailIntervals = {
+  '2029-08-18': {
+    LM: CONF_ALL, JM: CONF_ALL, SR: CONF_ALL, IO: CONF_ALL, DW: CONF_ALL,
+    HS: [{ s: 120, e: 480 }], SK: [{ s: 60, e: 480 }], YA: [{ s: 0, e: 300 }],
+    KL: [{ s: 0, e: 360 }], CL: [{ s: 180, e: 480 }],
+  },
 }
-const HOUSEWARMING: AppEvent = {
-  id: 'sarahs-housewarming',
-  title: 'Housewarming at Sarah’s',
-  hostName: 'Sarah R',
+const CONFERENCE: AppEvent = {
+  id: 'indie-makers-conference',
+  title: 'Indie Makers Conference',
+  hostName: 'Lucía M',
   hostedByYou: false,
   hostKind: 'person',
-  description: 'New place, first party. Come see the balcony everyone is going to fight over.',
+  description: 'One day of short talks from people who run small studios. Lunch is provided. Come for part of the day if that is what works.',
   timezone: 'America/Los_Angeles',
-  startDate: '2029-08-17',
-  endDate: '2029-08-20',
+  startDate: '2029-08-18',
+  endDate: '2029-08-18',
   granularity: '60',
   budget: '',
   location: {
     mode: 'set',
     planMode: 'vote',
-    places: [{ id: 'sr-place', name: 'Sarah’s new apartment', place: 'Oakland, CA', addedBy: 'SR', lat: 37.8044, lng: -122.2712 }],
+    places: [{ id: 'fort-mason-pavilion', name: 'Festival Pavilion, Fort Mason Center', place: 'San Francisco, CA', addedBy: 'LM', lat: 37.8058, lng: -122.4318 }],
     platform: '',
     meetingLink: '',
   },
-  votes: { 'sr-place': ['SR', 'AT', 'MN'] },
+  votes: {},
   participants: [
-    { id: 'SR', initials: 'SR', name: 'Sarah R', color: av('SR').color, rsvp: 'attending', host: true },
-    { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'pending', you: true },
-    { id: 'AT', initials: 'AT', name: 'Alex T', color: av('AT').color, rsvp: 'attending' },
-    { id: 'MN', initials: 'MN', name: 'Mia N', color: av('MN').color, rsvp: 'attending' },
-    { id: 'CL', initials: 'CL', name: 'Chris L', color: av('CL').color, rsvp: 'maybe' },
-    { id: 'NK', initials: 'NK', name: 'Nina K', color: av('NK').color, rsvp: 'pending' },
+    { id: 'LM', initials: 'LM', name: av('LM').name, color: av('LM').color, rsvp: 'attending', host: true },
+    { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'attending', you: true },
+    { id: 'SR', initials: 'SR', name: av('SR').name, color: av('SR').color, rsvp: 'attending' },
+    { id: 'IO', initials: 'IO', name: av('IO').name, color: av('IO').color, rsvp: 'attending' },
+    { id: 'DW', initials: 'DW', name: av('DW').name, color: av('DW').color, rsvp: 'attending' },
+    { id: 'HS', initials: 'HS', name: av('HS').name, color: av('HS').color, rsvp: 'attending' },
+    { id: 'SK', initials: 'SK', name: av('SK').name, color: av('SK').color, rsvp: 'attending' },
+    { id: 'YA', initials: 'YA', name: av('YA').name, color: av('YA').color, rsvp: 'attending' },
+    { id: 'KL', initials: 'KL', name: av('KL').name, color: av('KL').color, rsvp: 'attending' },
+    { id: 'CL', initials: 'CL', name: av('CL').name, color: av('CL').color, rsvp: 'maybe' },
+    { id: 'BH', initials: 'BH', name: av('BH').name, color: av('BH').color, rsvp: 'not_going' },
+    { id: 'NK', initials: 'NK', name: av('NK').name, color: av('NK').color, rsvp: 'pending' },
   ],
-  days: HW_DAYS,
-  times: HW_TIMES,
-  avail: intervalsToGrid(HW_IV, HW_DAYS, HW_TIMES.length, 60),
-  availIv: HW_IV,
-  durationMin: 240,
-  image: 'preset:evening',
+  days: CONF_DAYS,
+  times: CONF_TIMES,
+  avail: intervalsToGrid(CONF_IV, CONF_DAYS, CONF_TIMES.length, 60),
+  availIv: CONF_IV,
+  durationMin: 480,
+  image: 'preset:city',
   messages: [
-    { id: 'SR', name: 'Sarah R', time: 'Mon', text: 'Saturday evening it is. Bring nothing but yourselves', you: false },
-    { id: 'AT', name: 'Alex T', time: 'Mon', text: 'Bringing something anyway', you: false },
+    { id: 'LM', name: 'Lucía M', time: 'Mon', text: 'Doors open at 8:30 and the first talk starts at 9', you: false },
+    { id: 'HS', name: 'Hiro S', time: 'Tue', text: 'My flight lands at 10, so I will be there from 11', you: false },
+    { id: 'YA', name: 'Yasmin A', time: 'Tue', text: 'Leaving after lunch. A seat near the door would be kind', you: false },
   ],
   createdAt: 0,
   demo: true,
   status: 'confirmed',
-  confirmed: { dayKey: '2029-08-18', startMin: 17 * 60, endMin: 21 * 60, placeIds: ['sr-place'] },
+  confirmed: { dayKey: '2029-08-18', startMin: 9 * 60, endMin: 17 * 60, placeIds: ['fort-mason-pavilion'] },
+}
+
+// Game night: date and place fixed from the start, so it goes straight to RSVPs,
+// due by a deadline. You have not answered yet.
+const GAME_DAYS = buildDays('2029-08-18', '2029-08-18')
+const GAME_TIMES = buildTimes('30', 19 * 60, 22 * 60 + 30)
+const GAME_IV: AvailIntervals = {
+  '2029-08-18': { RW: [{ s: 0, e: 210 }], TC: [{ s: 0, e: 210 }], GH: [{ s: 30, e: 210 }], EM: [{ s: 0, e: 150 }] },
+}
+const GAME_NIGHT: AppEvent = {
+  id: 'board-game-night',
+  title: 'Board Game Night',
+  hostName: 'Riley W',
+  hostedByYou: false,
+  hostKind: 'person',
+  description: 'Third Saturday of the month at Victory Point. Bring a game or just show up, the shelves are full.',
+  timezone: 'America/Los_Angeles',
+  startDate: '2029-08-18',
+  endDate: '2029-08-18',
+  granularity: '30',
+  budget: '',
+  location: {
+    mode: 'set',
+    planMode: 'vote',
+    places: [{ id: 'victory-point', name: 'Victory Point Cafe', place: 'Berkeley, CA', addedBy: 'RW', lat: 37.8665, lng: -122.2923 }],
+    platform: '',
+    meetingLink: '',
+  },
+  votes: {},
+  participants: [
+    { id: 'RW', initials: 'RW', name: av('RW').name, color: av('RW').color, rsvp: 'attending', host: true },
+    { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'pending', you: true },
+    { id: 'TC', initials: 'TC', name: av('TC').name, color: av('TC').color, rsvp: 'attending' },
+    { id: 'GH', initials: 'GH', name: av('GH').name, color: av('GH').color, rsvp: 'attending' },
+    { id: 'EM', initials: 'EM', name: av('EM').name, color: av('EM').color, rsvp: 'attending' },
+    { id: 'NK', initials: 'NK', name: av('NK').name, color: av('NK').color, rsvp: 'maybe' },
+    { id: 'DV', initials: 'DV', name: av('DV').name, color: av('DV').color, rsvp: 'not_going' },
+    { id: 'OB', initials: 'OB', name: av('OB').name, color: av('OB').color, rsvp: 'pending' },
+  ],
+  days: GAME_DAYS,
+  times: GAME_TIMES,
+  avail: intervalsToGrid(GAME_IV, GAME_DAYS, GAME_TIMES.length, 30),
+  availIv: GAME_IV,
+  durationMin: 210,
+  image: 'preset:evening',
+  messages: [
+    { id: 'RW', name: 'Riley W', time: 'Mon', text: 'Table is booked for eight. Tell me by Wednesday if you are in', you: false },
+    { id: 'TC', name: 'Tom C', time: 'Mon', text: 'Bringing Wingspan unless someone objects', you: false },
+  ],
+  createdAt: 0,
+  demo: true,
+  status: 'confirmed',
+  confirmed: { dayKey: '2029-08-18', startMin: 19 * 60, endMin: 22 * 60 + 30, placeIds: ['victory-point'] },
   rsvpDeadline: '2029-08-15',
 }
 
-const TRAIL_DAYS = buildDays('2026-07-25', '2026-07-25')
-const TRAIL_TIMES = buildTimes('60', 8 * 60, 14 * 60)
-const TRAIL_IV: AvailIntervals = {
-  '2026-07-25': { OB: [{ s: 0, e: 360 }], JM: [{ s: 60, e: 300 }], DW: [{ s: 60, e: 240 }], GH: [{ s: 0, e: 300 }], BH: [{ s: 120, e: 360 }] },
-}
-const TRAIL_DAY: AppEvent = {
-  id: 'shoreline-cleanup',
-  title: 'Shoreline Trail Cleanup',
-  hostName: 'Omar B',
-  hostedByYou: false,
-  hostKind: 'person',
-  description: 'Gloves and grabbers provided. Coffee after for everyone who shows up.',
-  timezone: 'America/Los_Angeles',
-  startDate: '2026-07-25',
-  endDate: '2026-07-25',
-  granularity: '60',
-  budget: '',
-  location: {
-    mode: 'vote',
-    planMode: 'vote',
-    places: [{ id: 'pt-isabel', name: 'Point Isabel Shoreline', place: 'Richmond, CA', addedBy: 'OB', lat: 37.8985, lng: -122.3273 }],
-    platform: '',
-    meetingLink: '',
-  },
-  votes: { 'pt-isabel': ['OB', 'GH', 'JM'] },
-  participants: [
-    { id: 'OB', initials: 'OB', name: 'Omar B', color: av('OB').color, rsvp: 'attending', host: true },
-    { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'attending', you: true },
-    { id: 'DW', initials: 'DW', name: 'Dana W', color: av('DW').color, rsvp: 'attending' },
-    { id: 'GH', initials: 'GH', name: 'Grace H', color: av('GH').color, rsvp: 'attending' },
-    { id: 'BH', initials: 'BH', name: 'Ben H', color: av('BH').color, rsvp: 'maybe' },
-  ],
-  days: TRAIL_DAYS,
-  times: TRAIL_TIMES,
-  avail: intervalsToGrid(TRAIL_IV, TRAIL_DAYS, TRAIL_TIMES.length, 60),
-  availIv: TRAIL_IV,
-  durationMin: 180,
-  image: 'preset:coast',
-  messages: [
-    { id: 'OB', name: 'Omar B', time: 'Tue', text: 'Morning shift so you still have your Saturday', you: false },
-  ],
-  createdAt: 0,
-  demo: true,
-  status: 'confirmed',
-  confirmed: { dayKey: '2026-07-25', startMin: 9 * 60, endMin: 12 * 60, placeIds: ['pt-isabel'] },
-}
-
-/* ── the four planning shapes, one demo each. Every event answers two questions,
-   when and where, and each can arrive open or already answered:
+/* ── the planning shapes. Every plan answers two questions, when and where, and
+   each can arrive open or already answered:
    1. both open        → Design Team Dinner   (find a time, vote on a place)
-   2. place answered   → Brunch at Mama's     (venue set, finding the day)
-   3. time answered    → Priya's Send-off     (Friday is booked, voting the venue —
+   2. place answered   → Coffee with Ifeoma   (café set, finding the morning)
+   3. time answered    → Priya's Birthday     (Friday is booked, voting the venue —
                           status stays 'planning' while the confirmed slot is a fact)
-   4. both answered    → Trivia Night         (born confirmed, straight to RSVPs) ── */
+   4. both answered    → Board Game Night     (born confirmed, straight to RSVPs, above) ── */
 
 // 1 · both questions open
 const DINNER_DAYS = buildDays('2029-07-30', '2029-08-05')
@@ -2007,50 +2029,47 @@ const DESIGN_DINNER: AppEvent = {
   status: 'planning',
 }
 
-// 2 · place answered, time open
-const BRUNCH_DAYS = buildDays('2029-08-04', '2029-08-12')
-const BRUNCH_TIMES = buildTimes('60', 9 * 60, 15 * 60)
-const BRUNCH_IV: AvailIntervals = {
-  '2029-08-04': { JM: [{ s: 0, e: 240 }], PR: [{ s: 60, e: 300 }], DW: [{ s: 0, e: 120 }] },
-  '2029-08-05': { JM: [{ s: 0, e: 360 }], PR: [{ s: 0, e: 180 }], EM: [{ s: 60, e: 240 }], GH: [{ s: 0, e: 240 }] },
-  '2029-08-11': { GH: [{ s: 120, e: 360 }] },
+// 2 · place answered, time open: a 1:1 on a 15-minute grid (minutes from 8 AM)
+const COFFEE_DAYS = buildDays('2029-08-06', '2029-08-10')
+const COFFEE_TIMES = buildTimes('15', 8 * 60, 11 * 60)
+const COFFEE_IV: AvailIntervals = {
+  '2029-08-06': { JM: [{ s: 60, e: 120 }] },
+  '2029-08-07': { JM: [{ s: 0, e: 90 }], IO: [{ s: 30, e: 90 }] },
+  '2029-08-08': { IO: [{ s: 0, e: 60 }] },
+  '2029-08-09': { JM: [{ s: 45, e: 180 }], IO: [{ s: 105, e: 180 }] },
 }
-const BRUNCH: AppEvent = {
-  id: 'brunch-at-mamas',
-  title: 'Brunch at Mama’s',
+const COFFEE: AppEvent = {
+  id: 'coffee-catch-up',
+  title: 'Coffee with Ifeoma',
   hostName: 'Jordan Miller',
   hostedByYou: true,
   hostKind: 'person',
-  description: 'The place is set, we just need the right morning. Mark the days you could make it.',
+  description: 'A catch-up before work. The café is picked, we only need a morning that works.',
   timezone: 'America/Los_Angeles',
-  startDate: '2029-08-04',
-  endDate: '2029-08-12',
-  granularity: '60',
+  startDate: '2029-08-06',
+  endDate: '2029-08-10',
+  granularity: '15',
   budget: '',
   location: {
     mode: 'set',
     planMode: 'vote',
-    places: [{ id: 'mamas', name: 'Mama’s on Washington Square', place: 'San Francisco, CA', addedBy: 'JM', lat: 37.8008, lng: -122.41 }],
+    places: [{ id: 'mint-plaza', name: 'Blue Bottle Coffee, Mint Plaza', place: 'San Francisco, CA', addedBy: 'JM', lat: 37.7825, lng: -122.4079 }],
     platform: '',
     meetingLink: '',
   },
   votes: {},
   participants: [
     { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'attending', you: true, host: true },
-    { id: 'PR', initials: 'PR', name: av('PR').name, color: av('PR').color, rsvp: 'attending' },
-    { id: 'DW', initials: 'DW', name: av('DW').name, color: av('DW').color, rsvp: 'attending' },
-    { id: 'TC', initials: 'TC', name: av('TC').name, color: av('TC').color, rsvp: 'pending' },
-    { id: 'EM', initials: 'EM', name: av('EM').name, color: av('EM').color, rsvp: 'attending' },
-    { id: 'GH', initials: 'GH', name: av('GH').name, color: av('GH').color, rsvp: 'attending' },
+    { id: 'IO', initials: 'IO', name: av('IO').name, color: av('IO').color, rsvp: 'attending' },
   ],
-  days: BRUNCH_DAYS,
-  times: BRUNCH_TIMES,
-  avail: intervalsToGrid(BRUNCH_IV, BRUNCH_DAYS, BRUNCH_TIMES.length, 60),
-  availIv: BRUNCH_IV,
-  durationMin: 90,
-  image: 'preset:meadow',
+  days: COFFEE_DAYS,
+  times: COFFEE_TIMES,
+  avail: intervalsToGrid(COFFEE_IV, COFFEE_DAYS, COFFEE_TIMES.length, 15),
+  availIv: COFFEE_IV,
+  durationMin: 30,
+  image: 'preset:garden',
   messages: [
-    { id: 'GH', name: 'Grace H', time: 'Sun', text: 'They do not take reservations so early beats the line', you: false },
+    { id: 'IO', name: 'Ifeoma O', time: 'Sun', text: 'Tuesday early is best for me, I have standup at 9:30', you: false },
   ],
   createdAt: 0,
   demo: true,
@@ -2059,21 +2078,21 @@ const BRUNCH: AppEvent = {
 
 // 3 · time answered, place open: the slot is a fact on a status:'planning' event,
 // so the place ballot stays live and the lock-in only asks for the venue
-const SENDOFF_DAYS = buildDays('2029-08-03', '2029-08-03')
-const SENDOFF_TIMES = buildTimes('30', 19 * 60, 22 * 60)
-const SENDOFF_IV: AvailIntervals = {
+const BIRTHDAY_DAYS = buildDays('2029-08-03', '2029-08-03')
+const BIRTHDAY_TIMES = buildTimes('30', 19 * 60, 22 * 60)
+const BIRTHDAY_IV: AvailIntervals = {
   '2029-08-03': {
     JM: [{ s: 0, e: 180 }], PR: [{ s: 0, e: 180 }], AT: [{ s: 0, e: 180 }],
     MN: [{ s: 60, e: 180 }], EM: [{ s: 0, e: 120 }],
   },
 }
-const SENDOFF: AppEvent = {
-  id: 'priyas-send-off',
-  title: 'Priya’s Send-off',
+const BIRTHDAY: AppEvent = {
+  id: 'priyas-birthday',
+  title: 'Priya’s Birthday',
   hostName: 'Jordan Miller',
   hostedByYou: true,
   hostKind: 'person',
-  description: 'Friday night is booked for Priya’s last week. Vote on the restaurant so we can reserve a table.',
+  description: 'Friday night is booked for Priya’s birthday. Vote on the restaurant so we can reserve a table.',
   timezone: 'America/Los_Angeles',
   startDate: '2029-08-03',
   endDate: '2029-08-03',
@@ -2103,71 +2122,20 @@ const SENDOFF: AppEvent = {
     { id: 'EM', initials: 'EM', name: av('EM').name, color: av('EM').color, rsvp: 'attending' },
     { id: 'BH', initials: 'BH', name: av('BH').name, color: av('BH').color, rsvp: 'pending' },
   ],
-  days: SENDOFF_DAYS,
-  times: SENDOFF_TIMES,
-  avail: intervalsToGrid(SENDOFF_IV, SENDOFF_DAYS, SENDOFF_TIMES.length, 30),
-  availIv: SENDOFF_IV,
+  days: BIRTHDAY_DAYS,
+  times: BIRTHDAY_TIMES,
+  avail: intervalsToGrid(BIRTHDAY_IV, BIRTHDAY_DAYS, BIRTHDAY_TIMES.length, 30),
+  availIv: BIRTHDAY_IV,
   durationMin: 180,
-  image: 'preset:evening',
+  image: 'preset:party',
   messages: [
-    { id: 'PR', name: 'Priya R', time: 'Tue', text: 'I get a vote on my own dinner right', you: false },
+    { id: 'PR', name: 'Priya R', time: 'Tue', text: 'I get a vote on my own birthday, right', you: false },
     { id: 'AT', name: 'Alex T', time: 'Tue', text: 'Copita is worth the bridge, hear me out', you: false },
   ],
   createdAt: 0,
   demo: true,
   status: 'planning',
   confirmed: { dayKey: '2029-08-03', startMin: 19 * 60, endMin: 22 * 60, placeIds: [] },
-}
-
-// 4 · both answered: born confirmed, straight to the RSVP round — with an RSVP
-// deadline ahead, so the RSVPs-open stretch (and its "RSVP by" note) has a demo
-const TRIVIA_DAYS = buildDays('2029-08-23', '2029-08-23')
-const TRIVIA_TIMES = buildTimes('30', 19 * 60, 21 * 60 + 30)
-const TRIVIA_IV: AvailIntervals = {
-  '2029-08-23': { JM: [{ s: 0, e: 150 }], RW: [{ s: 0, e: 150 }], TC: [{ s: 30, e: 150 }] },
-}
-const TRIVIA: AppEvent = {
-  id: 'trivia-night-anchor',
-  title: 'Trivia Night at The Anchor',
-  hostName: 'Jordan Miller',
-  hostedByYou: true,
-  hostKind: 'person',
-  description: 'Same bar, same table, last Thursday of the month. August edition is locked in, just say if you are in.',
-  timezone: 'America/Los_Angeles',
-  startDate: '2029-08-23',
-  endDate: '2029-08-23',
-  granularity: '30',
-  budget: '',
-  location: {
-    mode: 'set',
-    planMode: 'vote',
-    places: [{ id: 'anchor', name: 'The Anchor', place: 'Oakland, CA', addedBy: 'JM', lat: 37.808, lng: -122.268 }],
-    platform: '',
-    meetingLink: '',
-  },
-  votes: {},
-  participants: [
-    { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'attending', you: true, host: true },
-    { id: 'RW', initials: 'RW', name: av('RW').name, color: av('RW').color, rsvp: 'attending' },
-    { id: 'TC', initials: 'TC', name: av('TC').name, color: av('TC').color, rsvp: 'attending' },
-    { id: 'NK', initials: 'NK', name: av('NK').name, color: av('NK').color, rsvp: 'maybe' },
-    { id: 'DV', initials: 'DV', name: av('DV').name, color: av('DV').color, rsvp: 'not_going' },
-    { id: 'OB', initials: 'OB', name: av('OB').name, color: av('OB').color, rsvp: 'pending' },
-  ],
-  days: TRIVIA_DAYS,
-  times: TRIVIA_TIMES,
-  avail: intervalsToGrid(TRIVIA_IV, TRIVIA_DAYS, TRIVIA_TIMES.length, 30),
-  availIv: TRIVIA_IV,
-  durationMin: 150,
-  image: 'preset:garden',
-  messages: [
-    { id: 'RW', name: 'Riley W', time: 'Mon', text: 'We are not losing to the pharmacists again', you: false },
-  ],
-  createdAt: 0,
-  demo: true,
-  status: 'confirmed',
-  confirmed: { dayKey: '2029-08-23', startMin: 19 * 60, endMin: 21 * 60 + 30, placeIds: ['anchor'] },
-  rsvpDeadline: '2029-08-16',
 }
 
 /* ── the day-poll demo: a trip asks which days, weekends only, best-run answer ── */
@@ -2191,7 +2159,7 @@ const CABIN_TRIP: AppEvent = {
   hostName: 'Jordan Miller',
   hostedByYou: true,
   hostKind: 'person',
-  description: 'Three weekends on the table, one cabin at the end. Tap the days you could go.',
+  description: 'Three weekends on the table and one cabin at the end. Tap the days you could go.',
   timezone: 'America/Los_Angeles',
   startDate: '2029-08-31',
   endDate: '2029-09-16',
@@ -2224,7 +2192,7 @@ const CABIN_TRIP: AppEvent = {
   avail: intervalsToGrid(CABIN_IV, CABIN_DAYS, 1, 24 * 60),
   availIv: CABIN_IV,
   durationMin: 60,
-  image: 'preset:coast',
+  image: 'preset:meadow',
   messages: [
     { id: 'SR', name: 'Sarah R', time: 'Wed', text: 'First September weekend looks strong so far', you: false },
     { id: 'KL', name: 'Kyle L', time: 'Wed', text: 'I can do any of them except the 15th', you: false },
@@ -2234,5 +2202,16 @@ const CABIN_TRIP: AppEvent = {
   status: 'planning',
 }
 
-// every built-in demo, in the order they list after stored events
-const DEMOS: AppEvent[] = [DEMO, BIG_DEMO, DESIGN_DINNER, BRUNCH, SENDOFF, TRIVIA, CABIN_TRIP, HOUSEWARMING, TRAIL_DAY]
+// every built-in demo, one per template, in the templates' order
+const DEMOS: AppEvent[] = [DESIGN_DINNER, GAME_NIGHT, BIRTHDAY, BIG_DEMO, CABIN_TRIP, DEMO, COFFEE, CONFERENCE]
+
+// demos that were retired or renamed, and the one that took each one's place, so an
+// old link still opens a plan rather than "Plan not found"
+const DEMO_ALIASES: Record<string, string> = {
+  'harvest-fair': 'harvest-potluck',
+  'trivia-night-anchor': 'board-game-night',
+  'sarahs-housewarming': 'board-game-night',
+  'brunch-at-mamas': 'coffee-catch-up',
+  'priyas-send-off': 'priyas-birthday',
+  'shoreline-cleanup': 'indie-makers-conference',
+}

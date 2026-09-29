@@ -23,6 +23,7 @@ import { FlashToast } from '@/components/ui/FlashToast'
 import { rich } from '@/components/ui/rich'
 import { Cover } from '@/components/ui/Cover'
 import { CARD_COVER_H, coverFor } from '@/components/ui/StoredEventCard'
+import { PeekCard, peopleIn } from '@/components/ui/PeekCard'
 import { useAccess } from '@/hooks/useAccess'
 import { listDemos, type AppEvent } from '@/lib/events'
 import { reducedMotion } from '@/lib/prefs'
@@ -58,9 +59,9 @@ const FEATURES = [
 // friend plans and open events first: the audience is any group planning something
 // (friends, a club, strangers at an open event), not office meetings
 const DEMO_PICKS: Record<string, string> = {
-  'cabin-trip': 'A **day poll** for a long weekend, where whole days are the question.',
-  'harvest-fair': 'Open to anyone, with **three votes each** on the place and a **cap on spots**.',
-  'trivia-night-anchor': 'A **fixed date and place**. The only question left is **who is coming**.',
+  'cabin-trip': 'A **weekend trip** run as a **day poll**, where whole days are the question.',
+  'harvest-potluck': 'A **potluck** open to anyone, with **three votes each** on the park and a **cap on spots**.',
+  'board-game-night': 'A **game night** with the date and place set. The only question left is **who is coming**.',
 }
 
 export default function Landing() {
@@ -208,16 +209,21 @@ export default function Landing() {
             {demos.map((d) => {
               const [from, to] = coverFor(d.id)
               return (
-                <Link key={d.id} href={`/events/${d.id}`} className={`group ${frame} transition-transform hover:-translate-y-0.5`}>
-                  <Cover src={d.image} from={from} to={to} className={CARD_COVER_H} />
-                  <div className="p-5">
-                    <p className="font-serif text-[21px] leading-tight tracking-[-0.01em]">{d.title}</p>
-                    <p className="mt-1.5 text-[13px] leading-[1.55] text-dim">{rich(DEMO_PICKS[d.id])}</p>
-                    <p className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-accent-text">
-                      <Users size={13} /> {d.participants.length} people <ArrowRight size={13} className="ml-auto transition-transform group-hover:translate-x-0.5" />
-                    </p>
-                  </div>
-                </Link>
+                // the faces of the people in rise from behind the card on hover or
+                // focus, as on Home; that rise is the card's hover motion, so the
+                // card itself only sharpens its border
+                <PeekCard key={d.id} people={peopleIn(d)} size={30} upShow={24}>
+                  <Link href={`/events/${d.id}`} className={`group flex flex-1 flex-col ${frame} hover:border-border2`}>
+                    <Cover src={d.image} from={from} to={to} className={CARD_COVER_H} />
+                    <div className="flex flex-1 flex-col p-5">
+                      <p className="font-serif text-[21px] leading-tight tracking-[-0.01em]">{d.title}</p>
+                      <p className="mt-1.5 text-[13px] leading-[1.55] text-dim">{rich(DEMO_PICKS[d.id])}</p>
+                      <p className="mt-auto flex items-center gap-1.5 pt-3 text-[12px] font-semibold text-accent-text">
+                        <Users size={13} /> {d.participants.length} people <ArrowRight size={13} className="ml-auto transition-transform group-hover:translate-x-0.5" />
+                      </p>
+                    </div>
+                  </Link>
+                </PeekCard>
               )
             })}
           </div>

@@ -25,6 +25,11 @@ export const people: Record<string, { name: string; color: PersonColor }> = {
   EM: { name: 'Ellen M', color: 'purple' },
   GH: { name: 'Grace H', color: 'green' },
   OB: { name: 'Omar B', color: 'gray' },
+  IO: { name: 'Ifeoma O', color: 'amber' },
+  LM: { name: 'Lucía M', color: 'coral' },
+  HS: { name: 'Hiro S', color: 'blue' },
+  SK: { name: 'Sanjay K', color: 'green' },
+  YA: { name: 'Yasmin A', color: 'pink' },
 }
 
 export type Avatar = { initials: string; name: string; color: PersonColor; face?: Face }
