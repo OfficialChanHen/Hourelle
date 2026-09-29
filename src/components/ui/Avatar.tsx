@@ -1,5 +1,6 @@
 'use client'
 
+import type { CSSProperties } from 'react'
 import { personVar, type PersonColor } from '@/lib/colors'
 import { defaultFace, type Face } from '@/lib/faces'
 import { useFaceFlip } from '@/hooks/useFaceFlip'
@@ -17,8 +18,8 @@ import { FaceSvg } from './FaceSvg'
    want genuinely different sizes: ~21px inline in a card, 26px in a roster row,
    34px in a guest list. `font` sizes the initials on the back of a flippable face.
 
-   `ring` is for piles: a 2px ring in the surface colour behind the pile is what
-   separates overlapping avatars, so it has to be told which surface it sits on.
+   `cut` is for piles: the mask (from pileCut) that notches this face where the next
+   one overlaps it. It goes on the drawing, never the button, so a focus ring stays whole.
 
    Hidden from screen readers by default: nearly everywhere it sits beside the
    person's name. Where the face is the only thing naming someone, pass `label` and
@@ -33,8 +34,7 @@ export function Avatar({
   face,
   size: rawSize = 26,
   font,
-  ring = false,
-  ringColor = 'var(--s1)',
+  cut,
   title,
   label,
   flippable = false,
@@ -44,8 +44,7 @@ export function Avatar({
   face?: Face
   size?: number
   font?: number
-  ring?: boolean
-  ringColor?: string
+  cut?: CSSProperties
   title?: string
   label?: string
   flippable?: boolean
@@ -57,7 +56,7 @@ export function Avatar({
     return (
       <FlipFace
         initials={initials} color={color} face={look} size={size} font={font}
-        ringColor={ring ? ringColor : undefined} name={label ?? title ?? initials}
+        cut={cut} name={label ?? title ?? initials}
       />
     )
   }
@@ -67,10 +66,10 @@ export function Avatar({
       role={label ? 'img' : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, ...cut }}
       className="inline-flex shrink-0 select-none"
     >
-      <FaceSvg face={look} color={color} size={size} ringColor={ring ? ringColor : undefined} />
+      <FaceSvg face={look} color={color} size={size} />
     </span>
   )
 }
@@ -78,8 +77,8 @@ export function Avatar({
 /* The face as a button: front is the face, back is the initials on the colour. The
    button is as big as the face, and a hit area around it reaches 44px, so a small
    face in a roster row is still easy to tap. */
-function FlipFace({ initials, color, face, size, font, ringColor, name }: {
-  initials: string; color: PersonColor; face: Face; size: number; font?: number; ringColor?: string; name: string
+function FlipFace({ initials, color, face, size, font, cut, name }: {
+  initials: string; color: PersonColor; face: Face; size: number; font?: number; cut?: CSSProperties; name: string
 }) {
   const { scope, flipped, toggle } = useFaceFlip()
   const c = personVar(color)
@@ -89,12 +88,15 @@ function FlipFace({ initials, color, face, size, font, ringColor, name }: {
       ref={scope} type="button" onClick={toggle}
       aria-label={name} aria-pressed={flipped} title={name}
       style={{ width: size, height: size, perspective: size * 6 }}
-      className="relative inline-block shrink-0 cursor-pointer select-none rounded-full p-0 outline-offset-2"
+      className="relative block shrink-0 cursor-pointer select-none rounded-full p-0 outline-offset-2 [-webkit-tap-highlight-color:transparent]"
     >
       {reach > 0 && <span aria-hidden className="absolute" style={{ inset: -reach }} />}
+      {/* the pile's notch sits on a layer that does not turn, so it stays on the side
+          the next face overlaps whichever way up the face is */}
+      <span className="block h-full w-full" style={cut}>
       <span className="face-flip relative block h-full w-full" style={{ transformStyle: 'preserve-3d' }}>
         <span className="absolute inset-0" style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>
-          <FaceSvg face={face} color={color} size={size} ringColor={ringColor} />
+          <FaceSvg face={face} color={color} size={size} />
         </span>
         <span
           aria-hidden
@@ -102,12 +104,12 @@ function FlipFace({ initials, color, face, size, font, ringColor, name }: {
           style={{
             background: c.bg, color: c.text,
             fontSize: font ?? Math.round(size * 0.36 * 10) / 10,
-            border: ringColor ? `2px solid ${ringColor}` : undefined,
             backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)',
           }}
         >
           {initials}
         </span>
+      </span>
       </span>
     </button>
   )

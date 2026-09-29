@@ -23,7 +23,7 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, Users, X } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
-import { namesLabel } from '@/components/ui/AvatarRow'
+import { namesLabel, pileCut } from '@/components/ui/AvatarRow'
 import { Popover, PopoverNote, PopoverTitle } from '@/components/ui/Popover'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Announce } from '@/components/ui/Announce'
@@ -1066,7 +1066,7 @@ function AvatarPile({ people, cap }: { people: Participant[]; cap: number }) {
   const extra = people.length - shown.length
   return (
     <div className="flex items-center" role={people.length ? 'img' : undefined} aria-label={people.length ? namesLabel(shown.map((p) => p.name), extra) : undefined}>
-      {shown.map((p) => <span key={p.id} className="-mr-1.5"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} ring /></span>)}
+      {shown.map((p, i) => <span key={p.id} className="-mr-1.5 flex"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} cut={i < shown.length - 1 ? pileCut(25, 6) : undefined} /></span>)}
       {extra > 0 && <span aria-hidden className="ml-2.5 text-[12.5px] font-semibold text-dim">+{extra}</span>}
       {people.length === 0 && <span className="text-[12.5px] text-faint">nobody yet</span>}
     </div>

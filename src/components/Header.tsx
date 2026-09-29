@@ -163,6 +163,7 @@ export function Header() {
             align="end"
             width={236}
             label="Account menu"
+            className="grid place-items-center rounded-full [-webkit-tap-highlight-color:transparent]"
             trigger={(open) => (
               <span
                 title="Account"

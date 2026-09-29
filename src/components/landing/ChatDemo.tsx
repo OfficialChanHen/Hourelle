@@ -10,6 +10,7 @@ import { useRef, useState } from 'react'
 import { useGSAP } from '@gsap/react'
 import { Check, HelpCircle, SendHorizontal, X } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
+import { pileCut } from '@/components/ui/AvatarRow'
 import type { PersonColor } from '@/lib/colors'
 import { prefersReducedMotion, useInView, VignetteFrame } from './Vignette'
 
@@ -95,8 +96,8 @@ export function ChatDemo() {
                   <p className="font-serif text-[30px] leading-none tracking-[-0.01em]">{going}<span className="ml-1.5 text-[14px] text-dim">going</span></p>
                   <p className="mt-1.5 text-[12.5px] text-dim">{maybe} maybe, {no} can&apos;t, {rsvp ? 0 : 1} no reply</p>
                   <div className="mt-2.5 flex">
-                    {OTHERS.filter((p) => p.r === 'going').map((p, i) => <span key={p.i} className={`rounded-full ring-2 ring-s0 ${i ? '-ml-1.5' : ''}`}><Avatar initials={p.i} color={p.c} size={24} font={9} /></span>)}
-                    {rsvp === 'going' && <span className="-ml-1.5 rounded-full ring-2 ring-s0"><Avatar initials="JM" color="purple" size={24} font={9} /></span>}
+                    {OTHERS.filter((p) => p.r === 'going').map((p, i, all) => <span key={p.i} className={`flex ${i ? '-ml-1.5' : ''}`}><Avatar initials={p.i} color={p.c} size={24} font={9} cut={i < all.length - 1 || rsvp === 'going' ? pileCut(24, 6) : undefined} /></span>)}
+                    {rsvp === 'going' && <span className="-ml-1.5 flex"><Avatar initials="JM" color="purple" size={24} font={9} /></span>}
                   </div>
                 </div>
               </div>

@@ -105,8 +105,10 @@
   --glass-rim-weak:rgba(255,255,255,.06);
   --glass-sheen:rgba(255,255,255,.08);
   --tour-dim: rgba(0, 0, 0, .66); --tour-lit: var(--accent-text);
-  /* faces on charcoal: a deeper, muted fill and a light feature shade, so a face
-     sits with the page instead of glowing on it. Studio and Daylight dark use these too. */
+  /* faces on charcoal: a deeper, muted fill, a light shade for the initials on a
+     flipped face (text, 4.5:1 and up), and a softer ink for the drawn features, about
+     3.8:1 on the fill, so eyes and hair read without glaring. Studio and Daylight dark
+     use these too. */
   --person-purple-bg:#4A3D52; --person-purple-fg:#E6D8EC;
   --person-teal-bg:#35493E;   --person-teal-fg:#CFE5D5;
   --person-coral-bg:#553F33;  --person-coral-fg:#F1D6C6;
@@ -115,6 +117,8 @@
   --person-pink-bg:#553B39;   --person-pink-fg:#F1D3CF;
   --person-green-bg:#3D4B31;  --person-green-fg:#D8E8C6;
   --person-gray-bg:#46433B;   --person-gray-fg:#E4DFD3;
+  --person-purple-ink:#A89AAE; --person-teal-ink:#91A799; --person-coral-ink:#B49B8D; --person-blue-ink:#94A4B1;
+  --person-amber-ink:#B2A483;  --person-pink-ink:#B49894; --person-green-ink:#9AA98A; --person-gray-ink:#A39F95;
 }
 
 /* ── Appearances — optional palettes layered over the same tokens ──
@@ -251,6 +255,9 @@
   --person-pink-bg:#5C3734;   --person-pink-fg:#FFFFFF;
   --person-green-bg:#3A5028;  --person-green-fg:#FFFFFF;
   --person-gray-bg:#48453D;   --person-gray-fg:#FFFFFF;
+  /* High contrast keeps full-strength features: undo the softer dark ink */
+  --person-purple-ink:#FFFFFF; --person-teal-ink:#FFFFFF; --person-coral-ink:#FFFFFF; --person-blue-ink:#FFFFFF;
+  --person-amber-ink:#FFFFFF;  --person-pink-ink:#FFFFFF; --person-green-ink:#FFFFFF; --person-gray-ink:#FFFFFF;
 }
 
 /* ───────────────── Map semantic tokens → Tailwind utilities (switch per theme) ───────────────── */

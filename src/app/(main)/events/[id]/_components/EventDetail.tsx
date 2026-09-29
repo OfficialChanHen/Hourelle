@@ -399,7 +399,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
                 {/* presence carries names, not faces: each is looked up on the roster */}
                 {(() => {
                   const faceById = new Map(event.participants.map((p) => [p.id, p.face]))
-                  return <AvatarRow people={room.here.map((h) => ({ ...h, face: faceById.get(h.id) }))} size={21} max={4} ringColor="var(--bg)" flippable />
+                  return <AvatarRow people={room.here.map((h) => ({ ...h, face: faceById.get(h.id) }))} size={21} max={4} flippable />
                 })()}
               </span>
             )}
