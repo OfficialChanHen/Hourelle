@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from 'react'
 import { personVar, type PersonColor } from '@/lib/colors'
-import { defaultFace, type Face } from '@/lib/faces'
+import { defaultFace, ringGap, type Face } from '@/lib/faces'
 import { useFaceFlip } from '@/hooks/useFaceFlip'
 import { FaceSvg } from './FaceSvg'
 
@@ -87,8 +87,8 @@ function FlipFace({ initials, color, face, size, font, cut, name }: {
     <button
       ref={scope} type="button" onClick={toggle}
       aria-label={name} aria-pressed={flipped} title={name}
-      style={{ width: size, height: size, perspective: size * 6 }}
-      className="relative block shrink-0 cursor-pointer select-none rounded-full p-0 outline-offset-2 [-webkit-tap-highlight-color:transparent]"
+      style={{ width: size, height: size, perspective: size * 6, '--ring-gap': `${ringGap(face, size)}px` } as CSSProperties}
+      className="face-ring relative block shrink-0 cursor-pointer select-none rounded-full p-0 [-webkit-tap-highlight-color:transparent]"
     >
       {reach > 0 && <span aria-hidden className="absolute" style={{ inset: -reach }} />}
       {/* the pile's notch sits on a layer that does not turn, so it stays on the side

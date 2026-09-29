@@ -3,7 +3,7 @@
 /* the availability panel's satellite components: people filter (strip + modal),
    calendar import menu, clear-times, drag handles, quick fills,
    the who's-missing popover, the cell breakdown, and small controls */
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Bell, CalendarPlus, Check, ChevronDown, Eraser, GripHorizontal, Minus, Plus, Search, Users, X, Zap } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -11,6 +11,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { pileCut } from '@/components/ui/AvatarRow'
 import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
 import type { Participant } from '@/lib/events'
+import { defaultFace, ringGap } from '@/lib/faces'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import type { Band } from './grid-lib'
 
@@ -27,18 +28,20 @@ export function FilterAvatars({ participants, filter, onToggle, onClear, onSelec
     <span className="flex items-center">
       {shown.map((p, i) => {
         const on = filter.has(p.id)
+        const gap = ringGap(p.face ?? defaultFace(p.initials, p.color), 25, 1.5)
         return (
           <button
             key={p.id} type="button" onClick={() => onToggle(p.id)}
             aria-pressed={on} aria-label={p.name}
             title={on ? `${p.name}: click to unfilter` : `${p.name}: see when they are free`}
-            className={`relative grid h-[25px] w-[25px] flex-none place-items-center rounded-full transition-opacity [-webkit-tap-highlight-color:transparent] ${i > 0 ? '-ml-[5px]' : ''}`}
+            className={`face-ring relative grid h-[25px] w-[25px] flex-none place-items-center rounded-full transition-opacity [-webkit-tap-highlight-color:transparent] ${i > 0 ? '-ml-[5px]' : ''}`}
             // a chosen face is ringed in accent, set off by a see-through gap, and sits on
             // top of its neighbours; the rest are notched where the next face overlaps
             style={{
-              ...(on ? { outline: '2px solid var(--accent)', outlineOffset: 1.5, zIndex: 1 } : {}),
+              '--ring-gap': `${gap}px`,
+              ...(on ? { outline: '2px solid var(--accent)', outlineOffset: gap, zIndex: 1 } : {}),
               opacity: active && !on ? 0.35 : 1,
-            }}
+            } as CSSProperties}
           >
             <Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} cut={!on && i < shown.length - 1 ? pileCut(25, 5) : undefined} />
           </button>
