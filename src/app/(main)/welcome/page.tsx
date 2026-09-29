@@ -232,7 +232,7 @@ function Welcome() {
                 <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium text-dim">
                   <span className="h-2 w-2 rounded-full bg-ochre" /> Deciding
                 </div>
-                <h3 className="text-[15px] font-semibold tracking-[-0.01em]">Dinner with friends</h3>
+                <h3 className="text-[15px] font-semibold tracking-[-0.01em]">Friday dinner</h3>
                 <div className="mt-2 flex items-center gap-1.5 text-[13px] text-dim">
                   <Calendar size={14} /> <span>Fri, Oct 3 – Sun, Oct 5</span> <TimezonePill tz="America/Los_Angeles" />
                 </div>

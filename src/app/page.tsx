@@ -55,10 +55,11 @@ const FEATURES = [
   },
 ] as const
 
-// friend plans first: the audience is friends making plans, not office meetings
+// friend plans and open events first: the audience is any group planning something
+// (friends, a club, strangers at an open event), not office meetings
 const DEMO_PICKS: Record<string, string> = {
   'cabin-trip': 'A **day poll** for a long weekend, where whole days are the question.',
-  'priyas-send-off': 'A **vote on the place**, closing soon, with the leader changing as votes come in.',
+  'harvest-fair': 'Open to anyone, with **three votes each** on the place and a **cap on spots**.',
   'trivia-night-anchor': 'A **fixed date and place**. The only question left is **who is coming**.',
 }
 
@@ -128,7 +129,7 @@ export default function Landing() {
                 Find the hour <Em>everyone</Em> can meet.
               </h1>
               <p className="mt-5 max-w-[560px] text-[16px] leading-[1.6] text-dim sm:text-[17px]">
-                Start a plan, then send the invite link. Everyone marks when they are free and votes on where to go. Guests don't need an account.
+                Skip the back-and-forth. Start a plan and send the link. Everyone marks when they are free and votes on where to go. Guests don't need an account.
               </p>
               <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
                 <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-full bg-accent px-6 text-[15px] font-semibold text-on-accent">
