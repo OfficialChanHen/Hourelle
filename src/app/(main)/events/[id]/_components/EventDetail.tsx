@@ -47,7 +47,7 @@ import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
 import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
 import { Hint } from '@/components/ui/Hint'
-import { Tour } from '@/components/Tour'
+import { Tour, type TourContext } from '@/components/Tour'
 import { AskTour } from '@/components/AskTour'
 import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, patchEventWith, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
@@ -354,7 +354,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       {/* the share button and the phone menu only swap their words; this says it out loud */}
       <Announce text={copied ? 'Link copied' : ''} />
       {/* the tour, only when it was asked for, and the one question a new guest gets; both mount on the body */}
-      {phase !== 'past' && <Tour host={event.hostedByYou} locked={phase !== 'planning'} />}
+      {phase !== 'past' && <Tour host={event.hostedByYou} locked={phase !== 'planning'} ctx={tourContextOf(event)} />}
       {phase !== 'past' && <AskTour eventId={id} />}
       {/* the host's cover, when one is set — photo or preset scene; shorter on phones
           so the tabs and content stay within the first screen */}
@@ -1806,3 +1806,17 @@ function DetailRow({ k, v, last }: { k: string; v: React.ReactNode; last?: boole
   )
 }
 
+// what the tour needs to know to say true things about this event (see TourContext)
+function tourContextOf(event: AppEvent): TourContext {
+  const me = event.participants.find((p) => p.you)?.id
+  const answered = new Set<string>()
+  for (const day of Object.values(availIvOf(event))) for (const [pid, ivs] of Object.entries(day)) if (ivs.length && pid !== me) answered.add(pid)
+  return {
+    dayPoll: event.granularity === 'day',
+    placeMode: event.location.mode,
+    itinerary: event.location.planMode === 'itinerary',
+    places: event.location.places.length,
+    canSuggest: !!event.location.guestsCanSuggest,
+    othersAnswered: answered.size,
+  }
+}

@@ -34,70 +34,113 @@ import { useHeatLine, withHeatLine } from '@/hooks/useHeatLine'
 type Candidate = { sel: string; title: string; text: string; tryIt?: string }
 type Stop = { tab?: string; targets: Candidate[] } | { end: true }
 
+/* What the event in front of the tour looks like, so every card says something true
+   about it. A fixed script asked a guest to "vote for a place" on an event with no
+   places yet, told a day poll to "drag across the hours", and asked people to tap a
+   face when nobody else had answered. */
+export type TourContext = {
+  dayPoll: boolean                                   // whole days, tapped, not hours dragged
+  placeMode: 'vote' | 'set' | 'remote' | 'later'     // how the place is being decided
+  itinerary: boolean                                 // a route of stops, not one place
+  places: number                                     // places on the ballot so far
+  canSuggest: boolean                                // guests may add places
+  othersAnswered: number                             // other people with times marked
+}
+const PLAIN: TourContext = { dayPoll: false, placeMode: 'vote', itinerary: false, places: 1, canSuggest: false, othersAnswered: 1 }
+
+function gridCard(ctx: TourContext, title: string): Candidate {
+  return ctx.dayPoll
+    ? { sel: 'grid-all', title, text: 'Press Edit mine and tap the days you can make. {heat}', tryIt: 'Tap a day.' }
+    : { sel: 'grid-all', title, text: 'Press Edit mine and drag across the hours you can meet. {heat}', tryIt: 'Drag a block.' }
+}
+
+// the host's place stop: what there is to do depends on how the place is decided
+function hostPlaceCard(ctx: TourContext): Candidate {
+  const title = 'Where it happens'
+  if (ctx.placeMode === 'remote') return { sel: 'location', title, text: 'This one is online. Add the meeting link here so it goes out with the plan.' }
+  if (ctx.placeMode === 'set') return { sel: 'location', title, text: 'The place is set. You can change it here any time before you lock in.' }
+  if (ctx.itinerary) return { sel: 'location', title, text: 'Add the stops and put them in order. Everyone sees the route.', tryIt: 'Add a stop.' }
+  if (!ctx.places) return { sel: 'location', title, text: 'Add a few places and everyone votes. You pick the winner when you lock in.', tryIt: 'Add a place.' }
+  return { sel: 'location', title, text: 'Everyone votes on these places. You pick the winner when you lock in.', tryIt: 'Vote for a place.' }
+}
+
+// the guest's place stop: only ask for a vote when there is something to vote on
+function guestPlaceCard(ctx: TourContext): Candidate {
+  if (ctx.placeMode === 'remote') return { sel: 'location', title: 'Where it happens', text: 'This one is online. The link will be here.' }
+  if (ctx.placeMode === 'set') return { sel: 'location', title: 'Where it is', text: 'The host has already picked the place.' }
+  if (ctx.itinerary) return { sel: 'location', title: 'Where you are going', text: 'The host is planning a route. The stops show here.' }
+  if (!ctx.places) {
+    return ctx.canSuggest
+      ? { sel: 'location', title: 'Have a say in the place', text: 'No places yet. Suggest one and everyone can vote on it.', tryIt: 'Add a place.' }
+      : { sel: 'location', title: 'Where it happens', text: 'No places yet. Once the host adds some, you can vote here.' }
+  }
+  return { sel: 'location', title: 'Have a say in the place', text: 'Vote for the places you like. The host picks one based on the votes.', tryIt: ctx.canSuggest ? 'Vote for a place, or add your own.' : 'Vote for a place.' }
+}
+
+// the "one person at a time" stop needs someone else on the grid to point at
+function peopleStop(ctx: TourContext, title: string): Stop[] {
+  if (!ctx.othersAnswered) return []
+  return [{ tab: 'availability', targets: [{ sel: 'people', title, text: 'Tap a face to see just their times. Tap again to see everyone.', tryIt: 'Tap a face.' }] }]
+}
+
 // the host's tour: the link they send, the grid, the ballot, the rest, the lock-in
-const HOST_STOPS: Stop[] = [
-  { tab: 'availability', targets: [
-    { sel: 'share', title: 'One link does it all', text: 'Send this to everyone. They add a name and answer, no account needed.', tryIt: 'Copy the link.' },
-    { sel: 'menu', title: 'One link does it all', text: 'The share link is in this menu. Send it to everyone, no account needed.', tryIt: 'Copy the link.' },
-  ] },
-  { tab: 'availability', targets: [
-    { sel: 'grid-all', title: 'When people are free', text: 'Press Edit mine and drag across the hours you can meet. {heat}', tryIt: 'Drag a block.' },
-  ] },
-  { tab: 'availability', targets: [
-    { sel: 'people', title: 'One person at a time', text: 'Tap a face to see just their times. Tap again to see everyone.', tryIt: 'Tap a face.' },
-  ] },
-  { tab: 'location', targets: [
-    { sel: 'location', title: 'Where it happens', text: 'Add places and everyone votes. You pick the winner when you lock in.', tryIt: 'Add a place and vote for it.' },
-  ] },
-  { tab: 'availability', targets: [
-    { sel: 'tabs', title: 'The rest of the plan', text: 'Attendance shows who is coming. Event details has everything else, including invites by email.' },
-  ] },
-  { tab: 'availability', targets: [
-    { sel: 'lock', title: 'Lock it in', text: 'Pick a time and place. Everyone gets the plan and can RSVP.', tryIt: 'Press it to see the best time. Nothing is final until you confirm.' },
-    { sel: 'create', title: 'Your own event', text: 'Start your own event here.' },
-  ] },
-  { end: true },
-]
+function hostStops(ctx: TourContext): Stop[] {
+  return [
+    { tab: 'availability', targets: [
+      { sel: 'share', title: 'One link does it all', text: 'Send this to everyone. They add a name and answer, no account needed.', tryIt: 'Copy the link.' },
+      { sel: 'menu', title: 'One link does it all', text: 'The share link is in this menu. Send it to everyone, no account needed.', tryIt: 'Copy the link.' },
+    ] },
+    { tab: 'availability', targets: [gridCard(ctx, 'When people are free')] },
+    ...peopleStop(ctx, 'One person at a time'),
+    { tab: 'location', targets: [hostPlaceCard(ctx)] },
+    { tab: 'availability', targets: [
+      { sel: 'tabs', title: 'The rest of the plan', text: 'Attendance shows who is coming. Event details has everything else, including invites by email.' },
+    ] },
+    { tab: 'availability', targets: [
+      { sel: 'lock', title: 'Lock it in', text: ctx.placeMode === 'remote' ? 'Pick a time. Everyone gets the plan and can RSVP.' : 'Pick a time and place. Everyone gets the plan and can RSVP.', tryIt: 'Press it to see the best time. Nothing is final until you confirm.' },
+      { sel: 'create', title: 'Your own event', text: 'Start your own event here.' },
+    ] },
+    { end: true },
+  ]
+}
 
 // the guest's tour once the plan is locked in. There is no Edit mine on a settled
 // grid, so telling somebody to press it would point at nothing; what is asked of
 // them now is whether they are coming.
-const GUEST_LOCKED_STOPS: Stop[] = [
-  { tab: 'availability', targets: [
-    { sel: 'rsvp', title: 'Say if you can make it', text: 'The time and place are set. Let the host know if you are coming.', tryIt: 'You can change your answer later.' },
-  ] },
-  { tab: 'availability', targets: [
-    { sel: 'grid-all', title: 'When it is', text: 'The time that won is marked on the grid.' },
-  ] },
-  { tab: 'attendance', targets: [
-    { sel: 'attendance', title: 'Who is coming', text: 'See who has answered and who has not.' },
-  ] },
-  { tab: 'availability', targets: [
-    { sel: 'chat', title: 'Say something', text: 'Everyone on the event can chat here.' },
-  ] },
-  { end: true },
-]
+function guestLockedStops(ctx: TourContext): Stop[] {
+  return [
+    { tab: 'availability', targets: [
+      { sel: 'rsvp', title: 'Say if you can make it', text: ctx.placeMode === 'remote' ? 'The time is set. Let the host know if you are coming.' : 'The time and place are set. Let the host know if you are coming.', tryIt: 'You can change your answer later.' },
+    ] },
+    { tab: 'availability', targets: [
+      { sel: 'grid-all', title: 'When it is', text: ctx.dayPoll ? 'The days that won are marked on the calendar.' : 'The time that won is marked on the grid.' },
+    ] },
+    { tab: 'attendance', targets: [
+      { sel: 'attendance', title: 'Who is coming', text: 'See who has answered and who has not.' },
+    ] },
+    { tab: 'availability', targets: [
+      { sel: 'chat', title: 'Say something', text: 'Everyone on the event can chat here.' },
+    ] },
+    { end: true },
+  ]
+}
 
 // the guest's tour: what a guest actually does here. No invites, no lock-in, no
 // host controls; the ballot and the discussion take the last two stops instead.
-const GUEST_STOPS: Stop[] = [
-  { tab: 'availability', targets: [
-    { sel: 'grid-all', title: 'Start with your times', text: 'Press Edit mine and drag across the hours you can meet. {heat}', tryIt: 'Drag a block.' },
-  ] },
-  { tab: 'availability', targets: [
-    { sel: 'people', title: 'Who else has answered', text: 'Tap a face to see just their times. Tap again to see everyone.', tryIt: 'Tap a face.' },
-  ] },
-  { tab: 'location', targets: [
-    { sel: 'location', title: 'Have a say in the place', text: 'Vote for the places you like. The host picks one based on the votes.', tryIt: 'Vote for a place.' },
-  ] },
-  { tab: 'availability', targets: [
-    { sel: 'tabs', title: 'The rest of the event', text: 'Attendance shows who is coming. Event details has the rest of the plan.' },
-  ] },
-  { tab: 'availability', targets: [
-    { sel: 'chat', title: 'Say something', text: 'Everyone on the event can chat here.' },
-  ] },
-  { end: true },
-]
+function guestStops(ctx: TourContext): Stop[] {
+  return [
+    { tab: 'availability', targets: [gridCard(ctx, 'Start with your times')] },
+    ...peopleStop(ctx, 'Who else has answered'),
+    { tab: 'location', targets: [guestPlaceCard(ctx)] },
+    { tab: 'availability', targets: [
+      { sel: 'tabs', title: 'The rest of the event', text: 'Attendance shows who is coming. Event details has the rest of the plan.' },
+    ] },
+    { tab: 'availability', targets: [
+      { sel: 'chat', title: 'Say something', text: 'Everyone on the event can chat here.' },
+    ] },
+    { end: true },
+  ]
+}
 
 type Box = { x: number; y: number; w: number; h: number }
 const PAD = 8
@@ -152,7 +195,10 @@ function placeCard(b: Box | null, cardH: number): { left: number; top: number; w
   return { left: Math.max(16, Math.min(b.x, vw - width - 16)), top, width }
 }
 
-export function Tour({ host = false, locked = false }: { host?: boolean; locked?: boolean }) {
+export function Tour({ host = false, locked = false, ctx = PLAIN }: { host?: boolean; locked?: boolean; ctx?: TourContext }) {
+  // read when the tour starts, not when this renders: the script is built once per run
+  const ctxRef = useRef(ctx)
+  useEffect(() => { ctxRef.current = ctx })
   const heatLine = useHeatLine() // what the grid colours mean, in this theme's words
   // the clips link carries the event it was followed from, so Help can offer the way back
   const pathname = usePathname()
@@ -193,7 +239,7 @@ export function Tour({ host = false, locked = false }: { host?: boolean; locked?
       if (t) clearTimeout(t)
       t = setTimeout(() => {
         const here = activeTab()
-        const script = host ? HOST_STOPS : locked ? GUEST_LOCKED_STOPS : GUEST_STOPS
+        const script = host ? hostStops(ctxRef.current) : locked ? guestLockedStops(ctxRef.current) : guestStops(ctxRef.current)
         const have = script.filter((s) => 'end' in s || s.tab !== here || find(s))
         // the request is spent the moment the tour is actually on screen, not when it
         // is finished. Walking away from it — the back button, a tap through to
