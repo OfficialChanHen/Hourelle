@@ -11,7 +11,7 @@ import { useLiveEvents } from '@/hooks/useLiveEvents'
 // real filters over the derived lifecycle phase — Confirmed covers everything locked in
 const FILTERS: { key: string; label: string; match: (p: Phase) => boolean }[] = [
   { key: 'all', label: 'All', match: (p) => p !== 'past' },
-  { key: 'planning', label: 'Planning', match: (p) => p === 'planning' },
+  { key: 'planning', label: 'Deciding', match: (p) => p === 'planning' },
   { key: 'confirmed', label: 'Confirmed', match: (p) => p === 'upcoming' || p === 'soon' || p === 'today' },
   { key: 'past', label: 'Past', match: (p) => p === 'past' },
 ]
@@ -46,8 +46,8 @@ function EventsList() {
   return (
     <div className="mx-auto max-w-[1240px] px-[26px] pb-[92px] pt-[34px]">
       <div className="mb-4">
-        <h1 className="mb-1.5 font-serif font-normal text-[36px] leading-[1.02] tracking-[-0.01em]">Events</h1>
-        <div className="text-[13.5px] text-dim">{withPhase.length > 0 ? `${withPhase.length} event${withPhase.length === 1 ? '' : 's'}` : 'No events yet'}</div>
+        <h1 className="mb-1.5 font-serif font-normal text-[36px] leading-[1.02] tracking-[-0.01em]">Plans</h1>
+        <div className="text-[13.5px] text-dim">{withPhase.length > 0 ? `${withPhase.length} plan${withPhase.length === 1 ? '' : 's'}` : 'No plans yet'}</div>
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -79,9 +79,9 @@ function EventsList() {
         <EmptyState
           icon={CalendarX2}
           title={filter === 'all' ? 'Nothing planned yet' : `Nothing under ${match.label}`}
-          body={filter === 'all' ? 'Start a plan and it shows up here.' : 'Events move here as their stage changes.'}
-          action={filter === 'all' ? { label: 'Create an event', href: '/create' } : undefined}
-          secondary={filter === 'all' ? { label: 'Or open a demo event', href: '/demos' } : undefined}
+          body={filter === 'all' ? 'Start a plan and it shows up here.' : 'Plans move here as their stage changes.'}
+          action={filter === 'all' ? { label: 'Start a plan', href: '/create' } : undefined}
+          secondary={filter === 'all' ? { label: 'Or open a demo', href: '/demos' } : undefined}
         />
       )}
 
@@ -89,7 +89,7 @@ function EventsList() {
         <>
           {/* same eyebrow section start as home — faint, because past is over */}
           <div className="mb-3 mt-7 flex items-center gap-2.5">
-            <span className="text-[11.5px] font-semibold uppercase tracking-[.13em] text-faint">Past events</span>
+            <span className="text-[11.5px] font-semibold uppercase tracking-[.13em] text-faint">Past plans</span>
             <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[11.5px] text-dim">{past.length}</span>
           </div>
           <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">

@@ -44,24 +44,24 @@ const PRIVACY: LegalDoc = {
       id: 'who-we-are', title: 'Who we are and what this policy covers',
       paragraphs: [
         'Hourelle is an independent service for settling on a time and a place with other people. It is operated by its maker, reachable through the [Help page](/help). This policy explains what personal information Hourelle collects when you use the website at hourelle.com, how it is used, who it is shared with and the rights you have over it.',
-        'It applies to everyone who uses the service: people with an account, guests who join an event by a link, and visitors reading the public pages.',
+        'It applies to everyone who uses the service: people with an account, guests who join a plan by a link, and visitors reading the public pages.',
       ],
     },
     {
       id: 'what-we-collect', title: 'Information we collect',
       paragraphs: [
         'Account information. When you create an account we store the name you give, your email address, the colour of your avatar, and which way you sign in: a password, Google or Microsoft. Google and Microsoft tell us your name and email address; we never see the password you use with them.',
-        'Event content. For each event we store what the host adds: the title, description, dates, places, budget, number of spots, and a cover picture if one was uploaded. We store what participants add: the times they mark as free, their votes on places, whether they are coming, and the messages in the event chat.',
+        'Plan content. For each plan we store what the host adds: the title, description, dates, places, budget, number of spots, and a cover picture if one was uploaded. We store what participants add: the times they mark as free, their votes on places, whether they are coming, and the messages in the plan chat.',
         'Guest information. A guest who joins by a link gives a name and, only if they choose, an email address. We store both, together with a private token that makes their personal link theirs.',
-        'Calendar data. If you import from Google Calendar or Outlook, your browser asks the calendar, with your permission, for the times you are busy during the event’s days, works out your free times, and shows them for you to review. The calendar entries, their titles and their details are never sent to our servers and never stored. What we keep is the availability you save, plus a note of which stretches your calendar showed as busy, so the grid can mark them. The permission lasts about an hour, and the next import asks again.',
-        'Information on your device. Your browser keeps a copy of the events you are part of so pages open at once, your sign-in session, a guest’s place on an event, and a few preferences such as the theme and clock style.',
+        'Calendar data. If you import from Google Calendar or Outlook, your browser asks the calendar, with your permission, for the times you are busy during the plan’s days, works out your free times, and shows them for you to review. The calendar entries, their titles and their details are never sent to our servers and never stored. What we keep is the availability you save, plus a note of which stretches your calendar showed as busy, so the grid can mark them. The permission lasts about an hour, and the next import asks again.',
+        'Information on your device. Your browser keeps a copy of the plans you are part of so pages open at once, your sign-in session, a guest’s place on a plan, and a few preferences such as the theme and clock style.',
         'Technical information. Our hosting provider keeps standard request logs, including the address of the device making the request, the page requested and the time, for a short period, as every website’s host does. We do not add our own tracking to this.',
       ],
     },
     {
       id: 'how-we-use', title: 'How we use information',
       paragraphs: [
-        'We use the information above to run the service: to show an event to the people it was shared with, to work out when a group is free, to send the emails described below, to remember who you are between visits, and to keep the service secure. We do not use it for advertising, profiling or any purpose unrelated to the events you are part of.',
+        'We use the information above to run the service: to show a plan to the people it was shared with, to work out when a group is free, to send the emails described below, to remember who you are between visits, and to keep the service secure. We do not use it for advertising, profiling or any purpose unrelated to the plans you are part of.',
       ],
     },
     {
@@ -76,7 +76,7 @@ const PRIVACY: LegalDoc = {
         'We never sell personal information. We share it only with the people it is meant for and with the providers that run the service on our behalf, each of which handles data under its own agreement with us.',
       ],
       items: [
-        'People on your events. Anyone who holds an event’s link can see that event: its details, the availability grid, the places, the votes and the chat, including the names of the people on it. A host also sees the email addresses of the people they invited by email. Nobody else sees anyone’s email address.',
+        'People on your plans. Anyone who holds a plan’s link can see that plan: its details, the availability grid, the places, the votes and the chat, including the names of the people on it. A host also sees the email addresses of the people they invited by email. Nobody else sees anyone’s email address.',
         'Supabase, which hosts our database and handles sign-in.',
         'Resend, which delivers the emails we send.',
         'Vercel, which hosts the website and keeps the request logs mentioned above.',
@@ -88,31 +88,31 @@ const PRIVACY: LegalDoc = {
     {
       id: 'emails', title: 'Emails we send',
       paragraphs: [
-        'We send email only about events you are part of: an invitation with your personal link, a nudge when a host is waiting on your answer, an announcement when a plan is locked in, reminders the day before and the day of an event or a deadline, and a notice when your account is deleted. Accounts can turn each kind off in Settings, or turn email off altogether. Guests receive reminders only if they gave an email address. Invitations are sent on behalf of the host, and replying to one reaches the host, not us.',
+        'We send email only about plans you are part of: an invitation with your personal link, a nudge when a host is waiting on your answer, an announcement when a plan is locked in, reminders the day before and the day of a plan or a deadline, and a notice when your account is deleted. Accounts can turn each kind off in Settings, or turn email off altogether. Guests receive reminders only if they gave an email address. Invitations are sent on behalf of the host, and replying to one reaches the host, not us.',
       ],
     },
     {
       id: 'cookies', title: 'Cookies and local storage',
       paragraphs: [
-        'Hourelle does not use advertising or analytics cookies. Your browser stores your sign-in session and a copy of your events in its own storage so that the service works and pages open quickly. Clearing your browser’s site data removes all of it; an account gets its events back from the server on the next visit.',
+        'Hourelle does not use advertising or analytics cookies. Your browser stores your sign-in session and a copy of your plans in its own storage so that the service works and pages open quickly. Clearing your browser’s site data removes all of it; an account gets its plans back from the server on the next visit.',
       ],
     },
     {
       id: 'retention', title: 'How long we keep information',
       paragraphs: [
-        'Events and everything in them stay until the host deletes the event. A record of each email we sent, holding the address and the kind of message, is kept so nothing is sent twice. Deleting your account from your profile removes your account, the events you host, your place and answers on other people’s events and the messages you wrote, immediately and permanently; you confirm it with your password or by signing in once more, and a note goes to your email address to say it happened.',
+        'Plans and everything in them stay until the host deletes the plan. A record of each email we sent, holding the address and the kind of message, is kept so nothing is sent twice. Deleting your account from your profile removes your account, the plans you host, your place and answers on other people’s plans and the messages you wrote, immediately and permanently; you confirm it with your password or by signing in once more, and a note goes to your email address to say it happened.',
       ],
     },
     {
       id: 'your-rights', title: 'Your rights and choices',
       paragraphs: [
-        'You can see and change your name, avatar colour and email settings on your profile, delete any event you host, leave any event you joined, and delete your account. Depending on where you live you may also have the right to ask for a copy of your information, to have it corrected or erased, to restrict or object to how it is used, or to complain to a data protection authority. Write to us through the [Help page](/help) for any of these and we will answer within a month.',
+        'You can see and change your name, avatar colour and email settings on your profile, delete any plan you host, leave any plan you joined, and delete your account. Depending on where you live you may also have the right to ask for a copy of your information, to have it corrected or erased, to restrict or object to how it is used, or to complain to a data protection authority. Write to us through the [Help page](/help) for any of these and we will answer within a month.',
       ],
     },
     {
       id: 'security', title: 'Security',
       paragraphs: [
-        'Data travels over encrypted connections and is stored with a provider that encrypts it at rest. Access rules in the database, not only the screen, decide who may change an event. Passwords are never stored in a form we can read. No service can promise perfect security, and if we learn of a breach affecting you we will tell you without undue delay.',
+        'Data travels over encrypted connections and is stored with a provider that encrypts it at rest. Access rules in the database, not only the screen, decide who may change a plan. Passwords are never stored in a form we can read. No service can promise perfect security, and if we learn of a breach affecting you we will tell you without undue delay.',
       ],
     },
     {
@@ -149,7 +149,7 @@ const TERMS: LegalDoc = {
     {
       id: 'agreement', title: 'Agreement to these terms',
       paragraphs: [
-        'These terms and conditions are an agreement between you and Hourelle, operated by its maker and reachable through the [Help page](/help). By creating an account, joining an event or otherwise using the service at hourelle.com you agree to them and to the [Privacy Policy](/privacy), which explains how personal information is handled. If you do not agree, please do not use the service.',
+        'These terms and conditions are an agreement between you and Hourelle, operated by its maker and reachable through the [Help page](/help). By creating an account, joining a plan or otherwise using the service at hourelle.com you agree to them and to the [Privacy Policy](/privacy), which explains how personal information is handled. If you do not agree, please do not use the service.',
       ],
     },
     {
@@ -167,7 +167,7 @@ const TERMS: LegalDoc = {
     {
       id: 'your-content', title: 'Your content',
       paragraphs: [
-        'Everything you add to Hourelle stays yours: events, descriptions, pictures, answers and messages. You grant us a non-exclusive, worldwide, royalty-free licence to store, copy and display that content only as needed to provide the service, which means showing it to the people you share the event with and sending the emails the service sends. The licence ends when the content is deleted, except for copies held briefly in backups.',
+        'Everything you add to Hourelle stays yours: plans, descriptions, pictures, answers and messages. You grant us a non-exclusive, worldwide, royalty-free licence to store, copy and display that content only as needed to provide the service, which means showing it to the people you share the plan with and sending the emails the service sends. The licence ends when the content is deleted, except for copies held briefly in backups.',
         'You are responsible for what you add. Only add pictures and text you have the right to share, and nothing that is unlawful or that infringes someone else’s rights.',
       ],
     },
@@ -176,24 +176,24 @@ const TERMS: LegalDoc = {
       paragraphs: ['When using Hourelle you agree not to:'],
       items: [
         'harass, threaten, defame or impersonate anyone, or post content that is unlawful, hateful or sexually explicit;',
-        'use invitations or the chat to send unsolicited messages, advertising or anything unrelated to a genuine event;',
-        'try to access events, accounts or data that are not yours, or to bypass the access rules of the service;',
+        'use invitations or the chat to send unsolicited messages, advertising or anything unrelated to a genuine plan;',
+        'try to access plans, accounts or data that are not yours, or to bypass the access rules of the service;',
         'copy data out of the service in bulk, scrape it, or use automated tools against it without our written permission;',
-        'interfere with the service, its infrastructure or other people’s events, or introduce malicious code;',
+        'interfere with the service, its infrastructure or other people’s plans, or introduce malicious code;',
         'use the service in breach of any law that applies to you.',
       ],
     },
     {
       id: 'invitations', title: 'Invitations and email',
       paragraphs: [
-        'When you invite someone by email, Hourelle sends them a message on your behalf, with your name on it. Only invite people who will want to hear from you about that event. We may limit or stop sending on behalf of an account that sends unwanted mail.',
-        'Anyone holding an event’s link can open the event, so share links with the people the event is for.',
+        'When you invite someone by email, Hourelle sends them a message on your behalf, with your name on it. Only invite people who will want to hear from you about that plan. We may limit or stop sending on behalf of an account that sends unwanted mail.',
+        'Anyone holding a plan’s link can open the plan, so share links with the people the plan is for.',
       ],
     },
     {
       id: 'hosts-guests', title: 'Hosts and guests',
       paragraphs: [
-        'A host creates an event, decides who is invited, may change or delete it and may lock in the plan. Everyone else may answer, vote, chat and leave. A guest takes part without an account and is identified by the name they typed and, if they gave one, their email address. Hosts are responsible for how they use the information their guests provide.',
+        'A host creates a plan, decides who is invited, may change or delete it and may lock it in. Everyone else may answer, vote, chat and leave. A guest takes part without an account and is identified by the name they typed and, if they gave one, their email address. Hosts are responsible for how they use the information their guests provide.',
       ],
     },
     {
@@ -211,7 +211,7 @@ const TERMS: LegalDoc = {
     {
       id: 'free-service', title: 'A free service',
       paragraphs: [
-        'Hourelle is free to use. If we ever offer paid extras, they will be described separately and hosting an event will remain free. Contributions made through the coffee link are voluntary gifts, not payments for a service, and are not refundable.',
+        'Hourelle is free to use. If we ever offer paid extras, they will be described separately and hosting a plan will remain free. Contributions made through the coffee link are voluntary gifts, not payments for a service, and are not refundable.',
       ],
     },
     {

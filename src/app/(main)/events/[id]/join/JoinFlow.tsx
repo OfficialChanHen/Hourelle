@@ -270,9 +270,9 @@ export function JoinFlow({ id }: { id: string }) {
       <div className="mx-auto max-w-[560px] px-[26px] pb-[92px] pt-[72px] text-center">
         <p className="font-serif font-normal text-[33.5px] tracking-[-0.01em]">This invite doesn&apos;t open here</p>
         <p className="mx-auto mt-2 max-w-sm text-[14.5px] leading-[1.55] text-dim">
-          The link may have a typo, or the event was deleted. Ask the host to send it again, or plan something of your own.
+          The link may have a typo, or the plan was deleted. Ask the host to send it again, or start one of your own.
         </p>
-        <Link href="/create" className="mt-5 inline-flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent">Create an event</Link>
+        <Link href="/create" className="mt-5 inline-flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent">Start a plan</Link>
       </div>
     )
   }
@@ -334,7 +334,7 @@ export function JoinFlow({ id }: { id: string }) {
           {/* the one ask — everything else waits behind it */}
           <div className="mt-4 border-t border-border pt-4 sm:mt-5 sm:pt-5">
             {past ? (
-              <p className="text-[13.5px] leading-[1.55] text-dim">This event already happened.</p>
+              <p className="text-[13.5px] leading-[1.55] text-dim">This plan already happened.</p>
             ) : sent ? (
               /* the link is on its way; opening it on this device finishes the join */
               <div className="flex items-start gap-3 rounded-xl border border-teal-border bg-teal-bg px-4 py-3.5">
@@ -349,7 +349,7 @@ export function JoinFlow({ id }: { id: string }) {
             ) : collision ? (
               /* the typed name is taken — the guest sorts it out here, not the host later */
               <>
-                <p className="text-[15px] font-semibold">Someone named {collision.name} is already in this event.</p>
+                <p className="text-[15px] font-semibold">Someone named {collision.name} is already in this plan.</p>
                 {collision.guest && collision.email ? (
                   <>
                     <p className="mt-1.5 text-[13px] leading-[1.55] text-dim">

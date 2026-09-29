@@ -141,7 +141,7 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onVote, onClos
   const body = <ChatBody messages={shown} unreadFrom={unreadFrom} onSend={onSend} onClose={close} avatarOf={avatarOf} readOnly={readOnly} typing={typing} onType={onType} onStopTyping={onStopTyping} polls={polls} />
 
   return (
-    <div ref={root} className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Event discussion">
+    <div ref={root} className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Chat">
       <div className="cd-back absolute inset-0 bg-black/40 lg:bg-black/15" onClick={close} />
       {/* desktop: right-side drawer */}
       <div className="cd-panel absolute right-0 top-0 hidden h-full w-[330px] max-w-[88vw] flex-col border-l border-border bg-s0 shadow-soft lg:flex">

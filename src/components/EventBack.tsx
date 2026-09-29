@@ -34,7 +34,7 @@ export function useFromEvent(): { id: string | null; title: string | null } {
 
 function Back({ fallback }: { fallback?: { href: string; label: string } }) {
   const { id, title } = useFromEvent()
-  if (id) return <BackLink href={`/events/${id}`} label={title ?? 'Back to the event'} />
+  if (id) return <BackLink href={`/events/${id}`} label={title ?? 'Back to the plan'} />
   return fallback ? <BackLink href={fallback.href} label={fallback.label} onlyWithAccount /> : null
 }
 

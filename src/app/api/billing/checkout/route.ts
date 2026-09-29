@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'Log in first.' }, { status: 401 })
   const body = (await req.json().catch(() => ({}))) as Body
   const price = body.period === 'yearly' ? PRICES.yearly : PRICES.monthly
-  if (!price) return NextResponse.json({ error: 'That plan has no price set on this server yet.' }, { status: 503 })
+  if (!price) return NextResponse.json({ error: 'Plus has no price set on this server yet.' }, { status: 503 })
 
   const db = serverDb()
   // an account that has paid before keeps its customer, so cards and history stay together
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     email: user.email,
     customerId: row?.stripe_customer_id ?? null,
     successUrl: `${site}/settings?plus=welcome`,
-    cancelUrl: `${site}/plans`,
+    cancelUrl: `${site}/pricing`,
   })
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: 502 })
   return NextResponse.json({ url: r.data.url })

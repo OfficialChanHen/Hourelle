@@ -41,8 +41,8 @@ export function StorageNotice() {
           <p className="text-[13px] font-semibold leading-[1.5] text-ochre-text">This browser has run out of room.</p>
           <p className="mt-0.5 text-[12.5px] leading-[1.55] text-ochre-text">
             {backendOn
-              ? 'Your change is on its way to everyone else, but this browser will forget it when the page reloads. Opening the cover settings on an event with a photo moves that photo out of here and frees the most space.'
-              : 'That change was not saved. Removing a photo cover from an event frees the most space, or sign in so your plans are kept in the cloud instead.'}
+              ? 'Your change is on its way to everyone else, but this browser will forget it when the page reloads. Opening the cover settings on a plan with a photo moves that photo out of here and frees the most space.'
+              : 'That change was not saved. Removing a photo cover from a plan frees the most space, or sign in so your plans are kept in the cloud instead.'}
           </p>
         </div>
         <button

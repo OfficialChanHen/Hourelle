@@ -26,7 +26,7 @@ export async function POST(req: Request) {
 
   const { data } = await eventRow(db, eventId)
   const row = data as { id: string; data: AppEvent; host_id: string | null } | null
-  if (!row) return NextResponse.json({ error: 'That event is not on the server.' }, { status: 404 })
+  if (!row) return NextResponse.json({ error: 'That plan is not on the server.' }, { status: 404 })
   if (row.host_id !== user.id) return NextResponse.json({ error: 'Only the host can send nudges.' }, { status: 403 })
 
   const ev = row.data

@@ -490,6 +490,8 @@ Tracked on `events.status`. Shown as a 5-dot progress strip (GSAP fill animation
 ```
 "Create event" is NEVER a nav tab — always a separate button.
 
+**Copy word:** product copy calls the thing a "plan" (code, routes and data keep "event"). Never "plan a plan": use start, make or set up. Billing tiers live under "Pricing"; lifecycle stages read Deciding / RSVP / Soon / Today / Done, one word each, and the planning-phase badge says Deciding.
+
 **Selected-tab style — filled box, not underline:** the active tab (both the top nav AND the event-detail tabs Availability/Location/Attendance/Details) is a **filled `--accent` pill with `--on-accent` cream text** (`rounded-full`); inactive tabs have **no background** (`--dim` text). No underline indicators anywhere.
 
 **Mobile:** a fixed **bottom tab bar** — Home · Events · center **+** (create, green circular FAB) · Alerts · Profile — plus a faux status bar and a sticky top app bar (back chevron on detail screens). Phone width ~412px. See `Gatherly Mobile.dc.html`.

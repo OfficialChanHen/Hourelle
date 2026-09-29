@@ -24,8 +24,8 @@ import { Wordmark } from '@/components/ui/Em'
    all, an invite link works without an account. */
 
 const BENEFITS = [
-  'Host events and watch replies come in',
-  'Keep every event on your phone and laptop',
+  'Host plans and watch replies come in',
+  'Keep every plan on your phone and laptop',
   'Get reminders before deadlines and the day itself',
   'Fill in when you are free straight from your calendar',
 ]
@@ -55,7 +55,7 @@ type Mode = 'in' | 'up' | 'forgot'
 
 const COPY: Record<Mode, { title: string; sub: string; action: string }> = {
   in: { title: 'Welcome back', sub: 'Log in to keep planning together.', action: 'Log in' },
-  up: { title: 'Sign up', sub: 'It takes a minute, and your events follow you everywhere.', action: 'Sign up' },
+  up: { title: 'Sign up', sub: 'It takes a minute, and your plans follow you everywhere.', action: 'Sign up' },
   forgot: { title: 'Reset your password', sub: 'We will email you a link to set a new one.', action: 'Send the link' },
 }
 
@@ -323,7 +323,7 @@ function SignInForm() {
             {reading && <LegalSheet k={reading} onClose={() => setReading(null)} />}
 
             <Link href={backHref} className="mt-6 flex w-fit items-center gap-1.5 text-[13px] font-semibold text-accent-text hover:underline">
-              <ArrowLeft size={14} /> {guestEventId ? 'Back to your event' : 'Back to the app'}
+              <ArrowLeft size={14} /> {guestEventId ? 'Back to your plan' : 'Back to the app'}
             </Link>
           </div>
 

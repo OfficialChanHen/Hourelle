@@ -536,7 +536,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
               {mode === 'remote' ? (
                 <>
                   <span className="mx-auto mb-3 grid h-[46px] w-[46px] place-items-center rounded-xl border border-accent-border bg-accent-bg text-accent-text"><Video size={25} /></span>
-                  <div className="text-[15.5px] font-semibold">This event is remote</div>
+                  <div className="text-[15.5px] font-semibold">This one is online</div>
                   <p className="mb-3.5 mt-1 text-[13px] leading-[1.55] text-dim">Everyone joins online, so there is no map. The link lives here and in every reminder.</p>
                   {event.hostedByYou ? (
                     // host can set/change the link; it's kept if they switch venue type and back
@@ -849,7 +849,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                     <div className="text-[14px] font-semibold">No itinerary yet</div>
                     <p className="mx-auto mt-1 max-w-[250px] text-[13px] leading-[1.5] text-dim">
                       {locked
-                        ? 'The plan was locked without stops. The host can reopen planning to build one.'
+                        ? 'It was locked in without stops. The host can reopen planning to build one.'
                         : canEditItin
                           ? 'Build one from the top-voted places, or add stops one at a time below.'
                           : 'The host puts the route together. Voting on places is how you steer it.'}

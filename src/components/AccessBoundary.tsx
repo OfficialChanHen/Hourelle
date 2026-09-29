@@ -9,8 +9,8 @@ import { useAccess } from '@/hooks/useAccess'
 
 // what an account would add — the same pitch the sign-in page makes
 const PERKS = [
-  'Host events and watch replies come in',
-  'Keep every event on your phone and laptop',
+  'Host plans and watch replies come in',
+  'Keep every plan on your phone and laptop',
   'Get reminders before deadlines and the day itself',
 ]
 
@@ -28,7 +28,7 @@ export function AccessBoundary({ children }: { children: React.ReactNode }) {
   const eventId = /^\/events\/([^/]+)/.exec(pathname)?.[1]
   const isJoin = /^\/events\/[^/]+\/join/.test(pathname)
   const isDemo = !!eventId && !!getEvent(eventId)?.demo
-  const publicRoom = pathname === '/demos' || pathname === '/help' || pathname === '/about' || pathname === '/privacy' || pathname === '/terms' || isJoin || isDemo
+  const publicRoom = pathname === '/demos' || pathname === '/help' || pathname === '/about' || pathname === '/pricing' || pathname === '/privacy' || pathname === '/terms' || isJoin || isDemo
   // a guest's territory is any event page (theirs, or a demo they wander into)
   const guestRoom = !!eventId
 
@@ -87,7 +87,7 @@ export function AccessBoundary({ children }: { children: React.ReactNode }) {
           Sign up
         </Link>
         <Link href={back} className="flex h-11 w-full max-w-[300px] items-center justify-center gap-1.5 rounded-[10px] border border-border2 bg-s1 text-[14px] font-semibold text-dim hover:bg-s2 hover:text-text">
-          <ArrowLeft size={15} /> {ev ? `Back to ${ev.title}` : 'Back to your event'}
+          <ArrowLeft size={15} /> {ev ? `Back to ${ev.title}` : 'Back to your plan'}
         </Link>
       </div>
     </div>

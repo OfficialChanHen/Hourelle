@@ -33,7 +33,7 @@ export type Pos = { x: number; y: number }
 // finger works in, because it keeps the least.
 const SHAPES: { label: string; ratio: number }[] = [
   { label: 'On a card', ratio: 330 / 150 },
-  { label: 'On the event page', ratio: 1240 / 260 },
+  { label: 'On the plan page', ratio: 1240 / 260 },
 ]
 
 const clamp = (n: number) => Math.min(100, Math.max(0, n))

@@ -52,7 +52,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
       <p className="text-[13.5px] text-dim">
         Happened {dateRangeText(event)} with {went} there.{' '}
         <Link href={`/create?from=${event.id}`} className="inline-flex items-center gap-1 font-semibold text-accent-text hover:underline">
-          <RotateCcw size={13} /> Reuse for a new event
+          <RotateCcw size={13} /> Reuse for a new plan
         </Link>
       </p>
     )

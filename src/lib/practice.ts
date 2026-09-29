@@ -55,7 +55,7 @@ export function ensurePracticeEvent(): string {
   try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' } catch { /* UTC */ }
   const ev = createEvent({
     title: 'Practice run',
-    description: 'A sample event of your own, to try things on. Everyone in it is made up. Delete it whenever you like.',
+    description: 'A sample plan of your own, to try things on. Everyone in it is made up. Delete it whenever you like.',
     startDate: iso(start), endDate: iso(end),
     granularity: '30', timezone: tz, budget: '', durationMin: 120,
     locMode: 'vote', planMode: 'vote', picked: PLACES.map((p) => ({ id: p.id, name: p.name, place: p.place })),

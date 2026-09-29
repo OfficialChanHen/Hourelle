@@ -9,44 +9,44 @@ import { EventBack } from '@/components/EventBack'
 type QA = { q: string; a: React.ReactNode }
 
 const CLIPS: { id: string; title: string; text: string }[] = [
-  { id: 'make', title: 'Make an event', text: 'Name it, pick the days, and the link is ready.' },
+  { id: 'make', title: 'Start a plan', text: 'Name it, pick the days, and the link is ready.' },
   { id: 'mark', title: 'Mark when you are free', text: 'Drag across the grid. Colored slots show when others are free.' },
   { id: 'place', title: 'Pick a place', text: 'Add places to the ballot and vote.' },
-  { id: 'lock', title: 'Lock it in', text: 'The host sets the time and place. Everyone gets the plan.' },
+  { id: 'lock', title: 'Lock it in', text: 'The host sets the time and place. Everyone gets the details.' },
 ]
 const GROUPS: { title: string; items: QA[] }[] = [
   {
     title: 'Getting started',
     items: [
-      { q: 'How do I plan something?', a: 'Log in, name the plan, and pick a stretch of days. That is enough to get a link. Everything else, the place, the budget, the time window, can be added later or never.' },
-      { q: 'How do people join?', a: 'Copy the invite link from the event page or its card and send it anywhere. Whoever opens it adds their name and they are in. They can mark when they are free, vote on places, say if they are coming, and chat.' },
-      { q: 'What does "Lock it in" do?', a: 'It turns the plan into fact: the chosen day, time, and place go out to everyone, and the event moves to the RSVP stretch where people say if they are coming. You can reopen planning later, which clears the RSVPs.' },
+      { q: 'How do I start a plan?', a: 'Log in, name it, and pick a stretch of days. That is enough to get a link. Everything else, the place, the budget, the time window, can be added later or never.' },
+      { q: 'How do people join?', a: 'Copy the invite link from the plan page or its card and send it anywhere. Whoever opens it adds their name and they are in. They can mark when they are free, vote on places, say if they are coming, and chat.' },
+      { q: 'What does "Lock it in" do?', a: 'It makes it official: the chosen day, time, and place go out to everyone, and the plan moves to the RSVP stretch where people say if they are coming. You can reopen planning later, which clears the RSVPs.' },
       { q: 'What is the difference between a time poll and a day poll?', a: 'A time poll asks when during the day people are free, in slots. A day poll asks which whole days work, one tap each. Ranges longer than four weeks become day polls on their own, since trips are picked by day, not by hour.' },
     ],
   },
   {
     title: 'Guests and invites',
     items: [
-      { q: 'Do guests need an account?', a: 'No. A name is enough. Adding an email is recommended: with it, a guest can pick their answers back up on another device, and if they ever make an account with that email, every event they answered comes with them.' },
-      { q: 'Someone joined twice. Now what?', a: 'Open the event, go to Event details, and use the menu on the duplicate entry: Merge into someone else. Their free time, votes, and messages fold into the other entry, and the double goes away. Nothing they answered is lost.' },
-      { q: 'What is a personal link?', a: 'When you invite people by email, each one gets a link of their own. Opening it lands them already named, no form. Copy it from that person’s menu on the Event details tab.' },
-      { q: 'Can a guest see everything?', a: 'Everything except the host’s controls. The budget is visible but only the host can change it; the same goes for the dates, the description, and locking the plan in.' },
+      { q: 'Do guests need an account?', a: 'No. A name is enough. Adding an email is recommended: with it, a guest can pick their answers back up on another device, and if they ever make an account with that email, every plan they answered comes with them.' },
+      { q: 'Someone joined twice. Now what?', a: 'Open the plan, go to Details, and use the menu on the duplicate entry: Merge into someone else. Their free time, votes, and messages fold into the other entry, and the double goes away. Nothing they answered is lost.' },
+      { q: 'What is a personal link?', a: 'When you invite people by email, each one gets a link of their own. Opening it lands them already named, no form. Copy it from that person’s menu on the Details tab.' },
+      { q: 'Can a guest see everything?', a: 'Everything except the host’s controls. The budget is visible but only the host can change it; the same goes for the dates, the description, and locking it in.' },
     ],
   },
   {
     title: 'Your account and your data',
     items: [
-      { q: 'Where does my data live?', a: 'With an account, your events are stored on Hourelle’s servers so they follow you between devices. Logged out, everything stays in this browser only. Demos are samples and never leave your device.' },
-      { q: 'Who can see my event?', a: 'Anyone with its link. Links are long and random, so they cannot be guessed, but they can be forwarded. Share them the way you would share a private document.' },
-      { q: 'How do I delete an event?', a: 'The host deletes it from the Event details tab, and it is gone for everyone. Anyone else can leave, which only removes it from their own list.' },
-      { q: 'How do I delete my account?', a: 'Send a note through the form below from the email on the account. The account, its profile, and the events it hosts are removed.' },
+      { q: 'Where does my data live?', a: 'With an account, your plans are stored on Hourelle’s servers so they follow you between devices. Logged out, everything stays in this browser only. Demos are samples and never leave your device.' },
+      { q: 'Who can see my plan?', a: 'Anyone with its link. Links are long and random, so they cannot be guessed, but they can be forwarded. Share them the way you would share a private document.' },
+      { q: 'How do I delete a plan?', a: 'The host deletes it from the Details tab, and it is gone for everyone. Anyone else can leave, which only removes it from their own list.' },
+      { q: 'How do I delete my account?', a: 'Send a note through the form below from the email on the account. The account, its profile, and the plans it hosts are removed.' },
     ],
   },
   {
     title: 'When something looks wrong',
     items: [
-      { q: 'My change did not save', a: 'A small note at the bottom of the page says when the server refused a change, usually because only the host may make it. Reload to see the plan as everyone else sees it.' },
-      { q: 'The times look off', a: 'Every time shows its timezone in a small pill. Check that the event’s timezone matches where the event happens; you can switch to your own zone with the toggle above the grid.' },
+      { q: 'My change did not save', a: 'A small note at the bottom of the page says when the server refused a change, usually because only the host may make it. Reload to see it as everyone else does.' },
+      { q: 'The times look off', a: 'Every time shows its timezone in a small pill. Check that the plan’s timezone matches where it happens; you can switch to your own zone with the toggle above the grid.' },
       { q: 'I did not get an email', a: 'Check spam first. Magic links and password resets expire after a short while, so ask for a fresh one if the link says it has expired.' },
     ],
   },

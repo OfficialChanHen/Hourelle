@@ -32,7 +32,7 @@ import { Wordmark } from '@/components/ui/Em'
 
 const TABS = [
   { href: '/home', label: 'Home' },
-  { href: '/events', label: 'Events' },
+  { href: '/events', label: 'Plans' },
   { href: '/templates', label: 'Templates' },
   { href: '/demos', label: 'Demos' },
 ]
@@ -133,7 +133,7 @@ export function Header() {
           className="hidden h-[34px] items-center gap-[7px] rounded-full bg-accent px-[14px] text-[14px] font-semibold text-on-accent md:flex"
         >
           <Plus size={17} />
-          <span>New event</span>
+          <span>New plan</span>
         </Link>
 
         {/* two icons, each meaning what it shows: the bell is alerts, the avatar is you.

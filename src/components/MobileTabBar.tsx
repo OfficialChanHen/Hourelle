@@ -16,7 +16,7 @@ import { getEvent } from '@/lib/events'
 // the scroll, the bar stays put so the way around is always in reach.
 const ITEMS = [
   { href: '/home', label: 'Home', icon: Home },
-  { href: '/events', label: 'Events', icon: CalendarDays },
+  { href: '/events', label: 'Plans', icon: CalendarDays },
   { href: '/notifications', label: 'Notifications', icon: Bell },
   { href: '/profile', label: 'Profile', icon: User },
 ] as const
@@ -51,7 +51,7 @@ export function MobileTabBar() {
   // a guest's bar: the event they joined, by name, and the door to an account —
   // nothing else to tab to
   if (guestEventId) {
-    const title = getEvent(guestEventId)?.title ?? 'Event'
+    const title = getEvent(guestEventId)?.title ?? 'Plan'
     return (
       <nav
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-s0/95 backdrop-blur-md md:hidden"
@@ -80,7 +80,7 @@ export function MobileTabBar() {
         <div className="flex flex-1 items-start justify-center">
           <Link
             href="/create"
-            aria-label="Create event"
+            aria-label="New plan"
             data-tour="create"
             className="-mt-4 grid h-[48px] w-[48px] -rotate-[4deg] place-items-center rounded-[16px] bg-accent text-on-accent shadow-soft ring-4 ring-bg active:scale-95"
           >

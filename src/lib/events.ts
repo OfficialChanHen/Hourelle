@@ -810,7 +810,7 @@ export function sameDayLabelFor(events: AppEvent[]): (e: AppEvent) => SameDayInf
     if (others.length === 0) return undefined
     if (others.length === 1) return { label: others[0].title }
     return {
-      label: `${others.length} other events`,
+      label: `${others.length} other plans`,
       all: others.map((o) => o.title).join(', '),
     }
   }
@@ -1008,7 +1008,7 @@ export function reopenEvent(id: string): void {
     status: 'planning', confirmed: undefined, confirmedAt: undefined, reopenedAt: Date.now(),
     ...(participants ? { participants } : {}),
   })
-  if (ev && host) appendMessage(id, { id: host.id, name: host.name, time: 'just now', text: 'Reopened the plan. RSVPs are cleared until it locks in again.', you: !!host.you, system: true })
+  if (ev && host) appendMessage(id, { id: host.id, name: host.name, time: 'just now', text: 'Reopened planning. RSVPs are cleared until it locks in again.', you: !!host.you, system: true })
 }
 
 // seed the create wizard from an existing event: structure carries over, dates and
@@ -1459,7 +1459,7 @@ export function markArrived(id: string, pid: string): boolean {
   const newcomer = arrivalOf(ev, p) > 0
   const at = newcomer ? Date.now() : ev.createdAt || 1
   patchEvent(id, { participants: ev.participants.map((x) => (x.id === pid ? { ...x, joinedAt: at } : x)) })
-  if (newcomer) appendMessage(id, { id: pid, name: p.name, time: 'now', text: 'joined the event', you: false, system: true, at: Date.now() })
+  if (newcomer) appendMessage(id, { id: pid, name: p.name, time: 'now', text: 'joined the plan', you: false, system: true, at: Date.now() })
   return newcomer
 }
 
@@ -1520,7 +1520,7 @@ export function joinEvent(id: string, name: string, email?: string, face?: Face)
   try { localStorage.setItem(meKey(id), pid) } catch { /* private mode */ }
   setGuestMode(id)
   // visibility over gates: everyone in the chat sees who arrived
-  appendMessage(id, { id: pid, name: clean, time: 'now', text: 'joined the event', you: false, system: true })
+  appendMessage(id, { id: pid, name: clean, time: 'now', text: 'joined the plan', you: false, system: true })
   return guest
 }
 
@@ -1596,7 +1596,7 @@ export function createEvent(input: CreateInput): AppEvent {
 
   const ev: AppEvent = {
     id,
-    title: input.title.trim() || 'Untitled event',
+    title: input.title.trim() || 'Untitled plan',
     hostName: host.name,
     hostedByYou: true,
     hostKind: host.kind,

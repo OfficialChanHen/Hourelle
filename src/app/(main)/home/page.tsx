@@ -98,7 +98,7 @@ export default function HomePage() {
       <div className="mb-5">
         <h1 className="mb-[9px] font-serif font-normal text-[37px] leading-[1.02] tracking-[-0.01em]" suppressHydrationWarning>{greeting}, <Em>{firstName}</Em></h1>
         <div className="flex items-center gap-1.5 text-[13.5px] text-dim">
-          <Calendar size={15} /> {waiting ? <span className="inline-block h-3.5 w-[104px] animate-pulse rounded bg-s2" /> : active.length > 0 ? `${active.length} event${active.length === 1 ? '' : 's'} in motion` : 'No events yet'}
+          <Calendar size={15} /> {waiting ? <span className="inline-block h-3.5 w-[104px] animate-pulse rounded bg-s2" /> : active.length > 0 ? `${active.length} plan${active.length === 1 ? '' : 's'} in motion` : 'No plans yet'}
         </div>
       </div>
 
@@ -140,8 +140,8 @@ export default function HomePage() {
           icon={CalendarPlus}
           title="Your next plan goes here"
           body="Start one and your group can pick a time together."
-          action={{ label: 'Create an event', href: '/create' }}
-          secondary={{ label: 'Or open a demo event', href: '/demos' }}
+          action={{ label: 'Start a plan', href: '/create' }}
+          secondary={{ label: 'Or open a demo', href: '/demos' }}
         />
       )}
 
@@ -149,7 +149,7 @@ export default function HomePage() {
       {yours.length > 0 && (
         <>
           {/* teal: plans you're running */}
-          <SectionHeader color="var(--teal-text)" title="Your events" count={yours.length} className="mt-[26px]" />
+          <SectionHeader color="var(--teal-text)" title="Your plans" count={yours.length} className="mt-[26px]" />
           <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
             {yours.map((x) => <StoredEventCard key={x.e.id} e={x.e} sameDay={sameDay(x.e)} />)}
           </div>
@@ -209,7 +209,7 @@ function QuickCreate() {
       emails: [], accounts: [],
     })
     // quick means quick: straight to the event, where the share link waits in the header
-    pushFlash('Your event is live. Share the link so people can join.')
+    pushFlash('Your plan is live. Share the link so people can join.')
     router.push(`/events/${ev.id}`)
   }
   // on a phone the two dates share the row and split it evenly; from sm up each is
@@ -222,7 +222,7 @@ function QuickCreate() {
           value={title}
           onChange={(e) => { setTitle(e.target.value); setNeed(false) }}
           onKeyDown={(e) => { if (e.key === 'Enter') go() }}
-          aria-label="Event name"
+          aria-label="Plan name"
           aria-invalid={need || undefined}
           aria-describedby={need ? 'quick-title-err' : undefined}
           placeholder="What are you planning?"
@@ -283,7 +283,7 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
   const [copied, setCopied] = useState(false)
   const action = phase === 'planning'
     ? { label: 'Add your availability', href: `/events/${e.id}?tab=availability` }
-    : { label: 'See the plan', href: `/events/${e.id}` }
+    : { label: 'Open the plan', href: `/events/${e.id}` }
   function copyLink(ev: React.MouseEvent) {
     ev.stopPropagation()
     navigator.clipboard?.writeText(`${window.location.origin}/events/${e.id}/join`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
@@ -374,7 +374,7 @@ function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: 
           )}
           {!e.demo && (
             <Link
-              href={`/create?from=${e.id}`} onClick={(ev) => ev.stopPropagation()} title="Duplicate this event"
+              href={`/create?from=${e.id}`} onClick={(ev) => ev.stopPropagation()} title="Duplicate this plan"
               className="flex h-11 sm:h-10 w-full flex-none items-center justify-center gap-1.5 rounded-full border border-border2 bg-s1 px-4 text-[14px] font-semibold text-text hover:bg-s2 sm:w-auto"
             >
               <CopyPlus size={15} /> Duplicate

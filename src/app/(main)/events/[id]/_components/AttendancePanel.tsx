@@ -266,7 +266,7 @@ function YourRsvpStrip({ onPick, full }: { onPick: (r: Rsvp) => void; full: bool
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-moment-border bg-moment-bg px-4 py-3">
       <span className="text-[14px] font-semibold text-moment-text">Your turn to reply.</span>
-      <span className="text-[13px] text-dim">{full ? 'The event is full, spots went to whoever replied first.' : 'Are you coming?'}</span>
+      <span className="text-[13px] text-dim">{full ? 'It is full, spots went to whoever replied first.' : 'Are you coming?'}</span>
       <div className="ml-auto flex items-center gap-1.5">
         <button
           onClick={() => onPick('attending')} disabled={full}
@@ -661,7 +661,7 @@ function LeadingPlace({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab
       <div className="mb-4 flex items-center gap-3 rounded-xl border border-border bg-s0 px-4 py-3">
         <span className="grid h-9 w-9 flex-none place-items-center rounded-lg border border-border bg-s2 text-dim"><MapPin size={16} /></span>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[14.5px] font-semibold">Online event</div>
+          <div className="truncate text-[14.5px] font-semibold">Online</div>
           <div className="text-[12.5px] text-dim">{event.location.platform || 'Meeting link on the Details tab'}</div>
         </div>
       </div>

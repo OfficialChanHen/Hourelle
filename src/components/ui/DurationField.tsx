@@ -40,7 +40,7 @@ function stopsFor(min: number, max: number): number[] {
 // the hour marks worth naming under the track, in the order the scale reaches them
 const MARKS = [60, 120, 240, 480, 720, DAY]
 
-export function DurationField({ value, min = 15, max = DAY, onChange, label = 'Event length', title }: {
+export function DurationField({ value, min = 15, max = DAY, onChange, label = 'Length', title }: {
   value: number
   min?: number
   max?: number

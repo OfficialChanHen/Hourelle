@@ -123,7 +123,7 @@ export default function ResetPasswordPage() {
         {done && (
           <>
             <h1 className="mt-7 font-serif text-[27px] leading-[1.08] tracking-[-0.01em]">Password saved</h1>
-            <p className="mt-2 text-[13.5px] leading-[1.55] text-dim">You are logged in. Taking you back to your events.</p>
+            <p className="mt-2 text-[13.5px] leading-[1.55] text-dim">You are logged in. Taking you back to your plans.</p>
           </>
         )}
       </div>

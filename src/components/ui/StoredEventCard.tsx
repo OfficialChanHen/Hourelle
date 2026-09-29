@@ -92,7 +92,7 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
         {e.hostedByYou && !e.demo && (
           <span
             role="button" tabIndex={0} onClick={goEdit} onKeyDown={goEdit}
-            title="Edit the event" aria-label="Edit the event"
+            title="Edit the plan" aria-label="Edit the plan"
             className="absolute right-2.5 top-2.5 grid h-9 w-9 place-items-center rounded-full border border-border bg-s1/90 text-dim shadow-soft backdrop-blur-sm hover:bg-s1 hover:text-text sm:h-8 sm:w-8"
           >
             <Pencil size={14} />
@@ -194,7 +194,7 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
           {!e.demo && (
             <span
               role="button" tabIndex={0} onClick={goDuplicate} onKeyDown={goDuplicate}
-              title="Duplicate this event"
+              title="Duplicate this plan"
               className="grid h-10 w-10 sm:h-8 sm:w-8 place-items-center rounded-md text-faint hover:bg-s2 hover:text-text"
             >
               <CopyPlus size={15} />
@@ -212,7 +212,7 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
           {canDelete && (
             <span
               role="button" tabIndex={0} onClick={goDelete} onKeyDown={goDelete}
-              title="Delete this event"
+              title="Delete this plan"
               className="grid h-10 w-10 sm:h-8 sm:w-8 place-items-center rounded-md text-faint hover:bg-brick-bg hover:text-brick-text"
             >
               <Trash2 size={15} />
@@ -221,7 +221,7 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
           {canLeave && (
             <span
               role="button" tabIndex={0} onClick={goDelete} onKeyDown={goDelete}
-              title="Remove from my events"
+              title="Leave this plan"
               className="grid h-10 w-10 sm:h-8 sm:w-8 place-items-center rounded-md text-faint hover:bg-brick-bg hover:text-brick-text"
             >
               <UserRoundX size={15} />

@@ -65,7 +65,7 @@ export default function TemplatesPage() {
           <div className="mb-1 text-[15px] font-semibold">Start blank</div>
           <div className="mb-3 text-[13px] leading-[1.5] text-dim">No template, just the wizard. Every choice stays open.</div>
           <span className="mt-auto flex items-center gap-1.5 text-[13px] font-semibold text-accent-text">
-            Create an event <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
+            Start a plan <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
           </span>
         </Link>
       </div>

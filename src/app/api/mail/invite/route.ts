@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   let body: Body
   try { body = (await req.json()) as Body } catch { return NextResponse.json({ error: 'Bad request' }, { status: 400 }) }
   const eventId = (body.eventId ?? '').slice(0, 200)
-  if (!eventId) return NextResponse.json({ error: 'Which event?' }, { status: 400 })
+  if (!eventId) return NextResponse.json({ error: 'Which plan?' }, { status: 400 })
   if (!mailConfigured) return NextResponse.json({ error: 'Email is not set up on this server yet.' }, { status: 503 })
 
   const user = await userFromRequest(req)
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     const { data } = await eventRow(db, eventId)
     row = (data as Row | null) ?? null
   }
-  if (!row) return NextResponse.json({ error: 'That event has not reached the server yet. Try again in a moment.' }, { status: 409 })
+  if (!row) return NextResponse.json({ error: 'That plan has not reached the server yet. Try again in a moment.' }, { status: 409 })
   if (row.host_id !== user.id) return NextResponse.json({ error: 'Only the host can send invites.' }, { status: 403 })
 
   const ev = row.data
