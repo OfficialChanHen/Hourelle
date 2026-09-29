@@ -12,7 +12,7 @@
    desktop keeps it planted. Nothing account-shaped renders until `ready`, because
    the server cannot know which of the four this is. */
 
-import { useRef } from 'react'
+import { useRef, type CSSProperties } from 'react'
 import { useSwingOnNew } from '@/hooks/useAttention'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -27,7 +27,7 @@ import { useHideOnScroll } from '@/hooks/useHideOnScroll'
 import { initialsOf } from '@/lib/events'
 import { signOut } from '@/lib/session'
 import { FaceSvg } from '@/components/ui/FaceSvg'
-import { defaultFace } from '@/lib/faces'
+import { defaultFace, ringGap } from '@/lib/faces'
 import { Wordmark } from '@/components/ui/Em'
 
 const TABS = [
@@ -52,6 +52,7 @@ export function Header() {
   // a visitor's header is the landing page's header — one component, so the two
   // never drift. Until the browser knows who this is, the same bar minus the doors.
   if (visitor || !ready) return <VisitorHeader ready={ready} />
+  const myFace = account.face ?? defaultFace(initialsOf(account.name), account.color)
 
   // the welcome steps: nothing to go to yet, so the bar is the name alone
   if (pathname.startsWith('/welcome')) {
@@ -159,17 +160,21 @@ export function Header() {
           </Link>
 
           {/* the avatar opens the account menu — the pattern every app trains */}
+          {/* the hover and open rings are outlines set out far enough to clear the face's
+              shape (an arch's corners reach past a plain circle); the focus ring matches */}
+          <span className="contents" style={{ '--ring-gap': `${ringGap(myFace, 30, 1.5)}px` } as CSSProperties}>
           <Popover
             align="end"
             width={236}
             label="Account menu"
-            className="grid place-items-center rounded-full [-webkit-tap-highlight-color:transparent]"
+            className="face-ring grid place-items-center rounded-full [-webkit-tap-highlight-color:transparent]"
             trigger={(open) => (
               <span
                 title="Account"
-                className={`grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-full ring-2 transition-shadow ${open ? 'ring-accent-border' : 'ring-transparent hover:ring-border2'}`}
+                style={{ outlineOffset: 'var(--ring-gap)' }}
+                className={`grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-full outline-2 ${open ? 'outline-accent-border' : 'outline-transparent hover:outline-border2'}`}
               >
-                <FaceSvg face={account.face ?? defaultFace(initialsOf(account.name), account.color)} color={account.color} size={30} />
+                <FaceSvg face={myFace} color={account.color} size={30} />
               </span>
             )}
           >
@@ -203,6 +208,7 @@ export function Header() {
               </>
             )}
           </Popover>
+          </span>
         </div>
       </div>
     </header>

@@ -39,6 +39,18 @@ export const SHAPES: Record<FaceShape, string> = {
   blob: 'M21 1 C33 2 40 10 39 21 C38 33 30 40 19 39 C8 38 1 31 1 20 C2 9 10 0 21 1z',
 }
 
+/* How far each shape reaches past the circle inscribed in its box, as a share of the
+   box. An arch's flat bottom corners stick out about 12%, a squircle's corners a
+   little; the rest stay inside. A round ring (focus, selected, the account menu) has
+   to clear this or the face pokes through it. */
+const SHAPE_REACH: Record<FaceShape, number> = { circle: 0, squircle: 0.04, flower: 0, arch: 0.125, blob: 0 }
+
+/** The outline offset, in pixels, that lets a round ring around this face clear it,
+ *  plus `gap` of see-through space between face and ring. */
+export function ringGap(face: Face, size: number, gap = 2): number {
+  return Math.ceil(size * (SHAPE_REACH[face.shape] ?? 0)) + gap
+}
+
 const EYE_L = [14.5, 18.5] as const
 const EYE_R = [25.5, 18.5] as const
 export const EYES: Record<FaceEyes, FacePart> = {

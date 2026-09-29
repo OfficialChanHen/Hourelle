@@ -547,6 +547,10 @@ input[type="date"]::-webkit-date-and-time-value {
   outline: 3px solid var(--accent) !important;
   outline-offset: 2px !important;
 }
+/* a face's round focus ring sits far enough out to clear the face's own shape
+   (ringGap in lib/faces), in the default ring and the strong one */
+.face-ring { outline-offset: var(--ring-gap, 2px); }
+[data-focus="strong"] .face-ring:focus-visible { outline-offset: var(--ring-gap, 2px) !important; }
 
 /* a modal surface that holds focus itself (see useFocusTrap) is not a control, so it
    draws no ring of its own, even with the strong ring on */
