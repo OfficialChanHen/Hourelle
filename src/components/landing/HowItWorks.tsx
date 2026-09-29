@@ -375,7 +375,7 @@ export function HowItWorks() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-serif text-[22px] leading-tight tracking-[-0.01em] sm:text-[24px]">{TITLE}</p>
-                    <div className="mt-1.5"><Badge variant={locked ? 'teal' : 'ochre'}>{locked ? 'RSVPs open' : 'Planning'}</Badge></div>
+                    <div className="mt-1.5"><Badge variant={locked ? 'teal' : 'ochre'}>{locked ? 'RSVPs open' : 'Deciding'}</Badge></div>
                   </div>
                   <span className={`flex h-9 flex-none items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition-all ${locked ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'} ${lockPressed ? 'scale-95' : ''}`}>
                     {locked ? <><Check size={14} /> Locked in</> : <><Lock size={14} /> Lock it in</>}

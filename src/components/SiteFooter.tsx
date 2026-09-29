@@ -11,7 +11,7 @@ import { Wordmark } from '@/components/ui/Em'
 // finger can hit. The bottom padding keeps it clear of the tab bar; the pages above
 // it already reserve their own room, so this only pads itself.
 const GROUPS: { title: string; pages: FooterPage[] }[] = [
-  { title: 'Explore', pages: [{ href: '/about', label: 'About' }, { href: '/demos', label: 'Demos' }, { href: '/help', label: 'Help & contact' }] },
+  { title: 'Explore', pages: [{ href: '/about', label: 'About' }, { href: '/pricing', label: 'Pricing' }, { href: '/demos', label: 'Demos' }, { href: '/help', label: 'Help & contact' }] },
   { title: 'Legal', pages: [{ href: '/privacy', label: 'Privacy' }, { href: '/terms', label: 'Terms' }] },
 ]
 

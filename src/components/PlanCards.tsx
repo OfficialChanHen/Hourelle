@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Check, Clock, ExternalLink, Gift, Loader2, Minus, Sparkles } from 'lucide-react'
 import { BILLING_TERMS, CRUCIAL, PLANS, PLUS_ADDS, type Answer, type Row } from '@/content/plans'
 import { plusInterested, recordPlusInterest } from '@/lib/plan'
@@ -55,6 +56,8 @@ export function PlanCards({ onContinueFree, onPicked }: {
   const [busy, setBusy] = useState<'buy' | 'portal' | 'list' | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const onPlus = ready && plan === 'plus'
+  // the page is public: someone with no account has no current tier and signs up first
+  const outside = !account.signedIn
   const P = PLANS.plus
 
   async function keepPosted() {
@@ -89,7 +92,7 @@ export function PlanCards({ onContinueFree, onPicked }: {
               </div>
               <p className="mt-2 text-[13.5px] leading-[1.55] text-dim">{PLANS.free.tagline}</p>
             </div>
-            {ready && plan === 'free' && (
+            {ready && plan === 'free' && !outside && (
               <span className="flex-none rounded-md border border-teal-border bg-teal-bg px-2 py-0.5 text-[11px] font-semibold text-teal-text">Current</span>
             )}
           </div>
@@ -170,6 +173,10 @@ export function PlanCards({ onContinueFree, onPicked }: {
                   {busy === 'portal' ? <Loader2 size={15} className="animate-spin" /> : <ExternalLink size={14} />} Manage billing
                 </button>
               )
+            ) : outside ? (
+              <Link href="/auth/signin?mode=up" className="flex h-11 w-full items-center justify-center rounded-[10px] bg-accent text-[14px] font-semibold text-on-accent">
+                Sign up
+              </Link>
             ) : buyable ? (
               <>
                 <button type="button" onClick={() => void buy()} disabled={busy !== null} className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-accent text-[14px] font-semibold text-on-accent disabled:opacity-60">

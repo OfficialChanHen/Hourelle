@@ -11,7 +11,7 @@ import { useLiveEvents } from '@/hooks/useLiveEvents'
 // real filters over the derived lifecycle phase — Confirmed covers everything locked in
 const FILTERS: { key: string; label: string; match: (p: Phase) => boolean }[] = [
   { key: 'all', label: 'All', match: (p) => p !== 'past' },
-  { key: 'planning', label: 'Planning', match: (p) => p === 'planning' },
+  { key: 'planning', label: 'Deciding', match: (p) => p === 'planning' },
   { key: 'confirmed', label: 'Confirmed', match: (p) => p === 'upcoming' || p === 'soon' || p === 'today' },
   { key: 'past', label: 'Past', match: (p) => p === 'past' },
 ]

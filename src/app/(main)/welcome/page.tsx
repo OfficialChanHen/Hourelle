@@ -230,7 +230,7 @@ function Welcome() {
               <div className="overflow-hidden rounded-2xl border border-border bg-s1 p-3.5">
                 <div className="-mx-3.5 -mt-3.5 mb-3 h-[64px]" style={{ background: dark ? 'linear-gradient(135deg, #2A3A31, #1F2A24)' : 'linear-gradient(135deg, #E4EDE7, #CFE0D5)' }} />
                 <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium text-dim">
-                  <span className="h-2 w-2 rounded-full bg-ochre" /> Planning
+                  <span className="h-2 w-2 rounded-full bg-ochre" /> Deciding
                 </div>
                 <h3 className="text-[15px] font-semibold tracking-[-0.01em]">Dinner with friends</h3>
                 <div className="mt-2 flex items-center gap-1.5 text-[13px] text-dim">
