@@ -14,6 +14,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useGSAP } from '@gsap/react'
 import { CalendarRange, Check, Copy, Link2, Lock, Pause, Play, MousePointer2, MapPin, Clock } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
+import { pileCut } from '@/components/ui/AvatarRow'
 import { Badge } from '@/components/ui/Badge'
 import { LifecycleStrip } from '@/components/ui/LifecycleStrip'
 import type { PersonColor } from '@/lib/colors'
@@ -321,9 +322,9 @@ export function HowItWorks() {
                   <p className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Who is in</p>
                   <div className="mt-2 flex items-center gap-3">
                     <div className="flex">
-                      <span className="rounded-full ring-2 ring-s1"><Avatar initials="JM" color="purple" size={30} font={11} /></span>
-                      {PEOPLE.slice(0, joined).map((p) => (
-                        <span key={p.i} className="hiw-pop -ml-2 rounded-full ring-2 ring-s1"><Avatar initials={p.i} color={p.c} size={30} font={11} /></span>
+                      <span className="flex"><Avatar initials="JM" color="purple" size={30} font={11} cut={joined > 0 ? pileCut(30, 8) : undefined} /></span>
+                      {PEOPLE.slice(0, joined).map((p, i) => (
+                        <span key={p.i} className="hiw-pop -ml-2 flex"><Avatar initials={p.i} color={p.c} size={30} font={11} cut={i < joined - 1 ? pileCut(30, 8) : undefined} /></span>
                       ))}
                     </div>
                     <span className="text-[13px] text-dim">{joined === 0 ? 'Just you so far' : `${joined + 1} people are in`}</span>

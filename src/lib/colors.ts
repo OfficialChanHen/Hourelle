@@ -18,9 +18,10 @@ export const personColors = {
 
 export type PersonColor = keyof typeof personColors
 
-/** A person colour as theme-aware CSS: the fill and the feature (text) shade.
- *  An unknown key falls back on gray. */
-export function personVar(color: string): { bg: string; text: string } {
+/** A person colour as theme-aware CSS: the fill, the text shade (initials), and the
+ *  ink the face's features are drawn in. Ink is softer than text in dark themes and
+ *  the same as text everywhere else. An unknown key falls back on gray. */
+export function personVar(color: string): { bg: string; text: string; ink: string } {
   const k = color in personColors ? color : 'gray'
-  return { bg: `var(--person-${k}-bg)`, text: `var(--person-${k}-fg)` }
+  return { bg: `var(--person-${k}-bg)`, text: `var(--person-${k}-fg)`, ink: `var(--person-${k}-ink, var(--person-${k}-fg))` }
 }

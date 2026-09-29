@@ -8,6 +8,7 @@ import { Bell, CalendarPlus, Check, ChevronDown, Eraser, GripHorizontal, Minus, 
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
+import { pileCut } from '@/components/ui/AvatarRow'
 import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
 import type { Participant } from '@/lib/events'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
@@ -31,10 +32,15 @@ export function FilterAvatars({ participants, filter, onToggle, onClear, onSelec
             key={p.id} type="button" onClick={() => onToggle(p.id)}
             aria-pressed={on} aria-label={p.name}
             title={on ? `${p.name}: click to unfilter` : `${p.name}: see when they are free`}
-            className={`relative rounded-full transition-opacity ${i > 0 ? '-ml-[5px]' : ''}`}
-            style={{ boxShadow: on ? '0 0 0 1.5px var(--s1), 0 0 0 3.5px var(--accent)' : undefined, opacity: active && !on ? 0.35 : 1, zIndex: on ? 1 : undefined }}
+            className={`relative grid h-[25px] w-[25px] flex-none place-items-center rounded-full transition-opacity [-webkit-tap-highlight-color:transparent] ${i > 0 ? '-ml-[5px]' : ''}`}
+            // a chosen face is ringed in accent, set off by a see-through gap, and sits on
+            // top of its neighbours; the rest are notched where the next face overlaps
+            style={{
+              ...(on ? { outline: '2px solid var(--accent)', outlineOffset: 1.5, zIndex: 1 } : {}),
+              opacity: active && !on ? 0.35 : 1,
+            }}
           >
-            <Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} ring />
+            <Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} cut={!on && i < shown.length - 1 ? pileCut(25, 5) : undefined} />
           </button>
         )
       })}
