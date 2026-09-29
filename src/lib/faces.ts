@@ -20,6 +20,14 @@ export type Face = { shape: FaceShape; eyes: FaceEyes; mouth: FaceMouth; hair: F
 /** The width of every line in a face, in the 40 box. */
 export const LINE = 2.4
 
+/** The stroke width in box units for a face drawn `size` pixels wide. At least two
+ *  screen pixels, the way an icon set keeps one stroke at every size: a thinner line
+ *  lands on half pixels and smears into a grey band on a standard screen. From 34px
+ *  up the stroke is LINE, a share of the box. */
+export function lineFor(size: number): number {
+  return Math.max(LINE, (2 * 40) / size)
+}
+
 /** A part as drawn: `d` is stroked LINE wide with round caps and joins, `dots` are
  *  filled circles of radius `r`, `tint` is filled ellipses [cx, cy, rx, ry] at
  *  `o` opacity. Everything is in the feature shade. */

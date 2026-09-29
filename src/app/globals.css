@@ -107,7 +107,7 @@
   --tour-dim: rgba(0, 0, 0, .66); --tour-lit: var(--accent-text);
   /* faces on charcoal: a deeper, muted fill, a light shade for the initials on a
      flipped face (text, 4.5:1 and up), and a softer ink for the drawn features, about
-     3.8:1 on the fill, so eyes and hair read without glaring. Studio and Daylight dark
+     4.5:1 on the fill, so eyes and hair read without glaring. Studio and Daylight dark
      use these too. */
   --person-purple-bg:#4A3D52; --person-purple-fg:#E6D8EC;
   --person-teal-bg:#35493E;   --person-teal-fg:#CFE5D5;
@@ -117,8 +117,8 @@
   --person-pink-bg:#553B39;   --person-pink-fg:#F1D3CF;
   --person-green-bg:#3D4B31;  --person-green-fg:#D8E8C6;
   --person-gray-bg:#46433B;   --person-gray-fg:#E4DFD3;
-  --person-purple-ink:#A89AAE; --person-teal-ink:#91A799; --person-coral-ink:#B49B8D; --person-blue-ink:#94A4B1;
-  --person-amber-ink:#B2A483;  --person-pink-ink:#B49894; --person-green-ink:#9AA98A; --person-gray-ink:#A39F95;
+  --person-purple-ink:#B8AABF; --person-teal-ink:#A2B8A9; --person-coral-ink:#C6AC9E; --person-blue-ink:#A5B5C2;
+  --person-amber-ink:#C4B592;  --person-pink-ink:#C5A8A5; --person-green-ink:#ACBB9C; --person-gray-ink:#B5B0A5;
 }
 
 /* ── Appearances — optional palettes layered over the same tokens ──
