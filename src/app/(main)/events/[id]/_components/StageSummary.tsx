@@ -68,6 +68,13 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
     return d ? `${d.dow}, ${d.date}` : k
   }
   const gridStart = gridStartMinOf(event)
+  // who is still missing, by first name when it is one to three people
+  const answeredIds = new Set<string>(event.unavailableIds ?? [])
+  for (const day of Object.values(availIvOf(event))) for (const [pid, iv] of Object.entries(day)) if (iv.length) answeredIds.add(pid)
+  const missing = event.participants.filter((p) => !answeredIds.has(p.id))
+  const missingNames = missing.length >= 1 && missing.length <= 3 && responded > 0
+    ? missing.map((p) => (p.you ? 'you' : p.name.split(' ')[0]))
+    : null
 
   // the venue currently winning the vote, unless the host set the place, which
   // reads as fact instead
@@ -85,9 +92,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
   ) : event.location.mode === 'remote' ? (
     <> It&apos;s online, on {event.location.platform || 'a call'}.</>
   ) : leading ? (
-    <> <strong className="font-semibold">{leading.name}</strong> leads the place vote with {votesOf(leading.id).length} {votesOf(leading.id).length === 1 ? 'vote' : 'votes'}.</>
-  ) : ballot > 0 ? (
-    <> {ballot} {ballot === 1 ? 'place is' : 'places are'} up for a vote, no votes yet.</>
+    <> <strong className="font-semibold">{leading.name}</strong> leads the place vote.</>
   ) : null
 
   // a date fixed at creation flips it: the time reads as fact and the place vote
@@ -119,6 +124,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
           </BestLink>{' '}works for the most people so far.
         </>
       )}
+      {missingNames && <> Waiting on {missingNames.length === 1 ? missingNames[0] : `${missingNames.slice(0, -1).join(', ')} and ${missingNames[missingNames.length - 1]}`}.</>}
       {where}
     </p>
   )

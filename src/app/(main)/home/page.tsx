@@ -330,8 +330,7 @@ function digestOf(e: AppEvent, phase: Phase) {
   // extras, only when there is something to say
   const lines = chatLines(e.messages).length
   const unread = Math.max(0, lines - seenMessageCount(e.id))
-  const spots = e.capacity ? Math.max(0, e.capacity - (locked ? going : 0)) : null
-  return { locked, total, answered: answered.size, going, maybe, out, pending, waitingOn, stillOut, countdown, best, gridStart, lead, ballot, you, unread, spots }
+  return { locked, total, answered: answered.size, going, maybe, out, pending, waitingOn, stillOut, countdown, best, gridStart, lead, ballot, you, unread }
 }
 
 // one line of the details block: a small icon, then a few words
@@ -357,13 +356,11 @@ function UpNext({ e, phase, sameDay, size, look }: { e: AppEvent; phase: Phase; 
   const who = d.locked
     ? [`${d.going} going`, d.maybe && `${d.maybe} maybe`, d.out && `${d.out} can’t make it`, d.pending && `${d.pending} ${d.pending === 1 ? 'hasn’t' : 'haven’t'} replied`].filter(Boolean).join(', ')
     : d.answered >= d.total ? 'Everyone has answered' : `${d.answered} of ${d.total} have answered`
+  // only what bears on the time; budget, spots and the host live on the plan page
   const extras = small ? [] : [
     d.unread > 0 && `${d.unread} new ${d.unread === 1 ? 'message' : 'messages'}`,
     d.locked && e.rsvpDeadline && `Reply by ${shortDay(e.rsvpDeadline)}`,
     !d.locked && e.planDeadline && `Deciding by ${shortDay(e.planDeadline)}`,
-    d.spots !== null && (d.spots === 0 ? 'No spots left' : `${d.spots} ${d.spots === 1 ? 'spot' : 'spots'} left`),
-    e.budget && `Budget $${Number(e.budget).toLocaleString()}${e.budgetMode === 'person' ? ' each' : ''}`,
-    !e.hostedByYou && `Hosted by ${e.hostName}`,
   ].filter(Boolean) as string[]
   return (
     <PeekCard people={peopleIn(e)} size={small ? 32 : 40} restShow={small ? 20 : 25} upShow={small ? 28 : 36} tilt={tilt} flippable>
@@ -404,9 +401,7 @@ function UpNext({ e, phase, sameDay, size, look }: { e: AppEvent; phase: Phase; 
               <Row icon={MapPin}>{d.lead.place.name} <span className="text-dim">leads with {d.lead.voters.length} {d.lead.voters.length === 1 ? 'vote' : 'votes'}</span></Row>
             ) : d.ballot > 0 ? (
               <Row icon={MapPin}>{d.ballot} {d.ballot === 1 ? 'place' : 'places'} up for a vote</Row>
-            ) : (
-              <Row icon={MapPin}><span className="text-dim">Place not picked yet</span></Row>
-            )}
+            ) : null /* no place in play: the card says nothing about it */}
           </ul>
           {sameDay && !small && (() => {
             const line = (
@@ -425,7 +420,7 @@ function UpNext({ e, phase, sameDay, size, look }: { e: AppEvent; phase: Phase; 
               {extras.map((x, i) => (
                 <span key={x} className="flex items-center gap-2">
                   {i > 0 && <span className="hidden h-3 w-px flex-none bg-border2 sm:inline-block" aria-hidden />}
-                  {x.startsWith('Hosted by') ? <span className="font-serif text-[14px] italic">{x}</span> : x}
+                  {x}
                 </span>
               ))}
             </div>

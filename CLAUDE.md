@@ -228,6 +228,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
 `/events/[id]?tab=attendance`
 `/events/[id]?tab=details`
 
+**Time first.** Availability is the default tab and the plan's prime spot. **Attendance** only shows once a time is locked (or the plan was made with a set date): while a plan is being decided, who has answered lives on the grid, and `?tab=attendance` falls back to the grid. **Location** stays, but with no place decided and none suggested it leads with one quiet "Add a place if you need one"; Home and the header then say nothing about place. Home cards carry only time-related extras (new messages, reply-by, deciding-by); budget, spots and the host live on the plan page. A guest goes from the invite to the grid in Edit mine with the grid in view; the tour offer is a small note above the tabs, never a modal.
+
 ---
 
 ## Data model (Supabase)

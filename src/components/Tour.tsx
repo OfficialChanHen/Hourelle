@@ -45,8 +45,14 @@ export type TourContext = {
   places: number                                     // places on the ballot so far
   canSuggest: boolean                                // guests may add places
   othersAnswered: number                             // other people with times marked
+  attendance: boolean                                // the Attendance tab is showing (a time is set)
 }
-const PLAIN: TourContext = { dayPoll: false, placeMode: 'vote', itinerary: false, places: 1, canSuggest: false, othersAnswered: 1 }
+const PLAIN: TourContext = { dayPoll: false, placeMode: 'vote', itinerary: false, places: 1, canSuggest: false, othersAnswered: 1, attendance: true }
+
+// the other tabs, named only when they are there: Attendance waits for a set time
+const otherTabs = (ctx: TourContext, host: boolean) => ctx.attendance
+  ? `Attendance shows who is coming. Details has the rest${host ? ', including invites by email' : ''}.`
+  : `Details has the rest${host ? ', including invites by email' : ''}. Who is coming shows up once a time is set.`
 
 function gridCard(ctx: TourContext, title: string): Candidate {
   return ctx.dayPoll
@@ -94,7 +100,7 @@ function hostStops(ctx: TourContext): Stop[] {
     ...peopleStop(ctx, 'One person at a time'),
     { tab: 'location', targets: [hostPlaceCard(ctx)] },
     { tab: 'availability', targets: [
-      { sel: 'tabs', title: 'The other tabs', text: 'Attendance shows who is coming. Details has the rest, including invites by email.' },
+      { sel: 'tabs', title: 'The other tabs', text: otherTabs(ctx, true) },
     ] },
     { tab: 'availability', targets: [
       { sel: 'lock', title: 'Lock it in', text: ctx.placeMode === 'remote' ? 'Pick a time. Everyone gets the details and can RSVP.' : 'Pick a time and place. Everyone gets the details and can RSVP.', tryIt: 'Press it to see the best time. Nothing is final until you confirm.' },
@@ -133,7 +139,7 @@ function guestStops(ctx: TourContext): Stop[] {
     ...peopleStop(ctx, 'Who else has answered'),
     { tab: 'location', targets: [guestPlaceCard(ctx)] },
     { tab: 'availability', targets: [
-      { sel: 'tabs', title: 'The other tabs', text: 'Attendance shows who is coming. Details has the rest.' },
+      { sel: 'tabs', title: 'The other tabs', text: otherTabs(ctx, false) },
     ] },
     { tab: 'availability', targets: [
       { sel: 'chat', title: 'Say something', text: 'Everyone on the plan can chat here.' },

@@ -113,8 +113,8 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   }
   // arrow keys walk the tabs and open each one on arrival; Home and End jump to the ends
   const onTabKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    const i = TABS.findIndex((t) => t.key === tab)
-    const n = TABS.length
+    const i = tabs.findIndex((t) => t.key === tab)
+    const n = tabs.length
     const to = e.key === 'ArrowRight' ? (i + 1) % n
       : e.key === 'ArrowLeft' ? (i - 1 + n) % n
         : e.key === 'Home' ? 0
@@ -122,11 +122,18 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             : -1
     if (to < 0) return
     e.preventDefault()
-    const next = TABS[to].key
+    const next = tabs[to].key
     goTab(next)
     document.getElementById(`tab-${next}`)?.focus()
   }
   const [event, setEvent] = useState<AppEvent | null | undefined>(undefined)
+  // who is coming only means something once a time is set: a plan still being
+  // decided with no fixed date has no Attendance tab (who has answered shows on the
+  // grid). It appears when the time is locked, or from the start on a plan made with
+  // a set date. Landing on ?tab=attendance before then opens the grid instead.
+  const showAttendance = !event || phaseOf(event) !== 'planning' || !!event.confirmed
+  const tabs = showAttendance ? TABS : TABS.filter((t) => t.key !== 'attendance')
+  if (event && !showAttendance && tab === 'attendance') setTab('availability')
   // clicking a person or group elsewhere jumps to the availability grid filtered to
   // them; cleared during render once the user moves off that tab
   const [availFocus, setAvailFocus] = useState<string[] | null>(null)
@@ -168,6 +175,20 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   useEffect(() => {
     if (!window.location.hash) window.scrollTo(0, 0)
   }, [id])
+  // someone who has just joined lands with the grid in view, its toolbar just under
+  // the header, so their first tap can mark a time
+  const loaded = event !== undefined
+  useEffect(() => {
+    if (!loaded) return
+    let joined = false
+    try { joined = sessionStorage.getItem('hourelle.joined') === id; if (joined) sessionStorage.removeItem('hourelle.joined') } catch { /* private mode */ }
+    if (!joined) return
+    const t = window.setTimeout(() => {
+      const grid = document.querySelector<HTMLElement>('[data-tour="grid-all"]')
+      if (grid) window.scrollTo({ top: grid.getBoundingClientRect().top + window.scrollY - 64 })
+    }, 250)
+    return () => window.clearTimeout(t)
+  }, [loaded, id])
 
   // re-read on tab change too: panels persist edits to storage as they happen, and
   // remounting them from a page-load-time snapshot would drop those edits until reload
@@ -380,7 +401,6 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       <Announce text={copied ? 'Link copied' : ''} />
       {/* the tour, only when it was asked for, and the one question a new guest gets; both mount on the body */}
       {phase !== 'past' && <Tour host={event.hostedByYou} locked={phase !== 'planning'} ctx={tourContextOf(event)} />}
-      {phase !== 'past' && <AskTour eventId={id} />}
       {/* header: the plan's cover as a small taped photo beside its name, the group's
           faces in a wave, and where it stands said as a sentence. It is the page's
           moment, so it takes the scrapbook touches; everything under the tabs stays
@@ -520,10 +540,13 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         <Hint name="lock" className="mb-4">Once enough people are free at the same time, Lock it in sets the time and tells everyone.</Hint>
       )}
 
+      {/* a new guest's tour offer: a small note above the tabs, never in the way */}
+      {phase !== 'past' && <AskTour eventId={id} />}
+
       {/* tabs — horizontally scrollable on narrow screens, with edge fades hinting more */}
       <div className="relative mb-4 sm:mb-6">
         <div ref={tabsRef} data-tour="tabs" role="tablist" aria-label="Plan sections" onKeyDown={onTabKey} onScroll={checkTabFade} className="scroll-slim flex items-center gap-1 overflow-x-auto pb-1 sm:gap-1.5">
-          {TABS.map((t) => {
+          {tabs.map((t) => {
             const active = tab === t.key
             return (
               // words alone carry the tabs — the filled box says which one is active
@@ -558,7 +581,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         </div>
       )}
       {/* the wrappers give the tour something to point at on each tab */}
-      {tab === 'location' && <div data-tour="location" role="tabpanel" id="panel-location" aria-labelledby="tab-location"><LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} /></div>}
+      {tab === 'location' && <div data-tour="location" role="tabpanel" id="panel-location" aria-labelledby="tab-location"><PlaceOptional event={event} locked={locked}><LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} /></PlaceOptional></div>}
       {tab === 'attendance' && <div data-tour="attendance" role="tabpanel" id="panel-attendance" aria-labelledby="tab-attendance"><AttendancePanel event={event} onGoToTab={goTab} onViewAvailability={goToAvailabilityFor} onViewAvailabilityGroup={goToAvailabilityGroup} onGoToBestWindow={goToBestWindow} /></div>}
       {tab === 'details' && <div data-tour="details" role="tabpanel" id="panel-details" aria-labelledby="tab-details"><DetailsTab event={event} onDelete={handleDelete} onLeave={handleLeave} onGoToTab={goTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onSetMyFace={setMyFace} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} openInvite={inviteAsk} /></div>}
 
@@ -593,6 +616,31 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           onSend={sendMessage} onVote={votePoll} onClose={() => setChatOpen(false)} readOnly={!!event.demo}
           typing={room.typing} onType={room.onType} onStopTyping={room.onStopTyping}
         />
+      )}
+    </div>
+  )
+}
+
+/* Place is optional: most plans only need a time. With no place decided and none
+   suggested, the tab leads with one quiet line and a way in, and the full place
+   tools open when someone asks for them. Anything already in play (a set place,
+   suggestions, a meeting link, a locked plan) shows the tools straight away. */
+function PlaceOptional({ event, locked, children }: { event: AppEvent; locked: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const loc = event.location
+  const empty = !locked && (loc.mode === 'later' || (loc.mode === 'vote' && loc.places.length === 0))
+  if (!empty || open) return <>{children}</>
+  const canAdd = event.hostedByYou || !!loc.guestsCanSuggest
+  return (
+    <div className="rounded-2xl border border-border bg-s1 px-5 py-6 sm:px-6">
+      <p className="font-serif text-[20px] leading-tight tracking-[-0.01em]">{canAdd ? 'Add a place if you need one' : 'No place yet'}</p>
+      <p className="mt-1.5 text-[14px] leading-[1.5] text-dim">
+        {canAdd ? 'Add a few and everyone can vote, or make it online.' : 'The host can add one if the plan needs it.'}
+      </p>
+      {canAdd && (
+        <button type="button" onClick={() => setOpen(true)} className="mt-4 flex h-11 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-4 text-[14px] font-semibold hover:bg-s2 sm:h-9">
+          <Plus size={16} aria-hidden /> Add a place
+        </button>
       )}
     </div>
   )
@@ -1852,5 +1900,6 @@ function tourContextOf(event: AppEvent): TourContext {
     places: event.location.places.length,
     canSuggest: !!event.location.guestsCanSuggest,
     othersAnswered: answered.size,
+    attendance: phaseOf(event) !== 'planning' || !!event.confirmed,
   }
 }
