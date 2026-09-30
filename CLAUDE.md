@@ -103,8 +103,8 @@ Person colours now live as CSS variables (`--person-<key>-bg` / `-fg`, per theme
 
 **Color role rules — never break these:**
 - `--accent` (green): the single signature color — every CTA, link, active/selected state, focus ring, the **filled selected-tab box** (with `--on-accent` cream text), primary buttons, and urgency date pills (≤14 days). Exactly one accent; never add a second brand hue.
-- `--moment` (coral): a role colour, not a brand accent. For moments that ask for you now or celebrate: "Your turn" chips and strips (your reply or your times are missing), the Home **Up next** eyebrow, the share-first card (border + "Your turn" kicker), and the **It's on** celebration when a plan locks in (`JustLocked.tsx`). Use `text-moment-text` on `bg-moment-bg` with `border-moment-border`; the solid `bg-moment` is for small icons and dots only. Never a button, link, selected state or focus ring (those stay `--accent`), and keep it rare: one coral thing per screen is the norm.
-- `--teal`: confirmed / going / success / full-attendance; the availability heat-map ramp.
+- `--moment` (coral): a role colour, not a brand accent. For moments that ask for you now: "Your turn" chips and strips (your reply or your times are missing), the Home **Up next** eyebrow, and the share-first card (border + "Your turn" kicker). Never for good news: it sits close enough to brick that a celebration in coral reads as an error. Use `text-moment-text` on `bg-moment-bg` with `border-moment-border`; the solid `bg-moment` is for small icons and dots only. Never a button, link, selected state or focus ring (those stay `--accent`), and keep it rare: one coral thing per screen is the norm.
+- `--teal`: confirmed / going / success / full-attendance, including the **It's on** celebration when a plan locks in (`JustLocked.tsx`); the availability heat-map ramp.
 - `--ochre`: planning / partial-attendance / caution; "arrives late / leaves early".
 - `--brick`: absent / conflict / danger / not-going / declined.
 - Person-avatar colors: purely decorative identity — never reuse for semantic meaning.
