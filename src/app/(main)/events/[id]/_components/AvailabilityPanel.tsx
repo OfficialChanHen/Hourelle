@@ -969,6 +969,16 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     setSel(null)
     stashUndo(snapshot, 'Your times were cleared')
   }
+  // the week on screen only: the same write as clearing everything, with every other
+  // day of yours left as it was. Filler days are not part of the poll and hold nothing.
+  function clearWeekMine() {
+    const snapshot = mine
+    const next = { ...mine }
+    for (const d of weekDays) if (!d.pad) next[d.key] = []
+    setMine(next); persist(next)
+    setSel(null)
+    stashUndo(snapshot, 'Your times this week were cleared')
+  }
   // an undone import takes its marker back too, the same way it was set
   function markImportedUndo(iv: AvailIntervals) { if (event.demo) return; if (onPatch) onPatch({ importedIv: iv }); else patchEvent(event.id, { importedIv: iv }) }
   function undoRestore() {
@@ -1378,7 +1388,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   </span>
                 )}
               >
-                {() => (
+                {(close) => (
                   <div className="flex flex-col gap-3 p-1">
                     {/* the length as a track the width of the panel, the value named
                         beside its label, the way the wizard asks it */}
@@ -1419,7 +1429,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     {youAny && (
                       <div className="border-t border-border pt-2.5">
                         <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Your times</div>
-                        <ClearTimes onClear={clearAllMine} />
+                        <ClearTimes
+                          onClear={clearAllMine}
+                          onDone={close}
+                          week={weekStrip ? { label: weekChips[page]?.label ?? '', any: weekDays.some((d) => !d.pad && (mine[d.key]?.length ?? 0) > 0) } : undefined}
+                          onClearWeek={clearWeekMine}
+                        />
                       </div>
                     )}
                   </div>
