@@ -8,19 +8,20 @@ import { prefPalette, setPrefPalette , PREFS_CHANGED } from '@/lib/prefs'
    the sun/moon toggle keeps switching light and dark inside whichever is chosen.
    Collapsed by default: one row names the current look, the options stay hidden
    until asked for. Swatches are fixed previews, honest in any active theme. */
-export type Palette = 'hourelle' | 'studio' | 'daylight' | 'contrast'
+export type Palette = 'hourelle' | 'studio' | 'daylight' | 'breeze' | 'contrast'
 
-// Four looks, each with a job: the house one, a neutral, a bright one, and one for
-// low vision. 'hourelle' is the house key and always has been — it means no
+// Five looks, each with a job: the house one, a neutral, a familiar bright one, a
+// sunny one, and one for low vision. 'hourelle' is the house key and always has been — it means no
 // data-palette at all, so it follows whatever the house look currently is.
 const PALETTES: { key: Palette; name: string; caption: string; swatches: string[] }[] = [
   { key: 'hourelle', name: 'Warm neutral', caption: 'Soft paper and deep green. The house look.', swatches: ['#F7F6F4', '#2E4A3C', '#151513', '#8F6A33'] },
   { key: 'studio', name: 'Studio', caption: 'Cool grays and ink, no serif. The quiet one.', swatches: ['#F7F7F8', '#18181B', '#0F0F10', '#2F7A5A'] },
-  { key: 'daylight', name: 'Daylight', caption: 'Bright white and a clear blue. The most familiar of the four.', swatches: ['#FFFFFF', '#0B57D0', '#131314', '#8AB4F8'] },
+  { key: 'daylight', name: 'Daylight', caption: 'Bright white and a clear blue. The familiar one.', swatches: ['#FFFFFF', '#0B57D0', '#131314', '#8AB4F8'] },
+  { key: 'breeze', name: 'Breeze', caption: 'Sunny white, sea teal and coral. A brighter, warmer look.', swatches: ['#FFFCF6', '#0F6E78', '#181612', '#E0623A'] },
   { key: 'contrast', name: 'High contrast', caption: 'Strong lines and bold color. Easy to read in glare or at a distance.', swatches: ['#FFFFFF', '#0033CC', '#000000', '#C40000'] },
 ]
 
-const KNOWN: Palette[] = ['studio', 'daylight', 'contrast']
+const KNOWN: Palette[] = ['studio', 'daylight', 'breeze', 'contrast']
 
 function apply(p: Palette) {
   if (p === 'hourelle') document.documentElement.removeAttribute('data-palette')

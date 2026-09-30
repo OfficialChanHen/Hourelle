@@ -93,7 +93,9 @@ export function PeekCard({
           ))}
         </div>
       )}
-      <div className="pointer-events-auto relative z-[1] flex min-h-0 flex-1 flex-col">{children}</div>
+      {/* the card's box takes no pointer itself, only what is drawn in it, so a tilted
+          card never blocks a face with the empty corner of its unturned box */}
+      <div className="pointer-events-none relative z-[1] flex min-h-0 flex-1 flex-col [&>*]:pointer-events-auto">{children}</div>
     </div>
   )
 }

@@ -45,7 +45,7 @@ import { AvatarRow } from '@/components/ui/AvatarRow'
 import type { Face } from '@/lib/faces'
 import { ChangeFace } from './ChangeFace'
 import { BackLink } from '@/components/ui/BackLink'
-import { LifecycleLine } from '@/components/ui/LifecycleStrip'
+import { StageStepper } from '@/components/ui/LifecycleStrip'
 import { SoftShapes } from '@/components/ui/SoftShapes'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { FaceRibbon } from '@/components/ui/FaceRibbon'
@@ -162,6 +162,12 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   const [tabFade, setTabFade] = useState({ l: false, r: false })
   const tabResolved = useRef(false)
   const isIOS = useIsIOS()
+  // a plan opens at its top. Arriving from low on Home or the Plans list kept that
+  // page's scroll, which landed people halfway down the grid with the header and
+  // Lock it in out of sight. A link to a spot on the page (#…) still goes there.
+  useEffect(() => {
+    if (!window.location.hash) window.scrollTo(0, 0)
+  }, [id])
 
   // re-read on tab change too: panels persist edits to storage as they happen, and
   // remounting them from a page-load-time snapshot would drop those edits until reload
@@ -194,7 +200,11 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   }, [])
   useEffect(() => {
     // scrolling the active tab into view triggers onScroll → checkTabFade
-    tabsRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' })
+    // sideways only: scrollIntoView also moved the page down to reach the tabs, which
+    // opened a plan below its header on a phone
+    const bar = tabsRef.current
+    const on = bar?.querySelector<HTMLElement>('[data-active="true"]')
+    if (bar && on) bar.scrollTo({ left: on.offsetLeft - (bar.clientWidth - on.offsetWidth) / 2 })
   }, [tab])
 
   // the grid's "Lock these days" shortcut: hands the winning run to the confirm modal
@@ -455,7 +465,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         {/* where it stands, as a sentence, then the five stages as a line */}
         <div className="mt-4 max-w-[720px]"><StageSummary event={event} phase={phase} onGoToAvailability={goToBestWindow} /></div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-          <LifecycleLine phase={phase} />
+          <StageStepper phase={phase} className="w-full max-w-[380px]" />
           {/* ml-auto keeps the actions hugging the right edge when the row wraps; on a
               phone the host's lock-in takes the row's full width instead of floating */}
           <div className={`${event.hostedByYou && phase === 'planning' ? 'flex w-full sm:w-auto' : 'hidden sm:flex'} min-w-0 items-center gap-2 sm:ml-auto`}>

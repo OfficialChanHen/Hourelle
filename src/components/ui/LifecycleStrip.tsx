@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef } from 'react'
+import { Check } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import type { Phase } from '@/lib/events'
@@ -33,25 +34,46 @@ export const PHASE_TINT: Record<Phase, { dot: string; border?: string }> = {
 const STEPS = ['Deciding', 'RSVP', 'Soon', 'Today', 'Done'] as const
 const PHASE_STEP: Record<Phase, number> = { planning: 0, upcoming: 1, soon: 2, today: 3, past: 4 }
 
-/* The same five steps said as a line: the current one is a filled pill, the rest
-   plain words around it ("Deciding, then RSVP, Soon, Today, Done"). The plan header
-   uses it; the pill pops in when the stage changes, and just sits there with reduced
-   motion. */
-export function LifecycleLine({ phase, className = '' }: { phase: Phase; className?: string }) {
-  const root = useRef<HTMLDivElement>(null)
+/* The five stages as a stepper: dots joined by a line, past steps filled and
+   checked, the current one in the accent and a touch larger, the rest muted. An
+   ordered list, so a screen reader hears each step and which one is current.
+   `labels`: 'auto' names only the current step on a phone and every step from sm
+   up; 'current' always names only the current one; 'all' always names them all.
+   The current dot pops in when the stage changes; with reduced motion it just sits
+   there. */
+export function StageStepper({ phase, labels = 'auto', className = '' }: { phase: Phase; labels?: 'auto' | 'current' | 'all'; className?: string }) {
+  const root = useRef<HTMLOListElement>(null)
   const idx = PHASE_STEP[phase]
   useGSAP(() => {
     if (reducedMotion()) return
-    gsap.fromTo('.ll-now', { scale: 0.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.45, ease: 'back.out(2)' })
+    gsap.fromTo('.ss-now', { scale: 0.5 }, { scale: 1, duration: 0.45, ease: 'back.out(2.2)' })
+    gsap.fromTo('.ss-line', { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: 'power2.out', stagger: 0.06 })
   }, { scope: root, dependencies: [idx] })
-  const before = STEPS.slice(0, idx)
-  const after = STEPS.slice(idx + 1)
+  const other = labels === 'all' ? '' : labels === 'current' ? 'sr-only' : 'sr-only sm:not-sr-only'
   return (
-    <div ref={root} className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] ${className}`} role="img" aria-label={`Stage ${idx + 1} of ${STEPS.length}: ${STEPS[idx]}`}>
-      {before.length > 0 && <span aria-hidden className="text-dim">{before.join(', ')}</span>}
-      <span aria-hidden className="ll-now inline-block rounded-full bg-accent px-3 py-1 font-semibold text-on-accent">{STEPS[idx]}</span>
-      {after.length > 0 && <span aria-hidden className="text-dim">then {after.join(', ')}</span>}
-    </div>
+    <ol ref={root} aria-label={`Stage ${idx + 1} of ${STEPS.length}: ${STEPS[idx]}`} className={`grid grid-cols-5 ${className}`}>
+      {STEPS.map((label, i) => {
+        const done = i < idx
+        const now = i === idx
+        return (
+          <li key={label} aria-current={now ? 'step' : undefined} className="relative flex min-w-0 flex-col items-center gap-1.5">
+            {/* the line into this step from the one before, filled once it is reached */}
+            {i > 0 && (
+              <span aria-hidden className={`absolute right-1/2 top-[7px] h-[2px] origin-left rounded-full ${i <= idx ? 'ss-line bg-teal' : 'bg-border2'}`} style={{ marginRight: 10, width: 'calc(100% - 20px)' }} />
+            )}
+            <span
+              aria-hidden
+              className={`relative z-[1] grid place-items-center rounded-full ${now ? 'ss-now h-4 w-4 bg-accent ring-4 ring-accent-bg' : done ? 'h-4 w-4 bg-teal text-on-accent' : 'h-4 w-4 border-2 border-border2 bg-s1'}`}
+            >
+              {done && <Check size={10} strokeWidth={3} />}
+            </span>
+            <span className={`whitespace-nowrap text-[12px] leading-none sm:text-[11.5px] ${now ? 'font-semibold text-text' : `${other} ${done ? 'text-dim' : 'text-faint'}`}`}>
+              {label}{done && <span className="sr-only">, done</span>}
+            </span>
+          </li>
+        )
+      })}
+    </ol>
   )
 }
 

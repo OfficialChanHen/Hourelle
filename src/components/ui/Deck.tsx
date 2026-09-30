@@ -27,6 +27,7 @@ export function Deck({
   children,
   className = '',
   footer,
+  center = false,
 }: {
   count: number
   index: number
@@ -38,6 +39,8 @@ export function Deck({
   className?: string
   // extra things on the arrows row, after the arrows (a "See all" link, say)
   footer?: React.ReactNode
+  // centre the arrows under the stack below lg (a stack that sits centred on a phone)
+  center?: boolean
 }) {
   const root = useRef<HTMLDivElement>(null)
   const top = useRef<HTMLDivElement>(null)
@@ -90,7 +93,7 @@ export function Deck({
         <div ref={top} key={index} className="relative">{children}</div>
       </div>
       {(many || footer) && (
-        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <div className={`mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 ${center ? 'justify-center lg:justify-start' : ''}`}>
           {many && (
             <>
               <button

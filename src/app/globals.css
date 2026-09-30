@@ -241,6 +241,46 @@
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
 }
 
+/* Breeze — sunny warm-white paper, a sea-teal accent, coral moments and sandy
+   shapes. The brighter, summery look for anyone who finds the house paper too
+   muted. The heat ramp stays green: "free" has to read as free. Dark is a warm night
+   with the same teal. */
+[data-palette="breeze"] {
+  --bg:#FFFCF6; --s0:#FFFDF9; --s1:#FFFFFF; --s2:#F6F1E6; --s3:#ECE4D4;
+  --border:#EDE5D6; --border2:#D9CDB7;
+  --text:#1B2226; --dim:#515C63; --faint:#5C666D;
+  --accent:#0F6E78; --accent-text:#0B5A63; --accent-bg:#E1F2F2; --accent-border:#B6DEDF; --on-accent:#FFFFFF;
+  --teal:#2F7A5A; --teal-text:#256448; --teal-bg:#E5F2EB; --teal-border:#C3DFD0;
+  --ochre:#9A6A1E; --ochre-text:#7A5212; --ochre-bg:#FBF0DA; --ochre-border:#EED9B0;
+  --brick:#B2413B; --brick-text:#93342F; --brick-bg:#FBE6E3; --brick-border:#EFC7C3;
+  --moment:#E0623A; --moment-text:#B2401C; --moment-bg:#FFEBE2; --moment-border:#F9CDBB;
+  --shadow:0 1px 2px rgba(20,60,70,.06), 0 12px 32px rgba(20,60,70,.08);
+  --em:var(--accent-text);
+  --shape-a:#E3F3F2; --shape-b:#FFEDE5; --shape-c:#F7EEDD;
+  --tape:rgba(240,220,170,.85);
+  --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(20,60,70,.07), 0 16px 32px rgba(20,60,70,.12);
+  --sticky:#FFF1C2; --sticky-text:#1B2226; --sticky-dim:#5A4E2E; --sticky-kicker:#B2401C;
+  --sticky-shadow:0 8px 18px rgba(20,60,70,.10);
+  --tour-lit:var(--accent);
+}
+[data-palette="breeze"][data-theme="dark"] {
+  --bg:#181612; --s0:#1D1B16; --s1:#211E1A; --s2:#2A2721; --s3:#34302A;
+  --border:rgba(245,236,220,.10); --border2:rgba(245,236,220,.19);
+  --text:#F3EEE5; --dim:#B3AC9F; --faint:#958E82;
+  --accent:#17767C; --accent-text:#8FDCDD; --accent-bg:rgba(95,196,200,.15); --accent-border:rgba(95,196,200,.38); --on-accent:#FFFFFF;
+  --teal:#5B9A7C; --teal-text:#9BD2B7; --teal-bg:rgba(111,181,151,.14); --teal-border:rgba(111,181,151,.36);
+  --ochre:#BD9A5E; --ochre-text:#E1C48F; --ochre-bg:rgba(200,165,100,.15); --ochre-border:rgba(200,165,100,.38);
+  --brick:#C57F78; --brick-text:#E5ACA6; --brick-bg:rgba(205,138,130,.14); --brick-border:rgba(205,138,130,.36);
+  --moment:#F08A68; --moment-text:#FFBDA3; --moment-bg:rgba(240,138,104,.15); --moment-border:rgba(240,138,104,.40);
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
+  --shape-a:#16221F; --shape-b:#2A1D17; --shape-c:#231F18;
+  --tape:rgba(240,220,170,.2);
+  --frame:#2B2822; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
+  --sticky:#3B3320; --sticky-text:#F7ECCB; --sticky-dim:#D9CBA3; --sticky-kicker:#FFBDA3;
+  --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
+  --tour-lit:var(--accent-text);
+}
+
 /* High contrast — strong lines, saturated color, true black-and-white bases; built for
    glare, low vision, and reading at arm's length */
 [data-palette="contrast"] {

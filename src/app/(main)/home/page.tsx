@@ -1,19 +1,22 @@
 'use client'
 
 
-/* ── home: what is next, and what you can do about it ──
-   A headline that says where the plan on screen stands, then:
-     Up next      every plan you are in, as a stack of taped photos you page through:
-                  locked-in ones by date first, then the ones still being decided.
-                  Each photo has the group's faces peeking over it and a short
-                  details block under the picture (stage, when, where, who, you).
+/* ── home: when are we meeting, and what do you owe ──
+   Hourelle is about finding the time busy people can meet, so every card here leads
+   with the time question before anything else.
+     Up next      the three closest plans. On a large screen the closest one is the
+                  big taped photo and the other two sit beside it as smaller photos;
+                  on a phone they are a stack you page with arrows or a swipe. Each
+                  photo carries the plan's name, its stage, the time question first
+                  (your times, the best time so far, who is still missing, or the
+                  locked time), then place and extras, and one button: the thing to
+                  do next.
      Your turn    every plan waiting on you, as a stack of sticky notes, each with
-                  its own next step
-     Quick create a name and a week, one click
+                  its own task and button
+     Start a plan a name and a week, one click
 
-   Both stacks draw only the card on top plus blank paper behind it, so thirty plans
-   cost the same as three, and the page never turns into a wall of cards. Everything
-   else lives one link away on Plans.
+   Only three plans are ever drawn, plus blank paper behind the phone stack, so
+   thirty plans cost the same as three. Everything else lives one link away on Plans.
 
    Scrapbook touches (the photos, tape, sticker faces, sticky notes) are for this
    page's moments only. The arrows, the create form and every button stay flat.
@@ -23,7 +26,7 @@
    disagrees with a visitor in another timezone. `useLiveEvents` re-reads the list
    whenever the cloud changes something. */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -43,7 +46,7 @@ import { namesLabel } from '@/components/ui/AvatarRow'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Tip } from '@/components/ui/Tip'
-import { LifecycleLine } from '@/components/ui/LifecycleStrip'
+import { StageStepper } from '@/components/ui/LifecycleStrip'
 import { placeVotes, chatLines } from '@/lib/polls'
 import { fromDay,
   createEvent, eventTabFor, listEvents, phaseOf, daysUntil, dateRangeText, confirmedSlotText, sameDayLabelFor,
@@ -63,20 +66,39 @@ function greetingFor(hour: number): string {
   return 'Evening'
 }
 
+// how many plans Home draws: the closest three, never an even pile
+const SHOWN = 3
+
+// a large screen lays the three plans out side by side; a phone stacks them. Read on
+// the client only, which is fine here: nothing below renders before mount anyway
+const WIDE = '(min-width: 1024px)'
+function subscribeWide(fn: () => void) {
+  const mq = window.matchMedia(WIDE)
+  mq.addEventListener('change', fn)
+  return () => mq.removeEventListener('change', fn)
+}
+function useWide() {
+  return useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE).matches, () => false)
+}
+
 type Turn = { line: string; cta: string; href: string }
 type Item = { e: AppEvent; phase: Phase }
 
-/** The one thing you still owe this plan, if any: your times while it is being
-    decided, a place vote when one is open, your reply once it is locked in. */
+// "Oct 3", for the by-when on a task
+const shortDay = (iso: string) => dateRangeText({ startDate: iso, endDate: iso }).replace(/, \d{4}$/, '')
+
+/** The one thing you still owe this plan, if any, said as the task: your times while
+    it is being decided, a place vote when one is open, your reply once it is locked
+    in, each with its by-when when the host set one. */
 function turnOf(e: AppEvent, phase: Phase): Turn | null {
   const me = e.participants.find((p) => p.you)
   if (!me || e.demo) return null
   if (phase === 'planning') {
-    if (!youReplied(e)) return { line: 'Mark when you’re free', cta: 'Mark my times', href: `/events/${e.id}?tab=availability` }
-    if (e.location.mode === 'vote' && e.location.places.length > 0 && !youVoted(e)) return { line: 'Vote on a place', cta: 'Vote', href: `/events/${e.id}?tab=location` }
+    if (!youReplied(e)) return { line: `Mark your times${e.planDeadline ? ` by ${shortDay(e.planDeadline)}` : ''}`, cta: 'Mark my times', href: `/events/${e.id}?tab=availability` }
+    if (e.location.mode === 'vote' && e.location.places.length > 0 && !youVoted(e)) return { line: `Vote on the place${e.voteDeadline ? ` by ${shortDay(e.voteDeadline)}` : ''}`, cta: 'Vote', href: `/events/${e.id}?tab=location` }
     return null
   }
-  if (phase !== 'past' && me.rsvp === 'pending') return { line: 'Say if you’re coming', cta: 'Reply', href: `/events/${e.id}` }
+  if (phase !== 'past' && me.rsvp === 'pending') return { line: `Say if you’re coming${e.rsvpDeadline ? ` by ${shortDay(e.rsvpDeadline)}` : ''}`, cta: 'Reply', href: `/events/${e.id}` }
   return null
 }
 
@@ -104,6 +126,7 @@ export default function HomePage() {
   useLiveEvents(() => { setEvents(listEvents()); setSettled(cloudSettled()) })
   const waiting = !settled && (events?.length ?? 0) === 0
   const loading = events === null || waiting
+  const wide = useWide()
   const [upAt, setUpAt] = useState(0)
   const [turnAt, setTurnAt] = useState(0)
 
@@ -116,102 +139,126 @@ export default function HomePage() {
     ...active.filter((x) => x.phase === 'planning')
       .sort((a, b) => dayOf(a.e).localeCompare(dayOf(b.e)) || b.e.createdAt - a.e.createdAt),
   ]
+  const shown = upNext.slice(0, SHOWN)
   const sameDay = sameDayLabelFor(active.map((x) => x.e))
-  // your turn: every plan waiting on you, in the same order
+  // your turn: every plan waiting on you, in the same order, shown or not
   const turns = upNext.map((x) => ({ x, t: turnOf(x.e, x.phase) })).filter((y): y is { x: Item; t: Turn } => y.t !== null)
   // a plan leaving the list (answered, deleted elsewhere) never strands the index
-  const upI = Math.min(upAt, Math.max(0, upNext.length - 1))
+  const upI = Math.min(upAt, Math.max(0, shown.length - 1))
   const turnI = Math.min(turnAt, Math.max(0, turns.length - 1))
-  const hero = upNext[upI]
+  // the headline names the plan in front: the big one on a wide screen, the top of
+  // the stack on a phone
+  const hero = wide ? shown[0] : shown[upI]
   const turn = turns[turnI]
+  // one plan on a wide screen: what you owe and the create form sit beside it
+  // rather than leaving half the row empty
+  const solo = wide && shown.length === 1
+  const seeAll = active.length > shown.length && (
+    <Link href="/events" className="inline-flex min-h-11 items-center text-[13.5px] font-semibold text-accent-text hover:underline sm:min-h-0 sm:py-1">
+      See all {active.length} plans
+    </Link>
+  )
 
   return (
     <div className="relative isolate mx-auto max-w-[1240px] px-6 pb-[92px] pt-7 sm:px-[26px] sm:pt-[34px]">
       <SoftShapes variant="home" />
 
-      {/* greeting, then where the plan on screen stands, as a sentence */}
+      {/* greeting, then where the plan in front stands, as a sentence */}
       <p className="text-[15px] text-dim" suppressHydrationWarning>{greeting}, {firstName}.</p>
       {loading ? (
         <div className="mt-2 h-[38px] w-[260px] max-w-full animate-pulse rounded-lg bg-s2" />
       ) : (
-        <h1 className="mt-0.5 max-w-[640px] font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] [overflow-wrap:anywhere] sm:text-[42px]">
+        <h1 className="mt-0.5 max-w-[680px] font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] [overflow-wrap:anywhere] sm:text-[42px]">
           {headline(hero?.e, hero?.phase)}
         </h1>
       )}
 
       {/* localStorage only exists after mount: pulse shapes, never a flash of "empty" */}
       {loading ? (
-        <div className="mt-9 grid gap-x-14 gap-y-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-          <div className="h-[300px] max-w-[480px] animate-pulse rounded-2xl bg-s2" />
-          <div className="h-[180px] w-[230px] animate-pulse rounded-xl bg-s2" />
+        <div className="mt-9 grid gap-x-14 gap-y-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+          <div className="h-[340px] max-w-[520px] animate-pulse rounded-2xl bg-s2" />
+          <div className="h-[200px] animate-pulse rounded-2xl bg-s2" />
         </div>
       ) : (
-        <div className="mt-6 grid gap-x-14 gap-y-8 sm:mt-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-start">
-          <section aria-labelledby="home-upnext" className="min-w-0">
+        <div className={solo ? 'mt-8 grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-start gap-x-14' : ''}>
+          <section aria-labelledby="home-upnext" className={solo ? '' : 'mt-6 sm:mt-8'}>
             <h2 id="home-upnext" className="sr-only">Up next</h2>
-            {hero ? (
+            {shown.length === 0 ? (
               <div className="max-w-[480px]">
-                <Deck
-                  count={upNext.length} index={upI} onIndex={setUpAt} label="Up next"
-                  behind={(d) => (
-                    // blank frames under the photo on top, offset like a loose pile
-                    <div
-                      className="absolute inset-x-0 bottom-5 top-[42px] rounded-[14px] bg-frame shadow-frame"
-                      style={{ transform: d === 1 ? 'translate(9px, 7px) rotate(1.5deg)' : 'translate(-6px, 12px) rotate(-2.5deg)' }}
-                    />
-                  )}
-                  footer={<PlanActions key={hero.e.id} e={hero.e} phase={hero.phase} />}
-                >
-                  <UpNext e={hero.e} phase={hero.phase} sameDay={sameDay(hero.e)} />
-                </Deck>
-                {active.length > 1 && (
-                  <Link href="/events" className="mt-1 inline-flex min-h-11 items-center text-[13.5px] font-semibold text-accent-text hover:underline sm:min-h-0 sm:py-1">
-                    See all {active.length} plans
-                  </Link>
+                <EmptyState
+                  icon={CalendarPlus}
+                  title="Your next plan goes here"
+                  body="Start one and your group can pick a time together."
+                  action={{ label: 'Start a plan', href: '/create' }}
+                  secondary={{ label: 'Or open a demo', href: '/demos' }}
+                />
+              </div>
+            ) : wide ? (
+              /* the closest plan large, the next two smaller beside it, loose rather
+                 than in a grid: a little offset, a little turned */
+              <div className={shown.length > 1 ? 'grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] items-start gap-x-14' : 'max-w-[560px]'}>
+                <div>
+                  <UpNext e={shown[0].e} phase={shown[0].phase} sameDay={sameDay(shown[0].e)} size="hero" tilt={-1.5} />
+                  <div className="mt-5 flex items-center gap-4"><PlanActions e={shown[0].e} phase={shown[0].phase} />{shown.length === 1 && seeAll}</div>
+                </div>
+                {shown.length > 1 && (
+                  <div className="flex flex-col gap-9 pt-6">
+                    {shown.slice(1).map((x, i) => (
+                      <div key={x.e.id} className={`max-w-[400px] ${i === 0 ? 'ml-8' : 'ml-0'}`}>
+                        <UpNext e={x.e} phase={x.phase} sameDay={sameDay(x.e)} size="small" tilt={i === 0 ? 2 : -1.5} />
+                      </div>
+                    ))}
+                    {seeAll && <div className="-mt-4">{seeAll}</div>}
+                  </div>
                 )}
               </div>
             ) : (
-              <EmptyState
-                icon={CalendarPlus}
-                title="Your next plan goes here"
-                body="Start one and your group can pick a time together."
-                action={{ label: 'Start a plan', href: '/create' }}
-                secondary={{ label: 'Or open a demo', href: '/demos' }}
-              />
+              <div className="mx-auto max-w-[480px]">
+                <Deck
+                  count={shown.length} index={upI} onIndex={setUpAt} label="Up next"
+                  behind={(d) => (
+                    // blank frames under the photo on top, offset like a loose pile
+                    <div
+                      className="absolute inset-x-0 bottom-0 top-[42px] rounded-[14px] bg-frame shadow-frame"
+                      style={{ transform: d === 1 ? 'translate(9px, 7px) rotate(1.5deg)' : 'translate(-6px, 12px) rotate(-2.5deg)' }}
+                    />
+                  )}
+                  footer={<PlanActions key={shown[upI].e.id} e={shown[upI].e} phase={shown[upI].phase} />}
+                >
+                  <UpNext e={shown[upI].e} phase={shown[upI].phase} sameDay={sameDay(shown[upI].e)} size="hero" tilt={-1.5} />
+                </Deck>
+                {seeAll}
+              </div>
             )}
           </section>
 
-          <div className="min-w-0">
+          {/* what you owe, then a new plan: side by side on a large screen */}
+          <div className={`grid gap-y-9 ${solo ? 'pt-6' : 'mt-8 lg:mt-14 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start lg:gap-x-16'}`}>
             {turn && (
-              <>
+              <section aria-labelledby="home-turn" className="min-w-0">
                 <WavyRule className="mb-7 lg:hidden" />
-                <section aria-labelledby="home-turn">
-                  <h2 id="home-turn" className="sr-only">Your turn</h2>
-                  <Deck
-                    count={turns.length} index={turnI} onIndex={setTurnAt} label="Plans waiting on you" itemLabel="note" className="w-[240px] max-w-full"
-                    behind={(d) => (
-                      <div
-                        className="absolute inset-0 rounded-md bg-sticky shadow-sticky"
-                        style={{ transform: d === 1 ? 'translate(8px, 6px) rotate(-2.5deg)' : 'translate(-5px, 11px) rotate(3deg)' }}
-                      />
-                    )}
-                  >
-                    <StickyNote kicker="Your turn" className="min-h-[150px]">
-                      <span className="font-serif text-[19px] leading-[1.1] [overflow-wrap:anywhere]">{turn.x.e.title}</span>
-                      <span className="text-[13px] leading-[1.4] text-sticky-dim">{turn.t.line}</span>
-                      <Link href={turn.t.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-accent px-4 text-[13.5px] font-semibold text-on-accent sm:h-9">
-                        {turn.t.cta}
-                      </Link>
-                    </StickyNote>
-                  </Deck>
-                </section>
-              </>
+                <h2 id="home-turn" className="sr-only">Your turn</h2>
+                <Deck
+                  count={turns.length} index={turnI} onIndex={setTurnAt} label="Plans waiting on you" itemLabel="note" center
+                  className="mx-auto w-[260px] max-w-full lg:mx-0"
+                  behind={(d) => (
+                    <div
+                      className="absolute inset-0 rounded-md bg-sticky shadow-sticky"
+                      style={{ transform: d === 1 ? 'translate(8px, 6px) rotate(-2.5deg)' : 'translate(-5px, 11px) rotate(3deg)' }}
+                    />
+                  )}
+                >
+                  <StickyNote kicker="Your turn" className="min-h-[164px]">
+                    <span className="font-serif text-[19px] leading-[1.15] [overflow-wrap:anywhere]">{turn.x.e.title}</span>
+                    <span className="text-[13.5px] leading-[1.4] text-sticky-dim">{turn.t.line}</span>
+                    <Link href={turn.t.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-accent px-4 text-[13.5px] font-semibold text-on-accent sm:h-9">
+                      {turn.t.cta}
+                    </Link>
+                  </StickyNote>
+                </Deck>
+              </section>
             )}
-            {/* plan something in one line: name it, keep or nudge the week, create */}
-            <div className={turn ? 'mt-9' : ''}>
-              <h2 className="mb-3 text-[11.5px] font-semibold uppercase tracking-[.13em] text-faint">Start a plan</h2>
-              <QuickCreate />
-            </div>
+            <QuickCreate />
           </div>
         </div>
       )}
@@ -219,7 +266,7 @@ export default function HomePage() {
   )
 }
 
-// the headline: the plan on screen and where it stands, one italic word
+// the headline: the plan in front and where it stands, one italic word
 function headline(e?: AppEvent, phase?: Phase): React.ReactNode {
   if (!e || !phase) return <>Nothing planned <Em>yet</Em>.</>
   if (phase === 'today') return <>{e.title} is <Em>today</Em>.</>
@@ -229,9 +276,9 @@ function headline(e?: AppEvent, phase?: Phase): React.ReactNode {
 
 const first = (name: string) => name.split(' ')[0]
 
-/* Everything Home says about one plan, worked out once for the card on screen:
-   one pass over the people however many there are, and the names of the people
-   still to answer only when there are one to three of them. */
+/* Everything Home says about one plan, worked out once per card: one pass over the
+   people however many there are, and the names of the people still to answer only
+   when there are one to three of them. */
 function digestOf(e: AppEvent, phase: Phase) {
   const locked = phase !== 'planning'
   const me = e.participants.find((p) => p.you)
@@ -288,95 +335,101 @@ function Row({ icon: Icon, children }: { icon: typeof Calendar; children: React.
 }
 
 /* Up next, one plan: the cover as a taped photo, tilted a little, the faces of the
-   people in peeking over its top edge, and a short details block under the picture.
-   The main button sits on the frame's corner like a sticker; it is not tilted, so
-   it is exactly where it looks. */
-function UpNext({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo }) {
+   people in tucked behind its top edge, then the plan's name, its stage, and a short
+   details block that answers the time question first. The one button is the next
+   thing to do. It only takes you to the plan, never answers in place, so it can sit
+   inside the tilted photo. `small` is the side card on a wide screen: a shorter
+   picture and only the lines that matter most. */
+function UpNext({ e, phase, sameDay, size, tilt }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo; size: 'hero' | 'small'; tilt: number }) {
   const [coverFrom, coverTo] = coverFor(e.id)
   const d = digestOf(e, phase)
   const turn = turnOf(e, phase)
   const action = turn ?? { cta: 'See the plan', href: eventTabFor(e) }
   const slot = confirmedSlotText(e)
+  const small = size === 'small'
   const who = d.locked
     ? [`${d.going} going`, d.maybe && `${d.maybe} maybe`, d.out && `${d.out} can’t make it`, d.pending && `${d.pending} ${d.pending === 1 ? 'hasn’t' : 'haven’t'} replied`].filter(Boolean).join(', ')
     : d.answered >= d.total ? 'Everyone has answered' : `${d.answered} of ${d.total} have answered`
-  const extras = [
+  const extras = small ? [] : [
     d.unread > 0 && `${d.unread} new ${d.unread === 1 ? 'message' : 'messages'}`,
-    d.locked && e.rsvpDeadline && `Reply by ${dateRangeText({ startDate: e.rsvpDeadline, endDate: e.rsvpDeadline }).replace(/, \d{4}$/, '')}`,
-    !d.locked && e.planDeadline && `Deciding by ${dateRangeText({ startDate: e.planDeadline, endDate: e.planDeadline }).replace(/, \d{4}$/, '')}`,
+    d.locked && e.rsvpDeadline && `Reply by ${shortDay(e.rsvpDeadline)}`,
+    !d.locked && e.planDeadline && `Deciding by ${shortDay(e.planDeadline)}`,
     d.spots !== null && (d.spots === 0 ? 'No spots left' : `${d.spots} ${d.spots === 1 ? 'spot' : 'spots'} left`),
     e.budget && `Budget $${Number(e.budget).toLocaleString()}${e.budgetMode === 'person' ? ' each' : ''}`,
     !e.hostedByYou && `Hosted by ${e.hostName}`,
   ].filter(Boolean) as string[]
   return (
-    <div className="relative pb-5 pr-1">
-      <PeekCard people={peopleIn(e)} size={40} restShow={22} upShow={36} tilt={-1.5} flippable>
-        <PhotoFrame tilt={-1.5} tape="corner">
-          <Link href={eventTabFor(e)} tabIndex={-1} aria-label={e.title} className="block">
-            <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className="h-[118px] sm:h-[170px]" rounded="rounded-lg" />
+    <PeekCard people={peopleIn(e)} size={small ? 32 : 40} restShow={small ? 20 : 25} upShow={small ? 28 : 36} tilt={tilt} flippable>
+      <PhotoFrame tilt={tilt} tape="corner" size={small ? 'sm' : 'md'}>
+        <Link href={eventTabFor(e)} tabIndex={-1} aria-label={e.title} className="block">
+          <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className={small ? 'h-[84px]' : 'h-[112px] sm:h-[160px]'} rounded="rounded-lg" />
+        </Link>
+        <div className={small ? 'px-1.5 pb-2 pt-2.5' : 'px-1 pb-1 pt-3'}>
+          <Link href={eventTabFor(e)} className={`block font-serif leading-[1.15] tracking-[-0.01em] [overflow-wrap:anywhere] hover:underline ${small ? 'text-[18px]' : 'text-[22px] sm:text-[24px]'}`}>
+            {e.title}
           </Link>
-          <div className="px-1 pb-8 pt-3">
-            <LifecycleLine phase={phase} className="mb-2.5 text-[12.5px]" />
-            <ul className="flex flex-col gap-1.5 text-[14px] leading-[1.45]">
-              {/* when: the locked slot and how far off, or the best time so far */}
-              {slot ? (
-                <Row icon={Calendar}>{slot} <TimezonePill tz={e.timezone} />{d.countdown && <span className="text-dim">, {d.countdown}</span>}</Row>
-              ) : d.best ? (
-                <Row icon={Calendar}>
-                  {d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)} <TimezonePill tz={e.timezone} /> <span className="text-dim">suits {d.best.count} of {d.total} so far</span>
-                </Row>
-              ) : (
-                <Row icon={Calendar}>Picking a time, {dateRangeText(e)}</Row>
-              )}
-              {/* where */}
-              {e.location.mode === 'remote' ? (
-                <Row icon={Video}>Online{e.location.platform ? ` on ${e.location.platform}` : ''}</Row>
-              ) : d.lead?.confirmed ? (
-                <Row icon={MapPin}>{d.lead.place.name}{d.lead.place.place && <span className="text-dim">, {d.lead.place.place}</span>}</Row>
-              ) : d.lead ? (
-                <Row icon={MapPin}>{d.lead.place.name} <span className="text-dim">leads with {d.lead.voters.length} {d.lead.voters.length === 1 ? 'vote' : 'votes'}</span></Row>
-              ) : d.ballot > 0 ? (
-                <Row icon={MapPin}>{d.ballot} {d.ballot === 1 ? 'place' : 'places'} up for a vote</Row>
-              ) : (
-                <Row icon={MapPin}><span className="text-dim">Place not picked yet</span></Row>
-              )}
-              {/* who, and by name when only a few are still out */}
-              <Row icon={UsersRound}>
-                {who}{d.stillOut >= 1 && d.stillOut <= 3 && d.waitingOn.length > 0 && <span className="text-dim">. Waiting on {namesLabel(d.waitingOn.slice(0, 3))}</span>}
+          <StageStepper phase={phase} labels={small ? 'current' : 'auto'} className={`max-w-[340px] ${small ? 'mb-2.5 mt-2.5' : 'mb-3 mt-3'}`} />
+          <ul className={`flex flex-col gap-1.5 leading-[1.45] ${small ? 'text-[13.5px]' : 'text-[14px]'}`}>
+            {/* when first: the locked slot and how far off, or the best time so far */}
+            {slot ? (
+              <Row icon={Calendar}>{slot} <TimezonePill tz={e.timezone} />{d.countdown && <span className="text-dim">, {d.countdown}</span>}</Row>
+            ) : d.best ? (
+              <Row icon={Calendar}>
+                {d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)} <TimezonePill tz={e.timezone} /> <span className="text-dim">suits {d.best.count} of {d.total} so far</span>
               </Row>
-              {d.you && <Row icon={UserRound}><span className={turn ? 'font-semibold text-moment-text' : ''}>{d.you}</span></Row>}
-            </ul>
-            {sameDay && (() => {
-              const line = (
-                <div className="flex items-center gap-1.5 text-[13px] font-medium text-ochre-text">
-                  <CalendarClock size={14} className="flex-none" /> <span className="truncate">Same day as {sameDay.label}</span>
-                </div>
-              )
-              // one clash names itself; only a count gets the expanding tooltip
-              return sameDay.all
-                ? <Tip text={`Same day as ${sameDay.all}`} className="mt-1.5 block w-fit max-w-full">{line}</Tip>
-                : <div className="mt-1.5">{line}</div>
-            })()}
-            {extras.length > 0 && (
-              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12.5px] text-dim">
-                {extras.map((x, i) => (
-                  <span key={x} className="flex items-center gap-2">
-                    {i > 0 && <span className="h-3 w-px flex-none bg-border2" aria-hidden />}
-                    {x.startsWith('Hosted by') ? <span className="font-serif text-[14px] italic">{x}</span> : x}
-                  </span>
-                ))}
-              </div>
+            ) : (
+              <Row icon={Calendar}>Picking a time, {dateRangeText(e)}</Row>
             )}
-          </div>
-        </PhotoFrame>
-      </PeekCard>
-      <Link
-        href={action.href}
-        className="absolute bottom-0 right-0 z-[2] flex h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent shadow-soft"
-      >
-        {action.cta} <ArrowRight size={15} />
-      </Link>
-    </div>
+            {/* who is in, and by name when only a few are still out */}
+            <Row icon={UsersRound}>
+              {who}{d.stillOut >= 1 && d.stillOut <= 3 && d.waitingOn.length > 0 && <span className="text-dim">. Waiting on {namesLabel(d.waitingOn.slice(0, 3))}</span>}
+            </Row>
+            {d.you && <Row icon={UserRound}><span className={turn ? 'font-semibold text-moment-text' : ''}>{d.you}</span></Row>}
+            {/* then where */}
+            {small ? null : e.location.mode === 'remote' ? (
+              <Row icon={Video}>Online{e.location.platform ? ` on ${e.location.platform}` : ''}</Row>
+            ) : d.lead?.confirmed ? (
+              <Row icon={MapPin}>{d.lead.place.name}{d.lead.place.place && <span className="text-dim">, {d.lead.place.place}</span>}</Row>
+            ) : d.lead ? (
+              <Row icon={MapPin}>{d.lead.place.name} <span className="text-dim">leads with {d.lead.voters.length} {d.lead.voters.length === 1 ? 'vote' : 'votes'}</span></Row>
+            ) : d.ballot > 0 ? (
+              <Row icon={MapPin}>{d.ballot} {d.ballot === 1 ? 'place' : 'places'} up for a vote</Row>
+            ) : (
+              <Row icon={MapPin}><span className="text-dim">Place not picked yet</span></Row>
+            )}
+          </ul>
+          {sameDay && !small && (() => {
+            const line = (
+              <div className="flex items-center gap-1.5 text-[13px] font-medium text-ochre-text">
+                <CalendarClock size={14} className="flex-none" /> <span className="truncate">Same day as {sameDay.label}</span>
+              </div>
+            )
+            // one clash names itself; only a count gets the expanding tooltip
+            return sameDay.all
+              ? <Tip text={`Same day as ${sameDay.all}`} className="mt-1.5 block w-fit max-w-full">{line}</Tip>
+              : <div className="mt-1.5">{line}</div>
+          })()}
+          {extras.length > 0 && (
+            // plain spacing when it wraps on a phone; hairlines only from sm up
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12.5px] text-dim sm:gap-x-2">
+              {extras.map((x, i) => (
+                <span key={x} className="flex items-center gap-2">
+                  {i > 0 && <span className="hidden h-3 w-px flex-none bg-border2 sm:inline-block" aria-hidden />}
+                  {x.startsWith('Hosted by') ? <span className="font-serif text-[14px] italic">{x}</span> : x}
+                </span>
+              ))}
+            </div>
+          )}
+          {/* the next thing to do, on the card */}
+          <Link
+            href={action.href}
+            className={`mt-3.5 flex items-center gap-1.5 self-start rounded-full bg-accent font-semibold text-on-accent ${small ? 'h-11 w-fit px-4 text-[13.5px] sm:h-9' : 'h-11 w-fit px-5 text-[14px]'}`}
+          >
+            {action.cta} <ArrowRight size={15} aria-hidden />
+          </Link>
+        </div>
+      </PhotoFrame>
+    </PeekCard>
   )
 }
 
@@ -388,7 +441,7 @@ function PlanActions({ e, phase }: { e: AppEvent; phase: Phase }) {
   }
   const round = 'grid h-11 w-11 place-items-center rounded-full border sm:h-9 sm:w-9'
   return (
-    <span className="ml-auto flex items-center gap-2">
+    <span className="ml-auto flex items-center gap-2 lg:order-first lg:ml-0">
       {e.hostedByYou && phase !== 'past' && (
         <button
           type="button" onClick={copyLink} aria-label={copied ? 'Link copied' : 'Copy the invite link'} title={copied ? 'Link copied' : 'Copy the invite link'}
@@ -406,8 +459,10 @@ function PlanActions({ e, phase }: { e: AppEvent; phase: Phase }) {
   )
 }
 
-/* the fastest path to a live event: a name, the coming week prefilled, one click.
-   Everything else (place, invites, budget) waits on the event page or in /create. */
+/* Start a plan: the fastest path to a live plan, a name and the coming week, one
+   click. Everything else (place, invites, budget) waits on the plan page or behind
+   More options. A form, so it stays flat: a calm framed card, nothing tilted or
+   laid over it. */
 function QuickCreate() {
   const router = useRouter()
   const [title, setTitle] = useState('')
@@ -416,7 +471,7 @@ function QuickCreate() {
   const [today, setToday] = useState('')
   const [need, setNeed] = useState(false)
   // dates fill after mount: the server doesn't know the visitor's today.
-  // The coming week is the default window (same as the wizard) — a scheduling poll
+  // The coming week is the default window (same as the wizard): a scheduling poll
   // needs days to choose between, and one week is the typical ask.
   useEffect(() => {
     const iso = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
@@ -442,57 +497,57 @@ function QuickCreate() {
       locMode: 'later', planMode: 'vote', picked: [], platform: 'Google Meet', meetingLink: '',
       emails: [], accounts: [],
     })
-    // quick means quick: straight to the event, where the share link waits in the header
+    // quick means quick: straight to the plan, where the share link waits in the header
     pushFlash('Your plan is live. Share the link so people can join.')
     router.push(`/events/${ev.id}`)
   }
-  // on a phone the two dates share the row and split it evenly; from sm up each is
-  // wide enough for the longest day name
-  const dateCls = 'h-11 w-full sm:h-10 sm:w-[158px]'
+  const dateCls = 'h-12 w-full'
   return (
-    <div className="mb-6 rounded-2xl border border-border bg-s1 p-4">
-      <div className="flex flex-wrap items-center gap-2.5">
-        <input
-          value={title}
-          onChange={(e) => { setTitle(e.target.value); setNeed(false) }}
-          onKeyDown={(e) => { if (e.key === 'Enter') go() }}
-          aria-label="Plan name"
-          aria-invalid={need || undefined}
-          aria-describedby={need ? 'quick-title-err' : undefined}
-          placeholder="What are you planning?"
-          className={`h-11 sm:h-10 min-w-[200px] flex-1 rounded-[10px] border ${need ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[14.5px] outline-none placeholder:text-faint focus:border-accent`}
-        />
-        <div className="flex w-full min-w-0 flex-none items-center gap-2 sm:w-auto">
-          <span className="min-w-0 flex-1 sm:flex-none">
-            <DateField value={start} min={today || undefined} label="Earliest day" className={dateCls}
-              onChange={(v) => { const d = fromDay(v, today); setStart(d); if (end < d) setEnd(d) }} />
-          </span>
-          <span className="flex-none text-faint" aria-hidden>→</span>
-          <span className="min-w-0 flex-1 sm:flex-none">
-            <DateField value={end} min={start || undefined} label="Latest day" className={dateCls} onChange={(v) => setEnd(fromDay(v, start))} />
-          </span>
+    <section aria-labelledby="home-start" className="min-w-0 rounded-3xl bg-frame p-5 shadow-frame sm:p-7">
+      <h2 id="home-start" className="font-serif text-[24px] leading-tight tracking-[-0.01em] sm:text-[26px]">Start a plan</h2>
+      <label htmlFor="quick-title" className="mt-4 block text-[13px] font-semibold text-dim">Name</label>
+      <input
+        id="quick-title"
+        value={title}
+        onChange={(e) => { setTitle(e.target.value); setNeed(false) }}
+        onKeyDown={(e) => { if (e.key === 'Enter') go() }}
+        aria-invalid={need || undefined}
+        aria-describedby={need ? 'quick-title-err' : undefined}
+        placeholder="Friday dinner"
+        className={`mt-1.5 h-12 w-full rounded-[12px] border ${need ? 'border-brick-border' : 'border-border'} bg-s2 px-4 text-[16px] outline-none placeholder:text-faint focus:border-accent`}
+      />
+      {need && <p id="quick-title-err" role="alert" className="mt-1.5 text-[12.5px] font-medium text-brick-text">Give it a name first.</p>}
+      {/* the days to pick from, as a pair */}
+      <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
+        <div className="min-w-0">
+          <span aria-hidden className="mb-1.5 block text-[13px] font-semibold text-dim">From</span>
+          <DateField value={start} min={today || undefined} label="Earliest day" className={dateCls}
+            onChange={(v) => { const d = fromDay(v, today); setStart(d); if (end < d) setEnd(d) }} />
         </div>
-        <button onClick={go} className="flex h-11 sm:h-10 flex-none items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent">
-          <CalendarPlus size={16} /> Create
-        </button>
+        <span className="pb-3.5 text-faint" aria-hidden>→</span>
+        <div className="min-w-0">
+          <span aria-hidden className="mb-1.5 block text-[13px] font-semibold text-dim">To</span>
+          <DateField value={end} min={start || undefined} label="Latest day" className={dateCls} onChange={(v) => setEnd(fromDay(v, start))} />
+        </div>
       </div>
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[12.5px] text-dim">
-        <span>
-          {need
-            ? <span id="quick-title-err" role="alert" className="font-medium text-brick-text">Give it a name first.</span>
-            : asDayPoll
-              ? 'Over four weeks, so this asks which days work instead of times.'
-              : 'Uses your time zone. Share the link and people mark when they are free.'}
-        </span>
+      <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
+        <button type="button" onClick={go} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-accent px-6 text-[15px] font-semibold text-on-accent sm:w-auto">
+          <CalendarPlus size={17} aria-hidden /> Create
+        </button>
         {/* the wizard opens with what was typed here, so nothing is typed twice, and
             with its More options already open, since that is what was asked for */}
         <Link
           href={`/create?${(() => { const q = new URLSearchParams(); if (title.trim()) q.set('title', title.trim()); if (start) q.set('start', start); if (end) q.set('end', end); q.set('more', '1'); return q.toString() })()}`}
-          className="-my-2 py-2 font-semibold text-accent-text hover:underline"
+          className="inline-flex min-h-11 w-full items-center justify-center text-[13.5px] font-semibold text-accent-text hover:underline sm:min-h-0 sm:w-auto"
         >
           More options
         </Link>
       </div>
-    </div>
+      <p className="mt-3 text-[12.5px] leading-[1.5] text-dim">
+        {asDayPoll
+          ? 'Over four weeks, so this asks which days work instead of times.'
+          : 'Uses your time zone. Share the link and people mark when they’re free.'}
+      </p>
+    </section>
   )
 }

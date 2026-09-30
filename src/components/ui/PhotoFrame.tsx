@@ -39,10 +39,10 @@ export function PhotoFrame({
     gsap.fromTo(root.current, { rotate: 0, y: 10, opacity: 0 }, { rotate: deg, y: 0, opacity: 1, duration: 0.6, ease: 'back.out(1.6)' })
   }, { scope: root, dependencies: [settle, deg] })
 
-  // 'corner' runs across the bottom left corner, for a frame whose top edge is busy
-  // (faces peeking over it)
-  const tapeAt = tape === 'left' ? 'left-6 -top-2.5' : tape === 'center' ? 'left-1/2 -ml-9 -top-2.5' : tape === 'corner' ? '-left-5 bottom-0' : 'right-8 -top-2.5'
-  const tapeTilt = tape === 'corner' ? 42 : tape === 'left' ? -5 : 5
+  // 'corner' runs across the bottom right corner, for a frame whose top edge is busy
+  // (faces peeking over it) and whose button sits at the bottom left
+  const tapeAt = tape === 'left' ? 'left-6 -top-2.5' : tape === 'center' ? 'left-1/2 -ml-9 -top-2.5' : tape === 'corner' ? '-right-4 bottom-3' : 'right-8 -top-2.5'
+  const tapeTilt = tape === 'corner' ? -42 : tape === 'left' ? -5 : 5
   return (
     <div ref={root} className={`relative ${className}`} style={{ transform: `rotate(${deg}deg)` }}>
       {tape && <Tape className={tapeAt} tilt={tapeTilt} width={size === 'sm' ? 52 : tape === 'corner' ? 56 : 72} />}
