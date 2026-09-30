@@ -64,7 +64,7 @@ const facesFor = (col: number, row: number, n: number) =>
   Array.from({ length: n }, (_, i) => PEOPLE[(col * 3 + row * 2 + i) % PEOPLE.length])
 
 const heatOf = (n: number) =>
-  n === 0 ? 'var(--s2)'
+  n === 0 ? 'var(--s1)'
     : n / TOTAL <= 0.25 ? 'var(--heat-low)'
       : n / TOTAL <= 0.5 ? 'var(--heat-mid)'
         : n < TOTAL ? 'var(--heat-high)' : 'var(--heat-full)'

@@ -30,7 +30,7 @@ const SCRIPT = [4, 5, 6, 12]
 const TOTAL = OTHERS.length + 1
 const OTHER_COUNTS: number[] = Array(14).fill(0)
 for (const days of OTHERS) for (const n of days) OTHER_COUNTS[n]++
-const heatOf = (n: number) => (n === 0 ? 'var(--s2)' : n / TOTAL <= 0.25 ? 'var(--heat-low)' : n / TOTAL <= 0.5 ? 'var(--heat-mid)' : n < TOTAL ? 'var(--heat-high)' : 'var(--heat-full)')
+const heatOf = (n: number) => (n === 0 ? 'var(--s1)' : n / TOTAL <= 0.25 ? 'var(--heat-low)' : n / TOTAL <= 0.5 ? 'var(--heat-mid)' : n < TOTAL ? 'var(--heat-high)' : 'var(--heat-full)')
 const label = (n: number) => `${DOW[COL(n) % 7]} ${DAYS[n].month} ${DAYS[n].day}`
 
 export function DayPollDemo() {

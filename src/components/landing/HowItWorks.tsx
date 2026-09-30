@@ -268,7 +268,7 @@ export function HowItWorks() {
   useEffect(() => { if (paused || !seen) tl.current?.pause(); else tl.current?.play() }, [paused, seen])
 
   const total = PEOPLE.length + 1
-  const heatOf = (n: number) => (n === 0 ? 'var(--s2)' : n / total <= 0.25 ? 'var(--heat-low)' : n / total <= 0.5 ? 'var(--heat-mid)' : n < total ? 'var(--heat-high)' : 'var(--heat-full)')
+  const heatOf = (n: number) => (n === 0 ? 'var(--s1)' : n / total <= 0.25 ? 'var(--heat-low)' : n / total <= 0.5 ? 'var(--heat-mid)' : n < total ? 'var(--heat-high)' : 'var(--heat-full)')
 
   return (
     <div ref={root} className="mt-10 lg:grid lg:grid-cols-[minmax(0,0.9fr)_auto_minmax(0,1.1fr)] lg:gap-x-10">

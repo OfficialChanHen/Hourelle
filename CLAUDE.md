@@ -110,7 +110,7 @@ Person colours now live as CSS variables (`--person-<key>-bg` / `-fg`, per theme
 
 ### Availability heat map — green ramp (5 steps)
 ```
-None:  var(--s2)   — no overlap
+None:  var(--s1)   — no overlap (the card colour, so it never looks like your clay marks)
 Low:   #EBF0EC     — 1–2 people free
 Mid:   #D0DFD4     — 3–4 people
 High:  #9FBBA6     — 5–6 people
