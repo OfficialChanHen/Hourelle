@@ -88,12 +88,13 @@ export function Deck({
         onPointerCancel={() => { swipe.current = null }}
       >
         {many && behind && [2, 1].filter((d) => index + d < count).map((d) => (
-          <div key={d} data-deck-behind aria-hidden className="pointer-events-none absolute inset-0">{behind(d)}</div>
+          <div key={d} data-deck-behind aria-hidden className="pointer-events-none absolute inset-0 z-0">{behind(d)}</div>
         ))}
-        <div ref={top} key={index} className="relative">{children}</div>
+        <div ref={top} key={index} className="relative z-[1]">{children}</div>
       </div>
       {(many || footer) && (
-        <div className={`mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 ${center ? 'justify-center lg:justify-start' : ''}`}>
+        // above every card layer (the papers behind can poke out below the stack)
+        <div className={`relative z-10 mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 ${center ? 'justify-center lg:justify-start' : ''}`}>
           {many && (
             <>
               <button

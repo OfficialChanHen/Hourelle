@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Check, Trash2 } from 'lucide-react'
+import { reducedMotion } from '@/lib/prefs'
 
 /* One-shot toast that survives a redirect: the page that acts writes the message,
    the page that lands reads it once and drops it in from the top (same motion as
@@ -13,6 +14,8 @@ type Flash = { text: string; tone: 'accent' | 'brick' }
 const KEY = 'hourelle.flash'
 
 const PUSHED = 'hourelle:flash'
+// how long a message stays up: the 0.4s in, 4s held and 0.4s out of the animated one
+const READ_MS = 4800
 
 export function pushFlash(text: string, tone: Flash['tone'] = 'accent', { forNextPage = false } = {}) {
   try { sessionStorage.setItem(KEY, JSON.stringify({ text, tone })) } catch { /* private mode */ }
@@ -49,6 +52,14 @@ export function FlashToast() {
 
   useGSAP(() => {
     if (!flash || !box.current) return
+    // less motion: no slide, and a real clock. GSAP runs 40 times faster then (see
+    // providers.tsx), which would have shown the message for a tenth of a second;
+    // it now simply appears, stays its full reading time, and goes
+    if (reducedMotion()) {
+      gsap.set(box.current, { opacity: 1, y: 0 })
+      const t = window.setTimeout(() => setFlash(null), READ_MS)
+      return () => window.clearTimeout(t)
+    }
     const tl = gsap.timeline({ delay: 0.2 })
     tl.fromTo(box.current, { y: -24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power3.out' })
       .to(box.current, { y: -24, opacity: 0, duration: 0.4, ease: 'power3.in', delay: 4 })

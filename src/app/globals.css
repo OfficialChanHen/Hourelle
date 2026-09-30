@@ -78,6 +78,9 @@
   --shape-a:#E4F0E7; --shape-b:#FBE8DF; --shape-c:#F3EBDD;
   /* a translucent strip of tape holding a photo frame down */
   --tape:rgba(233,218,182,.9);
+  /* a second tape tint, a pin head and a paper clip, for cards that should each look
+     laid down by hand (Keepsake.tsx) */
+  --tape-2:rgba(196,222,204,.85); --pin:#B8894A; --clip:#9A958B;
   /* the photo frame: a near-white card on paper, a lifted card on charcoal */
   --frame:#FFFDF9; --frame-shadow:0 1px 2px rgba(60,40,20,.06), 0 16px 32px rgba(60,40,20,.12);
   /* the sticky note for "Your turn": its own warm paper and inks, all 4.5:1 on it */
@@ -133,7 +136,8 @@
   --person-amber-ink:#B2A483;  --person-pink-ink:#B49894; --person-green-ink:#9AA98A; --person-gray-ink:#A39F95;
   --shape-a:#1B231D; --shape-b:#261C17; --shape-c:#231F18;
   --tape:rgba(236,224,196,.22);
-  --frame:#2A2621; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
+  --tape-2:rgba(160,200,175,.22); --pin:#C9A36A; --clip:#8A857B;
+  --frame:#25221D; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
   --sticky:#3A3220; --sticky-text:#F5ECD2; --sticky-dim:#D6C9A6; --sticky-kicker:#F4B8A0;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
 }
@@ -169,6 +173,7 @@
   --glass-tint:rgba(251,251,252,.26);
   --shape-a:#EFF1F6; --shape-b:#F7F1EE; --shape-c:#F2F2F5;
   --tape:rgba(214,216,224,.85);
+  --tape-2:rgba(200,210,225,.8); --pin:#6D6D75; --clip:#9A9AA3;
   --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(0,0,0,.05), 0 14px 30px rgba(0,0,0,.09);
   --sticky:#F4F0E4; --sticky-text:#18181B; --sticky-dim:#56534A; --sticky-kicker:#9A3F24;
   --sticky-shadow:0 8px 18px rgba(0,0,0,.08);
@@ -191,6 +196,7 @@
   --glass-tint:rgba(16,16,17,.34);
   --shape-a:#17181D; --shape-b:#1C1716; --shape-c:#19181C;
   --tape:rgba(220,222,232,.18);
+  --tape-2:rgba(200,210,225,.16); --pin:#A1A1A9; --clip:#6D6D75;
   --frame:#222226; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
   --sticky:#2B2921; --sticky-text:#EFEBDD; --sticky-dim:#C9C3B0; --sticky-kicker:#F2BBA6;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
@@ -215,6 +221,7 @@
   --heat-count:#0B316D; --heat-count-full:#FFFFFF;
   --shape-a:#EEF4FE; --shape-b:#F4F6FA; --shape-c:#F1F4F9;
   --tape:rgba(253,226,147,.7);
+  --tape-2:rgba(174,203,250,.7); --pin:#0B57D0; --clip:#9AA0A6;
   --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(60,64,67,.12), 0 14px 30px rgba(60,64,67,.12);
   --sticky:#FEF3CD; --sticky-text:#1F1F1F; --sticky-dim:#5A4F30; --sticky-kicker:#B2401C;
   --sticky-shadow:0 8px 18px rgba(60,64,67,.12);
@@ -236,6 +243,7 @@
   --heat-count:#F3F7FE; --heat-count-full:#0A2A5C;
   --shape-a:#172031; --shape-b:#1E2026; --shape-c:#1A1F27;
   --tape:rgba(253,214,99,.2);
+  --tape-2:rgba(168,199,250,.2); --pin:#A8C7FA; --clip:#80868B;
   --frame:#26272A; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
   --sticky:#3A3420; --sticky-text:#FDF0C8; --sticky-dim:#D9CC9F; --sticky-kicker:#F7AE92;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
@@ -258,6 +266,7 @@
   --em:var(--accent-text);
   --shape-a:#E3F3F2; --shape-b:#FFEDE5; --shape-c:#F7EEDD;
   --tape:rgba(240,220,170,.85);
+  --tape-2:rgba(180,225,225,.85); --pin:#E0623A; --clip:#9A958B;
   --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(20,60,70,.07), 0 16px 32px rgba(20,60,70,.12);
   --sticky:#FFF1C2; --sticky-text:#1B2226; --sticky-dim:#5A4E2E; --sticky-kicker:#B2401C;
   --sticky-shadow:0 8px 18px rgba(20,60,70,.10);
@@ -267,7 +276,7 @@
   --bg:#181612; --s0:#1D1B16; --s1:#211E1A; --s2:#2A2721; --s3:#34302A;
   --border:rgba(245,236,220,.10); --border2:rgba(245,236,220,.19);
   --text:#F3EEE5; --dim:#B3AC9F; --faint:#958E82;
-  --accent:#17767C; --accent-text:#8FDCDD; --accent-bg:rgba(95,196,200,.15); --accent-border:rgba(95,196,200,.38); --on-accent:#FFFFFF;
+  --accent:#1A8088; --accent-text:#8FDCDD; --accent-bg:rgba(95,196,200,.15); --accent-border:rgba(95,196,200,.38); --on-accent:#FFFFFF;
   --teal:#5B9A7C; --teal-text:#9BD2B7; --teal-bg:rgba(111,181,151,.14); --teal-border:rgba(111,181,151,.36);
   --ochre:#BD9A5E; --ochre-text:#E1C48F; --ochre-bg:rgba(200,165,100,.15); --ochre-border:rgba(200,165,100,.38);
   --brick:#C57F78; --brick-text:#E5ACA6; --brick-bg:rgba(205,138,130,.14); --brick-border:rgba(205,138,130,.36);
@@ -275,7 +284,8 @@
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
   --shape-a:#16221F; --shape-b:#2A1D17; --shape-c:#231F18;
   --tape:rgba(240,220,170,.2);
-  --frame:#2B2822; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
+  --tape-2:rgba(143,220,221,.2); --pin:#F08A68; --clip:#8A857B;
+  --frame:#25221D; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
   --sticky:#3B3320; --sticky-text:#F7ECCB; --sticky-dim:#D9CBA3; --sticky-kicker:#FFBDA3;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
   --tour-lit:var(--accent-text);
@@ -310,6 +320,7 @@
   /* no soft shapes here: they match the page and SoftShapes is hidden besides */
   --shape-a:var(--bg); --shape-b:var(--bg); --shape-c:var(--bg);
   --tape:#BDBDBD;
+  --tape-2:#D6D6D6; --pin:#000000; --clip:#333333;
   --frame:#FFFFFF; --frame-shadow:0 0 0 1px #111111;
   --sticky:#FFF3B8; --sticky-text:#000000; --sticky-dim:#333333; --sticky-kicker:#8F2F08;
   --sticky-shadow:0 0 0 1px #000000;
@@ -343,6 +354,7 @@
   --person-amber-ink:#FFFFFF;  --person-pink-ink:#FFFFFF; --person-green-ink:#FFFFFF; --person-gray-ink:#FFFFFF;
   --shape-a:var(--bg); --shape-b:var(--bg); --shape-c:var(--bg);
   --tape:#6B6B6B;
+  --tape-2:#8A8A8A; --pin:#FFFFFF; --clip:#D0D0D0;
   --frame:#1C1C1C; --frame-shadow:0 0 0 1px rgba(255,255,255,.55);
   --sticky:#2E2609; --sticky-text:#FFFFFF; --sticky-dim:#E0E0E0; --sticky-kicker:#FFB899;
   --sticky-shadow:0 0 0 1px rgba(255,255,255,.55);
@@ -363,7 +375,7 @@
   --color-grid-line:var(--grid-line);
   --color-grid-edge:var(--grid-edge);
   --color-raised:var(--raised);
-  --color-frame:var(--frame); --color-tape:var(--tape);
+  --color-frame:var(--frame); --color-tape:var(--tape); --color-tape-2:var(--tape-2); --color-pin:var(--pin); --color-clip:var(--clip);
   --color-sticky:var(--sticky); --color-sticky-text:var(--sticky-text); --color-sticky-dim:var(--sticky-dim); --color-sticky-kicker:var(--sticky-kicker);
   --shadow-frame:var(--frame-shadow); --shadow-sticky:var(--sticky-shadow);
   --shadow-raised:var(--raised-shadow);

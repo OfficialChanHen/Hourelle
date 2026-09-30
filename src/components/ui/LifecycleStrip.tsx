@@ -34,8 +34,9 @@ export const PHASE_TINT: Record<Phase, { dot: string; border?: string }> = {
 const STEPS = ['Deciding', 'RSVP', 'Soon', 'Today', 'Done'] as const
 const PHASE_STEP: Record<Phase, number> = { planning: 0, upcoming: 1, soon: 2, today: 3, past: 4 }
 
-/* The five stages as a stepper: dots joined by a line, past steps filled and
-   checked, the current one in the accent and a touch larger, the rest muted. An
+/* The five stages as a stepper, in the one accent colour: dots joined by a line,
+   past steps filled and checked, the current one larger with a soft ring, the rest
+   muted. An
    ordered list, so a screen reader hears each step and which one is current.
    `labels`: 'auto' names only the current step on a phone and every step from sm
    up; 'current' always names only the current one; 'all' always names them all.
@@ -59,13 +60,13 @@ export function StageStepper({ phase, labels = 'auto', className = '' }: { phase
           <li key={label} aria-current={now ? 'step' : undefined} className="relative flex min-w-0 flex-col items-center gap-1.5">
             {/* the line into this step from the one before, filled once it is reached */}
             {i > 0 && (
-              <span aria-hidden className={`absolute right-1/2 top-[7px] h-[2px] origin-left rounded-full ${i <= idx ? 'ss-line bg-teal' : 'bg-border2'}`} style={{ marginRight: 10, width: 'calc(100% - 20px)' }} />
+              <span aria-hidden className={`absolute right-1/2 top-[9px] h-[2px] origin-left rounded-full ${i <= idx ? 'ss-line bg-accent' : 'bg-border2'}`} style={{ marginRight: 11, width: 'calc(100% - 22px)' }} />
             )}
-            <span
-              aria-hidden
-              className={`relative z-[1] grid place-items-center rounded-full ${now ? 'ss-now h-4 w-4 bg-accent ring-4 ring-accent-bg' : done ? 'h-4 w-4 bg-teal text-on-accent' : 'h-4 w-4 border-2 border-border2 bg-s1'}`}
-            >
-              {done && <Check size={10} strokeWidth={3} />}
+            {/* a 20px slot for every dot, so the line meets each one at its middle */}
+            <span aria-hidden className="relative z-[1] grid h-5 w-5 place-items-center">
+              <span className={`grid place-items-center rounded-full ${now ? 'ss-now h-5 w-5 bg-accent ring-4 ring-accent-bg' : done ? 'h-4 w-4 bg-accent text-on-accent' : 'h-4 w-4 border-2 border-border2 bg-s1'}`}>
+                {done && <Check size={10} strokeWidth={3} />}
+              </span>
             </span>
             <span className={`whitespace-nowrap text-[12px] leading-none sm:text-[11.5px] ${now ? 'font-semibold text-text' : `${other} ${done ? 'text-dim' : 'text-faint'}`}`}>
               {label}{done && <span className="sr-only">, done</span>}

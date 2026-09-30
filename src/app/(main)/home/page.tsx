@@ -42,6 +42,7 @@ import { StickyNote } from '@/components/ui/StickyNote'
 import { SoftShapes } from '@/components/ui/SoftShapes'
 import { WavyRule } from '@/components/ui/WavyRule'
 import { Deck } from '@/components/ui/Deck'
+import { Keepsake, lookOf, type Look } from '@/components/ui/Keepsake'
 import { namesLabel } from '@/components/ui/AvatarRow'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { TimezonePill } from '@/components/ui/TimezonePill'
@@ -153,6 +154,9 @@ export default function HomePage() {
   // one plan on a wide screen: what you owe and the create form sit beside it
   // rather than leaving half the row empty
   const solo = wide && shown.length === 1
+  // each card's hand-laid details, from its plan id; a neighbour never repeats them
+  const looks: Look[] = []
+  shown.forEach((x, i) => { looks.push(lookOf(x.e.id, i, looks[i - 1])) })
   const seeAll = active.length > shown.length && (
     <Link href="/events" className="inline-flex min-h-11 items-center text-[13.5px] font-semibold text-accent-text hover:underline sm:min-h-0 sm:py-1">
       See all {active.length} plans
@@ -200,22 +204,19 @@ export default function HomePage() {
                  opposite ways like photos dropped on a table. Nothing overlaps. */
               <>
                 <div className={shown.length > 1 ? 'grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-center gap-x-12 xl:gap-x-20' : 'max-w-[560px]'}>
-                  <UpNext e={shown[0].e} phase={shown[0].phase} sameDay={sameDay(shown[0].e)} size="hero" tilt={-1.5} />
+                  <UpNext e={shown[0].e} phase={shown[0].phase} sameDay={sameDay(shown[0].e)} size="hero" look={looks[0]} />
                   {shown.length > 1 && (
                     <div className="flex flex-col gap-10 xl:gap-12">
                       {shown.slice(1).map((x, i) => (
                         <div key={x.e.id} className={`w-full max-w-[380px] xl:max-w-[400px] ${shown.length === 2 ? '' : i === 0 ? 'ml-6 xl:ml-14' : 'mt-2 xl:ml-2'}`}>
-                          <UpNext e={x.e} phase={x.phase} sameDay={sameDay(x.e)} size="small" tilt={i === 0 ? 2.5 : -2} />
+                          <UpNext e={x.e} phase={x.phase} sameDay={sameDay(x.e)} size="small" look={looks[i + 1]} />
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-                {/* the hero's own actions on the left, the way to everything else on the right */}
-                <div className="mt-6 flex items-center gap-4">
-                  <PlanActions e={shown[0].e} phase={shown[0].phase} />
-                  {seeAll && <span className="ml-auto">{seeAll}</span>}
-                </div>
+                {/* the way to everything else, quietly under the group */}
+                {seeAll && <div className="mt-6">{seeAll}</div>}
               </>
             ) : (
               <div className="mx-auto max-w-[480px]">
@@ -228,9 +229,8 @@ export default function HomePage() {
                       style={{ transform: d === 1 ? 'translate(9px, 7px) rotate(1.5deg)' : 'translate(-6px, 12px) rotate(-2.5deg)' }}
                     />
                   )}
-                  footer={<PlanActions key={shown[upI].e.id} e={shown[upI].e} phase={shown[upI].phase} />}
                 >
-                  <UpNext e={shown[upI].e} phase={shown[upI].phase} sameDay={sameDay(shown[upI].e)} size="hero" tilt={-1.5} />
+                  <UpNext e={shown[upI].e} phase={shown[upI].phase} sameDay={sameDay(shown[upI].e)} size="hero" look={looks[upI]} />
                 </Deck>
                 {seeAll}
               </div>
@@ -238,7 +238,7 @@ export default function HomePage() {
           </section>
 
           {/* what you owe, then a new plan: side by side on a large screen */}
-          <div className={`grid gap-y-9 ${solo ? 'pt-6' : 'mt-8 lg:mt-14 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start lg:gap-x-16'}`}>
+          <div className={`grid gap-y-9 ${solo ? 'pt-6' : `mt-8 lg:mt-14 lg:items-start lg:gap-x-16 ${turn ? 'lg:grid-cols-[auto_minmax(0,1fr)]' : 'lg:max-w-[720px]'}`}`}>
             {turn && (
               <section aria-labelledby="home-turn" className="min-w-0">
                 <WavyRule className="mb-7 lg:hidden" />
@@ -343,9 +343,11 @@ function Row({ icon: Icon, children }: { icon: typeof Calendar; children: React.
    people in tucked behind its top edge, then the plan's name, its stage, and a short
    details block that answers the time question first. The one button is the next
    thing to do. It only takes you to the plan, never answers in place, so it can sit
-   inside the tilted photo. `small` is the side card on a wide screen: a shorter
-   picture and only the lines that matter most. */
-function UpNext({ e, phase, sameDay, size, tilt }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo; size: 'hero' | 'small'; tilt: number }) {
+   inside the tilted photo, with sharing and duplicating beside it. `small` is the
+   side card on a wide screen: a shorter picture and only the lines that matter
+   most. `look` is its hand-laid details (Keepsake), the same every visit. */
+function UpNext({ e, phase, sameDay, size, look }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo; size: 'hero' | 'small'; look: Look }) {
+  const tilt = look.tilt
   const [coverFrom, coverTo] = coverFor(e.id)
   const d = digestOf(e, phase)
   const turn = turnOf(e, phase)
@@ -365,10 +367,13 @@ function UpNext({ e, phase, sameDay, size, tilt }: { e: AppEvent; phase: Phase; 
   ].filter(Boolean) as string[]
   return (
     <PeekCard people={peopleIn(e)} size={small ? 32 : 40} restShow={small ? 20 : 25} upShow={small ? 28 : 36} tilt={tilt} flippable>
-      <PhotoFrame tilt={tilt} tape="corner" size={small ? 'sm' : 'md'}>
-        <Link href={eventTabFor(e)} tabIndex={-1} aria-label={e.title} className="block">
-          <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className={small ? 'h-[84px]' : 'h-[112px] sm:h-[160px]'} rounded="rounded-lg" />
-        </Link>
+      <PhotoFrame tilt={tilt} tape={false} size={small ? 'sm' : 'md'} pad={look.pad}>
+        <div className="relative">
+          <Link href={eventTabFor(e)} tabIndex={-1} aria-label={e.title} className="block">
+            <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className={small ? 'h-[84px]' : 'h-[112px] sm:h-[160px]'} rounded="rounded-lg" />
+          </Link>
+          <Keepsake look={look} />
+        </div>
         <div className={small ? 'px-1.5 pb-2 pt-2.5' : 'px-1 pb-1 pt-3'}>
           <Link href={eventTabFor(e)} className={`block font-serif leading-[1.15] tracking-[-0.01em] [overflow-wrap:anywhere] hover:underline ${small ? 'text-[18px]' : 'text-[22px] sm:text-[24px]'}`}>
             {e.title}
@@ -425,38 +430,46 @@ function UpNext({ e, phase, sameDay, size, tilt }: { e: AppEvent; phase: Phase; 
               ))}
             </div>
           )}
-          {/* the next thing to do, on the card */}
-          <Link
-            href={action.href}
-            className={`mt-3.5 flex items-center gap-1.5 self-start rounded-full bg-accent font-semibold text-on-accent ${small ? 'h-11 w-fit px-4 text-[13.5px] sm:h-9' : 'h-11 w-fit px-5 text-[14px]'}`}
-          >
-            {action.cta} <ArrowRight size={15} aria-hidden />
-          </Link>
+          {/* the next thing to do, then sharing and duplicating this plan */}
+          <div className="relative z-[3] mt-3.5 flex flex-wrap items-center gap-2">
+            <Link
+              href={action.href}
+              className={`flex items-center gap-1.5 rounded-full bg-accent font-semibold text-on-accent ${small ? 'h-11 px-4 text-[13.5px] sm:h-9' : 'h-11 px-5 text-[14px]'}`}
+            >
+              {action.cta} <ArrowRight size={15} aria-hidden />
+            </Link>
+            <PlanActions e={e} phase={phase} />
+          </div>
         </div>
       </PhotoFrame>
     </PeekCard>
   )
 }
 
-/* sharing and duplicating the plan on screen: small round buttons beside the arrows */
+/* sharing and duplicating one plan: small round buttons beside its task button,
+   named for the plan. Only the host hands out the invite link; any plan that is not
+   a demo can be duplicated. */
 function PlanActions({ e, phase }: { e: AppEvent; phase: Phase }) {
   const [copied, setCopied] = useState(false)
   function copyLink() {
-    navigator.clipboard?.writeText(`${window.location.origin}/events/${e.id}/join`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
+    navigator.clipboard?.writeText(`${window.location.origin}/events/${e.id}/join`).then(() => {
+      setCopied(true); setTimeout(() => setCopied(false), 1600)
+      pushFlash(`Link to ${e.title} copied.`)
+    }).catch(() => {})
   }
   const round = 'grid h-11 w-11 place-items-center rounded-full border sm:h-9 sm:w-9'
   return (
-    <span className="ml-auto flex items-center gap-2 lg:order-first lg:ml-0">
+    <span className="flex items-center gap-2">
       {e.hostedByYou && phase !== 'past' && (
         <button
-          type="button" onClick={copyLink} aria-label={copied ? 'Link copied' : 'Copy the invite link'} title={copied ? 'Link copied' : 'Copy the invite link'}
+          type="button" onClick={copyLink} aria-label={copied ? `Link to ${e.title} copied` : `Copy link to ${e.title}`} title={copied ? 'Link copied' : 'Copy the invite link'}
           className={`${round} ${copied ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border2 bg-s1 text-text hover:bg-s2'}`}
         >
           {copied ? <Check size={16} /> : <Link2 size={16} />}
         </button>
       )}
       {!e.demo && (
-        <Link href={`/create?from=${e.id}`} aria-label="Duplicate this plan" title="Duplicate this plan" className={`${round} border-border2 bg-s1 text-text hover:bg-s2`}>
+        <Link href={`/create?from=${e.id}`} aria-label={`Duplicate ${e.title}`} title="Duplicate this plan" className={`${round} border-border2 bg-s1 text-text hover:bg-s2`}>
           <CopyPlus size={16} />
         </Link>
       )}

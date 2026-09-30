@@ -22,6 +22,7 @@ export function PhotoFrame({
   tape = 'right',
   size = 'md',
   settle = false,
+  pad = 'mid',
   className = '',
 }: {
   children: React.ReactNode
@@ -29,6 +30,8 @@ export function PhotoFrame({
   tape?: 'left' | 'center' | 'right' | 'corner' | false
   size?: 'sm' | 'md'
   settle?: boolean
+  // the white border's width, so cards in a group need not all match
+  pad?: 'thin' | 'mid' | 'thick'
   className?: string
 }) {
   const root = useRef<HTMLDivElement>(null)
@@ -46,7 +49,7 @@ export function PhotoFrame({
   return (
     <div ref={root} className={`relative ${className}`} style={{ transform: `rotate(${deg}deg)` }}>
       {tape && <Tape className={tapeAt} tilt={tapeTilt} width={size === 'sm' ? 52 : tape === 'corner' ? 56 : 72} />}
-      <div className={`bg-frame shadow-frame ${size === 'sm' ? 'rounded-[10px] p-1.5 pb-2' : 'rounded-[14px] p-2.5 pb-3.5'}`}>
+      <div className={`bg-frame shadow-frame ${size === 'sm' ? `rounded-[10px] ${pad === 'thin' ? 'p-1 pb-1.5' : pad === 'thick' ? 'p-2.5 pb-3' : 'p-1.5 pb-2'}` : pad === 'thin' ? 'rounded-[12px] p-2 pb-3' : pad === 'thick' ? 'rounded-[16px] p-3.5 pb-4' : 'rounded-[14px] p-2.5 pb-3.5'}`}>
         {children}
       </div>
     </div>
