@@ -206,9 +206,9 @@ export function useClampX(open: boolean) {
 }
 
 /* ── clear my times, the week on screen or all of them — instant, the undo toast takes it back ── */
-// one plain button on a poll that fits in one view. A poll over several weeks turns it
-// into a two-row menu: the week on screen, or everything. Both are instant and the
-// panel's undo toast takes them back, so neither asks first.
+// one plain button on a poll that fits in one view. A poll over several weeks shows two
+// rows instead, right where the button was: the week on screen, or everything. Both are
+// instant and the panel's undo toast takes them back, so neither asks first.
 export function ClearTimes({ onClear, week, onClearWeek, onDone }: {
   onClear: () => void
   // the week on screen: its range as the week strip writes it, and whether you have
@@ -218,25 +218,40 @@ export function ClearTimes({ onClear, week, onClearWeek, onDone }: {
   // closes whatever the button sits in, so the undo toast is what the eye lands on
   onDone?: () => void
 }) {
-  const look = 'flex h-11 sm:h-7 items-center gap-1.5 rounded-full border border-border bg-s1 px-[11px] text-[13px] font-medium text-dim hover:border-border2 hover:text-brick-text'
-  const label = <><Eraser size={15} /> <span className="sm:hidden">Clear</span><span className="hidden sm:inline">Clear my times</span></>
   if (!week || !onClearWeek) {
-    return <button type="button" onClick={() => { onClear(); onDone?.() }} className={look}>{label}</button>
+    return (
+      <button
+        type="button"
+        onClick={() => { onClear(); onDone?.() }}
+        className="flex h-11 sm:h-7 items-center gap-1.5 rounded-full border border-border bg-s1 px-[11px] text-[13px] font-medium text-dim hover:border-border2 hover:text-brick-text"
+      >
+        <Eraser size={15} /> <span className="sm:hidden">Clear</span><span className="hidden sm:inline">Clear my times</span>
+      </button>
+    )
   }
+  // rows in the popover kit's voice, a thumb's height on phones
+  const row = 'flex min-h-11 w-full items-center gap-2.5 rounded-[9px] px-2 text-left text-[13px] font-medium sm:min-h-8'
   return (
-    <Popover
-      align="start"
-      width="fit"
-      className="rounded-full"
-      trigger={(open) => <span className={`${look} ${open ? 'border-border2 text-text' : ''}`}>{label}<ChevronDown size={13} className={open ? 'rotate-180' : ''} /></span>}
-    >
-      {(close) => (
-        <>
-          <PopoverItem disabled={!week.any} trailing={week.label} onClick={() => { close(); onClearWeek(); onDone?.() }}>Clear this week</PopoverItem>
-          <PopoverItem tone="brick" onClick={() => { close(); onClear(); onDone?.() }}>Clear all my times</PopoverItem>
-        </>
-      )}
-    </Popover>
+    <div className="-mx-1 flex flex-col">
+      <button
+        type="button"
+        disabled={!week.any}
+        onClick={() => { onClearWeek(); onDone?.() }}
+        className={`${row} text-text hover:bg-s2 disabled:pointer-events-none disabled:opacity-45`}
+      >
+        <Eraser size={15} className="flex-none text-dim" />
+        <span className="min-w-0 flex-1">Clear this week</span>
+        <span className="flex-none text-[12px] text-faint">{week.label}</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => { onClear(); onDone?.() }}
+        className={`${row} text-brick-text hover:bg-brick-bg/50`}
+      >
+        <Eraser size={15} className="flex-none" />
+        <span className="min-w-0 flex-1">Clear all my times</span>
+      </button>
+    </div>
   )
 }
 
