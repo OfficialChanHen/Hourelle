@@ -194,24 +194,29 @@ export default function HomePage() {
                 />
               </div>
             ) : wide ? (
-              /* the closest plan large, the next two smaller beside it, loose rather
-                 than in a grid: a little offset, a little turned */
-              <div className={shown.length > 1 ? 'grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] items-start gap-x-14' : 'max-w-[560px]'}>
-                <div>
+              /* a sideways triangle, laid out by hand: the closest plan large on the
+                 left, centred against the other two, which sit to its right a little
+                 apart, one higher and further out, one lower and tucked in, turned
+                 opposite ways like photos dropped on a table. Nothing overlaps. */
+              <>
+                <div className={shown.length > 1 ? 'grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-center gap-x-12 xl:gap-x-20' : 'max-w-[560px]'}>
                   <UpNext e={shown[0].e} phase={shown[0].phase} sameDay={sameDay(shown[0].e)} size="hero" tilt={-1.5} />
-                  <div className="mt-5 flex items-center gap-4"><PlanActions e={shown[0].e} phase={shown[0].phase} />{shown.length === 1 && seeAll}</div>
+                  {shown.length > 1 && (
+                    <div className="flex flex-col gap-10 xl:gap-12">
+                      {shown.slice(1).map((x, i) => (
+                        <div key={x.e.id} className={`w-full max-w-[380px] xl:max-w-[400px] ${shown.length === 2 ? '' : i === 0 ? 'ml-6 xl:ml-14' : 'mt-2 xl:ml-2'}`}>
+                          <UpNext e={x.e} phase={x.phase} sameDay={sameDay(x.e)} size="small" tilt={i === 0 ? 2.5 : -2} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {shown.length > 1 && (
-                  <div className="flex flex-col gap-9 pt-6">
-                    {shown.slice(1).map((x, i) => (
-                      <div key={x.e.id} className={`max-w-[400px] ${i === 0 ? 'ml-8' : 'ml-0'}`}>
-                        <UpNext e={x.e} phase={x.phase} sameDay={sameDay(x.e)} size="small" tilt={i === 0 ? 2 : -1.5} />
-                      </div>
-                    ))}
-                    {seeAll && <div className="-mt-4">{seeAll}</div>}
-                  </div>
-                )}
-              </div>
+                {/* the hero's own actions on the left, the way to everything else on the right */}
+                <div className="mt-6 flex items-center gap-4">
+                  <PlanActions e={shown[0].e} phase={shown[0].phase} />
+                  {seeAll && <span className="ml-auto">{seeAll}</span>}
+                </div>
+              </>
             ) : (
               <div className="mx-auto max-w-[480px]">
                 <Deck
