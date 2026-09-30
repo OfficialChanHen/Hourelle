@@ -1,5 +1,5 @@
 /* Soft organic colour behind a page region: a couple of flat blobs in the shape
-   tokens (--shape-a green, --shape-b peach, --shape-c lilac), never a gradient.
+   tokens (--shape-a green, --shape-b peach, --shape-c warm sand), never a gradient.
    Decoration only: hidden from screen readers, takes no pointer, and sits under
    everything in its region. The parent needs `relative isolate` so the shapes stay
    behind its content and are clipped to it, which also keeps them from ever widening
@@ -22,7 +22,7 @@ const VARIANTS: Record<'home' | 'plan', Blob[]> = {
     { d: BAND, fill: 'var(--shape-a)', box: { left: '-8%', top: '90px', width: '116%', height: '420px' } },
     { d: PEBBLE, fill: 'var(--shape-b)', box: { right: '-60px', bottom: '40px', width: '260px', height: '220px' } },
   ],
-  // a plan: a lilac cap behind the header, a small green pebble on the far side
+  // a plan: a warm sand cap behind the header, a small green pebble on the far side
   plan: [
     { d: CAP, fill: 'var(--shape-c)', box: { left: '-6%', top: '-40px', width: '112%', height: 'calc(100% + 40px)' } },
     { d: PEBBLE, fill: 'var(--shape-a)', box: { right: '-70px', top: '-30px', width: '220px', height: '180px' } },

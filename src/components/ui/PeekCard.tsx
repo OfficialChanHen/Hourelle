@@ -39,6 +39,7 @@ export function PeekCard({
   restShow = 0,
   upShow,
   flippable = false,
+  tilt = 0,
   className = '',
   children,
 }: {
@@ -47,6 +48,9 @@ export function PeekCard({
   restShow?: number
   upShow?: number
   flippable?: boolean
+  // the card's own tilt, when it has one (a PhotoFrame): the row of faces turns
+  // with it, so every face tucks the same depth behind the slanted top edge
+  tilt?: number
   className?: string
   children: React.ReactNode
 }) {
@@ -76,7 +80,7 @@ export function PeekCard({
         <div
           aria-hidden={flippable ? undefined : true}
           className={`${touch && !flippable ? 'pointer-events-none' : 'pointer-events-auto'} absolute left-5 right-5 z-0 flex gap-2`}
-          style={{ top: room }}
+          style={{ top: room, transform: tilt ? `rotate(${tilt}deg)` : undefined }}
         >
           {shown.map((p, i) => (
             <span

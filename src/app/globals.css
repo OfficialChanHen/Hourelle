@@ -75,7 +75,7 @@
   /* scrapbook + soft flow: only for moments (covers, Up next, It's on, empty
      states), never on a decision surface. Soft shapes are the organic colour behind
      a page region; text sits on them, so dim and faint clear 4.5:1 on each. */
-  --shape-a:#E4F0E7; --shape-b:#FBE8DF; --shape-c:#EEE7F1;
+  --shape-a:#E4F0E7; --shape-b:#FBE8DF; --shape-c:#F3EBDD;
   /* a translucent strip of tape holding a photo frame down */
   --tape:rgba(233,218,182,.9);
   /* the photo frame: a near-white card on paper, a lifted card on charcoal */
@@ -131,7 +131,7 @@
   --person-gray-bg:#46433B;   --person-gray-fg:#E4DFD3;
   --person-purple-ink:#A89AAE; --person-teal-ink:#91A799; --person-coral-ink:#B49B8D; --person-blue-ink:#94A4B1;
   --person-amber-ink:#B2A483;  --person-pink-ink:#B49894; --person-green-ink:#9AA98A; --person-gray-ink:#A39F95;
-  --shape-a:#1B231D; --shape-b:#261C17; --shape-c:#211C24;
+  --shape-a:#1B231D; --shape-b:#261C17; --shape-c:#231F18;
   --tape:rgba(236,224,196,.22);
   --frame:#2A2621; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
   --sticky:#3A3220; --sticky-text:#F5ECD2; --sticky-dim:#D6C9A6; --sticky-kicker:#F4B8A0;
@@ -213,7 +213,7 @@
   --grid-line:#80868B; --grid-edge:#AEB3B8; --grid-dash:#AEB3B8;
   --best-head:#FEF7E0;
   --heat-count:#0B316D; --heat-count-full:#FFFFFF;
-  --shape-a:#EEF4FE; --shape-b:#FEF2EC; --shape-c:#EDF7F0;
+  --shape-a:#EEF4FE; --shape-b:#F4F6FA; --shape-c:#F1F4F9;
   --tape:rgba(253,226,147,.7);
   --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(60,64,67,.12), 0 14px 30px rgba(60,64,67,.12);
   --sticky:#FEF3CD; --sticky-text:#1F1F1F; --sticky-dim:#5A4F30; --sticky-kicker:#B2401C;
@@ -234,7 +234,7 @@
   --grid-line:rgba(232,234,237,.38); --grid-edge:rgba(232,234,237,.22); --grid-dash:rgba(232,234,237,.38);
   --best-head:#33301C;
   --heat-count:#F3F7FE; --heat-count-full:#0A2A5C;
-  --shape-a:#172031; --shape-b:#2A1C17; --shape-c:#16241B;
+  --shape-a:#172031; --shape-b:#1E2026; --shape-c:#1A1F27;
   --tape:rgba(253,214,99,.2);
   --frame:#26272A; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
   --sticky:#3A3420; --sticky-text:#FDF0C8; --sticky-dim:#D9CC9F; --sticky-kicker:#F7AE92;
