@@ -35,10 +35,46 @@ const glass = (x: number, y: number) => (
   </>
 )
 
-// the conference skyline: [x, top, width] for each tower, all standing on y 106
-const FAR_TOWERS = [[6, 72, 30], [40, 54, 24], [68, 64, 30], [102, 42, 22], [128, 60, 26], [158, 34, 24], [186, 50, 22], [212, 30, 26], [242, 56, 22], [268, 40, 28], [300, 66, 24], [328, 50, 28], [360, 70, 34]]
-const NEAR_TOWERS = [[0, 86, 34], [36, 76, 24], [96, 72, 26], [140, 84, 24], [244, 80, 26], [300, 74, 26], [350, 84, 30]]
-const WINDOWS = [[42, 60], [50, 60], [42, 68], [106, 48], [114, 48], [114, 56], [162, 40], [170, 40], [162, 48], [216, 36], [224, 36], [224, 44], [272, 46], [280, 46], [272, 54], [334, 56], [342, 56]]
+// the picnic blanket: a gingham trapezoid lying on the grass, its far edge at y 92
+// (x 150 to 250) and its near edge at y 114 (x 128 to 272). Every other column and
+// every other row is laid over the cream half see-through, so where they cross the
+// check reads darker, the way gingham does. (u, v) run 0 to 1 across and toward us.
+const onBlanket = (u: number, v: number) => {
+  const l = 150 - 22 * v
+  return `${l + u * (100 + 44 * v)} ${92 + 22 * v}`
+}
+const blanketPatch = (u0: number, u1: number, v0: number, v1: number) =>
+  `M${onBlanket(u0, v0)} L${onBlanket(u1, v0)} L${onBlanket(u1, v1)} L${onBlanket(u0, v1)} Z`
+const GINGHAM = [
+  ...[0, 2, 4].map((c) => blanketPatch(c / 6, (c + 1) / 6, 0, 1)),
+  ...[1, 3].map((r) => blanketPatch(0, 1, r / 4, (r + 1) / 4)),
+]
+
+// a paper cup whose base stands at (x, y)
+const cup = (x: number, y: number, fill: string) => (
+  <path d={`M${x - 5} ${y - 12} H${x + 5} L${x + 4} ${y} H${x - 4} Z`} fill={fill} />
+)
+
+// someone in the audience seen from behind: hair, shoulders, then the chair back
+// over them. [x, row, hair, top]; row 0 sits further back and smaller
+const AUDIENCE: [number, 0 | 1, string, string][] = [
+  [18, 0, '#3F3531', '#6C9CAD'], [62, 0, '#8A5A3C', '#D9A04A'], [106, 0, '#3F3531', '#2F5F57'],
+  [150, 0, '#C9A26B', '#B85C3F'], [194, 0, '#5C3A2C', '#6C9CAD'], [238, 0, '#3F3531', '#D9A04A'],
+  [282, 0, '#8A5A3C', '#2F5F57'], [326, 0, '#3F3531', '#B85C3F'], [370, 0, '#5C3A2C', '#6C9CAD'],
+  [40, 1, '#5C3A2C', '#2F5F57'], [96, 1, '#3F3531', '#B85C3F'], [152, 1, '#C9A26B', '#6C9CAD'],
+  [248, 1, '#3F3531', '#D9A04A'], [304, 1, '#8A5A3C', '#2F5F57'], [360, 1, '#3F3531', '#B85C3F'],
+]
+const listener = ([x, row, hair, top]: (typeof AUDIENCE)[number]) => {
+  const k = row ? 1.3 : 1
+  const y = row ? 126 : 104
+  return (
+    <g key={`${x}-${row}`}>
+      <rect x={x - 11 * k} y={y + 6 * k} width={22 * k} height={20 * k} rx={8 * k} fill={top} />
+      <circle cx={x} cy={y} r={6.5 * k} fill={hair} />
+      <rect x={x - 12 * k} y={y + 14 * k} width={24 * k} height={22 * k} rx={3 * k} fill={row ? '#8F4430' : '#A5543A'} />
+    </g>
+  )
+}
 
 export const COVER_PRESETS: CoverPreset[] = [
   {
@@ -85,23 +121,50 @@ export const COVER_PRESETS: CoverPreset[] = [
     ),
   },
   {
-    // three tents in a row on the sand, the sea behind, the sun on the water
-    id: 'coast', name: 'Offsite', from: '#DDEBEF', to: '#B7D3DC', scene: (
+    // a gingham blanket on the grass under a tree, a basket, cups and a plate of
+    // watermelon on it, a ball waiting beside it
+    id: 'coast', name: 'Team offsite', from: '#E5EEE2', to: '#C3DAC0', scene: (
       <>
-        <circle cx="262" cy="86" r="24" fill="#F5D18A" />
-        <rect x="0" y="94" width="400" height="66" fill="#6C9CAD" />
-        <path d="M44 102 h22 M300 104 h26 M112 99 h14 M346 98 h18" stroke="#DCEBEF" strokeWidth="2" strokeLinecap="round" />
-        <path d="M0 160 V122 Q 100 108 200 114 T 400 108 V160 Z" fill="#EAD3A7" />
-        <path d="M0 122 Q 100 108 200 114 T 400 108" stroke="#F7EEDB" strokeWidth="3" fill="none" />
-        <path d="M86 52 q5 -5 10 0 q5 -5 10 0 M120 40 q4 -4 8 0 q4 -4 8 0" stroke="#4E6F7A" strokeWidth="1.6" strokeLinecap="round" fill="none" />
-        <path d="M140 120 L159 92 L178 120 Z" fill="#D5804A" />
-        <path d="M154 120 L159 106 L164 120 Z" fill="#8A4728" />
-        <path d="M182 118 L204 84 L226 118 Z" fill="#2F5F57" />
-        <path d="M198 118 L204 100 L210 118 Z" fill="#1D3E39" />
-        <path d="M204 84 V70" stroke="#2F5F57" strokeWidth="1.5" />
-        <path d="M204 70 L215 73.5 L204 77 Z" fill="#D5804A" />
-        <path d="M230 116 L248 90 L266 116 Z" fill="#D5804A" />
-        <path d="M243 116 L248 103 L253 116 Z" fill="#8A4728" />
+        <circle cx="318" cy="40" r="15" fill="#F2C878" />
+        <rect x="236" y="30" width="54" height="5" rx="2.5" fill="#F7F4EA" opacity=".85" />
+        <rect x="150" y="18" width="40" height="5" rx="2.5" fill="#F7F4EA" opacity=".7" />
+        <path d="M0 98 Q 120 80 230 94 T 400 88 V160 H0 Z" fill="#A4C495" />
+        <path d="M0 106 Q 110 96 210 102 T 400 98 V160 H0 Z" fill="#83AC78" />
+        <path d="M0 136 Q 130 118 250 130 T 400 124 V160 H0 Z" fill="#6E9A66" />
+        <rect x="72" y="52" width="9" height="52" rx="2" fill="#6E4B34" />
+        <path d="M80 82 L92 72" stroke="#6E4B34" strokeWidth="4" strokeLinecap="round" />
+        <circle cx="56" cy="48" r="22" fill="#5E8D5F" />
+        <circle cx="96" cy="44" r="24" fill="#5E8D5F" />
+        <circle cx="76" cy="28" r="22" fill="#6F9E68" />
+        <circle cx="112" cy="60" r="14" fill="#6F9E68" />
+        <ellipse cx="200" cy="119" rx="92" ry="4.5" fill="#5E8D5F" opacity=".45" />
+        <g transform="translate(200 108) scale(1.18) translate(-200 -108)">
+        <path d="M150 92 H250 L272 114 H128 Z" fill="#FBF3E6" />
+        {GINGHAM.map((d) => <path key={d} d={d} fill="#C04A3E" opacity=".42" />)}
+        <path d="M128 114 H272 L271 117 H129 Z" fill="#A9463B" />
+        <path d="M175 83 C175 60 203 60 203 83" stroke="#8E5D30" strokeWidth="3.4" fill="none" strokeLinecap="round" />
+        <path d="M170 82 H208 L204 104 H174 Z" fill="#C98F4E" />
+        <path d="M172 90 H206 M173 97 H205" stroke="#A8713A" strokeWidth="1.6" />
+        <path d="M181 83 V103 M189 83 V104 M197 83 V103" stroke="#A8713A" strokeWidth="1.2" opacity=".7" />
+        <rect x="167" y="79" width="44" height="5" rx="2" fill="#B07638" />
+        <path d="M180 79 Q186 70 194 79 Z" fill="#F6ECDA" />
+        {cup(157, 104, '#F2C878')}
+        {cup(244, 107, '#FBF6EE')}
+        <ellipse cx="226" cy="101" rx="15" ry="3.6" fill="#FBF6EE" />
+        <ellipse cx="226" cy="101" rx="9" ry="2" fill="#E7D9C4" />
+        <path d="M216 99 A10 10 0 0 1 236 99 Z" fill="#D9605A" />
+        <path d="M216 99 A10 10 0 0 1 236 99" stroke="#5E8D5F" strokeWidth="2" fill="none" />
+        <g fill="#3F3531">
+          <circle cx="222" cy="95" r="0.9" />
+          <circle cx="226" cy="93" r="0.9" />
+          <circle cx="230" cy="95" r="0.9" />
+        </g>
+        <circle cx="298" cy="106" r="9" fill="#FBF6EE" />
+        <path d="M289 106 A9 9 0 0 1 298 97 V106 Z" fill="#D5804A" />
+        <path d="M307 106 A9 9 0 0 1 298 115 V106 Z" fill="#6C9CAD" />
+        </g>
+        <ellipse cx="276" cy="54" rx="11" ry="3.4" transform="rotate(-12 276 54)" fill="#D5804A" />
+        <path d="M252 60 q5 -1 9 -3 M254 66 q5 -1 9 -3" stroke="#FBF6EE" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity=".9" />
       </>
     ),
   },
@@ -255,29 +318,43 @@ export const COVER_PRESETS: CoverPreset[] = [
     ),
   },
   {
-    // a podium on a stage, the city's towers behind, two beams of light
+    // a talk in a quiet hall: the slide on a big screen, the speaker at a lectern
+    // to one side, the backs of the audience's heads in the rows in front
     id: 'city', name: 'Conference', from: '#EFE2D0', to: '#D8BF9E', scene: (
       <>
+        <path d="M44 0 V96 M356 0 V96" stroke="#E6D3B8" strokeWidth="6" />
+        <rect x="0" y="96" width="400" height="64" fill="#CDB392" />
+        <rect x="0" y="94" width="400" height="4" fill="#7A6152" />
+        <path d="M152 0 V24 M248 0 V24" stroke="#9E8A72" strokeWidth="1.5" />
+        <rect x="128" y="22" width="144" height="74" rx="4" fill="#3F3531" />
+        <rect x="132" y="26" width="136" height="66" rx="2" fill="#FBF4E8" />
+        <rect x="142" y="34" width="62" height="6" rx="3" fill="#B85C3F" />
+        <rect x="142" y="44" width="38" height="3" rx="1.5" fill="#CDB99D" />
+        <g fill="#2F5F57">
+          <rect x="146" y="72" width="9" height="12" rx="1" />
+          <rect x="159" y="64" width="9" height="20" rx="1" />
+          <rect x="172" y="68" width="9" height="16" rx="1" />
+        </g>
+        <rect x="185" y="56" width="9" height="28" rx="1" fill="#D9A04A" />
+        <path d="M142 84.5 H200" stroke="#9E8A72" strokeWidth="1.2" />
+        <g fill="#B85C3F">
+          <circle cx="214" cy="58" r="2" />
+          <circle cx="214" cy="68" r="2" />
+          <circle cx="214" cy="78" r="2" />
+        </g>
         <g fill="#CDB99D">
-          {FAR_TOWERS.map(([x, y, w]) => <rect key={x} x={x} y={y} width={w} height={106 - y} />)}
+          <rect x="220" y="56.5" width="36" height="3" rx="1.5" />
+          <rect x="220" y="66.5" width="28" height="3" rx="1.5" />
+          <rect x="220" y="76.5" width="32" height="3" rx="1.5" />
         </g>
-        <g fill="#F6EBDA" opacity=".7">
-          {WINDOWS.map(([x, y]) => <rect key={`${x}-${y}`} x={x} y={y} width="4" height="4" />)}
-        </g>
-        <g fill="#9E8A72">
-          {NEAR_TOWERS.map(([x, y, w]) => <rect key={x} x={x} y={y} width={w} height={106 - y} />)}
-        </g>
-        <path d="M150 0 H170 L204 104 H194 Z M230 0 H250 L206 104 H196 Z" fill="#FBF3E6" opacity=".35" />
-        <rect x="0" y="104" width="400" height="56" fill="#E3CDAE" />
-        <rect x="56" y="102" width="288" height="6" fill="#7A6152" />
-        <rect x="56" y="108" width="288" height="18" fill="#3F3531" />
-        <circle cx="200" cy="62" r="6" fill="#3F3531" />
-        <path d="M188 80 Q188 70 200 70 Q212 70 212 80 Z" fill="#2F5F57" />
-        <rect x="186" y="80" width="28" height="22" rx="1" fill="#B85C3F" />
-        <rect x="183" y="76" width="34" height="5" rx="1.5" fill="#8F4430" />
-        <circle cx="200" cy="90" r="4" fill="#F6EBDA" />
-        <path d="M209 76 L214 68" stroke="#3F3531" strokeWidth="1.5" strokeLinecap="round" />
-        <circle cx="214.5" cy="67" r="2.2" fill="#3F3531" />
+        <circle cx="312" cy="62" r="6" fill="#3F3531" />
+        <path d="M300 80 Q300 70 312 70 Q324 70 324 80 Z" fill="#2F5F57" />
+        <path d="M301 74 L292 66" stroke="#2F5F57" strokeWidth="3" strokeLinecap="round" />
+        <rect x="288" y="62" width="4" height="6" rx="1" fill="#3F3531" transform="rotate(-40 290 65)" />
+        <rect x="298" y="80" width="28" height="15" rx="1" fill="#B85C3F" />
+        <rect x="295" y="76" width="34" height="5" rx="1.5" fill="#8F4430" />
+        <circle cx="312" cy="87" r="3.5" fill="#F6EBDA" />
+        {AUDIENCE.map(listener)}
       </>
     ),
   },

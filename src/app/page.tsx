@@ -23,6 +23,7 @@ import { FlashToast } from '@/components/ui/FlashToast'
 import { rich } from '@/components/ui/rich'
 import { Cover } from '@/components/ui/Cover'
 import { CARD_COVER_H, coverFor } from '@/components/ui/StoredEventCard'
+import { PeekCard, peopleIn } from '@/components/ui/PeekCard'
 import { useAccess } from '@/hooks/useAccess'
 import { listDemos, type AppEvent } from '@/lib/events'
 import { reducedMotion } from '@/lib/prefs'
@@ -30,7 +31,6 @@ import { useHeatLine, withHeatLine } from '@/hooks/useHeatLine'
 import { Em } from '@/components/ui/Em'
 import { SoftShapes } from '@/components/ui/SoftShapes'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
-import { PeekCard, peopleIn } from '@/components/ui/PeekCard'
 import { Keepsake, lookOf, type Look } from '@/components/ui/Keepsake'
 import { Highlight, PencilArrow, PencilUnderline } from '@/components/ui/Pencil'
 import { HandNote } from '@/components/ui/HandNote'
@@ -64,9 +64,9 @@ const FEATURES = [
 // friend plans and open events first: the audience is any group planning something
 // (friends, a club, strangers at an open event), not office meetings
 const DEMO_PICKS: Record<string, string> = {
-  'cabin-trip': 'A **day poll** for a long weekend, where whole days are the question.',
-  'harvest-fair': 'Open to anyone, with **three votes each** on the place and a **cap on spots**.',
-  'trivia-night-anchor': 'A **fixed date and place**. The only question left is **who is coming**.',
+  'cabin-trip': 'A **weekend trip** run as a **day poll**, where whole days are the question.',
+  'harvest-potluck': 'A **potluck** open to anyone, with **three votes each** on the park and a **cap on spots**.',
+  'board-game-night': 'A **game night** with the date and place set. The only question left is **who is coming**.',
 }
 
 export default function Landing() {

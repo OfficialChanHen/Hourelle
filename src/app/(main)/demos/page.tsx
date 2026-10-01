@@ -16,11 +16,11 @@ const GROUPS: Group[] = [
   {
     key: 'when', eyebrow: 'Finding a time', tone: 'text-teal-text',
     title: 'When can everyone make it?',
-    sub: 'The availability grid in its three shapes: hours, half hours, and whole days.',
+    sub: 'The availability grid in its shapes: whole days, half hours, and quarter hours.',
     picks: {
-      'cabin-trip': 'A **day poll**: whole days are the question, not hours. Look for the **longest run** everyone can make.',
-      'brunch-at-mamas': 'The **place is already set**, so only the time is open. Look for how it narrows to one question.',
-      'design-team-dinner': 'A **30-minute grid** with a **deadline** to settle by. Look for the **best window**, and who has not replied yet.',
+      'cabin-trip': 'A **weekend trip** run as a **day poll**: whole days are the question, not hours. Look for the **longest run** everyone can make.',
+      'design-team-dinner': 'A **dinner** on a **30-minute grid** with a **deadline** to settle by. Look for the **best window**, and who has not replied yet.',
+      'coffee-catch-up': 'A **1:1** at a café that is **already set**, so only the time is open. Look for the half hour that fits on a **15-minute grid**.',
     },
   },
   {
@@ -28,19 +28,18 @@ const GROUPS: Group[] = [
     title: 'Where should it happen?',
     sub: 'A ballot on a map, and what a vote turns into once it is won.',
     picks: {
-      'priyas-send-off': '**One vote each**, closing soon. Look for how the **leader** changes as the votes move.',
-      'harvest-fair': '**Three votes each** and a **closing date**, with a **cap on spots** and a **minimum to go ahead**. Look for the ballot and the capacity note.',
-      'q3-offsite': 'Votes turned into a **three-stop route** with **travel time** between them. Look for the **itinerary**, and who makes every stop.',
+      'priyas-birthday': 'A **birthday** with Friday night booked and **one vote each** on the restaurant. Look for how the **leader** changes as the votes move.',
+      'harvest-potluck': 'A **potluck** open to anyone, with **three votes each** on the park and a **closing date**. Look for the **cap on spots** and the **minimum to go ahead**.',
+      'q3-offsite': 'A **team offsite** whose votes turned into a **three-stop route** with **travel time** between them. Look for the **itinerary**, and who makes every stop.',
     },
   },
   {
     key: 'who', eyebrow: "Who's coming", tone: 'text-accent-text',
     title: 'Once it is locked in, who is coming?',
-    sub: 'The RSVP round, the roster, and the headcount through the day.',
+    sub: 'The RSVP round, then the headcount through the day.',
     picks: {
-      'sarahs-housewarming': 'Time and place **locked in**, replies due by an **RSVP deadline**. Look for the **roster** grouped by who is in, unsure, or out.',
-      'trivia-night-anchor': 'A **fixed date and place** from the start. Look for the **RSVP round** and the **headcount**.',
-      'shoreline-cleanup': 'A vote that **got locked in**. Look for **attendance**, and who **arrives late or leaves early**.',
+      'board-game-night': 'A **game night** with the date and place **fixed from the start**. You are invited and have not replied. Look for the **RSVP deadline** and the **roster**.',
+      'indie-makers-conference': 'A **conference** in one room all day. Look for **attendance** through the day, and who **arrives late or leaves early**.',
     },
   },
 ]
@@ -57,7 +56,7 @@ export default function DemosPage() {
       <div className="mb-8 max-w-[640px]">
         <h1 className="mb-2 font-serif font-normal text-[36px] leading-[1.02] tracking-[-0.01em]">Demos</h1>
         <p className="text-[14px] leading-[1.6] text-dim">
-          Nine finished plans, full of people and answers, grouped by the question each one answers. Open any of them and walk through every tab.
+          Eight finished plans, one for each template, grouped by the question each one answers. Open any of them and walk through every tab.
         </p>
       </div>
 
