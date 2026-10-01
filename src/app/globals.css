@@ -81,6 +81,8 @@
   /* a second tape tint, a pin head and a paper clip, for cards that should each look
      laid down by hand (Keepsake.tsx) */
   --tape-2:rgba(196,222,204,.85); --pin:#B8894A; --clip:#9A958B;
+  /* the highlighter swipe behind a phrase (Pencil.tsx): multiplied on light paper */
+  --highlight:rgba(242,205,110,.5); --highlight-blend:multiply;
   /* the photo frame: a near-white card on paper, a lifted card on charcoal */
   --frame:#FFFDF9; --frame-shadow:0 1px 2px rgba(60,40,20,.06), 0 16px 32px rgba(60,40,20,.12);
   /* the sticky note for "Your turn": its own warm paper and inks, all 4.5:1 on it */
@@ -137,6 +139,7 @@
   --shape-a:#1B231D; --shape-b:#261C17; --shape-c:#231F18;
   --tape:rgba(236,224,196,.22);
   --tape-2:rgba(160,200,175,.22); --pin:#C9A36A; --clip:#8A857B;
+  --highlight:rgba(214,182,96,.26); --highlight-blend:normal;
   --frame:#25221D; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
   --sticky:#3A3220; --sticky-text:#F5ECD2; --sticky-dim:#D6C9A6; --sticky-kicker:#F4B8A0;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
@@ -174,6 +177,7 @@
   --shape-a:#EFF1F6; --shape-b:#F7F1EE; --shape-c:#F2F2F5;
   --tape:rgba(214,216,224,.85);
   --tape-2:rgba(200,210,225,.8); --pin:#6D6D75; --clip:#9A9AA3;
+  --highlight:rgba(190,200,225,.6); --highlight-blend:multiply;
   --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(0,0,0,.05), 0 14px 30px rgba(0,0,0,.09);
   --sticky:#F4F0E4; --sticky-text:#18181B; --sticky-dim:#56534A; --sticky-kicker:#9A3F24;
   --sticky-shadow:0 8px 18px rgba(0,0,0,.08);
@@ -197,6 +201,7 @@
   --shape-a:#17181D; --shape-b:#1C1716; --shape-c:#19181C;
   --tape:rgba(220,222,232,.18);
   --tape-2:rgba(200,210,225,.16); --pin:#A1A1A9; --clip:#6D6D75;
+  --highlight:rgba(163,180,238,.24); --highlight-blend:normal;
   --frame:#222226; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
   --sticky:#2B2921; --sticky-text:#EFEBDD; --sticky-dim:#C9C3B0; --sticky-kicker:#F2BBA6;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
@@ -222,6 +227,7 @@
   --shape-a:#EEF4FE; --shape-b:#F4F6FA; --shape-c:#F1F4F9;
   --tape:rgba(253,226,147,.7);
   --tape-2:rgba(174,203,250,.7); --pin:#0B57D0; --clip:#9AA0A6;
+  --highlight:rgba(253,214,99,.55); --highlight-blend:multiply;
   --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(60,64,67,.12), 0 14px 30px rgba(60,64,67,.12);
   --sticky:#FEF3CD; --sticky-text:#1F1F1F; --sticky-dim:#5A4F30; --sticky-kicker:#B2401C;
   --sticky-shadow:0 8px 18px rgba(60,64,67,.12);
@@ -244,6 +250,7 @@
   --shape-a:#172031; --shape-b:#1E2026; --shape-c:#1A1F27;
   --tape:rgba(253,214,99,.2);
   --tape-2:rgba(168,199,250,.2); --pin:#A8C7FA; --clip:#80868B;
+  --highlight:rgba(253,214,99,.2); --highlight-blend:normal;
   --frame:#26272A; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
   --sticky:#3A3420; --sticky-text:#FDF0C8; --sticky-dim:#D9CC9F; --sticky-kicker:#F7AE92;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
@@ -267,6 +274,7 @@
   --shape-a:#E3F3F2; --shape-b:#FFEDE5; --shape-c:#F7EEDD;
   --tape:rgba(240,220,170,.85);
   --tape-2:rgba(180,225,225,.85); --pin:#E0623A; --clip:#9A958B;
+  --highlight:rgba(255,205,120,.5); --highlight-blend:multiply;
   --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(20,60,70,.07), 0 16px 32px rgba(20,60,70,.12);
   --sticky:#FFF1C2; --sticky-text:#1B2226; --sticky-dim:#5A4E2E; --sticky-kicker:#B2401C;
   --sticky-shadow:0 8px 18px rgba(20,60,70,.10);
@@ -285,6 +293,7 @@
   --shape-a:#16221F; --shape-b:#2A1D17; --shape-c:#231F18;
   --tape:rgba(240,220,170,.2);
   --tape-2:rgba(143,220,221,.2); --pin:#F08A68; --clip:#8A857B;
+  --highlight:rgba(240,190,120,.24); --highlight-blend:normal;
   --frame:#25221D; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
   --sticky:#3B3320; --sticky-text:#F7ECCB; --sticky-dim:#D9CBA3; --sticky-kicker:#FFBDA3;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
@@ -321,6 +330,7 @@
   --shape-a:var(--bg); --shape-b:var(--bg); --shape-c:var(--bg);
   --tape:#BDBDBD;
   --tape-2:#D6D6D6; --pin:#000000; --clip:#333333;
+  --highlight:#FFE065; --highlight-blend:normal;
   --frame:#FFFFFF; --frame-shadow:0 0 0 1px #111111;
   --sticky:#FFF3B8; --sticky-text:#000000; --sticky-dim:#333333; --sticky-kicker:#8F2F08;
   --sticky-shadow:0 0 0 1px #000000;
@@ -355,6 +365,7 @@
   --shape-a:var(--bg); --shape-b:var(--bg); --shape-c:var(--bg);
   --tape:#6B6B6B;
   --tape-2:#8A8A8A; --pin:#FFFFFF; --clip:#D0D0D0;
+  --highlight:#5C4A00; --highlight-blend:normal;
   --frame:#1C1C1C; --frame-shadow:0 0 0 1px rgba(255,255,255,.55);
   --sticky:#2E2609; --sticky-text:#FFFFFF; --sticky-dim:#E0E0E0; --sticky-kicker:#FFB899;
   --sticky-shadow:0 0 0 1px rgba(255,255,255,.55);
@@ -513,6 +524,23 @@ input[type="date"]::-webkit-date-and-time-value {
 
 /* High contrast keeps the page plain: no soft shapes behind it (SoftShapes.tsx) */
 [data-palette="contrast"] .soft-shapes { display: none; }
+
+/* pencil marks (Pencil.tsx): High contrast draws them as plain solid lines */
+[data-palette="contrast"] .pencil { filter: none; }
+/* the highlighter swipe: a fill on the phrase itself, cloned on every line it wraps
+   to, so it covers exactly the words wherever they break */
+.pencil-highlight {
+  background-image: linear-gradient(var(--highlight), var(--highlight));
+  background-repeat: no-repeat;
+  background-position: 0 75%;
+  background-size: 100% 72%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 0 .14em;
+  margin: 0 -.14em;
+  border-radius: .4em .15em .45em .2em;
+  mix-blend-mode: var(--highlight-blend);
+}
 
 
 /* the serif: 500 by default (headings, card titles, stat figures), 400 only where the

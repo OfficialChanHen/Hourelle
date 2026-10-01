@@ -26,7 +26,7 @@
    disagrees with a visitor in another timezone. `useLiveEvents` re-reads the list
    whenever the cloud changes something. */
 
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -43,6 +43,8 @@ import { SoftShapes } from '@/components/ui/SoftShapes'
 import { WavyRule } from '@/components/ui/WavyRule'
 import { Deck } from '@/components/ui/Deck'
 import { Keepsake, lookOf, type Look } from '@/components/ui/Keepsake'
+import { Highlight, PencilArrow, PencilStar, PencilUnderline } from '@/components/ui/Pencil'
+import { HandNote } from '@/components/ui/HandNote'
 import { namesLabel } from '@/components/ui/AvatarRow'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { TimezonePill } from '@/components/ui/TimezonePill'
@@ -204,7 +206,7 @@ export default function HomePage() {
                  opposite ways like photos dropped on a table. Nothing overlaps. */
               <>
                 <div className={shown.length > 1 ? 'grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-center gap-x-12 xl:gap-x-20' : 'max-w-[560px]'}>
-                  <UpNext e={shown[0].e} phase={shown[0].phase} sameDay={sameDay(shown[0].e)} size="hero" look={looks[0]} />
+                  <UpNext e={shown[0].e} phase={shown[0].phase} sameDay={sameDay(shown[0].e)} size="hero" look={looks[0]} lead />
                   {shown.length > 1 && (
                     <div className="flex flex-col gap-10 xl:gap-12">
                       {shown.slice(1).map((x, i) => (
@@ -230,7 +232,7 @@ export default function HomePage() {
                     />
                   )}
                 >
-                  <UpNext e={shown[upI].e} phase={shown[upI].phase} sameDay={sameDay(shown[upI].e)} size="hero" look={looks[upI]} />
+                  <UpNext e={shown[upI].e} phase={shown[upI].phase} sameDay={sameDay(shown[upI].e)} size="hero" look={looks[upI]} lead />
                 </Deck>
                 {seeAll}
               </div>
@@ -253,7 +255,7 @@ export default function HomePage() {
                     />
                   )}
                 >
-                  <StickyNote kicker="Your turn" className="min-h-[164px]">
+                  <StickyNote kicker={<><PencilStar size={16} className="-mt-0.5 mr-1.5" />Your turn</>} className="min-h-[164px]">
                     <span className="font-serif text-[19px] leading-[1.15] [overflow-wrap:anywhere]">{turn.x.e.title}</span>
                     <span className="text-[13.5px] leading-[1.4] text-sticky-dim">{turn.t.line}</span>
                     <Link href={turn.t.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-accent px-4 text-[13.5px] font-semibold text-on-accent sm:h-9">
@@ -345,8 +347,13 @@ function Row({ icon: Icon, children }: { icon: typeof Calendar; children: React.
    inside the tilted photo, with sharing and duplicating beside it. `small` is the
    side card on a wide screen: a shorter picture and only the lines that matter
    most. `look` is its hand-laid details (Keepsake), the same every visit. */
-function UpNext({ e, phase, sameDay, size, look }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo; size: 'hero' | 'small'; look: Look }) {
+function UpNext({ e, phase, sameDay, size, look, lead = false }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo; size: 'hero' | 'small'; look: Look; lead?: boolean }) {
   const tilt = look.tilt
+  // the plan in front gets the page's pencil marks: its time highlighted, and a note
+  // with an arrow at the button when something is owed. Refs for measuring the arrow.
+  const details = useRef<HTMLDivElement>(null)
+  const note = useRef<HTMLSpanElement>(null)
+  const task = useRef<HTMLAnchorElement>(null)
   const [coverFrom, coverTo] = coverFor(e.id)
   const d = digestOf(e, phase)
   const turn = turnOf(e, phase)
@@ -371,7 +378,7 @@ function UpNext({ e, phase, sameDay, size, look }: { e: AppEvent; phase: Phase; 
           </Link>
           <Keepsake look={look} />
         </div>
-        <div className={small ? 'px-1.5 pb-2 pt-2.5' : 'px-1 pb-1 pt-3'}>
+        <div ref={details} className={`relative ${small ? 'px-2 pb-2 pt-2.5' : 'px-2 pb-1.5 pt-3'}`}>
           <Link href={eventTabFor(e)} className={`block font-serif leading-[1.15] tracking-[-0.01em] [overflow-wrap:anywhere] hover:underline ${small ? 'text-[18px]' : 'text-[22px] sm:text-[24px]'}`}>
             {e.title}
           </Link>
@@ -379,10 +386,10 @@ function UpNext({ e, phase, sameDay, size, look }: { e: AppEvent; phase: Phase; 
           <ul className={`flex flex-col gap-1.5 leading-[1.45] ${small ? 'text-[13.5px]' : 'text-[14px]'}`}>
             {/* when first: the locked slot and how far off, or the best time so far */}
             {slot ? (
-              <Row icon={Calendar}>{slot} <TimezonePill tz={e.timezone} />{d.countdown && <span className="text-dim">, {d.countdown}</span>}</Row>
+              <Row icon={Calendar}>{lead ? <Highlight>{slot}</Highlight> : slot} <TimezonePill tz={e.timezone} />{d.countdown && <span className="text-dim">, {d.countdown}</span>}</Row>
             ) : d.best ? (
               <Row icon={Calendar}>
-                {d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)} <TimezonePill tz={e.timezone} /> <span className="text-dim">suits {d.best.count} of {d.total} so far</span>
+                {lead ? <Highlight>{d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)}</Highlight> : <>{d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)}</>} <TimezonePill tz={e.timezone} /> <span className="text-dim">suits {d.best.count} of {d.total} so far</span>
               </Row>
             ) : (
               <Row icon={Calendar}>Picking a time, {dateRangeText(e)}</Row>
@@ -425,9 +432,16 @@ function UpNext({ e, phase, sameDay, size, look }: { e: AppEvent; phase: Phase; 
               ))}
             </div>
           )}
+          {/* a note in the margin for what you owe, its arrow measured to the button */}
+          {lead && turn && (
+            <div className="mt-2.5 flex justify-end pr-2 sm:justify-start sm:pl-[34%]">
+              <HandNote ref={note} className="-rotate-2">{handNoteFor(turn)}</HandNote>
+            </div>
+          )}
           {/* the next thing to do, then sharing and duplicating this plan */}
           <div className="relative z-[3] mt-3.5 flex flex-wrap items-center gap-2">
             <Link
+              ref={task}
               href={action.href}
               className={`flex items-center gap-1.5 rounded-full bg-accent font-semibold text-on-accent ${small ? 'h-11 px-4 text-[13.5px] sm:h-9' : 'h-11 px-5 text-[14px]'}`}
             >
@@ -435,10 +449,18 @@ function UpNext({ e, phase, sameDay, size, look }: { e: AppEvent; phase: Phase; 
             </Link>
             <PlanActions e={e} phase={phase} />
           </div>
+          {lead && turn && <PencilArrow from={note} to={task} within={details} />}
         </div>
       </PhotoFrame>
     </PeekCard>
   )
+}
+
+// what the margin note says, by what you owe
+function handNoteFor(t: Turn): string {
+  if (t.cta === 'Mark my times') return 'your times are missing'
+  if (t.cta === 'Vote') return 'your vote is missing'
+  return 'you still need to reply'
 }
 
 /* sharing and duplicating one plan: small round buttons beside its task button,
@@ -517,7 +539,7 @@ function QuickCreate() {
   const dateCls = 'h-12 w-full'
   return (
     <section aria-labelledby="home-start" className="min-w-0 rounded-3xl bg-frame p-5 shadow-frame sm:p-7">
-      <h2 id="home-start" className="font-serif text-[24px] leading-tight tracking-[-0.01em] sm:text-[26px]">Start a plan</h2>
+      <h2 id="home-start" className="font-serif text-[24px] leading-tight tracking-[-0.01em] sm:text-[26px]"><PencilUnderline ink="graphite">Start a plan</PencilUnderline></h2>
       <label htmlFor="quick-title" className="mt-4 block text-[13px] font-semibold text-dim">Name</label>
       <input
         id="quick-title"

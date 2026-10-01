@@ -15,6 +15,7 @@
 import { useRef, type CSSProperties } from 'react'
 import { useSwingOnNew } from '@/hooks/useAttention'
 import Link from 'next/link'
+import { PencilUnderline } from '@/components/ui/Pencil'
 import { usePathname } from 'next/navigation'
 import { useRouter } from 'next/navigation'
 import { Plus, Bell, UserRound, LogIn, LogOut, Settings, CircleHelp, Info, Smile } from 'lucide-react'
@@ -103,7 +104,7 @@ export function Header() {
           <Wordmark className="text-[24.5px] tracking-[.01em]" />
         </Link>
 
-        {/* nav — filled accent box when active, no underlines */}
+        {/* nav: the page you are on gets a pencil underline and darker, heavier words */}
         <nav className="hidden items-center gap-[3px] text-[14px] md:flex">
           {TABS.map((t) => {
             const active = pathname === t.href || pathname.startsWith(t.href + '/')
@@ -112,11 +113,9 @@ export function Header() {
                 key={t.href}
                 href={t.href}
                 aria-current={active ? 'page' : undefined}
-                className={`rounded-full px-[13px] py-2 transition-colors ${
-                  active ? 'bg-accent font-medium text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'
-                }`}
+                className={`rounded-full px-[13px] py-2 ${active ? 'font-semibold text-text' : 'font-medium text-dim hover:text-text'}`}
               >
-                {t.label}
+                {active ? <PencilUnderline>{t.label}</PencilUnderline> : t.label}
               </Link>
             )
           })}

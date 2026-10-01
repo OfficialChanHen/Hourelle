@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { RotateCcw } from 'lucide-react'
 import { TimezonePill } from '@/components/ui/TimezonePill'
+import { Highlight } from '@/components/ui/Pencil'
 import { placeVotes } from '@/lib/polls'
 import {
   availIvOf, bestBlock, bestWindow, confirmedSlotText, dateRangeText, fmtMinute, gridStartMinOf,
@@ -113,14 +114,14 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
       {responded === 0 ? 'No one has answered yet.' : responded >= total ? 'Everyone has answered.' : `${responded} of ${total} have answered.`}
       {best && (
         <>
-          {' '}<BestLink onClick={onGoToAvailability}>{best.dayLabel}, {fmtMinute(gridStart + best.s)} to {fmtMinute(gridStart + best.e)}</BestLink>{' '}
+          {' '}<BestLink onClick={onGoToAvailability}><Highlight>{best.dayLabel}, {fmtMinute(gridStart + best.s)} to {fmtMinute(gridStart + best.e)}</Highlight></BestLink>{' '}
           <TimezonePill tz={event.timezone} /> works for the most people so far.
         </>
       )}
       {bestDays && (
         <>
           {' '}<BestLink onClick={onGoToAvailability}>
-            {bestDays.startKey === bestDays.endKey ? dayLabelOf(bestDays.startKey) : `${dayLabelOf(bestDays.startKey)} to ${dayLabelOf(bestDays.endKey)}`}
+            <Highlight>{bestDays.startKey === bestDays.endKey ? dayLabelOf(bestDays.startKey) : `${dayLabelOf(bestDays.startKey)} to ${dayLabelOf(bestDays.endKey)}`}</Highlight>
           </BestLink>{' '}works for the most people so far.
         </>
       )}

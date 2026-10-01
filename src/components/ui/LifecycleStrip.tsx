@@ -1,11 +1,10 @@
 'use client'
 
 import { useRef } from 'react'
-import { Check } from 'lucide-react'
+import { PencilCircle } from './Pencil'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import type { Phase } from '@/lib/events'
-import { reducedMotion } from '@/lib/prefs'
 
 // how each phase reads on cards and headers — one badge, strict role colors.
 // Labels echo the strip steps (Deciding/RSVP/Soon/Today/Done) so the two never disagree.
@@ -34,43 +33,22 @@ export const PHASE_TINT: Record<Phase, { dot: string; border?: string }> = {
 const STEPS = ['Deciding', 'RSVP', 'Soon', 'Today', 'Done'] as const
 const PHASE_STEP: Record<Phase, number> = { planning: 0, upcoming: 1, soon: 2, today: 3, past: 4 }
 
-/* The five stages as a stepper, in the one accent colour: dots joined by a line,
-   past steps filled and checked, the current one larger with a soft ring, the rest
-   muted. An
-   ordered list, so a screen reader hears each step and which one is current.
-   `labels`: 'auto' names only the current step on a phone and every step from sm
-   up; 'current' always names only the current one; 'all' always names them all.
-   The current dot pops in when the stage changes; with reduced motion it just sits
-   there. */
-export function StageStepper({ phase, labels = 'auto', className = '' }: { phase: Phase; labels?: 'auto' | 'current' | 'all'; className?: string }) {
-  const root = useRef<HTMLOListElement>(null)
+/* The five stages as five words, the current one circled in pencil: planning on
+   paper. No dots and no ticks: the words carry it. Finished stages sit a little
+   dimmer than the current one, the ones to come dimmer again. An ordered list, so a
+   screen reader hears each step and which one is current (`aria-current="step"`).
+   The circle draws itself once (Pencil.tsx), and just sits there with reduced
+   motion. `labels` is kept for callers; every stage is always named now. */
+export function StageStepper({ phase, className = '' }: { phase: Phase; labels?: 'auto' | 'current' | 'all'; className?: string }) {
   const idx = PHASE_STEP[phase]
-  useGSAP(() => {
-    if (reducedMotion()) return
-    gsap.fromTo('.ss-now', { scale: 0.5 }, { scale: 1, duration: 0.45, ease: 'back.out(2.2)' })
-    gsap.fromTo('.ss-line', { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: 'power2.out', stagger: 0.06 })
-  }, { scope: root, dependencies: [idx] })
-  const other = labels === 'all' ? '' : labels === 'current' ? 'sr-only' : 'sr-only sm:not-sr-only'
   return (
-    <ol ref={root} aria-label={`Stage ${idx + 1} of ${STEPS.length}: ${STEPS[idx]}`} className={`grid grid-cols-5 ${className}`}>
+    <ol aria-label={`Stage ${idx + 1} of ${STEPS.length}: ${STEPS[idx]}`} className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] sm:gap-x-5 sm:text-[13.5px] ${className}`}>
       {STEPS.map((label, i) => {
-        const done = i < idx
         const now = i === idx
         return (
-          <li key={label} aria-current={now ? 'step' : undefined} className="relative flex min-w-0 flex-col items-center gap-1.5">
-            {/* the line into this step from the one before, filled once it is reached */}
-            {i > 0 && (
-              <span aria-hidden className={`absolute right-1/2 top-[9px] h-[2px] origin-left rounded-full ${i <= idx ? 'ss-line bg-accent' : 'bg-border2'}`} style={{ marginRight: 11, width: 'calc(100% - 22px)' }} />
-            )}
-            {/* a 20px slot for every dot, so the line meets each one at its middle */}
-            <span aria-hidden className="relative z-[1] grid h-5 w-5 place-items-center">
-              <span className={`grid place-items-center rounded-full ${now ? 'ss-now h-5 w-5 bg-accent ring-4 ring-accent-bg' : done ? 'h-4 w-4 bg-accent text-on-accent' : 'h-4 w-4 border-2 border-border2 bg-s1'}`}>
-                {done && <Check size={10} strokeWidth={3} />}
-              </span>
-            </span>
-            <span className={`whitespace-nowrap text-[12px] leading-none sm:text-[11.5px] ${now ? 'font-semibold text-text' : `${other} ${done ? 'text-dim' : 'text-faint'}`}`}>
-              {label}{done && <span className="sr-only">, done</span>}
-            </span>
+          <li key={label} aria-current={now ? 'step' : undefined} className={now ? 'px-1 font-semibold text-text' : i < idx ? 'text-dim' : 'text-faint'}>
+            {now ? <PencilCircle>{label}</PencilCircle> : label}
+            {i < idx && <span className="sr-only">, done</span>}
           </li>
         )
       })}

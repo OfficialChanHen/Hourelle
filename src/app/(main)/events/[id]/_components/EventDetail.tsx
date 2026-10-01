@@ -46,6 +46,7 @@ import type { Face } from '@/lib/faces'
 import { ChangeFace } from './ChangeFace'
 import { BackLink } from '@/components/ui/BackLink'
 import { StageStepper } from '@/components/ui/LifecycleStrip'
+import { PencilUnderline } from '@/components/ui/Pencil'
 import { SoftShapes } from '@/components/ui/SoftShapes'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { FaceRibbon } from '@/components/ui/FaceRibbon'
@@ -545,17 +546,16 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
 
       {/* tabs — horizontally scrollable on narrow screens, with edge fades hinting more */}
       <div className="relative mb-4 sm:mb-6">
-        <div ref={tabsRef} data-tour="tabs" role="tablist" aria-label="Plan sections" onKeyDown={onTabKey} onScroll={checkTabFade} className="scroll-slim flex items-center gap-1 overflow-x-auto pb-1 sm:gap-1.5">
+        <div ref={tabsRef} data-tour="tabs" role="tablist" aria-label="Plan sections" onKeyDown={onTabKey} onScroll={checkTabFade} className="scroll-slim flex items-center gap-1 overflow-x-auto pb-2.5 sm:gap-1.5">
           {tabs.map((t) => {
             const active = tab === t.key
             return (
-              // words alone carry the tabs — the filled box says which one is active
+              // words alone carry the tabs; the open one gets the pencil underline
               <button
                 key={t.key} type="button" role="tab" id={`tab-${t.key}`} aria-selected={active} aria-controls={`panel-${t.key}`} tabIndex={active ? 0 : -1}
                 data-active={active} data-tour-tab={t.key} onClick={() => goTab(t.key)}
-                className={`flex flex-none items-center whitespace-nowrap rounded-full px-3 py-3 text-[13.5px] transition-colors sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
-                <span className="sm:hidden">{t.short}</span>
-                <span className="hidden sm:inline">{t.label}</span>
+                className={`flex flex-none items-center whitespace-nowrap rounded-full px-3 py-3 text-[13.5px] sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'font-bold text-text' : 'font-medium text-dim hover:text-text'}`}>
+                {active ? <PencilUnderline>{t.label}</PencilUnderline> : t.label}
               </button>
             )
           })}

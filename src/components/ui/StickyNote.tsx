@@ -8,7 +8,7 @@ export function StickyNote({
   tilt = 1.5,
   className = '',
 }: {
-  kicker?: string
+  kicker?: React.ReactNode
   children: React.ReactNode
   tilt?: number
   className?: string
@@ -19,7 +19,7 @@ export function StickyNote({
       className={`flex flex-col gap-1.5 rounded-md bg-sticky px-3.5 pb-3.5 pt-3 text-sticky-text shadow-sticky ${className}`}
       style={{ transform: `rotate(${deg}deg)` }}
     >
-      {kicker && <span className="text-[11.5px] font-bold uppercase tracking-[.08em] text-sticky-kicker">{kicker}</span>}
+      {kicker && <span className="flex items-center text-[11.5px] font-bold uppercase tracking-[.08em] text-sticky-kicker">{kicker}</span>}
       {children}
     </div>
   )
