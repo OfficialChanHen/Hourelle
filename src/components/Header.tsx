@@ -15,7 +15,7 @@
 import { useRef, type CSSProperties } from 'react'
 import { useSwingOnNew } from '@/hooks/useAttention'
 import Link from 'next/link'
-import { PencilUnderline } from '@/components/ui/Pencil'
+import { PencilHover, PencilUnderline } from '@/components/ui/Pencil'
 import { usePathname } from 'next/navigation'
 import { useRouter } from 'next/navigation'
 import { Plus, Bell, UserRound, LogIn, LogOut, Settings, CircleHelp, Info, Smile } from 'lucide-react'
@@ -115,7 +115,7 @@ export function Header() {
                 aria-current={active ? 'page' : undefined}
                 className={`rounded-full px-[13px] py-2 ${active ? 'font-semibold text-text' : 'font-medium text-dim hover:text-text'}`}
               >
-                {active ? <PencilUnderline>{t.label}</PencilUnderline> : t.label}
+                {active ? <PencilUnderline>{t.label}</PencilUnderline> : <PencilHover>{t.label}</PencilHover>}
               </Link>
             )
           })}

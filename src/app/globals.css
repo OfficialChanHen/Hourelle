@@ -83,6 +83,8 @@
   --tape-2:rgba(196,222,204,.85); --pin:#B8894A; --clip:#9A958B;
   /* the highlighter swipe behind a phrase (Pencil.tsx): multiplied on light paper */
   --highlight:rgba(242,205,110,.5); --highlight-blend:multiply;
+  /* the lighter pencil line under a hovered tab: graphite, each palette's own faint ink */
+  --pencil-hover:var(--faint);
   /* the photo frame: a near-white card on paper, a lifted card on charcoal */
   --frame:#FFFDF9; --frame-shadow:0 1px 2px rgba(60,40,20,.06), 0 16px 32px rgba(60,40,20,.12);
   /* the sticky note for "Your turn": its own warm paper and inks, all 4.5:1 on it */
@@ -386,7 +388,7 @@
   --color-grid-line:var(--grid-line);
   --color-grid-edge:var(--grid-edge);
   --color-raised:var(--raised);
-  --color-frame:var(--frame); --color-tape:var(--tape); --color-tape-2:var(--tape-2); --color-pin:var(--pin); --color-clip:var(--clip);
+  --color-frame:var(--frame); --color-tape:var(--tape); --color-tape-2:var(--tape-2); --color-pin:var(--pin); --color-clip:var(--clip); --color-pencil-hover:var(--pencil-hover);
   --color-sticky:var(--sticky); --color-sticky-text:var(--sticky-text); --color-sticky-dim:var(--sticky-dim); --color-sticky-kicker:var(--sticky-kicker);
   --shadow-frame:var(--frame-shadow); --shadow-sticky:var(--sticky-shadow);
   --shadow-raised:var(--raised-shadow);

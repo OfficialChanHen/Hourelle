@@ -45,7 +45,7 @@ function useDraw(scope: React.RefObject<Element | null>, deps: unknown[] = []) {
     if (!strokes.length) return
     drawn.current = true
     if (reducedMotion()) return
-    gsap.fromTo(strokes, { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.6, ease: 'power2.out', stagger: 0.18, delay: 0.1 })
+    gsap.fromTo(strokes, { strokeDashoffset: 1 }, { strokeDashoffset: 0, autoRound: false, duration: 0.6, ease: 'power2.out', stagger: 0.18, delay: 0.1 })
   }, { scope, dependencies: deps })
 }
 
@@ -197,5 +197,55 @@ export function PencilArrow({ from, to, within, ink = 'moment' }: {
         strokeLinecap="round" strokeLinejoin="round" filter={`url(#${PENCIL_FILTER})`} className={`pencil ${STROKE[ink]}`}
       />
     </svg>
+  )
+}
+
+/* ── the hover underline: a lighter pencil line under a tab you are pointing at ──
+   Thinner, graphite (--pencil-hover), and its own stroke, so it never reads as the
+   selected tab's underline. It sketches in left to right when a mouse rests on the
+   tab or the keyboard focuses it, and rubs out right to left when it leaves. Each
+   move overwrites the last, so sweeping across the tabs never leaves half a line
+   behind. Touch screens get nothing; reduced motion shows and hides it at once.
+   It listens on the element it sits in (the tab), takes no pointer, and is placed
+   absolutely, so the tab's size never changes. */
+export function PencilHover({ children }: { children: React.ReactNode }) {
+  const root = useRef<HTMLSpanElement>(null)
+  const { contextSafe } = useGSAP({ scope: root })
+  useEffect(() => {
+    const tab = root.current?.parentElement
+    const path = root.current?.querySelector('path')
+    if (!tab || !path) return
+    const canHover = window.matchMedia('(hover: hover) and (pointer: fine)')
+    const show = contextSafe((on: boolean) => {
+      const to = on ? 0 : 1
+      if (reducedMotion()) { gsap.set(path, { strokeDashoffset: to, overwrite: true }); return }
+      gsap.to(path, { strokeDashoffset: to, autoRound: false, duration: on ? 0.25 : 0.15, ease: on ? 'power1.out' : 'power1.in', overwrite: true })
+    })
+    const enter = (e: PointerEvent) => { if (e.pointerType === 'mouse' && canHover.matches) show(true) }
+    const leave = (e: PointerEvent) => { if (e.pointerType === 'mouse' && !tab.matches(':focus-visible')) show(false) }
+    const focus = () => { if (tab.matches(':focus-visible')) show(true) }
+    const blur = () => { if (!tab.matches(':hover')) show(false) }
+    tab.addEventListener('pointerenter', enter)
+    tab.addEventListener('pointerleave', leave)
+    tab.addEventListener('focus', focus)
+    tab.addEventListener('blur', blur)
+    return () => {
+      tab.removeEventListener('pointerenter', enter)
+      tab.removeEventListener('pointerleave', leave)
+      tab.removeEventListener('focus', focus)
+      tab.removeEventListener('blur', blur)
+    }
+  }, [contextSafe])
+  return (
+    <span ref={root} className="relative inline-block">
+      {children}
+      <svg aria-hidden focusable="false" viewBox="0 0 100 10" preserveAspectRatio="none" className="pointer-events-none absolute -bottom-[6px] left-[2%] h-[7px] w-[96%] overflow-visible">
+        <path
+          data-hover-ink d="M2 5 C 22 7, 48 3.5, 70 5.5 S 92 4, 98 5.5" pathLength={1} strokeDasharray="1" strokeDashoffset="1" fill="none"
+          strokeWidth={1.4} strokeLinecap="round" vectorEffect="non-scaling-stroke" filter={`url(#${PENCIL_FILTER})`}
+          className="pencil stroke-pencil-hover" opacity={0.75}
+        />
+      </svg>
+    </span>
   )
 }

@@ -508,7 +508,7 @@ Tracked on `events.status`. Shown as a 5-dot progress strip (GSAP fill animation
 
 **Copy word:** product copy calls the thing a "plan" (code, routes and data keep "event"). Never "plan a plan": use start, make or set up. Billing tiers live under "Pricing"; lifecycle stages read Deciding / RSVP / Soon / Today / Done, one word each, and the planning-phase badge says Deciding.
 
-**Selected-tab style — pencil underline:** the active tab (the top nav, the mobile tab bar, and the plan tabs Availability/Location/Attendance/Details) gets a **hand-drawn pencil underline in the accent** (`PencilUnderline`) and darker, heavier text (`text-text`, 600–700); inactive tabs are plain `--dim` text with no background. Focus rings, `aria-current`/`aria-selected` and 44px phone targets stay. Buttons are still filled pills.
+**Selected-tab style — pencil underline:** the active tab (the top nav, the mobile tab bar, and the plan tabs Availability/Location/Attendance/Details) gets a **hand-drawn pencil underline in the accent** (`PencilUnderline`) and darker, heavier text (`text-text`, 600–700); inactive tabs are plain `--dim` text with no background. A mouse hover or keyboard focus on an inactive tab sketches a thinner graphite pencil line (`PencilHover`, `--pencil-hover`) left to right, rubbed out right to left on leave; none on touch, instant under reduced motion. Focus rings, `aria-current`/`aria-selected` and 44px phone targets stay. Buttons are still filled pills.
 
 **Mobile:** a fixed **bottom tab bar** — Home · Events · center **+** (create, green circular FAB) · Alerts · Profile — plus a faux status bar and a sticky top app bar (back chevron on detail screens). Phone width ~412px. See `Gatherly Mobile.dc.html`.
 

@@ -46,7 +46,7 @@ import type { Face } from '@/lib/faces'
 import { ChangeFace } from './ChangeFace'
 import { BackLink } from '@/components/ui/BackLink'
 import { StageStepper } from '@/components/ui/LifecycleStrip'
-import { PencilUnderline } from '@/components/ui/Pencil'
+import { PencilHover, PencilUnderline } from '@/components/ui/Pencil'
 import { SoftShapes } from '@/components/ui/SoftShapes'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { FaceRibbon } from '@/components/ui/FaceRibbon'
@@ -555,7 +555,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
                 key={t.key} type="button" role="tab" id={`tab-${t.key}`} aria-selected={active} aria-controls={`panel-${t.key}`} tabIndex={active ? 0 : -1}
                 data-active={active} data-tour-tab={t.key} onClick={() => goTab(t.key)}
                 className={`flex flex-none items-center whitespace-nowrap rounded-full px-3 py-3 text-[13.5px] sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'font-bold text-text' : 'font-medium text-dim hover:text-text'}`}>
-                {active ? <PencilUnderline>{t.label}</PencilUnderline> : t.label}
+                {active ? <PencilUnderline>{t.label}</PencilUnderline> : <PencilHover>{t.label}</PencilHover>}
               </button>
             )
           })}
