@@ -534,8 +534,10 @@ input[type="date"]::-webkit-date-and-time-value {
 .pencil-highlight {
   background-image: linear-gradient(var(--highlight), var(--highlight));
   background-repeat: no-repeat;
-  background-position: 0 75%;
-  background-size: 100% 72%;
+  /* a highlighter pass over the lower part of the letters, not the whole line box,
+     so a big headline reads as marked and not as selected text */
+  background-position: 0 88%;
+  background-size: 100% 46%;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
   padding: 0 .14em;

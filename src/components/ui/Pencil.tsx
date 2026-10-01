@@ -129,7 +129,7 @@ export function Highlight({ children, className = '' }: { children: React.ReactN
   const el = useRef<HTMLSpanElement>(null)
   useGSAP(() => {
     if (reducedMotion() || !el.current) return
-    gsap.fromTo(el.current, { backgroundSize: '0% 72%' }, { backgroundSize: '100% 72%', duration: 0.55, ease: 'power2.out', delay: 0.15 })
+    gsap.fromTo(el.current, { backgroundSize: '0% 46%' }, { backgroundSize: '100% 46%', duration: 0.55, ease: 'power2.out', delay: 0.15 })
   }, { scope: el })
   return <span ref={el} className={`pencil-highlight ${className}`}>{children}</span>
 }
