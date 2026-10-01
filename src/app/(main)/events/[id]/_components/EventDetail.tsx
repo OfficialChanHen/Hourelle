@@ -23,7 +23,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  Building2, User, Link2, Copy, Merge, MessageCircle, Pencil, EllipsisVertical, CopyPlus,
+  Building2, Link2, Copy, Merge, MessageCircle, Pencil, EllipsisVertical, CopyPlus,
   Check, Trash2, TriangleAlert, Receipt, Plus, X, Video, UserRoundX, Mail, Search,
 } from 'lucide-react'
 import { gsap } from 'gsap'
@@ -45,8 +45,12 @@ import { AvatarRow } from '@/components/ui/AvatarRow'
 import type { Face } from '@/lib/faces'
 import { ChangeFace } from './ChangeFace'
 import { BackLink } from '@/components/ui/BackLink'
-import { Badge } from '@/components/ui/Badge'
-import { LifecycleStrip, PHASE_BADGE } from '@/components/ui/LifecycleStrip'
+import { StageStepper } from '@/components/ui/LifecycleStrip'
+import { PencilHover, PencilUnderline } from '@/components/ui/Pencil'
+import { SoftShapes } from '@/components/ui/SoftShapes'
+import { PhotoFrame } from '@/components/ui/PhotoFrame'
+import { FaceRibbon } from '@/components/ui/FaceRibbon'
+import { coverFor } from '@/components/ui/StoredEventCard'
 import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
 import { Hint } from '@/components/ui/Hint'
 import { Tour, type TourContext } from '@/components/Tour'
@@ -110,8 +114,8 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   }
   // arrow keys walk the tabs and open each one on arrival; Home and End jump to the ends
   const onTabKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    const i = TABS.findIndex((t) => t.key === tab)
-    const n = TABS.length
+    const i = tabs.findIndex((t) => t.key === tab)
+    const n = tabs.length
     const to = e.key === 'ArrowRight' ? (i + 1) % n
       : e.key === 'ArrowLeft' ? (i - 1 + n) % n
         : e.key === 'Home' ? 0
@@ -119,11 +123,18 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             : -1
     if (to < 0) return
     e.preventDefault()
-    const next = TABS[to].key
+    const next = tabs[to].key
     goTab(next)
     document.getElementById(`tab-${next}`)?.focus()
   }
   const [event, setEvent] = useState<AppEvent | null | undefined>(undefined)
+  // who is coming only means something once a time is set: a plan still being
+  // decided with no fixed date has no Attendance tab (who has answered shows on the
+  // grid). It appears when the time is locked, or from the start on a plan made with
+  // a set date. Landing on ?tab=attendance before then opens the grid instead.
+  const showAttendance = !event || phaseOf(event) !== 'planning' || !!event.confirmed
+  const tabs = showAttendance ? TABS : TABS.filter((t) => t.key !== 'attendance')
+  if (event && !showAttendance && tab === 'attendance') setTab('availability')
   // clicking a person or group elsewhere jumps to the availability grid filtered to
   // them; cleared during render once the user moves off that tab
   const [availFocus, setAvailFocus] = useState<string[] | null>(null)
@@ -159,6 +170,26 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   const [tabFade, setTabFade] = useState({ l: false, r: false })
   const tabResolved = useRef(false)
   const isIOS = useIsIOS()
+  // a plan opens at its top. Arriving from low on Home or the Plans list kept that
+  // page's scroll, which landed people halfway down the grid with the header and
+  // Lock it in out of sight. A link to a spot on the page (#…) still goes there.
+  useEffect(() => {
+    if (!window.location.hash) window.scrollTo(0, 0)
+  }, [id])
+  // someone who has just joined lands with the grid in view, its toolbar just under
+  // the header, so their first tap can mark a time
+  const loaded = event !== undefined
+  useEffect(() => {
+    if (!loaded) return
+    let joined = false
+    try { joined = sessionStorage.getItem('hourelle.joined') === id; if (joined) sessionStorage.removeItem('hourelle.joined') } catch { /* private mode */ }
+    if (!joined) return
+    const t = window.setTimeout(() => {
+      const grid = document.querySelector<HTMLElement>('[data-tour="grid-all"]')
+      if (grid) window.scrollTo({ top: grid.getBoundingClientRect().top + window.scrollY - 64 })
+    }, 250)
+    return () => window.clearTimeout(t)
+  }, [loaded, id])
 
   // re-read on tab change too: panels persist edits to storage as they happen, and
   // remounting them from a page-load-time snapshot would drop those edits until reload
@@ -191,7 +222,11 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   }, [])
   useEffect(() => {
     // scrolling the active tab into view triggers onScroll → checkTabFade
-    tabsRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ inline: 'center', block: 'nearest' })
+    // sideways only: scrollIntoView also moved the page down to reach the tabs, which
+    // opened a plan below its header on a phone
+    const bar = tabsRef.current
+    const on = bar?.querySelector<HTMLElement>('[data-active="true"]')
+    if (bar && on) bar.scrollTo({ left: on.offsetLeft - (bar.clientWidth - on.offsetWidth) / 2 })
   }, [tab])
 
   // the grid's "Lock these days" shortcut: hands the winning run to the confirm modal
@@ -280,7 +315,8 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   }
 
   const phase = phaseOf(event)
-  const badge = PHASE_BADGE[phase]
+  // the same wash the plan wears on its card, under a photo or a scene or alone
+  const [coverFrom, coverTo] = coverFor(event.id)
   const locked = phase !== 'planning'
   // the viewer, wherever the `you` marker sits — the guest when a session is active
   const me = event.participants.find((p) => p.you)
@@ -362,132 +398,133 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
 
   return (
     <div className="mx-auto max-w-[1240px] px-4 pb-[92px] pt-5 sm:px-[26px] sm:pt-[34px]">
-      <BackLink href={backTo.href} label={backTo.label} />
       {/* the share button and the phone menu only swap their words; this says it out loud */}
       <Announce text={copied ? 'Link copied' : ''} />
       {/* the tour, only when it was asked for, and the one question a new guest gets; both mount on the body */}
       {phase !== 'past' && <Tour host={event.hostedByYou} locked={phase !== 'planning'} ctx={tourContextOf(event)} />}
-      {phase !== 'past' && <AskTour eventId={id} />}
-      {/* the host's cover, when one is set — photo or preset scene; shorter on phones
-          so the tabs and content stay within the first screen */}
-      {event.image && <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from="#E4EDE7" to="#CFE0D5" className="mb-4 h-[92px] border border-border sm:mb-5 sm:h-[170px]" rounded="rounded-2xl" />}
-      {/* header */}
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-        {/* on a phone the share menu sits beside the title, top right, where a phone
-            keeps its overflow button. Down in the action row it wrapped onto a line of
-            its own and floated there alone. */}
-        <div className="flex w-full min-w-0 items-start gap-3 sm:w-auto">
-        <div className="min-w-0 flex-1">
-          <EditableTitle title={event.title} editable={event.hostedByYou} onSave={(t) => patchLive({ title: t })} />
-          <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13.5px] text-dim">
-            {/* the icon reads the hosting account's kind — person or organization (set by
-                the login later); events stored before hostKind fall back on hostedByYou */}
-            <span className="flex items-center gap-1.5">
-              {(event.hostKind ?? (event.hostedByYou ? 'person' : 'org')) === 'org' ? <Building2 size={15} /> : <User size={15} />} Hosted by {event.hostName}
-            </span>
-            <Badge variant={badge.variant}>{badge.label}</Badge>
-            {/* who else has this open, right now — the faces say it, the way every
-                other pile in the app does: a hard cap, then "+N". The word in front
-                marks the pile as the present tense rather than another roster */}
-            {room.here.length > 0 && (
-              <span
-                className="flex items-center gap-1.5"
-                title={`${room.here.map((p) => p.name).join(', ')} ${room.here.length === 1 ? 'has' : 'have'} this open right now`}
-              >
-                <span className="flex-none text-[12.5px] font-medium text-dim">Active</span>
-                {/* the pile sits on the page, not on a card, so its separation rings take the page colour */}
-                {/* presence carries names, not faces: each is looked up on the roster */}
-                {(() => {
-                  const faceById = new Map(event.participants.map((p) => [p.id, p.face]))
-                  return <AvatarRow people={room.here.map((h) => ({ ...h, face: faceById.get(h.id) }))} size={21} max={4} flippable />
-                })()}
-              </span>
-            )}
-            {/* the join flow put a name on this browser — say whose answers these are.
-                Leaving lives on the Event details tab, with the other rare actions */}
-            {me?.guest && (
-              <span className="flex items-center gap-1.5 rounded-lg border border-accent-border bg-accent-bg px-2 py-0.5 text-[12px] font-medium text-accent-text">
-                <Avatar initials={me.initials} color={me.color} face={me.face} size={16} font={7.5} />
-                Joined as {me.name}
-              </span>
-            )}
-          </div>
-        </div>
-        {/* inviting is the host's, for now: nobody else is handed the link */}
-        {event.hostedByYou && <Popover
-          align="end"
-          width={216}
-          className="flex-none sm:hidden"
-          label="Share link and more"
-          // a link rather than three dots: the first thing in here is the share
-          // link, and on a phone this is the only way to it
-          trigger={(open) => (
-            <span data-tour="menu" className={`grid h-11 w-11 place-items-center rounded-[10px] border border-border2 bg-s1 ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
-              <Link2 size={16} />
-            </span>
-          )}
-        >
-          {() => (
-            // the same rule as the desktop button: nothing to hand out once it is over
-            phase === 'past' ? (
-              <p className="px-3.5 py-3 text-[12.5px] leading-[1.5] text-dim">This plan is over, so its link is closed. Duplicate it to start the next one.</p>
-            ) : (
-            <PopoverItem onClick={copy} icon={copied ? <Check size={15} className="text-teal-text" /> : <Link2 size={15} />}>
-              {copied ? 'Link copied' : 'Copy invite link'}
-            </PopoverItem>
-            )
-          )}
-        </Popover>}
-        </div>
-        {/* ml-auto keeps the actions hugging the right edge when the header wraps; on a
-            phone the host's lock-in takes the row's full width instead of floating */}
-        <div className={`${event.hostedByYou && phase === 'planning' ? 'flex' : 'hidden sm:flex'} min-w-0 items-center gap-2 sm:ml-auto`}>
-          {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToDetails={() => goTab('details')} onGoToLocation={() => goTab('location')} prefill={lockAsk} openNonce={lockAsk?.nonce} runLen={runLen ?? undefined} />}
-          {/* discussion lives in the floating bubble alone — one entry point, less header */}
-          {/* share button opens a dropdown with the URL and a one-tap copy; on phones it
-              folds into the ⋯ menu so the title and lock-in keep the row */}
-          {/* sharing closes when the event does: a link handed out afterwards only
-              brings somebody to a plan they have already missed. The people already
-              on it keep theirs, and a duplicate is open again. */}
-          {/* the invite link is the host's to hand out, for now */}
-          {!event.hostedByYou ? null : phase === 'past' ? (
-            <span className="hidden h-9 items-center rounded-[9px] border border-border bg-s0 px-3.5 text-[13px] text-faint sm:flex">Sharing closed</span>
-          ) : (
-          <Popover
+      {/* header: the plan's cover as a small taped photo beside its name, the group's
+          faces in a wave, and where it stands said as a sentence. It is the page's
+          moment, so it takes the scrapbook touches; everything under the tabs stays
+          flat and straight. Soft shapes sit behind this region only. */}
+      <div className="relative isolate -mx-4 -mt-5 mb-4 px-4 pb-5 pt-5 sm:-mx-[26px] sm:-mt-[34px] sm:mb-6 sm:px-[26px] sm:pt-[34px]">
+        <SoftShapes variant="plan" />
+        <div className="flex items-center justify-between gap-3">
+          <BackLink href={backTo.href} label={backTo.label} />
+          {/* on a phone the share link sits up here, where a phone keeps its top
+              right button; inviting is the host's, for now */}
+          {event.hostedByYou && <Popover
             align="end"
-            width={312}
-            className="hidden sm:block"
+            width={216}
+            className="-mt-2 flex-none sm:hidden"
+            label="Share link and more"
             trigger={(open) => (
-              <span data-tour="share" className={`flex h-9 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3.5 text-[14px] font-semibold ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
-                <Link2 size={16} /> Share link
+              <span data-tour="menu" className={`flex h-11 items-center gap-1.5 rounded-full border border-border2 px-4 text-[14px] font-semibold ${open ? 'bg-s2' : 'bg-s1 hover:bg-s2'}`}>
+                <Link2 size={16} /> Share
               </span>
             )}
           >
             {() => (
-              <>
-                <PopoverTitle>Invite link</PopoverTitle>
-                <div className="flex items-center gap-2 p-1">
-                  <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-[9px] border border-border bg-s2 px-3">
-                    <Link2 size={15} className="flex-none text-dim" />
-                    <span className="truncate font-mono text-[12.5px] text-dim">{shareLink}</span>
-                  </div>
-                  <button onClick={copy} className={`flex h-9 flex-none items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold ${copied ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'}`}>
-                    {copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy</>}
-                  </button>
-                </div>
-              </>
+              // the same rule as the desktop button: nothing to hand out once it is over
+              phase === 'past' ? (
+                <p className="px-3.5 py-3 text-[12.5px] leading-[1.5] text-dim">This plan is over, so its link is closed. Duplicate it to start the next one.</p>
+              ) : (
+              <PopoverItem onClick={copy} icon={copied ? <Check size={15} className="text-teal-text" /> : <Link2 size={15} />}>
+                {copied ? 'Link copied' : 'Copy invite link'}
+              </PopoverItem>
+              )
             )}
-          </Popover>
-          )}
+          </Popover>}
         </div>
-      </div>
+        {/* the name, the cover beside it, and the group under the name. On a phone the
+            faces take the full width under both, so six of them fit */}
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 sm:gap-x-8">
+          <div className="col-start-1 row-start-1 min-w-0 self-center sm:self-start">
+            <EditableTitle title={event.title} editable={event.hostedByYou} onSave={(t) => patchLive({ title: t })} />
+          </div>
+          {/* the cover, photo or scene or the plan's own wash, as a small taped photo */}
+          <PhotoFrame size="sm" tilt={3} tape="center" className="col-start-2 row-start-1 mt-4 w-[104px] self-start sm:row-span-2 sm:mt-0 sm:w-[190px]">
+            <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from={coverFrom} to={coverTo} className="h-[70px] sm:h-[124px]" rounded="rounded-[6px]" />
+          </PhotoFrame>
+          <div className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-1">
+            {/* the group, as stickers, and who is hosting as a small note beside them */}
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <FaceRibbon people={event.participants} size={34} flippable />
+              <span className="flex items-center gap-1.5 font-serif text-[15px] italic text-dim">
+                {(event.hostKind ?? (event.hostedByYou ? 'person' : 'org')) === 'org' && <Building2 size={15} className="flex-none" />}
+                Hosted by {event.hostName}
+              </span>
+            </div>
+            {(room.here.length > 0 || me?.guest) && (
+              <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13.5px] text-dim">
+                {/* who else has this open, right now: a hard cap, then "+N". The word in
+                    front marks the pile as the present tense rather than another list */}
+                {room.here.length > 0 && (
+                  <span
+                    className="flex items-center gap-1.5"
+                    title={`${room.here.map((p) => p.name).join(', ')} ${room.here.length === 1 ? 'has' : 'have'} this open right now`}
+                  >
+                    <span className="flex-none text-[12.5px] font-medium text-dim">Active</span>
+                    {(() => {
+                      const faceById = new Map(event.participants.map((p) => [p.id, p.face]))
+                      return <AvatarRow people={room.here.map((h) => ({ ...h, face: faceById.get(h.id) }))} size={21} max={4} flippable />
+                    })()}
+                  </span>
+                )}
+                {/* the join flow put a name on this browser: say whose answers these are.
+                    Leaving lives on the Details tab, with the other rare actions */}
+                {me?.guest && (
+                  <span className="flex items-center gap-1.5 rounded-full border border-accent-border bg-accent-bg px-2.5 py-0.5 text-[12px] font-medium text-accent-text">
+                    <Avatar initials={me.initials} color={me.color} face={me.face} size={16} font={7.5} />
+                    Joined as {me.name}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
 
-      {/* where the event sits in its life — a quiet strip, then one line of state */}
-      <div className="mb-4 border-b border-border pb-4 sm:mb-6 sm:pb-5">
-        <LifecycleStrip phase={phase} className="max-w-[420px]" />
-        {(phase === 'planning' || phase === 'past') && (
-          <div className="mt-3"><StageSummary event={event} phase={phase} onGoToAvailability={goToBestWindow} /></div>
-        )}
+        {/* where it stands, as a sentence, then the five stages as a line */}
+        <div className="mt-4 max-w-[720px]"><StageSummary event={event} phase={phase} onGoToAvailability={goToBestWindow} /></div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <StageStepper phase={phase} className="w-full max-w-[380px]" />
+          {/* ml-auto keeps the actions hugging the right edge when the row wraps; on a
+              phone the host's lock-in takes the row's full width instead of floating */}
+          <div className={`${event.hostedByYou && phase === 'planning' ? 'flex w-full sm:w-auto' : 'hidden sm:flex'} min-w-0 items-center gap-2 sm:ml-auto`}>
+            {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToDetails={() => goTab('details')} onGoToLocation={() => goTab('location')} prefill={lockAsk} openNonce={lockAsk?.nonce} runLen={runLen ?? undefined} />}
+            {/* discussion lives in the floating bubble alone. Sharing closes when the
+                plan does: a link handed out afterwards only brings somebody to a plan
+                they have already missed. The invite link is the host's, for now */}
+            {!event.hostedByYou ? null : phase === 'past' ? (
+              <span className="hidden h-9 items-center rounded-full border border-border bg-s0 px-3.5 text-[13px] text-faint sm:flex">Sharing closed</span>
+            ) : (
+            <Popover
+              align="end"
+              width={312}
+              className="hidden sm:block"
+              trigger={(open) => (
+                <span data-tour="share" className={`flex h-9 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3.5 text-[14px] font-semibold ${open ? 'bg-s2' : 'hover:bg-s2'}`}>
+                  <Link2 size={16} /> Share link
+                </span>
+              )}
+            >
+              {() => (
+                <>
+                  <PopoverTitle>Invite link</PopoverTitle>
+                  <div className="flex items-center gap-2 p-1">
+                    <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-[9px] border border-border bg-s2 px-3">
+                      <Link2 size={15} className="flex-none text-dim" />
+                      <span className="truncate font-mono text-[12.5px] text-dim">{shareLink}</span>
+                    </div>
+                    <button onClick={copy} className={`flex h-9 flex-none items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold ${copied ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'}`}>
+                      {copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy</>}
+                    </button>
+                  </div>
+                </>
+              )}
+            </Popover>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* a new event's one job: the host hands out the link. Gone once a guest arrives */}
@@ -504,19 +541,21 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         <Hint name="lock" className="mb-4">Once enough people are free at the same time, Lock it in sets the time and tells everyone.</Hint>
       )}
 
+      {/* a new guest's tour offer: a small note above the tabs, never in the way */}
+      {phase !== 'past' && <AskTour eventId={id} />}
+
       {/* tabs — horizontally scrollable on narrow screens, with edge fades hinting more */}
       <div className="relative mb-4 sm:mb-6">
-        <div ref={tabsRef} data-tour="tabs" role="tablist" aria-label="Plan sections" onKeyDown={onTabKey} onScroll={checkTabFade} className="scroll-slim flex items-center gap-1 overflow-x-auto pb-1 sm:gap-1.5">
-          {TABS.map((t) => {
+        <div ref={tabsRef} data-tour="tabs" role="tablist" aria-label="Plan sections" onKeyDown={onTabKey} onScroll={checkTabFade} className="scroll-slim flex items-center gap-1 overflow-x-auto pb-2.5 sm:gap-1.5">
+          {tabs.map((t) => {
             const active = tab === t.key
             return (
-              // words alone carry the tabs — the filled box says which one is active
+              // words alone carry the tabs; the open one gets the pencil underline
               <button
                 key={t.key} type="button" role="tab" id={`tab-${t.key}`} aria-selected={active} aria-controls={`panel-${t.key}`} tabIndex={active ? 0 : -1}
                 data-active={active} data-tour-tab={t.key} onClick={() => goTab(t.key)}
-                className={`flex flex-none items-center whitespace-nowrap rounded-full px-3 py-3 text-[13.5px] transition-colors sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'bg-accent font-semibold text-on-accent' : 'font-medium text-dim hover:bg-s3 hover:text-text'}`}>
-                <span className="sm:hidden">{t.short}</span>
-                <span className="hidden sm:inline">{t.label}</span>
+                className={`flex flex-none items-center whitespace-nowrap rounded-full px-3 py-3 text-[13.5px] sm:px-[15px] sm:py-[9px] sm:text-[14px] ${active ? 'font-bold text-text' : 'font-medium text-dim hover:text-text'}`}>
+                {active ? <PencilUnderline>{t.label}</PencilUnderline> : <PencilHover>{t.label}</PencilHover>}
               </button>
             )
           })}
@@ -542,7 +581,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         </div>
       )}
       {/* the wrappers give the tour something to point at on each tab */}
-      {tab === 'location' && <div data-tour="location" role="tabpanel" id="panel-location" aria-labelledby="tab-location"><LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} /></div>}
+      {tab === 'location' && <div data-tour="location" role="tabpanel" id="panel-location" aria-labelledby="tab-location"><PlaceOptional event={event} locked={locked}><LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} /></PlaceOptional></div>}
       {tab === 'attendance' && <div data-tour="attendance" role="tabpanel" id="panel-attendance" aria-labelledby="tab-attendance"><AttendancePanel event={event} onGoToTab={goTab} onViewAvailability={goToAvailabilityFor} onViewAvailabilityGroup={goToAvailabilityGroup} onGoToBestWindow={goToBestWindow} /></div>}
       {tab === 'details' && <div data-tour="details" role="tabpanel" id="panel-details" aria-labelledby="tab-details"><DetailsTab event={event} onDelete={handleDelete} onLeave={handleLeave} onGoToTab={goTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onSetMyFace={setMyFace} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} openInvite={inviteAsk} /></div>}
 
@@ -582,12 +621,37 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   )
 }
 
+/* Place is optional: most plans only need a time. With no place decided and none
+   suggested, the tab leads with one quiet line and a way in, and the full place
+   tools open when someone asks for them. Anything already in play (a set place,
+   suggestions, a meeting link, a locked plan) shows the tools straight away. */
+function PlaceOptional({ event, locked, children }: { event: AppEvent; locked: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const loc = event.location
+  const empty = !locked && (loc.mode === 'later' || (loc.mode === 'vote' && loc.places.length === 0))
+  if (!empty || open) return <>{children}</>
+  const canAdd = event.hostedByYou || !!loc.guestsCanSuggest
+  return (
+    <div className="rounded-2xl border border-border bg-s1 px-5 py-6 sm:px-6">
+      <p className="font-serif text-[20px] leading-tight tracking-[-0.01em]">{canAdd ? 'Add a place if you need one' : 'No place yet'}</p>
+      <p className="mt-1.5 text-[14px] leading-[1.5] text-dim">
+        {canAdd ? 'Add a few and everyone can vote, or make it online.' : 'The host can add one if the plan needs it.'}
+      </p>
+      {canAdd && (
+        <button type="button" onClick={() => setOpen(true)} className="mt-4 flex h-11 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-4 text-[14px] font-semibold hover:bg-s2 sm:h-9">
+          <Plus size={16} aria-hidden /> Add a place
+        </button>
+      )}
+    </div>
+  )
+}
+
 /* the event name is the host's to change — click the pencil, type, Enter or blur saves */
 function EditableTitle({ title, editable, onSave }: { title: string; editable: boolean; onSave: (t: string) => void }) {
   const [editing, setEditing] = useState(false)
   const ref = useRef<HTMLInputElement>(null)
   // wraps anywhere: one long word in a title must never widen the page past a phone screen
-  const h1 = 'font-serif text-[27px] leading-[1.04] tracking-[-0.01em] [overflow-wrap:anywhere] sm:text-[34.5px]'
+  const h1 = 'font-serif font-normal text-[34px] leading-[1.02] tracking-[-0.01em] [overflow-wrap:anywhere] sm:text-[48px]'
 
   if (!editable) return <h1 className={h1}>{title}</h1>
   if (editing) {
@@ -1836,5 +1900,6 @@ function tourContextOf(event: AppEvent): TourContext {
     places: event.location.places.length,
     canSuggest: !!event.location.guestsCanSuggest,
     othersAnswered: answered.size,
+    attendance: phaseOf(event) !== 'planning' || !!event.confirmed,
   }
 }

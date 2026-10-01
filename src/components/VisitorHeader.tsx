@@ -9,6 +9,7 @@ import { usePathname } from 'next/navigation'
 import { ThemeToggle } from './ThemeToggle'
 import { useHideOnScroll } from '@/hooks/useHideOnScroll'
 import { Wordmark } from '@/components/ui/Em'
+import { PencilHover, PencilUnderline } from '@/components/ui/Pencil'
 
 const LINKS = [
   { href: '/#how', label: 'How it works', match: () => false },
@@ -31,8 +32,10 @@ export function VisitorHeader({ ready = true }: { ready?: boolean }) {
           {LINKS.map((l) => {
             const active = l.match(pathname)
             return (
-              <Link key={l.href} href={l.href} className={`rounded-full px-[13px] py-2 font-medium transition-colors ${active ? 'bg-accent text-on-accent' : 'text-dim hover:bg-s3 hover:text-text'}`}>
-                {l.label}
+              // the page you are on: the accent pencil underline and heavier words; the
+              // others sketch a light graphite line under a mouse or keyboard focus
+              <Link key={l.href} href={l.href} aria-current={active ? 'page' : undefined} className={`rounded-full px-[13px] py-2 ${active ? 'font-semibold text-text' : 'font-medium text-dim hover:text-text'}`}>
+                {active ? <PencilUnderline>{l.label}</PencilUnderline> : <PencilHover>{l.label}</PencilHover>}
               </Link>
             )
           })}

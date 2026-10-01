@@ -27,7 +27,10 @@ import { FaceSvg } from './FaceSvg'
 
    `flippable` makes it a button that turns over to show the initials, so people can
    tell who is who. It is named for the person (`label`, else `title`). Only use it
-   where the face is not already inside a link or a button. */
+   where the face is not already inside a link or a button.
+
+   `tilt` turns the face a few degrees, like a sticker: for moments only (a plan's
+   header, Home), never in a list of people or a grid. Capped at 3 degrees. */
 export function Avatar({
   initials,
   color = 'gray',
@@ -38,6 +41,7 @@ export function Avatar({
   title,
   label,
   flippable = false,
+  tilt,
 }: {
   initials: string
   color?: PersonColor
@@ -48,15 +52,17 @@ export function Avatar({
   title?: string
   label?: string
   flippable?: boolean
+  tilt?: number
 }) {
   const look = face ?? defaultFace(initials, color)
   // whole pixels only: a fractional box smears every edge of the drawing
   const size = Math.max(1, Math.round(rawSize))
+  const turn = tilt ? `rotate(${Math.max(-3, Math.min(3, tilt))}deg)` : undefined
   if (flippable) {
     return (
       <FlipFace
         initials={initials} color={color} face={look} size={size} font={font}
-        cut={cut} name={label ?? title ?? initials}
+        cut={cut} name={label ?? title ?? initials} turn={turn}
       />
     )
   }
@@ -66,7 +72,7 @@ export function Avatar({
       role={label ? 'img' : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}
-      style={{ width: size, height: size, ...cut }}
+      style={{ width: size, height: size, transform: turn, ...cut }}
       className="inline-flex shrink-0 select-none"
     >
       <FaceSvg face={look} color={color} size={size} />
@@ -77,8 +83,8 @@ export function Avatar({
 /* The face as a button: front is the face, back is the initials on the colour. The
    button is as big as the face, and a hit area around it reaches 44px, so a small
    face in a roster row is still easy to tap. */
-function FlipFace({ initials, color, face, size, font, cut, name }: {
-  initials: string; color: PersonColor; face: Face; size: number; font?: number; cut?: CSSProperties; name: string
+function FlipFace({ initials, color, face, size, font, cut, name, turn }: {
+  initials: string; color: PersonColor; face: Face; size: number; font?: number; cut?: CSSProperties; name: string; turn?: string
 }) {
   const { scope, flipped, toggle } = useFaceFlip()
   const c = personVar(color)
@@ -87,7 +93,7 @@ function FlipFace({ initials, color, face, size, font, cut, name }: {
     <button
       ref={scope} type="button" onClick={toggle}
       aria-label={name} aria-pressed={flipped} title={name}
-      style={{ width: size, height: size, perspective: size * 6, '--ring-gap': `${ringGap(face, size)}px` } as CSSProperties}
+      style={{ width: size, height: size, perspective: size * 6, transform: turn, '--ring-gap': `${ringGap(face, size)}px` } as CSSProperties}
       className="face-ring relative block shrink-0 cursor-pointer select-none rounded-full p-0 [-webkit-tap-highlight-color:transparent]"
     >
       {reach > 0 && <span aria-hidden className="absolute" style={{ inset: -reach }} />}

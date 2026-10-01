@@ -88,7 +88,12 @@ export function JoinFlow({ id }: { id: string }) {
   // and the first-timer's tour offer.
   const authReady = useSyncExternalStore(subscribeAuth, authSettled, () => false)
 
-  const go = useCallback(() => router.replace(`/events/${id}`), [router, id])
+  // straight to the grid: the plan page sees the note and brings the grid into view,
+  // in Edit mine, so the first tap after Join can already mark a time
+  const go = useCallback(() => {
+    try { sessionStorage.setItem('hourelle.joined', id) } catch { /* private mode */ }
+    router.replace(`/events/${id}?tab=availability`)
+  }, [router, id])
 
   // the invited event is fetched by id exactly once; the pull on its own would not
   // bring it, since a visitor is part of nothing yet

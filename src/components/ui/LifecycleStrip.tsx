@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef } from 'react'
+import { PencilCircle } from './Pencil'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import type { Phase } from '@/lib/events'
@@ -31,6 +32,29 @@ export const PHASE_TINT: Record<Phase, { dot: string; border?: string }> = {
 // It ends on its own: the host's RSVP deadline or the day before, whichever first.
 const STEPS = ['Deciding', 'RSVP', 'Soon', 'Today', 'Done'] as const
 const PHASE_STEP: Record<Phase, number> = { planning: 0, upcoming: 1, soon: 2, today: 3, past: 4 }
+
+/* The five stages as five words, the current one circled in pencil: planning on
+   paper. No dots and no ticks: the words carry it. Finished stages sit a little
+   dimmer than the current one, the ones to come dimmer again. An ordered list, so a
+   screen reader hears each step and which one is current (`aria-current="step"`).
+   The circle draws itself once (Pencil.tsx), and just sits there with reduced
+   motion. `labels` is kept for callers; every stage is always named now. */
+export function StageStepper({ phase, className = '' }: { phase: Phase; labels?: 'auto' | 'current' | 'all'; className?: string }) {
+  const idx = PHASE_STEP[phase]
+  return (
+    <ol aria-label={`Stage ${idx + 1} of ${STEPS.length}: ${STEPS[idx]}`} className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] sm:gap-x-5 sm:text-[13.5px] ${className}`}>
+      {STEPS.map((label, i) => {
+        const now = i === idx
+        return (
+          <li key={label} aria-current={now ? 'step' : undefined} className={now ? 'px-1 font-semibold text-text' : i < idx ? 'text-dim' : 'text-faint'}>
+            {now ? <PencilCircle>{label}</PencilCircle> : label}
+            {i < idx && <span className="sr-only">, done</span>}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
 
 // a quiet hint at where the event sits in its life: hairline + dots, only the
 // current step labeled. `sm` drops the label entirely for cards.

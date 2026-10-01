@@ -21,7 +21,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       {/* a guest's browser only owns their event — every other page gates to sign-in.
           The toast mounts once here for every page, so a flash queued before a
           redirect (delete, leave, create) lands wherever the visitor does */}
-      <main id="main" tabIndex={-1} className="relative flex-1">
+      <main id="main" tabIndex={-1} className="relative flex-1 overflow-x-clip">
         <FlashToast />
         <RouteTrail />
         <AccessBoundary>{children}</AccessBoundary>

@@ -5,6 +5,7 @@ import { Providers } from "./providers";
 import { AlertSounds } from "@/components/AlertSounds";
 import { BackendSync } from "@/components/BackendSync";
 import { NoticeRail } from "@/components/NoticeRail";
+import { PencilDefs } from "@/components/ui/Pencil";
 
 // Lora is the display serif: soft, rounded strokes with conventional letterforms,
 // and real weights — 400 for display sizes, 500 for headings under 28px (set in
@@ -47,9 +48,11 @@ export default function RootLayout({
             data-theme — otherwise non-default palettes flash the house look. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var ks=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf("aline.")===0)ks.push(k)}for(var j=0;j<ks.length;j++){var nk="hourelle."+ks[j].slice(6);if(localStorage.getItem(nk)===null)localStorage.setItem(nk,localStorage.getItem(ks[j]));localStorage.removeItem(ks[j])}var m={gcal:"daylight",pro:"studio",drain:"hourelle",pride:"hourelle",aline:"hourelle"};var p=localStorage.getItem("hourelle.palette");p=m[p]||p;if(["studio","daylight","contrast"].indexOf(p)>=0)document.documentElement.setAttribute("data-palette",p);var a=JSON.parse(localStorage.getItem("hourelle.pref.a11y")||"{}"),r=document.documentElement;if(a.motion==="reduce")r.setAttribute("data-motion","reduce");if(a.links)r.setAttribute("data-links","underline");if(a.focus)r.setAttribute("data-focus","strong")}catch(e){}`,
+            __html: `try{var ks=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf("aline.")===0)ks.push(k)}for(var j=0;j<ks.length;j++){var nk="hourelle."+ks[j].slice(6);if(localStorage.getItem(nk)===null)localStorage.setItem(nk,localStorage.getItem(ks[j]));localStorage.removeItem(ks[j])}var m={gcal:"daylight",pro:"studio",drain:"hourelle",pride:"hourelle",aline:"hourelle"};var p=localStorage.getItem("hourelle.palette");p=m[p]||p;if(["studio","daylight","breeze","contrast"].indexOf(p)>=0)document.documentElement.setAttribute("data-palette",p);var a=JSON.parse(localStorage.getItem("hourelle.pref.a11y")||"{}"),r=document.documentElement;if(a.motion==="reduce")r.setAttribute("data-motion","reduce");if(a.links)r.setAttribute("data-links","underline");if(a.focus)r.setAttribute("data-focus","strong")}catch(e){}`,
           }}
         />
+        {/* the pencil grain every hand-drawn mark shares (Pencil.tsx), once per page */}
+        <PencilDefs />
         <Providers>
           <BackendSync />
           <AlertSounds />

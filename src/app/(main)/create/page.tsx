@@ -3,11 +3,11 @@
 /* ── the create wizard ──
    One card, not a series of steps, and it asks three things in the open: a name,
    what the event is asking people for, and the days. Everything else waits behind
-   one closed More options button, in three short groups of one-line rows, each row
+   one closed More options button, in short groups of one-line rows, each row
    already set to a sensible default and saying what it is set to: timing (which
    days in the range, the hours of the day, the slot size, the length, the time
-   zone, an RSVP deadline), place and people, and the details (description, cover,
-   money). The host is the signed-in account, so it is not asked. When Create is
+   zone, an RSVP deadline), then place (marked optional), people, and the details
+   (description, cover, money). The host is the signed-in account, so it is not asked. When Create is
    waiting on something in there, the button and the row open by themselves.
 
    THE SHAPE OF A PLAN. Two questions decide what gets built: is the time already
@@ -559,10 +559,13 @@ function CreateWizard() {
             <OptionGroup label="Timing" first>
               <WhenOptions form={form} update={update} today={zToday} attempted={attempted} errs={basicsErr} zoneName={zoneName} />
             </OptionGroup>
-            <OptionGroup label="Place and people">
+            {/* the time comes first; a place is optional and says so */}
+            <OptionGroup label="Place, optional">
               <Collapse icon={MapPin} title="Place" summary={placeSummary}>
                 <StepLocation form={form} update={update} stopUid={stopUid} />
               </Collapse>
+            </OptionGroup>
+            <OptionGroup label="People">
               <Collapse icon={Users} title="People" summary={peopleSummary}>
                 <StepInvite form={form} update={update} />
               </Collapse>

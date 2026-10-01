@@ -71,6 +71,25 @@
   --person-pink-bg:#EAD6D3;   --person-pink-fg:#6E3B38;
   --person-green-bg:#DCE6D2;  --person-green-fg:#3A5223;
   --person-gray-bg:#E2DED3;   --person-gray-fg:#4A463C;
+
+  /* scrapbook + soft flow: only for moments (covers, Up next, It's on, empty
+     states), never on a decision surface. Soft shapes are the organic colour behind
+     a page region; text sits on them, so dim and faint clear 4.5:1 on each. */
+  --shape-a:#E4F0E7; --shape-b:#FBE8DF; --shape-c:#F3EBDD;
+  /* a translucent strip of tape holding a photo frame down */
+  --tape:rgba(233,218,182,.9);
+  /* a second tape tint, a pin head and a paper clip, for cards that should each look
+     laid down by hand (Keepsake.tsx) */
+  --tape-2:rgba(196,222,204,.85); --pin:#B8894A; --clip:#9A958B;
+  /* the highlighter swipe behind a phrase (Pencil.tsx): multiplied on light paper */
+  --highlight:rgba(242,205,110,.5); --highlight-blend:multiply;
+  /* the lighter pencil line under a hovered tab: graphite, each palette's own faint ink */
+  --pencil-hover:var(--faint);
+  /* the photo frame: a near-white card on paper, a lifted card on charcoal */
+  --frame:#FFFDF9; --frame-shadow:0 1px 2px rgba(60,40,20,.06), 0 16px 32px rgba(60,40,20,.12);
+  /* the sticky note for "Your turn": its own warm paper and inks, all 4.5:1 on it */
+  --sticky:#F7EBC9; --sticky-text:#1F1B16; --sticky-dim:#5C5140; --sticky-kicker:#A0452A;
+  --sticky-shadow:0 8px 18px rgba(60,40,20,.10);
 }
 
 /* Dark — warm charcoal, the same warmth held at the same distance */
@@ -119,6 +138,13 @@
   --person-gray-bg:#46433B;   --person-gray-fg:#E4DFD3;
   --person-purple-ink:#A89AAE; --person-teal-ink:#91A799; --person-coral-ink:#B49B8D; --person-blue-ink:#94A4B1;
   --person-amber-ink:#B2A483;  --person-pink-ink:#B49894; --person-green-ink:#9AA98A; --person-gray-ink:#A39F95;
+  --shape-a:#1B231D; --shape-b:#261C17; --shape-c:#231F18;
+  --tape:rgba(236,224,196,.22);
+  --tape-2:rgba(160,200,175,.22); --pin:#C9A36A; --clip:#8A857B;
+  --highlight:rgba(214,182,96,.26); --highlight-blend:normal;
+  --frame:#25221D; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
+  --sticky:#3A3220; --sticky-text:#F5ECD2; --sticky-dim:#D6C9A6; --sticky-kicker:#F4B8A0;
+  --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
 }
 
 /* ── Appearances — optional palettes layered over the same tokens ──
@@ -150,6 +176,13 @@
   --raised-shadow:0 1px 2px rgba(0,0,0,.10);
   --em:var(--text);
   --glass-tint:rgba(251,251,252,.26);
+  --shape-a:#EFF1F6; --shape-b:#F7F1EE; --shape-c:#F2F2F5;
+  --tape:rgba(214,216,224,.85);
+  --tape-2:rgba(200,210,225,.8); --pin:#6D6D75; --clip:#9A9AA3;
+  --highlight:rgba(190,200,225,.6); --highlight-blend:multiply;
+  --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(0,0,0,.05), 0 14px 30px rgba(0,0,0,.09);
+  --sticky:#F4F0E4; --sticky-text:#18181B; --sticky-dim:#56534A; --sticky-kicker:#9A3F24;
+  --sticky-shadow:0 8px 18px rgba(0,0,0,.08);
 }
 [data-palette="studio"][data-theme="dark"] {
   --bg:#0F0F10; --s0:#141416; --s1:#19191C; --s2:#202024; --s3:#2A2A30;
@@ -167,6 +200,13 @@
   --best-head:#2A2820;
   --heat-count:#ECECEE; --heat-count-full:#0F0F10;
   --glass-tint:rgba(16,16,17,.34);
+  --shape-a:#17181D; --shape-b:#1C1716; --shape-c:#19181C;
+  --tape:rgba(220,222,232,.18);
+  --tape-2:rgba(200,210,225,.16); --pin:#A1A1A9; --clip:#6D6D75;
+  --highlight:rgba(163,180,238,.24); --highlight-blend:normal;
+  --frame:#222226; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
+  --sticky:#2B2921; --sticky-text:#EFEBDD; --sticky-dim:#C9C3B0; --sticky-kicker:#F2BBA6;
+  --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
 }
 
 /* Daylight — bright white and a clear blue. The most familiar of the set, and the one
@@ -186,6 +226,13 @@
   --grid-line:#80868B; --grid-edge:#AEB3B8; --grid-dash:#AEB3B8;
   --best-head:#FEF7E0;
   --heat-count:#0B316D; --heat-count-full:#FFFFFF;
+  --shape-a:#EEF4FE; --shape-b:#F4F6FA; --shape-c:#F1F4F9;
+  --tape:rgba(253,226,147,.7);
+  --tape-2:rgba(174,203,250,.7); --pin:#0B57D0; --clip:#9AA0A6;
+  --highlight:rgba(253,214,99,.55); --highlight-blend:multiply;
+  --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(60,64,67,.12), 0 14px 30px rgba(60,64,67,.12);
+  --sticky:#FEF3CD; --sticky-text:#1F1F1F; --sticky-dim:#5A4F30; --sticky-kicker:#B2401C;
+  --sticky-shadow:0 8px 18px rgba(60,64,67,.12);
 }
 [data-palette="daylight"][data-theme="dark"] {
   --bg:#131314; --s0:#1A1A1C; --s1:#1E1F21; --s2:#28292C; --s3:#333539;
@@ -202,6 +249,57 @@
   --grid-line:rgba(232,234,237,.38); --grid-edge:rgba(232,234,237,.22); --grid-dash:rgba(232,234,237,.38);
   --best-head:#33301C;
   --heat-count:#F3F7FE; --heat-count-full:#0A2A5C;
+  --shape-a:#172031; --shape-b:#1E2026; --shape-c:#1A1F27;
+  --tape:rgba(253,214,99,.2);
+  --tape-2:rgba(168,199,250,.2); --pin:#A8C7FA; --clip:#80868B;
+  --highlight:rgba(253,214,99,.2); --highlight-blend:normal;
+  --frame:#26272A; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
+  --sticky:#3A3420; --sticky-text:#FDF0C8; --sticky-dim:#D9CC9F; --sticky-kicker:#F7AE92;
+  --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
+}
+
+/* Breeze — sunny warm-white paper, a sea-teal accent, coral moments and sandy
+   shapes. The brighter, summery look for anyone who finds the house paper too
+   muted. The heat ramp stays green: "free" has to read as free. Dark is a warm night
+   with the same teal. */
+[data-palette="breeze"] {
+  --bg:#FFFCF6; --s0:#FFFDF9; --s1:#FFFFFF; --s2:#F6F1E6; --s3:#ECE4D4;
+  --border:#EDE5D6; --border2:#D9CDB7;
+  --text:#1B2226; --dim:#515C63; --faint:#5C666D;
+  --accent:#0F6E78; --accent-text:#0B5A63; --accent-bg:#E1F2F2; --accent-border:#B6DEDF; --on-accent:#FFFFFF;
+  --teal:#2F7A5A; --teal-text:#256448; --teal-bg:#E5F2EB; --teal-border:#C3DFD0;
+  --ochre:#9A6A1E; --ochre-text:#7A5212; --ochre-bg:#FBF0DA; --ochre-border:#EED9B0;
+  --brick:#B2413B; --brick-text:#93342F; --brick-bg:#FBE6E3; --brick-border:#EFC7C3;
+  --moment:#E0623A; --moment-text:#B2401C; --moment-bg:#FFEBE2; --moment-border:#F9CDBB;
+  --shadow:0 1px 2px rgba(20,60,70,.06), 0 12px 32px rgba(20,60,70,.08);
+  --em:var(--accent-text);
+  --shape-a:#E3F3F2; --shape-b:#FFEDE5; --shape-c:#F7EEDD;
+  --tape:rgba(240,220,170,.85);
+  --tape-2:rgba(180,225,225,.85); --pin:#E0623A; --clip:#9A958B;
+  --highlight:rgba(255,205,120,.5); --highlight-blend:multiply;
+  --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(20,60,70,.07), 0 16px 32px rgba(20,60,70,.12);
+  --sticky:#FFF1C2; --sticky-text:#1B2226; --sticky-dim:#5A4E2E; --sticky-kicker:#B2401C;
+  --sticky-shadow:0 8px 18px rgba(20,60,70,.10);
+  --tour-lit:var(--accent);
+}
+[data-palette="breeze"][data-theme="dark"] {
+  --bg:#181612; --s0:#1D1B16; --s1:#211E1A; --s2:#2A2721; --s3:#34302A;
+  --border:rgba(245,236,220,.10); --border2:rgba(245,236,220,.19);
+  --text:#F3EEE5; --dim:#B3AC9F; --faint:#958E82;
+  --accent:#1A8088; --accent-text:#8FDCDD; --accent-bg:rgba(95,196,200,.15); --accent-border:rgba(95,196,200,.38); --on-accent:#FFFFFF;
+  --teal:#5B9A7C; --teal-text:#9BD2B7; --teal-bg:rgba(111,181,151,.14); --teal-border:rgba(111,181,151,.36);
+  --ochre:#BD9A5E; --ochre-text:#E1C48F; --ochre-bg:rgba(200,165,100,.15); --ochre-border:rgba(200,165,100,.38);
+  --brick:#C57F78; --brick-text:#E5ACA6; --brick-bg:rgba(205,138,130,.14); --brick-border:rgba(205,138,130,.36);
+  --moment:#F08A68; --moment-text:#FFBDA3; --moment-bg:rgba(240,138,104,.15); --moment-border:rgba(240,138,104,.40);
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
+  --shape-a:#16221F; --shape-b:#2A1D17; --shape-c:#231F18;
+  --tape:rgba(240,220,170,.2);
+  --tape-2:rgba(143,220,221,.2); --pin:#F08A68; --clip:#8A857B;
+  --highlight:rgba(240,190,120,.24); --highlight-blend:normal;
+  --frame:#25221D; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
+  --sticky:#3B3320; --sticky-text:#F7ECCB; --sticky-dim:#D9CBA3; --sticky-kicker:#FFBDA3;
+  --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
+  --tour-lit:var(--accent-text);
 }
 
 /* High contrast — strong lines, saturated color, true black-and-white bases; built for
@@ -230,6 +328,14 @@
   --person-pink-bg:#E8CBC6;   --person-pink-fg:#3A1512;
   --person-green-bg:#D2E2C3;  --person-green-fg:#172909;
   --person-gray-bg:#DAD5C8;   --person-gray-fg:#221F18;
+  /* no soft shapes here: they match the page and SoftShapes is hidden besides */
+  --shape-a:var(--bg); --shape-b:var(--bg); --shape-c:var(--bg);
+  --tape:#BDBDBD;
+  --tape-2:#D6D6D6; --pin:#000000; --clip:#333333;
+  --highlight:#FFE065; --highlight-blend:normal;
+  --frame:#FFFFFF; --frame-shadow:0 0 0 1px #111111;
+  --sticky:#FFF3B8; --sticky-text:#000000; --sticky-dim:#333333; --sticky-kicker:#8F2F08;
+  --sticky-shadow:0 0 0 1px #000000;
 }
 [data-palette="contrast"][data-theme="dark"] {
   --bg:#000000; --s0:#0A0A0A; --s1:#101010; --s2:#1C1C1C; --s3:#2A2A2A;
@@ -258,6 +364,13 @@
   /* High contrast keeps full-strength features: undo the softer dark ink */
   --person-purple-ink:#FFFFFF; --person-teal-ink:#FFFFFF; --person-coral-ink:#FFFFFF; --person-blue-ink:#FFFFFF;
   --person-amber-ink:#FFFFFF;  --person-pink-ink:#FFFFFF; --person-green-ink:#FFFFFF; --person-gray-ink:#FFFFFF;
+  --shape-a:var(--bg); --shape-b:var(--bg); --shape-c:var(--bg);
+  --tape:#6B6B6B;
+  --tape-2:#8A8A8A; --pin:#FFFFFF; --clip:#D0D0D0;
+  --highlight:#5C4A00; --highlight-blend:normal;
+  --frame:#1C1C1C; --frame-shadow:0 0 0 1px rgba(255,255,255,.55);
+  --sticky:#2E2609; --sticky-text:#FFFFFF; --sticky-dim:#E0E0E0; --sticky-kicker:#FFB899;
+  --sticky-shadow:0 0 0 1px rgba(255,255,255,.55);
 }
 
 /* ───────────────── Map semantic tokens → Tailwind utilities (switch per theme) ───────────────── */
@@ -275,6 +388,9 @@
   --color-grid-line:var(--grid-line);
   --color-grid-edge:var(--grid-edge);
   --color-raised:var(--raised);
+  --color-frame:var(--frame); --color-tape:var(--tape); --color-tape-2:var(--tape-2); --color-pin:var(--pin); --color-clip:var(--clip); --color-pencil-hover:var(--pencil-hover);
+  --color-sticky:var(--sticky); --color-sticky-text:var(--sticky-text); --color-sticky-dim:var(--sticky-dim); --color-sticky-kicker:var(--sticky-kicker);
+  --shadow-frame:var(--frame-shadow); --shadow-sticky:var(--sticky-shadow);
   --shadow-raised:var(--raised-shadow);
 
   --font-serif:var(--display);
@@ -397,72 +513,6 @@ input[type="date"]::-webkit-date-and-time-value {
 .scroll-slim::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 9px; border: 2px solid transparent; background-clip: padding-box; }
 .scroll-slim::-webkit-scrollbar-track { background: transparent; }
 
-/* Up next carousel: quiet dots under the card, the accent marking where you are */
-.upnext-swiper {
-  --swiper-pagination-bottom: 10px;
-  --swiper-navigation-color: var(--dim);
-}
-/* the whole traversal cluster — [prev] dots [next] — sits centered in the padding
-   strip under the card, so nothing ever covers the card's own content. The extra
-   .swiper class outguns swiper's own positioning rules (`.swiper-horizontal
-   .swiper-button-*`, `.swiper-pagination-horizontal`), which tie on specificity
-   and load after this file. */
-/* dots share the arrows' 26px band so the whole cluster sits on one center line */
-.swiper.upnext-swiper .swiper-pagination {
-  left: 50%;
-  bottom: 0;
-  width: auto;
-  transform: translateX(-50%);
-  height: 26px;
-  display: flex;
-  align-items: center;
-}
-.swiper.upnext-swiper .swiper-button-prev,
-.swiper.upnext-swiper .swiper-button-next {
-  top: auto;
-  bottom: 0;
-  margin-top: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: 9999px;
-  background: var(--s1);
-  border: 1px solid var(--border2);
-  box-shadow: var(--shadow);
-}
-.swiper.upnext-swiper .swiper-button-prev {
-  left: auto;
-  right: calc(50% + 36px);
-}
-.swiper.upnext-swiper .swiper-button-next {
-  left: calc(50% + 36px);
-  right: auto;
-}
-.upnext-swiper .swiper-button-prev:hover,
-.upnext-swiper .swiper-button-next:hover {
-  --swiper-navigation-color: var(--text);
-}
-/* swiper 14 draws the arrow as an inline svg stretched to the button — pin it
-   down so the chevron sits small inside the circle. This is the size knob. */
-.swiper.upnext-swiper .swiper-button-prev svg,
-.swiper.upnext-swiper .swiper-button-next svg {
-  width: 12px;
-  height: 12px;
-}
-.upnext-swiper .swiper-button-disabled {
-  opacity: 0.4;
-}
-.upnext-swiper .swiper-pagination-bullet {
-  width: 7px;
-  height: 7px;
-  margin: 0 4px !important;
-  background: var(--border2);
-  opacity: 1;
-  transition: background 0.2s;
-}
-.upnext-swiper .swiper-pagination-bullet-active {
-  background: var(--accent);
-}
-
 /* theme-paired imagery (the landing page's product shots): one for each theme,
    the other stays out of the document flow entirely */
 .only-dark { display: none; }
@@ -473,6 +523,28 @@ input[type="date"]::-webkit-date-and-time-value {
    both themes; the dark theme only takes the brightness down a touch, like the map
    tiles below, so a pale sky does not glare out of the charcoal page */
 [data-theme="dark"] .hourelle-cover-scene { filter: brightness(.86) saturate(.94); }
+
+/* High contrast keeps the page plain: no soft shapes behind it (SoftShapes.tsx) */
+[data-palette="contrast"] .soft-shapes { display: none; }
+
+/* pencil marks (Pencil.tsx): High contrast draws them as plain solid lines */
+[data-palette="contrast"] .pencil { filter: none; }
+/* the highlighter swipe: a fill on the phrase itself, cloned on every line it wraps
+   to, so it covers exactly the words wherever they break */
+.pencil-highlight {
+  background-image: linear-gradient(var(--highlight), var(--highlight));
+  background-repeat: no-repeat;
+  /* a highlighter pass over the lower part of the letters, not the whole line box,
+     so a big headline reads as marked and not as selected text */
+  background-position: 0 88%;
+  background-size: 100% 46%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 0 .14em;
+  margin: 0 -.14em;
+  border-radius: .4em .15em .45em .2em;
+  mix-blend-mode: var(--highlight-blend);
+}
 
 
 /* the serif: 500 by default (headings, card titles, stat figures), 400 only where the

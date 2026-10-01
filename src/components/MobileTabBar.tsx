@@ -3,6 +3,7 @@
 import { useRef } from 'react'
 import { useSwingOnNew } from '@/hooks/useAttention'
 import Link from 'next/link'
+import { PencilUnderline } from '@/components/ui/Pencil'
 import { usePathname } from 'next/navigation'
 import { Home, CalendarDays, Plus, Bell, User, LayoutGrid, LogIn } from 'lucide-react'
 import { useNotificationCount } from '@/hooks/useNotificationCount'
@@ -105,7 +106,7 @@ function TabItem({ href, label, icon: Icon, active, count = 0, compact = false }
     <Link
       href={href}
       aria-current={active ? 'page' : undefined}
-      className={`flex flex-1 flex-col items-center justify-center text-[12px] font-semibold ${compact ? 'gap-0' : 'gap-0.5'} ${active ? 'text-accent-text' : 'text-faint'}`}
+      className={`flex flex-1 flex-col items-center justify-center text-[12px] ${compact ? 'gap-0' : 'gap-0.5'} ${active ? 'font-bold text-text' : 'font-semibold text-faint'}`}
     >
       <span className="relative">
         {/* the icon swings when its count goes up (only the bell ever has one) */}
@@ -116,7 +117,9 @@ function TabItem({ href, label, icon: Icon, active, count = 0, compact = false }
           </span>
         )}
       </span>
-      {!compact && <span className="max-w-[120px] truncate">{label}</span>}
+      {/* the page you are on: its label gets the pencil underline, or its icon when the bar is folded */}
+      {!compact && (active ? <PencilUnderline className="max-w-[120px]"><span className="block truncate">{label}</span></PencilUnderline> : <span className="max-w-[120px] truncate">{label}</span>)}
+      {compact && active && <PencilUnderline><span className="block h-0 w-5" /></PencilUnderline>}
     </Link>
   )
 }

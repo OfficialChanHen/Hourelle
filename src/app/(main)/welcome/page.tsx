@@ -213,7 +213,7 @@ function Welcome() {
                 <SegmentedControl label="Theme" size="sm" value={themeValue} onChange={setTheme} options={[{ v: 'light', l: 'Light' }, { v: 'dark', l: 'Dark' }, { v: 'system', l: 'System' }]} />
               ) : <span className="h-8 w-[196px] animate-pulse rounded-[9px] bg-s2" aria-hidden />}
             </div>
-            {/* the four appearances, the same picker Settings has */}
+            {/* the five appearances, the same picker Settings has */}
             <div className="border-t border-border px-5 py-4">
               <div className="text-[14px] font-medium">Appearance</div>
               <div className="mt-0.5 text-[12.5px] text-dim">The house warm neutral, or one of three others.</div>

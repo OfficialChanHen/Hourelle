@@ -1,5 +1,6 @@
 'use client'
 
+import { createPortal } from 'react-dom'
 import { useEffect, useId, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -45,7 +46,9 @@ export function ConfirmBar({ event, onChanged, onGoToDetails, onGoToLocation, pr
       >
         <Lock size={15} /> {event.confirmed ? 'Lock in the place' : 'Lock it in'}
       </button>
-      {open && <ConfirmModal event={event} close={() => setOpen(false)} onChanged={onChanged} onGoToDetails={onGoToDetails} onGoToLocation={onGoToLocation} prefill={prefill} runLen={runLen} />}
+      {/* on the body, so no stacking context the button sits in (the plan header's
+          soft shapes make one) can keep the modal under the grid's sticky headers */}
+      {open && createPortal(<ConfirmModal event={event} close={() => setOpen(false)} onChanged={onChanged} onGoToDetails={onGoToDetails} onGoToLocation={onGoToLocation} prefill={prefill} runLen={runLen} />, document.body)}
     </>
   )
 }

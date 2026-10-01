@@ -3,45 +3,30 @@
 import Link from 'next/link'
 import { RotateCcw } from 'lucide-react'
 import { TimezonePill } from '@/components/ui/TimezonePill'
+import { Highlight } from '@/components/ui/Pencil'
 import { placeVotes } from '@/lib/polls'
 import {
   availIvOf, bestBlock, bestWindow, confirmedSlotText, dateRangeText, fmtMinute, gridStartMinOf,
   longestRun, respondedCount, type AppEvent, type Phase,
 } from '@/lib/events'
 
-/* ── where planning stands, as an open stat strip ──
-   Borderless columns — eyebrow, serif value, muted caption — instead of one cramped
-   line. The confirmed phases skip it because the ConfirmedHero carries the answer. */
+/* ── where the plan stands, said as a sentence ──
+   "4 of 5 have answered. Fri, Oct 2, 7:00 PM to 9:00 PM CDT works for the most
+   people so far." Every fact the old stat strip carried (replies, the best time so
+   far, where it is) is a clause here, in the order someone would say it. The best
+   time is a link down to it on the grid. Once a time is locked the ConfirmedHero
+   carries the answer, and this only says how many are going. */
 
-/* One stat, and the hairline that separates it from the one before.
-   Wide: a row, with a one-pixel rule in the same token as the line under the strip,
-   and the old 36px of air split 18 either side of it.
-   Narrow: two even columns instead of a ragged wrap, a rule down the middle and one
-   across between the rows, and a third stat taking the full width because its value
-   is the longest. The row gap has to beat the 4px that separates a label from its
-   own value, or the strip reads as one list rather than three facts. */
-const SEP = [
-  'min-w-0 border-border',
-  // narrow: the second column carries the rule, the second row carries the seam
-  'max-lg:[&:nth-child(even)]:border-l max-lg:[&:nth-child(even)]:pl-4',
-  'max-lg:[&:nth-child(n+3)]:border-t max-lg:[&:nth-child(n+3)]:pt-3.5',
-  'max-lg:[&:nth-child(3)]:col-span-2',
-  // wide: every stat but the first is preceded by the rule
-  'lg:border-l lg:pl-[18px] lg:first:border-l-0 lg:first:pl-0 lg:pr-[18px] lg:last:pr-0',
-].join(' ')
+const P = 'text-[15px] leading-[1.6] text-text sm:text-[16px]'
 
-function Stat({ label, value, caption, onClick }: { label: string; value: React.ReactNode; caption?: React.ReactNode; onClick?: () => void }) {
-  const val = (
-    <div className={`mt-1 font-serif text-[22px] leading-[1.12] tracking-[-0.01em] ${onClick ? 'cursor-pointer decoration-[1.5px] underline-offset-4 hover:underline' : ''}`}>
-      {value}
-    </div>
-  )
+// the best time so far, as a link to it on the grid. Inline, with an invisible
+// layer that reaches a finger's height without moving the lines around it.
+function BestLink({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
+  if (!onClick) return <strong className="font-semibold">{children}</strong>
   return (
-    <div className={SEP}>
-      <div className="text-[10.5px] font-semibold uppercase tracking-[.13em] text-faint">{label}</div>
-      {onClick ? <button type="button" onClick={onClick} className="block text-left">{val}</button> : val}
-      {caption && <div className="mt-1 text-[12.5px] text-dim">{caption}</div>}
-    </div>
+    <button type="button" onClick={onClick} className="relative inline text-left font-semibold underline decoration-border2 decoration-[1.5px] underline-offset-4 after:absolute after:inset-x-0 after:-inset-y-2.5 after:content-[''] hover:decoration-accent">
+      {children}
+    </button>
   )
 }
 
@@ -49,7 +34,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
   if (phase === 'past') {
     const went = event.participants.filter((p) => p.rsvp === 'attending').length
     return (
-      <p className="text-[13.5px] text-dim">
+      <p className={P}>
         Happened {dateRangeText(event)} with {went} there.{' '}
         <Link href={`/create?from=${event.id}`} className="inline-flex items-center gap-1 font-semibold text-accent-text hover:underline">
           <RotateCcw size={13} /> Reuse for a new plan
@@ -58,10 +43,20 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
     )
   }
 
-  if (phase !== 'planning') return null
+  const total = event.participants.length
+
+  if (phase !== 'planning') {
+    const going = event.participants.filter((p) => p.rsvp === 'attending').length
+    const waiting = event.participants.filter((p) => p.rsvp === 'pending').length
+    return (
+      <p className={P}>
+        {going === total ? 'Everyone is going.' : `${going} of ${total} are going.`}
+        {waiting > 0 && ` Waiting on ${waiting} ${waiting === 1 ? 'reply' : 'replies'}.`}
+      </p>
+    )
+  }
 
   const responded = respondedCount(event.avail, event.unavailableIds)
-  const total = event.participants.length
   // a day poll answers in days, not clock times: its "best so far" is the leading run
   // of days (or single day), matching the grid dial's default
   const dayPoll = event.granularity === 'day'
@@ -74,8 +69,15 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
     return d ? `${d.dow}, ${d.date}` : k
   }
   const gridStart = gridStartMinOf(event)
+  // who is still missing, by first name when it is one to three people
+  const answeredIds = new Set<string>(event.unavailableIds ?? [])
+  for (const day of Object.values(availIvOf(event))) for (const [pid, iv] of Object.entries(day)) if (iv.length) answeredIds.add(pid)
+  const missing = event.participants.filter((p) => !answeredIds.has(p.id))
+  const missingNames = missing.length >= 1 && missing.length <= 3 && responded > 0
+    ? missing.map((p) => (p.you ? 'you' : p.name.split(' ')[0]))
+    : null
 
-  // the venue currently winning the vote — unless the host set the place, which
+  // the venue currently winning the vote, unless the host set the place, which
   // reads as fact instead
   const settledPlace = event.location.mode === 'set' ? event.location.places[0] : undefined
   const votesOf = (id: string) => event.votes?.[id] ?? []
@@ -83,56 +85,48 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
     ? [...event.location.places].sort((a, b) => votesOf(b.id).length - votesOf(a.id).length)[0]
     : undefined
   const leading = top && votesOf(top.id).length > 0 ? top : null
+  const ballot = event.location.mode === 'vote' ? event.location.places.length : 0
 
-  // the place column, whatever answers the "where" question right now
-  const placeStat = settledPlace ? (
-    <Stat label="Place" value={settledPlace.name} caption="set by the host" />
+  // where, whatever answers it right now
+  const where = settledPlace ? (
+    <> It&apos;s at <strong className="font-semibold">{settledPlace.name}</strong>.</>
   ) : event.location.mode === 'remote' ? (
-    <Stat label="Place" value="Online" caption={`on ${event.location.platform || 'a call'}`} />
+    <> It&apos;s online, on {event.location.platform || 'a call'}.</>
   ) : leading ? (
-    <Stat label="Place" value={leading.name} caption={`leading with ${votesOf(leading.id).length} vote${votesOf(leading.id).length === 1 ? '' : 's'}`} />
-  ) : event.location.mode === 'vote' && event.location.places.length > 0 ? (
-    <Stat label="Place" value={String(event.location.places.length)} caption={`place${event.location.places.length === 1 ? '' : 's'} on the ballot, no votes yet`} />
+    <> <strong className="font-semibold">{leading.name}</strong> leads the place vote.</>
   ) : null
 
-  // a date fixed at creation flips the strip: the time reads as fact and the place
-  // vote carries the progress
+  // a date fixed at creation flips it: the time reads as fact and the place vote
+  // carries the progress
   if (event.confirmed) {
     const voted = new Set(Object.values(placeVotes(event.votes ?? {})).flat()).size
     return (
-      <div className="grid grid-cols-2 items-start gap-x-4 gap-y-3.5 lg:flex lg:flex-wrap lg:items-stretch lg:gap-x-0">
-        <Stat label="When" value={confirmedSlotText(event)} caption={<>already set <TimezonePill tz={event.timezone} /></>} />
-        {placeStat ?? <Stat label="Place" value="Open" caption="still collecting ideas" />}
-        {event.location.mode === 'vote' && event.location.places.length > 0 && (
-          <Stat label="Votes" value={`${voted} of ${total}`} caption={voted === 0 ? 'waiting on the first one' : 'have had their say'} />
-        )}
-      </div>
+      <p className={P}>
+        It&apos;s set for <strong className="font-semibold">{confirmedSlotText(event)}</strong> <TimezonePill tz={event.timezone} />.
+        {where ?? ' The place is still open.'}
+        {ballot > 0 && (voted === 0 ? ' No one has voted yet.' : ` ${voted} of ${total} have voted.`)}
+      </p>
     )
   }
 
   return (
-    <div className="grid grid-cols-2 items-start gap-x-4 gap-y-3.5 lg:flex lg:flex-wrap lg:items-stretch lg:gap-x-0">
-      <Stat
-        label="Replies"
-        value={`${responded} of ${total}`}
-        caption={responded === 0 ? 'waiting on availability' : 'have marked their times'}
-      />
+    <p className={P}>
+      {responded === 0 ? 'No one has answered yet.' : responded >= total ? 'Everyone has answered.' : `${responded} of ${total} have answered.`}
       {best && (
-        <Stat
-          label="Best so far"
-          value={best.dayLabel}
-          caption={<>{fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)} <TimezonePill tz={event.timezone} /></>}
-          onClick={onGoToAvailability}
-        />
+        <>
+          {' '}<BestLink onClick={onGoToAvailability}><Highlight>{best.dayLabel}, {fmtMinute(gridStart + best.s)} to {fmtMinute(gridStart + best.e)}</Highlight></BestLink>{' '}
+          <TimezonePill tz={event.timezone} /> works for the most people so far.
+        </>
       )}
       {bestDays && (
-        <Stat
-          label="Best so far"
-          value={bestDays.startKey === bestDays.endKey ? dayLabelOf(bestDays.startKey) : `${dayLabelOf(bestDays.startKey)} – ${dayLabelOf(bestDays.endKey)}`}
-          onClick={onGoToAvailability}
-        />
+        <>
+          {' '}<BestLink onClick={onGoToAvailability}>
+            <Highlight>{bestDays.startKey === bestDays.endKey ? dayLabelOf(bestDays.startKey) : `${dayLabelOf(bestDays.startKey)} to ${dayLabelOf(bestDays.endKey)}`}</Highlight>
+          </BestLink>{' '}works for the most people so far.
+        </>
       )}
-      {placeStat}
-    </div>
+      {missingNames && <> Waiting on {missingNames.length === 1 ? missingNames[0] : `${missingNames.slice(0, -1).join(', ')} and ${missingNames[missingNames.length - 1]}`}.</>}
+      {where}
+    </p>
   )
 }

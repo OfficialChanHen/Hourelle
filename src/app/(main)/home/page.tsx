@@ -1,42 +1,59 @@
 'use client'
 
 
-/* ── home: what is next, and what you can do about it ──
-   Three bands, in the order a host actually needs them:
-     Up next     the closest locked-in plans, as a swipeable spotlight. With nothing
-                 locked in, the newest plan being made stands in so it is never empty.
-     Your events the ones you host
-     You're invited  the ones you were asked to
+/* ── home: when are we meeting, and what do you owe ──
+   Hourelle is about finding the time busy people can meet, so every card here leads
+   with the time question before anything else.
+     Up next      the three closest plans. On a large screen the closest one is the
+                  big taped photo and the other two sit beside it as smaller photos;
+                  on a phone they are a stack you page with arrows or a swipe. Each
+                  photo carries the plan's name, its stage, the time question first
+                  (your times, the best time so far, who is still missing, or the
+                  locked time), then place and extras, and one button: the thing to
+                  do next.
+     Your turn    every plan waiting on you, as a stack of sticky notes, each with
+                  its own task and button
+     Start a plan a name and a week, one click
 
-   Hero events keep their card in the bands below. The spotlight is a shortcut, not
-   a filing cabinet, and an invitation should always be findable where invitations
-   live.
+   Only three plans are ever drawn, plus blank paper behind the phone stack, so
+   thirty plans cost the same as three. Everything else lives one link away on Plans.
 
-   Anything the server cannot know — the greeting, today's date, which events this
-   browser holds — is filled in after mount, so the server-rendered HTML never
+   Scrapbook touches (the photos, tape, sticker faces, sticky notes) are for this
+   page's moments only. The arrows, the create form and every button stay flat.
+
+   Anything the server cannot know (the greeting, today's date, which plans this
+   browser holds) is filled in after mount, so the server-rendered HTML never
    disagrees with a visitor in another timezone. `useLiveEvents` re-reads the list
    whenever the cloud changes something. */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Calendar, CalendarPlus, CalendarClock, Check, CopyPlus, Link2, ArrowRight } from 'lucide-react'
-import { Swiper, SwiperSlide } from 'swiper/react'
-import { Navigation, Pagination, A11y } from 'swiper/modules'
-import 'swiper/css'
-import 'swiper/css/navigation'
-import 'swiper/css/pagination'
+import {
+  CalendarPlus, CalendarClock, Calendar, Check, CopyPlus, Link2, ArrowRight, MapPin, Video, UsersRound, UserRound,
+} from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Em } from '@/components/ui/Em'
-import { coverFor, StoredEventCard } from '@/components/ui/StoredEventCard'
+import { coverFor } from '@/components/ui/StoredEventCard'
 import { Cover } from '@/components/ui/Cover'
 import { PeekCard, peopleIn } from '@/components/ui/PeekCard'
+import { PhotoFrame } from '@/components/ui/PhotoFrame'
+import { StickyNote } from '@/components/ui/StickyNote'
+import { SoftShapes } from '@/components/ui/SoftShapes'
+import { WavyRule } from '@/components/ui/WavyRule'
+import { Deck } from '@/components/ui/Deck'
+import { Keepsake, lookOf, type Look } from '@/components/ui/Keepsake'
+import { Highlight, PencilArrow, PencilStar, PencilUnderline } from '@/components/ui/Pencil'
+import { HandNote } from '@/components/ui/HandNote'
+import { namesLabel } from '@/components/ui/AvatarRow'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Tip } from '@/components/ui/Tip'
-import { LifecycleStrip, PHASE_BADGE, PHASE_TINT } from '@/components/ui/LifecycleStrip'
+import { StageStepper } from '@/components/ui/LifecycleStrip'
+import { placeVotes, chatLines } from '@/lib/polls'
 import { fromDay,
-  createEvent, eventTabFor, listEvents, phaseOf, daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, sameDayLabelFor,
+  createEvent, eventTabFor, listEvents, phaseOf, daysUntil, dateRangeText, confirmedSlotText, sameDayLabelFor,
+  leadingPlaceOf, youReplied, youVoted, bestWindow, availIvOf, gridStartMinOf, fmtMinute, seenMessageCount,
   type AppEvent, type Phase, type SameDayInfo,
 } from '@/lib/events'
 import { cloudSettled } from '@/lib/remote'
@@ -46,17 +63,56 @@ import { DateField } from '@/components/ui/DateField'
 
 // what part of the day it is, by the reader's clock
 function greetingFor(hour: number): string {
-  if (hour < 5) return 'Good evening'
-  if (hour < 12) return 'Good morning'
-  if (hour < 18) return 'Good afternoon'
-  return 'Good evening'
+  if (hour < 5) return 'Evening'
+  if (hour < 12) return 'Morning'
+  if (hour < 18) return 'Afternoon'
+  return 'Evening'
 }
+
+// how many plans Home draws: the closest three, never an even pile
+const SHOWN = 3
+
+// a large screen lays the three plans out side by side; a phone stacks them. Read on
+// the client only, which is fine here: nothing below renders before mount anyway
+const WIDE = '(min-width: 1024px)'
+function subscribeWide(fn: () => void) {
+  const mq = window.matchMedia(WIDE)
+  mq.addEventListener('change', fn)
+  return () => mq.removeEventListener('change', fn)
+}
+function useWide() {
+  return useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE).matches, () => false)
+}
+
+type Turn = { line: string; cta: string; href: string }
+type Item = { e: AppEvent; phase: Phase }
+
+// "Oct 3", for the by-when on a task
+const shortDay = (iso: string) => dateRangeText({ startDate: iso, endDate: iso }).replace(/, \d{4}$/, '')
+
+/** The one thing you still owe this plan, if any, said as the task: your times while
+    it is being decided, a place vote when one is open, your reply once it is locked
+    in, each with its by-when when the host set one. */
+function turnOf(e: AppEvent, phase: Phase): Turn | null {
+  const me = e.participants.find((p) => p.you)
+  if (!me || e.demo) return null
+  if (phase === 'planning') {
+    if (!youReplied(e)) return { line: `Mark your times${e.planDeadline ? ` by ${shortDay(e.planDeadline)}` : ''}`, cta: 'Mark my times', href: `/events/${e.id}?tab=availability` }
+    if (e.location.mode === 'vote' && e.location.places.length > 0 && !youVoted(e)) return { line: `Vote on the place${e.voteDeadline ? ` by ${shortDay(e.voteDeadline)}` : ''}`, cta: 'Vote', href: `/events/${e.id}?tab=location` }
+    return null
+  }
+  if (phase !== 'past' && me.rsvp === 'pending') return { line: `Say if you’re coming${e.rsvpDeadline ? ` by ${shortDay(e.rsvpDeadline)}` : ''}`, cta: 'Reply', href: `/events/${e.id}` }
+  return null
+}
+
+// the date a plan is ordered by: its locked day, else the host's lock-by date
+const dayOf = (e: AppEvent) => e.confirmed?.dayKey ?? e.planDeadline ?? '9999-12-31'
 
 export default function HomePage() {
   const [events, setEvents] = useState<AppEvent[] | null>(null)
   // greeting settles after mount so the server-rendered HTML never disagrees
   // with a visitor in another timezone
-  const [greeting, setGreeting] = useState('Good afternoon')
+  const [greeting, setGreeting] = useState('Afternoon')
   // the greeting names whoever is signed in (the stub, when nobody is)
   const account = useAccount()
   const firstName = account.name.split(' ')[0]
@@ -72,108 +128,376 @@ export default function HomePage() {
   // someone else's change arrived from the cloud: re-read so the page follows it live
   useLiveEvents(() => { setEvents(listEvents()); setSettled(cloudSettled()) })
   const waiting = !settled && (events?.length ?? 0) === 0
+  const loading = events === null || waiting
+  const wide = useWide()
+  const [upAt, setUpAt] = useState(0)
+  const [turnAt, setTurnAt] = useState(0)
 
-  const withPhase = (events ?? []).map((e) => ({ e, phase: phaseOf(e) }))
-  const active = withPhase.filter((x) => x.phase !== 'past')
-
-  // up next: the closest confirmed plans, nearest day first and same-day ties to the
-  // earlier start — up to five slides. With nothing confirmed, the newest planning
-  // event stands in so the spot never sits empty.
-  const upNext = active
-    .filter((x) => x.phase === 'today' || x.phase === 'soon' || x.phase === 'upcoming')
-    .sort((a, b) =>
-      ((daysUntil(a.e.confirmed?.dayKey ?? a.e.startDate) ?? 0) - (daysUntil(b.e.confirmed?.dayKey ?? b.e.startDate) ?? 0)) ||
-      ((a.e.confirmed?.startMin ?? 0) - (b.e.confirmed?.startMin ?? 0)))
-    .slice(0, 5)
-  const heroes = upNext.length > 0 ? upNext : active.filter((x) => x.phase === 'planning').slice(0, 1)
-  // hero events keep their card below too — Up next is a spotlight, not a filing
-  // cabinet, and an invited event should always be findable under You're invited
-  const yours = active.filter((x) => x.e.hostedByYou)
-  const invited = active.filter((x) => !x.e.hostedByYou)
+  const active: Item[] = (events ?? []).map((e) => ({ e, phase: phaseOf(e) })).filter((x) => x.phase !== 'past')
+  // up next: locked-in plans by day (same-day ties to the earlier start), then the
+  // ones still being decided, by the host's lock-by date and then newest first
+  const upNext = [
+    ...active.filter((x) => x.phase !== 'planning')
+      .sort((a, b) => dayOf(a.e).localeCompare(dayOf(b.e)) || (a.e.confirmed?.startMin ?? 0) - (b.e.confirmed?.startMin ?? 0)),
+    ...active.filter((x) => x.phase === 'planning')
+      .sort((a, b) => dayOf(a.e).localeCompare(dayOf(b.e)) || b.e.createdAt - a.e.createdAt),
+  ]
+  const shown = upNext.slice(0, SHOWN)
   const sameDay = sameDayLabelFor(active.map((x) => x.e))
+  // your turn: every plan waiting on you, in the same order, shown or not
+  const turns = upNext.map((x) => ({ x, t: turnOf(x.e, x.phase) })).filter((y): y is { x: Item; t: Turn } => y.t !== null)
+  // a plan leaving the list (answered, deleted elsewhere) never strands the index
+  const upI = Math.min(upAt, Math.max(0, shown.length - 1))
+  const turnI = Math.min(turnAt, Math.max(0, turns.length - 1))
+  // the headline names the plan in front: the big one on a wide screen, the top of
+  // the stack on a phone
+  const hero = wide ? shown[0] : shown[upI]
+  const turn = turns[turnI]
+  // one plan on a wide screen: what you owe and the create form sit beside it
+  // rather than leaving half the row empty
+  const solo = wide && shown.length === 1
+  // each card's hand-laid details, from its plan id; a neighbour never repeats them
+  const looks: Look[] = []
+  shown.forEach((x, i) => { looks.push(lookOf(x.e.id, i, looks[i - 1])) })
+  const seeAll = active.length > shown.length && (
+    <Link href="/events" className="inline-flex min-h-11 items-center text-[13.5px] font-semibold text-accent-text hover:underline sm:min-h-0 sm:py-1">
+      See all {active.length} plans
+    </Link>
+  )
 
   return (
-    <div className="relative mx-auto max-w-[1240px] px-[26px] pb-[92px] pt-[34px]">
-      {/* greeting */}
-      <div className="mb-5">
-        <h1 className="mb-[9px] font-serif font-normal text-[37px] leading-[1.02] tracking-[-0.01em]" suppressHydrationWarning>{greeting}, <Em>{firstName}</Em></h1>
-        <div className="flex items-center gap-1.5 text-[13.5px] text-dim">
-          <Calendar size={15} /> {waiting ? <span className="inline-block h-3.5 w-[104px] animate-pulse rounded bg-s2" /> : active.length > 0 ? `${active.length} plan${active.length === 1 ? '' : 's'} in motion` : 'No plans yet'}
-        </div>
-      </div>
+    <div className="relative isolate mx-auto max-w-[1240px] px-6 pb-[92px] pt-7 sm:px-[26px] sm:pt-[34px]">
+      <SoftShapes variant="home" />
 
-      {/* plan something in one line: name it, keep or nudge the week, create */}
-      <QuickCreate />
-
-      {/* Up next — the closest confirmed plans, one card at a time */}
-      {/* localStorage only exists after mount — pulse shapes, never a flash of "empty" */}
-      {(events === null || waiting) && (
-        <>
-          <SectionHeader color="var(--moment-text)" title="Up next" />
-          <div className="h-[240px] animate-pulse rounded-3xl bg-s2" />
-          <div className="mt-[26px] grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }, (_, i) => (
-              <div key={i} className="h-[220px] animate-pulse rounded-2xl bg-s2" />
-            ))}
-          </div>
-        </>
-      )}
-
-      {events !== null && !waiting && (
-      <>
-      {/* coral, the moment role: the spotlight is what's asking for you now */}
-      <SectionHeader color="var(--moment-text)" title="Up next" count={heroes.length > 1 ? heroes.length : undefined} />
-      {heroes.length > 1 ? (
-        <Swiper modules={[Navigation, Pagination, A11y]} slidesPerView={1} spaceBetween={18} navigation pagination={{ clickable: true }} className="upnext-swiper !pb-9">
-          {/* !h-auto lets the flex wrapper stretch every slide to the tallest one,
-              and the card fills it — otherwise each slide sizes to its own content */}
-          {heroes.map((x) => (
-            <SwiperSlide key={x.e.id} className="!h-auto">
-              <HeroPeek e={x.e}><HeroCard e={x.e} phase={x.phase} sameDay={sameDay(x.e)} /></HeroPeek>
-            </SwiperSlide>
-          ))}
-        </Swiper>
-      ) : heroes.length === 1 ? (
-        <HeroPeek e={heroes[0].e}><HeroCard e={heroes[0].e} phase={heroes[0].phase} sameDay={sameDay(heroes[0].e)} /></HeroPeek>
+      {/* greeting, then where the plan in front stands, as a sentence */}
+      <p className="text-[15px] text-dim" suppressHydrationWarning>{greeting}, {firstName}.</p>
+      {loading ? (
+        <div className="mt-2 h-[38px] w-[260px] max-w-full animate-pulse rounded-lg bg-s2" />
       ) : (
-        <EmptyState
-          icon={CalendarPlus}
-          title="Your next plan goes here"
-          body="Start one and your group can pick a time together."
-          action={{ label: 'Start a plan', href: '/create' }}
-          secondary={{ label: 'Or open a demo', href: '/demos' }}
-        />
+        <h1 className="mt-0.5 max-w-[680px] font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] [overflow-wrap:anywhere] sm:text-[42px]">
+          {headline(hero?.e, hero?.phase)}
+        </h1>
       )}
 
-      {/* Your events — everything you host that isn't over */}
-      {yours.length > 0 && (
-        <>
-          {/* teal: plans you're running */}
-          <SectionHeader color="var(--teal-text)" title="Your plans" count={yours.length} className="mt-[26px]" />
-          <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
-            {yours.map((x) => <StoredEventCard key={x.e.id} e={x.e} sameDay={sameDay(x.e)} />)}
-          </div>
-        </>
-      )}
+      {/* localStorage only exists after mount: pulse shapes, never a flash of "empty" */}
+      {loading ? (
+        <div className="mt-9 grid gap-x-14 gap-y-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+          <div className="h-[340px] max-w-[520px] animate-pulse rounded-2xl bg-s2" />
+          <div className="h-[200px] animate-pulse rounded-2xl bg-s2" />
+        </div>
+      ) : (
+        <div className={solo ? 'mt-8 grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-start gap-x-14' : ''}>
+          <section aria-labelledby="home-upnext" className={solo ? '' : 'mt-6 sm:mt-8'}>
+            <h2 id="home-upnext" className="sr-only">Up next</h2>
+            {shown.length === 0 ? (
+              <div className="max-w-[480px]">
+                <EmptyState
+                  icon={CalendarPlus}
+                  title="Your next plan goes here"
+                  body="Start one and your group can pick a time together."
+                  action={{ label: 'Start a plan', href: '/create' }}
+                  secondary={{ label: 'Or open a demo', href: '/demos' }}
+                />
+              </div>
+            ) : wide ? (
+              /* a sideways triangle, laid out by hand: the closest plan large on the
+                 left, centred against the other two, which sit to its right a little
+                 apart, one higher and further out, one lower and tucked in, turned
+                 opposite ways like photos dropped on a table. Nothing overlaps. */
+              <>
+                <div className={shown.length > 1 ? 'grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-center gap-x-12 xl:gap-x-20' : 'max-w-[560px]'}>
+                  <UpNext e={shown[0].e} phase={shown[0].phase} sameDay={sameDay(shown[0].e)} size="hero" look={looks[0]} lead />
+                  {shown.length > 1 && (
+                    <div className="flex flex-col gap-10 xl:gap-12">
+                      {shown.slice(1).map((x, i) => (
+                        <div key={x.e.id} className={`w-full max-w-[380px] xl:max-w-[400px] ${shown.length === 2 ? '' : i === 0 ? 'ml-6 xl:ml-14' : 'mt-2 xl:ml-2'}`}>
+                          <UpNext e={x.e} phase={x.phase} sameDay={sameDay(x.e)} size="small" look={looks[i + 1]} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* the way to everything else, quietly under the group */}
+                {seeAll && <div className="mt-6">{seeAll}</div>}
+              </>
+            ) : (
+              <div className="mx-auto max-w-[480px]">
+                <Deck
+                  count={shown.length} index={upI} onIndex={setUpAt} label="Up next"
+                  behind={(d) => (
+                    // blank frames under the photo on top, offset like a loose pile
+                    <div
+                      className="absolute inset-x-0 bottom-0 top-[42px] rounded-[14px] bg-frame shadow-frame"
+                      style={{ transform: d === 1 ? 'translate(9px, 7px) rotate(1.5deg)' : 'translate(-6px, 12px) rotate(-2.5deg)' }}
+                    />
+                  )}
+                >
+                  <UpNext e={shown[upI].e} phase={shown[upI].phase} sameDay={sameDay(shown[upI].e)} size="hero" look={looks[upI]} lead />
+                </Deck>
+                {seeAll}
+              </div>
+            )}
+          </section>
 
-      {/* You're invited — events someone else is hosting */}
-      {invited.length > 0 && (
-        <>
-          {/* ochre: asks from other people, waiting on your answer */}
-          <SectionHeader color="var(--ochre-text)" title="You're invited" count={invited.length} className="mt-[26px]" />
-          <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
-            {invited.map((x) => <StoredEventCard key={x.e.id} e={x.e} sameDay={sameDay(x.e)} />)}
+          {/* what you owe, then a new plan: side by side on a large screen */}
+          <div className={`grid gap-y-9 ${solo ? 'pt-6' : `mt-8 lg:mt-14 lg:items-start lg:gap-x-16 ${turn ? 'lg:grid-cols-[auto_minmax(0,1fr)]' : 'lg:max-w-[720px]'}`}`}>
+            {turn && (
+              <section aria-labelledby="home-turn" className="min-w-0">
+                <WavyRule className="mb-7 lg:hidden" />
+                <h2 id="home-turn" className="sr-only">Your turn</h2>
+                <Deck
+                  count={turns.length} index={turnI} onIndex={setTurnAt} label="Plans waiting on you" itemLabel="note" center
+                  className="mx-auto w-[260px] max-w-full lg:mx-0"
+                  behind={(d) => (
+                    <div
+                      className="absolute inset-0 rounded-md bg-sticky shadow-sticky"
+                      style={{ transform: d === 1 ? 'translate(8px, 6px) rotate(-2.5deg)' : 'translate(-5px, 11px) rotate(3deg)' }}
+                    />
+                  )}
+                >
+                  <StickyNote kicker={<><PencilStar size={16} className="-mt-0.5 mr-1.5" />Your turn</>} className="min-h-[164px]">
+                    <span className="font-serif text-[19px] leading-[1.15] [overflow-wrap:anywhere]">{turn.x.e.title}</span>
+                    <span className="text-[13.5px] leading-[1.4] text-sticky-dim">{turn.t.line}</span>
+                    <Link href={turn.t.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-accent px-4 text-[13.5px] font-semibold text-on-accent sm:h-9">
+                      {turn.t.cta}
+                    </Link>
+                  </StickyNote>
+                </Deck>
+              </section>
+            )}
+            <QuickCreate />
           </div>
-        </>
-      )}
-      </>
+        </div>
       )}
     </div>
   )
 }
 
-/* the fastest path to a live event: a name, the coming week prefilled, one click.
-   Everything else (place, invites, budget) waits on the event page or in /create. */
+// the headline: the plan in front and where it stands, one italic word
+function headline(e?: AppEvent, phase?: Phase): React.ReactNode {
+  if (!e || !phase) return <>Nothing planned <Em>yet</Em>.</>
+  if (phase === 'today') return <>{e.title} is <Em>today</Em>.</>
+  if (phase === 'planning') return <>{e.title} is <Em>coming together</Em>.</>
+  return <>{e.title} is <Em>happening</Em>.</>
+}
+
+const first = (name: string) => name.split(' ')[0]
+
+/* Everything Home says about one plan, worked out once per card: one pass over the
+   people however many there are, and the names of the people still to answer only
+   when there are one to three of them. */
+function digestOf(e: AppEvent, phase: Phase) {
+  const locked = phase !== 'planning'
+  const me = e.participants.find((p) => p.you)
+  const total = e.participants.length
+  // who has marked times (or said none work), for the planning stage
+  const answered = new Set<string>(e.unavailableIds ?? [])
+  if (!locked) {
+    for (const day of Object.values(e.availIv ?? {})) for (const [id, iv] of Object.entries(day)) if (iv.length) answered.add(id)
+    for (const rows of Object.values(e.avail)) for (const cell of rows) for (const id of cell) answered.add(id)
+  }
+  let going = 0, maybe = 0, out = 0, pending = 0
+  const waitingOn: string[] = []
+  for (const p of e.participants) {
+    if (locked) {
+      if (p.rsvp === 'attending') going++
+      else if (p.rsvp === 'maybe') maybe++
+      else if (p.rsvp === 'not_going') out++
+      else { pending++; if (!p.you && waitingOn.length < 4) waitingOn.push(first(p.name)) }
+    } else if (!answered.has(p.id) && !p.you && waitingOn.length < 4) waitingOn.push(first(p.name))
+  }
+  const stillOut = locked ? pending - (me?.rsvp === 'pending' ? 1 : 0) : total - answered.size - (me && !answered.has(me.id) ? 1 : 0)
+
+  // when
+  const du = daysUntil(e.confirmed?.dayKey ?? e.startDate)
+  const countdown = !locked || du === null || du < 0 ? null : du === 0 ? 'today' : du === 1 ? 'tomorrow' : `in ${du} days`
+  const best = !locked && e.granularity !== 'day' && answered.size > 0 ? bestWindow(availIvOf(e), e.days, e.durationMin ?? 60, e.bestMode) : null
+  const gridStart = gridStartMinOf(e)
+
+  // where
+  const lead = leadingPlaceOf(e)
+  const ballot = e.location.mode === 'vote' ? e.location.places.length : 0
+
+  // you
+  const votes = placeVotes(e.votes ?? {})
+  const myVote = me ? e.location.places.find((pl) => votes[pl.id]?.includes(me.id)) : undefined
+  const you = !me ? null
+    : locked
+      ? { attending: 'You’re going', maybe: 'You said maybe', not_going: 'You can’t make it', pending: 'You haven’t replied' }[me.rsvp]
+      : !youReplied(e) ? 'You haven’t marked your times'
+        : myVote ? `You voted for ${myVote.name}`
+          : ballot > 0 ? 'You haven’t voted on a place'
+            : 'You’ve marked your times'
+
+  // extras, only when there is something to say
+  const lines = chatLines(e.messages).length
+  const unread = Math.max(0, lines - seenMessageCount(e.id))
+  return { locked, total, answered: answered.size, going, maybe, out, pending, waitingOn, stillOut, countdown, best, gridStart, lead, ballot, you, unread }
+}
+
+// one line of the details block: a small icon, then a few words
+function Row({ icon: Icon, children }: { icon: typeof Calendar; children: React.ReactNode }) {
+  return <li className="flex items-start gap-2"><Icon size={15} className="mt-[3px] flex-none text-dim" aria-hidden /><span className="min-w-0">{children}</span></li>
+}
+
+/* Up next, one plan: the cover as a taped photo, tilted a little, the faces of the
+   people in tucked behind its top edge, then the plan's name, its stage, and a short
+   details block that answers the time question first. The one button is the next
+   thing to do. It only takes you to the plan, never answers in place, so it can sit
+   inside the tilted photo, with sharing and duplicating beside it. `small` is the
+   side card on a wide screen: a shorter picture and only the lines that matter
+   most. `look` is its hand-laid details (Keepsake), the same every visit. */
+function UpNext({ e, phase, sameDay, size, look, lead = false }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo; size: 'hero' | 'small'; look: Look; lead?: boolean }) {
+  const tilt = look.tilt
+  // the plan in front gets the page's pencil marks: its time highlighted, and a note
+  // with an arrow at the button when something is owed. Refs for measuring the arrow.
+  const details = useRef<HTMLDivElement>(null)
+  const note = useRef<HTMLSpanElement>(null)
+  const task = useRef<HTMLAnchorElement>(null)
+  const [coverFrom, coverTo] = coverFor(e.id)
+  const d = digestOf(e, phase)
+  const turn = turnOf(e, phase)
+  const action = turn ?? { cta: 'See the plan', href: eventTabFor(e) }
+  const slot = confirmedSlotText(e)
+  const small = size === 'small'
+  const who = d.locked
+    ? [`${d.going} going`, d.maybe && `${d.maybe} maybe`, d.out && `${d.out} can’t make it`, d.pending && `${d.pending} ${d.pending === 1 ? 'hasn’t' : 'haven’t'} replied`].filter(Boolean).join(', ')
+    : d.answered >= d.total ? 'Everyone has answered' : `${d.answered} of ${d.total} have answered`
+  // only what bears on the time; budget, spots and the host live on the plan page
+  const extras = small ? [] : [
+    d.unread > 0 && `${d.unread} new ${d.unread === 1 ? 'message' : 'messages'}`,
+    d.locked && e.rsvpDeadline && `Reply by ${shortDay(e.rsvpDeadline)}`,
+    !d.locked && e.planDeadline && `Deciding by ${shortDay(e.planDeadline)}`,
+  ].filter(Boolean) as string[]
+  return (
+    <PeekCard people={peopleIn(e)} size={small ? 32 : 40} restShow={small ? 20 : 25} upShow={small ? 28 : 36} tilt={tilt} flippable>
+      <PhotoFrame tilt={tilt} tape={false} size={small ? 'sm' : 'md'} pad={look.pad}>
+        <div className="relative">
+          <Link href={eventTabFor(e)} tabIndex={-1} aria-label={e.title} className="block">
+            <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className={small ? 'h-[84px]' : 'h-[112px] sm:h-[160px]'} rounded="rounded-lg" />
+          </Link>
+          <Keepsake look={look} />
+        </div>
+        <div ref={details} className={`relative ${small ? 'px-2 pb-2 pt-2.5' : 'px-2 pb-1.5 pt-3'}`}>
+          <Link href={eventTabFor(e)} className={`block font-serif leading-[1.15] tracking-[-0.01em] [overflow-wrap:anywhere] hover:underline ${small ? 'text-[18px]' : 'text-[22px] sm:text-[24px]'}`}>
+            {e.title}
+          </Link>
+          <StageStepper phase={phase} labels={small ? 'current' : 'auto'} className={`max-w-[340px] ${small ? 'mb-2.5 mt-2.5' : 'mb-3 mt-3'}`} />
+          <ul className={`flex flex-col gap-1.5 leading-[1.45] ${small ? 'text-[13.5px]' : 'text-[14px]'}`}>
+            {/* when first: the locked slot and how far off, or the best time so far */}
+            {slot ? (
+              <Row icon={Calendar}>{lead ? <Highlight>{slot}</Highlight> : slot} <TimezonePill tz={e.timezone} />{d.countdown && <span className="text-dim">, {d.countdown}</span>}</Row>
+            ) : d.best ? (
+              <Row icon={Calendar}>
+                {lead ? <Highlight>{d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)}</Highlight> : <>{d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)}</>} <TimezonePill tz={e.timezone} /> <span className="text-dim">suits {d.best.count} of {d.total} so far</span>
+              </Row>
+            ) : (
+              <Row icon={Calendar}>Picking a time, {dateRangeText(e)}</Row>
+            )}
+            {/* who is in, and by name when only a few are still out */}
+            <Row icon={UsersRound}>
+              {who}{d.stillOut >= 1 && d.stillOut <= 3 && d.waitingOn.length > 0 && <span className="text-dim">. Waiting on {namesLabel(d.waitingOn.slice(0, 3))}</span>}
+            </Row>
+            {d.you && <Row icon={UserRound}><span className={turn ? 'font-semibold text-moment-text' : ''}>{d.you}</span></Row>}
+            {/* then where */}
+            {small ? null : e.location.mode === 'remote' ? (
+              <Row icon={Video}>Online{e.location.platform ? ` on ${e.location.platform}` : ''}</Row>
+            ) : d.lead?.confirmed ? (
+              <Row icon={MapPin}>{d.lead.place.name}{d.lead.place.place && <span className="text-dim">, {d.lead.place.place}</span>}</Row>
+            ) : d.lead ? (
+              <Row icon={MapPin}>{d.lead.place.name} <span className="text-dim">leads with {d.lead.voters.length} {d.lead.voters.length === 1 ? 'vote' : 'votes'}</span></Row>
+            ) : d.ballot > 0 ? (
+              <Row icon={MapPin}>{d.ballot} {d.ballot === 1 ? 'place' : 'places'} up for a vote</Row>
+            ) : null /* no place in play: the card says nothing about it */}
+          </ul>
+          {sameDay && !small && (() => {
+            const line = (
+              <div className="flex items-center gap-1.5 text-[13px] font-medium text-ochre-text">
+                <CalendarClock size={14} className="flex-none" /> <span className="truncate">Same day as {sameDay.label}</span>
+              </div>
+            )
+            // one clash names itself; only a count gets the expanding tooltip
+            return sameDay.all
+              ? <Tip text={`Same day as ${sameDay.all}`} className="mt-1.5 block w-fit max-w-full">{line}</Tip>
+              : <div className="mt-1.5">{line}</div>
+          })()}
+          {extras.length > 0 && (
+            // plain spacing when it wraps on a phone; hairlines only from sm up
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12.5px] text-dim sm:gap-x-2">
+              {extras.map((x, i) => (
+                <span key={x} className="flex items-center gap-2">
+                  {i > 0 && <span className="hidden h-3 w-px flex-none bg-border2 sm:inline-block" aria-hidden />}
+                  {x}
+                </span>
+              ))}
+            </div>
+          )}
+          {/* a note in the margin for what you owe, its arrow measured to the button */}
+          {lead && turn && (
+            <div className="mt-2.5 flex justify-end pr-2 sm:justify-start sm:pl-[34%]">
+              <HandNote ref={note} className="-rotate-2">{handNoteFor(turn)}</HandNote>
+            </div>
+          )}
+          {/* the next thing to do, then sharing and duplicating this plan */}
+          <div className="relative z-[3] mt-3.5 flex flex-wrap items-center gap-2">
+            <Link
+              ref={task}
+              href={action.href}
+              className={`flex items-center gap-1.5 rounded-full bg-accent font-semibold text-on-accent ${small ? 'h-11 px-4 text-[13.5px] sm:h-9' : 'h-11 px-5 text-[14px]'}`}
+            >
+              {action.cta} <ArrowRight size={15} aria-hidden />
+            </Link>
+            <PlanActions e={e} phase={phase} />
+          </div>
+          {lead && turn && <PencilArrow from={note} to={task} within={details} />}
+        </div>
+      </PhotoFrame>
+    </PeekCard>
+  )
+}
+
+// what the margin note says, by what you owe
+function handNoteFor(t: Turn): string {
+  if (t.cta === 'Mark my times') return 'your times are missing'
+  if (t.cta === 'Vote') return 'your vote is missing'
+  return 'you still need to reply'
+}
+
+/* sharing and duplicating one plan: small round buttons beside its task button,
+   named for the plan. Only the host hands out the invite link; any plan that is not
+   a demo can be duplicated. */
+function PlanActions({ e, phase }: { e: AppEvent; phase: Phase }) {
+  const [copied, setCopied] = useState(false)
+  function copyLink() {
+    navigator.clipboard?.writeText(`${window.location.origin}/events/${e.id}/join`).then(() => {
+      setCopied(true); setTimeout(() => setCopied(false), 1600)
+      pushFlash(`Link to ${e.title} copied.`)
+    }).catch(() => {})
+  }
+  const round = 'grid h-11 w-11 place-items-center rounded-full border sm:h-9 sm:w-9'
+  return (
+    <span className="flex items-center gap-2">
+      {e.hostedByYou && phase !== 'past' && (
+        <button
+          type="button" onClick={copyLink} aria-label={copied ? `Link to ${e.title} copied` : `Copy link to ${e.title}`} title={copied ? 'Link copied' : 'Copy the invite link'}
+          className={`${round} ${copied ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border2 bg-s1 text-text hover:bg-s2'}`}
+        >
+          {copied ? <Check size={16} /> : <Link2 size={16} />}
+        </button>
+      )}
+      {!e.demo && (
+        <Link href={`/create?from=${e.id}`} aria-label={`Duplicate ${e.title}`} title="Duplicate this plan" className={`${round} border-border2 bg-s1 text-text hover:bg-s2`}>
+          <CopyPlus size={16} />
+        </Link>
+      )}
+    </span>
+  )
+}
+
+/* Start a plan: the fastest path to a live plan, a name and the coming week, one
+   click. Everything else (place, invites, budget) waits on the plan page or behind
+   More options. A form, so it stays flat: a calm framed card, nothing tilted or
+   laid over it. */
 function QuickCreate() {
   const router = useRouter()
   const [title, setTitle] = useState('')
@@ -182,7 +506,7 @@ function QuickCreate() {
   const [today, setToday] = useState('')
   const [need, setNeed] = useState(false)
   // dates fill after mount: the server doesn't know the visitor's today.
-  // The coming week is the default window (same as the wizard) — a scheduling poll
+  // The coming week is the default window (same as the wizard): a scheduling poll
   // needs days to choose between, and one week is the typical ask.
   useEffect(() => {
     const iso = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
@@ -208,193 +532,57 @@ function QuickCreate() {
       locMode: 'later', planMode: 'vote', picked: [], platform: 'Google Meet', meetingLink: '',
       emails: [], accounts: [],
     })
-    // quick means quick: straight to the event, where the share link waits in the header
+    // quick means quick: straight to the plan, where the share link waits in the header
     pushFlash('Your plan is live. Share the link so people can join.')
     router.push(`/events/${ev.id}`)
   }
-  // on a phone the two dates share the row and split it evenly; from sm up each is
-  // wide enough for the longest day name
-  const dateCls = 'h-11 w-full sm:h-10 sm:w-[158px]'
+  const dateCls = 'h-12 w-full'
   return (
-    <div className="mb-6 rounded-2xl border border-border bg-s1 p-4">
-      <div className="flex flex-wrap items-center gap-2.5">
-        <input
-          value={title}
-          onChange={(e) => { setTitle(e.target.value); setNeed(false) }}
-          onKeyDown={(e) => { if (e.key === 'Enter') go() }}
-          aria-label="Plan name"
-          aria-invalid={need || undefined}
-          aria-describedby={need ? 'quick-title-err' : undefined}
-          placeholder="What are you planning?"
-          className={`h-11 sm:h-10 min-w-[200px] flex-1 rounded-[10px] border ${need ? 'border-brick-border' : 'border-border'} bg-s2 px-[13px] text-[14.5px] outline-none placeholder:text-faint focus:border-accent`}
-        />
-        <div className="flex w-full min-w-0 flex-none items-center gap-2 sm:w-auto">
-          <span className="min-w-0 flex-1 sm:flex-none">
-            <DateField value={start} min={today || undefined} label="Earliest day" className={dateCls}
-              onChange={(v) => { const d = fromDay(v, today); setStart(d); if (end < d) setEnd(d) }} />
-          </span>
-          <span className="flex-none text-faint" aria-hidden>→</span>
-          <span className="min-w-0 flex-1 sm:flex-none">
-            <DateField value={end} min={start || undefined} label="Latest day" className={dateCls} onChange={(v) => setEnd(fromDay(v, start))} />
-          </span>
+    <section aria-labelledby="home-start" className="min-w-0 rounded-3xl bg-frame p-5 shadow-frame sm:p-7">
+      <h2 id="home-start" className="font-serif text-[24px] leading-tight tracking-[-0.01em] sm:text-[26px]"><PencilUnderline ink="graphite">Start a plan</PencilUnderline></h2>
+      <label htmlFor="quick-title" className="mt-4 block text-[13px] font-semibold text-dim">Name</label>
+      <input
+        id="quick-title"
+        value={title}
+        onChange={(e) => { setTitle(e.target.value); setNeed(false) }}
+        onKeyDown={(e) => { if (e.key === 'Enter') go() }}
+        aria-invalid={need || undefined}
+        aria-describedby={need ? 'quick-title-err' : undefined}
+        placeholder="Friday dinner"
+        className={`mt-1.5 h-12 w-full rounded-[12px] border ${need ? 'border-brick-border' : 'border-border'} bg-s2 px-4 text-[16px] outline-none placeholder:text-faint focus:border-accent`}
+      />
+      {need && <p id="quick-title-err" role="alert" className="mt-1.5 text-[12.5px] font-medium text-brick-text">Give it a name first.</p>}
+      {/* the days to pick from, as a pair */}
+      <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
+        <div className="min-w-0">
+          <span aria-hidden className="mb-1.5 block text-[13px] font-semibold text-dim">From</span>
+          <DateField value={start} min={today || undefined} label="Earliest day" className={dateCls}
+            onChange={(v) => { const d = fromDay(v, today); setStart(d); if (end < d) setEnd(d) }} />
         </div>
-        <button onClick={go} className="flex h-11 sm:h-10 flex-none items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent">
-          <CalendarPlus size={16} /> Create
-        </button>
+        <span className="pb-3.5 text-faint" aria-hidden>→</span>
+        <div className="min-w-0">
+          <span aria-hidden className="mb-1.5 block text-[13px] font-semibold text-dim">To</span>
+          <DateField value={end} min={start || undefined} label="Latest day" className={dateCls} onChange={(v) => setEnd(fromDay(v, start))} />
+        </div>
       </div>
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[12.5px] text-dim">
-        <span>
-          {need
-            ? <span id="quick-title-err" role="alert" className="font-medium text-brick-text">Give it a name first.</span>
-            : asDayPoll
-              ? 'Over four weeks, so this asks which days work instead of times.'
-              : 'Uses your time zone. Share the link and people mark when they are free.'}
-        </span>
+      <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3">
+        <button type="button" onClick={go} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-accent px-6 text-[15px] font-semibold text-on-accent sm:w-auto">
+          <CalendarPlus size={17} aria-hidden /> Create
+        </button>
         {/* the wizard opens with what was typed here, so nothing is typed twice, and
             with its More options already open, since that is what was asked for */}
         <Link
           href={`/create?${(() => { const q = new URLSearchParams(); if (title.trim()) q.set('title', title.trim()); if (start) q.set('start', start); if (end) q.set('end', end); q.set('more', '1'); return q.toString() })()}`}
-          className="-my-2 py-2 font-semibold text-accent-text hover:underline"
+          className="inline-flex min-h-11 w-full items-center justify-center text-[13.5px] font-semibold text-accent-text hover:underline sm:min-h-0 sm:w-auto"
         >
           More options
         </Link>
       </div>
-    </div>
-  )
-}
-
-/* the faces of the people who are in, peeking over the hero's top edge. A little of
-   each shows at rest, so phones (no hover) see them too; hover or focus raises them,
-   and a tap turns one over to show whose it is. */
-function HeroPeek({ e, children }: { e: AppEvent; children: React.ReactNode }) {
-  return <PeekCard people={peopleIn(e)} size={40} restShow={26} upShow={36} flippable className="h-full">{children}</PeekCard>
-}
-
-/* the hero: wide card with the lifecycle strip and one contextual action.
-   The whole card opens the event's details; only elements with their own job don't. */
-function HeroCard({ e, phase, sameDay }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo }) {
-  const router = useRouter()
-  const badge = PHASE_BADGE[phase]
-  const tint = PHASE_TINT[phase]
-  // same fallback gradient as the section cards, so the hero wears the same cover
-  const [coverFrom, coverTo] = coverFor(e.id)
-  const dest = eventTabFor(e)
-  const du = daysUntil(e.confirmed?.dayKey ?? e.startDate)
-  const [copied, setCopied] = useState(false)
-  const action = phase === 'planning'
-    ? { label: 'Add your availability', href: `/events/${e.id}?tab=availability` }
-    : { label: 'Open the plan', href: `/events/${e.id}` }
-  function copyLink(ev: React.MouseEvent) {
-    ev.stopPropagation()
-    navigator.clipboard?.writeText(`${window.location.origin}/events/${e.id}/join`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
-  }
-  return (
-    <div
-      onClick={() => router.push(dest)}
-      className="relative flex h-full cursor-pointer flex-col justify-end overflow-hidden rounded-3xl border border-border bg-s1 transition-colors hover:border-border2"
-      style={tint.border ? { borderColor: tint.border } : undefined}
-    >
-      {/* The cover is the whole card on every Up next slide, photo or scene or the
-          fallback wash, and the words sit on a paper panel inset over its foot, so
-          the picture frames the details rather than stopping above them. Photos have
-          worn it this way since the photo covers arrived; scenes stacked instead, and
-          a later pass stretched the panel to fill spare height, which buried the
-          background the inset was there to show. Now every slide is the same card:
-          the carousel gives them one height, the cover fills it, the panel keeps its
-          own height at the bottom, and any spare height shows more of the picture.
-          170 (210 from sm) is the least of the cover that shows above the panel. */}
-      <div className="absolute inset-0"><Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className="h-full w-full" /></div>
-      <div className="relative m-3 mt-[170px] flex flex-wrap items-end justify-between gap-x-6 gap-y-4 rounded-xl border border-border bg-s1/[.94] p-5 shadow-soft backdrop-blur-sm sm:mt-[210px]">
-        {/* real min width: on phones the CTAs wrap below instead of crushing the title */}
-        <div className="min-w-[220px] flex-1">
-          {/* one quiet line instead of a chip row: dot for the phase, words for the rest */}
-          <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] font-medium text-dim">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 flex-none rounded-full" style={{ background: tint.dot }} />
-              {badge.label}
-            </span>
-            {du !== null && (
-              <>
-                <span className="h-3 w-px flex-none bg-border2" aria-hidden />
-                <span className={du >= 0 && du <= 14 ? 'text-accent-text' : ''}>{daysUntilLabel(du)}</span>
-              </>
-            )}
-            {!e.hostedByYou && (
-              <>
-                <span className="h-3 w-px flex-none bg-border2" aria-hidden />
-                <span>Hosted by {e.hostName}</span>
-              </>
-            )}
-            {e.participants.some((p) => p.you && p.rsvp === 'pending') && (
-              <>
-                <span className="rounded-full border border-moment-border bg-moment-bg px-2 py-px font-semibold text-moment-text">Your turn to reply</span>
-              </>
-            )}
-            {/* the host's side of the RSVP round: how many answers are still out */}
-            {(() => {
-              const n = e.hostedByYou && phase !== 'planning' && phase !== 'past'
-                ? e.participants.filter((p) => p.rsvp === 'pending').length
-                : 0
-              return n > 0 && (
-                <>
-                  <span className="h-3 w-px flex-none bg-border2" aria-hidden />
-                  <span>waiting on {n} {n === 1 ? 'reply' : 'replies'}</span>
-                </>
-              )
-            })()}
-          </div>
-          <Link href={dest} onClick={(ev) => ev.stopPropagation()} className="block font-serif text-[27px] leading-[1.08] tracking-[-0.01em] hover:underline">{e.title}</Link>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[13px] text-dim">
-            <Calendar size={14} /> {confirmedSlotText(e) ?? dateRangeText(e)} <TimezonePill tz={e.timezone} />
-          </div>
-          {sameDay && (() => {
-            const line = (
-              <div className="flex items-center gap-1.5 text-[13px] font-medium text-ochre-text">
-                <CalendarClock size={14} className="flex-none" /> <span className="truncate">Same day as {sameDay.label}</span>
-              </div>
-            )
-            // one clash names itself; only a count gets the expanding tooltip
-            return sameDay.all
-              ? <Tip text={`Same day as ${sameDay.all}`} className="mt-1.5 block w-fit max-w-full">{line}</Tip>
-              : <div className="mt-1.5">{line}</div>
-          })()}
-          <LifecycleStrip phase={phase} className="mt-4 max-w-[380px]" />
-        </div>
-        <div className="flex w-full flex-none flex-col gap-2 sm:w-auto sm:flex-row-reverse sm:items-center">
-          <Link href={action.href} onClick={(ev) => ev.stopPropagation()} className="flex h-11 sm:h-10 w-full flex-none items-center justify-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent sm:w-auto">
-            {action.label} <ArrowRight size={15} />
-          </Link>
-          {e.hostedByYou && (
-            <button
-              type="button" onClick={copyLink}
-              className={`flex h-11 sm:h-10 w-full flex-none items-center justify-center gap-1.5 rounded-full border px-4 text-[14px] font-semibold sm:w-auto ${copied ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border2 bg-s1 text-text hover:bg-s2'}`}
-            >
-              {copied ? <><Check size={15} /> Link copied</> : <><Link2 size={15} /> Share link</>}
-            </button>
-          )}
-          {!e.demo && (
-            <Link
-              href={`/create?from=${e.id}`} onClick={(ev) => ev.stopPropagation()} title="Duplicate this plan"
-              className="flex h-11 sm:h-10 w-full flex-none items-center justify-center gap-1.5 rounded-full border border-border2 bg-s1 px-4 text-[14px] font-semibold text-text hover:bg-s2 sm:w-auto"
-            >
-              <CopyPlus size={15} /> Duplicate
-            </Link>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// editorial section start: a color-coded eyebrow — the kicker itself carries the
-// section's hue, no icons and no extra marks (the cards already speak in dots)
-function SectionHeader({ title, count, color, className = '' }: { title: string; count?: number; color?: string; className?: string }) {
-  return (
-    <div className={`flex items-center justify-between ${className} mb-[12px]`}>
-      <div className="flex items-center gap-2.5">
-        <span className="text-[11.5px] font-semibold uppercase tracking-[.13em]" style={{ color: color ?? 'var(--faint)' }}>{title}</span>
-        {count != null && <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[11.5px] text-dim">{count}</span>}
-      </div>
-    </div>
+      <p className="mt-3 text-[12.5px] leading-[1.5] text-dim">
+        {asDayPoll
+          ? 'Over four weeks, so this asks which days work instead of times.'
+          : 'Uses your time zone. Share the link and people mark when they’re free.'}
+      </p>
+    </section>
   )
 }
