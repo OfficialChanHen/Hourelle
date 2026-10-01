@@ -28,6 +28,12 @@ import { listDemos, type AppEvent } from '@/lib/events'
 import { reducedMotion } from '@/lib/prefs'
 import { useHeatLine, withHeatLine } from '@/hooks/useHeatLine'
 import { Em } from '@/components/ui/Em'
+import { SoftShapes } from '@/components/ui/SoftShapes'
+import { PhotoFrame } from '@/components/ui/PhotoFrame'
+import { PeekCard, peopleIn } from '@/components/ui/PeekCard'
+import { Keepsake, lookOf, type Look } from '@/components/ui/Keepsake'
+import { Highlight, PencilArrow, PencilUnderline } from '@/components/ui/Pencil'
+import { HandNote } from '@/components/ui/HandNote'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -68,6 +74,10 @@ export default function Landing() {
   const router = useRouter()
   const { ready, signedIn } = useAccess()
   const root = useRef<HTMLDivElement>(null)
+  // the one margin note on the page, and the button its arrow is measured to
+  const heroText = useRef<HTMLDivElement>(null)
+  const note = useRef<HTMLSpanElement>(null)
+  const demoBtn = useRef<HTMLAnchorElement>(null)
   const [demos, setDemos] = useState<AppEvent[]>([])
 
   // an account has a home; this page is for people who do not have one yet
@@ -116,17 +126,19 @@ export default function Landing() {
       </a>
       <VisitorHeader />
 
-      <main id="main" tabIndex={-1} className="relative flex-1">
+      <main id="main" tabIndex={-1} className="relative flex-1 overflow-x-clip">
         {/* the front door has its own layout, so a flash queued on the way here (a
             guest the host removed from an event) needs its own place to land */}
         <FlashToast />
         {/* ── hero ── */}
-        <section className="mx-auto w-full max-w-[1240px] px-[22px] pb-8 pt-8 sm:pt-12 lg:pt-16">
+        <section className="relative isolate mx-auto w-full max-w-[1240px] px-[22px] pb-8 pt-8 sm:pt-12 lg:pt-16">
+          {/* soft colour behind the opening, never over the grid */}
+          <SoftShapes variant="home" />
           <div className="grid gap-10 lg:grid-cols-12 lg:items-center xl:gap-14">
-            <div className="ld-hero min-w-0 lg:col-span-5">
+            <div ref={heroText} className="ld-hero relative min-w-0 lg:col-span-5">
               <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">The little hour when people meet</p>
               <h1 className="mt-3 font-serif font-normal text-[46px] leading-[1.0] tracking-[-0.015em] sm:text-[62px] lg:text-[54px] xl:text-[62px]">
-                Find the hour <Em>everyone</Em> can meet.
+                Find <Highlight>the hour</Highlight> <Em>everyone</Em> can meet.
               </h1>
               <p className="mt-5 max-w-[560px] text-[16px] leading-[1.6] text-dim sm:text-[17px]">
                 Skip the back-and-forth. Start a plan and send the link. Everyone marks when they are free and votes on where to go. Guests don't need an account.
@@ -135,10 +147,15 @@ export default function Landing() {
                 <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-full bg-accent px-6 text-[15px] font-semibold text-on-accent">
                   Sign up <ArrowRight size={16} />
                 </Link>
-                <Link href="/demos" className="flex h-12 items-center justify-center rounded-full border border-border2 bg-s1 px-6 text-[15px] font-semibold text-dim hover:bg-s2 hover:text-text">
+                <Link ref={demoBtn} href="/demos" className="flex h-12 items-center justify-center rounded-full border border-border2 bg-s1 px-6 text-[15px] font-semibold text-dim hover:bg-s2 hover:text-text">
                   Try a demo first
                 </Link>
               </div>
+              {/* the page's one margin note, its arrow measured to the demo button */}
+              <div className="mt-7 flex justify-end pr-4 sm:mt-6 sm:justify-start sm:pl-[52%] lg:pl-[64%]">
+                <HandNote ref={note} ink="accent" className="rotate-[-3deg]">nothing to set up</HandNote>
+              </div>
+              <PencilArrow from={note} to={demoBtn} within={heroText} ink="accent" />
               <p className="mt-4 text-[12.5px] text-faint">Invited to something? Just open the link you were sent.</p>
             </div>
 
@@ -157,7 +174,7 @@ export default function Landing() {
         {/* ── how it works ── */}
         <section id="how" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pb-8 pt-14 sm:pt-28">
           <div className="ld-reveal max-w-[560px]">
-            <h2 className="font-serif font-normal text-[36px] leading-[1.06] tracking-[-0.01em] sm:text-[46px]">How it works</h2>
+            <h2 className="font-serif font-normal text-[36px] leading-[1.06] tracking-[-0.01em] sm:text-[46px]"><PencilUnderline ink="graphite">How it works</PencilUnderline></h2>
           </div>
           <HowItWorks />
         </section>
@@ -194,7 +211,8 @@ export default function Landing() {
         </section>
 
         {/* ── demos ── */}
-        <section id="demos" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pt-20 sm:pt-28">
+        <section id="demos" className="relative isolate mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pt-20 sm:pt-28">
+          <SoftShapes variant="band" />
           <div className="ld-reveal flex flex-wrap items-end justify-between gap-4">
             <div className="max-w-[560px]">
               <h2 className="font-serif font-normal text-[36px] leading-[1.06] tracking-[-0.01em] sm:text-[46px]">Demos</h2>
@@ -204,22 +222,35 @@ export default function Landing() {
               All demos <ArrowRight size={14} />
             </Link>
           </div>
-          <div className="ld-stagger mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {demos.map((d) => {
-              const [from, to] = coverFor(d.id)
-              return (
-                <Link key={d.id} href={`/events/${d.id}`} className={`group ${frame} transition-transform hover:-translate-y-0.5`}>
-                  <Cover src={d.image} from={from} to={to} className={CARD_COVER_H} />
-                  <div className="p-5">
-                    <p className="font-serif text-[21px] leading-tight tracking-[-0.01em]">{d.title}</p>
-                    <p className="mt-1.5 text-[13px] leading-[1.55] text-dim">{rich(DEMO_PICKS[d.id])}</p>
-                    <p className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-accent-text">
-                      <Users size={13} /> {d.participants.length} people <ArrowRight size={13} className="ml-auto transition-transform group-hover:translate-x-0.5" />
-                    </p>
-                  </div>
-                </Link>
-              )
-            })}
+          {/* the demos are moments: hand-laid photos, each with its own small details and
+              the group's faces tucked behind the top edge */}
+          <div className="ld-stagger mt-8 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-3">
+            {(() => {
+              const looks: Look[] = []
+              return demos.map((d, i) => {
+                const [from, to] = coverFor(d.id)
+                const look = lookOf(d.id, i, looks[i - 1]); looks.push(look)
+                return (
+                  <PeekCard key={d.id} people={peopleIn(d)} size={30} restShow={16} upShow={24} tilt={look.tilt}>
+                    <Link href={`/events/${d.id}`} className="group block">
+                      <PhotoFrame tilt={look.tilt} tape={false} pad={look.pad}>
+                        <div className="relative">
+                          <Cover src={d.image} from={from} to={to} className={CARD_COVER_H} rounded="rounded-lg" />
+                          <Keepsake look={look} />
+                        </div>
+                        <div className="px-2 pb-1 pt-3.5">
+                          <p className="font-serif text-[21px] leading-tight tracking-[-0.01em]">{d.title}</p>
+                          <p className="mt-1.5 text-[13px] leading-[1.55] text-dim">{rich(DEMO_PICKS[d.id])}</p>
+                          <p className="mt-3 flex items-center gap-1.5 text-[12px] font-semibold text-accent-text">
+                            <Users size={13} /> {d.participants.length} people <ArrowRight size={13} className="ml-auto transition-transform group-hover:translate-x-0.5" />
+                          </p>
+                        </div>
+                      </PhotoFrame>
+                    </Link>
+                  </PeekCard>
+                )
+              })
+            })()}
           </div>
         </section>
 

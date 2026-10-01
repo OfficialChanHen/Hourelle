@@ -165,6 +165,17 @@ export function PencilArrow({ from, to, within, ink = 'moment' }: {
       // a target below the note is reached at its top edge, nearest the note;
       // one level with it at the side facing the note
       const below = B.y > ay - 2
+      // a target above the note: from the note's top up to the target's bottom edge
+      if (B.y + B.h < A.y + 2) {
+        const tx = ax, ty = A.y - 4
+        const hx = Math.max(B.x + 12, Math.min(B.x + B.w - 12, tx)), hy = B.y + B.h + 5
+        const qx = (tx + hx) / 2 + (hy - ty) * 0.25, qy = (ty + hy) / 2
+        const ang0 = Math.atan2(hy - qy, hx - qx), L0 = 8
+        const g1 = `${hx - L0 * Math.cos(ang0 - 0.5)} ${hy - L0 * Math.sin(ang0 - 0.5)}`
+        const g2 = `${hx - L0 * Math.cos(ang0 + 0.5)} ${hy - L0 * Math.sin(ang0 + 0.5)}`
+        setGeo({ w: box.offsetWidth, h: box.offsetHeight, d: `M${tx} ${ty} Q ${qx} ${qy} ${hx} ${hy} M${g1} L ${hx} ${hy} L ${g2}` })
+        return
+      }
       // a target off to one side of the note starts at that end of the note, so the
       // arrow never runs under its own words
       const side = bcx < A.x ? -1 : bcx > A.x + A.w ? 1 : 0

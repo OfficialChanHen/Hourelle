@@ -16,7 +16,7 @@ const BAND = 'M0 18 C 18 6, 40 12, 58 20 C 78 29, 92 18, 100 24 L 100 78 C 84 90
 const PEBBLE = 'M22 12 C 44 0, 84 6, 94 30 C 104 56, 86 88, 58 94 C 30 100, 4 84, 4 58 C 4 38, 8 20, 22 12 Z'
 const CAP = 'M0 0 L 100 0 L 100 88 C 84 97, 64 91, 48 95 C 30 100, 14 93, 0 98 Z'
 
-const VARIANTS: Record<'home' | 'plan', Blob[]> = {
+const VARIANTS: Record<'home' | 'plan' | 'band', Blob[]> = {
   // Home: a green band behind the greeting and Up next, a peach pebble lower right
   home: [
     { d: BAND, fill: 'var(--shape-a)', box: { left: '-8%', top: '90px', width: '116%', height: '420px' } },
@@ -27,9 +27,15 @@ const VARIANTS: Record<'home' | 'plan', Blob[]> = {
     { d: CAP, fill: 'var(--shape-c)', box: { left: '-6%', top: '-40px', width: '112%', height: 'calc(100% + 40px)' } },
     { d: PEBBLE, fill: 'var(--shape-a)', box: { right: '-70px', top: '-30px', width: '220px', height: '180px' } },
   ],
+  // mid-page: a sand band with wavy edges behind the lower part of a section, so no
+  // edge is ever cut straight by the section box
+  band: [
+    { d: BAND, fill: 'var(--shape-c)', box: { left: '-8%', top: '26%', width: '116%', height: '74%' } },
+    { d: PEBBLE, fill: 'var(--shape-a)', box: { right: '-60px', top: '8%', width: '200px', height: '160px' } },
+  ],
 }
 
-export function SoftShapes({ variant, className = '' }: { variant: 'home' | 'plan'; className?: string }) {
+export function SoftShapes({ variant, className = '' }: { variant: 'home' | 'plan' | 'band'; className?: string }) {
   return (
     <div aria-hidden className={`soft-shapes pointer-events-none absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2 overflow-hidden ${className}`}>
       {VARIANTS[variant].map((b, i) => (
