@@ -1586,7 +1586,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 <div className="flex flex-col gap-2.5 p-1 text-[12px] leading-[1.5] text-dim">
                   <div className="flex items-center gap-1 text-[11px] text-faint">
                     <span>No one</span>
-                    {['var(--s2)', 'var(--heat-low)', 'var(--heat-mid)', 'var(--heat-high)', 'var(--heat-full)'].map((c) => (
+                    {['var(--s1)', 'var(--heat-low)', 'var(--heat-mid)', 'var(--heat-high)', 'var(--heat-full)'].map((c) => (
                       <span key={c} className="h-[11px] w-[11px] rounded-[3px] border border-border" style={{ background: c }} />
                     ))}
                     <span>{filterOn ? 'All selected' : 'Everyone'}</span>

@@ -4,8 +4,10 @@ import { ISO_DAY } from '@/lib/calendar-import'
 
 export type Band = { s: number; e: number; ids: string[] } // constant-crowd segment inside one cell
 
+// nobody free is the card's own colour: the warm panel tint (--s2) sat too close to the
+// clay of your own marks in Edit mine, so an empty cell and one of yours looked alike
 export function heat(n: number, total: number) {
-  if (n === 0) return 'var(--s2)'
+  if (n === 0) return 'var(--s1)'
   const r = n / Math.max(total, 1)
   return r <= 0.25 ? 'var(--heat-low)' : r <= 0.5 ? 'var(--heat-mid)' : r < 1 ? 'var(--heat-high)' : 'var(--heat-full)'
 }
