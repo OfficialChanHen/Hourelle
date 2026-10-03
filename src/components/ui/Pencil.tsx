@@ -45,7 +45,15 @@ function useDraw(scope: React.RefObject<Element | null>, deps: unknown[] = []) {
     if (!strokes.length) return
     drawn.current = true
     if (reducedMotion()) return
-    gsap.fromTo(strokes, { strokeDashoffset: 1 }, { strokeDashoffset: 0, autoRound: false, duration: 0.6, ease: 'power2.out', stagger: 0.18, delay: 0.1 })
+    // an undrawn stroke is hidden, not just dashed away: a round cap still paints a
+    // dot at offset 1. Each one shows the moment its own draw starts.
+    gsap.set(strokes, { visibility: 'hidden' })
+    strokes.forEach((s, i) => {
+      gsap.fromTo(s, { strokeDashoffset: 1 }, {
+        strokeDashoffset: 0, autoRound: false, duration: 0.6, ease: 'power2.out', delay: 0.1 + i * 0.18,
+        onStart: () => { gsap.set(s, { visibility: 'visible' }) },
+      })
+    })
   }, { scope, dependencies: deps })
 }
 
@@ -350,8 +358,13 @@ export function PencilHover({ children }: { children: React.ReactNode }) {
     const canHover = window.matchMedia('(hover: hover) and (pointer: fine)')
     const show = contextSafe((on: boolean) => {
       const to = on ? 0 : 1
-      if (reducedMotion()) { gsap.set(path, { strokeDashoffset: to, overwrite: true }); return }
-      gsap.to(path, { strokeDashoffset: to, autoRound: false, duration: on ? 0.25 : 0.15, ease: on ? 'power1.out' : 'power1.in', overwrite: true })
+      // hidden whenever it is fully rubbed out: a round cap at offset 1 still paints a dot
+      if (reducedMotion()) { gsap.set(path, { strokeDashoffset: to, visibility: on ? 'visible' : 'hidden', overwrite: true }); return }
+      if (on) gsap.set(path, { visibility: 'visible' })
+      gsap.to(path, {
+        strokeDashoffset: to, autoRound: false, duration: on ? 0.25 : 0.15, ease: on ? 'power1.out' : 'power1.in', overwrite: true,
+        onComplete: on ? undefined : () => { gsap.set(path, { visibility: 'hidden' }) },
+      })
     })
     const enter = (e: PointerEvent) => { if (e.pointerType === 'mouse' && canHover.matches) show(true) }
     const leave = (e: PointerEvent) => { if (e.pointerType === 'mouse' && !tab.matches(':focus-visible')) show(false) }
@@ -375,7 +388,7 @@ export function PencilHover({ children }: { children: React.ReactNode }) {
       {children}
       <svg aria-hidden focusable="false" viewBox={`0 0 ${w} 7`} preserveAspectRatio="none" className="pointer-events-none absolute -bottom-[6px] left-[2%] h-[7px] w-[96%] overflow-visible">
         <path
-          data-hover-ink d={fit('M2 5 C 22 7, 48 3.5, 70 5.5 S 92 4, 98 5.5', w / 100, 0.7)} pathLength={1} strokeDasharray="1" strokeDashoffset="1" fill="none"
+          data-hover-ink d={fit('M2 5 C 22 7, 48 3.5, 70 5.5 S 92 4, 98 5.5', w / 100, 0.7)} pathLength={1} strokeDasharray="1" strokeDashoffset="1" visibility="hidden" fill="none"
           strokeWidth={1.4} strokeLinecap="round" vectorEffect="non-scaling-stroke" filter={`url(#${PENCIL_FILTER})`}
           className="pencil stroke-pencil-hover" opacity={0.75}
         />
