@@ -13,43 +13,48 @@ import { reducedMotion } from '@/lib/prefs'
    and raised (negative is above the card); `restTilt` / `upTilt` alternate left and
    right. With reduced motion the faces stay where they rest.
 
-   `intro` is for screens with no hover: the first time the card scrolls into view
-   the faces rise once, hold a moment and settle back. Once per card per page view. */
+   `band` is for screens with no hover: the faces rise while the card is near the
+   middle of the screen and sink back to rest once it has been scrolled well away,
+   above or below, and rise again whenever it comes back. A face flipped to its
+   initials stays flipped through all of it (the flip turns the face, the peek moves
+   its holder). */
 
-// one observer for every card on the page, so thirty cards cost one observer, and
-// each card leaves it as soon as its intro has played
-const introFor = new WeakMap<Element, () => void>()
-let introObserver: IntersectionObserver | null = null
-function observeIntro(el: Element, run: () => void) {
+// Two shared observers for every card on the page, so thirty cards cost two
+// observers and no scroll handler. A card rises when any of it enters the middle 40%
+// of the screen, and sinks only once it is clear of the middle 70%: the gap between
+// the two is the hysteresis, so a card resting at the edge never flickers.
+type Peek = { rise: () => void; settle: () => void }
+const bandFor = new WeakMap<Element, Peek>()
+let inner: IntersectionObserver | null = null
+let outer: IntersectionObserver | null = null
+function observeBand(el: Element, peek: Peek) {
   if (typeof IntersectionObserver === 'undefined') return () => {}
-  introObserver ??= new IntersectionObserver((entries) => {
-    for (const en of entries) {
-      if (!en.isIntersecting) continue
-      introObserver?.unobserve(en.target)
-      introFor.get(en.target)?.()
-      introFor.delete(en.target)
-    }
-  }, { threshold: 0.6 })
-  introFor.set(el, run)
-  introObserver.observe(el)
-  return () => { introObserver?.unobserve(el); introFor.delete(el) }
+  inner ??= new IntersectionObserver((entries) => {
+    for (const en of entries) if (en.isIntersecting) bandFor.get(en.target)?.rise()
+  }, { rootMargin: '-30% 0px -30% 0px' })
+  outer ??= new IntersectionObserver((entries) => {
+    for (const en of entries) if (!en.isIntersecting) bandFor.get(en.target)?.settle()
+  }, { rootMargin: '-15% 0px -15% 0px' })
+  bandFor.set(el, peek)
+  inner.observe(el)
+  outer.observe(el)
+  return () => { inner?.unobserve(el); outer?.unobserve(el); bandFor.delete(el) }
 }
 
-// how long the raised faces hold before they settle, in seconds
-const HOLD = 0.8
-
-export function usePeek({ restY, upY, restTilt, upTilt, intro = false }: {
-  restY: number; upY: number; restTilt: number; upTilt: number; intro?: boolean
+export function usePeek({ restY, upY, restTilt, upTilt, band = false }: {
+  restY: number; upY: number; restTilt: number; upTilt: number; band?: boolean
 }) {
   const scope = useRef<HTMLDivElement>(null)
   const up = useRef(false)
   const { contextSafe } = useGSAP({ scope })
+  // xPercent/yPercent pinned to 0: GSAP can read the faces' inline rest pose
+  // (translateY of half a face) as a percentage and then add y on top of it
   const riseTo = () => ({
-    y: upY, rotate: (i: number) => (i % 2 ? upTilt : -upTilt),
+    xPercent: 0, yPercent: 0, y: upY, rotate: (i: number) => (i % 2 ? upTilt : -upTilt),
     duration: 0.5, ease: 'back.out(2.2)', stagger: 0.045,
   })
   const settleTo = () => ({
-    y: restY, rotate: (i: number) => (i % 2 ? restTilt : -restTilt),
+    xPercent: 0, yPercent: 0, y: restY, rotate: (i: number) => (i % 2 ? restTilt : -restTilt),
     duration: 0.42, ease: 'back.out(1.6)', stagger: { each: 0.02, from: 'end' as const },
   })
   // plain handlers: the refs are read when the pointer moves, never during render,
@@ -64,18 +69,12 @@ export function usePeek({ restY, upY, restTilt, upTilt, intro = false }: {
     up.current = false
     contextSafe(() => { gsap.to('.peek-face', { ...settleTo(), overwrite: true }) })()
   }
-  // the touch intro: rise, hold, settle, as one timeline the hook's context owns
-  useGSAP((_, safe) => {
+  // the touch band: rise near the middle of the screen, settle once well away. Under
+  // reduced motion rise() does nothing, so the faces stay at their rest peek.
+  useGSAP(() => {
     const el = scope.current
-    if (!intro || !el || !safe || reducedMotion()) return
-    const play = safe(() => {
-      const faces = gsap.utils.toArray<HTMLElement>('.peek-face', el)
-      if (!faces.length) return
-      gsap.timeline()
-        .to(faces, { ...riseTo(), overwrite: true })
-        .to(faces, settleTo(), `+=${HOLD}`)
-    })
-    return observeIntro(el, play)
-  }, { scope, dependencies: [intro, restY] })
+    if (!band || !el) return
+    return observeBand(el, { rise, settle })
+  }, { scope, dependencies: [band, restY] })
   return { scope, rise, settle }
 }

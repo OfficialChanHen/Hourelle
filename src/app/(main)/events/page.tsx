@@ -81,7 +81,7 @@ function EventsList() {
           title={filter === 'all' ? 'Nothing planned yet' : `Nothing under ${match.label}`}
           body={filter === 'all' ? 'Start a plan and it shows up here.' : 'Plans move here as their stage changes.'}
           action={filter === 'all' ? { label: 'Start a plan', href: '/create' } : undefined}
-          secondary={filter === 'all' ? { label: 'Or open a demo', href: '/demos' } : undefined}
+          secondary={filter === 'all' ? { label: 'Or use a template', href: '/templates' } : undefined}
         />
       )}
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Children, useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { reducedMotion } from '@/lib/prefs'
@@ -60,16 +60,47 @@ function Stroke({ d, ink, width = 2.2, opacity }: { d: string; ink: Ink; width?:
   )
 }
 
-/** A pencil underline under its word: two strokes, the width of the word. */
+/* Every mark is drawn on a nominal box (100 wide) and fitted to the real one in
+   pixels: a stretched viewBox would make the dash that draws the stroke cover only
+   part of a long line (the stroke does not scale, the dash maths does), which is how
+   a heading's underline came out short. So each mark measures the thing it marks
+   (layout size, so a tilted card does not skew it) and scales its path to that. */
+function fit(d: string, sx: number, sy: number) {
+  let i = 0
+  return d.replace(/-?\d*\.?\d+/g, (n) => String(Math.round(parseFloat(n) * (i++ % 2 ? sy : sx) * 100) / 100))
+}
+// the layout size of an element, kept current
+function useBox(el: React.RefObject<HTMLElement | null>) {
+  const [box, setBox] = useState<{ w: number; h: number } | null>(null)
+  useEffect(() => {
+    const n = el.current
+    if (!n || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => {
+      const w = n.offsetWidth, h = n.offsetHeight
+      setBox((b) => (b && b.w === w && b.h === h ? b : { w, h }))
+    })
+    ro.observe(n)
+    return () => ro.disconnect()
+  }, [el])
+  return box
+}
+
+/** A pencil underline under its word: two strokes, the full width of the word. */
 export function PencilUnderline({ children, ink = 'accent', className = '' }: { children: React.ReactNode; ink?: Ink; className?: string }) {
   const svg = useRef<SVGSVGElement>(null)
-  useDraw(svg)
+  const word = useRef<HTMLSpanElement>(null)
+  const box = useBox(word)
+  // the line runs a little past each end of the word: 106% of it, 8px tall
+  const w = box ? box.w * 1.06 : 0
+  useDraw(svg, [w > 0])
   return (
-    <span className={`relative inline-block ${className}`}>
+    <span ref={word} className={`relative inline-block ${className}`}>
       {children}
-      <svg ref={svg} aria-hidden focusable="false" viewBox="0 0 100 10" preserveAspectRatio="none" className="pointer-events-none absolute -bottom-[7px] -left-[3%] h-[8px] w-[106%] overflow-visible">
-        <Stroke d="M1 6 C 25 3, 60 8, 99 4" ink={ink} width={2.4} />
-        <Stroke d="M8 8 C 35 7, 65 9.5, 92 7.5" ink={ink} width={1.3} opacity={0.6} />
+      <svg ref={svg} aria-hidden focusable="false" viewBox={`0 0 ${w || 100} 8`} preserveAspectRatio="none" className="pointer-events-none absolute -bottom-[7px] -left-[3%] h-[8px] w-[106%] overflow-visible">
+        {w > 0 && <>
+          <Stroke d={fit('M1 6 C 25 3, 60 8, 99 4', w / 100, 0.8)} ink={ink} width={2.4} />
+          <Stroke d={fit('M8 8 C 35 7, 65 9.5, 92 7.5', w / 100, 0.8)} ink={ink} width={1.3} opacity={0.6} />
+        </>}
       </svg>
     </span>
   )
@@ -78,12 +109,16 @@ export function PencilUnderline({ children, ink = 'accent', className = '' }: { 
 /** A loose hand-drawn ring around what it wraps, sized to its box. */
 export function PencilCircle({ children, ink = 'accent', className = '' }: { children: React.ReactNode; ink?: Ink; className?: string }) {
   const svg = useRef<SVGSVGElement>(null)
-  useDraw(svg)
+  const inner = useRef<HTMLSpanElement>(null)
+  const box = useBox(inner)
+  // the ring's box: 12px past each side, 7px above and below
+  const w = box ? box.w + 24 : 0, h = box ? box.h + 14 : 0
+  useDraw(svg, [w > 0])
   return (
-    <span className={`relative inline-block ${className}`}>
+    <span ref={inner} className={`relative inline-block ${className}`}>
       {children}
-      <svg ref={svg} aria-hidden focusable="false" viewBox="0 0 100 40" preserveAspectRatio="none" className="pointer-events-none absolute -inset-x-[12px] -inset-y-[7px] h-[calc(100%+14px)] w-[calc(100%+24px)] overflow-visible">
-        <Stroke d="M54 3 C 86 2, 100 12, 97 22 C 93 35, 30 39, 9 30 C -3 22, 10 4, 48 3 L 64 6" ink={ink} width={2} />
+      <svg ref={svg} aria-hidden focusable="false" viewBox={`0 0 ${w || 100} ${h || 40}`} preserveAspectRatio="none" className="pointer-events-none absolute -inset-x-[12px] -inset-y-[7px] h-[calc(100%+14px)] w-[calc(100%+24px)] overflow-visible">
+        {w > 0 && <Stroke d={fit('M54 3 C 86 2, 100 12, 97 22 C 93 35, 30 39, 9 30 C -3 22, 10 4, 48 3 L 64 6', w / 100, h / 40)} ink={ink} width={2} />}
       </svg>
     </span>
   )
@@ -108,11 +143,16 @@ export function PencilTick({ ink = 'accent', size = 16 }: { ink?: Ink; size?: nu
 }
 export function PencilStrike({ children, ink = 'moment' }: { children: React.ReactNode; ink?: Ink }) {
   const svg = useRef<SVGSVGElement>(null)
-  useDraw(svg)
+  const word = useRef<HTMLSpanElement>(null)
+  const box = useBox(word)
+  const w = box ? box.w * 1.08 : 0
+  useDraw(svg, [w > 0])
   return (
-    <span className="relative inline-block">
+    <span ref={word} className="relative inline-block">
       {children}
-      <svg ref={svg} aria-hidden focusable="false" viewBox="0 0 100 10" preserveAspectRatio="none" className="pointer-events-none absolute left-[-4%] top-1/2 h-[8px] w-[108%] -translate-y-1/2 overflow-visible"><Stroke d="M2 6 C 30 3, 65 7, 98 3" ink={ink} width={2} /></svg>
+      <svg ref={svg} aria-hidden focusable="false" viewBox={`0 0 ${w || 100} 8`} preserveAspectRatio="none" className="pointer-events-none absolute left-[-4%] top-1/2 h-[8px] w-[108%] -translate-y-1/2 overflow-visible">
+        {w > 0 && <Stroke d={fit('M2 6 C 30 3, 65 7, 98 3', w / 100, 0.8)} ink={ink} width={2} />}
+      </svg>
     </span>
   )
 }
@@ -122,16 +162,92 @@ export function PencilBracket({ ink = 'graphite', height = 40 }: { ink?: Ink; he
   return <svg ref={svg} aria-hidden focusable="false" width={12} height={height} viewBox="0 0 12 40" preserveAspectRatio="none" className="inline-block overflow-visible"><Stroke d="M2 2 C 8 3, 7 14, 7 18 C 7 20, 11 20, 11 20 C 7 21, 7 24, 7 26 C 7 32, 8 38, 2 38" ink={ink} width={1.8} /></svg>
 }
 
-/** A highlighter swipe behind a phrase, exactly the phrase: a background drawn on
-    the inline text itself, cloned on every line it wraps to, so it follows the words
-    wherever they break. The colour is --highlight (multiplied on light paper). */
+/* ── the highlighter: a marker pass over a phrase ──
+   One soft, slightly uneven shape per line the phrase sits on, from just above the
+   capitals to just under the baseline and a little past each end, so the whole word
+   reads as marked (not as selected text, which is a hard full-height box). The words
+   are measured from the layout (offsets, so a tilted card does not skew them),
+   grouped into lines, and measured again when anything around them changes size.
+   The shape is drawn behind the words in --highlight (multiplied on light paper) and
+   swipes in left to right once; under reduced motion it is simply there. */
+
+// a phrase made of plain text is split into words, so each line it wraps to gets its
+// own shape; anything richer is measured as one piece
+function asWords(children: React.ReactNode): React.ReactNode {
+  const parts = Children.toArray(children)
+  if (!parts.every((p) => typeof p === 'string' || typeof p === 'number')) return <span data-hl-word className="relative">{children}</span>
+  return parts.join('').split(/(\s+)/).map((t, i) => (!t || /^\s+$/.test(t) ? t : <span key={i} data-hl-word className="relative">{t}</span>))
+}
+// a steady wobble for line i, so the same phrase keeps the same shape
+function wob(i: number, k: number) {
+  const x = Math.sin((i * 7 + 3) * 12.9898 + k * 78.233) * 43758.5453
+  return x - Math.floor(x) - 0.5
+}
+function markerShape(ln: { l: number; r: number; t: number; h: number }, i: number) {
+  const ext = ln.h * 0.07
+  const x0 = ln.l - ext, x1 = ln.r + ext
+  const y0 = ln.t + ln.h * 0.15, y1 = ln.t + ln.h * 0.86
+  const H = y1 - y0, W = x1 - x0, r = H * 0.45, a = H * 0.08
+  const n = (v: number) => Math.round(v * 10) / 10
+  const startY = y0 + a * 0.6 + a * wob(i, 1)
+  return [
+    `M${n(x0 + r * 0.5)} ${n(startY)}`,
+    `C${n(x0 + W * 0.35)} ${n(y0 - a * 0.5 + a * wob(i, 2))} ${n(x0 + W * 0.65)} ${n(y0 + a * 0.4 + a * wob(i, 3))} ${n(x1 - r * 0.4)} ${n(y0 - a * 0.3)}`,
+    `C${n(x1 + r * 0.35)} ${n(y0 + H * 0.05)} ${n(x1 + r * 0.3)} ${n(y1 - H * 0.12)} ${n(x1 - r * 0.5)} ${n(y1 + a * 0.2 + a * wob(i, 4))}`,
+    `C${n(x0 + W * 0.6)} ${n(y1 + a * 0.6 + a * wob(i, 5))} ${n(x0 + W * 0.3)} ${n(y1 - a * 0.4)} ${n(x0 + r * 0.4)} ${n(y1 + a * 0.3)}`,
+    `C${n(x0 - r * 0.35)} ${n(y1 - H * 0.1)} ${n(x0 - r * 0.25)} ${n(y0 + H * 0.15)} ${n(x0 + r * 0.5)} ${n(startY)}Z`,
+  ].join(' ')
+}
+
+/** A highlighter swipe over a phrase: the whole of each word, line by line. */
 export function Highlight({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   const el = useRef<HTMLSpanElement>(null)
+  const svg = useRef<SVGSVGElement>(null)
+  const [paths, setPaths] = useState<string[] | null>(null)
+  useEffect(() => {
+    const root = el.current
+    if (!root) return
+    let raf = 0
+    const measure = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        // offsets share one frame with the shape: both are placed in the nearest
+        // positioned ancestor (the words are relative, but only to sit above it)
+        const lines: { l: number; r: number; t: number; h: number }[] = []
+        for (const w of root.querySelectorAll<HTMLElement>('[data-hl-word]')) {
+          const l = w.offsetLeft, t = w.offsetTop, h = w.offsetHeight, r = l + w.offsetWidth
+          const line = lines.find((x) => Math.abs(x.t - t) < h / 2)
+          if (line) { line.l = Math.min(line.l, l); line.r = Math.max(line.r, r) } else lines.push({ l, r, t, h })
+        }
+        const next = lines.map(markerShape)
+        setPaths((p) => (p && p.join() === next.join() ? p : next))
+      })
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    if (root.parentElement) ro.observe(root.parentElement)
+    if (root.offsetParent) ro.observe(root.offsetParent)
+    window.addEventListener('resize', measure)
+    document.fonts?.ready.then(measure).catch(() => {})
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); window.removeEventListener('resize', measure) }
+  }, [children])
+  // swipes in once, the first time it is measured
+  const drawn = useRef(false)
   useGSAP(() => {
-    if (reducedMotion() || !el.current) return
-    gsap.fromTo(el.current, { backgroundSize: '0% 46%' }, { backgroundSize: '100% 46%', duration: 0.55, ease: 'power2.out', delay: 0.15 })
-  }, { scope: el })
-  return <span ref={el} className={`pencil-highlight ${className}`}>{children}</span>
+    if (drawn.current || !paths || !svg.current) return
+    drawn.current = true
+    if (reducedMotion()) return
+    gsap.fromTo(svg.current.querySelectorAll('path'), { scaleX: 0, transformOrigin: '0% 50%' }, { scaleX: 1, duration: 0.55, ease: 'power2.out', stagger: 0.2, delay: 0.15 })
+  }, { scope: svg, dependencies: [paths !== null] })
+  return (
+    <span ref={el} className={`pencil-highlight ${className}`}>
+      {/* before the words, so the words paint over it */}
+      <svg ref={svg} aria-hidden focusable="false" width="1" height="1" className="pencil-highlight-ink pointer-events-none absolute left-0 top-0 overflow-visible">
+        {paths?.map((d, i) => <path key={i} d={d} style={{ fill: 'var(--highlight)' }} />)}
+      </svg>
+      {asWords(children)}
+    </span>
+  )
 }
 
 /* ── an arrow from a note to what it is about ──
@@ -140,8 +256,11 @@ export function Highlight({ children, className = '' }: { children: React.ReactN
    to the target's nearest edge, bending a little. Offsets are taken from the layout
    (offsetLeft/Top), so a tilted card does not skew them, and it is measured again
    whenever the box changes size. */
-export function PencilArrow({ from, to, within, ink = 'moment' }: {
+export function PencilArrow({ from, to, within, ink = 'moment', max }: {
   from: React.RefObject<HTMLElement | null>; to: React.RefObject<HTMLElement | null>; within: React.RefObject<HTMLElement | null>; ink?: Ink
+  // the longest the arrow may run, in px: past it the arrow is left out rather than
+  // stretched across the page (the layout is meant to keep the note close)
+  max?: number
 }) {
   const svg = useRef<SVGSVGElement>(null)
   const [geo, setGeo] = useState<{ w: number; h: number; d: string } | null>(null)
@@ -173,6 +292,7 @@ export function PencilArrow({ from, to, within, ink = 'moment' }: {
         const ang0 = Math.atan2(hy - qy, hx - qx), L0 = 8
         const g1 = `${hx - L0 * Math.cos(ang0 - 0.5)} ${hy - L0 * Math.sin(ang0 - 0.5)}`
         const g2 = `${hx - L0 * Math.cos(ang0 + 0.5)} ${hy - L0 * Math.sin(ang0 + 0.5)}`
+        if (max && Math.hypot(hx - tx, hy - ty) > max) { setGeo(null); return }
         setGeo({ w: box.offsetWidth, h: box.offsetHeight, d: `M${tx} ${ty} Q ${qx} ${qy} ${hx} ${hy} M${g1} L ${hx} ${hy} L ${g2}` })
         return
       }
@@ -189,6 +309,7 @@ export function PencilArrow({ from, to, within, ink = 'moment' }: {
       const ang = Math.atan2(ey - my, ex - mx), L = 8
       const h1 = `${ex - L * Math.cos(ang - 0.5)} ${ey - L * Math.sin(ang - 0.5)}`
       const h2 = `${ex - L * Math.cos(ang + 0.5)} ${ey - L * Math.sin(ang + 0.5)}`
+      if (max && Math.hypot(ex - sx, ey - sy) > max) { setGeo(null); return }
       setGeo({ w: box.offsetWidth, h: box.offsetHeight, d: `M${sx} ${sy} Q ${mx} ${my} ${ex} ${ey} M${h1} L ${ex} ${ey} L ${h2}` })
     }
     measure()
@@ -198,7 +319,7 @@ export function PencilArrow({ from, to, within, ink = 'moment' }: {
     if (to.current) ro.observe(to.current)
     window.addEventListener('resize', measure)
     return () => { ro.disconnect(); window.removeEventListener('resize', measure) }
-  }, [from, to, within])
+  }, [from, to, within, max])
   useDraw(svg, [geo?.d])
   if (!geo) return null
   return (
@@ -247,12 +368,14 @@ export function PencilHover({ children }: { children: React.ReactNode }) {
       tab.removeEventListener('blur', blur)
     }
   }, [contextSafe])
+  const box = useBox(root)
+  const w = box ? box.w * 0.96 : 100
   return (
     <span ref={root} className="relative inline-block">
       {children}
-      <svg aria-hidden focusable="false" viewBox="0 0 100 10" preserveAspectRatio="none" className="pointer-events-none absolute -bottom-[6px] left-[2%] h-[7px] w-[96%] overflow-visible">
+      <svg aria-hidden focusable="false" viewBox={`0 0 ${w} 7`} preserveAspectRatio="none" className="pointer-events-none absolute -bottom-[6px] left-[2%] h-[7px] w-[96%] overflow-visible">
         <path
-          data-hover-ink d="M2 5 C 22 7, 48 3.5, 70 5.5 S 92 4, 98 5.5" pathLength={1} strokeDasharray="1" strokeDashoffset="1" fill="none"
+          data-hover-ink d={fit('M2 5 C 22 7, 48 3.5, 70 5.5 S 92 4, 98 5.5', w / 100, 0.7)} pathLength={1} strokeDasharray="1" strokeDashoffset="1" fill="none"
           strokeWidth={1.4} strokeLinecap="round" vectorEffect="non-scaling-stroke" filter={`url(#${PENCIL_FILTER})`}
           className="pencil stroke-pencil-hover" opacity={0.75}
         />
