@@ -88,7 +88,7 @@ function FlipFace({ initials, color, face, size, font, name, turn }: {
     <button
       ref={scope} type="button" onClick={toggle}
       aria-label={name} aria-pressed={flipped} title={name}
-      style={{ width: size, height: size, perspective: size * 6, transform: turn, '--ring-gap': `${ringGap(face, size)}px` } as CSSProperties}
+      style={{ width: size, height: size, perspective: size * 6, transform: turn, '--ring-gap': `${ringGap(size)}px` } as CSSProperties}
       className="face-ring relative block shrink-0 cursor-pointer select-none rounded-full p-0 [-webkit-tap-highlight-color:transparent]"
     >
       {reach > 0 && <span aria-hidden className="absolute" style={{ inset: -reach }} />}

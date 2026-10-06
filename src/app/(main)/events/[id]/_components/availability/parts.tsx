@@ -10,7 +10,7 @@ import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
 import type { Participant } from '@/lib/events'
-import { defaultFace, ringGap } from '@/lib/faces'
+import { ringGap } from '@/lib/faces'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import type { Band } from './grid-lib'
 
@@ -27,15 +27,16 @@ export function FilterAvatars({ participants, filter, onToggle, onClear, onSelec
     <span className="flex items-center">
       {shown.map((p, i) => {
         const on = filter.has(p.id)
-        const gap = ringGap(p.face ?? defaultFace(p.initials, p.color), 25, 1.5)
+        const gap = ringGap(25, 1)
         return (
           <button
             key={p.id} type="button" onClick={() => onToggle(p.id)}
             aria-pressed={on} aria-label={p.name}
             title={on ? `${p.name}: click to unfilter` : `${p.name}: see when they are free`}
-            className={`face-ring relative grid h-[25px] w-[25px] flex-none place-items-center rounded-full transition-opacity [-webkit-tap-highlight-color:transparent] ${i > 0 ? '-ml-[5px]' : ''}`}
-            // a chosen face is ringed in accent, set off by a see-through gap, and sits on
-            // top of its neighbours; the rest are notched where the next face overlaps
+            className={`face-ring relative grid h-[25px] w-[25px] flex-none place-items-center rounded-full transition-opacity [-webkit-tap-highlight-color:transparent] ${i > 0 ? 'ml-2' : ''}`}
+            // a chosen face is ringed in accent, set off by a see-through gap; every ring
+            // here is the same size whatever the face's shape (ringGap), and the faces
+            // stand far enough apart that neighbouring rings never cross
             style={{
               '--ring-gap': `${gap}px`,
               ...(on ? { outline: '2px solid var(--accent)', outlineOffset: gap, zIndex: 1 } : {}),
