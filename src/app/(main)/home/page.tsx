@@ -57,6 +57,7 @@ import { fromDay,
   type AppEvent, type Phase, type SameDayInfo,
 } from '@/lib/events'
 import { cloudSettled } from '@/lib/remote'
+import { overText } from '@/lib/overText'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { useAccount } from '@/hooks/useAccount'
 import { DateField } from '@/components/ui/DateField'
@@ -132,6 +133,8 @@ export default function HomePage() {
   const wide = useWide()
   const [upAt, setUpAt] = useState(0)
   const [turnAt, setTurnAt] = useState(0)
+  // where the post-it stack's Back and count go: the caption beside it
+  const [turnNav, setTurnNav] = useState<HTMLDivElement | null>(null)
 
   const active: Item[] = (events ?? []).map((e) => ({ e, phase: phaseOf(e) })).filter((x) => x.phase !== 'past')
   // up next: locked-in plans by day (same-day ties to the earlier start), then the
@@ -231,10 +234,10 @@ export default function HomePage() {
                       style={{ transform: d === 1 ? 'translate(9px, 7px) rotate(1.5deg)' : 'translate(-6px, 12px) rotate(-2.5deg)' }}
                     />
                   )}
+                  footer={seeAll}
                 >
-                  <UpNext e={shown[upI].e} phase={shown[upI].phase} sameDay={sameDay(shown[upI].e)} size="hero" look={looks[upI]} lead />
+                  {(corner) => <UpNext e={shown[upI].e} phase={shown[upI].phase} sameDay={sameDay(shown[upI].e)} size="hero" look={looks[upI]} lead corner={corner} />}
                 </Deck>
-                {seeAll}
               </div>
             )}
           </section>
@@ -242,11 +245,19 @@ export default function HomePage() {
           {/* what you owe, then a new plan: side by side on a large screen */}
           <div className={`grid gap-y-9 ${solo ? 'pt-6' : `mt-6 lg:mt-14 lg:items-start lg:gap-x-16 ${turn ? 'lg:grid-cols-[auto_minmax(0,1fr)]' : 'lg:max-w-[720px]'}`}`}>
             {turn && (
-              <section aria-labelledby="home-turn" className="min-w-0">
-                <h2 id="home-turn" className="sr-only">Your turn</h2>
+              /* the note, with a caption beside it on a phone (below it on a large
+                 screen) that counts what is waiting and holds Back */
+              <section aria-labelledby="home-turn" className="flex min-w-0 items-center gap-4 lg:flex-col lg:items-start lg:gap-7">
+                <div className="min-w-0 flex-1 lg:order-last lg:flex-none">
+                  <h2 id="home-turn" className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Waiting on you</h2>
+                  <p className="mt-1.5 font-serif text-[34px] leading-none tracking-[-0.01em]">
+                    {turns.length} <span className="text-[18px] text-dim">{turns.length === 1 ? 'plan' : 'plans'}</span>
+                  </p>
+                  <div ref={setTurnNav} className="mt-2.5 empty:hidden" />
+                </div>
                 <Deck
-                  count={turns.length} index={turnI} onIndex={setTurnAt} label="Plans waiting on you" itemLabel="note" center
-                  className="ml-auto mr-2 w-[244px] max-w-[80%] lg:mx-0 lg:w-[260px] lg:max-w-full"
+                  count={turns.length} index={turnI} onIndex={setTurnAt} label="Plans waiting on you" itemLabel="note" paper="sticky" navTo={turnNav}
+                  className="mr-2 w-[208px] flex-none sm:w-[244px] lg:mr-0 lg:w-[260px]"
                   behind={(d) => (
                     <div
                       className="absolute inset-0 rounded-[3px] bg-sticky shadow-sticky"
@@ -254,13 +265,15 @@ export default function HomePage() {
                     />
                   )}
                 >
-                  <StickyNote pin tilt={-1.5} kicker={<><PencilStar size={16} className="-mt-0.5 mr-1.5" />Your turn</>} className="min-h-[176px]">
+                  {(corner) => (
+                  <StickyNote pin tilt={-1.5} corner={corner} kicker={<><PencilStar size={16} className="-mt-0.5 mr-1.5" />Your turn</>} className="min-h-[176px]">
                     <span className="font-serif text-[19px] leading-[1.15] [overflow-wrap:anywhere]">{turn.x.e.title}</span>
                     <span className="text-[13.5px] leading-[1.4] text-sticky-dim">{turn.t.line}</span>
                     <Link href={turn.t.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-accent px-4 text-[13.5px] font-semibold text-on-accent sm:h-9">
                       {turn.t.cta}
                     </Link>
                   </StickyNote>
+                  )}
                 </Deck>
               </section>
             )}
@@ -346,8 +359,19 @@ function Row({ icon: Icon, children }: { icon: typeof Calendar; children: React.
    inside the tilted photo, with sharing and duplicating beside it. `small` is the
    side card on a wide screen: a shorter picture and only the lines that matter
    most. `look` is its hand-laid details (Keepsake), the same every visit. */
-function UpNext({ e, phase, sameDay, size, look, lead = false }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo; size: 'hero' | 'small'; look: Look; lead?: boolean }) {
+function UpNext({ e, phase, sameDay, size, look, lead = false, corner }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo; size: 'hero' | 'small'; look: Look; lead?: boolean; corner?: React.ReactNode }) {
   const tilt = look.tilt
+  const router = useRouter()
+  // a click on the card's empty paper opens the plan, like the cover and the name do.
+  // Controls keep their own job, and a click on plain text does nothing, so the text
+  // can still be selected.
+  function openFromPaper(ev: React.MouseEvent) {
+    const t = ev.target as Element
+    if (t.closest('a, button, input, select, textarea, label, [role="button"]')) return
+    if (window.getSelection()?.toString()) return
+    if (overText(ev.clientX, ev.clientY)) return
+    router.push(eventTabFor(e))
+  }
   // the plan in front gets the page's pencil marks: its time highlighted, and a note
   // with an arrow at the button when something is owed. Refs for measuring the arrow.
   const details = useRef<HTMLDivElement>(null)
@@ -370,7 +394,7 @@ function UpNext({ e, phase, sameDay, size, look, lead = false }: { e: AppEvent; 
   ].filter(Boolean) as string[]
   return (
     <PeekCard people={peopleIn(e)} size={small ? 32 : 40} restShow={small ? 20 : 25} upShow={small ? 28 : 36} tilt={tilt}>
-      <PhotoFrame tilt={tilt} tape={false} size={small ? 'sm' : 'md'} pad={look.pad}>
+      <PhotoFrame tilt={tilt} tape={false} size={small ? 'sm' : 'md'} pad={look.pad} corner={corner} onClick={openFromPaper}>
         <div className="relative">
           <Link href={eventTabFor(e)} tabIndex={-1} aria-label={e.title} className="block">
             <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className={small ? 'h-[84px]' : 'h-[112px] sm:h-[160px]'} rounded="rounded-lg" />

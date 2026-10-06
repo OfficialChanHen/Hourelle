@@ -13,7 +13,8 @@ import { Tape } from './Tape'
 
    The tilt is capped at 3 degrees either way so nothing inside drifts far from where
    it looks. `settle` lets the frame land on mount, from straight to its tilt; with
-   reduced motion it simply sits there. */
+   reduced motion it simply sits there. `corner` is the turned-up corner a Deck hands
+   its top card, set in the frame's bottom right so it tilts with the frame. */
 const MAX_TILT = 3
 
 export function PhotoFrame({
@@ -23,6 +24,8 @@ export function PhotoFrame({
   size = 'md',
   settle = false,
   pad = 'mid',
+  corner,
+  onClick,
   className = '',
 }: {
   children: React.ReactNode
@@ -32,6 +35,9 @@ export function PhotoFrame({
   settle?: boolean
   // the white border's width, so cards in a group need not all match
   pad?: 'thin' | 'mid' | 'thick'
+  // a turned-up corner (Deck's PageTurn), drawn in the frame's bottom right
+  corner?: React.ReactNode
+  onClick?: React.MouseEventHandler<HTMLDivElement>
   className?: string
 }) {
   const root = useRef<HTMLDivElement>(null)
@@ -47,11 +53,12 @@ export function PhotoFrame({
   const tapeAt = tape === 'left' ? 'left-6 -top-2.5' : tape === 'center' ? 'left-1/2 -ml-9 -top-2.5' : tape === 'corner' ? '-right-4 bottom-3' : 'right-8 -top-2.5'
   const tapeTilt = tape === 'corner' ? -42 : tape === 'left' ? -5 : 5
   return (
-    <div ref={root} className={`relative ${className}`} style={{ transform: `rotate(${deg}deg)` }}>
+    <div ref={root} onClick={onClick} className={`relative ${onClick ? 'cursor-pointer' : ''} ${className}`} style={{ transform: `rotate(${deg}deg)` }}>
       {tape && <Tape className={tapeAt} tilt={tapeTilt} width={size === 'sm' ? 52 : tape === 'corner' ? 56 : 72} />}
       <div className={`bg-frame shadow-frame ${size === 'sm' ? `rounded-[10px] ${pad === 'thin' ? 'p-1 pb-1.5' : pad === 'thick' ? 'p-2.5 pb-3' : 'p-1.5 pb-2'}` : pad === 'thin' ? 'rounded-[12px] p-2 pb-3' : pad === 'thick' ? 'rounded-[16px] p-3.5 pb-4' : 'rounded-[14px] p-2.5 pb-3.5'}`}>
         {children}
       </div>
+      {corner}
     </div>
   )
 }
