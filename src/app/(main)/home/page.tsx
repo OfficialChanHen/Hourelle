@@ -40,7 +40,7 @@ import { Cover } from '@/components/ui/Cover'
 import { PeekCard, peopleIn } from '@/components/ui/PeekCard'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { StickyNote } from '@/components/ui/StickyNote'
-import { DeskArt } from '@/components/ui/DeskArt'
+import { FaceSticker } from '@/components/ui/FaceSticker'
 import { SoftShapes } from '@/components/ui/SoftShapes'
 import { Deck } from '@/components/ui/Deck'
 import { Keepsake, lookOf, type Look } from '@/components/ui/Keepsake'
@@ -171,8 +171,15 @@ export default function HomePage() {
       {loading ? (
         <div className="mt-2 h-[38px] w-[260px] max-w-full animate-pulse rounded-lg bg-s2" />
       ) : (
-        <h1 className="mt-0.5 max-w-[680px] font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] [overflow-wrap:anywhere] sm:text-[42px]">
-          {headline(hero?.e, hero?.phase)}
+        /* every headline the stack can show is laid in the same cell and only the
+           one in front is visible, so the heading is always as tall as the longest
+           and paging never moves the cards below it */
+        <h1 className="mt-0.5 grid max-w-[680px] font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] [overflow-wrap:anywhere] sm:text-[42px]">
+          {(wide || shown.length === 0 ? [hero] : shown).map((x) => (
+            <span key={x?.e.id ?? 'none'} className={`[grid-area:1/1] ${x === hero ? '' : 'invisible'}`} aria-hidden={x === hero ? undefined : true}>
+              {headline(x?.e, x?.phase)}
+            </span>
+          ))}
         </h1>
       )}
 
@@ -236,11 +243,11 @@ export default function HomePage() {
           {/* what you owe, then a new plan: side by side on a large screen */}
           <div className={`grid gap-y-9 ${solo ? 'pt-6' : `mt-6 lg:mt-14 lg:items-start lg:gap-x-16 ${turn ? 'lg:grid-cols-[auto_minmax(0,1fr)]' : 'lg:max-w-[720px]'}`}`}>
             {turn && (
-              /* the pad of notes, with a few things left on the desk beside it (below
-                 it on a large screen) so the space reads as a desk, not a gap */
+              /* the pad of notes, with your own face stuck on the page beside it (below
+                 it on a large screen), so the space reads as yours, not a gap */
               <section aria-labelledby="home-turn" className="flex min-w-0 items-center gap-3 lg:flex-col lg:items-start lg:gap-6">
                 <h2 id="home-turn" className="sr-only">Your turn</h2>
-                <DeskArt className="h-[170px] min-w-0 flex-1 lg:order-last lg:h-[150px] lg:w-[260px] lg:flex-none" />
+                <FaceSticker size={wide ? 150 : 104} className="min-w-0 flex-1 lg:order-last lg:w-[260px] lg:flex-none lg:py-2" />
                 <Deck
                   count={turns.length} index={turnI} onIndex={setTurnAt} label="Plans waiting on you" itemLabel="note" paper="sticky" leave="peel"
                   className="mr-2 w-[208px] flex-none sm:w-[244px] lg:mr-0 lg:w-[260px]"

@@ -8,15 +8,14 @@ import { reducedMotion } from '@/lib/prefs'
 /* The turned-up bottom right corner of the top card in a Deck: the button that
    takes the top card off. The flap is the card's own underside, curled back over
    it; under the flap you see the next card's paper in its shadow. A mouse over it
-   lifts it a little further, the way a thumb would. `grab` lets it be pulled as
-   well, for a post-it peeled under the finger.
+   lifts it a little further, the way a thumb would. Photo cards only; a post-it's
+   handle is its bottom edge (PeelEdge).
 
    Placed by the card, absolutely, in its frame's bottom right corner, so it tilts
    with the card. The button is 44px square for a finger; the drawing fills its
    bottom right 30px. `paper` picks the colours: a photo frame or a post-it. */
-type Grab = { onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => void }
 
-export function PageTurn({ paper, onClick, label, grab }: { paper: 'frame' | 'sticky'; onClick: () => void; label: string; grab?: Grab }) {
+export function PageTurn({ paper, onClick, label }: { paper: 'frame' | 'sticky'; onClick: () => void; label: string }) {
   const root = useRef<HTMLButtonElement>(null)
   const art = useRef<SVGSVGElement>(null)
   const { contextSafe } = useGSAP({ scope: root })
@@ -33,9 +32,6 @@ export function PageTurn({ paper, onClick, label, grab }: { paper: 'frame' | 'st
       onPointerEnter={(e) => { if (e.pointerType === 'mouse') lift(true) }}
       onPointerLeave={(e) => { if (e.pointerType === 'mouse') lift(false) }}
       onFocus={() => lift(true)} onBlur={() => lift(false)}
-      // a corner that can be pulled keeps the page from scrolling under the finger
-      style={grab ? { touchAction: 'none' } : undefined}
-      onPointerDown={grab?.onPointerDown}
       className="page-turn absolute bottom-0 right-0 z-[4] block h-11 w-11 cursor-pointer rounded-br-[inherit] outline-offset-2 [-webkit-tap-highlight-color:transparent]"
     >
       <svg ref={art} aria-hidden viewBox="0 0 30 30" className="absolute bottom-0 right-0 h-[30px] w-[30px] overflow-visible">

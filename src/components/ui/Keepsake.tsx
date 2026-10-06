@@ -10,7 +10,7 @@ import { Pushpin } from './Pushpin'
    data-keep (pin, tape, clip, mount) so a Deck can take them off one by one before
    it lifts the card away. The top left of the
    frame is left clear for the faces peeking over it. Colours are tokens: --tape and
-   --tape-2, --pin, --clip. */
+   --tape-2, --pin, --clip, --mount. */
 
 export type KeepsakeKind = 'tape-corner' | 'tape-right' | 'tape-left' | 'tape-two' | 'clip' | 'pin' | 'mounts'
 const KINDS: KeepsakeKind[] = ['tape-corner', 'tape-right', 'tape-left', 'tape-two', 'clip', 'pin', 'mounts']
@@ -57,6 +57,14 @@ export function lookOf(id: string, index: number, prev?: Look): Look {
   }
 }
 
+/* A gem clip standing on the frame's top edge, drawn in a 16x48 box whose y=13 is
+   that edge. The short outer leg is behind the card, the bend at the top wraps over
+   the edge, and the long loop lies on the front. Its top sits this far above the
+   picture (the frame's border is about 10px, so the edge falls at the box's y=13). */
+const CLIP_TOP = -23
+const CLIP_BACK = 'M3 36 V8 A5 5 0 0 1 13 8'
+const CLIP_FRONT = 'M13 8 V42 A4 4 0 0 1 5 42 V15 A3 3 0 0 1 11 15 V34'
+
 function Strip({ className, rotate, len, tone }: { className: string; rotate: number; len: number; tone: 'a' | 'b' }) {
   return <span aria-hidden data-keep="tape" className={`absolute block h-[18px] ${tone === 'a' ? 'bg-tape' : 'bg-tape-2'} ${className}`} style={{ width: len, transform: `rotate(${rotate}deg)` }} />
 }
@@ -66,6 +74,15 @@ function Strip({ className, rotate, len, tone }: { className: string; rotate: nu
 export function Keepsake({ look }: { look: Look }) {
   const { kind, len, jitter, tone } = look
   return (
+    <>
+    {kind === 'clip' && (
+      /* the clip's back leg and the bend over the edge: drawn under the frame (a
+         negative z inside the frame's own layer), so the card hides the leg and only
+         the bend shows above the edge, like a real clip holding the card */
+      <svg data-keep="clip" aria-hidden viewBox="0 0 16 48" className="pointer-events-none absolute right-10 -z-10 h-12 w-4 overflow-visible" style={{ top: CLIP_TOP, transform: `rotate(${jitter / 2}deg)` }}>
+        <path d={CLIP_BACK} fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="stroke-clip" />
+      </svg>
+    )}
     <span aria-hidden className="pointer-events-none absolute inset-0 z-[2]">
       {kind === 'tape-corner' && <Strip className="-right-7 -top-3" rotate={38 + jitter} len={len} tone={tone} />}
       {kind === 'tape-right' && <Strip className="-right-8 top-[30%]" rotate={84 + jitter / 2} len={Math.round(len * 0.8)} tone={tone} />}
@@ -77,9 +94,10 @@ export function Keepsake({ look }: { look: Look }) {
         </>
       )}
       {kind === 'clip' && (
-        // a paper clip over the frame's top edge, towards the right
-        <svg data-keep="clip" viewBox="0 0 16 44" className="absolute -top-6 right-10 h-11 w-4" style={{ transform: `rotate(${jitter / 2}deg)` }}>
-          <path d="M5 40 V8 a3.5 3.5 0 0 1 7 0 V34 a2 2 0 0 1 -4 0 V12" fill="none" strokeWidth="2.2" strokeLinecap="round" className="stroke-clip" />
+        // the front of a paper clip slid onto the frame's top edge: the long loop
+        // lies over the photo; the short leg is behind the card (ClipBack)
+        <svg data-keep="clip" viewBox="0 0 16 48" className="absolute right-10 h-12 w-4 overflow-visible" style={{ top: CLIP_TOP, transform: `rotate(${jitter / 2}deg)`, filter: 'var(--face-lift)' }}>
+          <path d={CLIP_FRONT} fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="stroke-clip" />
         </svg>
       )}
       {kind === 'pin' && (
@@ -90,18 +108,19 @@ export function Keepsake({ look }: { look: Look }) {
         </>
       )}
       {kind === 'mounts' && (
-        // four photo corners holding the picture down
+        // four album corners: small dark paper pockets the photo's corners are tucked
+        // into, reaching a little past the photo onto the frame, with a lighter fold
+        // along the pocket's edge
         <>
-          {(['left-0 top-0', 'right-0 top-0', 'left-0 bottom-0', 'right-0 bottom-0'] as const).map((at, i) => (
-            <span
-              key={at}
-              data-keep="mount"
-              className={`absolute block h-4 w-4 ${tone === 'a' ? 'bg-tape' : 'bg-tape-2'} ${at}`}
-              style={{ clipPath: ['polygon(0 0,100% 0,0 100%)', 'polygon(0 0,100% 0,100% 100%)', 'polygon(0 0,100% 100%,0 100%)', 'polygon(100% 0,100% 100%,0 100%)'][i] }}
-            />
+          {([['-left-1 -top-1', 0], ['-right-1 -top-1', 90], ['-right-1 -bottom-1', 180], ['-left-1 -bottom-1', 270]] as const).map(([at, turn]) => (
+            <svg key={at} data-keep="mount" viewBox="0 0 22 22" className={`absolute h-[22px] w-[22px] ${at}`} style={{ transform: `rotate(${turn}deg)`, filter: 'var(--face-lift)' }}>
+              <path d="M0 0 H22 L0 22 Z" style={{ fill: 'var(--mount)' }} />
+              <path d="M21 1 L1 21" style={{ stroke: 'var(--mount-fold)' }} strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
           ))}
         </>
       )}
     </span>
+    </>
   )
 }
