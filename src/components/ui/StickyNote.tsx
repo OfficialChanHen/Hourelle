@@ -20,7 +20,7 @@ export function StickyNote({
   children: React.ReactNode
   tilt?: number
   pin?: boolean
-  // a turned-up corner (Deck's PageTurn): it takes the place of the curl
+  // the handle a Deck hands its top note (PeelEdge): it takes the place of the curl
   corner?: React.ReactNode
   // where this note sits in its pad, "1/2", set small in the top right
   pos?: string | null

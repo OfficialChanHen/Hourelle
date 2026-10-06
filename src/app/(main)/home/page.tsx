@@ -225,14 +225,22 @@ export default function HomePage() {
             ) : (
               <div className="mx-auto max-w-[480px]">
                 <Deck
-                  count={shown.length} index={upI} onIndex={setUpAt} label="Up next"
-                  behind={(d) => (
-                    // blank frames under the photo on top, offset like a loose pile
-                    <div
-                      className="absolute inset-x-0 bottom-0 top-[42px] rounded-[14px] bg-frame shadow-frame"
-                      style={{ transform: d === 1 ? 'translate(9px, 7px) rotate(1.5deg)' : 'translate(-6px, 12px) rotate(-2.5deg)' }}
-                    />
-                  )}
+                  count={shown.length} index={upI} onIndex={setUpAt} label="Up next" nextAt="top-[42px] bottom-0"
+                  behind={(d) => {
+                    // the pile under the photo on top: the next plan sticks out on the
+                    // right, its cover showing, so it is plain there is another to bring
+                    // up; the one under that is blank paper offset the other way
+                    const n = shown[(upI + d) % shown.length]
+                    const [from, to] = coverFor(n.e.id)
+                    return (
+                      <div
+                        className="absolute inset-x-0 bottom-0 top-[42px] rounded-[14px] bg-frame p-2.5 shadow-frame"
+                        style={{ transform: d === 1 ? 'translate(20px, 6px) rotate(1.5deg)' : 'translate(-6px, 12px) rotate(-2.5deg)' }}
+                      >
+                        {d === 1 && <Cover src={n.e.image} fit={n.e.imageFit} pos={n.e.imagePos} from={from} to={to} className="h-[112px] sm:h-[160px]" rounded="rounded-lg" />}
+                      </div>
+                    )
+                  }}
                 >
                   {(corner, pos) => <UpNext e={shown[upI].e} phase={shown[upI].phase} sameDay={sameDay(shown[upI].e)} size="hero" look={looks[upI]} lead corner={corner} pos={pos} />}
                 </Deck>
@@ -249,7 +257,7 @@ export default function HomePage() {
                 <h2 id="home-turn" className="sr-only">Your turn</h2>
                 <FaceSticker size={wide ? 150 : 104} className="min-w-0 flex-1 lg:order-last lg:w-[260px] lg:flex-none lg:py-2" />
                 <Deck
-                  count={turns.length} index={turnI} onIndex={setTurnAt} label="Plans waiting on you" itemLabel="note" paper="sticky" leave="peel"
+                  count={turns.length} index={turnI} onIndex={setTurnAt} label="Plans waiting on you" itemLabel="note" leave="peel"
                   className="mr-2 w-[208px] flex-none sm:w-[244px] lg:mr-0 lg:w-[260px]"
                   behind={(d) => (
                     <div

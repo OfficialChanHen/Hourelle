@@ -5,13 +5,15 @@ import { useGSAP } from '@gsap/react'
 import { gsap } from 'gsap'
 import { reducedMotion } from '@/lib/prefs'
 import { liftOff, peelable, type Peel } from '@/animations/deck'
-import { PageTurn } from './PageTurn'
 import { PeelEdge } from './PeelEdge'
 
 /* A stack you go through by taking the top thing off, the way you would by hand:
    the current card on top, the next one or two showing behind it as paper. The top
-   card has a handle (a photo card's turned-up corner, a post-it's lifted bottom
-   edge); tap it (or swipe left, or press Right) and the top comes off. Taps in
+   card has a handle: on a photo stack the next card's edge peeks out on the right
+   (the caller draws it in `behind(1)`) and tapping it brings it up; a post-it has an
+   up chevron along its bottom. Swipe left or press Right does the same. A photo
+   stack shows the motion once when it first appears: the top card lifts and slides
+   a little aside, then settles. Taps in
    quick succession are fine: whatever is still coming off hurries away and the
    next card goes a little faster.
 
@@ -28,9 +30,9 @@ import { PeelEdge } from './PeelEdge'
 
    Bounded however long the list is: only the card on top is drawn in full, the
    ones behind are blank paper from `behind(depth)`. The caller owns the index.
-   `children` is a function handed the turned-up corner and "2/3", so the card sets
-   both inside its own frame and they tilt with it. `paper` says what a corner's
-   underside is. One card: no corner, no count, no paper behind.
+   `children` is a function handed the handle (a post-it's chevron) and "2/3", so
+   the card sets both inside its own frame and they tilt with it. One card: no
+   handle, no count, no paper behind.
 
    The card coming off is the very node that was on top: React detaches it when the
    index changes, and the stack lifts it into a layer of its own for the animation,
@@ -41,8 +43,8 @@ export function Deck({
   onIndex,
   label,
   itemLabel = 'plan',
-  paper = 'frame',
   leave = 'lift',
+  nextAt = 'top-0 bottom-0',
   behind,
   children,
   className = '',
@@ -52,8 +54,9 @@ export function Deck({
   onIndex: (i: number) => void
   label: string
   itemLabel?: string
-  paper?: 'frame' | 'sticky'
   leave?: 'lift' | 'peel'
+  // where the tap target over the peeking next card runs, top to bottom (lift only)
+  nextAt?: string
   behind?: (depth: number) => React.ReactNode
   children: (corner: React.ReactNode, pos: string | null) => React.ReactNode
   className?: string
@@ -70,15 +73,30 @@ export function Deck({
   // what is still coming off (a way to hurry each), and when the last one started
   const leaving = useRef<(() => void)[]>([])
   const lastLeave = useRef(0)
+  const hinted = useRef(false)
+  const hint = useRef<gsap.core.Timeline | null>(null)
   const swipe = useRef<{ x: number; y: number } | null>(null)
   const many = count > 1
 
-  useGSAP(() => {
+  const { contextSafe } = useGSAP(() => {
     const moved = index !== last.current
     last.current = index
     const how = intent.current
     intent.current = 'auto'
-    if (!moved) return
+    if (!moved) {
+      // the one hint on a photo stack: the top card lifts and slides a little left,
+      // showing the next one, then settles back. Once, when the stack first shows.
+      if (leave === 'lift' && many && !hinted.current && top.current && !reducedMotion()) {
+        // marked as shown once it starts, not before: a run that is torn down during
+        // the delay (React's dev double effects) must not use the hint up
+        hint.current = gsap.timeline({ delay: 1.1, onStart: () => { hinted.current = true } })
+          .to(top.current, { x: -18, y: -5, rotation: -1.8, duration: 0.35, ease: 'power2.out' })
+          .to(top.current, { x: 0, y: 0, rotation: 0, duration: 0.5, ease: 'back.out(1.5)', clearProps: 'transform' })
+      }
+      return
+    }
+    hint.current?.kill()
+    hint.current = null
     if (how === 'silent') {
       // a peel laid back down: the note is back in place, so drop the copy
       peel.current?.remove()
@@ -157,9 +175,14 @@ export function Deck({
     onClick: () => { if (dragged.current) { dragged.current = false; return } next() },
     label: `Next ${itemLabel}, ${((index + 1) % count) + 1} of ${count}`,
   }
-  const corner = !many ? null : leave === 'peel'
-    ? <PeelEdge {...handleProps} grab={grab} />
-    : <PageTurn {...handleProps} paper={paper} />
+  const corner = many && leave === 'peel' ? <PeelEdge {...handleProps} grab={grab} /> : null
+
+  // a photo card: a mouse over the next card's edge lifts the top one a little, the
+  // start of the motion that sets it aside
+  const preview = contextSafe((on: boolean) => {
+    if (!top.current || reducedMotion()) return
+    gsap.to(top.current, on ? { x: -10, y: -3, rotation: -1, duration: 0.22, ease: 'power2.out', overwrite: true } : { x: 0, y: 0, rotation: 0, duration: 0.3, ease: 'power2.out', overwrite: true })
+  })
 
   return (
     <div
@@ -178,7 +201,7 @@ export function Deck({
         // a sideways swipe takes the top card off; up and down still scroll the page
         style={many ? { touchAction: 'pan-y' } : undefined}
         onPointerDown={(e) => {
-          if ((e.target as Element).closest('.page-turn, .peel-edge')) return
+          if ((e.target as Element).closest('.peel-edge, .deck-next')) return
           dragged.current = false
           if (many && e.pointerType !== 'mouse') swipe.current = { x: e.clientX, y: e.clientY }
         }}
@@ -201,6 +224,15 @@ export function Deck({
         >
           {children(corner, many ? `${index + 1}/${count}` : null)}
         </div>
+        {many && leave === 'lift' && (
+          /* the next card's edge peeks out on the right: tapping it brings it up */
+          <button
+            type="button" onClick={handleProps.onClick} aria-label={handleProps.label} title={handleProps.label}
+            onPointerEnter={(e) => { if (e.pointerType === 'mouse') preview(true) }}
+            onPointerLeave={(e) => { if (e.pointerType === 'mouse') preview(false) }}
+            className={`deck-next absolute -right-6 z-[3] w-11 cursor-pointer rounded-xl outline-offset-2 [-webkit-tap-highlight-color:transparent] ${nextAt}`}
+          />
+        )}
         {/* the card coming off is moved here, above the pile, and takes no pointer */}
         <div ref={fly} aria-hidden className="pointer-events-none absolute inset-0 z-[5]" />
       </div>
