@@ -40,6 +40,7 @@ import { Cover } from '@/components/ui/Cover'
 import { PeekCard, peopleIn } from '@/components/ui/PeekCard'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { StickyNote } from '@/components/ui/StickyNote'
+import { DeskArt } from '@/components/ui/DeskArt'
 import { SoftShapes } from '@/components/ui/SoftShapes'
 import { Deck } from '@/components/ui/Deck'
 import { Keepsake, lookOf, type Look } from '@/components/ui/Keepsake'
@@ -133,8 +134,6 @@ export default function HomePage() {
   const wide = useWide()
   const [upAt, setUpAt] = useState(0)
   const [turnAt, setTurnAt] = useState(0)
-  // where the post-it stack's Back and count go: the caption beside it
-  const [turnNav, setTurnNav] = useState<HTMLDivElement | null>(null)
 
   const active: Item[] = (events ?? []).map((e) => ({ e, phase: phaseOf(e) })).filter((x) => x.phase !== 'past')
   // up next: locked-in plans by day (same-day ties to the earlier start), then the
@@ -162,11 +161,6 @@ export default function HomePage() {
   // each card's hand-laid details, from its plan id; a neighbour never repeats them
   const looks: Look[] = []
   shown.forEach((x, i) => { looks.push(lookOf(x.e.id, i, looks[i - 1])) })
-  const seeAll = active.length > shown.length && (
-    <Link href="/events" className="inline-flex min-h-11 items-center text-[13.5px] font-semibold text-accent-text hover:underline sm:min-h-0 sm:py-1">
-      See all {active.length} plans
-    </Link>
-  )
 
   return (
     <div className="relative isolate mx-auto max-w-[1240px] px-6 pb-[92px] pt-7 sm:px-[26px] sm:pt-[34px]">
@@ -220,8 +214,6 @@ export default function HomePage() {
                     </div>
                   )}
                 </div>
-                {/* the way to everything else, quietly under the group */}
-                {seeAll && <div className="mt-6">{seeAll}</div>}
               </>
             ) : (
               <div className="mx-auto max-w-[480px]">
@@ -234,9 +226,8 @@ export default function HomePage() {
                       style={{ transform: d === 1 ? 'translate(9px, 7px) rotate(1.5deg)' : 'translate(-6px, 12px) rotate(-2.5deg)' }}
                     />
                   )}
-                  footer={seeAll}
                 >
-                  {(corner) => <UpNext e={shown[upI].e} phase={shown[upI].phase} sameDay={sameDay(shown[upI].e)} size="hero" look={looks[upI]} lead corner={corner} />}
+                  {(corner, pos) => <UpNext e={shown[upI].e} phase={shown[upI].phase} sameDay={sameDay(shown[upI].e)} size="hero" look={looks[upI]} lead corner={corner} pos={pos} />}
                 </Deck>
               </div>
             )}
@@ -245,18 +236,13 @@ export default function HomePage() {
           {/* what you owe, then a new plan: side by side on a large screen */}
           <div className={`grid gap-y-9 ${solo ? 'pt-6' : `mt-6 lg:mt-14 lg:items-start lg:gap-x-16 ${turn ? 'lg:grid-cols-[auto_minmax(0,1fr)]' : 'lg:max-w-[720px]'}`}`}>
             {turn && (
-              /* the note, with a caption beside it on a phone (below it on a large
-                 screen) that counts what is waiting and holds Back */
-              <section aria-labelledby="home-turn" className="flex min-w-0 items-center gap-4 lg:flex-col lg:items-start lg:gap-7">
-                <div className="min-w-0 flex-1 lg:order-last lg:flex-none">
-                  <h2 id="home-turn" className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Waiting on you</h2>
-                  <p className="mt-1.5 font-serif text-[34px] leading-none tracking-[-0.01em]">
-                    {turns.length} <span className="text-[18px] text-dim">{turns.length === 1 ? 'plan' : 'plans'}</span>
-                  </p>
-                  <div ref={setTurnNav} className="mt-2.5 empty:hidden" />
-                </div>
+              /* the pad of notes, with a few things left on the desk beside it (below
+                 it on a large screen) so the space reads as a desk, not a gap */
+              <section aria-labelledby="home-turn" className="flex min-w-0 items-center gap-3 lg:flex-col lg:items-start lg:gap-6">
+                <h2 id="home-turn" className="sr-only">Your turn</h2>
+                <DeskArt className="h-[170px] min-w-0 flex-1 lg:order-last lg:h-[150px] lg:w-[260px] lg:flex-none" />
                 <Deck
-                  count={turns.length} index={turnI} onIndex={setTurnAt} label="Plans waiting on you" itemLabel="note" paper="sticky" navTo={turnNav}
+                  count={turns.length} index={turnI} onIndex={setTurnAt} label="Plans waiting on you" itemLabel="note" paper="sticky" leave="peel"
                   className="mr-2 w-[208px] flex-none sm:w-[244px] lg:mr-0 lg:w-[260px]"
                   behind={(d) => (
                     <div
@@ -265,8 +251,8 @@ export default function HomePage() {
                     />
                   )}
                 >
-                  {(corner) => (
-                  <StickyNote pin tilt={-1.5} corner={corner} kicker={<><PencilStar size={16} className="-mt-0.5 mr-1.5" />Your turn</>} className="min-h-[176px]">
+                  {(corner, pos) => (
+                  <StickyNote tilt={-1.5} corner={corner} pos={pos} kicker={<><PencilStar size={16} className="-mt-0.5 mr-1.5" />Your turn</>} className="min-h-[176px]">
                     <span className="font-serif text-[19px] leading-[1.15] [overflow-wrap:anywhere]">{turn.x.e.title}</span>
                     <span className="text-[13.5px] leading-[1.4] text-sticky-dim">{turn.t.line}</span>
                     <Link href={turn.t.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-accent px-4 text-[13.5px] font-semibold text-on-accent sm:h-9">
@@ -359,7 +345,7 @@ function Row({ icon: Icon, children }: { icon: typeof Calendar; children: React.
    inside the tilted photo, with sharing and duplicating beside it. `small` is the
    side card on a wide screen: a shorter picture and only the lines that matter
    most. `look` is its hand-laid details (Keepsake), the same every visit. */
-function UpNext({ e, phase, sameDay, size, look, lead = false, corner }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo; size: 'hero' | 'small'; look: Look; lead?: boolean; corner?: React.ReactNode }) {
+function UpNext({ e, phase, sameDay, size, look, lead = false, corner, pos }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo; size: 'hero' | 'small'; look: Look; lead?: boolean; corner?: React.ReactNode; pos?: string | null }) {
   const tilt = look.tilt
   const router = useRouter()
   // a click on the card's empty paper opens the plan, like the cover and the name do.
@@ -402,7 +388,9 @@ function UpNext({ e, phase, sameDay, size, look, lead = false, corner }: { e: Ap
           <Keepsake look={look} />
         </div>
         <div ref={details} className={`relative ${small ? 'px-2 pb-2 pt-2.5' : 'px-2 pb-1.5 pt-3'}`}>
-          <Link href={eventTabFor(e)} className={`block font-serif leading-[1.15] tracking-[-0.01em] [overflow-wrap:anywhere] hover:underline ${small ? 'text-[18px]' : 'text-[22px] sm:text-[24px]'}`}>
+          {/* where this card sits in the stack, small in the top right */}
+          {pos && <span aria-hidden className="absolute right-2 top-3 text-[12px] font-medium tabular-nums text-faint">{pos}</span>}
+          <Link href={eventTabFor(e)} className={`block ${pos ? 'pr-9' : ''} font-serif leading-[1.15] tracking-[-0.01em] [overflow-wrap:anywhere] hover:underline ${small ? 'text-[18px]' : 'text-[22px] sm:text-[24px]'}`}>
             {e.title}
           </Link>
           <StageStepper phase={phase} labels={small ? 'current' : 'auto'} className={`max-w-[340px] ${small ? 'mb-2.5 mt-2.5' : 'mb-3 mt-3'}`} />

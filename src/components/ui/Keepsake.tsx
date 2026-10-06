@@ -1,12 +1,14 @@
 import { Pushpin } from './Pushpin'
 
 /* The small hand-laid details that make each photo card its own: a strip of tape
-   across a corner or an edge, two short strips, a paper clip, a pin or four photo
+   across a corner or an edge, two short strips, a paper clip, two pins or four photo
    corners, with the frame's tilt and border width varying too. Worked out from the
    plan's id, so a card keeps its look from one visit to the next.
 
    Everything sits on the picture or the frame's edge beside it, never over the
-   plan's name, stage, details or buttons, and takes no pointer. The top left of the
+   plan's name, stage, details or buttons, and takes no pointer. Each piece is marked
+   data-keep (pin, tape, clip, mount) so a Deck can take them off one by one before
+   it lifts the card away. The top left of the
    frame is left clear for the faces peeking over it. Colours are tokens: --tape and
    --tape-2, --pin, --clip. */
 
@@ -56,7 +58,7 @@ export function lookOf(id: string, index: number, prev?: Look): Look {
 }
 
 function Strip({ className, rotate, len, tone }: { className: string; rotate: number; len: number; tone: 'a' | 'b' }) {
-  return <span aria-hidden className={`absolute block h-[18px] ${tone === 'a' ? 'bg-tape' : 'bg-tape-2'} ${className}`} style={{ width: len, transform: `rotate(${rotate}deg)` }} />
+  return <span aria-hidden data-keep="tape" className={`absolute block h-[18px] ${tone === 'a' ? 'bg-tape' : 'bg-tape-2'} ${className}`} style={{ width: len, transform: `rotate(${rotate}deg)` }} />
 }
 
 /* Drawn inside the picture's box (which must be `relative`); pieces reach out over
@@ -76,13 +78,16 @@ export function Keepsake({ look }: { look: Look }) {
       )}
       {kind === 'clip' && (
         // a paper clip over the frame's top edge, towards the right
-        <svg viewBox="0 0 16 44" className="absolute -top-6 right-10 h-11 w-4" style={{ transform: `rotate(${jitter / 2}deg)` }}>
+        <svg data-keep="clip" viewBox="0 0 16 44" className="absolute -top-6 right-10 h-11 w-4" style={{ transform: `rotate(${jitter / 2}deg)` }}>
           <path d="M5 40 V8 a3.5 3.5 0 0 1 7 0 V34 a2 2 0 0 1 -4 0 V12" fill="none" strokeWidth="2.2" strokeLinecap="round" className="stroke-clip" />
         </svg>
       )}
       {kind === 'pin' && (
-        // a pushpin through the photo near its top right corner
-        <Pushpin size={16} className="absolute -top-2 right-3" />
+        // two pushpins through the photo's top corners
+        <>
+          <Pushpin size={16} className="absolute -top-2 left-3" data-keep="pin" />
+          <Pushpin size={16} className="absolute -top-2 right-3" data-keep="pin" />
+        </>
       )}
       {kind === 'mounts' && (
         // four photo corners holding the picture down
@@ -90,6 +95,7 @@ export function Keepsake({ look }: { look: Look }) {
           {(['left-0 top-0', 'right-0 top-0', 'left-0 bottom-0', 'right-0 bottom-0'] as const).map((at, i) => (
             <span
               key={at}
+              data-keep="mount"
               className={`absolute block h-4 w-4 ${tone === 'a' ? 'bg-tape' : 'bg-tape-2'} ${at}`}
               style={{ clipPath: ['polygon(0 0,100% 0,0 100%)', 'polygon(0 0,100% 0,100% 100%)', 'polygon(0 0,100% 100%,0 100%)', 'polygon(100% 0,100% 100%,0 100%)'][i] }}
             />

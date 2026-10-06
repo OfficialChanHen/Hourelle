@@ -95,6 +95,8 @@
   --sticky-shadow:0 8px 18px rgba(60,40,20,.10);
   /* the post-it's glue band and the shadow under its lifted corner */
   --sticky-band:rgba(120,90,30,.07); --sticky-curl:rgba(60,40,20,.30);
+  /* the desk drawing on Home (DeskArt): a pencil and its parts, decoration only */
+  --art-pencil:#E6C474; --art-pencil-dark:#C9A24E; --art-wood:#EAD3B1; --art-lead:#4A443B; --art-ferrule:#B9B2A6; --art-eraser:#E6B3A4;
 }
 
 /* Dark — warm charcoal, the same warmth held at the same distance */
@@ -153,6 +155,7 @@
   --sticky:#3A3220; --sticky-text:#F5ECD2; --sticky-dim:#D6C9A6; --sticky-kicker:#F4B8A0;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
   --sticky-band:rgba(255,240,200,.05); --sticky-curl:rgba(0,0,0,.65);
+  --art-pencil:#B39252; --art-pencil-dark:#93763C; --art-wood:#A48C6C; --art-lead:#1B1915; --art-ferrule:#8E887D; --art-eraser:#A87A6E;
 }
 
 /* ── Appearances — optional palettes layered over the same tokens ──

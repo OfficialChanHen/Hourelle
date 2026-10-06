@@ -10,13 +10,13 @@ import { useId } from 'react'
    handful on one screen, and each WebGL canvas costs a context the browser caps.
    `size` is the ball's diameter in px; the box is larger to hold needle and shadow.
    Decorative only, takes no pointer. */
-export function Pushpin({ size = 18, className = '', style }: { size?: number; className?: string; style?: React.CSSProperties }) {
+export function Pushpin({ size = 18, className = '', style, ...rest }: { size?: number; className?: string; style?: React.CSSProperties; 'data-keep'?: string }) {
   const id = useId().replace(/:/g, '')
   const w = Math.round(size * 1.6)
   return (
     <svg
       aria-hidden focusable="false" viewBox="0 0 32 32" width={w} height={w}
-      className={`pushpin pointer-events-none ${className}`} style={style}
+      className={`pushpin pointer-events-none ${className}`} style={style} {...rest}
     >
       <defs>
         <radialGradient id={`${id}b`} cx="38%" cy="32%" r="68%">

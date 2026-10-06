@@ -13,6 +13,7 @@ export function StickyNote({
   tilt = 1.5,
   pin = false,
   corner,
+  pos,
   className = '',
 }: {
   kicker?: React.ReactNode
@@ -21,6 +22,8 @@ export function StickyNote({
   pin?: boolean
   // a turned-up corner (Deck's PageTurn): it takes the place of the curl
   corner?: React.ReactNode
+  // where this note sits in its pad, "1/2", set small in the top right
+  pos?: string | null
   className?: string
 }) {
   const deg = Math.max(-2, Math.min(2, tilt))
@@ -32,7 +35,12 @@ export function StickyNote({
         {/* the glue band along the top */}
         <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[22px] rounded-t-[3px] bg-sticky-band" />
         {pin && <Pushpin size={20} className="absolute -top-3 left-1/2 -translate-x-1/2" />}
-        {kicker && <span className="relative flex items-center text-[11.5px] font-bold uppercase tracking-[.08em] text-sticky-kicker">{kicker}</span>}
+        {(kicker || pos) && (
+          <span className="relative flex items-center text-[11.5px] font-bold uppercase tracking-[.08em] text-sticky-kicker">
+            {kicker}
+            {pos && <span aria-hidden className="ml-auto pl-2 text-[12px] font-medium normal-case tracking-normal tabular-nums text-sticky-dim">{pos}</span>}
+          </span>
+        )}
         {children}
         {corner}
       </div>
