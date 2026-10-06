@@ -6,7 +6,7 @@ import { CalendarX2 } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StoredEventCard } from '@/components/ui/StoredEventCard'
 import { FaceRibbon } from '@/components/ui/FaceRibbon'
-import { SoftShapes } from '@/components/ui/SoftShapes'
+import { ShelfHeader } from '@/components/ui/ShelfHeader'
 import { PencilHover, PencilUnderline } from '@/components/ui/Pencil'
 import { shelfLooks } from '@/components/ui/Keepsake'
 import { listEvents, phaseOf, sameDayLabelFor, type AppEvent, type Participant, type Phase } from '@/lib/events'
@@ -70,9 +70,7 @@ function EventsList() {
   return (
     <div className="mx-auto max-w-[1240px] px-6 pb-[92px] pt-[34px] sm:px-[26px]">
       {/* the people first: who you are planning with, as faces, then the plans */}
-      <div className="relative isolate -mt-[34px] mb-8 pb-6 pt-[34px]">
-        <SoftShapes variant="plan" />
-        <h1 className="font-serif font-normal text-[36px] leading-[1.02] tracking-[-0.01em] sm:text-[40px]">Plans</h1>
+      <ShelfHeader title="Plans">
         {people.length > 0 ? (
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
             <FaceRibbon people={people} size={40} flippable />
@@ -83,10 +81,10 @@ function EventsList() {
         ) : (
           <p className="mt-1.5 text-[14px] text-dim">{withPhase.length > 0 ? `${withPhase.length} plan${withPhase.length === 1 ? '' : 's'}` : 'No plans yet'}</p>
         )}
-      </div>
+      </ShelfHeader>
 
       {/* the filters read like the tabs: a pencil line under the one you are on */}
-      <div className="mb-10 flex flex-wrap items-center gap-1 text-[14px]" role="group" aria-label="Show">
+      <div className="-mt-4 mb-10 flex flex-wrap items-center gap-1 text-[14px]" role="group" aria-label="Show">
         {FILTERS.map((f) => {
           const on = filter === f.key
           return (

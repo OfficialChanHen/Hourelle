@@ -339,6 +339,16 @@ export function MissingPopover({ missing, nudged, canNudge = false, note = null,
     window.addEventListener('pointerdown', onDown); window.addEventListener('keydown', onKey)
     return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
   }, [onClose])
+  // it hangs from its button's left edge; when that would run it past the window's
+  // right side (a narrow window, the button far to the right), it is moved back in,
+  // measured before it is painted so it never shows in the wrong place
+  useLayoutEffect(() => {
+    const el = wrap.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const over = r.right - (document.documentElement.clientWidth - 16)
+    if (over > 0) el.style.transform = `translateX(${-Math.min(over, Math.max(0, r.left - 16))}px)`
+  }, [])
   // opened low on a phone it would run under the tab bar: bring all of it into view
   useEffect(() => {
     wrap.current?.scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' })

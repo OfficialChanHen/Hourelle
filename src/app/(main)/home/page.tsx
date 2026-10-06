@@ -43,7 +43,7 @@ import { StickyNote } from '@/components/ui/StickyNote'
 import { FaceSticker } from '@/components/ui/FaceSticker'
 import { SoftShapes } from '@/components/ui/SoftShapes'
 import { Deck } from '@/components/ui/Deck'
-import { Keepsake, lookOf, type Look } from '@/components/ui/Keepsake'
+import { Keepsake, lookOf, withDetail, type Look } from '@/components/ui/Keepsake'
 import { Highlight, PencilArrow, PencilStar, PencilUnderline } from '@/components/ui/Pencil'
 import { HandNote } from '@/components/ui/HandNote'
 import { namesLabel } from '@/components/ui/AvatarRow'
@@ -160,7 +160,7 @@ export default function HomePage() {
   const solo = wide && shown.length === 1
   // each card's hand-laid details, from its plan id; a neighbour never repeats them
   const looks: Look[] = []
-  shown.forEach((x, i) => { looks.push(lookOf(x.e.id, i, looks[i - 1])) })
+  shown.forEach((x, i) => { looks.push(withDetail(lookOf(x.e.id, i, looks[i - 1]), x.e.keepsake)) })
 
   return (
     <div className="relative isolate mx-auto max-w-[1240px] px-6 pb-[92px] pt-7 sm:px-[26px] sm:pt-[34px]">

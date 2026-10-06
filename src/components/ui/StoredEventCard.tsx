@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Calendar, CalendarClock, Check, CopyPlus, Link2, MapPin, Pencil, Reply, Trash2, UserRound, UserRoundX, UsersRound, Vote } from 'lucide-react'
 import { PhotoFrame } from './PhotoFrame'
-import { Keepsake, lookOf, type Look } from './Keepsake'
+import { Keepsake, lookOf, withDetail, type Look } from './Keepsake'
 import { PeekCard, peopleIn } from './PeekCard'
 import { TimezonePill } from './TimezonePill'
 import { Cover } from './Cover'
@@ -45,7 +45,8 @@ function asAction(fn: () => void) {
    for. `look` comes from the shelf (shelfLooks) so a row shows several details;
    `faded` is for past plans, a photo gone a little pale. */
 export function StoredEventCard({ e, sameDay, look: given, faded = false }: { e: AppEvent; sameDay?: SameDayInfo; look?: Look; faded?: boolean }) {
-  const look = given ?? lookOf(e.id, 0)
+  // the shelf's look, with the host's own pick of detail laid over it
+  const look = withDetail(given ?? lookOf(e.id, 0), e.keepsake)
   const router = useRouter()
   const [copied, setCopied] = useState(false)
   const phase = phaseOf(e)

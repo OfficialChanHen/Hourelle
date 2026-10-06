@@ -29,7 +29,7 @@ import {
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Cover, COVER_PRESETS } from '@/components/ui/Cover'
-import { CoverEditor } from '@/components/ui/CoverEditor'
+import { CoverEditor, styleSummary } from '@/components/ui/CoverEditor'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { lastListPage } from '@/lib/nav'
 import { useEventRoom } from '@/hooks/useEventRoom'
@@ -699,7 +699,7 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
       <div className="min-w-0 rounded-2xl border border-border bg-s1 p-5">
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Details</div>
         <DetailRow k="Name" v={<NameValue event={event} editable={isHost} onPatch={onPatch} />} />
-        {isHost && <DetailRow k="Cover" v={<CoverPicker event={event} onPatch={onPatch} />} />}
+        {isHost && <DetailRow k="Style" v={<CoverPicker event={event} onPatch={onPatch} />} />}
         <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} onPatch={onPatch} />} />
         <DetailRow k="When" v={<WhenValue event={event} editable={isHost && !locked} onGoToAvailability={() => onGoToTab('availability')} onGoToBestWindow={onGoToBestWindow} onPatch={onPatch} />} />
         <DetailRow k="Where" v={<WhereValue event={event} locked={locked} onGoToLocation={() => onGoToTab('location')} editable={isHost} onPatch={onPatch} />} />
@@ -1453,19 +1453,19 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
   )
 }
 
-/* Cover: collapsed to the current cover and a "Change" link; the shared editor, with
-   its preview and the fill/fit choice, opens only when asked for */
+/* Style: collapsed to the current cover, a line naming it and the card's detail, and
+   a "Change" link; the shared editor, with its preview, the fill/fit choice and the
+   detail tiles, opens only when asked for */
 function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
   const [editing, setEditing] = useState(false)
   const preset = COVER_PRESETS.find((p) => event.image === `preset:${p.id}`)
   if (!editing) {
     return (
       <div className="flex items-center gap-2.5">
-        {event.image
-          ? <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from={preset?.from ?? '#E4EDE7'} to={preset?.to ?? '#CFE0D5'} className="h-9 w-14 flex-none rounded-[8px] border border-border" />
-          : <span className="text-[13px] leading-none text-dim">No cover</span>}
+        {event.image && <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from={preset?.from ?? '#E4EDE7'} to={preset?.to ?? '#CFE0D5'} className="h-9 w-14 flex-none rounded-[8px] border border-border" />}
+        <span className="text-[13px] leading-snug text-dim">{styleSummary(event.image, event.imageFit, event.keepsake)}</span>
         <button onClick={() => setEditing(true)} className="text-[13px] font-semibold leading-none text-accent-text hover:underline">
-          {event.image ? 'Change' : 'Add one'}
+          Change
         </button>
       </div>
     )
@@ -1473,7 +1473,7 @@ function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Par
   return (
     <div className="flex flex-col gap-2">
       {/* a demo is never persisted, so it has nothing to file a photo under */}
-      <CoverEditor image={event.image} fit={event.imageFit} pos={event.imagePos} title={event.title} eventId={event.demo ? undefined : event.id} onChange={(p) => onPatch(p)} />
+      <CoverEditor image={event.image} fit={event.imageFit} pos={event.imagePos} keepsake={event.keepsake} title={event.title} eventId={event.demo ? undefined : event.id} onChange={(p) => onPatch(p)} />
       <div>
         <button onClick={() => setEditing(false)} className="h-8 rounded-full px-2 text-[12.5px] font-semibold text-dim hover:bg-s2">Done</button>
       </div>

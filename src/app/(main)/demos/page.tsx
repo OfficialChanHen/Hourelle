@@ -5,7 +5,7 @@ import { StoredEventCard } from '@/components/ui/StoredEventCard'
 import { rich } from '@/components/ui/rich'
 import { listDemos, sameDayLabelFor, type AppEvent } from '@/lib/events'
 import { EventBack } from '@/components/EventBack'
-import { SoftShapes } from '@/components/ui/SoftShapes'
+import { ShelfHeader } from '@/components/ui/ShelfHeader'
 import { shelfLooks, type Look } from '@/components/ui/Keepsake'
 
 /* ── the demo shelf: example events, grouped by the question they answer ──
@@ -58,14 +58,11 @@ export default function DemosPage() {
 
   return (
     <div className="mx-auto max-w-[1240px] px-6 pb-[92px] pt-[34px] sm:px-[26px]">
-      <div className="relative isolate -mt-[34px] mb-12 pb-7 pt-[34px]">
-        <SoftShapes variant="plan" />
-        <EventBack />
-        <h1 className="mb-2 font-serif font-normal text-[36px] leading-[1.02] tracking-[-0.01em] sm:text-[40px]">Demos</h1>
-        <p className="max-w-[640px] text-[14px] leading-[1.6] text-dim">
+      <ShelfHeader title="Demos" before={<EventBack />}>
+        <p className="mt-1.5 max-w-[640px] text-[14px] leading-[1.6] text-dim">
           Eight finished plans, one for each template, grouped by the question each one answers. Open any of them and walk through every tab.
         </p>
-      </div>
+      </ShelfHeader>
 
       {GROUPS.map((g, gi) => (
         <section key={g.key} className={gi > 0 ? 'mt-16' : ''}>

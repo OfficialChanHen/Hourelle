@@ -15,8 +15,27 @@ import { Pushpin } from './Pushpin'
 export type KeepsakeKind = 'tape-corner' | 'tape-right' | 'tape-left' | 'tape-two' | 'clip' | 'pin' | 'mounts'
 const KINDS: KeepsakeKind[] = ['tape-corner', 'tape-right', 'tape-left', 'tape-two', 'clip', 'pin', 'mounts']
 
+/** What the host picked for a plan's card: one of the details, 'none' for a bare
+ *  frame, or nothing at all for the one its id deals (Auto). */
+export type CardDetail = KeepsakeKind | 'none'
+
+/** The choices the Style editor offers, in its order. Auto is the absence of one. */
+export const DETAIL_CHOICES: { v: CardDetail; label: string }[] = [
+  { v: 'pin', label: 'Pins' },
+  { v: 'tape-corner', label: 'Tape' },
+  { v: 'tape-two', label: 'Two strips' },
+  { v: 'clip', label: 'Paper clip' },
+  { v: 'mounts', label: 'Photo corners' },
+  { v: 'none', label: 'None' },
+]
+
+/** A look with the host's choice laid over it, when they made one. */
+export function withDetail(look: Look, choice?: CardDetail): Look {
+  return choice ? { ...look, kind: choice } : look
+}
+
 export type Look = {
-  kind: KeepsakeKind
+  kind: CardDetail
   // degrees, sign set by the card's place in its group
   tilt: number
   // tape length in px and a small extra angle
@@ -82,6 +101,8 @@ function Strip({ className, rotate, len, tone }: { className: string; rotate: nu
    the frame's edge where tape would. */
 export function Keepsake({ look }: { look: Look }) {
   const { kind, len, jitter, tone } = look
+  // a bare frame: the host chose no detail
+  if (kind === 'none') return null
   return (
     <>
     {kind === 'clip' && (

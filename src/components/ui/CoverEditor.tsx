@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Crop, ImagePlus, Loader2 } from 'lucide-react'
 import { Cover, COVER_PRESETS } from './Cover'
+import { Keepsake, DETAIL_CHOICES, lookOf, withDetail, type CardDetail } from './Keepsake'
 import { CoverPosition, type Pos } from './CoverPosition'
 import { ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, downscaleImage, isAcceptedImage } from '@/lib/image'
 import { removeCover, uploadCover } from '@/lib/covers'
@@ -10,7 +11,15 @@ import { isInlineCover, isPhotoCover } from '@/lib/cover-kind'
 
 export type ImageFit = 'fill' | 'fit'
 
-/* One editor for the cover, shared by the create wizard and the event's details tab.
+/** The Style row's one-line summary: the cover, then the card's detail. */
+export function styleSummary(image: string | undefined, fit: ImageFit | undefined, keepsake: CardDetail | undefined): string {
+  const cover = isPhotoCover(image) ? `Your photo, ${fit === 'fit' ? 'fitted' : 'filling the frame'}` : image ? COVER_PRESETS.find((p) => image === `preset:${p.id}`)?.name ?? 'A scene' : 'No cover'
+  const detail = keepsake ? DETAIL_CHOICES.find((d) => d.v === keepsake)?.label ?? 'Auto' : 'Auto detail'
+  return `${cover}, ${keepsake === 'none' ? 'no detail' : detail.toLowerCase()}`
+}
+
+/* One editor for the card's style (its cover and the detail that holds it down),
+   shared by the create wizard and the event's details tab. The cover:
    The preset scenes, a photo of your own, and a preview drawn exactly the way the
    event card and the event page draw it, so what is chosen here is what the app
    shows. A photo also gets a choice of fill or fit: fill crops the picture to the
@@ -25,15 +34,17 @@ export type ImageFit = 'fill' | 'fit'
    A photo that is still a data URL is also moved, quietly, the first time its host
    opens this editor. That is the only way the covers already sitting in people's
    browsers ever leave them: the bytes are there, not on the server. */
-export function CoverEditor({ image, fit = 'fill', pos, title, eventId, onChange }: {
+export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId, onChange }: {
   image?: string
   fit?: ImageFit
   // which part of a cropped photo to keep; the middle when nothing has been chosen
   pos?: Pos
+  // the detail on the card: pins, tape, a clip, photo corners, 'none', or absent for Auto
+  keepsake?: CardDetail
   title: string
   // the event to file the photo under; absent in the wizard, where there is no event yet
   eventId?: string
-  onChange: (patch: { image?: string; imageFit?: ImageFit; imagePos?: Pos }) => void
+  onChange: (patch: { image?: string; imageFit?: ImageFit; imagePos?: Pos; keepsake?: CardDetail }) => void
 }) {
   const [posing, setPosing] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -43,6 +54,10 @@ export function CoverEditor({ image, fit = 'fill', pos, title, eventId, onChange
   const photo = isPhotoCover(image)
   const from = preset?.from ?? '#E4EDE7', to = preset?.to ?? '#CFE0D5'
   const name = title.trim() || 'Your plan'
+  // the card's look as it will be: Auto is what the plan's id deals (in the wizard,
+  // before there is an id, a stand-in), else what was picked
+  const auto = lookOf(eventId ?? 'new-plan', 0)
+  const look = { ...withDetail(auto, keepsake), tilt: 0 }
 
   // move an old inline cover up, once, in the background. Keyed on the data URL so a
   // patch coming back through the parent cannot start it again, and a different
@@ -89,12 +104,18 @@ export function CoverEditor({ image, fit = 'fill', pos, title, eventId, onChange
 
   return (
     <div className="flex flex-col gap-3">
-      {/* the preview: the card's frame and the event page's wider one, side by side */}
-      <div className="grid gap-3 sm:grid-cols-[188px_minmax(0,1fr)]">
-        <div className="overflow-hidden rounded-2xl border border-border bg-s1 p-3.5">
-          <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="-mx-3.5 -mt-3.5 mb-3 h-[92px]" />
-          <div className="truncate text-[14px] font-semibold tracking-[-0.01em]">{name}</div>
-          <div className="mt-1 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">On a card</div>
+      {/* one preview for both: the card as a framed photo with its detail, and the
+          event page's wider cover beside it */}
+      <div className="grid gap-4 sm:grid-cols-[200px_minmax(0,1fr)]">
+        <div>
+          <div className="rounded-[12px] bg-frame p-2 pb-3 shadow-frame">
+            <div className="relative">
+              <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[92px]" rounded="rounded-lg" />
+              <Keepsake look={look} />
+            </div>
+            <div className="mt-2.5 truncate px-1 font-serif text-[16px] leading-tight tracking-[-0.01em]">{name}</div>
+          </div>
+          <div className="mt-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">On a card</div>
         </div>
         <div className="min-w-0">
           <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[92px] border border-border sm:h-[124px]" rounded="rounded-2xl" />
@@ -117,6 +138,38 @@ export function CoverEditor({ image, fit = 'fill', pos, title, eventId, onChange
             </button>
           )
         })}
+      </div>
+
+      {/* the detail on the card, the same way: small cards to pick from */}
+      <div className="mt-1">
+        <div className="mb-1.5 text-[12.5px] font-semibold text-dim">Card detail</div>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Card detail">
+          {([{ v: undefined, label: 'Auto' }, ...DETAIL_CHOICES] as { v: CardDetail | undefined; label: string }[]).map((d) => {
+            const on = keepsake === d.v
+            const tile = { ...withDetail(auto, d.v), tilt: 0, len: 30, pad: 'thin' as const }
+            return (
+              <button
+                key={d.label} type="button" aria-pressed={on} onClick={() => onChange({ keepsake: d.v })}
+                className="flex w-[76px] flex-col items-center gap-1 rounded-xl p-1 text-[11.5px] font-medium text-dim hover:text-text"
+                style={{ boxShadow: on ? '0 0 0 2px var(--accent)' : undefined, color: on ? 'var(--text)' : undefined }}
+              >
+                {/* a small framed cover with that detail, drawn at well under half size
+                    with room around it, so tape reaching past the frame still shows */}
+                <span aria-hidden className="relative block h-[50px] w-[68px] overflow-hidden rounded-[8px]">
+                  <span className="absolute left-0 top-0 block w-[160px] origin-top-left scale-[.425] p-4">
+                    <span className="block rounded-[10px] bg-frame p-2.5 shadow-frame">
+                      <span className="relative block">
+                        <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[64px]" rounded="rounded-md" />
+                        <Keepsake look={tile} />
+                      </span>
+                    </span>
+                  </span>
+                </span>
+                {d.label}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

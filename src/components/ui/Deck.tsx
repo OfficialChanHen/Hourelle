@@ -143,7 +143,15 @@ export function Deck({
       // in front of anything still coming off: what came off first stays on top
       fly.current.prepend(old)
       busy(1)
-      const tl = liftOff(old, (el) => back.current?.appendChild(el)).eventCallback('onComplete', () => { old.remove(); busy(-1) })
+      // the new top card's faces wait tucked down behind its edge, and come up one
+      // after another only once the old card is clear of the pile, so they never
+      // just appear while it is still on top of them
+      const faces = Array.from(card.querySelectorAll<HTMLElement>('.peek-face'))
+      if (faces.length) gsap.set(faces, { y: '+=44' })
+      const tl = liftOff(old, (el) => {
+        back.current?.appendChild(el)
+        if (faces.length) gsap.to(faces, { y: '-=44', duration: 0.45, ease: 'back.out(1.8)', stagger: 0.05 })
+      }).eventCallback('onComplete', () => { old.remove(); busy(-1) })
       if (quick) tl.timeScale(1.7)
       leaving.current.push(() => tl.timeScale(4))
     }

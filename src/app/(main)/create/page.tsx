@@ -29,7 +29,8 @@ import { Suspense, useEffect, useId, useMemo, useRef, useState, type RefObject }
 import { useRouter, useSearchParams } from 'next/navigation'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { fetchEvent } from '@/lib/remote'
-import { CoverEditor, type ImageFit } from '@/components/ui/CoverEditor'
+import { CoverEditor, styleSummary, type ImageFit } from '@/components/ui/CoverEditor'
+import type { CardDetail } from '@/components/ui/Keepsake'
 import { coverPresetOf } from '@/components/ui/Cover'
 import { reducedMotion } from '@/lib/prefs'
 import { copyCoverInto, uploadCover } from '@/lib/covers'
@@ -142,6 +143,7 @@ type Form = {
   image?: string
   imageFit?: ImageFit
   imagePos?: { x: number; y: number }
+  keepsake?: CardDetail
 }
 
 const initialForm: Form = {
@@ -266,6 +268,7 @@ function CreateWizard() {
       capacity: d.capacity ?? f.capacity,
       image: d.image,
       imageFit: d.imageFit,
+      keepsake: d.keepsake,
       startDate: d.startDate ?? f.startDate,
       endDate: d.endDate ?? f.endDate,
       excludedDows: d.excludedDows ?? f.excludedDows,
@@ -580,8 +583,8 @@ function CreateWizard() {
                   className={`${inputCls(false)} h-[72px] resize-none py-[11px] leading-[1.5]`}
                 />
               </Collapse>
-              <Collapse icon={ImagePlus} title="Cover" summary={isPhotoCover(form.image) ? `Your photo, ${form.imageFit === 'fit' ? 'fitted' : 'filling the frame'}` : form.image ? coverPresetOf(form.image)?.name ?? 'A scene' : 'A scene or a photo of your own'}>
-                <CoverEditor image={form.image} fit={form.imageFit} pos={form.imagePos} title={form.title} onChange={(p) => update(p)} />
+              <Collapse icon={ImagePlus} title="Style" summary={styleSummary(form.image, form.imageFit, form.keepsake)}>
+                <CoverEditor image={form.image} fit={form.imageFit} pos={form.imagePos} keepsake={form.keepsake} title={form.title} onChange={(p) => update(p)} />
               </Collapse>
               <Collapse icon={Wallet} title="Budget and spots" summary={moneySummary}>
                 <div className="flex flex-wrap gap-3.5">

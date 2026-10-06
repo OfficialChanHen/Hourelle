@@ -3,7 +3,7 @@ import { Route, Map, PartyPopper, Presentation, Repeat, Utensils, Dices, Cooking
 import { Cover } from '@/components/ui/Cover'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { Keepsake, shelfLooks } from '@/components/ui/Keepsake'
-import { SoftShapes } from '@/components/ui/SoftShapes'
+import { ShelfHeader } from '@/components/ui/ShelfHeader'
 import { FaceSticker } from '@/components/ui/FaceSticker'
 
 // each template dresses as the event it becomes: its own cover in a hand-laid frame,
@@ -24,13 +24,11 @@ export default function TemplatesPage() {
   const looks = shelfLooks(TEMPLATES.map((t) => `template-${t.key}`))
   return (
     <div className="mx-auto max-w-[1240px] px-6 pb-[92px] pt-[34px] sm:px-[26px]">
-      <div className="relative isolate -mt-[34px] mb-12 pb-7 pt-[34px]">
-        <SoftShapes variant="plan" />
-        <h1 className="mb-1.5 font-serif font-normal text-[36px] leading-[1.02] tracking-[-0.01em] sm:text-[40px]">Templates</h1>
-        <p className="max-w-[560px] text-[14px] leading-[1.55] text-dim">
+      <ShelfHeader title="Templates">
+        <p className="mt-1.5 max-w-[560px] text-[14px] leading-[1.55] text-dim">
           Pick the kind of get-together for a head start. Every detail stays yours to change.
         </p>
-      </div>
+      </ShelfHeader>
       <div className="grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
         {TEMPLATES.map((t, i) => {
           const Icon = t.icon
