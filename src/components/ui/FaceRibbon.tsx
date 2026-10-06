@@ -48,7 +48,7 @@ export function FaceRibbon({
         <span
           aria-hidden
           className="grid flex-none place-items-center rounded-full bg-s3 font-semibold text-dim"
-          style={{ width: size, height: size, fontSize: Math.max(12, Math.round(size * 0.34)), transform: 'translateY(3px)' }}
+          style={{ width: size * 40 / 44, height: size * 40 / 44, margin: size / 22, boxShadow: `0 0 0 ${size / 20}px var(--face-edge)`, filter: 'var(--face-lift)', fontSize: Math.max(12, Math.round(size * 0.34)), transform: 'translateY(3px)' }}
         >
           +{extra}
         </span>

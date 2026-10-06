@@ -1,3 +1,5 @@
+import { Pushpin } from './Pushpin'
+
 /* The small hand-laid details that make each photo card its own: a strip of tape
    across a corner or an edge, two short strips, a paper clip, a pin or four photo
    corners, with the frame's tilt and border width varying too. Worked out from the
@@ -79,10 +81,8 @@ export function Keepsake({ look }: { look: Look }) {
         </svg>
       )}
       {kind === 'pin' && (
-        // a round pin near the top right corner, lifted a little off the photo
-        <span className="absolute right-4 top-3 block">
-          <span className="relative block h-3.5 w-3.5 rounded-full bg-pin shadow-frame" />
-        </span>
+        // a pushpin through the photo near its top right corner
+        <Pushpin size={16} className="absolute -top-2 right-3" />
       )}
       {kind === 'mounts' && (
         // four photo corners holding the picture down

@@ -41,7 +41,6 @@ import { PeekCard, peopleIn } from '@/components/ui/PeekCard'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { StickyNote } from '@/components/ui/StickyNote'
 import { SoftShapes } from '@/components/ui/SoftShapes'
-import { WavyRule } from '@/components/ui/WavyRule'
 import { Deck } from '@/components/ui/Deck'
 import { Keepsake, lookOf, type Look } from '@/components/ui/Keepsake'
 import { Highlight, PencilArrow, PencilStar, PencilUnderline } from '@/components/ui/Pencil'
@@ -241,22 +240,21 @@ export default function HomePage() {
           </section>
 
           {/* what you owe, then a new plan: side by side on a large screen */}
-          <div className={`grid gap-y-9 ${solo ? 'pt-6' : `mt-8 lg:mt-14 lg:items-start lg:gap-x-16 ${turn ? 'lg:grid-cols-[auto_minmax(0,1fr)]' : 'lg:max-w-[720px]'}`}`}>
+          <div className={`grid gap-y-9 ${solo ? 'pt-6' : `mt-6 lg:mt-14 lg:items-start lg:gap-x-16 ${turn ? 'lg:grid-cols-[auto_minmax(0,1fr)]' : 'lg:max-w-[720px]'}`}`}>
             {turn && (
               <section aria-labelledby="home-turn" className="min-w-0">
-                <WavyRule className="mb-7 lg:hidden" />
                 <h2 id="home-turn" className="sr-only">Your turn</h2>
                 <Deck
                   count={turns.length} index={turnI} onIndex={setTurnAt} label="Plans waiting on you" itemLabel="note" center
-                  className="mx-auto w-[260px] max-w-full lg:mx-0"
+                  className="ml-auto mr-2 w-[244px] max-w-[80%] lg:mx-0 lg:w-[260px] lg:max-w-full"
                   behind={(d) => (
                     <div
-                      className="absolute inset-0 rounded-md bg-sticky shadow-sticky"
+                      className="absolute inset-0 rounded-[3px] bg-sticky shadow-sticky"
                       style={{ transform: d === 1 ? 'translate(8px, 6px) rotate(-2.5deg)' : 'translate(-5px, 11px) rotate(3deg)' }}
                     />
                   )}
                 >
-                  <StickyNote kicker={<><PencilStar size={16} className="-mt-0.5 mr-1.5" />Your turn</>} className="min-h-[164px]">
+                  <StickyNote pin tilt={-1.5} kicker={<><PencilStar size={16} className="-mt-0.5 mr-1.5" />Your turn</>} className="min-h-[176px]">
                     <span className="font-serif text-[19px] leading-[1.15] [overflow-wrap:anywhere]">{turn.x.e.title}</span>
                     <span className="text-[13.5px] leading-[1.4] text-sticky-dim">{turn.t.line}</span>
                     <Link href={turn.t.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-accent px-4 text-[13.5px] font-semibold text-on-accent sm:h-9">
@@ -328,7 +326,7 @@ function digestOf(e: AppEvent, phase: Phase) {
       : !youReplied(e) ? 'You haven’t marked your times'
         : myVote ? `You voted for ${myVote.name}`
           : ballot > 0 ? 'You haven’t voted on a place'
-            : 'You’ve marked your times'
+            : null /* having marked your times is not news */
 
   // extras, only when there is something to say
   const lines = chatLines(e.messages).length
@@ -399,7 +397,8 @@ function UpNext({ e, phase, sameDay, size, look, lead = false }: { e: AppEvent; 
             <Row icon={UsersRound}>
               {who}{d.stillOut >= 1 && d.stillOut <= 3 && d.waitingOn.length > 0 && <span className="text-dim">. Waiting on {namesLabel(d.waitingOn.slice(0, 3))}</span>}
             </Row>
-            {d.you && <Row icon={UserRound}><span className={turn ? 'font-semibold text-moment-text' : ''}>{d.you}</span></Row>}
+            {/* what you owe is said once: by the margin note on the plan in front, else here */}
+            {d.you && !(lead && turn) && <Row icon={UserRound}><span className={turn ? 'font-semibold text-moment-text' : ''}>{d.you}</span></Row>}
             {/* then where */}
             {small ? null : e.location.mode === 'remote' ? (
               <Row icon={Video}>Online{e.location.platform ? ` on ${e.location.platform}` : ''}</Row>

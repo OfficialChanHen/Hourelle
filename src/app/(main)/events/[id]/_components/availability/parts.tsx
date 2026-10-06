@@ -8,7 +8,6 @@ import { Bell, CalendarPlus, Check, ChevronDown, Eraser, GripHorizontal, Minus, 
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
-import { pileCut } from '@/components/ui/AvatarRow'
 import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
 import type { Participant } from '@/lib/events'
 import { defaultFace, ringGap } from '@/lib/faces'
@@ -43,7 +42,7 @@ export function FilterAvatars({ participants, filter, onToggle, onClear, onSelec
               opacity: active && !on ? 0.35 : 1,
             } as CSSProperties}
           >
-            <Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} cut={!on && i < shown.length - 1 ? pileCut(25, 5) : undefined} />
+            <Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} />
           </button>
         )
       })}

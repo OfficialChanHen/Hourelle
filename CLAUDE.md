@@ -549,7 +549,7 @@ Badges are soft pills: `--{role}-bg` fill, `--{role}-text` text, `1px solid --{r
 - `sm` (20–22px, 8–9px font) — inline in cards, host rows, piles
 - `md` (26px, 9.5px font) — roster rows, avatar stacks
 - `lg` (34–36px, 12px font) — guest list, profile contexts
-Avatar piles overlap with a `2px solid --s1` ring and cap at 6–7 with a `+N` chip.
+Every face is a sticker: a die-cut edge (`--face-edge`) that follows its own shape plus a small lift (`--face-lift`), so piles overlap sticker-on-sticker with no circular notch, and cap at 6–7 with a `+N` chip in the same edge.
 
 **Cards:** `rounded-2xl border border-border bg-s1 p-5` — hairline border, soft `--shadow`, generous padding; hero cards `rounded-3xl`.
 **Buttons:** primary `rounded-full bg-accent text-on-accent font-semibold`, secondary `rounded-full border border-border2 bg-s1 hover:bg-s2`; heights 44px on phones (`h-11`), 32–40px from `sm`.

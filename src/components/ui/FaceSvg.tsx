@@ -5,13 +5,18 @@ import { ACCESSORIES, EYES, HAIR, LINE, MOUTHS, SHAPES, type Face, type FacePart
    is drawn in that colour's ink. Both are theme variables (--person-*), so
    a face is a pale chip on paper and a deeper, quieter one on charcoal.
 
-   The paths are drawn for a shape that spans 1 to 39 of the 40 box, which leaves
-   room for a blob's bulge or a tuft of hair. In a pile, faces are separated by a
-   see-through notch (pileCut in AvatarRow), not by anything drawn here.
+   Every face is a sticker: a die-cut edge (--face-edge) follows its own shape, and a
+   small shadow (--face-lift) lifts it off the page. In a pile the edge is what keeps
+   one face apart from the next, whatever the shapes are and whatever sits behind.
+   The paths are drawn for a shape spanning 1 to 39 of the 40 box; the box shows
+   2 units more on every side so the edge is never clipped.
 
    One line weight at every size: the strokes scale with the box and nothing thickens
    for small faces, so a room of faces reads as one even hand. The box is always a
    whole number of pixels, since a fractional one smears every edge. */
+// the die-cut edge's stroke width in the 40 box; half of it shows outside the shape
+const EDGE = 4.4
+
 export function FaceSvg({
   face,
   color,
@@ -32,10 +37,12 @@ export function FaceSvg({
   const extra = ACCESSORIES[face.accessory] ?? ACCESSORIES.none
   return (
     <svg
-      width={size} height={size} viewBox="0 0 40 40" aria-hidden focusable="false"
-      shapeRendering="geometricPrecision" className={className} style={{ display: 'block', flex: 'none' }}
+      width={size} height={size} viewBox="-2 -2 44 44" aria-hidden focusable="false"
+      shapeRendering="geometricPrecision" className={className}
+      style={{ display: 'block', flex: 'none', overflow: 'visible', filter: 'var(--face-lift)' }}
     >
-      <path d={shape} style={{ fill: c.bg }} />
+      {/* the edge: stroked under the fill, so only its outer half shows */}
+      <path d={shape} style={{ fill: c.bg, stroke: 'var(--face-edge)' }} strokeWidth={EDGE} strokeLinejoin="round" paintOrder="stroke" />
       {hair && <path d={hair} style={{ fill: c.ink }} />}
       <Part part={eyes} ink={c.ink} />
       <path d={mouth} style={{ stroke: c.ink }} strokeWidth={LINE} strokeLinecap="round" strokeLinejoin="round" fill="none" />
