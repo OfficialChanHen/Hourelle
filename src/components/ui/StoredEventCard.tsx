@@ -4,7 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Calendar, CalendarClock, Check, CopyPlus, Link2, MapPin, Pencil, Reply, Trash2, UserRound, UserRoundX, UsersRound, Vote } from 'lucide-react'
-import { AvatarRow } from './AvatarRow'
+import { PhotoFrame } from './PhotoFrame'
+import { Keepsake, lookOf, type Look } from './Keepsake'
 import { PeekCard, peopleIn } from './PeekCard'
 import { TimezonePill } from './TimezonePill'
 import { Cover } from './Cover'
@@ -37,7 +38,14 @@ function asAction(fn: () => void) {
   }
 }
 
-export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDayInfo }) {
+/* One plan on the Plans and Demos shelves, laid down like a photo: the cover in a
+   tilted frame with its own hand-laid detail (Keepsake, from the plan's id, so it
+   keeps its look), and the faces of the people in peeking over the top edge, half
+   up at rest and rising on hover or focus. The faces lead: they are who the plan is
+   for. `look` comes from the shelf so neighbours never share a detail or a tilt;
+   `faded` is for past plans, a photo gone a little pale. */
+export function StoredEventCard({ e, sameDay, look: given, faded = false }: { e: AppEvent; sameDay?: SameDayInfo; look?: Look; faded?: boolean }) {
+  const look = given ?? lookOf(e.id, 0)
   const router = useRouter()
   const [copied, setCopied] = useState(false)
   const phase = phaseOf(e)
@@ -74,20 +82,20 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
 
   return (
     <>
-    {/* the faces of the people in rise from behind the card's top edge on hover or
-        focus; they are only a picture of the room, so the pile below still names them */}
-    <PeekCard people={peopleIn(e)} size={30} upShow={24}>
+    {/* the faces of the people in, half up over the frame's top edge, rising on
+        hover or focus; each one flips to its initials */}
+    <PeekCard people={peopleIn(e)} size={38} restShow={26} upShow={33} tilt={look.tilt} className="h-full">
+    <PhotoFrame tilt={look.tilt} tape={false} pad={look.pad} className="h-full [&>div]:flex [&>div]:h-full [&>div]:flex-col">
     <Link
       href={eventTabFor(e)}
-      className="group flex flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-s1 p-3.5 transition-all hover:-translate-y-0.5 hover:border-border2"
-      // status reads from the frame, not from chips: the border wears the phase color
-      style={tint.border ? { borderColor: tint.border } : undefined}
+      className="group flex flex-1 flex-col"
     >
       {/* one cover height for every card, photo or scene, so a row of cards lines up:
           the titles start on the same line and the grid reads as a grid. A photo used
           to take 150 and a scene 92, which staggered every row that mixed the two. */}
-      <div className="relative -mx-3.5 -mt-3.5 mb-3">
-        <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={from} to={to} className={CARD_COVER_H} />
+      <div className="relative mb-3">
+        <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={from} to={to} className={`${CARD_COVER_H} ${faded ? 'saturate-[.45]' : ''}`} rounded="rounded-lg" />
+        <Keepsake look={look} />
         {/* the cover's top corner is the one open spot on the card: the host's way to the details tab */}
         {e.hostedByYou && !e.demo && (
           <span
@@ -100,7 +108,7 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
         )}
       </div>
       {/* the old badge row as one quiet line: dot for the phase, words for the rest */}
-      <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium text-dim">
+      <div className="mb-1.5 flex items-center gap-1.5 px-1 text-[12px] font-medium text-dim">
         <span className="h-2 w-2 flex-none rounded-full" style={{ background: tint.dot }} />
         <span>{badge.label}</span>
         {phase !== 'past' && du !== null && (
@@ -110,10 +118,10 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
           </>
         )}
       </div>
-      <h3 className="mb-[9px] text-[15px] font-semibold tracking-[-0.01em]">{e.title}</h3>
+      <h3 className="mb-[9px] px-1 font-serif text-[20px] leading-[1.15] tracking-[-0.01em] [overflow-wrap:anywhere]">{e.title}</h3>
 
       {/* glance lines: a settled time beats a date range; place and host only when they say something */}
-      <div className="mb-3 flex flex-col gap-[7px] text-[13px] text-dim">
+      <div className="mb-3 flex flex-col gap-[7px] px-1 text-[13px] text-dim">
         {youPending && (
           // coral, the moment role: this card is waiting on you
           <div className="flex items-center gap-1.5 font-semibold text-moment-text">
@@ -179,11 +187,11 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
 
       {/* anchored to the card's bottom edge so avatars and actions line up across
           the row even when neighbors carry more metadata lines */}
-      <div className="mt-auto flex items-center justify-between gap-2">
+      <div className="mt-auto flex items-center justify-between gap-2 px-1">
         <div className="flex min-w-0 items-center gap-2">
-          <AvatarRow people={e.participants.map((p) => ({ initials: p.initials, name: p.name, color: p.color, face: p.face }))} size={24} max={4} />
-          {/* while planning, nobody has committed yet — count invites; "going" only
-              means something once a time is locked and RSVPs are real */}
+          {/* the faces are over the top edge; here, how many. While planning nobody
+              has committed yet, so count invites; "going" means something once locked */}
+          <UsersRound size={14} className="flex-none text-dim" aria-hidden />
           <span className="truncate text-[12.5px] text-dim">
             {phase === 'planning' || going === 0
               ? `${e.participants.length} invited`
@@ -230,6 +238,7 @@ export function StoredEventCard({ e, sameDay }: { e: AppEvent; sameDay?: SameDay
         </div>
       </div>
     </Link>
+    </PhotoFrame>
     </PeekCard>
     {/* outside the link, so the words never become part of the card's name; it is
         taken out of the flow, so the grid the cards sit in never sees it */}

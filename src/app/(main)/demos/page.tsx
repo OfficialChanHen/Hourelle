@@ -5,6 +5,8 @@ import { StoredEventCard } from '@/components/ui/StoredEventCard'
 import { rich } from '@/components/ui/rich'
 import { listDemos, sameDayLabelFor, type AppEvent } from '@/lib/events'
 import { EventBack } from '@/components/EventBack'
+import { SoftShapes } from '@/components/ui/SoftShapes'
+import { lookOf, type Look } from '@/components/ui/Keepsake'
 
 /* ── the demo shelf: example events, grouped by the question they answer ──
    Every demo is a finished plan to walk through: the grid, the ballot, the roster
@@ -49,35 +51,41 @@ export default function DemosPage() {
   useEffect(() => { setDemos(listDemos()) }, [])
   const sameDay = demos ? sameDayLabelFor(demos) : () => undefined
   const byId = new Map((demos ?? []).map((d) => [d.id, d]))
+  // each photo's hand-laid details, one run across the shelves so neighbours differ
+  const looks = new Map<string, Look>()
+  let prev: Look | undefined
+  GROUPS.flatMap((g) => Object.keys(g.picks)).forEach((id, i) => { prev = lookOf(id, i, prev); looks.set(id, prev) })
 
   return (
-    <div className="mx-auto max-w-[1240px] px-[26px] pb-[92px] pt-[34px]">
+    <div className="mx-auto max-w-[1240px] px-6 pb-[92px] pt-[34px] sm:px-[26px]">
       <EventBack />
-      <div className="mb-8 max-w-[640px]">
-        <h1 className="mb-2 font-serif font-normal text-[36px] leading-[1.02] tracking-[-0.01em]">Demos</h1>
-        <p className="text-[14px] leading-[1.6] text-dim">
+      <div className="relative isolate mb-10 pb-7 pt-5">
+        <SoftShapes variant="plan" />
+        <h1 className="mb-2 font-serif font-normal text-[36px] leading-[1.02] tracking-[-0.01em] sm:text-[40px]">Demos</h1>
+        <p className="max-w-[640px] text-[14px] leading-[1.6] text-dim">
           Eight finished plans, one for each template, grouped by the question each one answers. Open any of them and walk through every tab.
         </p>
       </div>
 
       {GROUPS.map((g, gi) => (
-        <section key={g.key} className={gi > 0 ? 'mt-12' : ''}>
-          <div className="mb-4 max-w-[640px]">
+        <section key={g.key} className={gi > 0 ? 'mt-16' : ''}>
+          <div className="mb-8 max-w-[640px]">
             <p className={`text-[11px] font-semibold uppercase tracking-[.13em] ${g.tone}`}>{g.eyebrow}</p>
             <h2 className="mt-1.5 font-serif text-[26px] leading-[1.08] tracking-[-0.01em]">{g.title}</h2>
             <p className="mt-1 text-[13.5px] leading-[1.55] text-dim">{g.sub}</p>
           </div>
-          <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
-            {Object.entries(g.picks).map(([id, look]) => {
+          <div className="grid grid-cols-1 gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+            {Object.entries(g.picks).map(([id, blurb]) => {
               const e = byId.get(id)
               return (
-                <div key={id} className="flex flex-col gap-2.5">
+                <div key={id} className="flex flex-col gap-3">
                   {e ? (
-                    <StoredEventCard e={e} sameDay={sameDay(e)} />
+                    <StoredEventCard e={e} sameDay={sameDay(e)} look={looks.get(id)} />
                   ) : (
-                    <div className="h-[240px] animate-pulse rounded-2xl bg-s2" />
+                    <div className="h-[300px] animate-pulse rounded-2xl bg-s2" />
                   )}
-                  <p className="px-1 text-[12.5px] leading-[1.55] text-dim">{rich(look)}</p>
+                  {/* what to look for, written under the photo like an album caption */}
+                  <p className="px-2 text-[13px] leading-[1.55] text-dim">{rich(blurb)}</p>
                 </div>
               )
             })}

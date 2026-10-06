@@ -5,7 +5,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { CalendarX2 } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StoredEventCard } from '@/components/ui/StoredEventCard'
-import { listEvents, phaseOf, sameDayLabelFor, type AppEvent, type Phase } from '@/lib/events'
+import { FaceRibbon } from '@/components/ui/FaceRibbon'
+import { SoftShapes } from '@/components/ui/SoftShapes'
+import { PencilHover, PencilUnderline } from '@/components/ui/Pencil'
+import { lookOf, type Look } from '@/components/ui/Keepsake'
+import { listEvents, phaseOf, sameDayLabelFor, type AppEvent, type Participant, type Phase } from '@/lib/events'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 
 // real filters over the derived lifecycle phase — Confirmed covers everything locked in
@@ -43,36 +47,76 @@ function EventsList() {
   const showPastSection = filter === 'all' // the Past filter already shows them above
   const sameDay = sameDayLabelFor(withPhase.filter((x) => x.phase !== 'past').map((x) => x.e))
 
+  // everyone you are planning with, once each, across the plans still to come: the
+  // page's picture. One pass over every plan's people; the ribbon draws six.
+  const people: Participant[] = []
+  const seen = new Set<string>()
+  for (const x of withPhase) {
+    if (x.phase === 'past') continue
+    for (const p of x.e.participants) {
+      const key = (p.email ?? p.name).toLowerCase()
+      if (p.you || seen.has(key)) continue
+      seen.add(key)
+      people.push(p)
+    }
+  }
+  const active = withPhase.length - past.length
+  // each card's hand-laid details; a neighbour never repeats them
+  const looksFor = (list: { e: AppEvent }[]) => {
+    const out: Look[] = []
+    list.forEach((x, i) => out.push(lookOf(x.e.id, i, out[i - 1])))
+    return out
+  }
+  const shownLooks = looksFor(shown)
+  const pastLooks = looksFor(past)
+  const grid = 'grid grid-cols-1 gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3'
+
   return (
-    <div className="mx-auto max-w-[1240px] px-[26px] pb-[92px] pt-[34px]">
-      <div className="mb-4">
-        <h1 className="mb-1.5 font-serif font-normal text-[36px] leading-[1.02] tracking-[-0.01em]">Plans</h1>
-        <div className="text-[13.5px] text-dim">{withPhase.length > 0 ? `${withPhase.length} plan${withPhase.length === 1 ? '' : 's'}` : 'No plans yet'}</div>
+    <div className="mx-auto max-w-[1240px] px-6 pb-[92px] pt-[34px] sm:px-[26px]">
+      {/* the people first: who you are planning with, as faces, then the plans */}
+      <div className="relative isolate -mt-[34px] mb-8 pb-6 pt-[34px]">
+        <SoftShapes variant="plan" />
+        <h1 className="font-serif font-normal text-[36px] leading-[1.02] tracking-[-0.01em] sm:text-[40px]">Plans</h1>
+        {people.length > 0 ? (
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
+            <FaceRibbon people={people} size={40} flippable />
+            <p className="text-[14px] text-dim">
+              {people.length === 1 ? 'You and 1 other person' : `You and ${people.length} people`}, across {active} {active === 1 ? 'plan' : 'plans'}
+            </p>
+          </div>
+        ) : (
+          <p className="mt-1.5 text-[14px] text-dim">{withPhase.length > 0 ? `${withPhase.length} plan${withPhase.length === 1 ? '' : 's'}` : 'No plans yet'}</p>
+        )}
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={`flex h-11 sm:h-[30px] items-center rounded-full px-[13px] text-[13px] ${filter === f.key ? 'bg-accent font-semibold text-on-accent' : 'border border-border bg-s1 font-medium text-dim hover:border-border2'}`}
-          >
-            {f.label}
-          </button>
-        ))}
+      {/* the filters read like the tabs: a pencil line under the one you are on */}
+      <div className="mb-10 flex flex-wrap items-center gap-1 text-[14px]" role="group" aria-label="Show">
+        {FILTERS.map((f) => {
+          const on = filter === f.key
+          return (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              aria-pressed={on}
+              className={`flex h-11 items-center rounded-full px-[13px] sm:h-9 ${on ? 'font-semibold text-text' : 'font-medium text-dim hover:text-text'}`}
+            >
+              {on ? <PencilUnderline>{f.label}</PencilUnderline> : <PencilHover>{f.label}</PencilHover>}
+            </button>
+          )
+        })}
       </div>
 
       {events === null ? (
         /* localStorage only exists after mount — pulse card shapes, never a flash of "empty" */
-        <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
+        <div className={grid}>
           {Array.from({ length: 6 }, (_, i) => (
             <div key={i} className="h-[240px] animate-pulse rounded-2xl bg-s2" />
           ))}
         </div>
       ) : shown.length > 0 ? (
-        <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
-          {shown.map((x) => (
-            <StoredEventCard key={x.e.id} e={x.e} sameDay={sameDay(x.e)} />
+        <div className={grid}>
+          {shown.map((x, i) => (
+            <StoredEventCard key={x.e.id} e={x.e} sameDay={sameDay(x.e)} look={shownLooks[i]} faded={x.phase === 'past'} />
           ))}
         </div>
       ) : (
@@ -88,12 +132,13 @@ function EventsList() {
       {showPastSection && past.length > 0 && (
         <>
           {/* same eyebrow section start as home — faint, because past is over */}
-          <div className="mb-3 mt-7 flex items-center gap-2.5">
+          <div className="mb-10 mt-14 flex items-center gap-2.5">
             <span className="text-[11.5px] font-semibold uppercase tracking-[.13em] text-faint">Past plans</span>
             <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[11.5px] text-dim">{past.length}</span>
           </div>
-          <div className="grid grid-cols-1 gap-[13px] sm:grid-cols-2 lg:grid-cols-3">
-            {past.map((x) => <StoredEventCard key={x.e.id} e={x.e} />)}
+          {/* past plans are photos gone a little pale */}
+          <div className={grid}>
+            {past.map((x, i) => <StoredEventCard key={x.e.id} e={x.e} look={pastLooks[i]} faded />)}
           </div>
         </>
       )}

@@ -137,7 +137,8 @@ export function Header() {
 
         {/* two icons, each meaning what it shows: the bell is alerts, the avatar is you.
             Theme moved into the avatar menu — a header row of icon buttons is noise */}
-        <div className="hidden items-center gap-2 md:flex">
+        {/* wide enough apart that the avatar's hover ring never crowds the bell */}
+        <div className="hidden items-center gap-4 md:flex">
           <Link
             href="/notifications"
             aria-label={notifCount > 0 ? `Notifications, ${notifCount} unread` : 'Notifications'}
