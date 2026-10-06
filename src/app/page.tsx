@@ -143,19 +143,22 @@ export default function Landing() {
               <p className="mt-5 max-w-[560px] text-[16px] leading-[1.6] text-dim sm:text-[17px]">
                 Skip the back-and-forth. Start a plan and send the link. Everyone marks when they are free and votes on where to go. Guests don't need an account.
               </p>
-              <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+              {/* the note is part of the button row, so it stays beside the demo button at
+                  every width: under it on a phone, to its right from sm up (or on the next
+                  line when the row runs out of room) */}
+              <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
                 <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-full bg-accent px-6 text-[15px] font-semibold text-on-accent">
                   Sign up <ArrowRight size={16} />
                 </Link>
                 <Link ref={demoBtn} href="/demos" className="flex h-12 items-center justify-center rounded-full border border-border2 bg-s1 px-6 text-[15px] font-semibold text-dim hover:bg-s2 hover:text-text">
                   Try a demo first
                 </Link>
+                {/* the page's one margin note, its arrow measured to the demo button */}
+                <span className="mt-5 self-end pr-4 sm:ml-8 sm:mt-7 sm:self-auto sm:pr-0">
+                  <HandNote ref={note} ink="accent" className="rotate-[-3deg]">nothing to set up</HandNote>
+                </span>
               </div>
-              {/* the page's one margin note, its arrow measured to the demo button */}
-              <div className="mt-7 flex justify-end pr-4 sm:mt-6 sm:justify-start sm:pl-[52%] lg:pl-[64%]">
-                <HandNote ref={note} ink="accent" className="rotate-[-3deg]">nothing to set up</HandNote>
-              </div>
-              <PencilArrow from={note} to={demoBtn} within={heroText} ink="accent" />
+              <PencilArrow from={note} to={demoBtn} within={heroText} ink="accent" max={120} />
               <p className="mt-4 text-[12.5px] text-faint">Invited to something? Just open the link you were sent.</p>
             </div>
 
@@ -182,7 +185,7 @@ export default function Landing() {
         {/* ── features, alternating ── */}
         <section id="features" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pt-14 sm:pt-28">
           <div className="ld-reveal max-w-[560px]">
-            <h2 className="font-serif font-normal text-[36px] leading-[1.06] tracking-[-0.01em] sm:text-[46px]">What it does</h2>
+            <h2 className="font-serif font-normal text-[36px] leading-[1.06] tracking-[-0.01em] sm:text-[46px]"><PencilUnderline ink="graphite">What it does</PencilUnderline></h2>
           </div>
           <div className="mt-6 flex flex-col gap-16 sm:gap-24">
             {FEATURES.map((f, i) => (

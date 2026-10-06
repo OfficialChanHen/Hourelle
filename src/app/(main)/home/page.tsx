@@ -31,6 +31,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   CalendarPlus, CalendarClock, Calendar, Check, CopyPlus, Link2, ArrowRight, MapPin, Video, UsersRound, UserRound,
+  Trash2, UserRoundX,
 } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Em } from '@/components/ui/Em'
@@ -196,7 +197,7 @@ export default function HomePage() {
                   title="Your next plan goes here"
                   body="Start one and your group can pick a time together."
                   action={{ label: 'Start a plan', href: '/create' }}
-                  secondary={{ label: 'Or open a demo', href: '/demos' }}
+                  secondary={{ label: 'Or use a template', href: '/templates' }}
                 />
               </div>
             ) : wide ? (
@@ -370,7 +371,7 @@ function UpNext({ e, phase, sameDay, size, look, lead = false }: { e: AppEvent; 
     !d.locked && e.planDeadline && `Deciding by ${shortDay(e.planDeadline)}`,
   ].filter(Boolean) as string[]
   return (
-    <PeekCard people={peopleIn(e)} size={small ? 32 : 40} restShow={small ? 20 : 25} upShow={small ? 28 : 36} tilt={tilt} flippable>
+    <PeekCard people={peopleIn(e)} size={small ? 32 : 40} restShow={small ? 20 : 25} upShow={small ? 28 : 36} tilt={tilt}>
       <PhotoFrame tilt={tilt} tape={false} size={small ? 'sm' : 'md'} pad={look.pad}>
         <div className="relative">
           <Link href={eventTabFor(e)} tabIndex={-1} aria-label={e.title} className="block">
@@ -463,9 +464,9 @@ function handNoteFor(t: Turn): string {
   return 'you still need to reply'
 }
 
-/* sharing and duplicating one plan: small round buttons beside its task button,
-   named for the plan. Only the host hands out the invite link; any plan that is not
-   a demo can be duplicated. */
+/* sharing, duplicating and removing one plan: small round buttons beside its task
+   button, named for the plan. Only the host hands out the invite link; any plan that
+   is not a demo can be duplicated, and deleted (yours) or left (someone else's). */
 function PlanActions({ e, phase }: { e: AppEvent; phase: Phase }) {
   const [copied, setCopied] = useState(false)
   function copyLink() {
@@ -488,6 +489,18 @@ function PlanActions({ e, phase }: { e: AppEvent; phase: Phase }) {
       {!e.demo && (
         <Link href={`/create?from=${e.id}`} aria-label={`Duplicate ${e.title}`} title="Duplicate this plan" className={`${round} border-border2 bg-s1 text-text hover:bg-s2`}>
           <CopyPlus size={16} />
+        </Link>
+      )}
+      {/* the old card's quick delete: the same route, to the plan's delete zone where
+          it is confirmed (and can be undone); someone else's plan is left there instead */}
+      {!e.demo && (
+        <Link
+          href={`/events/${e.id}?tab=details&focus=delete`}
+          aria-label={e.hostedByYou ? `Delete ${e.title}` : `Leave ${e.title}`}
+          title={e.hostedByYou ? 'Delete this plan' : 'Leave this plan'}
+          className={`${round} border-border2 bg-s1 text-dim hover:border-brick-border hover:bg-brick-bg hover:text-brick-text`}
+        >
+          {e.hostedByYou ? <Trash2 size={16} /> : <UserRoundX size={16} />}
         </Link>
       )}
     </span>

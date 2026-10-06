@@ -529,20 +529,9 @@ input[type="date"]::-webkit-date-and-time-value {
 
 /* pencil marks (Pencil.tsx): High contrast draws them as plain solid lines */
 [data-palette="contrast"] .pencil { filter: none; }
-/* the highlighter swipe: a fill on the phrase itself, cloned on every line it wraps
-   to, so it covers exactly the words wherever they break */
-.pencil-highlight {
-  background-image: linear-gradient(var(--highlight), var(--highlight));
-  background-repeat: no-repeat;
-  /* a highlighter pass over the lower part of the letters, not the whole line box,
-     so a big headline reads as marked and not as selected text */
-  background-position: 0 88%;
-  background-size: 100% 46%;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-  padding: 0 .14em;
-  margin: 0 -.14em;
-  border-radius: .4em .15em .45em .2em;
+/* the highlighter: one marker shape per line behind the words (Pencil.tsx Highlight),
+   multiplied on light paper */
+.pencil-highlight-ink {
   mix-blend-mode: var(--highlight-blend);
 }
 

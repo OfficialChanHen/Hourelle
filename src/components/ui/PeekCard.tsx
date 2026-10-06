@@ -9,8 +9,9 @@ import type { AppEvent, Participant } from '@/lib/events'
    focus anywhere on it and they rise up from behind, then settle back.
 
    The faces are a sibling of the card, not a child, and sit below it: the card's own
-   link or click never wraps them, so on the hero they can be buttons that flip to
-   show initials. The wrapper leaves room above the card for the raised faces, inside
+   link or click never wraps them, so every face is a button, named for the person,
+   that flips to show their initials. A click on a face flips it and never opens the
+   card; a click on the card body opens it. The wrapper leaves room above the card for the raised faces, inside
    itself, so a parent that clips (the Up next carousel does) never cuts them off.
 
    `restShow` is how much of each face shows at rest (0 hides them until hover, which
@@ -18,10 +19,10 @@ import type { AppEvent, Participant } from '@/lib/events'
    not drawn. Only a mouse raises them: a touch would move the face it is tapping.
 
    A screen with no hover never gets the hover, so there every card rests with its
-   faces half up (a card that hides them at rest shows half of each), and the first
-   time a card scrolls into view they rise once and settle back. The room above the
-   card is reserved either way, so nothing shifts when a phone is detected. On those
-   screens the faces of a card that is itself the link take no taps. */
+   faces half up (a card that hides them at rest shows half of each). They rise while
+   the card is near the middle of the screen and sink back once it is scrolled well
+   away, every time it comes back (usePeek). The room above the card is reserved
+   either way, so nothing shifts when a phone is detected. */
 
 const MAX = 6
 
@@ -38,7 +39,6 @@ export function PeekCard({
   size = 40,
   restShow = 0,
   upShow,
-  flippable = false,
   tilt = 0,
   className = '',
   children,
@@ -47,7 +47,6 @@ export function PeekCard({
   size?: number
   restShow?: number
   upShow?: number
-  flippable?: boolean
   // the card's own tilt, when it has one (a PhotoFrame): the row of faces turns
   // with it, so every face tucks the same depth behind the slanted top edge
   tilt?: number
@@ -60,7 +59,7 @@ export function PeekCard({
   const rest = restShow > 0 ? restShow : touch ? Math.round(size / 2) : 0
   const restY = rest > 0 ? -rest : 6
   const restTilt = rest > 0 ? 3 : 0
-  const { scope, rise, settle } = usePeek({ restY, upY: -up, restTilt, upTilt: 8, intro: touch && shown.length > 0 })
+  const { scope, rise, settle } = usePeek({ restY, upY: -up, restTilt, upTilt: 8, band: touch && shown.length > 0 })
   // room for the raised faces and their tilt, above the card
   const room = up + 6
   return (
@@ -78,8 +77,7 @@ export function PeekCard({
     >
       {shown.length > 0 && (
         <div
-          aria-hidden={flippable ? undefined : true}
-          className={`${touch && !flippable ? 'pointer-events-none' : 'pointer-events-auto'} absolute left-5 right-5 z-0 flex gap-2`}
+          className="pointer-events-auto absolute left-5 right-5 z-0 flex gap-2"
           style={{ top: room, transform: tilt ? `rotate(${tilt}deg)` : undefined }}
         >
           {shown.map((p, i) => (
@@ -88,7 +86,7 @@ export function PeekCard({
               className="peek-face block"
               style={{ transform: `translateY(${restY}px) rotate(${i % 2 ? restTilt : -restTilt}deg)` }}
             >
-              <Avatar initials={p.initials} color={p.color} face={p.face} size={size} font={Math.round(size * 0.34)} title={p.name} flippable={flippable} />
+              <Avatar initials={p.initials} color={p.color} face={p.face} size={size} font={Math.round(size * 0.34)} title={p.name} flippable />
             </span>
           ))}
         </div>
