@@ -242,7 +242,7 @@ export default function HomePage() {
                     )
                   }}
                 >
-                  {(corner, pos) => <UpNext e={shown[upI].e} phase={shown[upI].phase} sameDay={sameDay(shown[upI].e)} size="hero" look={looks[upI]} lead corner={corner} pos={pos} />}
+                  {(corner) => <UpNext e={shown[upI].e} phase={shown[upI].phase} sameDay={sameDay(shown[upI].e)} size="hero" look={looks[upI]} lead corner={corner} />}
                 </Deck>
               </div>
             )}
@@ -360,7 +360,7 @@ function Row({ icon: Icon, children }: { icon: typeof Calendar; children: React.
    inside the tilted photo, with sharing and duplicating beside it. `small` is the
    side card on a wide screen: a shorter picture and only the lines that matter
    most. `look` is its hand-laid details (Keepsake), the same every visit. */
-function UpNext({ e, phase, sameDay, size, look, lead = false, corner, pos }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo; size: 'hero' | 'small'; look: Look; lead?: boolean; corner?: React.ReactNode; pos?: string | null }) {
+function UpNext({ e, phase, sameDay, size, look, lead = false, corner }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo; size: 'hero' | 'small'; look: Look; lead?: boolean; corner?: React.ReactNode }) {
   const tilt = look.tilt
   const router = useRouter()
   // a click on the card's empty paper opens the plan, like the cover and the name do.
@@ -368,7 +368,7 @@ function UpNext({ e, phase, sameDay, size, look, lead = false, corner, pos }: { 
   // can still be selected.
   function openFromPaper(ev: React.MouseEvent) {
     const t = ev.target as Element
-    if (t.closest('a, button, input, select, textarea, label, [role="button"]')) return
+    if (t.closest('a, button, input, select, textarea, label, [role="button"], [data-card-nav]')) return
     if (window.getSelection()?.toString()) return
     if (overText(ev.clientX, ev.clientY)) return
     router.push(eventTabFor(e))
@@ -395,7 +395,7 @@ function UpNext({ e, phase, sameDay, size, look, lead = false, corner, pos }: { 
   ].filter(Boolean) as string[]
   return (
     <PeekCard people={peopleIn(e)} size={small ? 32 : 40} restShow={small ? 20 : 25} upShow={small ? 28 : 36} tilt={tilt}>
-      <PhotoFrame tilt={tilt} tape={false} size={small ? 'sm' : 'md'} pad={look.pad} corner={corner} onClick={openFromPaper}>
+      <PhotoFrame tilt={tilt} tape={false} size={small ? 'sm' : 'md'} pad={look.pad} onClick={openFromPaper}>
         <div className="relative">
           <Link href={eventTabFor(e)} tabIndex={-1} aria-label={e.title} className="block">
             <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className={small ? 'h-[84px]' : 'h-[112px] sm:h-[160px]'} rounded="rounded-lg" />
@@ -403,9 +403,18 @@ function UpNext({ e, phase, sameDay, size, look, lead = false, corner, pos }: { 
           <Keepsake look={look} />
         </div>
         <div ref={details} className={`relative ${small ? 'px-2 pb-2 pt-2.5' : 'px-2 pb-1.5 pt-3'}`}>
-          {/* where this card sits in the stack, small in the top right */}
-          {pos && <span aria-hidden className="absolute right-2 top-3 text-[12px] font-medium tabular-nums text-faint">{pos}</span>}
-          <Link href={eventTabFor(e)} className={`block ${pos ? 'pr-9' : ''} font-serif leading-[1.15] tracking-[-0.01em] [overflow-wrap:anywhere] hover:underline ${small ? 'text-[18px]' : 'text-[22px] sm:text-[24px]'}`}>
+          {/* its place in the stack and the way on, in the top right */}
+          {/* a little margin around it counts as the button, not the card's paper, so a
+              tap just off it on a tilted card moves on instead of opening the plan */}
+          {corner && (
+            <span
+              data-card-nav className="absolute -right-1 top-0 z-[3] p-2"
+              onClick={(ev) => { if (ev.target === ev.currentTarget) (ev.currentTarget.firstElementChild as HTMLElement | null)?.click() }}
+            >
+              {corner}
+            </span>
+          )}
+          <Link href={eventTabFor(e)} className={`block ${corner ? 'pr-[84px]' : ''} font-serif leading-[1.15] tracking-[-0.01em] [overflow-wrap:anywhere] hover:underline ${small ? 'text-[18px]' : 'text-[22px] sm:text-[24px]'}`}>
             {e.title}
           </Link>
           <StageStepper phase={phase} labels={small ? 'current' : 'auto'} className={`max-w-[340px] ${small ? 'mb-2.5 mt-2.5' : 'mb-3 mt-3'}`} />

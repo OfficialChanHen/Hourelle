@@ -6,20 +6,23 @@ import { gsap } from 'gsap'
 import { reducedMotion } from '@/lib/prefs'
 import { liftOff, peelable, type Peel } from '@/animations/deck'
 import { PeelEdge } from './PeelEdge'
+import { ArrowRight } from 'lucide-react'
 
 /* A stack you go through by taking the top thing off, the way you would by hand:
    the current card on top, the next one or two showing behind it as paper. The top
-   card has a handle: on a photo stack the next card's edge peeks out on the right
-   (the caller draws it in `behind(1)`) and tapping it brings it up; a post-it has an
-   up chevron along its bottom. Swipe left or press Right does the same. A photo
-   stack shows the motion once when it first appears: the top card lifts and slides
-   a little aside, then settles. Taps in
+   card has a handle: a photo card a "1/3" button with an arrow in its top right
+   (the next card's edge, peeking out on the right from `behind(1)`, takes a tap
+   too); a post-it an up chevron along its bottom. Swipe left or press Right does
+   the same. A photo stack shows the motion once when it first appears: the top
+   card lifts and starts off to the right, then settles. Taps in
    quick succession are fine: whatever is still coming off hurries away and the
    next card goes a little faster.
 
    How it comes off depends on what it is (`leave`):
      lift   a photo card: its pins pop out one at a time, its tape peels, its clip
-            slides off, then it is lifted and set aside (animations/deck liftOff)
+            slides off, then it is shuffled to the back: lifted, slid out to the
+            right, tucked under the pile and slid back in as the bottom card
+            (animations/deck liftOff)
      peel   a post-it: it peels from the bottom up, curling towards you until only
             the glue holds, then comes away (peelable). Dragging the edge upwards
             peels it under your finger; let go early and it lays back down.
@@ -63,6 +66,8 @@ export function Deck({
 }) {
   const root = useRef<HTMLDivElement>(null)
   const fly = useRef<HTMLDivElement>(null)
+  // under the pile: where a shuffled card goes once it is clear of the stack
+  const back = useRef<HTMLDivElement>(null)
   const top = useRef<HTMLDivElement | null>(null)
   const prevTop = useRef<HTMLDivElement | null>(null)
   const last = useRef(index)
@@ -84,13 +89,13 @@ export function Deck({
     const how = intent.current
     intent.current = 'auto'
     if (!moved) {
-      // the one hint on a photo stack: the top card lifts and slides a little left,
-      // showing the next one, then settles back. Once, when the stack first shows.
+      // the one hint on a photo stack: the top card lifts and starts to slide off to
+      // the right, the way it is shuffled to the back, then settles. Once, when the stack first shows.
       if (leave === 'lift' && many && !hinted.current && top.current && !reducedMotion()) {
         // marked as shown once it starts, not before: a run that is torn down during
         // the delay (React's dev double effects) must not use the hint up
         hint.current = gsap.timeline({ delay: 1.1, onStart: () => { hinted.current = true } })
-          .to(top.current, { x: -18, y: -5, rotation: -1.8, duration: 0.35, ease: 'power2.out' })
+          .to(top.current, { x: 18, y: -6, rotation: 1.8, duration: 0.35, ease: 'power2.out' })
           .to(top.current, { x: 0, y: 0, rotation: 0, duration: 0.5, ease: 'back.out(1.5)', clearProps: 'transform' })
       }
       return
@@ -127,7 +132,7 @@ export function Deck({
     } else {
       // in front of anything still coming off: what came off first stays on top
       fly.current.prepend(old)
-      const tl = liftOff(old).eventCallback('onComplete', () => old.remove())
+      const tl = liftOff(old, (el) => back.current?.appendChild(el)).eventCallback('onComplete', () => old.remove())
       if (quick) tl.timeScale(1.7)
       leaving.current.push(() => tl.timeScale(4))
     }
@@ -175,13 +180,27 @@ export function Deck({
     onClick: () => { if (dragged.current) { dragged.current = false; return } next() },
     label: `Next ${itemLabel}, ${((index + 1) % count) + 1} of ${count}`,
   }
-  const corner = many && leave === 'peel' ? <PeelEdge {...handleProps} grab={grab} /> : null
+  const corner = !many ? null : leave === 'peel'
+    ? <PeelEdge {...handleProps} grab={grab} />
+    : (
+      // a photo card's way on: its place in the pile and an arrow, a real button the
+      // card sets in its top right, so where to tap is never a guess
+      <button
+        type="button" onClick={(e) => { e.stopPropagation(); handleProps.onClick() }}
+        aria-label={handleProps.label} title={handleProps.label}
+        onPointerEnter={(e) => { if (e.pointerType === 'mouse') preview(true) }}
+        onPointerLeave={(e) => { if (e.pointerType === 'mouse') preview(false) }}
+        className="deck-next inline-flex h-11 items-center gap-1 rounded-full border border-border2 bg-s1 pl-3 pr-2.5 text-[12.5px] font-semibold tabular-nums text-dim hover:bg-s2 hover:text-text sm:h-8"
+      >
+        {index + 1}/{count} <ArrowRight size={14} aria-hidden />
+      </button>
+    )
 
-  // a photo card: a mouse over the next card's edge lifts the top one a little, the
-  // start of the motion that sets it aside
+  // a photo card: a mouse over its way on lifts the top one a little, the start of
+  // the motion that shuffles it to the back
   const preview = contextSafe((on: boolean) => {
     if (!top.current || reducedMotion()) return
-    gsap.to(top.current, on ? { x: -10, y: -3, rotation: -1, duration: 0.22, ease: 'power2.out', overwrite: true } : { x: 0, y: 0, rotation: 0, duration: 0.3, ease: 'power2.out', overwrite: true })
+    gsap.to(top.current, on ? { x: 10, y: -4, rotation: 1, duration: 0.22, ease: 'power2.out', overwrite: true } : { x: 0, y: 0, rotation: 0, duration: 0.3, ease: 'power2.out', overwrite: true })
   })
 
   return (
@@ -197,7 +216,7 @@ export function Deck({
       className={`relative rounded-2xl outline-offset-4 focus-visible:outline-2 focus-visible:outline-accent ${className}`}
     >
       <div
-        className="relative"
+        className="relative isolate"
         // a sideways swipe takes the top card off; up and down still scroll the page
         style={many ? { touchAction: 'pan-y' } : undefined}
         onPointerDown={(e) => {
@@ -214,6 +233,7 @@ export function Deck({
         }}
         onPointerCancel={() => { swipe.current = null }}
       >
+        <div ref={back} aria-hidden className="pointer-events-none absolute inset-0 -z-10" />
         {many && behind && [2, 1].filter((d) => d < count).map((d) => (
           <div key={d} data-deck-behind aria-hidden className="pointer-events-none absolute inset-0 z-0">{behind(d)}</div>
         ))}

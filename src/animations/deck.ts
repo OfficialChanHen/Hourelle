@@ -7,8 +7,11 @@ import { gsap } from 'gsap'
 
 /** A photo card: whatever holds it down comes off first, one thing at a time (each
  *  pin pops out with a jolt of the card, tape peels back from one end, a clip slides
- *  off, photo corners let go), then the card is lifted and set aside to the left. */
-export function liftOff(card: HTMLElement): gsap.core.Timeline {
+ *  off, photo corners let go). Then it is shuffled to the back: lifted, slid out to
+ *  the right past the pile, tucked under it (`under` moves it below the pile, the
+ *  moment it is clear of the cards), and slid back in to rest as the bottom card,
+ *  where it gives way to the blank paper drawn there. */
+export function liftOff(card: HTMLElement, under: (el: HTMLElement) => void): gsap.core.Timeline {
   const tl = gsap.timeline()
   const q = (k: string) => Array.from(card.querySelectorAll<Element>(`[data-keep="${k}"]`))
   q('pin').forEach((pin, i) => {
@@ -31,8 +34,11 @@ export function liftOff(card: HTMLElement): gsap.core.Timeline {
   if (clips.length) tl.to(clips, { y: -30, rotation: '+=14', opacity: 0, duration: 0.3, ease: 'back.in(1.6)' })
   const mounts = q('mount')
   if (mounts.length) tl.to(mounts, { scale: 0.4, opacity: 0, duration: 0.18, stagger: 0.06, ease: 'power2.in' })
-  tl.to(card, { y: -8, scale: 1.025, duration: 0.13, ease: 'power2.out' })
-    .to(card, { x: () => -card.offsetWidth * 1.15, y: 34, rotation: -9, opacity: 0, duration: 0.4, ease: 'power2.in' })
+  tl.to(card, { y: -10, scale: 1.03, duration: 0.14, ease: 'power2.out' })
+    .to(card, { x: () => card.offsetWidth * 1.06, y: -4, rotation: 7, duration: 0.36, ease: 'power2.inOut' })
+    .call(() => under(card))
+    .to(card, { x: -6, y: 12, rotation: -2.5, scale: 0.985, duration: 0.42, ease: 'power3.out' })
+    .to(card, { opacity: 0, duration: 0.16, ease: 'none' })
   return tl
 }
 
