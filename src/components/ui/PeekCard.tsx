@@ -71,6 +71,9 @@ export function PeekCard({
       className={`pointer-events-none relative flex flex-col ${className}`}
       style={{ paddingTop: shown.length ? room : undefined }}
       onPointerEnter={(e) => { if (e.pointerType === 'mouse') rise() }}
+      // a mouse that arrived while a Deck was still moving (and so raised nothing)
+      // raises them as soon as it moves again; rise() does nothing if already up
+      onPointerMove={(e) => { if (e.pointerType === 'mouse') rise() }}
       onPointerLeave={(e) => { if (e.pointerType === 'mouse') settle() }}
       onFocus={rise}
       onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) settle() }}

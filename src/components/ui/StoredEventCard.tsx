@@ -39,10 +39,10 @@ function asAction(fn: () => void) {
 }
 
 /* One plan on the Plans and Demos shelves, laid down like a photo: the cover in a
-   tilted frame with its own hand-laid detail (Keepsake, from the plan's id, so it
+   frame lying straight, with its own hand-laid detail (Keepsake, from the plan's id, so it
    keeps its look), and the faces of the people in peeking over the top edge, half
    up at rest and rising on hover or focus. The faces lead: they are who the plan is
-   for. `look` comes from the shelf so neighbours never share a detail or a tilt;
+   for. `look` comes from the shelf (shelfLooks) so a row shows several details;
    `faded` is for past plans, a photo gone a little pale. */
 export function StoredEventCard({ e, sameDay, look: given, faded = false }: { e: AppEvent; sameDay?: SameDayInfo; look?: Look; faded?: boolean }) {
   const look = given ?? lookOf(e.id, 0)
@@ -84,8 +84,8 @@ export function StoredEventCard({ e, sameDay, look: given, faded = false }: { e:
     <>
     {/* the faces of the people in, half up over the frame's top edge, rising on
         hover or focus; each one flips to its initials */}
-    <PeekCard people={peopleIn(e)} size={38} restShow={26} upShow={33} tilt={look.tilt} className="h-full">
-    <PhotoFrame tilt={look.tilt} tape={false} pad={look.pad} className="h-full [&>div]:flex [&>div]:h-full [&>div]:flex-col">
+    <PeekCard people={peopleIn(e)} size={38} restShow={26} upShow={33} className="h-full">
+    <PhotoFrame tilt={0} tape={false} pad={look.pad} className="h-full [&>div]:flex [&>div]:h-full [&>div]:flex-col">
     <Link
       href={eventTabFor(e)}
       className="group flex flex-1 flex-col"

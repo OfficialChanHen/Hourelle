@@ -8,7 +8,7 @@ import { StoredEventCard } from '@/components/ui/StoredEventCard'
 import { FaceRibbon } from '@/components/ui/FaceRibbon'
 import { SoftShapes } from '@/components/ui/SoftShapes'
 import { PencilHover, PencilUnderline } from '@/components/ui/Pencil'
-import { lookOf, type Look } from '@/components/ui/Keepsake'
+import { shelfLooks } from '@/components/ui/Keepsake'
 import { listEvents, phaseOf, sameDayLabelFor, type AppEvent, type Participant, type Phase } from '@/lib/events'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 
@@ -61,14 +61,10 @@ function EventsList() {
     }
   }
   const active = withPhase.length - past.length
-  // each card's hand-laid details; a neighbour never repeats them
-  const looksFor = (list: { e: AppEvent }[]) => {
-    const out: Look[] = []
-    list.forEach((x, i) => out.push(lookOf(x.e.id, i, out[i - 1])))
-    return out
-  }
-  const shownLooks = looksFor(shown)
-  const pastLooks = looksFor(past)
+  // each card's hand-laid detail, taken in turn so a row shows several kinds; the
+  // cards lie straight
+  const shownLooks = shelfLooks(shown.map((x) => x.e.id))
+  const pastLooks = shelfLooks(past.map((x) => x.e.id))
   const grid = 'grid grid-cols-1 gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3'
 
   return (

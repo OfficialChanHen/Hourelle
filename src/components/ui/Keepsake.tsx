@@ -65,6 +65,15 @@ const CLIP_TOP = -23
 const CLIP_BACK = 'M3 36 V8 A5 5 0 0 1 13 8'
 const CLIP_FRONT = 'M13 8 V42 A4 4 0 0 1 5 42 V15 A3 3 0 0 1 11 15 V34'
 
+/** Looks for a shelf of cards lying straight (Plans, Templates, Demos): no tilt, and
+ *  the details taken in turn, so any few cards side by side show pins, tape, a clip
+ *  and photo corners rather than whatever the ids happened to pick. The rest of each
+ *  look (tape length, tint, border) still comes from its id. */
+const SHELF: KeepsakeKind[] = ['pin', 'tape-corner', 'clip', 'mounts', 'tape-two', 'tape-right', 'tape-left']
+export function shelfLooks(ids: string[]): Look[] {
+  return ids.map((id, i) => ({ ...lookOf(id, i), kind: SHELF[i % SHELF.length], tilt: 0 }))
+}
+
 function Strip({ className, rotate, len, tone }: { className: string; rotate: number; len: number; tone: 'a' | 'b' }) {
   return <span aria-hidden data-keep="tape" className={`absolute block h-[18px] ${tone === 'a' ? 'bg-tape' : 'bg-tape-2'} ${className}`} style={{ width: len, transform: `rotate(${rotate}deg)` }} />
 }

@@ -79,6 +79,15 @@ export function Deck({
   const leaving = useRef<(() => void)[]>([])
   const lastLeave = useRef(0)
   const hinted = useRef(false)
+  // while anything is still coming off, the stack is marked busy: the card now on top
+  // keeps still (its faces do not rise on hover, the preview does not play) until the
+  // motion is over
+  const busyCount = useRef(0)
+  const busy = (d: 1 | -1) => {
+    busyCount.current = Math.max(0, busyCount.current + d)
+    if (busyCount.current > 0) root.current?.setAttribute('data-deck-busy', '')
+    else root.current?.removeAttribute('data-deck-busy')
+  }
   const hint = useRef<gsap.core.Timeline | null>(null)
   const swipe = useRef<{ x: number; y: number } | null>(null)
   const many = count > 1
@@ -126,17 +135,18 @@ export function Deck({
       fly.current.prepend(old)
       const p = peelable(old, fly.current)
       if (quick) p.hurry()
+      busy(1)
       if (how === 'drag') peel.current = p
-      else p.finish()
+      else p.finish(() => busy(-1))
       leaving.current.push(() => p.hurry())
     } else {
       // in front of anything still coming off: what came off first stays on top
       fly.current.prepend(old)
-      const tl = liftOff(old, (el) => back.current?.appendChild(el)).eventCallback('onComplete', () => old.remove())
+      busy(1)
+      const tl = liftOff(old, (el) => back.current?.appendChild(el)).eventCallback('onComplete', () => { old.remove(); busy(-1) })
       if (quick) tl.timeScale(1.7)
       leaving.current.push(() => tl.timeScale(4))
     }
-    gsap.fromTo('[data-deck-behind]', { y: 5 }, { y: 0, duration: 0.35, ease: 'power2.out', stagger: 0.04 })
   }, { scope: root, dependencies: [index] })
 
   const next = () => { if (many) onIndex((index + 1) % count) }
@@ -165,8 +175,8 @@ export function Deck({
         window.removeEventListener('pointercancel', end)
         const p = peel.current
         if (!d.on || !p) return
-        if (ev.type === 'pointerup' && reach(ev.clientY) > 0.35) { peel.current = null; p.finish() }
-        else p.cancel(() => { intent.current = 'silent'; onIndex(d.from) })
+        if (ev.type === 'pointerup' && reach(ev.clientY) > 0.35) { peel.current = null; p.finish(() => busy(-1)) }
+        else p.cancel(() => { busy(-1); intent.current = 'silent'; onIndex(d.from) })
       }
       window.addEventListener('pointermove', move)
       window.addEventListener('pointerup', end)
@@ -199,7 +209,7 @@ export function Deck({
   // a photo card: a mouse over its way on lifts the top one a little, the start of
   // the motion that shuffles it to the back
   const preview = contextSafe((on: boolean) => {
-    if (!top.current || reducedMotion()) return
+    if (!top.current || reducedMotion() || busyCount.current > 0) return
     gsap.to(top.current, on ? { x: 10, y: -4, rotation: 1, duration: 0.22, ease: 'power2.out', overwrite: true } : { x: 0, y: 0, rotation: 0, duration: 0.3, ease: 'power2.out', overwrite: true })
   })
 

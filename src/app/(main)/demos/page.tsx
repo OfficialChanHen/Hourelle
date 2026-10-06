@@ -6,7 +6,7 @@ import { rich } from '@/components/ui/rich'
 import { listDemos, sameDayLabelFor, type AppEvent } from '@/lib/events'
 import { EventBack } from '@/components/EventBack'
 import { SoftShapes } from '@/components/ui/SoftShapes'
-import { lookOf, type Look } from '@/components/ui/Keepsake'
+import { shelfLooks, type Look } from '@/components/ui/Keepsake'
 
 /* ── the demo shelf: example events, grouped by the question they answer ──
    Every demo is a finished plan to walk through: the grid, the ballot, the roster
@@ -51,16 +51,16 @@ export default function DemosPage() {
   useEffect(() => { setDemos(listDemos()) }, [])
   const sameDay = demos ? sameDayLabelFor(demos) : () => undefined
   const byId = new Map((demos ?? []).map((d) => [d.id, d]))
-  // each photo's hand-laid details, one run across the shelves so neighbours differ
-  const looks = new Map<string, Look>()
-  let prev: Look | undefined
-  GROUPS.flatMap((g) => Object.keys(g.picks)).forEach((id, i) => { prev = lookOf(id, i, prev); looks.set(id, prev) })
+  // each photo's hand-laid detail, taken in turn across the shelves so every row
+  // shows several kinds; the cards lie straight
+  const ids = GROUPS.flatMap((g) => Object.keys(g.picks))
+  const looks = new Map<string, Look>(shelfLooks(ids).map((l, i) => [ids[i], l]))
 
   return (
     <div className="mx-auto max-w-[1240px] px-6 pb-[92px] pt-[34px] sm:px-[26px]">
-      <EventBack />
-      <div className="relative isolate mb-10 pb-7 pt-5">
+      <div className="relative isolate -mt-[34px] mb-12 pb-7 pt-[34px]">
         <SoftShapes variant="plan" />
+        <EventBack />
         <h1 className="mb-2 font-serif font-normal text-[36px] leading-[1.02] tracking-[-0.01em] sm:text-[40px]">Demos</h1>
         <p className="max-w-[640px] text-[14px] leading-[1.6] text-dim">
           Eight finished plans, one for each template, grouped by the question each one answers. Open any of them and walk through every tab.
