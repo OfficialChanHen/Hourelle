@@ -63,9 +63,10 @@ export function Deck({
   nextAt?: string
   behind?: (depth: number) => React.ReactNode
   children: (corner: React.ReactNode, pos: string | null) => React.ReactNode
-  // every card the stack can show, drawn unseen in the same spot so the stack is
-  // always as tall as its tallest card and nothing below it moves while paging. For
-  // a short pile only (Home's three plans); a long one keeps the tallest it has shown
+  // every card the stack can show, drawn unseen in the same spot so the stack keeps
+  // the tallest card's height and nothing below it moves while paging; each card
+  // still shows at its own size. For a short pile only (Home's three plans); a long
+  // one keeps the tallest it has shown
   ghosts?: React.ReactNode[]
   className?: string
 }) {
@@ -265,30 +266,36 @@ export function Deck({
         onPointerCancel={() => { swipe.current = null }}
       >
         <div ref={back} aria-hidden className="pointer-events-none absolute inset-0 -z-10" />
-        {many && behind && [2, 1].filter((d) => d < count).map((d) => (
-          <div key={d} data-deck-behind aria-hidden className="pointer-events-none absolute inset-0 z-0">{behind(d)}</div>
-        ))}
+        {/* the cell keeps the height of the tallest card (its unseen ghosts, or the
+            tallest shown so far), so nothing below the stack moves while paging. The
+            pile sits at the top of it at the top card's own size: the paper behind
+            and the way on follow the card, and no card is stretched or squeezed */}
         <div ref={cell} className="grid [&>*]:[grid-area:1/1]">
           {ghosts?.map((g, i) => (
-            <div key={`ghost-${i}`} aria-hidden inert className="pointer-events-none invisible flex flex-col">{g}</div>
+            <div key={`ghost-${i}`} aria-hidden inert className="pointer-events-none invisible self-start">{g}</div>
           ))}
-          <div
-            key={index}
-            ref={(el) => { if (el && el !== top.current) { prevTop.current = top.current; top.current = el } }}
-            className="relative z-[1] flex flex-col"
-          >
-            {children(corner, many ? `${index + 1}/${count}` : null)}
+          <div className="relative self-start">
+            {many && behind && [2, 1].filter((d) => d < count).map((d) => (
+              <div key={d} data-deck-behind aria-hidden className="pointer-events-none absolute inset-0 z-0">{behind(d)}</div>
+            ))}
+            <div
+              key={index}
+              ref={(el) => { if (el && el !== top.current) { prevTop.current = top.current; top.current = el } }}
+              className="relative z-[1]"
+            >
+              {children(corner, many ? `${index + 1}/${count}` : null)}
+            </div>
+            {many && leave === 'lift' && (
+              /* the next card's edge peeks out on the right: tapping it brings it up */
+              <button
+                type="button" onClick={handleProps.onClick} aria-label={handleProps.label} title={handleProps.label}
+                onPointerEnter={(e) => { if (e.pointerType === 'mouse') preview(true) }}
+                onPointerLeave={(e) => { if (e.pointerType === 'mouse') preview(false) }}
+                className={`deck-next absolute -right-6 z-[3] w-11 cursor-pointer rounded-xl outline-offset-2 [-webkit-tap-highlight-color:transparent] ${nextAt}`}
+              />
+            )}
           </div>
         </div>
-        {many && leave === 'lift' && (
-          /* the next card's edge peeks out on the right: tapping it brings it up */
-          <button
-            type="button" onClick={handleProps.onClick} aria-label={handleProps.label} title={handleProps.label}
-            onPointerEnter={(e) => { if (e.pointerType === 'mouse') preview(true) }}
-            onPointerLeave={(e) => { if (e.pointerType === 'mouse') preview(false) }}
-            className={`deck-next absolute -right-6 z-[3] w-11 cursor-pointer rounded-xl outline-offset-2 [-webkit-tap-highlight-color:transparent] ${nextAt}`}
-          />
-        )}
         {/* the card coming off is moved here, above the pile, and takes no pointer */}
         <div ref={fly} aria-hidden className="pointer-events-none absolute inset-0 z-[5]" />
       </div>

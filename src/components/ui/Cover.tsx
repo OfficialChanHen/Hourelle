@@ -8,7 +8,9 @@ import { CoverImg } from './CoverImg'
 
 export type CoverPreset = { id: string; name: string; from: string; to: string; scene: React.ReactNode }
 
-/* Each scene is a flat picture of what its template is for, drawn on a 400x160
+/* Each scene is a flat picture of what its template is for, and most of it (the sky
+   and the table or ground) is its template chip's colour in the wizard, so a cover and
+   its template read as one thing (create/page.tsx WIZ_TEMPLATES). Each is drawn on a 400x160
    frame that every surface crops differently: a wide event header keeps only a
    band about y 52 to 108, a tall phone card only about x 130 to 270, the editor's
    swatch about x 75 to 325. So the subject sits in the middle of the frame, on a
@@ -78,15 +80,15 @@ const listener = ([x, row, hair, top]: (typeof AUDIENCE)[number]) => {
 
 export const COVER_PRESETS: CoverPreset[] = [
   {
-    // a winding trail up to a cabin under the mountains, a low sun
-    id: 'meadow', name: 'Weekend trip', from: '#EAF1E7', to: '#C9DECF', scene: (
+    // a winding trail up to a cabin under the mountains, a low sun. Green, as the chip
+    id: 'meadow', name: 'Weekend trip', from: '#E6F0D6', to: '#D3E6B5', scene: (
       <>
         <circle cx="312" cy="42" r="16" fill="#F2C878" />
-        <path d="M82 108 L166 40 L206 72 L240 50 L330 108 Z" fill="#8DADA5" />
+        <path d="M82 108 L166 40 L206 72 L240 50 L330 108 Z" fill="#9DB98E" />
         <path d="M166 40 L180 51 L173 50 L167 55 L160 50 L153 51 Z" fill="#F7F1E3" />
         <path d="M240 50 L251 59 L245 58 L240 62 L235 58 L230 58 Z" fill="#F7F1E3" />
-        <path d="M0 104 Q 90 84 190 100 T 400 96 V160 H0 Z" fill="#83AC78" />
-        <path d="M0 128 Q 120 108 236 124 T 400 116 V160 H0 Z" fill="#5E8D5F" />
+        <path d="M0 104 Q 90 84 190 100 T 400 96 V160 H0 Z" fill="#A6C77E" />
+        <path d="M0 128 Q 120 108 236 124 T 400 116 V160 H0 Z" fill="#86AE5F" />
         <path d="M168 160 C 186 140 244 138 232 122 C 224 112 206 110 212 102 L 216 102 C 214 108 234 112 240 122 C 252 140 214 146 204 160 Z" fill="#F4E6C8" />
         <path d="M134 104 L141 90 L148 104 Z M146 106 L152 94 L158 106 Z M262 100 L269 86 L276 100 Z" fill="#3F6B4B" />
         <path d="M200 92 L214 81 L228 92 Z" fill="#5C3A2C" />
@@ -96,14 +98,15 @@ export const COVER_PRESETS: CoverPreset[] = [
     ),
   },
   {
-    // candles, glasses and two plates on a table edge, a big sun going down behind
-    id: 'dusk', name: 'Dinner', from: '#F7DBC2', to: '#EDB395', scene: (
+    // candles, glasses and two plates on a table edge, a big sun going down behind.
+    // Coral sky and table, as the chip
+    id: 'dusk', name: 'Dinner', from: '#FBE3D6', to: '#F5CDB8', scene: (
       <>
         <circle cx="200" cy="102" r="52" fill="#FAE1B4" />
         <rect x="58" y="52" width="64" height="5" rx="2.5" fill="#FBE8D2" opacity=".8" />
         <rect x="292" y="40" width="54" height="5" rx="2.5" fill="#FBE8D2" opacity=".8" />
-        <rect x="0" y="102" width="400" height="16" fill="#A04E40" />
-        <rect x="0" y="118" width="400" height="42" fill="#7C3930" />
+        <rect x="0" y="102" width="400" height="16" fill="#E09A78" />
+        <rect x="0" y="118" width="400" height="42" fill="#C97A58" />
         <g transform="translate(200 108) scale(1.15) translate(-200 -108)">
           <ellipse cx="136" cy="109" rx="27" ry="5" fill="#FBF1E4" />
         <ellipse cx="136" cy="109" rx="16" ry="2.8" fill="#E6CFB8" />
@@ -121,16 +124,16 @@ export const COVER_PRESETS: CoverPreset[] = [
     ),
   },
   {
-    // a gingham blanket on the sand by blue water, under a tree, a basket, cups and a
-    // plate of watermelon on it, a ball waiting beside it. Blue, the Team offsite hue
-    id: 'coast', name: 'Team offsite', from: '#DDEAF4', to: '#B4CFE4', scene: (
+    // a gingham blanket on a sandbar between blue water, under a tree, a basket, cups and
+    // a plate of watermelon on it, a ball waiting beside it. Blue sky and water, as the chip
+    id: 'coast', name: 'Team offsite', from: '#DCEAF6', to: '#C6DCF0', scene: (
       <>
         <circle cx="318" cy="40" r="15" fill="#F2C878" />
         <rect x="236" y="30" width="54" height="5" rx="2.5" fill="#F7F4EA" opacity=".85" />
         <rect x="150" y="18" width="40" height="5" rx="2.5" fill="#F7F4EA" opacity=".7" />
-        <path d="M0 98 Q 120 80 230 94 T 400 88 V160 H0 Z" fill="#8DB5D3" />
+        <path d="M0 98 Q 120 80 230 94 T 400 88 V160 H0 Z" fill="#9DC0DE" />
         <path d="M0 106 Q 110 96 210 102 T 400 98 V160 H0 Z" fill="#E6D2A6" />
-        <path d="M0 136 Q 130 118 250 130 T 400 124 V160 H0 Z" fill="#D6BE8C" />
+        <path d="M0 136 Q 130 118 250 130 T 400 124 V160 H0 Z" fill="#86AED0" />
         <rect x="72" y="52" width="9" height="52" rx="2" fill="#6E4B34" />
         <path d="M80 82 L92 72" stroke="#6E4B34" strokeWidth="4" strokeLinecap="round" />
         <circle cx="56" cy="48" r="22" fill="#5E8D5F" />
@@ -169,11 +172,12 @@ export const COVER_PRESETS: CoverPreset[] = [
     ),
   },
   {
-    // a steaming pot in the middle of a shared table, a bowl and a pie either side
-    id: 'harvest', name: 'Potluck', from: '#F5E5C7', to: '#EACB98', scene: (
+    // a steaming pot in the middle of a shared table, a bowl and a pie either side.
+    // Amber sky and table, as the chip
+    id: 'harvest', name: 'Potluck', from: '#F9EBC8', to: '#F4DFA5', scene: (
       <>
-        <rect x="0" y="102" width="400" height="58" fill="#91603B" />
-        <rect x="0" y="102" width="400" height="4" fill="#A8744A" />
+        <rect x="0" y="102" width="400" height="58" fill="#D3A44C" />
+        <rect x="0" y="102" width="400" height="4" fill="#E2B862" />
         <g transform="translate(200 106) scale(1.15) translate(-200 -106)">
           {steam(190, 58, '#FFF8EC')}
         {steam(200, 52, '#FFF8EC')}
@@ -195,15 +199,16 @@ export const COVER_PRESETS: CoverPreset[] = [
     ),
   },
   {
-    // dice, a fanned hand of cards and a pawn on green felt, under a hanging lamp
-    id: 'evening', name: 'Game night', from: '#DDCCE0', to: '#BB9EC3', scene: (
+    // dice, a fanned hand of cards and a pawn on purple felt, under a hanging lamp.
+    // Purple, as the chip
+    id: 'evening', name: 'Game night', from: '#EADFF2', to: '#DCCBEA', scene: (
       <>
         <path d="M200 0 V26" stroke="#4A3550" strokeWidth="1.5" />
         <path d="M186 41 H214 L270 102 H130 Z" fill="#F7E5C2" opacity=".4" />
         <path d="M184 40 L190 26 H210 L216 40 Z" fill="#E0AC4C" />
         <ellipse cx="200" cy="40" rx="16" ry="2.5" fill="#F6DFA0" />
-        <rect x="0" y="102" width="400" height="58" fill="#44685A" />
-        <rect x="0" y="102" width="400" height="3" fill="#33523F" />
+        <rect x="0" y="102" width="400" height="58" fill="#9478AC" />
+        <rect x="0" y="102" width="400" height="3" fill="#7A5E92" />
         <g transform="translate(200 102) scale(1.12) translate(-200 -102)">
           <g transform="rotate(-10 156 90)">
           <rect x="144" y="78" width="24" height="24" rx="5" fill="#FBF4EA" />
@@ -242,11 +247,11 @@ export const COVER_PRESETS: CoverPreset[] = [
     ),
   },
   {
-    // two cups of coffee across a small table, a plant between them, on teal (the 1:1 hue)
-    id: 'garden', name: 'Coffee catch-up', from: '#DCEEEA', to: '#B2D8D0', scene: (
+    // two cups of coffee across a small teal table, a plant between them. Teal, as the chip
+    id: 'garden', name: 'Coffee catch-up', from: '#D9EEE5', to: '#BFE0CF', scene: (
       <>
-        <rect x="0" y="104" width="400" height="56" fill="#AB7C52" />
-        <rect x="0" y="104" width="400" height="3" fill="#C0926A" />
+        <rect x="0" y="104" width="400" height="56" fill="#6FA892" />
+        <rect x="0" y="104" width="400" height="3" fill="#8BBDA8" />
         <g transform="translate(200 106) scale(1.15) translate(-200 -106)">
           {steam(152, 70, '#FBF6EE')}
         {steam(162, 66, '#FBF6EE')}
@@ -274,8 +279,8 @@ export const COVER_PRESETS: CoverPreset[] = [
     ),
   },
   {
-    // a cake with three candles, balloons either side, a little confetti
-    id: 'party', name: 'Birthday', from: '#F7DDD9', to: '#EEBFC1', scene: (
+    // a cake with three candles, balloons either side, a little confetti. Pink, as the chip
+    id: 'party', name: 'Birthday', from: '#F9E0E3', to: '#F3C9CF', scene: (
       <>
         <rect x="0" y="110" width="400" height="50" fill="#D7848A" />
         <g>
@@ -319,14 +324,14 @@ export const COVER_PRESETS: CoverPreset[] = [
   },
   {
     // a talk in a quiet hall: the slide on a big screen, the speaker at a lectern
-    // to one side, the backs of the audience's heads in the rows in front. Cool greys,
-    // the Conference hue
-    id: 'city', name: 'Conference', from: '#E8E9ED', to: '#C6CAD3', scene: (
+    // to one side, the backs of the audience's heads in the rows in front. Warm stone
+    // grey, as the chip
+    id: 'city', name: 'Conference', from: '#EEE9E0', to: '#E0D8C9', scene: (
       <>
-        <path d="M44 0 V96 M356 0 V96" stroke="#D9DCE2" strokeWidth="6" />
-        <rect x="0" y="96" width="400" height="64" fill="#B4B9C4" />
-        <rect x="0" y="94" width="400" height="4" fill="#5B6170" />
-        <path d="M152 0 V24 M248 0 V24" stroke="#8A8F9C" strokeWidth="1.5" />
+        <path d="M44 0 V96 M356 0 V96" stroke="#E6DFD2" strokeWidth="6" />
+        <rect x="0" y="96" width="400" height="64" fill="#BDB3A2" />
+        <rect x="0" y="94" width="400" height="4" fill="#6E6658" />
+        <path d="M152 0 V24 M248 0 V24" stroke="#9A9282" strokeWidth="1.5" />
         <rect x="128" y="22" width="144" height="74" rx="4" fill="#3F3531" />
         <rect x="132" y="26" width="136" height="66" rx="2" fill="#FBF4E8" />
         <rect x="142" y="34" width="62" height="6" rx="3" fill="#B85C3F" />

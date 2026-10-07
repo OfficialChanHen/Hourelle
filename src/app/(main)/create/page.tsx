@@ -534,16 +534,16 @@ function CreateWizard() {
 
       {/* start from a template: one tap seeds the form, tap again to go blank. One row
           that scrolls sideways inside itself at every width, so it always costs the
-          form a single line; both edges fade so it reads as more to come either way, and
-          a mouse wheel scrolls it sideways too */}
+          form a single line. At rest the first one lines up with the page's left edge
+          and only the far edge fades; once it has been scrolled the near edge fades
+          too, so it reads as more either way. A mouse wheel scrolls it sideways too */}
       <div className="mb-3 sm:mb-4">
         <div id="create-tpl-label" className="mb-1 text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Start from a template</div>
         <div
           ref={tplRow} role="group" aria-labelledby="create-tpl-label"
-          className="scroll-slim -mx-4 flex gap-1.5 overflow-x-auto overscroll-x-contain px-4 pb-2 pt-1 [mask-image:linear-gradient(to_right,transparent,#000_32px,#000_calc(100%-40px),transparent)] sm:mx-0 sm:px-0"
+          onScroll={(e) => { e.currentTarget.dataset.scrolled = e.currentTarget.scrollLeft > 4 ? 'true' : 'false' }}
+          className="scroll-slim -mx-4 flex gap-1.5 overflow-x-auto overscroll-x-contain px-4 pb-2 pt-1 [mask-image:linear-gradient(to_right,#000_calc(100%-40px),transparent)] data-[scrolled=true]:[mask-image:linear-gradient(to_right,transparent,#000_32px,#000_calc(100%-40px),transparent)] sm:mx-0 sm:px-0"
         >
-          {/* room before the first one too, so the left fade never hides it at rest */}
-          <span aria-hidden className="w-8 flex-none" />
           {WIZ_TEMPLATES.map((t) => {
             const Icon = t.icon
             const on = tpl === t.key

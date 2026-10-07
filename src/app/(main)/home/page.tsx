@@ -395,17 +395,15 @@ function UpNext({ e, phase, sameDay, size, look, lead = false, corner, ghost = f
     !d.locked && e.planDeadline && `Deciding by ${shortDay(e.planDeadline)}`,
   ].filter(Boolean) as string[]
   return (
-    <PeekCard people={peopleIn(e)} size={small ? 32 : 40} restShow={small ? 20 : 25} upShow={small ? 28 : 36} tilt={tilt} className="flex-1">
-      {/* in a stack it stretches to the tallest card's height (Deck ghosts), its
-          buttons kept at the bottom, so every card in the pile is the same size */}
-      <PhotoFrame tilt={tilt} tape={false} size={small ? 'sm' : 'md'} pad={look.pad} onClick={openFromPaper} className="flex flex-1 flex-col [&>div:first-child]:flex [&>div:first-child]:flex-1 [&>div:first-child]:flex-col">
+    <PeekCard people={peopleIn(e)} size={small ? 32 : 40} restShow={small ? 20 : 25} upShow={small ? 28 : 36} tilt={tilt}>
+      <PhotoFrame tilt={tilt} tape={false} size={small ? 'sm' : 'md'} pad={look.pad} onClick={openFromPaper}>
         <div className="relative">
           <Link href={eventTabFor(e)} tabIndex={-1} aria-label={e.title} className="block">
             <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className={small ? 'h-[84px]' : 'h-[112px] sm:h-[160px]'} rounded="rounded-lg" />
           </Link>
           <Keepsake look={look} />
         </div>
-        <div ref={details} className={`relative flex flex-1 flex-col ${small ? 'px-2 pb-2 pt-2.5' : 'px-2 pb-1.5 pt-3'}`}>
+        <div ref={details} className={`relative ${small ? 'px-2 pb-2 pt-2.5' : 'px-2 pb-1.5 pt-3'}`}>
           {/* its place in the stack and the way on, in the top right */}
           {/* a little margin around it counts as the button, not the card's paper, so a
               tap just off it on a tilted card moves on instead of opening the plan */}
@@ -471,9 +469,6 @@ function UpNext({ e, phase, sameDay, size, look, lead = false, corner, ghost = f
               ))}
             </div>
           )}
-          {/* any room a taller card in the stack leaves goes here, above the note and
-              the buttons, so they sit at the bottom of every card alike */}
-          <div aria-hidden className="flex-1" />
           {/* a note in the margin for what you owe, its arrow measured to the button */}
           {lead && turn && (
             <div className="mt-2.5 flex justify-end pr-2 sm:justify-start sm:pl-[34%]">
