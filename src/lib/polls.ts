@@ -9,9 +9,17 @@ import type { ChatMessage } from './sample'
 
      [poll]{"id","q","o":[{id,t}],"s":{n,add,hide,close?}}   the poll itself, shown as a card
      [poll+]{"p":pollId,"id":optionId,"t":text}             someone adds an option
-     [poll~]{"p":pollId,"s":{n,add,hide,close?}}            the creator or the host changes its settings
+     [poll~]{"p":pollId,"s":{n,add,hide,close?}}            the host changes its settings
+     [poll=]{"p":pollId,"q"?:text,"o"?:[{id,t}]}            someone rewords the question or options
 
-   The last two are control lines: never drawn in the chat, never counted as unread,
+   Who may do what (decided in reducePolls, so every copy agrees):
+     - the host may change the settings, reword anything, and always add options
+     - whoever wrote something may reword it: the poll's writer its question and the
+       options it was posted with, whoever added an option that option
+     - everyone else may add options only while "Anyone can add options" is on, which
+       a new poll starts with off
+
+   The last three are control lines: never drawn in the chat, never counted as unread,
    never heard or announced. reducePolls folds them into each poll's current state.
    Two people adding an option at the same moment are two appends, so both land.
 
@@ -35,13 +43,16 @@ export type PollState = { id: string; q: string; o: PollOption[]; s: PollSetting
 export const POLL_MARKER = '[poll]'
 export const POLL_ADD_MARKER = '[poll+]'
 export const POLL_SET_MARKER = '[poll~]'
+export const POLL_EDIT_MARKER = '[poll=]'
 export const POLL_PREFIX = 'poll:'
 export const POLL_MIN_OPTIONS = 2
 export const POLL_MAX_OPTIONS = 6    // what the composer offers when posting
 export const POLL_OPTION_LIMIT = 12  // how many a poll can grow to with added options
 export const POLL_OPTION_MAX_LEN = 60
+export const POLL_QUESTION_MAX_LEN = 140
 
-export const DEFAULT_POLL_SETTINGS: PollSettings = { n: 1, add: true, hide: false }
+// nobody but the host adds options until the host says so
+export const DEFAULT_POLL_SETTINGS: PollSettings = { n: 1, add: false, hide: false }
 
 export function pollKey(pollId: string, optionId: string): string {
   return `${POLL_PREFIX}${pollId}:${optionId}`
@@ -65,7 +76,7 @@ export function pollVotes(votes: Record<string, string[]>): Record<string, strin
 
 // a line that changes a poll rather than saying something: never shown, never counted
 export function isControlMessage(m: Pick<ChatMessage, 'text' | 'system'>): boolean {
-  return !m.system && (m.text.startsWith(POLL_ADD_MARKER) || m.text.startsWith(POLL_SET_MARKER))
+  return !m.system && (m.text.startsWith(POLL_ADD_MARKER) || m.text.startsWith(POLL_SET_MARKER) || m.text.startsWith(POLL_EDIT_MARKER))
 }
 
 // the lines people actually see in the chat: what unread counts, sounds and arrivals read
@@ -117,6 +128,34 @@ export function encodePollSettings(pollId: string, s: PollSettings): string {
   return POLL_SET_MARKER + JSON.stringify({ p: pollId, s: settingsJson(s) })
 }
 
+// one save of the edit form: the question if it changed, and the options that did
+export function encodePollEdit(pollId: string, edit: { q?: string; o?: { id: string; t: string }[] }): string {
+  const tidy = (t: string, max: number) => t.trim().replace(/\s+/g, ' ').slice(0, max)
+  return POLL_EDIT_MARKER + JSON.stringify({
+    p: pollId,
+    ...(edit.q !== undefined ? { q: tidy(edit.q, POLL_QUESTION_MAX_LEN) } : {}),
+    ...(edit.o?.length ? { o: edit.o.map((x) => ({ id: x.id, t: tidy(x.t, POLL_OPTION_MAX_LEN) })) } : {}),
+  })
+}
+
+/* May this person reword the question / this option? Who wrote it decides, the same
+   rule reducePolls applies. And only until anyone has voted: the question until the
+   poll's first vote, an option until its own first vote, so rewording never changes
+   what somebody already chose. The votes live in event.votes, which the chat lines
+   cannot see, so the vote check is made where they are both on hand: on the card,
+   and again at Save with the votes as they are then. */
+function votedOn(poll: Pick<PollState, 'id'>, optionId: string, votes?: Record<string, string[]>): boolean {
+  return (votes?.[pollKey(poll.id, optionId)]?.length ?? 0) > 0
+}
+export function canEditQuestion(poll: Pick<PollState, 'by' | 'id' | 'o'>, who: string | null, host: boolean, votes?: Record<string, string[]>): boolean {
+  if (!who || !(host || who === poll.by)) return false
+  return !votes || !poll.o.some((o) => votedOn(poll, o.id, votes))
+}
+export function canEditOption(poll: Pick<PollState, 'by' | 'id'>, option: PollOption, who: string | null, host: boolean, votes?: Record<string, string[]>): boolean {
+  if (!who || !(host || who === (option.by ?? poll.by))) return false
+  return !votes || !votedOn(poll, option.id, votes)
+}
+
 // a poll, or null for a normal message and for anything that only looks like one
 export function decodePoll(text: string): Poll | null {
   if (!text.startsWith(POLL_MARKER)) return null
@@ -145,16 +184,27 @@ export function decodePoll(text: string): Poll | null {
 type Control =
   | { kind: 'add'; p: string; id: string; t: string }
   | { kind: 'set'; p: string; s: unknown }
+  | { kind: 'edit'; p: string; q: string | null; o: { id: string; t: string }[] }
 
 function decodeControl(text: string): Control | null {
-  const kind = text.startsWith(POLL_ADD_MARKER) ? 'add' : text.startsWith(POLL_SET_MARKER) ? 'set' : null
+  const kind = text.startsWith(POLL_ADD_MARKER) ? 'add' : text.startsWith(POLL_SET_MARKER) ? 'set' : text.startsWith(POLL_EDIT_MARKER) ? 'edit' : null
   if (!kind) return null
   try {
-    const raw = JSON.parse(text.slice((kind === 'add' ? POLL_ADD_MARKER : POLL_SET_MARKER).length)) as unknown
+    const marker = kind === 'add' ? POLL_ADD_MARKER : kind === 'set' ? POLL_SET_MARKER : POLL_EDIT_MARKER
+    const raw = JSON.parse(text.slice(marker.length)) as unknown
     if (!raw || typeof raw !== 'object') return null
-    const { p, id, t, s } = raw as { p?: unknown; id?: unknown; t?: unknown; s?: unknown }
+    const { p, id, t, s, q, o } = raw as { p?: unknown; id?: unknown; t?: unknown; s?: unknown; q?: unknown; o?: unknown }
     if (typeof p !== 'string' || !p) return null
     if (kind === 'set') return { kind, p, s }
+    if (kind === 'edit') {
+      const opts: { id: string; t: string }[] = []
+      if (Array.isArray(o)) for (const x of o) {
+        const { id: oid, t: ot } = (x ?? {}) as { id?: unknown; t?: unknown }
+        const clean = cleanText(ot, POLL_OPTION_MAX_LEN)
+        if (typeof oid === 'string' && oid && clean) opts.push({ id: oid, t: clean })
+      }
+      return { kind, p, q: cleanText(q, POLL_QUESTION_MAX_LEN), o: opts }
+    }
     const text2 = cleanText(t, POLL_OPTION_MAX_LEN)
     if (typeof id !== 'string' || !id || !text2) return null
     return { kind, p, id, t: text2 }
@@ -164,9 +214,10 @@ function decodeControl(text: string): Control | null {
 }
 
 /* Every poll in the chat, as it stands now. The [poll] lines make the polls; the
-   control lines are then applied in the order they were sent. Only the poll's creator
-   and the event's host may change settings, and the latest change wins. Anyone may add
-   an option while the poll allows it (the creator and the host always may). An option
+   control lines are then applied in the order they were sent. Only the event's host
+   may change settings, and the latest change wins. Anyone may add an option while the
+   poll allows it (the host always may). Rewording follows who wrote what (see the top
+   of this file); a rewording that would repeat another option is dropped. An option
    that repeats one already there, however it is capitalised, is dropped, and so is
    anything past the limit. A control line for a poll that is not here (its line was
    taken out with its writer) does nothing. One pass each way, so a long chat is cheap. */
@@ -197,12 +248,25 @@ export function reducePolls(messages: ChatMessage[], hostIds: ReadonlySet<string
     const c = decodeControl(m.text)
     const p = c && polls.get(c.p)
     if (!c || !p) continue
-    const owner = m.id === p.by || hostIds.has(m.id)
+    const host = hostIds.has(m.id)
     if (c.kind === 'set') {
-      if (owner) polls.set(p.id, { ...p, s: readSettings(c.s, p.s) })
+      if (host) polls.set(p.id, { ...p, s: readSettings(c.s, p.s) })
       continue
     }
-    if (!owner && !p.s.add) continue
+    if (c.kind === 'edit') {
+      let next = p
+      if (c.q && canEditQuestion(p, m.id, host)) next = { ...next, q: c.q }
+      for (const e of c.o) {
+        const o = next.o.find((x) => x.id === e.id)
+        if (!o || !canEditOption(p, o, m.id, host)) continue
+        const k = optionKey(e.t)
+        if (next.o.some((x) => x.id !== e.id && optionKey(x.t) === k)) continue
+        next = { ...next, o: next.o.map((x) => (x.id === e.id ? { ...x, t: e.t } : x)) }
+      }
+      if (next !== p) { polls.set(p.id, next); texts.delete(p.id) }
+      continue
+    }
+    if (!host && !p.s.add) continue
     if (p.o.length >= POLL_OPTION_LIMIT || p.o.some((x) => x.id === c.id)) continue
     const k = optionKey(c.t)
     const have = textsOf(p)
@@ -230,6 +294,7 @@ export function votesPerPerson(p: Pick<PollState, 'o' | 's'>): number {
 export function messagePreview(m: Pick<ChatMessage, 'text'>): string {
   if (m.text.startsWith(POLL_ADD_MARKER)) return 'added a poll option'
   if (m.text.startsWith(POLL_SET_MARKER)) return 'changed a poll'
+  if (m.text.startsWith(POLL_EDIT_MARKER)) return 'edited a poll'
   const p = decodePoll(m.text)
   return p ? `Poll: ${p.q}` : m.text
 }

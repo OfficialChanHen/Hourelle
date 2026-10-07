@@ -12,7 +12,7 @@ import { setWatchingChat } from '@/lib/sound'
 import { removedLineTest } from '@/lib/removed'
 import { usePhoneScreen } from '@/hooks/usePhoneScreen'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
-import { chatLines, decodePoll, encodePoll, encodePollOption, encodePollSettings, messagePreview, newOptionId, reducePolls, type Poll, type PollSettings, type PollState } from '@/lib/polls'
+import { chatLines, decodePoll, encodePoll, encodePollEdit, encodePollOption, encodePollSettings, messagePreview, newOptionId, reducePolls, type Poll, type PollSettings, type PollState } from '@/lib/polls'
 import { PollCard } from './chat/PollCard'
 import { PollComposer } from './chat/PollComposer'
 import { Popover, PopoverItem } from '@/components/ui/Popover'
@@ -133,10 +133,13 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onVote, onClos
     me,
     locked: event.status === 'confirmed',
     canVote: !readOnly && !!me && !!onVote,
-    canManage: (p) => !readOnly && !!me && (p.by === me || hostIds.has(me)),
+    // the settings are the host's; rewording follows who wrote what (lib/polls)
+    host: !readOnly && !!me && hostIds.has(me),
+    canEdit: !readOnly && !!me,
     onVote,
     onAdd: (pollId, text) => onSend(encodePollOption(pollId, newOptionId(), text)),
     onSettings: (pollId, s) => onSend(encodePollSettings(pollId, s)),
+    onEdit: (pollId, edit) => onSend(encodePollEdit(pollId, edit)),
   }
   const body = <ChatBody messages={shown} unreadFrom={unreadFrom} onSend={onSend} onClose={close} avatarOf={avatarOf} readOnly={readOnly} typing={typing} onType={onType} onStopTyping={onStopTyping} polls={polls} />
 
@@ -177,10 +180,12 @@ type PollsProps = {
   me: string | null
   locked: boolean
   canVote: boolean
-  canManage: (p: PollState) => boolean
+  host: boolean     // this person hosts the event: settings, and rewording anything
+  canEdit: boolean  // may reword what they wrote (not a read-only view)
   onVote?: (poll: PollState, optionId: string) => void
   onAdd: (pollId: string, text: string) => void
   onSettings: (pollId: string, s: PollSettings) => void
+  onEdit: (pollId: string, edit: { q?: string; o?: { id: string; t: string }[] }) => void
 }
 
 type Row =
@@ -356,10 +361,12 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                       me={polls.me}
                       canVote={polls.canVote}
                       locked={polls.locked}
-                      canManage={polls.canManage(state)}
+                      host={polls.host}
+                      canEdit={polls.canEdit}
                       onPick={(optionId) => polls.onVote?.(state, optionId)}
                       onAdd={(text) => polls.onAdd(state.id, text)}
                       onSettings={(s) => polls.onSettings(state.id, s)}
+                      onEdit={(edit) => polls.onEdit(state.id, edit)}
                       avatarOf={avatarOf}
                     />
                   ) : (

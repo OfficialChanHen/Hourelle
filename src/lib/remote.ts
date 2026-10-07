@@ -251,6 +251,27 @@ function mergeAnswers(list: AppEvent[], answers: { avail: AvailRow[]; votes: Vot
 /* ── writing: the diff between two documents, sent as rows ──
    Every writer in the app already goes through patchEvent, which hands both versions
    here. Normally exactly one person's answer moved — yours. */
+/* Answers for one event go out one at a time, in the order they were made. Sent side
+   by side, a run of quick taps (a vote moved A to B to A) could land out of order, and
+   the server kept a vote that was taken back, or lost one that was cast: a one-vote
+   poll ended with two. Each write waits for the one before it on the same event,
+   and for the event's own insert when it is brand new. `busy` counts what is still on
+   the way, so a re-read never puts an older answer over one that has not landed yet. */
+const answerQueue = new Map<string, Promise<void>>()
+const answerBusy = new Map<string, number>()
+function inOrder(eventId: string, send: () => PromiseLike<unknown>): void {
+  answerBusy.set(eventId, (answerBusy.get(eventId) ?? 0) + 1)
+  const next = (answerQueue.get(eventId) ?? afterCreate(eventId))
+    .then(() => send())
+    .then(() => undefined, () => undefined)
+    .then(() => {
+      const left = (answerBusy.get(eventId) ?? 1) - 1
+      if (left > 0) answerBusy.set(eventId, left)
+      else { answerBusy.delete(eventId); answerQueue.delete(eventId) }
+    })
+  answerQueue.set(eventId, next)
+}
+
 export function pushAnswers(before: AppEvent, after: AppEvent): void {
   if (!backendOn || rowsMissing || after.demo) return
   const fail = (what: string) => ({ error }: { error: { message: string } | null }) => {
@@ -287,9 +308,7 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
     if (!onList.has(pid)) {
       if (!allowed(pid)) continue
       if (before.participants.some((p) => p.id === pid)) {
-        void afterCreate(after.id).then(() =>
-          supabase!.from('availability').delete().match({ event_id: after.id, participant_id: pid }).then(fail('clear their times')),
-        )
+        inOrder(after.id, () => supabase!.from('availability').delete().match({ event_id: after.id, participant_id: pid }).then(fail('clear their times')))
       }
       continue
     }
@@ -299,34 +318,42 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
     // an answer of your own on somebody else's event: once it is saved, the host may
     // want to hear about it
     const answer = pid === me && !after.hostedByYou && (aUn.has(pid) || Object.values(to).some((iv) => iv.length > 0))
-    void afterCreate(after.id).then(() =>
+    const row = { event_id: after.id, participant_id: pid, intervals: to, unavailable: aUn.has(pid), updated_at: new Date().toISOString() }
+    inOrder(after.id, () =>
       supabase!
         .from('availability')
-        .upsert({ event_id: after.id, participant_id: pid, intervals: to, unavailable: aUn.has(pid), updated_at: new Date().toISOString() }, { onConflict: 'event_id,participant_id' })
+        .upsert(row, { onConflict: 'event_id,participant_id' })
         .then((r) => { fail('save your times')(r); if (!r.error && answer) tellHost(after.id, pid) }),
     )
   }
 
   // the ballot: a vote is a row, so casting is an insert and taking it back a delete
   const was = before.votes ?? {}, now = after.votes ?? {}
-  for (const placeId of new Set([...Object.keys(was), ...Object.keys(now)])) {
-    const had = new Set(was[placeId] ?? []), has = new Set(now[placeId] ?? [])
-    const added = [...has].filter((p) => !had.has(p) && allowed(p))
-    const gone = [...had].filter((p) => !has.has(p) && allowed(p))
-    if (added.length) {
-      void afterCreate(after.id).then(() =>
+  const keys = [...new Set([...Object.keys(was), ...Object.keys(now)])]
+  // every taking-back first, then every new vote, so a vote that moves is never two
+  // votes on the server, even for a moment
+  for (const placeId of keys) {
+    const has = new Set(now[placeId] ?? [])
+    for (const participant_id of (was[placeId] ?? []).filter((p) => !has.has(p) && allowed(p))) {
+      inOrder(after.id, () =>
         supabase!
-          .from('votes')
-          .upsert(added.map((participant_id) => ({ event_id: after.id, place_id: placeId, participant_id })), { onConflict: 'event_id,place_id,participant_id' })
-          .then(fail('vote')),
+          .from('votes').delete()
+          .match({ event_id: after.id, place_id: placeId, participant_id })
+          .then(fail('take back your vote')),
       )
     }
-    for (const participant_id of gone) {
-      void supabase!
-        .from('votes').delete()
-        .match({ event_id: after.id, place_id: placeId, participant_id })
-        .then(fail('take back your vote'))
-    }
+  }
+  for (const placeId of keys) {
+    const had = new Set(was[placeId] ?? [])
+    const added = (now[placeId] ?? []).filter((p) => !had.has(p) && allowed(p))
+    if (!added.length) continue
+    const rows = added.map((participant_id) => ({ event_id: after.id, place_id: placeId, participant_id }))
+    inOrder(after.id, () =>
+      supabase!
+        .from('votes')
+        .upsert(rows, { onConflict: 'event_id,place_id,participant_id' })
+        .then(fail('vote')),
+    )
   }
 
   // what was held back is still wrong on this device, so the answers are read again
@@ -347,8 +374,12 @@ function refreshAnswers(eventId: string): void {
   if (pending) clearTimeout(pending)
   answerRefresh.set(eventId, setTimeout(() => {
     answerRefresh.delete(eventId)
+    // this device still has answers on the way: what the server says now is older than
+    // what this device already shows, so wait for them and read again after
+    if (answerBusy.get(eventId)) { void answerQueue.get(eventId)?.then(() => refreshAnswers(eventId)); return }
     void loadAnswers([eventId]).then((answers) => {
       if (!answers) return
+      if (answerBusy.get(eventId)) { void answerQueue.get(eventId)?.then(() => refreshAnswers(eventId)); return }
       const list = readCache()
       if (!list.some((e) => e.id === eventId)) return // not a room this browser is in
       writeCache(mergeAnswers(list, answers, new Set([eventId])), true)

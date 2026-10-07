@@ -254,17 +254,39 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   const votesOf = (id: string) => votes[id] ?? []
   const ranked = [...places].sort((a, b) => votesOf(b.id).length - votesOf(a.id).length)
   const rankIds = ranked.map((p) => p.id)
+  // the list on screen: the ranking, except while you are voting, when the cards keep
+  // the places they had at your first tap, so a quick second tap lands on the place you
+  // meant. They move to the ranking once you pause (or a mouse leaves the list). The
+  // ranking itself (rankIds) is what the itinerary and the leader read, never this.
+  const [heldOrder, setHeldOrder] = useState<string[] | null>(null)
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (holdTimer.current) clearTimeout(holdTimer.current) }, [])
+  const listed = heldOrder
+    ? [...heldOrder.flatMap((id) => ranked.find((p) => p.id === id) ?? []), ...ranked.filter((p) => !heldOrder.includes(p.id))]
+    : ranked
   const leadingId = ranked.length && votesOf(ranked[0].id).length > 0 ? ranked[0].id : null
   const myVoteCount = places.filter((p) => votesOf(p.id).includes(YOU)).length
   const votesLeft = Math.max(0, maxVotes - myVoteCount)
 
   // vote budget: everyone gets `maxVotes`. With 1, voting moves your single pick (radio);
   // with more, extra votes are blocked once you're out.
+  function releaseOrder() {
+    if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null }
+    if (!heldOrder) return
+    voteFlip.capture()
+    setHeldOrder(null)
+  }
   function toggleVote(placeId: string) {
     if (votingClosed || !YOU) return
-    const has = votesOf(placeId).includes(YOU)
-    if (!has && maxVotes > 1 && votesLeft === 0) return // out of votes
-    voteFlip.capture()
+    // read off the ballot as saved now, the same copy the new one is built from, so a
+    // screen a step behind can never turn a tap into the opposite of what it shows
+    const saved = latestVotes()
+    const has = (saved[placeId] ?? []).includes(YOU)
+    const mineNow = places.filter((p) => (saved[p.id] ?? []).includes(YOU)).length
+    if (!has && maxVotes > 1 && mineNow >= maxVotes) return // out of votes
+    if (!heldOrder) setHeldOrder(listed.map((p) => p.id))
+    if (holdTimer.current) clearTimeout(holdTimer.current)
+    holdTimer.current = setTimeout(() => { holdTimer.current = null; voteFlip.capture(); setHeldOrder(null) }, 1200)
     // build the next ballot first, then set and persist — persisting inside a state
     // updater would run during render and update the parent mid-render. Only your own
     // vote moves, laid over the ballot as saved now: everyone else's votes come from
@@ -473,7 +495,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   }
 
   // Flip animations: vote list re-ranks smoothly on each vote; itinerary rows slide on reorder
-  const voteFlip = useFlipReorder(rankIds.join('|'))
+  const voteFlip = useFlipReorder(listed.map((p) => p.id).join('|'))
   const itinFlip = useFlipReorder(stops.map((s) => s.uid).join('|'))
   const stopReorder = usePointerReorder(reorderStop)
   // the scrollable stops list is both the Flip scope and the drag/auto-scroll scope
@@ -748,8 +770,13 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                   <button onClick={clearAllPlaces} className="flex h-7 flex-none items-center rounded-full px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--brick)' }}>Remove all</button>
                 </div>
               )}
-              <div ref={voteFlip.scope} className="scroll-slim flex max-h-[55vh] min-h-0 flex-1 flex-col gap-2 overflow-auto py-0.5 pr-0.5 lg:max-h-none">
-                {ranked.map((p, i) => {
+              <div
+                ref={voteFlip.scope}
+                className="scroll-slim flex max-h-[55vh] min-h-0 flex-1 flex-col gap-2 overflow-auto py-0.5 pr-0.5 lg:max-h-none"
+                // a finger lifting also "leaves", so only a mouse settles the order early
+                onPointerLeave={(e) => { if (e.pointerType === 'mouse') releaseOrder() }}
+              >
+                {listed.map((p, i) => {
                   const ids = votesOf(p.id)
                   const you = ids.includes(YOU)
                   const isLocked = locked && confirmedIds.has(p.id)
