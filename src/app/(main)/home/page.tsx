@@ -126,11 +126,13 @@ function CompactPlan({ e, phase }: { e: AppEvent; phase: Phase }) {
   const [from, to] = coverFor(e.id)
   const faces = peopleIn(e)
   return (
-    <div className={`relative isolate ${faces.length ? 'mr-4' : ''}`}>
+    <div className={`relative isolate ${faces.length ? 'mr-6' : ''}`}>
       {faces.length > 0 && (
-        <span aria-hidden className="absolute -right-4 top-1/2 -z-10 flex -translate-y-1/2 flex-col">
+        /* far enough out that both eyes show, each leaning right as if looking out
+           from behind the row */
+        <span aria-hidden className="absolute -right-[22px] top-1/2 -z-10 flex -translate-y-1/2 flex-col">
           {faces.slice(0, 3).map((p, i) => (
-            <span key={p.id} className={i ? '-mt-2' : ''} style={{ transform: `rotate(${i % 2 ? 6 : -6}deg)` }}>
+            <span key={p.id} className={i ? '-mt-2' : ''} style={{ transform: `rotate(${i % 2 ? 10 : 16}deg)` }}>
               <Avatar initials={p.initials} color={p.color} face={p.face} size={28} />
             </span>
           ))}
