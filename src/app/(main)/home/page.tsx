@@ -53,6 +53,7 @@ import { reducedMotion } from '@/lib/prefs'
 import { HandNote } from '@/components/ui/HandNote'
 import { namesLabel } from '@/components/ui/AvatarRow'
 import { Avatar } from '@/components/ui/Avatar'
+import { Popover } from '@/components/ui/Popover'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Tip } from '@/components/ui/Tip'
@@ -61,7 +62,7 @@ import { placeVotes, chatLines } from '@/lib/polls'
 import { fromDay,
   createEvent, eventTabFor, listEvents, phaseOf, daysUntil, dateRangeText, confirmedSlotText, sameDayLabelFor,
   leadingPlaceOf, youReplied, youVoted, bestWindow, availIvOf, gridStartMinOf, fmtMinute, seenMessageCount,
-  type AppEvent, type Phase, type SameDayInfo,
+  type AppEvent, type Participant, type Phase, type SameDayInfo,
 } from '@/lib/events'
 import { cloudSettled } from '@/lib/remote'
 import { overText } from '@/lib/overText'
@@ -113,6 +114,48 @@ function turnOf(e: AppEvent, phase: Phase): Turn | null {
   return null
 }
 
+/* The faces tucked behind a compact row's right edge, leaning out far enough that
+   their eyes show. The strip of them that sticks out past the row is one button,
+   44px wide and as tall as the row, set wholly beside it so a tap can never open
+   the plan by mistake: it gives the faces a little wiggle and opens a small note
+   naming who is in. Three faces drawn, everyone named (a few by name, then a count). */
+function PeekingFaces({ people, plan }: { people: Participant[]; plan: string }) {
+  const strip = useRef<HTMLSpanElement>(null)
+  const { contextSafe } = useGSAP({ scope: strip })
+  const wiggle = contextSafe(() => {
+    if (reducedMotion() || !strip.current) return
+    gsap.fromTo(strip.current.querySelectorAll('[data-peek]'), { x: 0 }, { x: 4, duration: 0.09, yoyo: true, repeat: 3, ease: 'sine.inOut', stagger: 0.04, clearProps: 'x' })
+  })
+  // you first, as "You", then everyone else by name
+  const names = [...people.filter((p) => p.you).map(() => 'You'), ...people.filter((p) => !p.you).map((p) => p.name)]
+  const label = namesLabel(names.slice(0, 4), Math.max(0, names.length - 4))
+  return (
+    <>
+      <span ref={strip} aria-hidden className="absolute -right-[22px] top-1/2 -z-10 flex -translate-y-1/2 flex-col">
+        {people.slice(0, 3).map((p, i) => (
+          <span key={p.id} data-peek className={i ? '-mt-2' : ''}>
+            <span className="block" style={{ transform: `rotate(${i % 2 ? 10 : 16}deg)` }}>
+              <Avatar initials={p.initials} color={p.color} face={p.face} size={28} />
+            </span>
+          </span>
+        ))}
+      </span>
+      <Popover
+        align="end" width="fit" label={`Who is in ${plan}`}
+        className="absolute -right-11 inset-y-0 w-11 rounded-xl outline-offset-2 [-webkit-tap-highlight-color:transparent]"
+        trigger={() => <span aria-hidden className="block h-full w-full" onClick={wiggle} />}
+      >
+        {() => (
+          <div className="px-2.5 py-2">
+            <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">In {plan}</div>
+            <p className="mt-1 max-w-[240px] text-[13.5px] leading-[1.45] text-text">{label}</p>
+          </div>
+        )}
+      </Popover>
+    </>
+  )
+}
+
 /* One plan as a compact framed row (a phone's second and third plans): its
    cover, its name, the time question answered first (the locked time, else the best
    time so far, each with its zone) and what you owe if anything. A few of its faces
@@ -127,17 +170,7 @@ function CompactPlan({ e, phase }: { e: AppEvent; phase: Phase }) {
   const faces = peopleIn(e)
   return (
     <div className={`relative isolate ${faces.length ? 'mr-6' : ''}`}>
-      {faces.length > 0 && (
-        /* far enough out that both eyes show, each leaning right as if looking out
-           from behind the row */
-        <span aria-hidden className="absolute -right-[22px] top-1/2 -z-10 flex -translate-y-1/2 flex-col">
-          {faces.slice(0, 3).map((p, i) => (
-            <span key={p.id} className={i ? '-mt-2' : ''} style={{ transform: `rotate(${i % 2 ? 10 : 16}deg)` }}>
-              <Avatar initials={p.initials} color={p.color} face={p.face} size={28} />
-            </span>
-          ))}
-        </span>
-      )}
+      {faces.length > 0 && <PeekingFaces people={faces} plan={e.title} />}
     <Link href={turn?.href ?? eventTabFor(e)} className="flex items-center gap-3 rounded-[14px] bg-frame p-2 pr-3 shadow-frame">
       <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={from} to={to} className="h-[64px] w-[72px] flex-none" rounded="rounded-lg" />
       <div className="min-w-0 flex-1">
