@@ -15,7 +15,7 @@ const mint = () => randomBytes(32).toString('base64url')
 export async function POST(req: Request) {
   const user = await userFromRequest(req)
   if (!user) return NextResponse.json({ error: 'Log in first.' }, { status: 401 })
-  if (!hasServiceKey) return NextResponse.json({ error: 'Calendar feeds are not switched on for this server yet.' }, { status: 503 })
+  if (!hasServiceKey) return NextResponse.json({ error: 'Coming soon.' }, { status: 503 })
   const db = serverDb()
   if (!db) return NextResponse.json({ error: 'No database is configured.' }, { status: 503 })
   const { reset } = (await req.json().catch(() => ({}))) as { reset?: boolean }
@@ -24,13 +24,13 @@ export async function POST(req: Request) {
   if (!reset) {
     const { data, error } = await db.from('calendar_feeds').select('token').eq('user_id', user.id).maybeSingle()
     // most likely migration 0017 has not run here yet
-    if (error) return NextResponse.json({ error: 'The calendar feed is not set up on this server yet.' }, { status: 503 })
+    if (error) return NextResponse.json({ error: 'Coming soon.' }, { status: 503 })
     token = data?.token ?? null
   }
   if (!token) {
     token = mint()
     const { error } = await db.from('calendar_feeds').upsert({ user_id: user.id, token, created_at: new Date().toISOString() })
-    if (error) return NextResponse.json({ error: 'The calendar feed is not set up on this server yet.' }, { status: 503 })
+    if (error) return NextResponse.json({ error: 'Coming soon.' }, { status: 503 })
   }
   return NextResponse.json({ url: `${siteUrl(req)}/api/cal/${token}.ics` })
 }

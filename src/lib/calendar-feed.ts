@@ -6,8 +6,13 @@
 
 import { supabase, backendOn } from './db'
 
+// The feed needs migration 0017 and the service key on the server. With a backend it
+// says "Coming soon" until NEXT_PUBLIC_CALENDAR_FEED_ON=1 says both are in place;
+// without one there is no server to serve it, so it is coming soon there too.
+export const feedSoon = (backendOn: boolean) => !backendOn || process.env.NEXT_PUBLIC_CALENDAR_FEED_ON !== '1'
+
 export async function feedUrl(reset = false): Promise<{ url: string } | { error: string }> {
-  if (!backendOn) return { error: 'The calendar feed needs the live site.' }
+  if (!backendOn) return { error: 'Coming soon.' }
   const { data } = await supabase!.auth.getSession()
   const token = data.session?.access_token
   if (!token) return { error: 'Log in first.' }

@@ -10,22 +10,33 @@
 import { useEffect, useState } from 'react'
 import { CalendarCheck, ChevronDown, Copy, RotateCcw } from 'lucide-react'
 import { Popover, PopoverItem, PopoverNote, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
-import { feedUrl, subscribeLinks } from '@/lib/calendar-feed'
+import { feedSoon, feedUrl, subscribeLinks } from '@/lib/calendar-feed'
 import { backendOn } from '@/lib/db'
 
+// the Plans page's two calendar buttons share one look: on a phone they split the
+// row in half under the filters, from a small screen up they sit at the row's end
+export const calButtonWrap = 'flex-1 sm:flex-none'
+export const calButton = 'flex h-11 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-border2 bg-s1 px-3 text-[13.5px] font-medium hover:bg-s2 sm:h-9 sm:px-3.5'
+
 export function CalendarFeed() {
-  if (!backendOn) return null
+  const soon = feedSoon(backendOn)
   return (
     <Popover
       align="end"
       width={260}
+      className={calButtonWrap}
       trigger={(open) => (
-        <span className={`flex h-11 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3 text-[13.5px] sm:px-3.5 font-medium hover:bg-s2 sm:h-9`}>
-          <CalendarCheck size={15} /> <span className="sm:hidden">Add to calendar</span><span className="hidden sm:inline">Add plans to my calendar</span> <ChevronDown size={13} className={`text-faint transition-transform ${open ? 'rotate-180' : ''}`} />
+        <span className={calButton}>
+          <CalendarCheck size={15} /> <span className="sm:hidden">Add to calendar</span><span className="hidden sm:inline">Add plans to my calendar</span> <ChevronDown size={13} className={`hidden text-faint transition-transform sm:block ${open ? 'rotate-180' : ''}`} />
         </span>
       )}
     >
-      {(close) => <FeedMenu close={close} />}
+      {(close) => soon ? (
+        <>
+          <PopoverTitle>Coming soon</PopoverTitle>
+          <p className="px-2.5 pb-2 text-[12.5px] leading-[1.5] text-dim">Adding every locked-in plan to Google Calendar, Outlook or Apple Calendar at once is almost ready. For now, use Add to calendar on each plan.</p>
+        </>
+      ) : <FeedMenu close={close} />}
     </Popover>
   )
 }

@@ -14,6 +14,8 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { CalendarPlus, X } from 'lucide-react'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { Popover, PopoverTitle } from '@/components/ui/Popover'
+import { calButton, calButtonWrap } from '@/components/CalendarFeed'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { dateRangeText, type AppEvent } from '@/lib/events'
 import { applyFill, busyFor, checkedByDefault, fillablePlans, rememberPending, takePending, undoFill, type FillOutcome, type FillProvider } from '@/lib/bulk-calendar'
@@ -46,19 +48,30 @@ export function FillFromCalendar({ events, onChanged }: { events: AppEvent[]; on
     }, 0)
     return () => clearTimeout(t)
   }, [])
-  // off until the plan page's own Import is: the same switches stand behind both
-  if (importSoon(backendOn) || (!plans.length && !open)) return null
+  if (!plans.length && !open) return null
+  // "Coming soon" until the plan page's own Import works: the same switches stand behind both
+  if (importSoon(backendOn)) return (
+    <Popover
+      align="end"
+      width={260}
+      className={calButtonWrap}
+      trigger={() => <span className={calButton}><CalendarPlus size={15} /> Fill my times</span>}
+    >
+      {() => (
+        <>
+          <PopoverTitle>Coming soon</PopoverTitle>
+          <p className="px-2.5 pb-2 text-[12.5px] leading-[1.5] text-dim">Filling your times on every open plan from Google Calendar or Outlook is almost ready. For now, mark your times on each plan.</p>
+        </>
+      )}
+    </Popover>
+  )
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => { setResume(null); setOpen(true) }}
-        className="flex h-11 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3 text-[13.5px] font-medium hover:bg-s2 sm:h-9 sm:px-3.5"
-      >
+    <div className={calButtonWrap}>
+      <button type="button" onClick={() => { setResume(null); setOpen(true) }} className={calButton}>
         <CalendarPlus size={15} /> Fill my times
       </button>
       {open && createPortal(<FillDialog plans={plans} resume={resume} close={() => { setOpen(false); setResume(null) }} onChanged={onChanged} />, document.body)}
-    </>
+    </div>
   )
 }
 
