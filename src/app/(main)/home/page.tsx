@@ -31,7 +31,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   CalendarPlus, CalendarClock, Calendar, Check, CopyPlus, Link2, ArrowRight, MapPin, Video, UsersRound, UserRound,
-  Trash2, UserRoundX,
+  Trash2, UserRoundX, ChevronRight,
 } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Em } from '@/components/ui/Em'
@@ -44,9 +44,13 @@ import { FaceSticker } from '@/components/ui/FaceSticker'
 import { SoftShapes } from '@/components/ui/SoftShapes'
 import { Deck } from '@/components/ui/Deck'
 import { Keepsake, lookOf, withDetail, type Look } from '@/components/ui/Keepsake'
-import { Highlight, PencilArrow, PencilStar, PencilUnderline } from '@/components/ui/Pencil'
+import { Highlight, PencilArrow, PencilStar, PencilTick, PencilUnderline } from '@/components/ui/Pencil'
+import { peelable } from '@/animations/deck'
+import { gsap } from 'gsap'
+import { useGSAP } from '@gsap/react'
+import { reducedMotion } from '@/lib/prefs'
 import { HandNote } from '@/components/ui/HandNote'
-import { namesLabel } from '@/components/ui/AvatarRow'
+import { AvatarRow, namesLabel } from '@/components/ui/AvatarRow'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Tip } from '@/components/ui/Tip'
@@ -107,6 +111,88 @@ function turnOf(e: AppEvent, phase: Phase): Turn | null {
   return null
 }
 
+// the phone layouts being compared for Up next
+type PhoneLayout = 'stack' | 'row' | 'list'
+const PHONE_KEY = 'hourelle.home.phone'
+
+/* One plan as a compact framed row (the phone list's second and third plans): its
+   cover, its name, the time question answered first (the locked time, else the best
+   time so far, each with its zone), what you owe if anything, and a few of its faces.
+   The whole row opens the plan, at the task you owe when there is one. */
+function CompactPlan({ e, phase }: { e: AppEvent; phase: Phase }) {
+  const d = digestOf(e, phase)
+  const turn = turnOf(e, phase)
+  const slot = confirmedSlotText(e)
+  const [from, to] = coverFor(e.id)
+  return (
+    <Link href={turn?.href ?? eventTabFor(e)} className="flex items-center gap-3 rounded-[14px] bg-frame p-2 pr-3 shadow-frame">
+      <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={from} to={to} className="h-[64px] w-[72px] flex-none" rounded="rounded-lg" />
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-serif text-[17px] leading-tight tracking-[-0.01em]">{e.title}</div>
+        <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-dim">
+          {slot
+            ? <><span>{slot}</span><TimezonePill tz={e.timezone} /></>
+            : d.best
+              ? <><span>{d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)}</span><TimezonePill tz={e.timezone} /><span>so far</span></>
+              : <span>Picking a time</span>}
+        </div>
+        {turn && <div className="mt-0.5 truncate text-[13px] font-semibold text-text">{turn.line}</div>}
+      </div>
+      <AvatarRow people={peopleIn(e).map((p) => ({ initials: p.initials, name: p.name, color: p.color, face: p.face }))} size={22} max={3} decorative />
+      <ChevronRight size={17} className="flex-none text-faint" aria-hidden />
+    </Link>
+  )
+}
+
+// what the pad held last visit, so a note whose task has since been done can peel off
+const NOTES_KEY = 'hourelle.home.notes'
+type DoneNote = { key: string; title: string; line: string }
+
+/* Notes whose task was done since Home last showed them: each sits on the pad once
+   more, ticked "Done", and a moment after the page settles peels off from the bottom
+   up, top note first (animations/deck peelable, run on a copy so React keeps its
+   own). Over the pad when other notes are still owed, in its place when none are.
+   With reduced motion they simply go. */
+function DoneNotes({ notes, over, onDone }: { notes: DoneNote[]; over: boolean; onDone: () => void }) {
+  const root = useRef<HTMLDivElement>(null)
+  const layer = useRef<HTMLDivElement>(null)
+  useGSAP(() => {
+    const el = root.current, out = layer.current
+    if (!el || !out) return
+    if (reducedMotion()) { const t = gsap.delayedCall(1.2, onDone); return () => { t.kill() } }
+    // the last drawn is the one on top, so it goes first
+    const items = Array.from(el.querySelectorAll<HTMLElement>('[data-done-note]')).reverse()
+    let i = 0
+    const peelNext = () => {
+      const n = items[i++]
+      if (!n) { onDone(); return }
+      const copy = n.cloneNode(true) as HTMLElement
+      Object.assign(copy.style, { position: 'absolute', top: '0', left: '0', right: '0' })
+      out.appendChild(copy)
+      n.style.visibility = 'hidden'
+      peelable(copy, out).finish(peelNext)
+    }
+    const t = gsap.delayedCall(0.9, peelNext)
+    return () => { t.kill() }
+  }, { scope: root })
+  return (
+    <div ref={root} className={over ? 'pointer-events-none absolute inset-x-0 top-0 z-20' : 'relative'}>
+      <span className="sr-only" role="status">{notes.map((n) => `${n.title}: done`).join('. ')}</span>
+      <div aria-hidden className="grid [&>*]:[grid-area:1/1]">
+        {notes.map((n) => (
+          <div key={n.key} data-done-note>
+            <StickyNote tilt={-1.5} kicker={<span className="flex items-center gap-1.5 text-sticky-text"><PencilTick ink="accent" size={16} /> Done</span>} className="min-h-[176px]">
+              <span className="font-serif text-[19px] leading-[1.15] [overflow-wrap:anywhere]">{n.title}</span>
+              <span className="text-[13.5px] leading-[1.4] text-sticky-dim line-through decoration-1">{n.line}</span>
+            </StickyNote>
+          </div>
+        ))}
+      </div>
+      <div ref={layer} className="pointer-events-none absolute inset-0" />
+    </div>
+  )
+}
+
 // the date a plan is ordered by: its locked day, else the host's lock-by date
 const dayOf = (e: AppEvent) => e.confirmed?.dayKey ?? e.planDeadline ?? '9999-12-31'
 
@@ -132,6 +218,17 @@ export default function HomePage() {
   const waiting = !settled && (events?.length ?? 0) === 0
   const loading = events === null || waiting
   const wide = useWide()
+  // which phone layout to show, while the three are being compared: ?phone=stack|row|list
+  // picks one and this device remembers it (the stack until one is picked)
+  const [phone, setPhone] = useState<PhoneLayout>('stack')
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get('phone')
+      if (q === 'stack' || q === 'row' || q === 'list') localStorage.setItem(PHONE_KEY, q)
+      const v = localStorage.getItem(PHONE_KEY)
+      if (v === 'row' || v === 'list') setPhone(v)
+    } catch { /* storage off: the stack */ }
+  }, [])
   const [upAt, setUpAt] = useState(0)
   const [turnAt, setTurnAt] = useState(0)
 
@@ -153,8 +250,24 @@ export default function HomePage() {
   const turnI = Math.min(turnAt, Math.max(0, turns.length - 1))
   // the headline names the plan in front: the big one on a wide screen, the top of
   // the stack on a phone
-  const hero = wide ? shown[0] : shown[upI]
+  const hero = wide || phone === 'list' ? shown[0] : shown[upI]
   const turn = turns[turnI]
+  // notes whose task is done since the last visit: shown once, ticked, then peeled off
+  const [done, setDone] = useState<DoneNote[]>([])
+  useEffect(() => {
+    if (events === null) return
+    const now: DoneNote[] = turns.map(({ x, t }) => ({ key: `${x.e.id}:${t.cta}`, title: x.e.title, line: t.line }))
+    let before: DoneNote[] = []
+    try { before = JSON.parse(localStorage.getItem(NOTES_KEY) ?? '[]') } catch { /* nothing remembered */ }
+    try { localStorage.setItem(NOTES_KEY, JSON.stringify(now)) } catch { /* private window: no peel next time */ }
+    const live = new Set(now.map((n) => n.key))
+    const ids = new Set((events ?? []).map((e) => e.id))
+    // gone from the pad and its plan still here: the task was done (a deleted plan's
+    // note just goes, without a peel)
+    const finished = before.filter((n) => !live.has(n.key) && ids.has(n.key.split(':')[0]))
+    if (finished.length) setDone(finished.slice(0, 3))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events])
   // one plan on a wide screen: what you owe and the create form sit beside it
   // rather than leaving half the row empty
   const solo = wide && shown.length === 1
@@ -222,6 +335,36 @@ export default function HomePage() {
                   )}
                 </div>
               </>
+            ) : phone === 'row' ? (
+              /* the plans side by side, swiped like photos on a table: the next one
+                 peeks in from the right, and the headline follows the one in view */
+              <div
+                role="group" aria-label="Up next"
+                onScroll={(ev) => {
+                  const el = ev.currentTarget
+                  const first = el.firstElementChild as HTMLElement | null
+                  if (!first) return
+                  setUpAt(Math.min(shown.length - 1, Math.max(0, Math.round(el.scrollLeft / (first.offsetWidth + 20)))))
+                }}
+                className="scroll-none -mx-6 flex snap-x snap-mandatory gap-5 overflow-x-auto px-6 pb-3 pt-1 sm:-mx-[26px] sm:px-[26px]"
+              >
+                {shown.map((x, i) => (
+                  <div key={x.e.id} className="w-[84%] max-w-[400px] flex-none snap-center">
+                    <UpNext e={x.e} phase={x.phase} sameDay={sameDay(x.e)} size="hero" look={looks[i]} lead={i === 0} />
+                  </div>
+                ))}
+              </div>
+            ) : phone === 'list' ? (
+              /* the closest plan as the photo card, the next two as compact framed rows
+                 under it: everything at a glance, one tap each */
+              <div className="mx-auto max-w-[480px]">
+                <UpNext e={shown[0].e} phase={shown[0].phase} sameDay={sameDay(shown[0].e)} size="hero" look={looks[0]} lead />
+                {shown.length > 1 && (
+                  <ul className="mt-6 flex flex-col gap-3">
+                    {shown.slice(1).map((x) => <li key={x.e.id}><CompactPlan e={x.e} phase={x.phase} /></li>)}
+                  </ul>
+                )}
+              </div>
             ) : (
               <div className="mx-auto max-w-[480px]">
                 <Deck
@@ -251,15 +394,21 @@ export default function HomePage() {
 
           {/* what you owe, then a new plan: side by side on a large screen */}
           <div className={`grid gap-y-9 ${solo ? 'pt-6' : `mt-6 lg:mt-14 lg:items-start lg:gap-x-16 ${turn ? 'lg:grid-cols-[auto_minmax(0,1fr)]' : 'lg:max-w-[720px]'}`}`}>
-            {turn && (
+            {(turn || done.length > 0) && (
               /* the pad of notes, with your own face stuck on the page beside it (below
-                 it on a large screen), so the space reads as yours, not a gap */
+                 it on a large screen), so the space reads as yours, not a gap. A note
+                 whose task was done since the last visit sits on top, ticked, and peels
+                 off: paging is only browsing, peeling means done */
               <section aria-labelledby="home-turn" className="flex min-w-0 items-center gap-3 lg:flex-col lg:items-start lg:gap-6">
                 <h2 id="home-turn" className="sr-only">Your turn</h2>
                 <FaceSticker size={wide ? 150 : 104} className="min-w-0 flex-1 lg:order-last lg:w-[260px] lg:flex-none lg:py-2" />
+                <div className="relative mr-2 w-[208px] flex-none sm:w-[244px] lg:mr-0 lg:w-[260px]">
+                {done.length > 0 && (
+                  <DoneNotes notes={done} over={!!turn} onDone={() => setDone([])} />
+                )}
+                {turn && (
                 <Deck
-                  count={turns.length} index={turnI} onIndex={setTurnAt} label="Plans waiting on you" itemLabel="note" leave="peel"
-                  className="mr-2 w-[208px] flex-none sm:w-[244px] lg:mr-0 lg:w-[260px]"
+                  count={turns.length} index={turnI} onIndex={setTurnAt} label="Plans waiting on you" itemLabel="note"
                   behind={(d) => (
                     <div
                       className="absolute inset-0 rounded-[3px] bg-sticky shadow-sticky"
@@ -267,16 +416,18 @@ export default function HomePage() {
                     />
                   )}
                 >
-                  {(corner, pos) => (
-                  <StickyNote tilt={-1.5} corner={corner} pos={pos} kicker={<><PencilStar size={16} className="-mt-0.5 mr-1.5" />Your turn</>} className="min-h-[176px]">
-                    <span className="font-serif text-[19px] leading-[1.15] [overflow-wrap:anywhere]">{turn.x.e.title}</span>
-                    <span className="text-[13.5px] leading-[1.4] text-sticky-dim">{turn.t.line}</span>
-                    <Link href={turn.t.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-accent px-4 text-[13.5px] font-semibold text-on-accent sm:h-9">
-                      {turn.t.cta}
+                  {(corner) => (
+                  <StickyNote tilt={-1.5} corner={corner} kicker={<><PencilStar size={16} className="-mt-0.5 mr-1.5" />Your turn</>} className="min-h-[176px]">
+                    <span className="font-serif text-[19px] leading-[1.15] [overflow-wrap:anywhere]">{turn!.x.e.title}</span>
+                    <span className="text-[13.5px] leading-[1.4] text-sticky-dim">{turn!.t.line}</span>
+                    <Link href={turn!.t.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-accent px-4 text-[13.5px] font-semibold text-on-accent sm:h-9">
+                      {turn!.t.cta}
                     </Link>
                   </StickyNote>
                   )}
                 </Deck>
+                )}
+                </div>
               </section>
             )}
             <QuickCreate />

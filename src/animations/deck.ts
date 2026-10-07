@@ -5,40 +5,38 @@ import { gsap } from 'gsap'
    and the Deck has moved it into its flying layer. Only ever called from inside
    the Deck's useGSAP, so GSAP's context cleans up after them. */
 
-/** A photo card: whatever holds it down comes off first, one thing at a time (each
- *  pin pops out with a jolt of the card, tape peels back from one end, a clip slides
- *  off, photo corners let go). Then it is shuffled to the back: lifted, slid out to
- *  the right past the pile, tucked under it (`under` moves it below the pile, the
- *  moment it is clear of the cards), and slid back in to rest as the bottom card,
- *  where it gives way to the blank paper drawn there. */
+/** A photo card shuffled to the back, quickly (about 0.6s, the same every time):
+ *  whatever holds it down lets go all at once as it starts to lift (pins pop out a
+ *  beat apart, tape peels back from one end, a clip slides off, photo corners let
+ *  go), the card slides out to the right past the pile, is tucked under it (`under`
+ *  moves it below the pile the moment it is clear), and slides back in as the bottom
+ *  card, where it gives way to the blank paper drawn there. */
 export function liftOff(card: HTMLElement, under: (el: HTMLElement) => void): gsap.core.Timeline {
   const tl = gsap.timeline()
   const q = (k: string) => Array.from(card.querySelectorAll<Element>(`[data-keep="${k}"]`))
+  // what holds it comes off together, at the start
   q('pin').forEach((pin, i) => {
     const side = i % 2 ? 1 : -1
-    tl.to(pin, { y: -7, scale: 1.2, duration: 0.1, ease: 'power2.out' })
-      .to(card, { rotation: side * 0.7, duration: 0.06, yoyo: true, repeat: 1, ease: 'sine.inOut' }, '<0.05')
-      .to(pin, { y: 52, x: side * 28, rotation: side * 230, opacity: 0, duration: 0.32, ease: 'power2.in' }, '<0.03')
-      .to({}, { duration: 0.04 })
+    tl.to(pin, { y: -6, scale: 1.15, duration: 0.07, ease: 'power2.out' }, i * 0.05)
+      .to(pin, { y: 46, x: side * 24, rotation: side * 200, opacity: 0, duration: 0.24, ease: 'power2.in' }, i * 0.05 + 0.07)
   })
   q('tape').forEach((tape, i) => {
-    // peeled from its free end: the strip lifts a little and shrinks back to where it
-    // is still stuck, then lets go
-    const from = i % 2 ? 'inset(0% 0% 0% 0%)' : 'inset(0% 0% 0% 0%)'
+    // peeled from its free end: it shrinks back to where it is still stuck, then lets go
     const to = i % 2 ? 'inset(0% 100% 0% 0%)' : 'inset(0% 0% 0% 100%)'
-    tl.fromTo(tape, { clipPath: from }, { clipPath: to, y: -4, scaleY: 1.12, duration: 0.34, ease: 'power2.inOut' })
-      .to(tape, { opacity: 0, duration: 0.12 }, '-=0.1')
+    tl.fromTo(tape, { clipPath: 'inset(0% 0% 0% 0%)' }, { clipPath: to, y: -4, scaleY: 1.12, duration: 0.22, ease: 'power2.inOut' }, 0)
+      .to(tape, { opacity: 0, duration: 0.08 }, 0.16)
   })
   // a clip's front and back are separate drawings (one under the card): they slide off together
   const clips = q('clip')
-  if (clips.length) tl.to(clips, { y: -30, rotation: '+=14', opacity: 0, duration: 0.3, ease: 'back.in(1.6)' })
+  if (clips.length) tl.to(clips, { y: -26, rotation: '+=14', opacity: 0, duration: 0.2, ease: 'back.in(1.6)' }, 0)
   const mounts = q('mount')
-  if (mounts.length) tl.to(mounts, { scale: 0.4, opacity: 0, duration: 0.18, stagger: 0.06, ease: 'power2.in' })
-  tl.to(card, { y: -10, scale: 1.03, duration: 0.14, ease: 'power2.out' })
-    .to(card, { x: () => card.offsetWidth * 1.06, y: -4, rotation: 7, duration: 0.36, ease: 'power2.inOut' })
+  if (mounts.length) tl.to(mounts, { scale: 0.4, opacity: 0, duration: 0.14, stagger: 0.03, ease: 'power2.in' }, 0)
+  // and the card is already lifting while they go
+  tl.to(card, { y: -8, scale: 1.025, duration: 0.1, ease: 'power2.out' }, 0.06)
+    .to(card, { x: () => card.offsetWidth * 1.06, y: -4, rotation: 7, duration: 0.24, ease: 'power2.in' }, 0.14)
     .call(() => under(card))
-    .to(card, { x: -6, y: 12, rotation: -2.5, scale: 0.985, duration: 0.42, ease: 'power3.out' })
-    .to(card, { opacity: 0, duration: 0.16, ease: 'none' })
+    .to(card, { x: -6, y: 12, rotation: -2.5, scale: 0.985, duration: 0.22, ease: 'power2.out' })
+    .to(card, { opacity: 0, duration: 0.08, ease: 'none' })
   return tl
 }
 
