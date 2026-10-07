@@ -13,8 +13,7 @@ import { Tape } from './Tape'
 
    The tilt is capped at 3 degrees either way so nothing inside drifts far from where
    it looks. `settle` lets the frame land on mount, from straight to its tilt; with
-   reduced motion it simply sits there. `corner` is a handle a Deck hands its top card,
-   set in the frame's bottom right so it tilts with the frame. */
+   reduced motion it simply sits there. */
 const MAX_TILT = 3
 
 export function PhotoFrame({
@@ -24,7 +23,6 @@ export function PhotoFrame({
   size = 'md',
   settle = false,
   pad = 'mid',
-  corner,
   onClick,
   className = '',
 }: {
@@ -35,8 +33,6 @@ export function PhotoFrame({
   settle?: boolean
   // the white border's width, so cards in a group need not all match
   pad?: 'thin' | 'mid' | 'thick'
-  // a handle a Deck hands its top card, drawn in the frame's bottom right
-  corner?: React.ReactNode
   onClick?: React.MouseEventHandler<HTMLDivElement>
   className?: string
 }) {
@@ -58,7 +54,6 @@ export function PhotoFrame({
       <div className={`bg-frame shadow-frame ${size === 'sm' ? `rounded-[10px] ${pad === 'thin' ? 'p-1 pb-1.5' : pad === 'thick' ? 'p-2.5 pb-3' : 'p-1.5 pb-2'}` : pad === 'thin' ? 'rounded-[12px] p-2 pb-3' : pad === 'thick' ? 'rounded-[16px] p-3.5 pb-4' : 'rounded-[14px] p-2.5 pb-3.5'}`}>
         {children}
       </div>
-      {corner}
     </div>
   )
 }

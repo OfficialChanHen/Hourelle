@@ -1,50 +1,16 @@
 import { gsap } from 'gsap'
 
-/* ── taking the top thing off a stack, the way it comes off in your hand ──
-   Both work on the node that was on top of a Deck, after React has let go of it
-   and the Deck has moved it into its flying layer. Only ever called from inside
-   the Deck's useGSAP, so GSAP's context cleans up after them. */
-
-/** A photo card shuffled to the back, quickly (about 0.6s, the same every time):
- *  whatever holds it down lets go all at once as it starts to lift (pins pop out a
- *  beat apart, tape peels back from one end, a clip slides off, photo corners let
- *  go), the card slides out to the right past the pile, is tucked under it (`under`
- *  moves it below the pile the moment it is clear), and slides back in as the bottom
- *  card, where it gives way to the blank paper drawn there. */
-export function liftOff(card: HTMLElement, under: (el: HTMLElement) => void): gsap.core.Timeline {
-  const tl = gsap.timeline()
-  const q = (k: string) => Array.from(card.querySelectorAll<Element>(`[data-keep="${k}"]`))
-  // what holds it comes off together, at the start
-  q('pin').forEach((pin, i) => {
-    const side = i % 2 ? 1 : -1
-    tl.to(pin, { y: -6, scale: 1.15, duration: 0.07, ease: 'power2.out' }, i * 0.05)
-      .to(pin, { y: 46, x: side * 24, rotation: side * 200, opacity: 0, duration: 0.24, ease: 'power2.in' }, i * 0.05 + 0.07)
-  })
-  q('tape').forEach((tape, i) => {
-    // peeled from its free end: it shrinks back to where it is still stuck, then lets go
-    const to = i % 2 ? 'inset(0% 100% 0% 0%)' : 'inset(0% 0% 0% 100%)'
-    tl.fromTo(tape, { clipPath: 'inset(0% 0% 0% 0%)' }, { clipPath: to, y: -4, scaleY: 1.12, duration: 0.22, ease: 'power2.inOut' }, 0)
-      .to(tape, { opacity: 0, duration: 0.08 }, 0.16)
-  })
-  // a clip's front and back are separate drawings (one under the card): they slide off together
-  const clips = q('clip')
-  if (clips.length) tl.to(clips, { y: -26, rotation: '+=14', opacity: 0, duration: 0.2, ease: 'back.in(1.6)' }, 0)
-  const mounts = q('mount')
-  if (mounts.length) tl.to(mounts, { scale: 0.4, opacity: 0, duration: 0.14, stagger: 0.03, ease: 'power2.in' }, 0)
-  // and the card is already lifting while they go
-  tl.to(card, { y: -8, scale: 1.025, duration: 0.1, ease: 'power2.out' }, 0.06)
-    .to(card, { x: () => card.offsetWidth * 1.06, y: -4, rotation: 7, duration: 0.24, ease: 'power2.in' }, 0.14)
-    .call(() => under(card))
-    .to(card, { x: -6, y: 12, rotation: -2.5, scale: 0.985, duration: 0.22, ease: 'power2.out' })
-    .to(card, { opacity: 0, duration: 0.08, ease: 'none' })
-  return tl
-}
+/* ── a post-it peeled off its pad, the way it comes off in your hand ──
+   Used on Home when a note's task is done (Home's notes board). Run on a copy of the
+   note placed in a layer of its own, so React keeps its node. Only ever called from
+   inside a useGSAP, so GSAP's context cleans up after it. */
 
 export type Peel = {
   /** how far the note is peeled, 0 (flat) to 1 (curled up to its glue) */
   set: (p: number) => void
-  /** peel the rest of the way, let the glue go, and lift the note off */
-  finish: (done?: () => void) => void
+  /** peel the rest of the way, let the glue go, and let the note fall off the page
+   *  (`fall`), or lift it away */
+  finish: (done?: () => void, opts?: { fall?: boolean }) => void
   /** lay it back down flat; the caller removes it once the note is back in place */
   cancel: (done?: () => void) => void
   remove: () => void
@@ -122,13 +88,14 @@ export function peelable(note: HTMLElement, layer: HTMLElement): Peel {
 
   return {
     set,
-    finish: (done) => {
+    finish: (done, opts) => {
       tweenTo(1, 0.45 * (1 - state.p) + 0.1, 'power1.in', () => {
-        // the glue lets go: the curled note comes up off the pad and away
-        running = gsap.to(box, {
-          y: -H * 0.4, x: W * 0.08, rotation: 4, scale: 1.04, opacity: 0, duration: 0.3, ease: 'power2.in',
-          onComplete: () => { box.remove(); done?.() },
-        }).timeScale(speed)
+        // the glue lets go: the curled note either drops, turning a little as it falls
+        // off the page, or comes up off the pad and away
+        running = gsap.to(box, opts?.fall
+          ? { y: H * 1.4, x: W * 0.12, rotation: 14, opacity: 0, duration: 0.55, ease: 'power2.in', onComplete: () => { box.remove(); done?.() } }
+          : { y: -H * 0.4, x: W * 0.08, rotation: 4, scale: 1.04, opacity: 0, duration: 0.3, ease: 'power2.in', onComplete: () => { box.remove(); done?.() } },
+        ).timeScale(speed)
       })
     },
     cancel: (done) => {

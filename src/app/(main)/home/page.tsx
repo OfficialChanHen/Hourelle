@@ -6,17 +6,19 @@
    with the time question before anything else.
      Up next      the three closest plans. On a large screen the closest one is the
                   big taped photo and the other two sit beside it as smaller photos;
-                  on a phone they are a stack you page with arrows or a swipe. Each
-                  photo carries the plan's name, its stage, the time question first
+                  on a phone the closest is the photo and the next two compact framed
+                  rows under it, all in view, nothing to swipe. Each photo carries the plan's name, its stage, the time question first
                   (your times, the best time so far, who is still missing, or the
                   locked time), then place and extras, and one button: the thing to
                   do next.
-     Your turn    every plan waiting on you, as a stack of sticky notes, each with
-                  its own task and button
+     Your turn    every plan waiting on you, as sticky notes on a board, each with
+                  its own task and button, and your face stuck in a spare spot. A note
+                  whose task is done shows once more ticked, then peels and falls off,
+                  and the notes after it move up into its place
      Start a plan a name and a week, one click
 
-   Only three plans are ever drawn, plus blank paper behind the phone stack, so
-   thirty plans cost the same as three. Everything else lives one link away on Plans.
+   Only three plans and a handful of notes are ever drawn, so thirty plans cost the
+   same as three. Everything else lives one link away on Plans.
 
    Scrapbook touches (the photos, tape, sticker faces, sticky notes) are for this
    page's moments only. The arrows, the create form and every button stay flat.
@@ -42,10 +44,9 @@ import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { StickyNote } from '@/components/ui/StickyNote'
 import { FaceSticker } from '@/components/ui/FaceSticker'
 import { SoftShapes } from '@/components/ui/SoftShapes'
-import { Deck } from '@/components/ui/Deck'
 import { Keepsake, lookOf, withDetail, type Look } from '@/components/ui/Keepsake'
 import { Highlight, PencilArrow, PencilStar, PencilTick, PencilUnderline } from '@/components/ui/Pencil'
-import { peelable } from '@/animations/deck'
+import { peelable } from '@/animations/peel'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { reducedMotion } from '@/lib/prefs'
@@ -78,7 +79,7 @@ function greetingFor(hour: number): string {
 // how many plans Home draws: the closest three, never an even pile
 const SHOWN = 3
 
-// a large screen lays the three plans out side by side; a phone stacks them. Read on
+// a large screen lays the three plans out side by side; a phone lists them. Read on
 // the client only, which is fine here: nothing below renders before mount anyway
 const WIDE = '(min-width: 1024px)'
 function subscribeWide(fn: () => void) {
@@ -111,11 +112,7 @@ function turnOf(e: AppEvent, phase: Phase): Turn | null {
   return null
 }
 
-// the phone layouts being compared for Up next
-type PhoneLayout = 'stack' | 'row' | 'list'
-const PHONE_KEY = 'hourelle.home.phone'
-
-/* One plan as a compact framed row (the phone list's second and third plans): its
+/* One plan as a compact framed row (a phone's second and third plans): its
    cover, its name, the time question answered first (the locked time, else the best
    time so far, each with its zone), what you owe if anything, and a few of its faces.
    The whole row opens the plan, at the task you owe when there is one. */
@@ -144,52 +141,140 @@ function CompactPlan({ e, phase }: { e: AppEvent; phase: Phase }) {
   )
 }
 
-// what the pad held last visit, so a note whose task has since been done can peel off
+// what the board held last visit, so a note whose task has since been done can go
 const NOTES_KEY = 'hourelle.home.notes'
-type DoneNote = { key: string; title: string; line: string }
+// the most notes drawn; past it the last spot says how many more there are
+const NOTES_MAX = 5
+type Note = { key: string; title: string; line: string; cta?: string; href?: string; done?: boolean }
 
-/* Notes whose task was done since Home last showed them: each sits on the pad once
-   more, ticked "Done", and a moment after the page settles peels off from the bottom
-   up, top note first (animations/deck peelable, run on a copy so React keeps its
-   own). Over the pad when other notes are still owed, in its place when none are.
-   With reduced motion they simply go. */
-function DoneNotes({ notes, over, onDone }: { notes: DoneNote[]; over: boolean; onDone: () => void }) {
+/* Your turn: one sticky note per plan waiting on you, laid out on a board in rows of
+   two, each a little turned, and your own face stuck in the spot after the last note.
+   Never more than five notes; past that the fifth spot says how many more and opens
+   Plans.
+
+   A note leaves only when its task is done. The board remembers what it held
+   (NOTES_KEY), so a note whose task was done elsewhere since the last visit is drawn
+   once more in its old spot, ticked Done with its task struck through. A moment
+   after the page settles it peels up from the bottom and falls off the page (a copy
+   of it, animations/peel), then the notes after it slide up into the gap (measured
+   before and after, then eased from the old spot). With reduced motion done notes
+   simply go. */
+function NotesBoard({ turns, eventIds, wide }: { turns: { x: Item; t: Turn }[]; eventIds: Set<string>; wide: boolean }) {
   const root = useRef<HTMLDivElement>(null)
-  const layer = useRef<HTMLDivElement>(null)
-  useGSAP(() => {
-    const el = root.current, out = layer.current
-    if (!el || !out) return
-    if (reducedMotion()) { const t = gsap.delayedCall(1.2, onDone); return () => { t.kill() } }
-    // the last drawn is the one on top, so it goes first
-    const items = Array.from(el.querySelectorAll<HTMLElement>('[data-done-note]')).reverse()
-    let i = 0
-    const peelNext = () => {
-      const n = items[i++]
-      if (!n) { onDone(); return }
-      const copy = n.cloneNode(true) as HTMLElement
-      Object.assign(copy.style, { position: 'absolute', top: '0', left: '0', right: '0' })
-      out.appendChild(copy)
-      n.style.visibility = 'hidden'
-      peelable(copy, out).finish(peelNext)
+  const [board, setBoard] = useState<Note[]>([])
+  // where each note sat before the board changed, for the slide into the gap
+  const from = useRef<Map<string, DOMRect>>(new Map())
+  const live = turns.map(({ x, t }) => ({ key: `${x.e.id}:${t.cta}`, title: x.e.title, line: t.line, cta: t.cta, href: t.href }))
+  const liveSig = live.map((n) => n.key).join('|')
+
+  // lay out the board: what it held last time in that order (a note whose task is now
+  // done kept in place, ticked; a deleted plan's note just gone), then anything new
+  // each list of notes is laid out once: an effect that runs twice (React's
+  // development check) must not compare the list with the copy it just saved
+  const laidOut = useRef<string | null>(null)
+  useEffect(() => {
+    if (laidOut.current === liveSig) return
+    laidOut.current = liveSig
+    let before: { key: string; title: string; line: string }[] = []
+    try { before = JSON.parse(localStorage.getItem(NOTES_KEY) ?? '[]') } catch { /* nothing remembered */ }
+    try { localStorage.setItem(NOTES_KEY, JSON.stringify(live.map(({ key, title, line }) => ({ key, title, line })))) } catch { /* private window */ }
+    const byKey = new Map(live.map((n) => [n.key, n]))
+    const next: Note[] = []
+    for (const b of before) {
+      const n = byKey.get(b.key)
+      if (n) { next.push(n); byKey.delete(b.key) }
+      else if (eventIds.has(b.key.split(':')[0])) next.push({ ...b, done: true })
     }
-    const t = gsap.delayedCall(0.9, peelNext)
+    for (const n of byKey.values()) next.push(n)
+    setBoard(next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveSig])
+
+  const { contextSafe } = useGSAP(() => {
+    // the notes after a removed one slide up from where they were
+    const el = root.current
+    if (!el || !from.current.size) return
+    for (const cell of el.querySelectorAll<HTMLElement>('[data-note]')) {
+      const was = from.current.get(cell.dataset.note!)
+      if (!was) continue
+      const now = cell.getBoundingClientRect()
+      const dx = was.left - now.left, dy = was.top - now.top
+      if (dx || dy) gsap.fromTo(cell, { x: dx, y: dy }, { x: 0, y: 0, duration: 0.45, ease: 'power3.out', clearProps: 'transform' })
+    }
+    from.current = new Map()
+  }, { scope: root, dependencies: [board] })
+
+  // done notes go one at a time, a moment after the page settles
+  const doneKeys = board.filter((n) => n.done).map((n) => n.key).join('|')
+  useGSAP(() => {
+    const el = root.current
+    if (!el || !doneKeys) return
+    const remove = (key: string) => {
+      from.current = new Map(Array.from(el.querySelectorAll<HTMLElement>('[data-note]')).map((c) => [c.dataset.note!, c.getBoundingClientRect()]))
+      setBoard((b) => b.filter((n) => n.key !== key))
+    }
+    const first = doneKeys.split('|')[0]
+    if (reducedMotion()) { const t = gsap.delayedCall(1, () => setBoard((b) => b.filter((n) => !n.done))); return () => { t.kill() } }
+    const t = gsap.delayedCall(0.9, contextSafe(() => {
+      const cell = el.querySelector<HTMLElement>(`[data-note="${CSS.escape(first)}"]`)
+      const note = cell?.querySelector<HTMLElement>('[data-paper]')
+      const layer = cell?.querySelector<HTMLElement>('[data-fly]')
+      if (!cell || !note || !layer) { remove(first); return }
+      const copy = note.cloneNode(true) as HTMLElement
+      Object.assign(copy.style, { position: 'absolute', top: '0', left: '0', right: '0' })
+      layer.appendChild(copy)
+      note.style.visibility = 'hidden'
+      peelable(copy, layer).finish(() => remove(first), { fall: true })
+    }))
     return () => { t.kill() }
-  }, { scope: root })
+  }, { scope: root, dependencies: [doneKeys] })
+
+  if (!board.length) return null
+  const owed = board.filter((n) => !n.done).length
+  const shownNotes = board.slice(0, board.length > NOTES_MAX ? NOTES_MAX - 1 : NOTES_MAX)
+  const more = board.length - shownNotes.length
+  const finished = board.filter((n) => n.done)
   return (
-    <div ref={root} className={over ? 'pointer-events-none absolute inset-x-0 top-0 z-20' : 'relative'}>
-      <span className="sr-only" role="status">{notes.map((n) => `${n.title}: done`).join('. ')}</span>
-      <div aria-hidden className="grid [&>*]:[grid-area:1/1]">
-        {notes.map((n) => (
-          <div key={n.key} data-done-note>
-            <StickyNote tilt={-1.5} kicker={<span className="flex items-center gap-1.5 text-sticky-text"><PencilTick ink="accent" size={16} /> Done</span>} className="min-h-[176px]">
-              <span className="font-serif text-[19px] leading-[1.15] [overflow-wrap:anywhere]">{n.title}</span>
-              <span className="text-[13.5px] leading-[1.4] text-sticky-dim line-through decoration-1">{n.line}</span>
-            </StickyNote>
+    <section aria-labelledby="home-turn" className="min-w-0">
+      <h2 id="home-turn" className="sr-only">Your turn{owed ? `, ${owed} ${owed === 1 ? 'plan' : 'plans'} waiting on you` : ''}</h2>
+      {finished.length > 0 && <span className="sr-only" role="status">{finished.map((n) => `${n.title}: done`).join('. ')}</span>}
+      <div ref={root} className="grid grid-cols-2 items-start gap-x-4 gap-y-5 sm:gap-x-5 lg:w-[460px]">
+        {shownNotes.map((n, i) => (
+          <div key={n.key} data-note={n.key} className="relative min-w-0">
+            <div data-paper aria-hidden={n.done || undefined}>
+              <StickyNote
+                tilt={i % 2 ? 1.2 : -1.5}
+                kicker={n.done
+                  ? <span className="flex items-center gap-1.5 text-sticky-text"><PencilTick ink="accent" size={16} /> Done</span>
+                  : <><PencilStar size={16} className="-mt-0.5 mr-1" />Your turn</>}
+                className="min-h-[172px]"
+              >
+                <span className="font-serif text-[18px] leading-[1.15] [overflow-wrap:anywhere]">{n.title}</span>
+                <span className={`text-[13px] leading-[1.4] text-sticky-dim ${n.done ? 'line-through decoration-1' : ''}`}>{n.line}</span>
+                {!n.done && n.href && (
+                  <Link href={n.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent sm:h-9">
+                    {n.cta}
+                  </Link>
+                )}
+              </StickyNote>
+            </div>
+            <div data-fly aria-hidden className="pointer-events-none absolute inset-0 z-10" />
           </div>
         ))}
+        {more > 0 && (
+          <Link href="/events" className="block">
+            <StickyNote tilt={1.2} className="min-h-[172px]">
+              <span className="font-serif text-[30px] leading-none">+{more}</span>
+              <span className="text-[13px] leading-[1.4] text-sticky-dim">more waiting on you</span>
+              <span className="mt-auto flex h-11 items-center gap-1 self-start text-[13px] font-semibold text-accent-text sm:h-9">See them <ArrowRight size={14} aria-hidden /></span>
+            </StickyNote>
+          </Link>
+        )}
+        {/* your face, stuck in the spot after the last note; on a row of its own it
+            sits in the middle of it */}
+        <FaceSticker size={wide ? 140 : 110} className={(shownNotes.length + (more > 0 ? 1 : 0)) % 2 ? 'min-h-[172px]' : 'col-span-2 py-1'} />
       </div>
-      <div ref={layer} className="pointer-events-none absolute inset-0" />
-    </div>
+    </section>
   )
 }
 
@@ -218,19 +303,6 @@ export default function HomePage() {
   const waiting = !settled && (events?.length ?? 0) === 0
   const loading = events === null || waiting
   const wide = useWide()
-  // which phone layout to show, while the three are being compared: ?phone=stack|row|list
-  // picks one and this device remembers it (the stack until one is picked)
-  const [phone, setPhone] = useState<PhoneLayout>('stack')
-  useEffect(() => {
-    try {
-      const q = new URLSearchParams(window.location.search).get('phone')
-      if (q === 'stack' || q === 'row' || q === 'list') localStorage.setItem(PHONE_KEY, q)
-      const v = localStorage.getItem(PHONE_KEY)
-      if (v === 'row' || v === 'list') setPhone(v)
-    } catch { /* storage off: the stack */ }
-  }, [])
-  const [upAt, setUpAt] = useState(0)
-  const [turnAt, setTurnAt] = useState(0)
 
   const active: Item[] = (events ?? []).map((e) => ({ e, phase: phaseOf(e) })).filter((x) => x.phase !== 'past')
   // up next: locked-in plans by day (same-day ties to the earlier start), then the
@@ -245,29 +317,9 @@ export default function HomePage() {
   const sameDay = sameDayLabelFor(active.map((x) => x.e))
   // your turn: every plan waiting on you, in the same order, shown or not
   const turns = upNext.map((x) => ({ x, t: turnOf(x.e, x.phase) })).filter((y): y is { x: Item; t: Turn } => y.t !== null)
-  // a plan leaving the list (answered, deleted elsewhere) never strands the index
-  const upI = Math.min(upAt, Math.max(0, shown.length - 1))
-  const turnI = Math.min(turnAt, Math.max(0, turns.length - 1))
-  // the headline names the plan in front: the big one on a wide screen, the top of
-  // the stack on a phone
-  const hero = wide || phone === 'list' ? shown[0] : shown[upI]
-  const turn = turns[turnI]
-  // notes whose task is done since the last visit: shown once, ticked, then peeled off
-  const [done, setDone] = useState<DoneNote[]>([])
-  useEffect(() => {
-    if (events === null) return
-    const now: DoneNote[] = turns.map(({ x, t }) => ({ key: `${x.e.id}:${t.cta}`, title: x.e.title, line: t.line }))
-    let before: DoneNote[] = []
-    try { before = JSON.parse(localStorage.getItem(NOTES_KEY) ?? '[]') } catch { /* nothing remembered */ }
-    try { localStorage.setItem(NOTES_KEY, JSON.stringify(now)) } catch { /* private window: no peel next time */ }
-    const live = new Set(now.map((n) => n.key))
-    const ids = new Set((events ?? []).map((e) => e.id))
-    // gone from the pad and its plan still here: the task was done (a deleted plan's
-    // note just goes, without a peel)
-    const finished = before.filter((n) => !live.has(n.key) && ids.has(n.key.split(':')[0]))
-    if (finished.length) setDone(finished.slice(0, 3))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events])
+  // the headline names the plan in front: the closest one
+  const hero = shown[0]
+  const eventIds = new Set((events ?? []).map((e) => e.id))
   // one plan on a wide screen: what you owe and the create form sit beside it
   // rather than leaving half the row empty
   const solo = wide && shown.length === 1
@@ -284,15 +336,8 @@ export default function HomePage() {
       {loading ? (
         <div className="mt-2 h-[38px] w-[260px] max-w-full animate-pulse rounded-lg bg-s2" />
       ) : (
-        /* every headline the stack can show is laid in the same cell and only the
-           one in front is visible, so the heading is always as tall as the longest
-           and paging never moves the cards below it */
-        <h1 className="mt-0.5 grid max-w-[680px] font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] [overflow-wrap:anywhere] sm:text-[42px]">
-          {(wide || shown.length === 0 ? [hero] : shown).map((x) => (
-            <span key={x?.e.id ?? 'none'} className={`[grid-area:1/1] ${x === hero ? '' : 'invisible'}`} aria-hidden={x === hero ? undefined : true}>
-              {headline(x?.e, x?.phase)}
-            </span>
-          ))}
+        <h1 className="mt-0.5 max-w-[680px] font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] [overflow-wrap:anywhere] sm:text-[42px]">
+          {headline(hero?.e, hero?.phase)}
         </h1>
       )}
 
@@ -335,28 +380,9 @@ export default function HomePage() {
                   )}
                 </div>
               </>
-            ) : phone === 'row' ? (
-              /* the plans side by side, swiped like photos on a table: the next one
-                 peeks in from the right, and the headline follows the one in view */
-              <div
-                role="group" aria-label="Up next"
-                onScroll={(ev) => {
-                  const el = ev.currentTarget
-                  const first = el.firstElementChild as HTMLElement | null
-                  if (!first) return
-                  setUpAt(Math.min(shown.length - 1, Math.max(0, Math.round(el.scrollLeft / (first.offsetWidth + 20)))))
-                }}
-                className="scroll-none -mx-6 flex snap-x snap-mandatory gap-5 overflow-x-auto px-6 pb-3 pt-1 sm:-mx-[26px] sm:px-[26px]"
-              >
-                {shown.map((x, i) => (
-                  <div key={x.e.id} className="w-[84%] max-w-[400px] flex-none snap-center">
-                    <UpNext e={x.e} phase={x.phase} sameDay={sameDay(x.e)} size="hero" look={looks[i]} lead={i === 0} />
-                  </div>
-                ))}
-              </div>
-            ) : phone === 'list' ? (
+            ) : (
               /* the closest plan as the photo card, the next two as compact framed rows
-                 under it: everything at a glance, one tap each */
+                 under it: everything at a glance, one tap each, nothing to swipe */
               <div className="mx-auto max-w-[480px]">
                 <UpNext e={shown[0].e} phase={shown[0].phase} sameDay={sameDay(shown[0].e)} size="hero" look={looks[0]} lead />
                 {shown.length > 1 && (
@@ -365,71 +391,12 @@ export default function HomePage() {
                   </ul>
                 )}
               </div>
-            ) : (
-              <div className="mx-auto max-w-[480px]">
-                <Deck
-                  count={shown.length} index={upI} onIndex={setUpAt} label="Up next" nextAt="top-[42px] bottom-0"
-                  behind={(d) => {
-                    // the pile under the photo on top: the next plan sticks out on the
-                    // right, its cover showing, so it is plain there is another to bring
-                    // up; the one under that is blank paper offset the other way
-                    const n = shown[(upI + d) % shown.length]
-                    const [from, to] = coverFor(n.e.id)
-                    return (
-                      <div
-                        className="absolute inset-x-0 bottom-0 top-[42px] rounded-[14px] bg-frame p-2.5 shadow-frame"
-                        style={{ transform: d === 1 ? 'translate(20px, 6px) rotate(1.5deg)' : 'translate(-6px, 12px) rotate(-2.5deg)' }}
-                      >
-                        {d === 1 && <Cover src={n.e.image} fit={n.e.imageFit} pos={n.e.imagePos} from={from} to={to} className="h-[112px] sm:h-[160px]" rounded="rounded-lg" />}
-                      </div>
-                    )
-                  }}
-                  ghosts={shown.map((x, i) => <UpNext key={x.e.id} e={x.e} phase={x.phase} sameDay={sameDay(x.e)} size="hero" look={looks[i]} lead ghost />)}
-                >
-                  {(corner) => <UpNext e={shown[upI].e} phase={shown[upI].phase} sameDay={sameDay(shown[upI].e)} size="hero" look={looks[upI]} lead corner={corner} />}
-                </Deck>
-              </div>
             )}
           </section>
 
           {/* what you owe, then a new plan: side by side on a large screen */}
-          <div className={`grid gap-y-9 ${solo ? 'pt-6' : `mt-6 lg:mt-14 lg:items-start lg:gap-x-16 ${turn ? 'lg:grid-cols-[auto_minmax(0,1fr)]' : 'lg:max-w-[720px]'}`}`}>
-            {(turn || done.length > 0) && (
-              /* the pad of notes, with your own face stuck on the page beside it (below
-                 it on a large screen), so the space reads as yours, not a gap. A note
-                 whose task was done since the last visit sits on top, ticked, and peels
-                 off: paging is only browsing, peeling means done */
-              <section aria-labelledby="home-turn" className="flex min-w-0 items-center gap-3 lg:flex-col lg:items-start lg:gap-6">
-                <h2 id="home-turn" className="sr-only">Your turn</h2>
-                <FaceSticker size={wide ? 150 : 104} className="min-w-0 flex-1 lg:order-last lg:w-[260px] lg:flex-none lg:py-2" />
-                <div className="relative mr-2 w-[208px] flex-none sm:w-[244px] lg:mr-0 lg:w-[260px]">
-                {done.length > 0 && (
-                  <DoneNotes notes={done} over={!!turn} onDone={() => setDone([])} />
-                )}
-                {turn && (
-                <Deck
-                  count={turns.length} index={turnI} onIndex={setTurnAt} label="Plans waiting on you" itemLabel="note"
-                  behind={(d) => (
-                    <div
-                      className="absolute inset-0 rounded-[3px] bg-sticky shadow-sticky"
-                      style={{ transform: d === 1 ? 'translate(8px, 6px) rotate(-2.5deg)' : 'translate(-5px, 11px) rotate(3deg)' }}
-                    />
-                  )}
-                >
-                  {(corner) => (
-                  <StickyNote tilt={-1.5} corner={corner} kicker={<><PencilStar size={16} className="-mt-0.5 mr-1.5" />Your turn</>} className="min-h-[176px]">
-                    <span className="font-serif text-[19px] leading-[1.15] [overflow-wrap:anywhere]">{turn!.x.e.title}</span>
-                    <span className="text-[13.5px] leading-[1.4] text-sticky-dim">{turn!.t.line}</span>
-                    <Link href={turn!.t.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-accent px-4 text-[13.5px] font-semibold text-on-accent sm:h-9">
-                      {turn!.t.cta}
-                    </Link>
-                  </StickyNote>
-                  )}
-                </Deck>
-                )}
-                </div>
-              </section>
-            )}
+          <div className={`grid gap-y-9 ${solo ? 'pt-6' : `mt-8 lg:mt-14 lg:items-start lg:gap-x-16 ${turns.length ? 'lg:grid-cols-[auto_minmax(0,1fr)]' : 'lg:max-w-[720px]'}`}`}>
+            <NotesBoard turns={turns} eventIds={eventIds} wide={wide} />
             <QuickCreate />
           </div>
         </div>
@@ -512,7 +479,7 @@ function Row({ icon: Icon, children }: { icon: typeof Calendar; children: React.
    inside the tilted photo, with sharing and duplicating beside it. `small` is the
    side card on a wide screen: a shorter picture and only the lines that matter
    most. `look` is its hand-laid details (Keepsake), the same every visit. */
-function UpNext({ e, phase, sameDay, size, look, lead = false, corner, ghost = false }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo; size: 'hero' | 'small'; look: Look; lead?: boolean; corner?: React.ReactNode; ghost?: boolean }) {
+function UpNext({ e, phase, sameDay, size, look, lead = false }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo; size: 'hero' | 'small'; look: Look; lead?: boolean }) {
   const tilt = look.tilt
   const router = useRouter()
   // a click on the card's empty paper opens the plan, like the cover and the name do.
@@ -520,7 +487,7 @@ function UpNext({ e, phase, sameDay, size, look, lead = false, corner, ghost = f
   // can still be selected.
   function openFromPaper(ev: React.MouseEvent) {
     const t = ev.target as Element
-    if (t.closest('a, button, input, select, textarea, label, [role="button"], [data-card-nav]')) return
+    if (t.closest('a, button, input, select, textarea, label, [role="button"]')) return
     if (window.getSelection()?.toString()) return
     if (overText(ev.clientX, ev.clientY)) return
     router.push(eventTabFor(e))
@@ -556,17 +523,7 @@ function UpNext({ e, phase, sameDay, size, look, lead = false, corner, ghost = f
         </div>
         <div ref={details} className={`relative ${small ? 'px-2 pb-2 pt-2.5' : 'px-2 pb-1.5 pt-3'}`}>
           {/* its place in the stack and the way on, in the top right */}
-          {/* a little margin around it counts as the button, not the card's paper, so a
-              tap just off it on a tilted card moves on instead of opening the plan */}
-          {corner && (
-            <span
-              data-card-nav className="absolute -right-1 top-0 z-[3] p-2"
-              onClick={(ev) => { if (ev.target === ev.currentTarget) (ev.currentTarget.firstElementChild as HTMLElement | null)?.click() }}
-            >
-              {corner}
-            </span>
-          )}
-          <Link href={eventTabFor(e)} className={`block ${corner ? 'pr-[84px]' : ''} font-serif leading-[1.15] tracking-[-0.01em] [overflow-wrap:anywhere] hover:underline ${small ? 'text-[18px]' : 'text-[22px] sm:text-[24px]'}`}>
+          <Link href={eventTabFor(e)} className={`block font-serif leading-[1.15] tracking-[-0.01em] [overflow-wrap:anywhere] hover:underline ${small ? 'text-[18px]' : 'text-[22px] sm:text-[24px]'}`}>
             {e.title}
           </Link>
           <StageStepper phase={phase} labels={small ? 'current' : 'auto'} className={`max-w-[340px] ${small ? 'mb-2.5 mt-2.5' : 'mb-3 mt-3'}`} />
@@ -637,7 +594,7 @@ function UpNext({ e, phase, sameDay, size, look, lead = false, corner, ghost = f
             </Link>
             <PlanActions e={e} phase={phase} />
           </div>
-          {lead && turn && !ghost && <PencilArrow from={note} to={task} within={details} />}
+          {lead && turn && <PencilArrow from={note} to={task} within={details} />}
         </div>
       </PhotoFrame>
     </PeekCard>
