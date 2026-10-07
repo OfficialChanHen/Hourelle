@@ -109,3 +109,19 @@ export function byDay(people: Map<string, PersonAnswer>): AvailIntervals {
   }
   return out
 }
+
+/* Your own row replaced, everyone else's left as the saved copy holds them now. Every
+   stored day is kept, not just the current window, so replies on days a shrunken
+   window dropped stay dormant and come back if the window re-grows. */
+export function myTimesPatch(
+  cur: Pick<AppEvent, 'avail' | 'availIv' | 'granularity'>, meId: string, days: Pick<GridDay, 'key'>[], m: Record<string, Iv[]>, rows: number, step: number,
+): Pick<AppEvent, 'availIv' | 'avail'> {
+  const availIv: AvailIntervals = { ...fullAvailIvOf(cur) }
+  for (const d of days) {
+    const day = { ...(availIv[d.key] ?? {}) }
+    if (m[d.key]?.length) day[meId] = m[d.key]
+    else delete day[meId]
+    availIv[d.key] = day
+  }
+  return { availIv, avail: { ...cur.avail, ...intervalsToGrid(availIv, days, rows, step) } }
+}

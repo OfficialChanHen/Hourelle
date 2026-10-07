@@ -517,7 +517,7 @@ export function parseHM(v: string | undefined): number | null {
    other code checks (gridStartMinOf), so it stays a single constant. */
 export {
   ALL_DAY, stepOf, parseClockLabel, gridStartMinOf, normalizeIv, gridToIntervals,
-  intervalsToGrid, availIvOf, fullAvailIvOf, byParticipant, byDay, type PersonAnswer,
+  intervalsToGrid, availIvOf, fullAvailIvOf, myTimesPatch, byParticipant, byDay, type PersonAnswer,
 } from './availability'
 import { ALL_DAY, stepOf, normalizeIv, intervalsToGrid, availIvOf, gridStartMinOf } from './availability'
 export function buildTimes(gran: string, fromMin = 0, toMin = 24 * 60): string[] {
