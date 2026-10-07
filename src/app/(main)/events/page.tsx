@@ -11,6 +11,8 @@ import { PencilHover, PencilUnderline } from '@/components/ui/Pencil'
 import { shelfLooks } from '@/components/ui/Keepsake'
 import { listEvents, phaseOf, sameDayLabelFor, type AppEvent, type Participant, type Phase } from '@/lib/events'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
+import { FillFromCalendar } from '@/components/FillFromCalendar'
+import { CalendarFeed } from '@/components/CalendarFeed'
 
 // real filters over the derived lifecycle phase — Confirmed covers everything locked in
 const FILTERS: { key: string; label: string; match: (p: Phase) => boolean }[] = [
@@ -98,6 +100,13 @@ function EventsList() {
             </button>
           )
         })}
+        {/* answering many plans at once sits with the plans, after the filters */}
+        {events !== null && (
+          <div className="ml-auto flex flex-wrap items-center gap-2.5">
+            <FillFromCalendar events={events} onChanged={() => setEvents(listEvents())} />
+            <CalendarFeed />
+          </div>
+        )}
       </div>
 
       {events === null ? (

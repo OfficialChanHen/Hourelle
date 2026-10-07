@@ -10,7 +10,7 @@
 import type { AppEvent } from './events'
 import { zonedToUtc } from './tz'
 
-const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n')
+const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n')
 // long lines fold at 75 octets with a leading space on the continuation. Byte
 // counts through TextEncoder, which the browser and Node both have.
 const bytes = (s: string) => new TextEncoder().encode(s).length
@@ -45,18 +45,13 @@ export function icsLocation(ev: AppEvent): string {
   return ''
 }
 
-/** The .ics text for a locked-in event, or null while nothing is locked in. `link`
- *  is the reader's own way into the event and goes in the description and URL. */
-export function icsFor(ev: AppEvent, link: string, now = Date.now()): string | null {
+// one plan's VEVENT lines, or null while nothing is locked in. `status` is said only
+// in the feed, where it carries your own reply (CONFIRMED going, TENTATIVE not yet)
+function vevent(ev: AppEvent, link: string, now: number, status?: 'CONFIRMED' | 'TENTATIVE'): string[] | null {
   const c = ev.confirmed
   if (!c || !/^\d{4}-\d{2}-\d{2}$/.test(c.dayKey)) return null
   const allDay = c.startMin === 0 && c.endMin === 24 * 60
   const lines = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Hourelle//Event//EN',
-    'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
     'BEGIN:VEVENT',
     `UID:${ev.id}@hourelle.com`,
     `DTSTAMP:${stamp(now)}`,
@@ -74,7 +69,47 @@ export function icsFor(ev: AppEvent, link: string, now = Date.now()): string | n
   const where = icsLocation(ev)
   if (where) lines.push(`LOCATION:${esc(where)}`)
   const description = [ev.description.trim(), `The plan, the people and the chat: ${link}`].filter(Boolean).join('\n\n')
-  lines.push(`DESCRIPTION:${esc(description)}`, `URL:${link}`, 'END:VEVENT', 'END:VCALENDAR')
+  lines.push(`DESCRIPTION:${esc(description)}`, `URL:${link}`)
+  if (status) lines.push(`STATUS:${status}`)
+  lines.push('END:VEVENT')
+  return lines
+}
+
+/** The .ics text for a locked-in event, or null while nothing is locked in. `link`
+ *  is the reader's own way into the event and goes in the description and URL. */
+export function icsFor(ev: AppEvent, link: string, now = Date.now()): string | null {
+  const body = vevent(ev, link, now)
+  if (!body) return null
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Hourelle//Event//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', ...body, 'END:VCALENDAR']
+  return lines.map(fold).join('\r\n') + '\r\n'
+}
+
+/* ── the subscribed feed: every locked-in plan one person is on ──
+   The same entries as the single file, with the same UID and SEQUENCE, so a plan
+   added by hand earlier and then seen in the feed is one entry, not two. What is in
+   it is decided by `feedStatus`; anything it leaves out disappears from the
+   subscriber's calendar on the next fetch, which is how a reopened plan goes. */
+export type FeedEntry = { ev: AppEvent; link: string; status: 'CONFIRMED' | 'TENTATIVE' }
+
+/** Whether a plan belongs in this person's feed, and how sure: going is CONFIRMED,
+ *  maybe or no reply yet is TENTATIVE, can't go (or not on the plan) is left out. A
+ *  plan with no locked time, including one that reopened, is left out too. */
+export function feedStatus(ev: AppEvent, personId: string): FeedEntry['status'] | null {
+  if (ev.demo || !ev.confirmed) return null
+  const p = ev.participants.find((x) => x.id === personId)
+  if (!p || p.rsvp === 'not_going') return null
+  return p.rsvp === 'attending' ? 'CONFIRMED' : 'TENTATIVE'
+}
+
+export function icsFeed(entries: FeedEntry[], now = Date.now()): string {
+  const lines = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Hourelle//Plans//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'X-WR-CALNAME:Hourelle',
+    // a hint, which Apple and Outlook take; Google keeps its own pace
+    'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H',
+  ]
+  for (const e of entries) lines.push(...(vevent(e.ev, e.link, now, e.status) ?? []))
+  lines.push('END:VCALENDAR')
   return lines.map(fold).join('\r\n') + '\r\n'
 }
 
