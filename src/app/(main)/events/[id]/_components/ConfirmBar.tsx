@@ -14,7 +14,7 @@ import { useAccount } from '@/hooks/useAccount'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { getEvent } from '@/lib/events'
 import {
-  availIvOf, bestWindow, confirmedSlotText, confirmEvent, fmtMinute, gridStartMinOf, patchEvent, respondedCount,
+  availIvOf, bestWindow, confirmedSlotText, confirmEvent, fmtMinute, gridStartMinOf, patchEvent, answeredCount,
   type AppEvent, type ConfirmedSlot,
 } from '@/lib/events'
 
@@ -177,7 +177,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
       : null
   // not a blocker, but worth a pause: locking with zero replies means the "best" day
   // is a guess
-  const noReplies = respondedCount(event.avail, event.unavailableIds) === 0
+  const noReplies = answeredCount(event) === 0
 
   // locking in opens the RSVP round, so the deadline for it is asked here — optional,
   // and soft: it nudges and shifts emphasis, late answers still count

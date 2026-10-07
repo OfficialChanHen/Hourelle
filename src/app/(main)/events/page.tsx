@@ -11,6 +11,8 @@ import { PencilHover, PencilUnderline } from '@/components/ui/Pencil'
 import { shelfLooks } from '@/components/ui/Keepsake'
 import { listEvents, phaseOf, sameDayLabelFor, type AppEvent, type Participant, type Phase } from '@/lib/events'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
+import { FillFromCalendar } from '@/components/FillFromCalendar'
+import { CalendarFeed } from '@/components/CalendarFeed'
 
 // real filters over the derived lifecycle phase — Confirmed covers everything locked in
 const FILTERS: { key: string; label: string; match: (p: Phase) => boolean }[] = [
@@ -72,12 +74,14 @@ function EventsList() {
       {/* the people first: who you are planning with, as faces, then the plans */}
       <ShelfHeader title="Plans">
         {people.length > 0 ? (
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
-            <FaceRibbon people={people} size={40} flippable />
-            <p className="text-[14px] text-dim">
+          <>
+            <p className="mt-1.5 text-[14px] text-dim">
               {people.length === 1 ? 'You and 1 other person' : `You and ${people.length} people`}, across {active} {active === 1 ? 'plan' : 'plans'}
             </p>
-          </div>
+            <div className="mt-4">
+              <FaceRibbon people={people} size={40} flippable />
+            </div>
+          </>
         ) : (
           <p className="mt-1.5 text-[14px] text-dim">{withPhase.length > 0 ? `${withPhase.length} plan${withPhase.length === 1 ? '' : 's'}` : 'No plans yet'}</p>
         )}
@@ -98,6 +102,13 @@ function EventsList() {
             </button>
           )
         })}
+        {/* answering many plans at once sits with the plans, after the filters */}
+        {events !== null && (
+          <div className="mt-2 flex w-full items-center gap-2.5 sm:ml-auto sm:mt-0 sm:w-auto">
+            <FillFromCalendar events={events} onChanged={() => setEvents(listEvents())} />
+            <CalendarFeed />
+          </div>
+        )}
       </div>
 
       {events === null ? (

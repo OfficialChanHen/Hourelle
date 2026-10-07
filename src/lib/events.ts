@@ -517,7 +517,7 @@ export function parseHM(v: string | undefined): number | null {
    other code checks (gridStartMinOf), so it stays a single constant. */
 export {
   ALL_DAY, stepOf, parseClockLabel, gridStartMinOf, normalizeIv, gridToIntervals,
-  intervalsToGrid, availIvOf, fullAvailIvOf, byParticipant, byDay, type PersonAnswer,
+  intervalsToGrid, availIvOf, fullAvailIvOf, myTimesPatch, byParticipant, byDay, type PersonAnswer,
 } from './availability'
 import { ALL_DAY, stepOf, normalizeIv, intervalsToGrid, availIvOf, gridStartMinOf } from './availability'
 export function buildTimes(gran: string, fromMin = 0, toMin = 24 * 60): string[] {
@@ -990,15 +990,45 @@ export function slotFits(ev: AppEvent, slot: ConfirmedSlot, pid: string): boolea
   return (availIv[slot.dayKey]?.[pid] ?? []).some((iv) => iv.s <= s && iv.e >= e)
 }
 
+// does any of this person's availability touch the locked slot at all? Someone who can
+// make part of it (arrives late, leaves early) touches it; someone whose times all fall
+// elsewhere does not.
+export function slotTouches(ev: AppEvent, slot: ConfirmedSlot, pid: string): boolean {
+  const availIv = availIvOf(ev)
+  if (slot.endDayKey) {
+    const cur = parseLocal(slot.dayKey)
+    const end = parseLocal(slot.endDayKey)
+    if (!cur || !end) return false
+    for (let i = 0; i < 90 && cur <= end; i++) {
+      if ((availIv[isoOf(cur)]?.[pid] ?? []).length) return true
+      cur.setDate(cur.getDate() + 1)
+    }
+    return false
+  }
+  const gridStart = gridStartMinOf(ev)
+  const s = slot.startMin - gridStart
+  const e = slot.endMin - gridStart
+  return (availIv[slot.dayKey]?.[pid] ?? []).some((iv) => iv.s < e && iv.e > s)
+}
+
+// did this person mark any time at all on the plan's days
+function markedAny(ev: AppEvent, pid: string): boolean {
+  const availIv = availIvOf(ev)
+  return ev.days.some((d) => (availIv[d.key]?.[pid] ?? []).length > 0)
+}
+
 export function confirmEvent(id: string, slot: ConfirmedSlot): void {
-  // locking in opens the RSVP round with an assumption instead of a blank: whoever's
-  // availability covers the locked slot starts as going (marked so they can undo it),
-  // a declared "no days work" reads as can't go, and everyone else starts at no reply
+  // locking in opens the RSVP round with an assumption instead of a blank, each marked
+  // so the person can undo it:
+  // - availability covering the whole slot starts as going
+  // - a declared "no days work", or times that all fall outside the slot, start as can't go
+  // - times that cover part of it (late, early) and no times at all start at no reply
   const ev = getEvent(id)
   const participants = ev?.participants.map((p): Participant => {
     if (p.host) return { ...p, rsvp: 'attending', rsvpAuto: undefined }
     if (slotFits(ev, slot, p.id)) return { ...p, rsvp: 'attending', rsvpAuto: true }
     if (ev.unavailableIds?.includes(p.id)) return { ...p, rsvp: 'not_going', rsvpAuto: true }
+    if (markedAny(ev, p.id) && !slotTouches(ev, slot, p.id)) return { ...p, rsvp: 'not_going', rsvpAuto: true }
     return { ...p, rsvp: 'pending', rsvpAuto: undefined }
   })
   patchEvent(id, { status: 'confirmed', confirmed: slot, confirmedAt: Date.now(), reopenedAt: undefined, ...(participants ? { participants } : {}) })
@@ -1137,6 +1167,32 @@ export function eventTabFor(ev: AppEvent): string {
     if (ev.location.mode === 'vote' && ev.location.places.length > 0 && !youVoted(ev)) return `${base}?tab=location`
   }
   return base
+}
+
+/* ── the two counts every screen shows, worked out one way ──
+   Deciding: who on the plan has answered, out of everyone invited. An answer is a
+   time marked on one of the plan's current days, or "none of these days work".
+   Marks left on days the plan no longer covers, or by someone since removed, are not
+   answers. */
+export function answeredIds(ev: Pick<AppEvent, 'participants' | 'days' | 'avail' | 'availIv' | 'granularity' | 'unavailableIds'>): Set<string> {
+  const onPlan = new Set(ev.participants.map((p) => p.id))
+  const out = new Set((ev.unavailableIds ?? []).filter((id) => onPlan.has(id)))
+  const iv = availIvOf(ev)
+  for (const d of ev.days) for (const [id, list] of Object.entries(iv[d.key] ?? {})) if (list.length && onPlan.has(id)) out.add(id)
+  return out
+}
+export const answeredCount = (ev: Parameters<typeof answeredIds>[0]) => answeredIds(ev).size
+
+/* Once a time is locked: who the going count is out of. The people available for that
+   time, meaning their marked times cover it, plus anyone who has said going or maybe
+   since, so the count can never read more going than available. A plan whose date was
+   set at creation never asked for times, so there it is everyone invited.
+   `byTimes` says which of the two it is, so the sentence can say so. */
+export function rsvpPool(ev: AppEvent): { people: Participant[]; byTimes: boolean } {
+  const slot = ev.confirmed
+  const marked = [...answeredIds(ev)].some((id) => !ev.unavailableIds?.includes(id))
+  if (!slot || !marked) return { people: ev.participants, byTimes: false }
+  return { people: ev.participants.filter((p) => p.rsvp === 'attending' || p.rsvp === 'maybe' || slotFits(ev, slot, p.id)), byTimes: true }
 }
 
 export function respondedCount(avail: Record<string, string[][]>, unavailableIds?: string[]): number {

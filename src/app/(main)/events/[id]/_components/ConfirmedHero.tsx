@@ -122,7 +122,11 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
         </div>
         {me?.rsvpAuto ? (
           <span className="text-[12.5px] text-faint">
-            {myRsvp === 'attending' ? 'Marked going from your times. Change it if that’s wrong.' : 'Marked from your reply that no days worked. Change it if that’s wrong.'}
+            {myRsvp === 'attending'
+              ? 'Marked going from your times. Change it if that’s wrong.'
+              : me && event.unavailableIds?.includes(me.id)
+                ? 'Marked from your reply that no days worked. Change it if that’s wrong.'
+                : 'Marked can’t go, since your times don’t cover this. Change it if you can make it.'}
           </span>
         ) : event.rsvpDeadline ? (
           // the deadline nudges, it never locks: past due, answers still change freely
