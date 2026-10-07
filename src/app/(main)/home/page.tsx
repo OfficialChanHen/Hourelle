@@ -51,7 +51,8 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { reducedMotion } from '@/lib/prefs'
 import { HandNote } from '@/components/ui/HandNote'
-import { AvatarRow, namesLabel } from '@/components/ui/AvatarRow'
+import { namesLabel } from '@/components/ui/AvatarRow'
+import { Avatar } from '@/components/ui/Avatar'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Tip } from '@/components/ui/Tip'
@@ -114,14 +115,27 @@ function turnOf(e: AppEvent, phase: Phase): Turn | null {
 
 /* One plan as a compact framed row (a phone's second and third plans): its
    cover, its name, the time question answered first (the locked time, else the best
-   time so far, each with its zone), what you owe if anything, and a few of its faces.
-   The whole row opens the plan, at the task you owe when there is one. */
+   time so far, each with its zone) and what you owe if anything. A few of its faces
+   are tucked behind the row's right edge, peeking out the way the photo card's peek
+   over its top, so the row keeps its full width for the time. The whole row opens
+   the plan, at the task you owe when there is one. */
 function CompactPlan({ e, phase }: { e: AppEvent; phase: Phase }) {
   const d = digestOf(e, phase)
   const turn = turnOf(e, phase)
   const slot = confirmedSlotText(e)
   const [from, to] = coverFor(e.id)
+  const faces = peopleIn(e)
   return (
+    <div className={`relative isolate ${faces.length ? 'mr-4' : ''}`}>
+      {faces.length > 0 && (
+        <span aria-hidden className="absolute -right-4 top-1/2 -z-10 flex -translate-y-1/2 flex-col">
+          {faces.slice(0, 3).map((p, i) => (
+            <span key={p.id} className={i ? '-mt-2' : ''} style={{ transform: `rotate(${i % 2 ? 6 : -6}deg)` }}>
+              <Avatar initials={p.initials} color={p.color} face={p.face} size={28} />
+            </span>
+          ))}
+        </span>
+      )}
     <Link href={turn?.href ?? eventTabFor(e)} className="flex items-center gap-3 rounded-[14px] bg-frame p-2 pr-3 shadow-frame">
       <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={from} to={to} className="h-[64px] w-[72px] flex-none" rounded="rounded-lg" />
       <div className="min-w-0 flex-1">
@@ -135,9 +149,9 @@ function CompactPlan({ e, phase }: { e: AppEvent; phase: Phase }) {
         </div>
         {turn && <div className="mt-0.5 truncate text-[13px] font-semibold text-text">{turn.line}</div>}
       </div>
-      <AvatarRow people={peopleIn(e).map((p) => ({ initials: p.initials, name: p.name, color: p.color, face: p.face }))} size={22} max={3} decorative />
       <ChevronRight size={17} className="flex-none text-faint" aria-hidden />
     </Link>
+    </div>
   )
 }
 
@@ -323,9 +337,12 @@ export default function HomePage() {
   // one plan on a wide screen: what you owe and the create form sit beside it
   // rather than leaving half the row empty
   const solo = wide && shown.length === 1
-  // each card's hand-laid details, from its plan id; a neighbour never repeats them
+  // each card's hand-laid details, from its plan id; a neighbour never repeats them.
+  // On a phone the card lies straight, in line with the rows under it; the tilt is
+  // for the photos laid out side by side on a large screen
   const looks: Look[] = []
   shown.forEach((x, i) => { looks.push(withDetail(lookOf(x.e.id, i, looks[i - 1]), x.e.keepsake)) })
+  if (!wide) looks.forEach((l) => { l.tilt = 0 })
 
   return (
     <div className="relative isolate mx-auto max-w-[1240px] px-6 pb-[92px] pt-7 sm:px-[26px] sm:pt-[34px]">
