@@ -121,23 +121,23 @@ export const COVER_PRESETS: CoverPreset[] = [
     ),
   },
   {
-    // a gingham blanket on the grass under a tree, a basket, cups and a plate of
-    // watermelon on it, a ball waiting beside it
-    id: 'coast', name: 'Team offsite', from: '#E5EEE2', to: '#C3DAC0', scene: (
+    // a gingham blanket on the sand by blue water, under a tree, a basket, cups and a
+    // plate of watermelon on it, a ball waiting beside it. Blue, the Team offsite hue
+    id: 'coast', name: 'Team offsite', from: '#DDEAF4', to: '#B4CFE4', scene: (
       <>
         <circle cx="318" cy="40" r="15" fill="#F2C878" />
         <rect x="236" y="30" width="54" height="5" rx="2.5" fill="#F7F4EA" opacity=".85" />
         <rect x="150" y="18" width="40" height="5" rx="2.5" fill="#F7F4EA" opacity=".7" />
-        <path d="M0 98 Q 120 80 230 94 T 400 88 V160 H0 Z" fill="#A4C495" />
-        <path d="M0 106 Q 110 96 210 102 T 400 98 V160 H0 Z" fill="#83AC78" />
-        <path d="M0 136 Q 130 118 250 130 T 400 124 V160 H0 Z" fill="#6E9A66" />
+        <path d="M0 98 Q 120 80 230 94 T 400 88 V160 H0 Z" fill="#8DB5D3" />
+        <path d="M0 106 Q 110 96 210 102 T 400 98 V160 H0 Z" fill="#E6D2A6" />
+        <path d="M0 136 Q 130 118 250 130 T 400 124 V160 H0 Z" fill="#D6BE8C" />
         <rect x="72" y="52" width="9" height="52" rx="2" fill="#6E4B34" />
         <path d="M80 82 L92 72" stroke="#6E4B34" strokeWidth="4" strokeLinecap="round" />
         <circle cx="56" cy="48" r="22" fill="#5E8D5F" />
         <circle cx="96" cy="44" r="24" fill="#5E8D5F" />
         <circle cx="76" cy="28" r="22" fill="#6F9E68" />
         <circle cx="112" cy="60" r="14" fill="#6F9E68" />
-        <ellipse cx="200" cy="119" rx="92" ry="4.5" fill="#5E8D5F" opacity=".45" />
+        <ellipse cx="200" cy="119" rx="92" ry="4.5" fill="#A88B5A" opacity=".45" />
         <g transform="translate(200 108) scale(1.18) translate(-200 -108)">
         <path d="M150 92 H250 L272 114 H128 Z" fill="#FBF3E6" />
         {GINGHAM.map((d) => <path key={d} d={d} fill="#C04A3E" opacity=".42" />)}
@@ -242,8 +242,8 @@ export const COVER_PRESETS: CoverPreset[] = [
     ),
   },
   {
-    // two cups of coffee across a small table, a plant between them
-    id: 'garden', name: 'Coffee catch-up', from: '#E6ECDC', to: '#C9D9B6', scene: (
+    // two cups of coffee across a small table, a plant between them, on teal (the 1:1 hue)
+    id: 'garden', name: 'Coffee catch-up', from: '#DCEEEA', to: '#B2D8D0', scene: (
       <>
         <rect x="0" y="104" width="400" height="56" fill="#AB7C52" />
         <rect x="0" y="104" width="400" height="3" fill="#C0926A" />
@@ -319,13 +319,14 @@ export const COVER_PRESETS: CoverPreset[] = [
   },
   {
     // a talk in a quiet hall: the slide on a big screen, the speaker at a lectern
-    // to one side, the backs of the audience's heads in the rows in front
-    id: 'city', name: 'Conference', from: '#EFE2D0', to: '#D8BF9E', scene: (
+    // to one side, the backs of the audience's heads in the rows in front. Cool greys,
+    // the Conference hue
+    id: 'city', name: 'Conference', from: '#E8E9ED', to: '#C6CAD3', scene: (
       <>
-        <path d="M44 0 V96 M356 0 V96" stroke="#E6D3B8" strokeWidth="6" />
-        <rect x="0" y="96" width="400" height="64" fill="#CDB392" />
-        <rect x="0" y="94" width="400" height="4" fill="#7A6152" />
-        <path d="M152 0 V24 M248 0 V24" stroke="#9E8A72" strokeWidth="1.5" />
+        <path d="M44 0 V96 M356 0 V96" stroke="#D9DCE2" strokeWidth="6" />
+        <rect x="0" y="96" width="400" height="64" fill="#B4B9C4" />
+        <rect x="0" y="94" width="400" height="4" fill="#5B6170" />
+        <path d="M152 0 V24 M248 0 V24" stroke="#8A8F9C" strokeWidth="1.5" />
         <rect x="128" y="22" width="144" height="74" rx="4" fill="#3F3531" />
         <rect x="132" y="26" width="136" height="66" rx="2" fill="#FBF4E8" />
         <rect x="142" y="34" width="62" height="6" rx="3" fill="#B85C3F" />

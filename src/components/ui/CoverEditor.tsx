@@ -108,21 +108,28 @@ export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId
           plan page's larger framed photo beside it, the way each is drawn */}
       <div className="grid gap-4 sm:grid-cols-[200px_minmax(0,1fr)]">
         <div>
-          <div className="rounded-[12px] bg-frame p-2 pb-3 shadow-frame">
-            <div className="relative">
-              <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[92px]" rounded="rounded-lg" />
-              <Keepsake look={look} />
+          {/* a layer of its own around the frame (isolate, with no paint of its own), so
+              a clip's back leg, drawn under the frame, tucks under this frame and not
+              under the page: the same as a real card */}
+          <div className="isolate">
+            <div className="rounded-[12px] bg-frame p-2 pb-3 shadow-frame">
+              <div className="relative">
+                <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[92px]" rounded="rounded-lg" />
+                <Keepsake look={look} />
+              </div>
+              <div className="mt-2.5 truncate px-1 font-serif text-[16px] leading-tight tracking-[-0.01em]">{name}</div>
             </div>
-            <div className="mt-2.5 truncate px-1 font-serif text-[16px] leading-tight tracking-[-0.01em]">{name}</div>
           </div>
           <div className="mt-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">On a card</div>
         </div>
         {/* the plan page's header picture: the same framed photo, larger */}
         <div className="min-w-0">
-          <div className="rounded-[14px] bg-frame p-2.5 pb-3.5 shadow-frame">
-            <div className="relative">
-              <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[112px] sm:h-[150px]" rounded="rounded-lg" />
-              <Keepsake look={look} />
+          <div className="isolate">
+            <div className="rounded-[14px] bg-frame p-2.5 pb-3.5 shadow-frame">
+              <div className="relative">
+                <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[112px] sm:h-[150px]" rounded="rounded-lg" />
+                <Keepsake look={look} />
+              </div>
             </div>
           </div>
           <div className="mt-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">On the plan page</div>

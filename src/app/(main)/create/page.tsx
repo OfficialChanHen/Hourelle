@@ -177,8 +177,10 @@ function modeFromSlots<F extends { granularity: string; scheduleMode: string }>(
   return f.granularity === 'day' && f.scheduleMode === 'find' ? { ...f, scheduleMode: 'days' } : f
 }
 
-// the same presets, as tappable chips on the wizard's first step
-// same order and identity hues as the templates page — keep the two in step
+// the same presets, as tappable chips on the wizard's first step, each in the hue of
+// its own cover scene (dusk coral, evening purple, party pink, harvest amber, meadow
+// green, coast blue, garden teal, city grey): one colour per template, and the scene
+// and the chip always agree. Keep them in step with Cover.tsx
 const WIZ_TEMPLATES: { key: string; label: string; icon: LucideIcon; chip: PersonColor }[] = [
   { key: 'dinner', label: 'Dinner', icon: Utensils, chip: 'coral' },
   { key: 'game-night', label: 'Game night', icon: Dices, chip: 'purple' },
@@ -532,14 +534,16 @@ function CreateWizard() {
 
       {/* start from a template: one tap seeds the form, tap again to go blank. One row
           that scrolls sideways inside itself at every width, so it always costs the
-          form a single line; its far edge fades so it reads as more to come, and a
-          mouse wheel scrolls it sideways too */}
+          form a single line; both edges fade so it reads as more to come either way, and
+          a mouse wheel scrolls it sideways too */}
       <div className="mb-3 sm:mb-4">
         <div id="create-tpl-label" className="mb-1 text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Start from a template</div>
         <div
           ref={tplRow} role="group" aria-labelledby="create-tpl-label"
-          className="scroll-slim -mx-4 flex gap-1.5 overflow-x-auto overscroll-x-contain px-4 pb-2 pt-1 [mask-image:linear-gradient(to_right,#000_calc(100%-40px),transparent)] sm:mx-0 sm:px-0"
+          className="scroll-slim -mx-4 flex gap-1.5 overflow-x-auto overscroll-x-contain px-4 pb-2 pt-1 [mask-image:linear-gradient(to_right,transparent,#000_32px,#000_calc(100%-40px),transparent)] sm:mx-0 sm:px-0"
         >
+          {/* room before the first one too, so the left fade never hides it at rest */}
+          <span aria-hidden className="w-8 flex-none" />
           {WIZ_TEMPLATES.map((t) => {
             const Icon = t.icon
             const on = tpl === t.key

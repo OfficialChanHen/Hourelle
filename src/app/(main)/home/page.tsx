@@ -241,6 +241,7 @@ export default function HomePage() {
                       </div>
                     )
                   }}
+                  ghosts={shown.map((x, i) => <UpNext key={x.e.id} e={x.e} phase={x.phase} sameDay={sameDay(x.e)} size="hero" look={looks[i]} lead ghost />)}
                 >
                   {(corner) => <UpNext e={shown[upI].e} phase={shown[upI].phase} sameDay={sameDay(shown[upI].e)} size="hero" look={looks[upI]} lead corner={corner} />}
                 </Deck>
@@ -360,7 +361,7 @@ function Row({ icon: Icon, children }: { icon: typeof Calendar; children: React.
    inside the tilted photo, with sharing and duplicating beside it. `small` is the
    side card on a wide screen: a shorter picture and only the lines that matter
    most. `look` is its hand-laid details (Keepsake), the same every visit. */
-function UpNext({ e, phase, sameDay, size, look, lead = false, corner }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo; size: 'hero' | 'small'; look: Look; lead?: boolean; corner?: React.ReactNode }) {
+function UpNext({ e, phase, sameDay, size, look, lead = false, corner, ghost = false }: { e: AppEvent; phase: Phase; sameDay?: SameDayInfo; size: 'hero' | 'small'; look: Look; lead?: boolean; corner?: React.ReactNode; ghost?: boolean }) {
   const tilt = look.tilt
   const router = useRouter()
   // a click on the card's empty paper opens the plan, like the cover and the name do.
@@ -394,15 +395,17 @@ function UpNext({ e, phase, sameDay, size, look, lead = false, corner }: { e: Ap
     !d.locked && e.planDeadline && `Deciding by ${shortDay(e.planDeadline)}`,
   ].filter(Boolean) as string[]
   return (
-    <PeekCard people={peopleIn(e)} size={small ? 32 : 40} restShow={small ? 20 : 25} upShow={small ? 28 : 36} tilt={tilt}>
-      <PhotoFrame tilt={tilt} tape={false} size={small ? 'sm' : 'md'} pad={look.pad} onClick={openFromPaper}>
+    <PeekCard people={peopleIn(e)} size={small ? 32 : 40} restShow={small ? 20 : 25} upShow={small ? 28 : 36} tilt={tilt} className="flex-1">
+      {/* in a stack it stretches to the tallest card's height (Deck ghosts), its
+          buttons kept at the bottom, so every card in the pile is the same size */}
+      <PhotoFrame tilt={tilt} tape={false} size={small ? 'sm' : 'md'} pad={look.pad} onClick={openFromPaper} className="flex flex-1 flex-col [&>div:first-child]:flex [&>div:first-child]:flex-1 [&>div:first-child]:flex-col">
         <div className="relative">
           <Link href={eventTabFor(e)} tabIndex={-1} aria-label={e.title} className="block">
             <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className={small ? 'h-[84px]' : 'h-[112px] sm:h-[160px]'} rounded="rounded-lg" />
           </Link>
           <Keepsake look={look} />
         </div>
-        <div ref={details} className={`relative ${small ? 'px-2 pb-2 pt-2.5' : 'px-2 pb-1.5 pt-3'}`}>
+        <div ref={details} className={`relative flex flex-1 flex-col ${small ? 'px-2 pb-2 pt-2.5' : 'px-2 pb-1.5 pt-3'}`}>
           {/* its place in the stack and the way on, in the top right */}
           {/* a little margin around it counts as the button, not the card's paper, so a
               tap just off it on a tilted card moves on instead of opening the plan */}
@@ -468,6 +471,9 @@ function UpNext({ e, phase, sameDay, size, look, lead = false, corner }: { e: Ap
               ))}
             </div>
           )}
+          {/* any room a taller card in the stack leaves goes here, above the note and
+              the buttons, so they sit at the bottom of every card alike */}
+          <div aria-hidden className="flex-1" />
           {/* a note in the margin for what you owe, its arrow measured to the button */}
           {lead && turn && (
             <div className="mt-2.5 flex justify-end pr-2 sm:justify-start sm:pl-[34%]">
@@ -485,7 +491,7 @@ function UpNext({ e, phase, sameDay, size, look, lead = false, corner }: { e: Ap
             </Link>
             <PlanActions e={e} phase={phase} />
           </div>
-          {lead && turn && <PencilArrow from={note} to={task} within={details} />}
+          {lead && turn && !ghost && <PencilArrow from={note} to={task} within={details} />}
         </div>
       </PhotoFrame>
     </PeekCard>

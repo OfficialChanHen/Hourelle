@@ -50,6 +50,7 @@ export function Deck({
   nextAt = 'top-0 bottom-0',
   behind,
   children,
+  ghosts,
   className = '',
 }: {
   count: number
@@ -62,10 +63,18 @@ export function Deck({
   nextAt?: string
   behind?: (depth: number) => React.ReactNode
   children: (corner: React.ReactNode, pos: string | null) => React.ReactNode
+  // every card the stack can show, drawn unseen in the same spot so the stack is
+  // always as tall as its tallest card and nothing below it moves while paging. For
+  // a short pile only (Home's three plans); a long one keeps the tallest it has shown
+  ghosts?: React.ReactNode[]
   className?: string
 }) {
   const root = useRef<HTMLDivElement>(null)
   const fly = useRef<HTMLDivElement>(null)
+  // the cell the top card sits in; without ghosts it keeps the height of the tallest
+  // card it has shown, so a shorter one never pulls what is below it up
+  const cell = useRef<HTMLDivElement>(null)
+  const tallest = useRef(0)
   // under the pile: where a shuffled card goes once it is clear of the stack
   const back = useRef<HTMLDivElement>(null)
   const top = useRef<HTMLDivElement | null>(null)
@@ -93,6 +102,10 @@ export function Deck({
   const many = count > 1
 
   const { contextSafe } = useGSAP(() => {
+    if (!ghosts && cell.current && top.current) {
+      tallest.current = Math.max(tallest.current, top.current.offsetHeight)
+      cell.current.style.minHeight = `${tallest.current}px`
+    }
     const moved = index !== last.current
     last.current = index
     const how = intent.current
@@ -255,12 +268,17 @@ export function Deck({
         {many && behind && [2, 1].filter((d) => d < count).map((d) => (
           <div key={d} data-deck-behind aria-hidden className="pointer-events-none absolute inset-0 z-0">{behind(d)}</div>
         ))}
-        <div
-          key={index}
-          ref={(el) => { if (el && el !== top.current) { prevTop.current = top.current; top.current = el } }}
-          className="relative z-[1]"
-        >
-          {children(corner, many ? `${index + 1}/${count}` : null)}
+        <div ref={cell} className="grid [&>*]:[grid-area:1/1]">
+          {ghosts?.map((g, i) => (
+            <div key={`ghost-${i}`} aria-hidden inert className="pointer-events-none invisible flex flex-col">{g}</div>
+          ))}
+          <div
+            key={index}
+            ref={(el) => { if (el && el !== top.current) { prevTop.current = top.current; top.current = el } }}
+            className="relative z-[1] flex flex-col"
+          >
+            {children(corner, many ? `${index + 1}/${count}` : null)}
+          </div>
         </div>
         {many && leave === 'lift' && (
           /* the next card's edge peeks out on the right: tapping it brings it up */
