@@ -216,6 +216,22 @@ function CreateWizard() {
   // wizard never flashes before the event's own screen
   const [resolving, setResolving] = useState(!!createdParam)
   const [tpl, setTpl] = useState<string | null>(template && TEMPLATE_PRESETS[template] ? template : null)
+  // the template row scrolls sideways; a mouse wheel over it turns it, and only while
+  // it still can, so the page scrolls on as usual once the row is at either end
+  const tplRow = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = tplRow.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+      const max = el.scrollWidth - el.clientWidth
+      if (max <= 0 || (e.deltaY < 0 && el.scrollLeft <= 0) || (e.deltaY > 0 && el.scrollLeft >= max - 1)) return
+      e.preventDefault()
+      el.scrollLeft += e.deltaY
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
   const [form, setForm] = useState<Form>(() => modeFromSlots({ ...initialForm, ...(template ? TEMPLATE_PRESETS[template] : undefined) }))
   const [attempted, setAttempted] = useState(false)
   const [today, setToday] = useState('')
@@ -514,12 +530,16 @@ function CreateWizard() {
     <div className="mx-auto max-w-[760px] px-4 pb-[92px] pt-6 sm:px-[26px] sm:pt-[34px]">
       <h1 className="mb-4 text-center font-serif sm:font-normal text-[27px] leading-[1.04] tracking-[-0.01em] sm:mb-5 sm:text-[33.5px]">Start a plan</h1>
 
-      {/* start from a template: one tap seeds the form, tap again to go blank. On a
-          phone it is a single row that scrolls sideways inside itself, so it costs
-          the name field one line; from sm up it wraps. */}
+      {/* start from a template: one tap seeds the form, tap again to go blank. One row
+          that scrolls sideways inside itself at every width, so it always costs the
+          form a single line; its far edge fades so it reads as more to come, and a
+          mouse wheel scrolls it sideways too */}
       <div className="mb-3 sm:mb-4">
         <div id="create-tpl-label" className="mb-1 text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Start from a template</div>
-        <div role="group" aria-labelledby="create-tpl-label" className="scroll-none -mx-4 flex gap-1.5 overflow-x-auto px-4 py-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+        <div
+          ref={tplRow} role="group" aria-labelledby="create-tpl-label"
+          className="scroll-slim -mx-4 flex gap-1.5 overflow-x-auto overscroll-x-contain px-4 pb-2 pt-1 [mask-image:linear-gradient(to_right,#000_calc(100%-40px),transparent)] sm:mx-0 sm:px-0"
+        >
           {WIZ_TEMPLATES.map((t) => {
             const Icon = t.icon
             const on = tpl === t.key
@@ -532,13 +552,15 @@ function CreateWizard() {
                 aria-pressed={on}
                 // each chip wears its template's identity hue from the templates page;
                 // the picked one steps forward with the accent ring
-                className={`flex h-11 flex-none items-center gap-1.5 whitespace-nowrap rounded-[9px] border px-3.5 text-[13px] font-medium transition-shadow sm:h-8 sm:px-3 ${on ? 'border-accent ring-1 ring-accent' : 'border-transparent hover:brightness-[.97]'}`}
+                className={`flex h-11 flex-none items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-[13px] font-medium transition-shadow sm:h-8 sm:px-3 ${on ? 'border-accent ring-1 ring-accent' : 'border-transparent hover:brightness-[.97]'}`}
                 style={{ background: c.bg, color: c.text }}
               >
                 <Icon size={14} /> {t.label}
               </button>
             )
           })}
+          {/* room past the last one, so it can scroll clear of the fade */}
+          <span aria-hidden className="w-8 flex-none" />
         </div>
       </div>
 

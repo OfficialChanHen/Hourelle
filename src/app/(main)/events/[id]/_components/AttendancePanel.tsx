@@ -160,6 +160,22 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
         ? me?.rsvp === 'pending' && <YourRsvpStrip onPick={changeRsvp} full={full} />
         : !!me && !markedIds.has(me.id) && !unavailSet.has(me.id) && <YourTimesStrip onGo={() => onGoToTab?.('availability')} />}
 
+      {/* while the plan is being decided there is no locked time to count against, so
+          this tab reads the best time (or day) so far, and says so: it can still move */}
+      {!locked && (
+        <p className="flex gap-2 rounded-xl border border-border bg-s2 px-3.5 py-2.5 text-[13px] leading-[1.6] text-dim">
+          <Info size={14} className="mt-[3px] flex-none" aria-hidden />
+          {win ? (
+            <span className="min-w-0">
+              Based on the best {event.granularity === 'day' ? 'day' : 'time'} so far, <span className="font-semibold text-text">{win.dayLabel}{event.granularity === 'day' ? '' : `, ${fmtMinute(gridStart + win.s)} to ${fmtMinute(gridStart + win.e)}`}</span>
+              {event.granularity !== 'day' && <> <TimezonePill tz={event.timezone} /></>}. It can change until the time is locked in.
+            </span>
+          ) : (
+            <span className="min-w-0">No one has marked times yet, so there is no best {event.granularity === 'day' ? 'day' : 'time'} to count against.</span>
+          )}
+        </p>
+      )}
+
       {/* header — friendly summary, share button, and (only when relevant) the model switch */}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <RsvpSummary participants={participants} capacity={event.capacity} locked={locked} available={availableNow} planningOut={outCount} planningNoTimes={noTimesCount} />

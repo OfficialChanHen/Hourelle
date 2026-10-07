@@ -30,6 +30,7 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Cover, COVER_PRESETS } from '@/components/ui/Cover'
 import { CoverEditor, styleSummary } from '@/components/ui/CoverEditor'
+import { Keepsake, lookOf, withDetail } from '@/components/ui/Keepsake'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { lastListPage } from '@/lib/nav'
 import { useEventRoom } from '@/hooks/useEventRoom'
@@ -128,11 +129,10 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     document.getElementById(`tab-${next}`)?.focus()
   }
   const [event, setEvent] = useState<AppEvent | null | undefined>(undefined)
-  // who is coming only means something once a time is set: a plan still being
-  // decided with no fixed date has no Attendance tab (who has answered shows on the
-  // grid). It appears when the time is locked, or from the start on a plan made with
-  // a set date. Landing on ?tab=attendance before then opens the grid instead.
-  const showAttendance = !event || phaseOf(event) !== 'planning' || !!event.confirmed
+  // every plan has its Attendance tab, while it is being decided too: the RSVP
+  // roster is there from the start, and the headcount views fill in once a time is
+  // locked
+  const showAttendance = true
   const tabs = showAttendance ? TABS : TABS.filter((t) => t.key !== 'attendance')
   if (event && !showAttendance && tab === 'attendance') setTab('availability')
   // clicking a person or group elsewhere jumps to the availability grid filtered to
@@ -435,17 +435,21 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             )}
           </Popover>}
         </div>
-        {/* the name, the cover beside it, and the group under the name. On a phone the
-            faces take the full width under both, so six of them fit */}
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 sm:gap-x-8">
-          <div className="col-start-1 row-start-1 min-w-0 self-center sm:self-start">
-            <EditableTitle title={event.title} editable={event.hostedByYou} onSave={(t) => patchLive({ title: t })} />
+        {/* the cover is the header's picture: a large framed photo wearing the plan's
+            own card detail (Style), on the right on a large screen and leading the
+            header on a phone. Beside it, the name, the group as faces and where it
+            stands. Nothing is laid over the picture. */}
+        <div className="mt-2 grid gap-x-10 gap-y-5 lg:grid-cols-[minmax(0,1fr)_minmax(300px,400px)] lg:items-center">
+          <div className="lg:order-last">
+            <PhotoFrame tilt={1.5} tape={false} pad="mid" className="mx-auto w-full max-w-[460px] lg:max-w-none">
+              <div className="relative">
+                <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from={coverFrom} to={coverTo} className="h-[150px] sm:h-[190px] lg:h-[214px]" rounded="rounded-lg" />
+                <Keepsake look={{ ...withDetail(lookOf(event.id, 0), event.keepsake), tilt: 1.5 }} />
+              </div>
+            </PhotoFrame>
           </div>
-          {/* the cover, photo or scene or the plan's own wash, as a small taped photo */}
-          <PhotoFrame size="sm" tilt={3} tape="center" className="col-start-2 row-start-1 mt-4 w-[104px] self-start sm:row-span-2 sm:mt-0 sm:w-[190px]">
-            <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from={coverFrom} to={coverTo} className="h-[70px] sm:h-[124px]" rounded="rounded-[6px]" />
-          </PhotoFrame>
-          <div className="col-span-2 row-start-2 min-w-0 sm:col-span-1 sm:col-start-1">
+          <div className="min-w-0">
+            <EditableTitle title={event.title} editable={event.hostedByYou} onSave={(t) => patchLive({ title: t })} />
             {/* the group, as stickers, and who is hosting as a small note beside them */}
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
               <FaceRibbon people={event.participants} size={34} flippable />
@@ -480,12 +484,13 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
                 )}
               </div>
             )}
+            {/* where it stands, as a sentence */}
+            <div className="mt-4 max-w-[720px]"><StageSummary event={event} phase={phase} onGoToAvailability={goToBestWindow} /></div>
           </div>
         </div>
 
-        {/* where it stands, as a sentence, then the five stages as a line */}
-        <div className="mt-4 max-w-[720px]"><StageSummary event={event} phase={phase} onGoToAvailability={goToBestWindow} /></div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        {/* the five stages as a line, and the host's actions */}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
           <StageStepper phase={phase} className="w-full max-w-[380px]" />
           {/* ml-auto keeps the actions hugging the right edge when the row wraps; on a
               phone the host's lock-in takes the row's full width instead of floating */}
@@ -1900,6 +1905,6 @@ function tourContextOf(event: AppEvent): TourContext {
     places: event.location.places.length,
     canSuggest: !!event.location.guestsCanSuggest,
     othersAnswered: answered.size,
-    attendance: phaseOf(event) !== 'planning' || !!event.confirmed,
+    attendance: true,
   }
 }

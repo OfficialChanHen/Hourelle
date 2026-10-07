@@ -105,7 +105,7 @@ export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId
   return (
     <div className="flex flex-col gap-3">
       {/* one preview for both: the card as a framed photo with its detail, and the
-          event page's wider cover beside it */}
+          plan page's larger framed photo beside it, the way each is drawn */}
       <div className="grid gap-4 sm:grid-cols-[200px_minmax(0,1fr)]">
         <div>
           <div className="rounded-[12px] bg-frame p-2 pb-3 shadow-frame">
@@ -117,10 +117,15 @@ export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId
           </div>
           <div className="mt-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">On a card</div>
         </div>
+        {/* the plan page's header picture: the same framed photo, larger */}
         <div className="min-w-0">
-          <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[92px] border border-border sm:h-[124px]" rounded="rounded-2xl" />
-          <div className="mt-2 truncate font-serif text-[21px] leading-[1.1] tracking-[-0.01em]">{name}</div>
-          <div className="mt-1 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">On the plan page</div>
+          <div className="rounded-[14px] bg-frame p-2.5 pb-3.5 shadow-frame">
+            <div className="relative">
+              <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[112px] sm:h-[150px]" rounded="rounded-lg" />
+              <Keepsake look={look} />
+            </div>
+          </div>
+          <div className="mt-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">On the plan page</div>
         </div>
       </div>
 
