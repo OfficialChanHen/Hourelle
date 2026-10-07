@@ -100,8 +100,10 @@ export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPi
     onPick(id)
   }
 
-  const mayEditQ = canEdit && canEditQuestion(poll, me, host)
-  const mayEditAny = !locked && canEdit && (mayEditQ || poll.o.some((o) => canEditOption(poll, o, me, host)))
+  // rewording stops at the first vote (lib/polls): the pencil goes once nothing is left to change
+  const ballot = votes ?? {}
+  const mayEditQ = canEdit && canEditQuestion(poll, me, host, ballot)
+  const mayEditAny = !locked && canEdit && (mayEditQ || poll.o.some((o) => canEditOption(poll, o, me, host, ballot)))
   const canAdd = live && (s.add || host) && poll.o.length < POLL_OPTION_LIMIT
   // one vote each and no deadline: nothing to say, so no line
   const status = closed || max > 1 || !!s.close
@@ -161,7 +163,7 @@ export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPi
       )}
 
       {editing ? (
-        <PollEditForm poll={poll} me={me} host={host} onSave={(edit) => { if (edit) onEdit(edit); setEditing(false) }} />
+        <PollEditForm poll={poll} votes={ballot} me={me} host={host} onSave={(edit) => { if (edit) onEdit(edit); setEditing(false) }} />
       ) : (
       <div
         ref={flipScope}
@@ -242,13 +244,17 @@ export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPi
    plain text, so the form still reads as the whole poll. Save sends one line with only
    what changed; a blank or a repeat of another option keeps Save off and says why.
    Escape (or Cancel) leaves it as it was. */
-function PollEditForm({ poll, me, host, onSave }: {
+function PollEditForm({ poll, votes, me, host, onSave }: {
   poll: PollState
+  votes: Record<string, string[]>
   me: string | null
   host: boolean
   onSave: (edit: { q?: string; o?: { id: string; t: string }[] } | null) => void
 }) {
-  const mayQ = canEditQuestion(poll, me, host)
+  // what you may change right now: a vote that lands while the form is open turns its
+  // field back into plain text, and Save leaves it out
+  const mayQ = canEditQuestion(poll, me, host, votes)
+  const mayO = (o: PollState['o'][number]) => canEditOption(poll, o, me, host, votes)
   const [q, setQ] = useState(poll.q)
   const [opts, setOpts] = useState<Record<string, string>>(() => Object.fromEntries(poll.o.map((o) => [o.id, o.t])))
   const first = useRef<HTMLInputElement>(null)
@@ -261,7 +267,7 @@ function PollEditForm({ poll, me, host, onSave }: {
   const blankQ = mayQ && !tidy(q)
   const blankIds = new Set(poll.o.filter((o) => !tidy(opts[o.id] ?? '')).map((o) => o.id))
   const changedQ = mayQ && tidy(q) !== poll.q
-  const changedO = poll.o.filter((o) => canEditOption(poll, o, me, host) && tidy(opts[o.id] ?? '') !== o.t)
+  const changedO = poll.o.filter((o) => mayO(o) && tidy(opts[o.id] ?? '') !== o.t)
   const problem = blankQ ? 'The question can’t be empty' : blankIds.size ? 'An option can’t be empty' : dupIds.size ? 'Two options say the same thing' : null
   const ready = !problem && (changedQ || changedO.length > 0)
 
@@ -275,7 +281,7 @@ function PollEditForm({ poll, me, host, onSave }: {
   }
   const field = 'h-11 w-full min-w-0 rounded-[10px] border bg-s0 px-3 text-[13.5px] outline-none focus:border-accent sm:h-9'
   // the cursor starts in the first field: the question, or else the first option you wrote
-  const focusId = mayQ ? null : poll.o.find((o) => canEditOption(poll, o, me, host))?.id
+  const focusId = mayQ ? null : poll.o.find(mayO)?.id
 
   return (
     <form
@@ -284,6 +290,7 @@ function PollEditForm({ poll, me, host, onSave }: {
       className="mt-2.5 flex flex-col gap-1.5"
       aria-label="Edit poll"
     >
+      {!mayQ && <p className="px-0.5 text-[14px] font-semibold leading-[1.35] text-text">{poll.q}</p>}
       {mayQ && (
         <input
           ref={first}
@@ -296,9 +303,15 @@ function PollEditForm({ poll, me, host, onSave }: {
         />
       )}
       {poll.o.map((o) => {
-        if (!canEditOption(poll, o, me, host)) return (
-          <p key={o.id} className="flex min-h-11 items-center rounded-[10px] border border-border bg-s1 px-3 text-[13.5px] text-dim sm:min-h-9">{o.t}</p>
-        )
+        if (!mayO(o)) {
+          const voted = (votes[pollKey(poll.id, o.id)]?.length ?? 0) > 0
+          return (
+            <p key={o.id} className="flex min-h-11 items-center gap-2 rounded-[10px] border border-border bg-s1 px-3 text-[13.5px] text-dim sm:min-h-9">
+              <span className="min-w-0 flex-1 break-words">{o.t}</span>
+              {voted && <span className="flex-none text-[12px] text-faint sm:text-[11.5px]">Has votes</span>}
+            </p>
+          )
+        }
         const bad = dupIds.has(o.id) || blankIds.has(o.id)
         return (
           <input

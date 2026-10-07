@@ -138,12 +138,22 @@ export function encodePollEdit(pollId: string, edit: { q?: string; o?: { id: str
   })
 }
 
-// may this person reword the question / this option? The same rule reducePolls applies
-export function canEditQuestion(poll: Pick<PollState, 'by'>, who: string | null, host: boolean): boolean {
-  return !!who && (host || who === poll.by)
+/* May this person reword the question / this option? Who wrote it decides, the same
+   rule reducePolls applies. And only until anyone has voted: the question until the
+   poll's first vote, an option until its own first vote, so rewording never changes
+   what somebody already chose. The votes live in event.votes, which the chat lines
+   cannot see, so the vote check is made where they are both on hand: on the card,
+   and again at Save with the votes as they are then. */
+function votedOn(poll: Pick<PollState, 'id'>, optionId: string, votes?: Record<string, string[]>): boolean {
+  return (votes?.[pollKey(poll.id, optionId)]?.length ?? 0) > 0
 }
-export function canEditOption(poll: Pick<PollState, 'by'>, option: PollOption, who: string | null, host: boolean): boolean {
-  return !!who && (host || who === (option.by ?? poll.by))
+export function canEditQuestion(poll: Pick<PollState, 'by' | 'id' | 'o'>, who: string | null, host: boolean, votes?: Record<string, string[]>): boolean {
+  if (!who || !(host || who === poll.by)) return false
+  return !votes || !poll.o.some((o) => votedOn(poll, o.id, votes))
+}
+export function canEditOption(poll: Pick<PollState, 'by' | 'id'>, option: PollOption, who: string | null, host: boolean, votes?: Record<string, string[]>): boolean {
+  if (!who || !(host || who === (option.by ?? poll.by))) return false
+  return !votes || !votedOn(poll, option.id, votes)
 }
 
 // a poll, or null for a normal message and for anything that only looks like one
