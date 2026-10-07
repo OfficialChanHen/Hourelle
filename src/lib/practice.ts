@@ -38,11 +38,20 @@ function mine(e: AppEvent, meId: string): boolean {
 }
 
 /** The account's practice event, made on first ask. Resolves its id. */
+// the preset scenes (Cover.tsx's COVER_PRESETS ids): a practice run wears one of them,
+// a fresh pick each time one is made, so it looks like a real plan from the start
+const PRESET_COVERS = ['meadow', 'dusk', 'coast', 'harvest', 'evening', 'garden', 'party', 'city']
+const anyCover = () => `preset:${PRESET_COVERS[Math.floor(Math.random() * PRESET_COVERS.length)]}`
+
 export function ensurePracticeEvent(): string {
   const me = currentAccount()
   const practice = listEvents().filter((e) => e.practice && !e.demo)
   const have = practice.find((e) => e.hostedByYou && mine(e, me.id))
-  if (have) return have.id
+  if (have) {
+    // one made before practice runs had covers gets one now
+    if (!have.image) patchEvent(have.id, { image: anyCover() })
+    return have.id
+  }
   // one from an earlier account on this browser is nobody's now: it goes from here
   // without a word to the server, which would refuse the delete anyway
   for (const e of practice) if (!mine(e, me.id)) leaveEvent(e.id)
@@ -60,6 +69,7 @@ export function ensurePracticeEvent(): string {
     granularity: '30', timezone: tz, budget: '', durationMin: 120,
     locMode: 'vote', planMode: 'vote', picked: PLACES.map((p) => ({ id: p.id, name: p.name, place: p.place })),
     platform: '', meetingLink: '', emails: [], accounts: [],
+    image: anyCover(),
   })
   const fresh = getEvent(ev.id) ?? ev
 

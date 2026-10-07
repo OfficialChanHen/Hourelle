@@ -29,7 +29,8 @@ import { Suspense, useEffect, useId, useMemo, useRef, useState, type RefObject }
 import { useRouter, useSearchParams } from 'next/navigation'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { fetchEvent } from '@/lib/remote'
-import { CoverEditor, type ImageFit } from '@/components/ui/CoverEditor'
+import { CoverEditor, styleSummary, type ImageFit } from '@/components/ui/CoverEditor'
+import type { CardDetail } from '@/components/ui/Keepsake'
 import { coverPresetOf } from '@/components/ui/Cover'
 import { reducedMotion } from '@/lib/prefs'
 import { copyCoverInto, uploadCover } from '@/lib/covers'
@@ -142,6 +143,7 @@ type Form = {
   image?: string
   imageFit?: ImageFit
   imagePos?: { x: number; y: number }
+  keepsake?: CardDetail
 }
 
 const initialForm: Form = {
@@ -175,8 +177,10 @@ function modeFromSlots<F extends { granularity: string; scheduleMode: string }>(
   return f.granularity === 'day' && f.scheduleMode === 'find' ? { ...f, scheduleMode: 'days' } : f
 }
 
-// the same presets, as tappable chips on the wizard's first step
-// same order and identity hues as the templates page — keep the two in step
+// the same presets, as tappable chips on the wizard's first step, each in the hue of
+// its own cover scene (dusk coral, evening purple, party pink, harvest amber, meadow
+// green, coast blue, garden teal, city grey): one colour per template, and the scene
+// and the chip always agree. Keep them in step with Cover.tsx
 const WIZ_TEMPLATES: { key: string; label: string; icon: LucideIcon; chip: PersonColor }[] = [
   { key: 'dinner', label: 'Dinner', icon: Utensils, chip: 'coral' },
   { key: 'game-night', label: 'Game night', icon: Dices, chip: 'purple' },
@@ -214,6 +218,22 @@ function CreateWizard() {
   // wizard never flashes before the event's own screen
   const [resolving, setResolving] = useState(!!createdParam)
   const [tpl, setTpl] = useState<string | null>(template && TEMPLATE_PRESETS[template] ? template : null)
+  // the template row scrolls sideways; a mouse wheel over it turns it, and only while
+  // it still can, so the page scrolls on as usual once the row is at either end
+  const tplRow = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = tplRow.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+      const max = el.scrollWidth - el.clientWidth
+      if (max <= 0 || (e.deltaY < 0 && el.scrollLeft <= 0) || (e.deltaY > 0 && el.scrollLeft >= max - 1)) return
+      e.preventDefault()
+      el.scrollLeft += e.deltaY
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
   const [form, setForm] = useState<Form>(() => modeFromSlots({ ...initialForm, ...(template ? TEMPLATE_PRESETS[template] : undefined) }))
   const [attempted, setAttempted] = useState(false)
   const [today, setToday] = useState('')
@@ -266,6 +286,7 @@ function CreateWizard() {
       capacity: d.capacity ?? f.capacity,
       image: d.image,
       imageFit: d.imageFit,
+      keepsake: d.keepsake,
       startDate: d.startDate ?? f.startDate,
       endDate: d.endDate ?? f.endDate,
       excludedDows: d.excludedDows ?? f.excludedDows,
@@ -511,12 +532,18 @@ function CreateWizard() {
     <div className="mx-auto max-w-[760px] px-4 pb-[92px] pt-6 sm:px-[26px] sm:pt-[34px]">
       <h1 className="mb-4 text-center font-serif sm:font-normal text-[27px] leading-[1.04] tracking-[-0.01em] sm:mb-5 sm:text-[33.5px]">Start a plan</h1>
 
-      {/* start from a template: one tap seeds the form, tap again to go blank. On a
-          phone it is a single row that scrolls sideways inside itself, so it costs
-          the name field one line; from sm up it wraps. */}
+      {/* start from a template: one tap seeds the form, tap again to go blank. One row
+          that scrolls sideways inside itself at every width, so it always costs the
+          form a single line; both edges fade so it reads as more to come either way, and
+          a mouse wheel scrolls it sideways too */}
       <div className="mb-3 sm:mb-4">
         <div id="create-tpl-label" className="mb-1 text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Start from a template</div>
-        <div role="group" aria-labelledby="create-tpl-label" className="scroll-none -mx-4 flex gap-1.5 overflow-x-auto px-4 py-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+        <div
+          ref={tplRow} role="group" aria-labelledby="create-tpl-label"
+          className="scroll-slim -mx-4 flex gap-1.5 overflow-x-auto overscroll-x-contain px-4 pb-2 pt-1 [mask-image:linear-gradient(to_right,transparent,#000_32px,#000_calc(100%-40px),transparent)] sm:mx-0 sm:px-0"
+        >
+          {/* room before the first one too, so the left fade never hides it at rest */}
+          <span aria-hidden className="w-8 flex-none" />
           {WIZ_TEMPLATES.map((t) => {
             const Icon = t.icon
             const on = tpl === t.key
@@ -529,13 +556,15 @@ function CreateWizard() {
                 aria-pressed={on}
                 // each chip wears its template's identity hue from the templates page;
                 // the picked one steps forward with the accent ring
-                className={`flex h-11 flex-none items-center gap-1.5 whitespace-nowrap rounded-[9px] border px-3.5 text-[13px] font-medium transition-shadow sm:h-8 sm:px-3 ${on ? 'border-accent ring-1 ring-accent' : 'border-transparent hover:brightness-[.97]'}`}
+                className={`flex h-11 flex-none items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-[13px] font-medium transition-shadow sm:h-8 sm:px-3 ${on ? 'border-accent ring-1 ring-accent' : 'border-transparent hover:brightness-[.97]'}`}
                 style={{ background: c.bg, color: c.text }}
               >
                 <Icon size={14} /> {t.label}
               </button>
             )
           })}
+          {/* room past the last one, so it can scroll clear of the fade */}
+          <span aria-hidden className="w-8 flex-none" />
         </div>
       </div>
 
@@ -580,8 +609,8 @@ function CreateWizard() {
                   className={`${inputCls(false)} h-[72px] resize-none py-[11px] leading-[1.5]`}
                 />
               </Collapse>
-              <Collapse icon={ImagePlus} title="Cover" summary={isPhotoCover(form.image) ? `Your photo, ${form.imageFit === 'fit' ? 'fitted' : 'filling the frame'}` : form.image ? coverPresetOf(form.image)?.name ?? 'A scene' : 'A scene or a photo of your own'}>
-                <CoverEditor image={form.image} fit={form.imageFit} pos={form.imagePos} title={form.title} onChange={(p) => update(p)} />
+              <Collapse icon={ImagePlus} title="Style" summary={styleSummary(form.image, form.imageFit, form.keepsake)}>
+                <CoverEditor image={form.image} fit={form.imageFit} pos={form.imagePos} keepsake={form.keepsake} title={form.title} onChange={(p) => update(p)} />
               </Collapse>
               <Collapse icon={Wallet} title="Budget and spots" summary={moneySummary}>
                 <div className="flex flex-wrap gap-3.5">

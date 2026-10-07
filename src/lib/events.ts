@@ -16,6 +16,7 @@ import {
   messages as demoMsgs,
   type ChatMessage,
 } from './sample'
+import type { CardDetail } from '@/components/ui/Keepsake'
 
 export type { ChatMessage }
 
@@ -115,6 +116,9 @@ export type AppEvent = {
   // which part of a cropped photo to keep, as percentages, the way object-position
   // reads them. Absent means the middle, which is what every cover did before this.
   imagePos?: { x: number; y: number }
+  // the detail on the plan's card (pins, tape, a clip, photo corners) or 'none';
+  // absent means the one its id deals
+  keepsake?: CardDetail
   messages: ChatMessage[]
   createdAt: number
   demo?: boolean
@@ -157,6 +161,7 @@ export type CreateInput = {
   image?: string        // the cover, chosen in the wizard or carried over by a duplicate
   imageFit?: 'fill' | 'fit'
   imagePos?: { x: number; y: number }
+  keepsake?: CardDetail
 
   picked: { id: string; name: string; place: string; lat?: number; lng?: number }[]
   platform: string
@@ -1087,6 +1092,7 @@ export function draftFromEvent(id: string): EventDraft | null {
     image: ev.image,
     imageFit: ev.imageFit,
     imagePos: ev.imagePos,
+    keepsake: ev.keepsake,
     startDate,
     endDate,
     excludedDows,
@@ -1633,6 +1639,7 @@ export function createEvent(input: CreateInput): AppEvent {
     bestMode: input.bestMode,
     capacity: input.capacity && Number(input.capacity) >= 1 ? Number(input.capacity) : undefined,
     ...(input.image ? { image: input.image, imageFit: input.imageFit, imagePos: input.imagePos } : {}),
+    ...(input.keepsake ? { keepsake: input.keepsake } : {}),
     messages: [],
     createdAt: Date.now(),
     status: fixed && !placeOpen ? 'confirmed' : 'planning',

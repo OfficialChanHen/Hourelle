@@ -11,7 +11,6 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { ArrowUp, Check } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
-import { pileCut } from '@/components/ui/AvatarRow'
 import { Badge } from '@/components/ui/Badge'
 import type { PersonColor } from '@/lib/colors'
 import { cursorTo, GhostCursor, prefersReducedMotion, useInView, VignetteFrame } from './Vignette'
@@ -117,8 +116,8 @@ export function BallotDemo() {
                         </div>
                         <div className="mt-0.5 truncate text-[12px] text-dim">{p.place} ({n} {n === 1 ? 'vote' : 'votes'})</div>
                         <div className="mt-1 flex h-[18px]">
-                          {isMine && <span className="flex"><Avatar initials="JM" color="purple" size={18} font={8} cut={voters.length ? pileCut(18, 4) : undefined} /></span>}
-                          {voters.map((v, i) => <span key={v} className={`flex ${isMine || i > 0 ? '-ml-1' : ''}`}><Avatar initials={PEOPLE[v].i} color={PEOPLE[v].c} size={18} font={8} cut={i < voters.length - 1 ? pileCut(18, 4) : undefined} /></span>)}
+                          {isMine && <span className="flex"><Avatar initials="JM" color="purple" size={18} font={8} /></span>}
+                          {voters.map((v, i) => <span key={v} className={`flex ${isMine || i > 0 ? '-ml-1' : ''}`}><Avatar initials={PEOPLE[v].i} color={PEOPLE[v].c} size={18} font={8} /></span>)}
                         </div>
                       </div>
                       <button type="button" data-vote={p.id} onClick={() => vote(p.id)} aria-pressed={isMine} disabled={!done} className={`flex h-9 w-9 flex-none items-center justify-center rounded-[9px] border transition-colors disabled:cursor-default ${isMine ? 'border-accent bg-accent text-on-accent' : 'border-border2 bg-s1 text-dim hover:border-accent-border hover:text-accent-text'}`} aria-label={isMine ? `Take your vote off ${p.name}` : `Vote for ${p.name}`}>

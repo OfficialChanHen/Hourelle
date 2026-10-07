@@ -137,7 +137,8 @@ export function Header() {
 
         {/* two icons, each meaning what it shows: the bell is alerts, the avatar is you.
             Theme moved into the avatar menu — a header row of icon buttons is noise */}
-        <div className="hidden items-center gap-2 md:flex">
+        {/* wide enough apart that the avatar's hover ring never crowds the bell */}
+        <div className="hidden items-center gap-4 md:flex">
           <Link
             href="/notifications"
             aria-label={notifCount > 0 ? `Notifications, ${notifCount} unread` : 'Notifications'}
@@ -161,7 +162,7 @@ export function Header() {
           {/* the avatar opens the account menu — the pattern every app trains */}
           {/* the hover and open rings are outlines set out far enough to clear the face's
               shape (an arch's corners reach past a plain circle); the focus ring matches */}
-          <span className="contents" style={{ '--ring-gap': `${ringGap(myFace, 30, 1.5)}px` } as CSSProperties}>
+          <span className="contents" style={{ '--ring-gap': `${ringGap(30, 1.5)}px` } as CSSProperties}>
           <Popover
             align="end"
             width={236}

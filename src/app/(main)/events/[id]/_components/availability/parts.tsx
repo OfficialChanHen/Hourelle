@@ -8,10 +8,10 @@ import { Bell, CalendarPlus, Check, ChevronDown, Eraser, GripHorizontal, Minus, 
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
-import { pileCut } from '@/components/ui/AvatarRow'
 import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/Popover'
 import type { Participant } from '@/lib/events'
-import { defaultFace, ringGap } from '@/lib/faces'
+import { ringGap } from '@/lib/faces'
+import { reducedMotion } from '@/lib/prefs'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import type { Band } from './grid-lib'
 
@@ -28,22 +28,23 @@ export function FilterAvatars({ participants, filter, onToggle, onClear, onSelec
     <span className="flex items-center">
       {shown.map((p, i) => {
         const on = filter.has(p.id)
-        const gap = ringGap(p.face ?? defaultFace(p.initials, p.color), 25, 1.5)
+        const gap = ringGap(25, 1)
         return (
           <button
             key={p.id} type="button" onClick={() => onToggle(p.id)}
             aria-pressed={on} aria-label={p.name}
             title={on ? `${p.name}: click to unfilter` : `${p.name}: see when they are free`}
-            className={`face-ring relative grid h-[25px] w-[25px] flex-none place-items-center rounded-full transition-opacity [-webkit-tap-highlight-color:transparent] ${i > 0 ? '-ml-[5px]' : ''}`}
-            // a chosen face is ringed in accent, set off by a see-through gap, and sits on
-            // top of its neighbours; the rest are notched where the next face overlaps
+            className={`face-ring relative grid h-[25px] w-[25px] flex-none place-items-center rounded-full transition-opacity [-webkit-tap-highlight-color:transparent] ${i > 0 ? 'ml-2' : ''}`}
+            // a chosen face is ringed in accent, set off by a see-through gap; every ring
+            // here is the same size whatever the face's shape (ringGap), and the faces
+            // stand far enough apart that neighbouring rings never cross
             style={{
               '--ring-gap': `${gap}px`,
               ...(on ? { outline: '2px solid var(--accent)', outlineOffset: gap, zIndex: 1 } : {}),
               opacity: active && !on ? 0.35 : 1,
             } as CSSProperties}
           >
-            <Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} cut={!on && i < shown.length - 1 ? pileCut(25, 5) : undefined} />
+            <Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} />
           </button>
         )
       })}
@@ -328,6 +329,8 @@ export function PresetFills({ onFill, onFillAll }: { onFill: (startClock: number
 }
 
 /* ── who hasn't responded, and a nudge by email when the host can send one ── */
+const MISSING_CAP = 25
+
 export function MissingPopover({ missing, nudged, canNudge = false, note = null, onNudge, onNudgeAll, onClose }: { missing: Participant[]; nudged: Set<string>; canNudge?: boolean; note?: string | null; onNudge: (id: string) => void; onNudgeAll: () => void; onClose: () => void }) {
   const wrap = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -336,29 +339,48 @@ export function MissingPopover({ missing, nudged, canNudge = false, note = null,
     window.addEventListener('pointerdown', onDown); window.addEventListener('keydown', onKey)
     return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
   }, [onClose])
+  // it hangs from its button's left edge; when that would run it past the window's
+  // right side (a narrow window, the button far to the right), it is moved back in,
+  // measured before it is painted so it never shows in the wrong place
+  useLayoutEffect(() => {
+    const el = wrap.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const over = r.right - (document.documentElement.clientWidth - 16)
+    if (over > 0) el.style.transform = `translateX(${-Math.min(over, Math.max(0, r.left - 16))}px)`
+  }, [])
+  // opened low on a phone it would run under the tab bar: bring all of it into view
+  useEffect(() => {
+    wrap.current?.scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' })
+  }, [])
   const allNudged = missing.every((p) => nudged.has(p.id))
+  // a long wait list draws the first few by name and counts the rest; Nudge all
+  // still reaches everyone
+  const shown = missing.slice(0, MISSING_CAP)
+  const more = missing.length - shown.length
   return (
-    <div ref={wrap} id="missing-popover" role="dialog" aria-labelledby="missing-popover-title" className="absolute left-0 top-full z-[35] mt-1 w-[244px] rounded-[10px] border border-border bg-s1 p-2 shadow-soft">
+    <div ref={wrap} id="missing-popover" role="dialog" aria-labelledby="missing-popover-title" style={{ scrollMarginBottom: 96, scrollMarginTop: 72 }} className="absolute left-0 top-full z-[35] mt-1 w-[260px] max-w-[calc(100vw-48px)] rounded-xl border border-border bg-s1 p-2 shadow-soft">
       <div className="flex items-center justify-between px-1 pb-1.5">
         <span id="missing-popover-title" className="text-[12px] font-semibold uppercase tracking-[.1em] text-faint">Waiting on {missing.length}</span>
         {canNudge && <button onClick={onNudgeAll} disabled={allNudged} className="flex items-center gap-1 text-[12px] font-semibold text-accent-text disabled:text-faint"><Bell size={12} /> Nudge all</button>}
       </div>
       {note && <p className="px-1 pb-1.5 text-[12px] leading-[1.45] text-dim">{note}</p>}
       <div className="scroll-slim flex max-h-[220px] flex-col gap-0.5 overflow-auto">
-        {missing.map((p) => {
+        {shown.map((p) => {
           const done = nudged.has(p.id)
           return (
             <div key={p.id} className="flex items-center gap-2 rounded-[7px] px-1 py-1">
               <Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={10} />
               <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}</span>
               {canNudge && (
-                <button onClick={() => onNudge(p.id)} disabled={done} className={`flex h-6 items-center gap-1 rounded-full px-2 text-[12px] font-semibold ${done ? 'text-teal-text' : 'border border-border2 hover:bg-s2'}`}>
+                <button onClick={() => onNudge(p.id)} disabled={done} className={`flex h-9 flex-none items-center gap-1 rounded-full px-2.5 text-[12px] font-semibold sm:h-6 sm:px-2 ${done ? 'text-teal-text' : 'border border-border2 hover:bg-s2'}`}>
                   {done ? <><Check size={12} /> Nudged</> : <><Bell size={12} /> Nudge</>}
                 </button>
               )}
             </div>
           )
         })}
+        {more > 0 && <p className="px-1 pb-0.5 pt-1.5 text-[12.5px] text-dim">and {more} more</p>}
       </div>
     </div>
   )

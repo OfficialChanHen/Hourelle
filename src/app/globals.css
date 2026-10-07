@@ -63,14 +63,17 @@
   /* person colours: faces and initials chips, decorative identity only. A pale
      fill with a dark feature shade on paper; features clear 4.5:1 on their fill in
      every theme, so the initials on a face's back read too. */
-  --person-purple-bg:#E1D8E4; --person-purple-fg:#4A2F52;
-  --person-teal-bg:#D6E4D6;   --person-teal-fg:#2E4A3C;
-  --person-coral-bg:#ECD9CE;  --person-coral-fg:#6B3F2A;
-  --person-blue-bg:#D6E1EA;   --person-blue-fg:#2C4A5C;
-  --person-amber-bg:#EFE4C9;  --person-amber-fg:#6E5523;
-  --person-pink-bg:#EAD6D3;   --person-pink-fg:#6E3B38;
-  --person-green-bg:#DCE6D2;  --person-green-fg:#3A5223;
-  --person-gray-bg:#E2DED3;   --person-gray-fg:#4A463C;
+  --person-purple-bg:#DCCBEA; --person-purple-fg:#4A2F52;
+  --person-teal-bg:#BFE0CF;   --person-teal-fg:#2E4A3C;
+  --person-coral-bg:#F5CDB8;  --person-coral-fg:#6B3F2A;
+  --person-blue-bg:#C6DCF0;   --person-blue-fg:#2C4A5C;
+  --person-amber-bg:#F4DFA5;  --person-amber-fg:#6E5523;
+  --person-pink-bg:#F3C9CF;   --person-pink-fg:#6E3B38;
+  --person-green-bg:#D3E6B5;  --person-green-fg:#3A5223;
+  --person-gray-bg:#E0D8C9;   --person-gray-fg:#4A463C;
+  /* every face is a sticker: a die-cut edge in paper white that follows its shape,
+     and a small lift. The edge is what parts one face from the next in a pile. */
+  --face-edge:#FFFDF9; --face-lift:drop-shadow(0 1px 1.2px rgba(60,40,20,.22));
 
   /* scrapbook + soft flow: only for moments (covers, Up next, It's on, empty
      states), never on a decision surface. Soft shapes are the organic colour behind
@@ -90,6 +93,12 @@
   /* the sticky note for "Your turn": its own warm paper and inks, all 4.5:1 on it */
   --sticky:#F7EBC9; --sticky-text:#1F1B16; --sticky-dim:#5C5140; --sticky-kicker:#A0452A;
   --sticky-shadow:0 8px 18px rgba(60,40,20,.10);
+  /* the post-it's glue band and the shadow under its lifted corner */
+  --sticky-band:rgba(120,90,30,.07); --sticky-curl:rgba(60,40,20,.30);
+  /* album photo corners (Keepsake): dark paper pockets with a lighter fold */
+  --mount:#3B342B; --mount-fold:#6E6457;
+  /* a big sticker's lift off the page (your face on Home) */
+  --sticker-lift:drop-shadow(0 1px 1px rgba(60,40,20,.18)) drop-shadow(0 6px 10px rgba(60,40,20,.14));
 }
 
 /* Dark — warm charcoal, the same warmth held at the same distance */
@@ -128,16 +137,18 @@
      flipped face (text, 4.5:1 and up), and a softer ink for the drawn features, about
      3.8:1 on the fill, so eyes and hair read without glaring. Studio and Daylight dark
      use these too. */
-  --person-purple-bg:#4A3D52; --person-purple-fg:#E6D8EC;
-  --person-teal-bg:#35493E;   --person-teal-fg:#CFE5D5;
-  --person-coral-bg:#553F33;  --person-coral-fg:#F1D6C6;
-  --person-blue-bg:#354756;   --person-blue-fg:#D3E2EE;
-  --person-amber-bg:#524630;  --person-amber-fg:#F0E0B8;
-  --person-pink-bg:#553B39;   --person-pink-fg:#F1D3CF;
-  --person-green-bg:#3D4B31;  --person-green-fg:#D8E8C6;
-  --person-gray-bg:#46433B;   --person-gray-fg:#E4DFD3;
-  --person-purple-ink:#A89AAE; --person-teal-ink:#91A799; --person-coral-ink:#B49B8D; --person-blue-ink:#94A4B1;
-  --person-amber-ink:#B2A483;  --person-pink-ink:#B49894; --person-green-ink:#9AA98A; --person-gray-ink:#A39F95;
+  --person-purple-bg:#54406A; --person-purple-fg:#E6D8EC;
+  --person-teal-bg:#2F5443;   --person-teal-fg:#CFE5D5;
+  --person-coral-bg:#64412F;  --person-coral-fg:#F1D6C6;
+  --person-blue-bg:#33506A;   --person-blue-fg:#D3E2EE;
+  --person-amber-bg:#5E4C26;  --person-amber-fg:#F0E0B8;
+  --person-pink-bg:#633A42;   --person-pink-fg:#F1D3CF;
+  --person-green-bg:#415628;  --person-green-fg:#D8E8C6;
+  --person-gray-bg:#4B463D;   --person-gray-fg:#E4DFD3;
+  --person-purple-ink:#AE9CBC; --person-teal-ink:#93B4A1; --person-coral-ink:#C3A08C; --person-blue-ink:#9BB2C6;
+  --person-amber-ink:#BFA978;  --person-pink-ink:#C39CA2; --person-green-ink:#A3B88A; --person-gray-ink:#A8A296;
+  /* the sticker edge on charcoal: a warm light rim, quieter than paper white */
+  --face-edge:#5A5247; --face-lift:drop-shadow(0 1px 1.5px rgba(0,0,0,.55));
   --shape-a:#1B231D; --shape-b:#261C17; --shape-c:#231F18;
   --tape:rgba(236,224,196,.22);
   --tape-2:rgba(160,200,175,.22); --pin:#C9A36A; --clip:#8A857B;
@@ -145,6 +156,9 @@
   --frame:#25221D; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
   --sticky:#3A3220; --sticky-text:#F5ECD2; --sticky-dim:#D6C9A6; --sticky-kicker:#F4B8A0;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
+  --sticky-band:rgba(255,240,200,.05); --sticky-curl:rgba(0,0,0,.65);
+  --mount:#0E0D0B; --mount-fold:#3A352E;
+  --sticker-lift:drop-shadow(0 1px 1px rgba(0,0,0,.5)) drop-shadow(0 8px 14px rgba(0,0,0,.45));
 }
 
 /* ── Appearances — optional palettes layered over the same tokens ──
@@ -328,6 +342,8 @@
   --person-pink-bg:#E8CBC6;   --person-pink-fg:#3A1512;
   --person-green-bg:#D2E2C3;  --person-green-fg:#172909;
   --person-gray-bg:#DAD5C8;   --person-gray-fg:#221F18;
+  /* high contrast: the sticker edge is a plain dark line, no shadow */
+  --face-edge:#111111; --face-lift:none;
   /* no soft shapes here: they match the page and SoftShapes is hidden besides */
   --shape-a:var(--bg); --shape-b:var(--bg); --shape-c:var(--bg);
   --tape:#BDBDBD;
@@ -364,6 +380,7 @@
   /* High contrast keeps full-strength features: undo the softer dark ink */
   --person-purple-ink:#FFFFFF; --person-teal-ink:#FFFFFF; --person-coral-ink:#FFFFFF; --person-blue-ink:#FFFFFF;
   --person-amber-ink:#FFFFFF;  --person-pink-ink:#FFFFFF; --person-green-ink:#FFFFFF; --person-gray-ink:#FFFFFF;
+  --face-edge:#FFFFFF; --face-lift:none;
   --shape-a:var(--bg); --shape-b:var(--bg); --shape-c:var(--bg);
   --tape:#6B6B6B;
   --tape-2:#8A8A8A; --pin:#FFFFFF; --clip:#D0D0D0;
@@ -389,6 +406,7 @@
   --color-grid-edge:var(--grid-edge);
   --color-raised:var(--raised);
   --color-frame:var(--frame); --color-tape:var(--tape); --color-tape-2:var(--tape-2); --color-pin:var(--pin); --color-clip:var(--clip); --color-pencil-hover:var(--pencil-hover);
+  --color-sticky-band:var(--sticky-band); --color-sticky-curl:var(--sticky-curl);
   --color-sticky:var(--sticky); --color-sticky-text:var(--sticky-text); --color-sticky-dim:var(--sticky-dim); --color-sticky-kicker:var(--sticky-kicker);
   --shadow-frame:var(--frame-shadow); --shadow-sticky:var(--sticky-shadow);
   --shadow-raised:var(--raised-shadow);
@@ -529,6 +547,10 @@ input[type="date"]::-webkit-date-and-time-value {
 
 /* pencil marks (Pencil.tsx): High contrast draws them as plain solid lines */
 [data-palette="contrast"] .pencil { filter: none; }
+/* high contrast: the pin is a flat disc with a dark rim, no glint or cast shadow */
+[data-palette="contrast"] .pushpin-shadow, [data-palette="contrast"] .pushpin ellipse:last-child { display: none; }
+[data-palette="contrast"] .pushpin-ball { fill: var(--pin); stroke: var(--text); stroke-width: 1.5; }
+[data-palette="contrast"] { --sticky-curl: transparent; --sticky-band: transparent; --sticker-lift: none; }
 /* the highlighter: one marker shape per line behind the words (Pencil.tsx Highlight),
    multiplied on light paper */
 .pencil-highlight-ink {

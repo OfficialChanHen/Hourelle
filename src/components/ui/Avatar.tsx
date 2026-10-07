@@ -18,9 +18,6 @@ import { FaceSvg } from './FaceSvg'
    want genuinely different sizes: ~21px inline in a card, 26px in a roster row,
    34px in a guest list. `font` sizes the initials on the back of a flippable face.
 
-   `cut` is for piles: the mask (from pileCut) that notches this face where the next
-   one overlaps it. It goes on the drawing, never the button, so a focus ring stays whole.
-
    Hidden from screen readers by default: nearly everywhere it sits beside the
    person's name. Where the face is the only thing naming someone, pass `label` and
    it is read as an image of that name (or name the pile it sits in instead).
@@ -37,7 +34,6 @@ export function Avatar({
   face,
   size: rawSize = 26,
   font,
-  cut,
   title,
   label,
   flippable = false,
@@ -48,7 +44,6 @@ export function Avatar({
   face?: Face
   size?: number
   font?: number
-  cut?: CSSProperties
   title?: string
   label?: string
   flippable?: boolean
@@ -62,7 +57,7 @@ export function Avatar({
     return (
       <FlipFace
         initials={initials} color={color} face={look} size={size} font={font}
-        cut={cut} name={label ?? title ?? initials} turn={turn}
+        name={label ?? title ?? initials} turn={turn}
       />
     )
   }
@@ -72,7 +67,7 @@ export function Avatar({
       role={label ? 'img' : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}
-      style={{ width: size, height: size, transform: turn, ...cut }}
+      style={{ width: size, height: size, transform: turn }}
       className="inline-flex shrink-0 select-none"
     >
       <FaceSvg face={look} color={color} size={size} />
@@ -83,8 +78,8 @@ export function Avatar({
 /* The face as a button: front is the face, back is the initials on the colour. The
    button is as big as the face, and a hit area around it reaches 44px, so a small
    face in a roster row is still easy to tap. */
-function FlipFace({ initials, color, face, size, font, cut, name, turn }: {
-  initials: string; color: PersonColor; face: Face; size: number; font?: number; cut?: CSSProperties; name: string; turn?: string
+function FlipFace({ initials, color, face, size, font, name, turn }: {
+  initials: string; color: PersonColor; face: Face; size: number; font?: number; name: string; turn?: string
 }) {
   const { scope, flipped, toggle } = useFaceFlip()
   const c = personVar(color)
@@ -93,21 +88,20 @@ function FlipFace({ initials, color, face, size, font, cut, name, turn }: {
     <button
       ref={scope} type="button" onClick={toggle}
       aria-label={name} aria-pressed={flipped} title={name}
-      style={{ width: size, height: size, perspective: size * 6, transform: turn, '--ring-gap': `${ringGap(face, size)}px` } as CSSProperties}
+      style={{ width: size, height: size, perspective: size * 6, transform: turn, '--ring-gap': `${ringGap(size)}px` } as CSSProperties}
       className="face-ring relative block shrink-0 cursor-pointer select-none rounded-full p-0 [-webkit-tap-highlight-color:transparent]"
     >
       {reach > 0 && <span aria-hidden className="absolute" style={{ inset: -reach }} />}
-      {/* the pile's notch sits on a layer that does not turn, so it stays on the side
-          the next face overlaps whichever way up the face is */}
-      <span className="block h-full w-full" style={cut}>
       <span className="face-flip relative block h-full w-full" style={{ transformStyle: 'preserve-3d' }}>
         <span className="absolute inset-0" style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>
           <FaceSvg face={face} color={color} size={size} />
         </span>
         <span
           aria-hidden
-          className="absolute inset-0 grid place-items-center rounded-full font-semibold leading-none"
+          className="absolute grid place-items-center rounded-full font-semibold leading-none"
           style={{
+            // the back is the same sticker: a disc the size of the drawn face, with its edge
+            inset: size / 22, boxShadow: `0 0 0 ${size / 20}px var(--face-edge)`, filter: 'var(--face-lift)',
             background: c.bg, color: c.text,
             fontSize: font ?? Math.round(size * 0.36 * 10) / 10,
             backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)',
@@ -115,7 +109,6 @@ function FlipFace({ initials, color, face, size, font, cut, name, turn }: {
         >
           {initials}
         </span>
-      </span>
       </span>
     </button>
   )

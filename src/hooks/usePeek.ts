@@ -60,7 +60,8 @@ export function usePeek({ restY, upY, restTilt, upTilt, band = false }: {
   // plain handlers: the refs are read when the pointer moves, never during render,
   // and each tween is made inside the hook's context so it is cleaned up with it
   function rise() {
-    if (up.current || reducedMotion()) return
+    // a card that has just come up in a Deck keeps still until the one leaving is gone
+    if (up.current || reducedMotion() || scope.current?.closest('[data-deck-busy]')) return
     up.current = true
     contextSafe(() => { gsap.to('.peek-face', { ...riseTo(), overwrite: true }) })()
   }
