@@ -6,6 +6,7 @@ import { gsap } from 'gsap'
 import { reducedMotion } from '@/lib/prefs'
 import { liftOff, peelable, type Peel } from '@/animations/deck'
 import { PeelEdge } from './PeelEdge'
+import { Still } from './Still'
 import { ArrowRight } from 'lucide-react'
 
 /* A stack you go through by taking the top thing off, the way you would by hand:
@@ -272,7 +273,7 @@ export function Deck({
             and the way on follow the card, and no card is stretched or squeezed */}
         <div ref={cell} className="grid [&>*]:[grid-area:1/1]">
           {ghosts?.map((g, i) => (
-            <div key={`ghost-${i}`} aria-hidden inert className="pointer-events-none invisible self-start">{g}</div>
+            <div key={`ghost-${i}`} aria-hidden inert className="pointer-events-none invisible self-start"><Still>{g}</Still></div>
           ))}
           <div className="relative self-start">
             {many && behind && [2, 1].filter((d) => d < count).map((d) => (

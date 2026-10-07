@@ -4,6 +4,7 @@ import { Children, useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { reducedMotion } from '@/lib/prefs'
+import { useStill } from './Still'
 
 /* ── pencil and ink: hand-drawn marks, planning on paper ──
    Small SVG marks in the theme's own inks: the accent pencil (`accent`), the coral
@@ -39,8 +40,10 @@ export function PencilDefs() {
 // that is measured again later (an arrow on resize) just updates, it is not redrawn
 function useDraw(scope: React.RefObject<Element | null>, deps: unknown[] = []) {
   const drawn = useRef(false)
+  // a still copy (a Deck's ghost) shows its marks already drawn and runs no tweens
+  const still = useStill()
   useGSAP(() => {
-    if (drawn.current || !scope.current) return
+    if (still || drawn.current || !scope.current) return
     const strokes = scope.current.querySelectorAll('[data-ink]')
     if (!strokes.length) return
     drawn.current = true
@@ -239,10 +242,11 @@ export function Highlight({ children, className = '' }: { children: React.ReactN
     document.fonts?.ready.then(measure).catch(() => {})
     return () => { cancelAnimationFrame(raf); ro.disconnect(); window.removeEventListener('resize', measure) }
   }, [children])
-  // swipes in once, the first time it is measured
+  // swipes in once, the first time it is measured (a still copy shows it already laid)
   const drawn = useRef(false)
+  const still = useStill()
   useGSAP(() => {
-    if (drawn.current || !paths || !svg.current) return
+    if (still || drawn.current || !paths || !svg.current) return
     drawn.current = true
     if (reducedMotion()) return
     gsap.fromTo(svg.current.querySelectorAll('path'), { scaleX: 0, transformOrigin: '0% 50%' }, { scaleX: 1, duration: 0.55, ease: 'power2.out', stagger: 0.2, delay: 0.15 })
@@ -309,7 +313,11 @@ export function PencilArrow({ from, to, within, ink = 'moment', max }: {
       const side = bcx < A.x ? -1 : bcx > A.x + A.w ? 1 : 0
       const sx = side < 0 ? A.x - 6 : side > 0 ? A.x + A.w + 6 : ax
       const sy = side ? A.y + A.h * 0.65 : ay + 3
-      const ex = below ? Math.max(B.x + 12, Math.min(B.x + B.w - 12, sx)) : bcx > ax ? B.x - 6 : B.x + B.w + 6
+      // below and off to one side (the note up beside its button, as on a phone): aim in
+      // toward the target's middle rather than straight down at its near end, so the
+      // arrow reads as one rather than a short tick
+      const aimX = side ? bcx + (sx - bcx) * 0.2 : sx
+      const ex = below ? Math.max(B.x + 12, Math.min(B.x + B.w - 12, aimX)) : bcx > ax ? B.x - 6 : B.x + B.w + 6
       const ey = below ? B.y - 5 : bcy
       // a gentle bend, away from the straight line
       const mx = (sx + ex) / 2 + (ey - sy) * 0.25, my = (sy + ey) / 2 - Math.abs(ex - sx) * 0.12

@@ -3,6 +3,7 @@
 import { Avatar } from './Avatar'
 import { usePeek } from '@/hooks/usePeek'
 import { useNoHover } from '@/hooks/useNoHover'
+import { useStill } from './Still'
 import type { AppEvent, Participant } from '@/lib/events'
 
 /* A card with the faces of the people in it tucked behind its top edge. Hover or
@@ -59,7 +60,11 @@ export function PeekCard({
   const rest = restShow > 0 ? restShow : touch ? Math.round(size / 2) : 0
   const restY = rest > 0 ? -rest : 6
   const restTilt = rest > 0 ? 3 : 0
-  const { scope, rise, settle } = usePeek({ restY, upY: -up, restTilt, upTilt: 8, band: touch && shown.length > 0 })
+  // a still copy (a Deck's ghost) keeps its faces at rest: no scroll band, no hover
+  const still = useStill()
+  const { scope, rise: liveRise, settle: liveSettle } = usePeek({ restY, upY: -up, restTilt, upTilt: 8, band: !still && touch && shown.length > 0 })
+  const rise = still ? () => {} : liveRise
+  const settle = still ? () => {} : liveSettle
   // room for the raised faces and their tilt, above the card
   const room = up + 6
   return (

@@ -476,7 +476,7 @@ function UpNext({ e, phase, sameDay, size, look, lead = false, corner, ghost = f
             </div>
           )}
           {/* the next thing to do, then sharing and duplicating this plan */}
-          <div className="relative z-[3] mt-3.5 flex flex-wrap items-center gap-2">
+          <div className={`relative z-[3] ${lead && turn ? 'mt-7 sm:mt-3.5' : 'mt-3.5'} flex flex-wrap items-center gap-2`}>
             <Link
               ref={task}
               href={action.href}
