@@ -15,7 +15,8 @@ import {
    people so far." Every fact the old stat strip carried (replies, the best time so
    far, where it is) is a clause here, in the order someone would say it. The best
    time is a link down to it on the grid. Once a time is locked the ConfirmedHero
-   carries the answer, and this only says how many are going. */
+   carries the answer, and this only says how many have replied out of everyone,
+   and how many are going. */
 
 const P = 'text-[15px] leading-[1.6] text-text sm:text-[16px]'
 
@@ -46,14 +47,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
   const total = event.participants.length
 
   if (phase !== 'planning') {
-    const going = event.participants.filter((p) => p.rsvp === 'attending').length
-    const waiting = event.participants.filter((p) => p.rsvp === 'pending').length
-    return (
-      <p className={P}>
-        {going === total ? 'Everyone is going.' : `${going} of ${total} are going.`}
-        {waiting > 0 && ` Waiting on ${waiting} ${waiting === 1 ? 'reply' : 'replies'}.`}
-      </p>
-    )
+    return <p className={P}>{rsvpLine(event.participants)}</p>
   }
 
   const responded = respondedCount(event.avail, event.unavailableIds)
@@ -103,6 +97,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
     return (
       <p className={P}>
         It&apos;s set for <strong className="font-semibold">{confirmedSlotText(event)}</strong> <TimezonePill tz={event.timezone} />.
+        {' '}{rsvpLine(event.participants)}
         {where ?? ' The place is still open.'}
         {ballot > 0 && (voted === 0 ? ' No one has voted yet.' : ` ${voted} of ${total} have voted.`)}
       </p>
@@ -111,7 +106,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
 
   return (
     <p className={P}>
-      {responded === 0 ? 'No one has answered yet.' : responded >= total ? 'Everyone has answered.' : `${responded} of ${total} have answered.`}
+      {`${responded} of ${total} ${responded === 1 && total === 1 ? 'has' : 'have'} answered.`}
       {best && (
         <>
           {' '}<BestLink onClick={onGoToAvailability}><Highlight>{best.dayLabel}, {fmtMinute(gridStart + best.s)} to {fmtMinute(gridStart + best.e)}</Highlight></BestLink>{' '}
@@ -129,4 +124,12 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
       {where}
     </p>
   )
+}
+
+/** Where the RSVPs stand, as a count of everyone invited: "4 of 6 have replied, 3
+ *  going." Always a number, so you see how many at a glance. */
+function rsvpLine(people: { rsvp: string }[]): string {
+  const replied = people.filter((p) => p.rsvp !== 'pending').length
+  const going = people.filter((p) => p.rsvp === 'attending').length
+  return `${replied} of ${people.length} ${replied === 1 && people.length === 1 ? 'has' : 'have'} replied${replied ? `, ${going} going` : ''}.`
 }

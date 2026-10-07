@@ -155,14 +155,14 @@ export function StoredEventCard({ e, sameDay, look: given, faded = false }: { e:
           <div className="flex items-center gap-1.5">
             <UsersRound size={14} className="flex-none" />
             <span className="truncate">
-              {replied >= e.participants.length ? 'Everyone has replied' : `${replied} of ${e.participants.length} replied so far`}
+              {`${replied} of ${e.participants.length} replied`}
             </span>
           </div>
         )}
         {rsvpWaiting > 0 && (
           <div className="flex items-center gap-1.5">
             <UsersRound size={14} className="flex-none" />
-            <span className="truncate">Waiting on {rsvpWaiting} {rsvpWaiting === 1 ? 'reply' : 'replies'}</span>
+            <span className="truncate">{e.participants.length - rsvpWaiting} of {e.participants.length} replied</span>
           </div>
         )}
         {voteDays !== null && voteDays >= 0 && (

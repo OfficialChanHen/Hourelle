@@ -52,8 +52,9 @@ import { useGSAP } from '@gsap/react'
 import { reducedMotion } from '@/lib/prefs'
 import { HandNote } from '@/components/ui/HandNote'
 import { namesLabel } from '@/components/ui/AvatarRow'
-import { Avatar } from '@/components/ui/Avatar'
-import { Popover } from '@/components/ui/Popover'
+import { FaceSvg } from '@/components/ui/FaceSvg'
+import { personVar } from '@/lib/colors'
+import { defaultFace } from '@/lib/faces'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Tip } from '@/components/ui/Tip'
@@ -117,42 +118,49 @@ function turnOf(e: AppEvent, phase: Phase): Turn | null {
 /* The faces tucked behind a compact row's right edge, leaning out far enough that
    their eyes show. The strip of them that sticks out past the row is one button,
    44px wide and as tall as the row, set wholly beside it so a tap can never open
-   the plan by mistake: it gives the faces a little wiggle and opens a small note
-   naming who is in. Three faces drawn, everyone named (a few by name, then a count). */
+   the plan by mistake. A tap turns all three over to their initials, one after
+   another, and a second tap turns them back. Three faces drawn. */
 function PeekingFaces({ people, plan }: { people: Participant[]; plan: string }) {
-  const strip = useRef<HTMLSpanElement>(null)
-  const { contextSafe } = useGSAP({ scope: strip })
-  const wiggle = contextSafe(() => {
-    if (reducedMotion() || !strip.current) return
-    gsap.fromTo(strip.current.querySelectorAll('[data-peek]'), { x: 0 }, { x: 4, duration: 0.09, yoyo: true, repeat: 3, ease: 'sine.inOut', stagger: 0.04, clearProps: 'x' })
+  const root = useRef<HTMLSpanElement>(null)
+  const [flipped, setFlipped] = useState(false)
+  const { contextSafe } = useGSAP({ scope: root })
+  const shown = people.slice(0, 3)
+  const toggle = contextSafe(() => {
+    const next = !flipped
+    setFlipped(next)
+    const turns = root.current?.querySelectorAll('.face-flip')
+    if (!turns?.length) return
+    if (reducedMotion()) gsap.set(turns, { rotateY: next ? 180 : 0 })
+    else gsap.to(turns, { rotateY: next ? 180 : 0, duration: 0.55, ease: 'back.out(1.7)', stagger: 0.07, overwrite: true })
   })
-  // you first, as "You", then everyone else by name
-  const names = [...people.filter((p) => p.you).map(() => 'You'), ...people.filter((p) => !p.you).map((p) => p.name)]
-  const label = namesLabel(names.slice(0, 4), Math.max(0, names.length - 4))
   return (
-    <>
-      <span ref={strip} aria-hidden className="absolute -right-[22px] top-1/2 -z-10 flex -translate-y-1/2 flex-col">
-        {people.slice(0, 3).map((p, i) => (
-          <span key={p.id} data-peek className={i ? '-mt-2' : ''}>
-            <span className="block" style={{ transform: `rotate(${i % 2 ? 10 : 16}deg)` }}>
-              <Avatar initials={p.initials} color={p.color} face={p.face} size={28} />
+    <span ref={root}>
+      <span aria-hidden className="absolute -right-[22px] top-1/2 -z-10 flex -translate-y-1/2 flex-col">
+        {shown.map((p, i) => {
+          const c = personVar(p.color)
+          return (
+            <span key={p.id} className={`block h-7 w-7 ${i ? '-mt-2' : ''}`} style={{ transform: `rotate(${i % 2 ? 10 : 16}deg)`, perspective: 168 }}>
+              <span className="face-flip relative block h-full w-full" style={{ transformStyle: 'preserve-3d' }}>
+                <span className="absolute inset-0" style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>
+                  <FaceSvg face={p.face ?? defaultFace(p.initials, p.color)} color={p.color} size={28} />
+                </span>
+                <span
+                  className="absolute grid place-items-center rounded-full text-[10px] font-semibold leading-none"
+                  style={{ inset: 28 / 22, boxShadow: `0 0 0 ${28 / 20}px var(--face-edge)`, filter: 'var(--face-lift)', background: c.bg, color: c.text, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                >
+                  {p.initials}
+                </span>
+              </span>
             </span>
-          </span>
-        ))}
+          )
+        })}
       </span>
-      <Popover
-        align="end" width="fit" label={`Who is in ${plan}`}
-        className="absolute -right-11 inset-y-0 w-11 rounded-xl outline-offset-2 [-webkit-tap-highlight-color:transparent]"
-        trigger={() => <span aria-hidden className="block h-full w-full" onClick={wiggle} />}
-      >
-        {() => (
-          <div className="px-2.5 py-2">
-            <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">In {plan}</div>
-            <p className="mt-1 max-w-[240px] text-[13.5px] leading-[1.45] text-text">{label}</p>
-          </div>
-        )}
-      </Popover>
-    </>
+      <button
+        type="button" onClick={toggle} aria-pressed={flipped}
+        aria-label={`Show initials for ${namesLabel(shown.map((p) => (p.you ? 'you' : p.name)))} in ${plan}`}
+        className="absolute inset-y-0 -right-11 w-11 rounded-xl outline-offset-2 [-webkit-tap-highlight-color:transparent]"
+      />
+    </span>
   )
 }
 
@@ -182,6 +190,7 @@ function CompactPlan({ e, phase }: { e: AppEvent; phase: Phase }) {
               ? <><span>{d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)}</span><TimezonePill tz={e.timezone} /><span>so far</span></>
               : <span>Picking a time</span>}
         </div>
+        <div className="mt-0.5 text-[13px] text-dim">{countLine(d)}</div>
         {turn && <div className="mt-0.5 truncate text-[13px] font-semibold text-text">{turn.line}</div>}
       </div>
       <ChevronRight size={17} className="flex-none text-faint" aria-hidden />
@@ -519,6 +528,15 @@ function digestOf(e: AppEvent, phase: Phase) {
   return { locked, total, answered: answered.size, going, maybe, out, pending, waitingOn, stillOut, countdown, best, gridStart, lead, ballot, you, unread }
 }
 
+/** How many have answered, out of everyone in the plan: "3 of 9 have answered"
+ *  while it is being decided, "4 of 6 replied: 3 going, 1 maybe" once it is locked. */
+function countLine(d: ReturnType<typeof digestOf>): string {
+  if (!d.locked) return `${d.answered} of ${d.total} ${d.answered === 1 && d.total === 1 ? 'has' : 'have'} answered`
+  const replied = d.total - d.pending
+  const parts = [d.going && `${d.going} going`, d.maybe && `${d.maybe} maybe`, d.out && `${d.out} can’t make it`].filter(Boolean)
+  return `${replied} of ${d.total} replied${parts.length ? `: ${parts.join(', ')}` : ''}`
+}
+
 // one line of the details block: a small icon, then a few words
 function Row({ icon: Icon, children }: { icon: typeof Calendar; children: React.ReactNode }) {
   return <li className="flex items-start gap-2"><Icon size={15} className="mt-[3px] flex-none text-dim" aria-hidden /><span className="min-w-0">{children}</span></li>
@@ -555,9 +573,8 @@ function UpNext({ e, phase, sameDay, size, look, lead = false }: { e: AppEvent; 
   const action = turn ?? { cta: 'See the plan', href: eventTabFor(e) }
   const slot = confirmedSlotText(e)
   const small = size === 'small'
-  const who = d.locked
-    ? [`${d.going} going`, d.maybe && `${d.maybe} maybe`, d.out && `${d.out} can’t make it`, d.pending && `${d.pending} ${d.pending === 1 ? 'hasn’t' : 'haven’t'} replied`].filter(Boolean).join(', ')
-    : d.answered >= d.total ? 'Everyone has answered' : `${d.answered} of ${d.total} have answered`
+  // always a count of everyone invited, so how many have answered reads at a glance
+  const who = countLine(d)
   // only what bears on the time; budget, spots and the host live on the plan page
   const extras = small ? [] : [
     d.unread > 0 && `${d.unread} new ${d.unread === 1 ? 'message' : 'messages'}`,
