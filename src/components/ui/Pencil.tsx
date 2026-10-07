@@ -309,7 +309,11 @@ export function PencilArrow({ from, to, within, ink = 'moment', max }: {
       const side = bcx < A.x ? -1 : bcx > A.x + A.w ? 1 : 0
       const sx = side < 0 ? A.x - 6 : side > 0 ? A.x + A.w + 6 : ax
       const sy = side ? A.y + A.h * 0.65 : ay + 3
-      const ex = below ? Math.max(B.x + 12, Math.min(B.x + B.w - 12, sx)) : bcx > ax ? B.x - 6 : B.x + B.w + 6
+      // below and off to one side (the note up beside its button, as on a phone): aim in
+      // toward the target's middle rather than straight down at its near end, so the
+      // arrow reads as one rather than a short tick
+      const aimX = side ? bcx + (sx - bcx) * 0.2 : sx
+      const ex = below ? Math.max(B.x + 12, Math.min(B.x + B.w - 12, aimX)) : bcx > ax ? B.x - 6 : B.x + B.w + 6
       const ey = below ? B.y - 5 : bcy
       // a gentle bend, away from the straight line
       const mx = (sx + ex) / 2 + (ey - sy) * 0.25, my = (sy + ey) / 2 - Math.abs(ex - sx) * 0.12

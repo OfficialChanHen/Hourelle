@@ -35,6 +35,7 @@
    per cell, and the avatars in a cell cap hard (none at all on a phone, where the
    count carries it). Nothing here is allowed to cost cells x people. */
 
+import { answeredLine } from '@/lib/answers'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -1442,68 +1443,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               </Popover>
             </div>
           )}
-          <div className="flex flex-wrap items-center gap-[9px]">
-          {dayPoll ? (
-            <span className="text-[13.5px] font-semibold leading-tight">
-              {pollRange}
-              <span className="font-medium text-faint"> ({event.days.length} days)</span>
-            </span>
-          ) : !weekStrip && (
-            // a poll of one week names it here; longer ones name each week on the
-            // strip above the grid, so the toolbar does not say it twice
-            <span className="text-[13.5px] font-semibold leading-tight">{rangeLabel}</span>
-          )}
-          {/* it lives in Settings, which only a grid you can edit has; a read-only
-              grid keeps it here so nobody loses the days around the poll */}
-          {!editable && !dayPoll && (hasLead || hasTrail) && (
-            <button
-              type="button"
-              onClick={() => setWholeWeek((w) => !w)}
-              aria-pressed={wholeWeek}
-              title={wholeWeek ? 'Show only the days this poll asks about' : 'Show the whole week around the days this poll asks about'}
-              className={`flex h-7 flex-none items-center gap-1.5 rounded-full border px-[9px] text-[12.5px] font-medium ${wholeWeek ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}
-            >
-              {wholeWeek ? <ChevronsRightLeft size={13} /> : <ChevronsLeftRight size={13} />}
-              Whole week
-            </button>
-          )}
-          {dayPoll ? null : canConvert ? (
-            // a two-sided toggle, so it reads as "event zone vs your zone" at a glance
-            <div className="flex h-7 items-center overflow-hidden rounded-full border border-border bg-s1 text-[12px] font-medium" role="group" aria-label="Show times in">
-              <button
-                type="button" onClick={() => setMyTime(false)} aria-pressed={!myTime}
-                title={`Plan time (${tzAbbr(event.timezone)})`}
-                // the ring is drawn inside: the rounded frame clips anything outside it
-                className={`flex h-full items-center px-2 focus-visible:-outline-offset-2 ${!myTime ? 'bg-accent font-semibold text-on-accent' : 'text-dim hover:text-text'}`}
-              >
-                {/* baseline-align the label and the smaller mono abbr so they sit on one line */}
-                <span className="flex items-baseline gap-1">Plan <span className="font-mono text-[10.5px]">{tzAbbr(event.timezone)}</span></span>
-              </button>
-              <button
-                type="button" onClick={() => setMyTime(true)} aria-pressed={myTime}
-                title={`Your time (${tzAbbr(localTz)})`}
-                className={`flex h-full items-center px-2 focus-visible:-outline-offset-2 ${myTime ? 'bg-accent font-semibold text-on-accent' : 'text-dim hover:text-text'}`}
-              >
-                <span className="flex items-baseline gap-1">Yours <span className="font-mono text-[10.5px]">{tzAbbr(localTz)}</span></span>
-              </button>
-            </div>
-          ) : (
-            <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={event.timezone} /></span>
-          )}
-          {/* importing fills YOUR times, so it rides with edit mode — view stays lean */}
-          {!locked && mode === 'edit' && <ImportFromCalendar soon={backendOn && process.env.NEXT_PUBLIC_CALENDAR_IMPORT_ON !== '1'} onPick={(p) => void startImport(p)} note={backendOn ? (dayPoll ? 'Free days are marked for you. Days with something on your calendar are striped as busy, for you to decide.' : 'Your free hours are painted, and what your calendar has is striped as busy.') : 'A sample calendar stands in until a backend is set up.'} />}
-          </div>
         </div>
 
-        {/* participants + edit hint */}
+        {/* the people: who is in, the filter, who has answered. Nothing here comes and
+            goes with the mode, so the faces hold still when one is tapped */}
         <div data-tour="people" className="flex flex-wrap items-center gap-2.5 py-[11px]">
           <span className="text-[12.5px] text-dim">Participants</span>
           <FilterAvatars participants={nameSorted} filter={filter} onToggle={toggleFilter} onClear={clearFilter} onSelectAll={selectAllFilter} />
-          {filterOn && (
-            <button onClick={clearFilter} title="Show everyone again" className="flex items-center gap-1 rounded-full border border-accent-border bg-accent-bg px-2 py-0.5 text-[11.5px] font-semibold text-accent-text">
-              Showing {filter.size} {filter.size === 1 ? 'person' : 'people'} <X size={11} />
-            </button>
-          )}
           {/* responded count opens the who's-missing / nudge popover */}
           <div className="relative">
             <button
@@ -1516,36 +1462,17 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               onPointerDown={(e) => e.stopPropagation()}
               className={`ml-1.5 flex items-center gap-1 text-[12.5px] ${missing.length ? 'text-accent-text hover:underline' : 'text-dim'}`}
             >
-              {responded} of {total} responded{missing.length > 0 && <ChevronDown size={13} className={showMissing ? 'rotate-180' : ''} />}
+              {answeredLine(responded, total)}{missing.length > 0 && <ChevronDown size={13} className={showMissing ? 'rotate-180' : ''} />}
             </button>
             {showMissing && missing.length > 0 && (
               <MissingPopover missing={missing} nudged={nudged} canNudge={canNudge} note={nudgeNote} onNudge={nudge} onNudgeAll={nudgeAll} onClose={() => setShowMissing(false)} />
             )}
           </div>
-          {mode === 'edit' && (dayPoll
-            ? !allDaysOn && (
-                <button
-                  type="button"
-                  onClick={fillAllDays}
-                  className="flex h-11 items-center gap-1.5 rounded-full border border-border bg-s1 px-[11px] text-[12.5px] font-medium hover:border-border2 sm:h-7"
-                >
-                  <Zap size={13} /> Free for all of it
-                </button>
-              )
-            : <PresetFills onFill={fillPreset} onFillAll={fillAllDays} />)}
-          {/* the explicit empty reply: with nothing marked, "none of these days work"
-              is one tap — and marking any time takes it back */}
-          {mode === 'edit' && !locked && !youAny && (
-            unavail.has(meId) ? (
-              <span className="flex items-center gap-1.5 rounded-full border border-brick-border bg-brick-bg px-2.5 py-1 text-[11.5px] font-semibold text-brick-text">
-                Marked as not free on any of these days
-                <button type="button" onClick={toggleNoneWork} className="underline underline-offset-2">Undo</button>
-              </span>
-            ) : (
-              <button type="button" onClick={toggleNoneWork} className="text-[12.5px] font-medium text-dim underline-offset-2 hover:text-brick-text hover:underline">
-                None of these days work?
-              </button>
-            )
+          {/* last on the line, so nothing before it moves when a filter turns it on */}
+          {filterOn && (
+            <button onClick={clearFilter} title="Show everyone again" className="flex items-center gap-1 rounded-full border border-accent-border bg-accent-bg px-2 py-0.5 text-[11.5px] font-semibold text-accent-text">
+              Showing {filter.size} {filter.size === 1 ? 'person' : 'people'} <X size={11} />
+            </button>
           )}
           {/* first-time hint only — it earns its place until you've marked something */}
           {mode === 'edit' && !sel && !youAny && (
@@ -1600,6 +1527,86 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               )}
             </Popover>
           </span>
+        </div>
+        {/* times, and the edit-only helpers, under the people: they come and go with
+            the mode, so they sit below the faces and never move them */}
+        <div className="flex flex-wrap items-center gap-[9px] pb-[11px]">
+        {dayPoll ? (
+          <span className="text-[13.5px] font-semibold leading-tight">
+            {pollRange}
+            <span className="font-medium text-faint"> ({event.days.length} days)</span>
+          </span>
+        ) : !weekStrip && (
+          // a poll of one week names it here; longer ones name each week on the
+          // strip above the grid, so the toolbar does not say it twice
+          <span className="text-[13.5px] font-semibold leading-tight">{rangeLabel}</span>
+        )}
+        {/* it lives in Settings, which only a grid you can edit has; a read-only
+            grid keeps it here so nobody loses the days around the poll */}
+        {!editable && !dayPoll && (hasLead || hasTrail) && (
+          <button
+            type="button"
+            onClick={() => setWholeWeek((w) => !w)}
+            aria-pressed={wholeWeek}
+            title={wholeWeek ? 'Show only the days this poll asks about' : 'Show the whole week around the days this poll asks about'}
+            className={`flex h-7 flex-none items-center gap-1.5 rounded-full border px-[9px] text-[12.5px] font-medium ${wholeWeek ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}
+          >
+            {wholeWeek ? <ChevronsRightLeft size={13} /> : <ChevronsLeftRight size={13} />}
+            Whole week
+          </button>
+        )}
+        {dayPoll ? null : canConvert ? (
+          // a two-sided toggle, so it reads as "event zone vs your zone" at a glance
+          <div className="flex h-7 items-center overflow-hidden rounded-full border border-border bg-s1 text-[12px] font-medium" role="group" aria-label="Show times in">
+            <button
+              type="button" onClick={() => setMyTime(false)} aria-pressed={!myTime}
+              title={`Plan time (${tzAbbr(event.timezone)})`}
+              // the ring is drawn inside: the rounded frame clips anything outside it
+              className={`flex h-full items-center px-2 focus-visible:-outline-offset-2 ${!myTime ? 'bg-accent font-semibold text-on-accent' : 'text-dim hover:text-text'}`}
+            >
+              {/* baseline-align the label and the smaller mono abbr so they sit on one line */}
+              <span className="flex items-baseline gap-1">Plan <span className="font-mono text-[10.5px]">{tzAbbr(event.timezone)}</span></span>
+            </button>
+            <button
+              type="button" onClick={() => setMyTime(true)} aria-pressed={myTime}
+              title={`Your time (${tzAbbr(localTz)})`}
+              className={`flex h-full items-center px-2 focus-visible:-outline-offset-2 ${myTime ? 'bg-accent font-semibold text-on-accent' : 'text-dim hover:text-text'}`}
+            >
+              <span className="flex items-baseline gap-1">Yours <span className="font-mono text-[10.5px]">{tzAbbr(localTz)}</span></span>
+            </button>
+          </div>
+        ) : (
+          <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={event.timezone} /></span>
+        )}
+        {/* importing fills YOUR times, so it rides with edit mode — view stays lean */}
+        {!locked && mode === 'edit' && <ImportFromCalendar soon={backendOn && process.env.NEXT_PUBLIC_CALENDAR_IMPORT_ON !== '1'} onPick={(p) => void startImport(p)} note={backendOn ? (dayPoll ? 'Free days are marked for you. Days with something on your calendar are striped as busy, for you to decide.' : 'Your free hours are painted, and what your calendar has is striped as busy.') : 'A sample calendar stands in until a backend is set up.'} />}
+        {/* the other edit-mode helpers ride here too, so switching between View and
+            Edit mine only changes this line and the people below never move */}
+        {mode === 'edit' && (dayPoll
+          ? !allDaysOn && (
+              <button
+                type="button"
+                onClick={fillAllDays}
+                className="flex h-11 items-center gap-1.5 rounded-full border border-border bg-s1 px-[11px] text-[12.5px] font-medium hover:border-border2 sm:h-7"
+              >
+                <Zap size={13} /> Free for all of it
+              </button>
+            )
+          : <PresetFills onFill={fillPreset} onFillAll={fillAllDays} />)}
+        {/* the explicit empty reply: with nothing marked, "none of these days work"
+            is one tap — and marking any time takes it back */}
+        {mode === 'edit' && !locked && !youAny && (
+          unavail.has(meId) ? (
+            <span className="flex items-center gap-1.5 rounded-full border border-brick-border bg-brick-bg px-2.5 py-1 text-[11.5px] font-semibold text-brick-text">
+              Marked as not free on any of these days
+              <button type="button" onClick={toggleNoneWork} className="underline underline-offset-2">Undo</button>
+            </span>
+          ) : (
+            <button type="button" onClick={toggleNoneWork} className="text-[12.5px] font-medium text-dim underline-offset-2 hover:text-brick-text hover:underline">
+              None of these days work?
+            </button>
+          )
+        )}
         </div>
 
         {/* filtered-in people with no times yet — say so instead of showing a silently empty grid */}
