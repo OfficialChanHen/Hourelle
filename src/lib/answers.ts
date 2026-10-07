@@ -1,9 +1,12 @@
-/* How many have answered, said one way everywhere: always a count out of everyone in
-   the plan, so how many reads at a glance.
+/* How many are in, said one way everywhere, always as a number out of a whole so it
+   reads at a glance. Who counts is decided once, in lib/events (answeredIds, rsvpPool).
 
-     while deciding   "3 of 9 have answered"
-     once locked      "4 of 6 have replied", and with `detail` the same sentence with
-                      who said what after a colon: "4 of 6 have replied: 3 going, 1 maybe"
+     while deciding   out of everyone invited: "3 of 9 have answered"
+     once locked      going, out of the people available for the locked time:
+                      "4 of 5 who can make it are going", and with `detail` the rest of
+                      them after a colon: "4 of 5 who can make it are going: 1 maybe".
+                      A plan whose date was set at creation never asked for times, so
+                      there it is out of everyone: "4 of 6 are going"
 
    Screens differ only in whether they add the detail, never in the wording. No
    closing full stop: a caller writing a sentence adds its own. */
@@ -17,17 +20,21 @@ export function answeredLine(answered: number, total: number): string {
   return `${answered} of ${total} ${verb(answered, total)} answered`
 }
 
-/** "4 of 6 have replied", with `detail` ": 3 going, 1 maybe, 1 can't make it". */
-export function repliedLine(people: { rsvp: Rsvp | string }[], detail = false): string {
-  let going = 0, maybe = 0, out = 0
-  for (const p of people) {
+/** "4 of 5 who can make it are going", with `detail` ": 1 maybe, 1 said no, 1 hasn't
+ *  replied". `pool` is rsvpPool(event). */
+export function goingLine(pool: { people: { rsvp: Rsvp | string }[]; byTimes: boolean }, detail = false): string {
+  let going = 0, maybe = 0, no = 0, waiting = 0
+  for (const p of pool.people) {
     if (p.rsvp === 'attending') going++
     else if (p.rsvp === 'maybe') maybe++
-    else if (p.rsvp === 'not_going') out++
+    else if (p.rsvp === 'not_going') no++
+    else waiting++
   }
-  const replied = going + maybe + out
-  const base = `${replied} of ${people.length} ${verb(replied, people.length)} replied`
-  if (!detail || !replied) return base
-  const parts = [going && `${going} going`, maybe && `${maybe} maybe`, out && `${out} can’t make it`].filter(Boolean)
-  return `${base}: ${parts.join(', ')}`
+  const of = pool.people.length
+  const base = pool.byTimes
+    ? `${going} of ${of} who can make it ${going === 1 ? 'is' : 'are'} going`
+    : `${going} of ${of} ${going === 1 && of === 1 ? 'is' : 'are'} going`
+  if (!detail) return base
+  const parts = [maybe && `${maybe} maybe`, no && `${no} said no`, waiting && `${waiting} ${waiting === 1 ? 'hasn’t' : 'haven’t'} replied`].filter(Boolean)
+  return parts.length ? `${base}: ${parts.join(', ')}` : base
 }

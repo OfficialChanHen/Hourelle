@@ -11,9 +11,9 @@ import { TimezonePill } from './TimezonePill'
 import { Cover } from './Cover'
 import { Tip } from './Tip'
 import { Announce } from './Announce'
-import { daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, eventTabFor, leadingPlaceOf, phaseOf, respondedCount, type AppEvent, type SameDayInfo } from '@/lib/events'
+import { daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, eventTabFor, leadingPlaceOf, phaseOf, answeredCount, rsvpPool, type AppEvent, type SameDayInfo } from '@/lib/events'
 import { PHASE_BADGE, PHASE_TINT } from './LifecycleStrip'
-import { answeredLine, repliedLine } from '@/lib/answers'
+import { answeredLine, goingLine } from '@/lib/answers'
 
 const COVERS: [string, string][] = [
   ['#E4EDE7', '#CFE0D5'], ['#E7E2EE', '#D9CFE4'], ['#DEE7EC', '#C7DAE2'],
@@ -66,7 +66,7 @@ export function StoredEventCard({ e, sameDay, look: given, faded = false }: { e:
   // the three glance cues that call for action: your missing reply, how many the
   // host is still waiting on, and a voting deadline that hasn't passed
   const youPending = phase !== 'past' && e.participants.some((p) => p.you && p.rsvp === 'pending')
-  const replied = e.hostedByYou && phase === 'planning' ? respondedCount(e.avail, e.unavailableIds) : null
+  const replied = e.hostedByYou && phase === 'planning' ? answeredCount(e) : null
   const voteDays = phase === 'planning' && e.voteDeadline ? daysUntil(e.voteDeadline) : null
   // the locked-stage mirror of `replied`: RSVPs the host is still waiting on
   const rsvpWaiting = e.hostedByYou && phase !== 'planning' && phase !== 'past'
@@ -163,7 +163,7 @@ export function StoredEventCard({ e, sameDay, look: given, faded = false }: { e:
         {rsvpWaiting > 0 && (
           <div className="flex items-center gap-1.5">
             <UsersRound size={14} className="flex-none" />
-            <span className="truncate">{repliedLine(e.participants)}</span>
+            <span className="truncate">{goingLine(rsvpPool(e))}</span>
           </div>
         )}
         {voteDays !== null && voteDays >= 0 && (

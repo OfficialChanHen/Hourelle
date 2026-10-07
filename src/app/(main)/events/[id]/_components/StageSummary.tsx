@@ -1,6 +1,6 @@
 'use client'
 
-import { answeredLine, repliedLine } from '@/lib/answers'
+import { answeredLine, goingLine } from '@/lib/answers'
 import Link from 'next/link'
 import { RotateCcw } from 'lucide-react'
 import { TimezonePill } from '@/components/ui/TimezonePill'
@@ -8,7 +8,7 @@ import { Highlight } from '@/components/ui/Pencil'
 import { placeVotes } from '@/lib/polls'
 import {
   availIvOf, bestBlock, bestWindow, confirmedSlotText, dateRangeText, fmtMinute, gridStartMinOf,
-  longestRun, respondedCount, type AppEvent, type Phase,
+  longestRun, answeredIds, rsvpPool, type AppEvent, type Phase,
 } from '@/lib/events'
 
 /* ── where the plan stands, said as a sentence ──
@@ -48,10 +48,11 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
   const total = event.participants.length
 
   if (phase !== 'planning') {
-    return <p className={P}>{repliedLine(event.participants, true)}.</p>
+    return <p className={P}>{goingLine(rsvpPool(event), true)}.</p>
   }
 
-  const responded = respondedCount(event.avail, event.unavailableIds)
+  const answeredSet = answeredIds(event)
+  const responded = answeredSet.size
   // a day poll answers in days, not clock times: its "best so far" is the leading run
   // of days (or single day), matching the grid dial's default
   const dayPoll = event.granularity === 'day'
@@ -65,9 +66,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
   }
   const gridStart = gridStartMinOf(event)
   // who is still missing, by first name when it is one to three people
-  const answeredIds = new Set<string>(event.unavailableIds ?? [])
-  for (const day of Object.values(availIvOf(event))) for (const [pid, iv] of Object.entries(day)) if (iv.length) answeredIds.add(pid)
-  const missing = event.participants.filter((p) => !answeredIds.has(p.id))
+  const missing = event.participants.filter((p) => !answeredSet.has(p.id))
   const missingNames = missing.length >= 1 && missing.length <= 3 && responded > 0
     ? missing.map((p) => (p.you ? 'you' : p.name.split(' ')[0]))
     : null
@@ -98,7 +97,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
     return (
       <p className={P}>
         It&apos;s set for <strong className="font-semibold">{confirmedSlotText(event)}</strong> <TimezonePill tz={event.timezone} />.
-        {' '}{repliedLine(event.participants, true)}.
+        {' '}{goingLine(rsvpPool(event), true)}.
         {where ?? ' The place is still open.'}
         {ballot > 0 && (voted === 0 ? ' No one has voted yet.' : ` ${voted} of ${total} have voted.`)}
       </p>

@@ -7,7 +7,7 @@ import { useGSAP } from '@gsap/react'
 import Link from 'next/link'
 import { Bell, CalendarClock, CalendarRange, ChevronRight, Hourglass, MapPin, Undo2, UserCheck, Video, Vote } from 'lucide-react'
 import { TimezonePill } from '@/components/ui/TimezonePill'
-import { dateRangeText, fmtMinute, listEvents, respondedCount, type AppEvent } from '@/lib/events'
+import { dateRangeText, fmtMinute, listEvents, answeredCount, type AppEvent } from '@/lib/events'
 import { deriveNotifications, markAllNotificationsSeen, seenNotificationKeys, type NotificationItem } from '@/lib/notifications'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { reducedMotion } from '@/lib/prefs'
@@ -140,7 +140,7 @@ export default function NotificationsPage() {
                   )
                 }
                 if (kind === 'availability') {
-                  const replied = respondedCount(e.avail, e.unavailableIds)
+                  const replied = answeredCount(e)
                   return (
                     <Link key={key} href={`/events/${e.id}?tab=availability`} className={cardCls}>
                       <span className={`grid h-[38px] w-[38px] flex-none place-items-center rounded-[10px] border ${du <= 0 ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border bg-s2 text-dim'}`}>

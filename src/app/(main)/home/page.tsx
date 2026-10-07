@@ -64,9 +64,10 @@ import { fromDay,
   createEvent, eventTabFor, listEvents, phaseOf, daysUntil, dateRangeText, confirmedSlotText, sameDayLabelFor,
   leadingPlaceOf, youReplied, youVoted, bestWindow, availIvOf, gridStartMinOf, fmtMinute, seenMessageCount,
   type AppEvent, type Participant, type Phase, type SameDayInfo,
+  answeredIds, rsvpPool,
 } from '@/lib/events'
 import { cloudSettled } from '@/lib/remote'
-import { answeredLine, repliedLine } from '@/lib/answers'
+import { answeredLine, goingLine } from '@/lib/answers'
 import { overText } from '@/lib/overText'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { useAccount } from '@/hooks/useAccount'
@@ -485,11 +486,7 @@ function digestOf(e: AppEvent, phase: Phase) {
   const me = e.participants.find((p) => p.you)
   const total = e.participants.length
   // who has marked times (or said none work), for the planning stage
-  const answered = new Set<string>(e.unavailableIds ?? [])
-  if (!locked) {
-    for (const day of Object.values(e.availIv ?? {})) for (const [id, iv] of Object.entries(day)) if (iv.length) answered.add(id)
-    for (const rows of Object.values(e.avail)) for (const cell of rows) for (const id of cell) answered.add(id)
-  }
+  const answered = locked ? new Set<string>() : answeredIds(e)
   let going = 0, maybe = 0, out = 0, pending = 0
   const waitingOn: string[] = []
   for (const p of e.participants) {
@@ -529,10 +526,10 @@ function digestOf(e: AppEvent, phase: Phase) {
   return { locked, total, answered: answered.size, going, maybe, out, pending, waitingOn, stillOut, countdown, best, gridStart, lead, ballot, you, unread }
 }
 
-/** How many have answered, out of everyone (lib/answers): the main card adds who said
- *  what once it is locked, a compact row does not. */
+/** How many are in (lib/answers): answered out of everyone while deciding, going out of
+ *  who can make the locked time after. The main card adds the rest, a compact row does not. */
 function countLine(e: AppEvent, d: ReturnType<typeof digestOf>, detail = true): string {
-  return d.locked ? repliedLine(e.participants, detail) : answeredLine(d.answered, d.total)
+  return d.locked ? goingLine(rsvpPool(e), detail) : answeredLine(d.answered, d.total)
 }
 
 // one line of the details block: a small icon, then a few words

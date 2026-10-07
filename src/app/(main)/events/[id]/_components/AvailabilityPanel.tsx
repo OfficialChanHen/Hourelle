@@ -196,9 +196,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   useFollow(event.unavailableIds ?? [], (ids) => setUnavail(new Set(ids)))
   const otherIds = new Set<string>()
   for (const d of event.days) for (const [id, ivs] of Object.entries(others[d.key] ?? {})) if (ivs.length) otherIds.add(id)
-  const respondedIdSet = new Set(otherIds)
-  if (youAny) respondedIdSet.add(meId)
-  for (const id of unavail) respondedIdSet.add(id) // an explicit "none work" is a reply
+  // the same count as everywhere else (lib/events answeredIds), read off this panel's
+  // live copy of your marks: only people still on the plan count
+  const respondedIdSet = new Set([...otherIds].filter((id) => pById.has(id)))
+  if (youAny && pById.has(meId)) respondedIdSet.add(meId)
+  for (const id of unavail) if (pById.has(id)) respondedIdSet.add(id) // an explicit "none work" is a reply
   const responded = respondedIdSet.size
 
   // once the plan is locked the grid is reference only; otherwise open in edit
