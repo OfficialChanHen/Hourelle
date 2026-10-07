@@ -1851,14 +1851,8 @@ function DangerZone({ title, onDelete, spotlight = false }: { title: string; onD
     )
   }
   return (
-    <div ref={zone} className="relative w-full rounded-2xl border border-border bg-s1 p-5">
-      <button
-        onClick={() => setOpen(false)}
-        aria-label="Close" title="Keep the plan"
-        className="absolute right-3 top-3 grid h-7 w-7 place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim"
-      >
-        <X size={15} />
-      </button>
+    // Cancel is the one way back out: no corner X beside it
+    <div ref={zone} className="w-full rounded-2xl border border-border bg-s1 p-5">
       <div ref={box} className="rounded-xl border border-brick-border bg-brick-bg p-4">
         <div className="flex items-start gap-2.5">
           <TriangleAlert size={18} className="mt-px flex-none text-brick-text" />

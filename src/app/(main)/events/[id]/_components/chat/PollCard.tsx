@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Check, Minus, Plus, SlidersHorizontal, X } from 'lucide-react'
+import { Check, Minus, Pencil, Plus, SlidersHorizontal, X } from 'lucide-react'
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { Popover } from '@/components/ui/Popover'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { DateField } from '@/components/ui/DateField'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { daysUntil, fromDay, todayKey } from '@/lib/events'
-import { optionKey, pollClosed, pollKey, votesPerPerson, POLL_OPTION_LIMIT, POLL_OPTION_MAX_LEN, type PollSettings, type PollState } from '@/lib/polls'
+import { canEditOption, canEditQuestion, optionKey, pollClosed, pollKey, votesPerPerson, POLL_OPTION_LIMIT, POLL_OPTION_MAX_LEN, POLL_QUESTION_MAX_LEN, type PollSettings, type PollState } from '@/lib/polls'
 import type { Avatar as Person } from '@/lib/people'
 
 /* A poll as it sits in the chat, run like the place ballot on the Location tab but
@@ -19,9 +19,16 @@ import type { Avatar as Person } from '@/lib/people'
    and the count. The ballot's rules hold: with one vote each a tap moves yours, with
    more you can pick up to the limit, and a tap on a pick takes it back. The budget
    line only shows when it says something (more than one vote, a closing day, closed).
-   Adding an option is a quiet link that opens a field. The poll's creator and the
-   host get its settings behind the sliders button. Read-only after the closing day
-   and once the plan is locked. */
+   Adding an option is a quiet link that opens a field, there for the host and, once
+   the host allows it, for everyone. The host gets the settings behind the sliders
+   button. The pencil turns the card into a form for rewording what you may reword:
+   the host anything, everyone else what they wrote. While you are tapping, the rows
+   keep their places, so a quick second tap lands on the option you meant; they move
+   to their new ranking once you pause. Read-only after the closing day and once the
+   plan is locked. */
+
+// how long the rows hold still after a tap before they move to their new ranking
+const HOLD_MS = 1200
 
 const PILE = 3
 
@@ -32,18 +39,21 @@ function closesText(day: string): string {
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
-export function PollCard({ poll, votes, me, canVote, locked, canManage, onPick, onAdd, onSettings, avatarOf }: {
+export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPick, onAdd, onSettings, onEdit, avatarOf }: {
   poll: PollState
   votes: Record<string, string[]> | undefined
   me: string | null
   canVote: boolean     // this person can take part: on the event, not a demo
   locked: boolean      // the plan is locked in: the poll is a record now
-  canManage: boolean   // the poll's creator or the event's host
+  host: boolean        // the event's host: settings, adding, rewording anything
+  canEdit: boolean     // may reword what they wrote (not a read-only view)
   onPick: (optionId: string) => void
   onAdd: (text: string) => void
   onSettings: (s: PollSettings) => void
+  onEdit: (edit: { q?: string; o?: { id: string; t: string }[] }) => void
   avatarOf: (id: string) => Person
 }) {
+  const [editing, setEditing] = useState(false)
   const s = poll.s
   const past = pollClosed(s)
   const closed = locked || past
@@ -66,13 +76,33 @@ export function PollCard({ poll, votes, me, canVote, locked, canManage, onPick, 
   }, [poll, votes, me])
   const left = Math.max(0, max - mine.length)
 
-  const { scope: flipScope, capture } = useFlipReorder(ranked.map((r) => r.id).join('|'))
-  function pick(id: string) {
+  // the order on screen: the ranking, except while you are tapping, when the rows hold
+  // the places they had at your first tap (an option added meanwhile goes at the end)
+  const [held, setHeld] = useState<string[] | null>(null)
+  const releaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (releaseTimer.current) clearTimeout(releaseTimer.current) }, [])
+  const shown = useMemo(() => {
+    if (!held) return ranked
+    const byId = new Map(ranked.map((r) => [r.id, r]))
+    return [...held.flatMap((id) => byId.get(id) ?? []), ...ranked.filter((r) => !held.includes(r.id))]
+  }, [ranked, held])
+  const { scope: flipScope, capture } = useFlipReorder(shown.map((r) => r.id).join('|'))
+  function release() {
+    if (releaseTimer.current) { clearTimeout(releaseTimer.current); releaseTimer.current = null }
+    if (!held) return
     capture()
+    setHeld(null)
+  }
+  function pick(id: string) {
+    if (!held) setHeld(shown.map((r) => r.id))
+    if (releaseTimer.current) clearTimeout(releaseTimer.current)
+    releaseTimer.current = setTimeout(() => { releaseTimer.current = null; capture(); setHeld(null) }, HOLD_MS)
     onPick(id)
   }
 
-  const canAdd = live && (s.add || canManage) && poll.o.length < POLL_OPTION_LIMIT
+  const mayEditQ = canEdit && canEditQuestion(poll, me, host)
+  const mayEditAny = !locked && canEdit && (mayEditQ || poll.o.some((o) => canEditOption(poll, o, me, host)))
+  const canAdd = live && (s.add || host) && poll.o.length < POLL_OPTION_LIMIT
   // one vote each and no deadline: nothing to say, so no line
   const status = closed || max > 1 || !!s.close
 
@@ -81,8 +111,22 @@ export function PollCard({ poll, votes, me, canVote, locked, canManage, onPick, 
     // as a new line in the chat around it
     <div aria-live="off" className="w-full max-w-[min(92%,360px)] rounded-2xl border border-border bg-s1 p-3">
       <div className="flex items-start gap-2">
-        <p className="min-w-0 flex-1 break-words text-[14px] font-semibold leading-[1.35] text-text">{poll.q}</p>
-        {canManage && !locked && (
+        {/* while editing, the question is in its field below: the heading only says so */}
+        {editing
+          ? <p className="min-w-0 flex-1 text-[12px] font-semibold uppercase tracking-[.12em] text-faint sm:text-[11px]">Editing poll</p>
+          : <p className="min-w-0 flex-1 break-words text-[14px] font-semibold leading-[1.35] text-text">{poll.q}</p>}
+        {mayEditAny && !editing && (
+          <button
+            type="button"
+            onClick={() => { release(); setEditing(true) }}
+            aria-label="Edit poll"
+            title="Edit poll"
+            className="-my-3 grid h-11 w-11 flex-none place-items-center rounded-[8px] border border-transparent text-faint hover:border-border2 hover:bg-s2 hover:text-text sm:-my-1 sm:h-7 sm:w-7"
+          >
+            <Pencil size={14} />
+          </button>
+        )}
+        {host && !locked && (
           <Popover
             align="end"
             width={236}
@@ -116,8 +160,19 @@ export function PollCard({ poll, votes, me, canVote, locked, canManage, onPick, 
         </div>
       )}
 
-      <div ref={flipScope} role="list" aria-label={poll.q} className="mt-2.5 flex flex-col gap-1.5">
-        {ranked.map((r) => {
+      {editing ? (
+        <PollEditForm poll={poll} me={me} host={host} onSave={(edit) => { if (edit) onEdit(edit); setEditing(false) }} />
+      ) : (
+      <div
+        ref={flipScope}
+        role="list"
+        aria-label={poll.q}
+        className="mt-2.5 flex flex-col gap-1.5"
+        // a mouse that leaves the list is done tapping: the rows can move now. A finger
+        // lifting also "leaves", so touch waits for the pause instead
+        onPointerLeave={(e) => { if (e.pointerType === 'mouse') release() }}
+      >
+        {shown.map((r) => {
           const n = r.ids.length
           const label = `${r.t}, ${n} ${n === 1 ? 'vote' : 'votes'}`
           const blocked = !r.you && max > 1 && left === 0
@@ -176,9 +231,95 @@ export function PollCard({ poll, votes, me, canVote, locked, canManage, onPick, 
           )
         })}
       </div>
+      )}
 
-      {canAdd && <AddOption taken={poll.o.map((o) => o.t)} onAdd={(t) => { capture(); onAdd(t) }} />}
+      {canAdd && !editing && <AddOption taken={poll.o.map((o) => o.t)} onAdd={(t) => { capture(); onAdd(t) }} />}
     </div>
+  )
+}
+
+/* Rewording a poll in place. What you may change is a field; what you may not stays as
+   plain text, so the form still reads as the whole poll. Save sends one line with only
+   what changed; a blank or a repeat of another option keeps Save off and says why.
+   Escape (or Cancel) leaves it as it was. */
+function PollEditForm({ poll, me, host, onSave }: {
+  poll: PollState
+  me: string | null
+  host: boolean
+  onSave: (edit: { q?: string; o?: { id: string; t: string }[] } | null) => void
+}) {
+  const mayQ = canEditQuestion(poll, me, host)
+  const [q, setQ] = useState(poll.q)
+  const [opts, setOpts] = useState<Record<string, string>>(() => Object.fromEntries(poll.o.map((o) => [o.id, o.t])))
+  const first = useRef<HTMLInputElement>(null)
+  const errId = useId()
+  useEffect(() => { first.current?.focus() }, [])
+
+  const tidy = (t: string) => t.trim().replace(/\s+/g, ' ')
+  const keys = poll.o.map((o) => optionKey(opts[o.id] ?? ''))
+  const dupIds = new Set(poll.o.filter((o, i) => keys[i] && keys.indexOf(keys[i]) !== i).map((o) => o.id))
+  const blankQ = mayQ && !tidy(q)
+  const blankIds = new Set(poll.o.filter((o) => !tidy(opts[o.id] ?? '')).map((o) => o.id))
+  const changedQ = mayQ && tidy(q) !== poll.q
+  const changedO = poll.o.filter((o) => canEditOption(poll, o, me, host) && tidy(opts[o.id] ?? '') !== o.t)
+  const problem = blankQ ? 'The question can’t be empty' : blankIds.size ? 'An option can’t be empty' : dupIds.size ? 'Two options say the same thing' : null
+  const ready = !problem && (changedQ || changedO.length > 0)
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!ready) return
+    onSave({
+      ...(changedQ ? { q: tidy(q) } : {}),
+      ...(changedO.length ? { o: changedO.map((o) => ({ id: o.id, t: tidy(opts[o.id]) })) } : {}),
+    })
+  }
+  const field = 'h-11 w-full min-w-0 rounded-[10px] border bg-s0 px-3 text-[13.5px] outline-none focus:border-accent sm:h-9'
+  // the cursor starts in the first field: the question, or else the first option you wrote
+  const focusId = mayQ ? null : poll.o.find((o) => canEditOption(poll, o, me, host))?.id
+
+  return (
+    <form
+      onSubmit={submit}
+      onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onSave(null) } }}
+      className="mt-2.5 flex flex-col gap-1.5"
+      aria-label="Edit poll"
+    >
+      {mayQ && (
+        <input
+          ref={first}
+          value={q}
+          maxLength={POLL_QUESTION_MAX_LEN}
+          onChange={(e) => setQ(e.target.value)}
+          aria-label="Question"
+          aria-invalid={blankQ || undefined}
+          className={`${field} font-semibold ${blankQ ? 'border-brick-border' : 'border-border'}`}
+        />
+      )}
+      {poll.o.map((o) => {
+        if (!canEditOption(poll, o, me, host)) return (
+          <p key={o.id} className="flex min-h-11 items-center rounded-[10px] border border-border bg-s1 px-3 text-[13.5px] text-dim sm:min-h-9">{o.t}</p>
+        )
+        const bad = dupIds.has(o.id) || blankIds.has(o.id)
+        return (
+          <input
+            key={o.id}
+            ref={o.id === focusId ? first : undefined}
+            value={opts[o.id] ?? ''}
+            maxLength={POLL_OPTION_MAX_LEN}
+            onChange={(e) => setOpts((prev) => ({ ...prev, [o.id]: e.target.value }))}
+            aria-label={`Option: ${o.t}`}
+            aria-invalid={bad || undefined}
+            aria-describedby={bad ? errId : undefined}
+            className={`${field} ${bad ? 'border-brick-border' : 'border-border'}`}
+          />
+        )
+      })}
+      {problem && <p id={errId} className="px-0.5 text-[12px] text-brick-text">{problem}</p>}
+      <div className="mt-1 flex items-center justify-end gap-2">
+        <button type="button" onClick={() => onSave(null)} className="h-11 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-medium hover:bg-s2 sm:h-8">Cancel</button>
+        <button type="submit" disabled={!ready} className="h-11 rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent disabled:opacity-40 sm:h-8">Save</button>
+      </div>
+    </form>
   )
 }
 
