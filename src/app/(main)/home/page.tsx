@@ -66,6 +66,7 @@ import { fromDay,
   type AppEvent, type Participant, type Phase, type SameDayInfo,
 } from '@/lib/events'
 import { cloudSettled } from '@/lib/remote'
+import { answeredLine, repliedLine } from '@/lib/answers'
 import { overText } from '@/lib/overText'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { useAccount } from '@/hooks/useAccount'
@@ -190,7 +191,7 @@ function CompactPlan({ e, phase }: { e: AppEvent; phase: Phase }) {
               ? <><span>{d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)}</span><TimezonePill tz={e.timezone} /><span>so far</span></>
               : <span>Picking a time</span>}
         </div>
-        <div className="mt-0.5 text-[13px] text-dim">{countLine(d)}</div>
+        <div className="mt-0.5 text-[13px] text-dim">{countLine(e, d, false)}</div>
         {turn && <div className="mt-0.5 truncate text-[13px] font-semibold text-text">{turn.line}</div>}
       </div>
       <ChevronRight size={17} className="flex-none text-faint" aria-hidden />
@@ -528,13 +529,10 @@ function digestOf(e: AppEvent, phase: Phase) {
   return { locked, total, answered: answered.size, going, maybe, out, pending, waitingOn, stillOut, countdown, best, gridStart, lead, ballot, you, unread }
 }
 
-/** How many have answered, out of everyone in the plan: "3 of 9 have answered"
- *  while it is being decided, "4 of 6 replied: 3 going, 1 maybe" once it is locked. */
-function countLine(d: ReturnType<typeof digestOf>): string {
-  if (!d.locked) return `${d.answered} of ${d.total} ${d.answered === 1 && d.total === 1 ? 'has' : 'have'} answered`
-  const replied = d.total - d.pending
-  const parts = [d.going && `${d.going} going`, d.maybe && `${d.maybe} maybe`, d.out && `${d.out} can’t make it`].filter(Boolean)
-  return `${replied} of ${d.total} replied${parts.length ? `: ${parts.join(', ')}` : ''}`
+/** How many have answered, out of everyone (lib/answers): the main card adds who said
+ *  what once it is locked, a compact row does not. */
+function countLine(e: AppEvent, d: ReturnType<typeof digestOf>, detail = true): string {
+  return d.locked ? repliedLine(e.participants, detail) : answeredLine(d.answered, d.total)
 }
 
 // one line of the details block: a small icon, then a few words
@@ -574,7 +572,7 @@ function UpNext({ e, phase, sameDay, size, look, lead = false }: { e: AppEvent; 
   const slot = confirmedSlotText(e)
   const small = size === 'small'
   // always a count of everyone invited, so how many have answered reads at a glance
-  const who = countLine(d)
+  const who = countLine(e, d)
   // only what bears on the time; budget, spots and the host live on the plan page
   const extras = small ? [] : [
     d.unread > 0 && `${d.unread} new ${d.unread === 1 ? 'message' : 'messages'}`,

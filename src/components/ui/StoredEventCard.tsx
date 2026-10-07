@@ -13,6 +13,7 @@ import { Tip } from './Tip'
 import { Announce } from './Announce'
 import { daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, eventTabFor, leadingPlaceOf, phaseOf, respondedCount, type AppEvent, type SameDayInfo } from '@/lib/events'
 import { PHASE_BADGE, PHASE_TINT } from './LifecycleStrip'
+import { answeredLine, repliedLine } from '@/lib/answers'
 
 const COVERS: [string, string][] = [
   ['#E4EDE7', '#CFE0D5'], ['#E7E2EE', '#D9CFE4'], ['#DEE7EC', '#C7DAE2'],
@@ -155,14 +156,14 @@ export function StoredEventCard({ e, sameDay, look: given, faded = false }: { e:
           <div className="flex items-center gap-1.5">
             <UsersRound size={14} className="flex-none" />
             <span className="truncate">
-              {`${replied} of ${e.participants.length} replied`}
+              {answeredLine(replied, e.participants.length)}
             </span>
           </div>
         )}
         {rsvpWaiting > 0 && (
           <div className="flex items-center gap-1.5">
             <UsersRound size={14} className="flex-none" />
-            <span className="truncate">{e.participants.length - rsvpWaiting} of {e.participants.length} replied</span>
+            <span className="truncate">{repliedLine(e.participants)}</span>
           </div>
         )}
         {voteDays !== null && voteDays >= 0 && (

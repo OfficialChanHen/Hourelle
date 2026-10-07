@@ -1,5 +1,6 @@
 'use client'
 
+import { answeredLine } from '@/lib/answers'
 import { useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -148,7 +149,7 @@ export default function NotificationsPage() {
                       <div className="min-w-0 flex-1">
                         {titleOf(e.title, key)}
                         <div className="mt-0.5 text-[12.5px] text-dim">
-                          Waiting on your availability, {replied} of {e.participants.length} have replied so far
+                          Waiting on your availability. {answeredLine(replied, e.participants.length)}
                         </div>
                       </div>
                       <ChevronRight size={17} className="flex-none text-faint" />

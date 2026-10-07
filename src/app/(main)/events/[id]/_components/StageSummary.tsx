@@ -1,5 +1,6 @@
 'use client'
 
+import { answeredLine, repliedLine } from '@/lib/answers'
 import Link from 'next/link'
 import { RotateCcw } from 'lucide-react'
 import { TimezonePill } from '@/components/ui/TimezonePill'
@@ -47,7 +48,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
   const total = event.participants.length
 
   if (phase !== 'planning') {
-    return <p className={P}>{rsvpLine(event.participants)}</p>
+    return <p className={P}>{repliedLine(event.participants, true)}.</p>
   }
 
   const responded = respondedCount(event.avail, event.unavailableIds)
@@ -97,7 +98,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
     return (
       <p className={P}>
         It&apos;s set for <strong className="font-semibold">{confirmedSlotText(event)}</strong> <TimezonePill tz={event.timezone} />.
-        {' '}{rsvpLine(event.participants)}
+        {' '}{repliedLine(event.participants, true)}.
         {where ?? ' The place is still open.'}
         {ballot > 0 && (voted === 0 ? ' No one has voted yet.' : ` ${voted} of ${total} have voted.`)}
       </p>
@@ -106,7 +107,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
 
   return (
     <p className={P}>
-      {`${responded} of ${total} ${responded === 1 && total === 1 ? 'has' : 'have'} answered.`}
+      {answeredLine(responded, total)}.
       {best && (
         <>
           {' '}<BestLink onClick={onGoToAvailability}><Highlight>{best.dayLabel}, {fmtMinute(gridStart + best.s)} to {fmtMinute(gridStart + best.e)}</Highlight></BestLink>{' '}
@@ -124,12 +125,4 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
       {where}
     </p>
   )
-}
-
-/** Where the RSVPs stand, as a count of everyone invited: "4 of 6 have replied, 3
- *  going." Always a number, so you see how many at a glance. */
-function rsvpLine(people: { rsvp: string }[]): string {
-  const replied = people.filter((p) => p.rsvp !== 'pending').length
-  const going = people.filter((p) => p.rsvp === 'attending').length
-  return `${replied} of ${people.length} ${replied === 1 && people.length === 1 ? 'has' : 'have'} replied${replied ? `, ${going} going` : ''}.`
 }

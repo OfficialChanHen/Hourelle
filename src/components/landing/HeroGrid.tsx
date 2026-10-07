@@ -12,6 +12,7 @@
    colours, the type and both themes come from the same variables the app uses, so the
    only thing that can drift now is the shape, and that drifts in a diff where it shows. */
 
+import { answeredLine } from '@/lib/answers'
 import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Info } from 'lucide-react'
 import { AvatarRow } from '@/components/ui/AvatarRow'
@@ -113,7 +114,7 @@ export function HeroGrid() {
       <div className="flex flex-wrap items-center gap-2.5 py-[11px]">
         <span className="text-[12.5px] text-dim">Participants</span>
         <AvatarRow people={PEOPLE} size={25} max={8} overlap={5} more={`+${TOTAL - PEOPLE.length}`} />
-        <span className="ml-1.5 text-[12.5px] text-dim">18 of 24 responded</span>
+        <span className="ml-1.5 text-[12.5px] text-dim">{answeredLine(18, 24)}</span>
         <span className="ml-auto text-faint" aria-hidden><Info size={14} /></span>
       </div>
 

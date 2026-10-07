@@ -35,6 +35,7 @@
    per cell, and the avatars in a cell cap hard (none at all on a phone, where the
    count carries it). Nothing here is allowed to cost cells x people. */
 
+import { answeredLine } from '@/lib/answers'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -1461,7 +1462,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               onPointerDown={(e) => e.stopPropagation()}
               className={`ml-1.5 flex items-center gap-1 text-[12.5px] ${missing.length ? 'text-accent-text hover:underline' : 'text-dim'}`}
             >
-              {responded} of {total} responded{missing.length > 0 && <ChevronDown size={13} className={showMissing ? 'rotate-180' : ''} />}
+              {answeredLine(responded, total)}{missing.length > 0 && <ChevronDown size={13} className={showMissing ? 'rotate-180' : ''} />}
             </button>
             {showMissing && missing.length > 0 && (
               <MissingPopover missing={missing} nudged={nudged} canNudge={canNudge} note={nudgeNote} onNudge={nudge} onNudgeAll={nudgeAll} onClose={() => setShowMissing(false)} />
