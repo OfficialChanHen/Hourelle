@@ -41,10 +41,11 @@ const HEAT = [
 const heat = (n: number) => (n === 0 ? 'var(--s1)' : n <= 2 ? 'var(--heat-low)' : n <= 3 ? 'var(--heat-mid)' : n < 6 ? 'var(--heat-high)' : 'var(--heat-full)')
 
 const STEPS = [
-  // the tape decides which way each card turns (PhotoFrame); tilt is how far
+  // the tape decides which way each card turns (PhotoFrame); tilt is how far. As a
+  // row: the outer two lean in toward the middle one, which hangs straight
   { title: 'Send the link', body: 'Share it in any chat. Guests type a name and they are in.', tilt: 2, tape: 'left' as const },
-  { title: 'Everyone marks their hours', body: 'A drag across the times they are free. No account needed.', tilt: 1.5, tape: 'right' as const },
-  { title: 'Lock the best time', body: 'The time that works for the most people is picked out. One tap locks it.', tilt: 0, tape: 'corners' as const },
+  { title: 'Everyone marks their hours', body: 'A drag across the times they are free. No account needed.', tilt: 0, tape: 'center' as const },
+  { title: 'Lock the best time', body: 'The time that works for the most people is picked out. One tap locks it.', tilt: 2, tape: 'right' as const },
 ]
 
 export function HowItWorksGlance() {

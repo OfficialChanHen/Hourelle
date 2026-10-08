@@ -27,7 +27,7 @@ import { reducedMotion } from '@/lib/prefs'
 import { Em } from '@/components/ui/Em'
 import { SoftShapes } from '@/components/ui/SoftShapes'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
-import { Keepsake, lookOf, type Look } from '@/components/ui/Keepsake'
+import { Keepsake, rowLooks, type Look } from '@/components/ui/Keepsake'
 import { Highlight, PencilArrow, PencilUnderline } from '@/components/ui/Pencil'
 import { HandNote } from '@/components/ui/HandNote'
 
@@ -171,10 +171,11 @@ export default function Landing() {
               the group's faces tucked behind the top edge */}
           <div className="ld-stagger mt-8 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-3">
             {(() => {
-              const looks: Look[] = []
+              // a row: neighbours lean opposite ways, or a straight card in the middle (rowLooks)
+              const looks: Look[] = rowLooks(demos.map((d) => d.id), demos.map((d) => d.keepsake))
               return demos.map((d, i) => {
                 const [from, to] = coverFor(d.id)
-                const look = lookOf(d.id, i, looks[i - 1]); looks.push(look)
+                const look = looks[i]
                 return (
                   <PeekCard key={d.id} people={peopleIn(d)} size={30} restShow={16} upShow={24} tilt={look.tilt}>
                     <Link href={`/events/${d.id}`} className="group block">

@@ -44,7 +44,7 @@ import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { StickyNote } from '@/components/ui/StickyNote'
 import { FaceSticker } from '@/components/ui/FaceSticker'
 import { SoftShapes } from '@/components/ui/SoftShapes'
-import { Keepsake, lookOf, withDetail, type Look } from '@/components/ui/Keepsake'
+import { Keepsake, rowLooks, type Look } from '@/components/ui/Keepsake'
 import { Highlight, PencilArrow, PencilStar, PencilTick, PencilUnderline } from '@/components/ui/Pencil'
 import { peelable } from '@/animations/peel'
 import { gsap } from 'gsap'
@@ -387,7 +387,8 @@ export default function HomePage() {
   // On a phone the card lies straight, in line with the rows under it; the tilt is
   // for the photos laid out side by side on a large screen
   const looks: Look[] = []
-  shown.forEach((x, i) => { looks.push(withDetail(lookOf(x.e.id, i, looks[i - 1]), x.e.keepsake)) })
+  // neighbours lean opposite ways, or a straight card sits between two that mirror (rowLooks)
+  looks.push(...rowLooks(shown.map((x) => x.e.id), shown.map((x) => x.e.keepsake)))
   if (!wide) looks.forEach((l) => { l.tilt = 0 })
 
   return (

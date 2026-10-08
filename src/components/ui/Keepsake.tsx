@@ -98,6 +98,53 @@ export function lookOf(id: string, index: number, prev?: Look): Look {
   }
 }
 
+/* A row of tilted cards reads as laid by hand when neighbours lean opposite ways:
+   left, right, left (or the mirror), or with a card hanging straight in the middle
+   and the two either side leaning the same way inward or outward. The tilt follows
+   the detail (tiltFor), so the row picks each card's detail to give the lean its
+   place needs, from the details that hang that way. Which pattern a row takes, and
+   which detail each card gets among those that fit, come from the ids, so a row
+   keeps its look. A host's own pick wins over the row. */
+const LEANS: Record<-1 | 0 | 1, KeepsakeKind[]> = {
+  [-1]: ['tape-corner', 'tape-right', 'clip'],
+  [1]: ['tape-left'],
+  [0]: ['pin', 'mounts', 'tape-two'],
+}
+export function rowLeans(ids: string[]): (-1 | 0 | 1)[] {
+  const n = ids.length
+  const pick = hash(ids.join('|'), 9)
+  const flip = pick < 0.5 ? 1 : -1
+  // an odd row of three or more may hang its middle card straight, mirrored around it
+  if (n >= 3 && n % 2 === 1 && pick > 0.25 && pick < 0.75) {
+    const mid = (n - 1) / 2
+    const out = hash(ids.join('|'), 10) < 0.5 ? 1 : -1 // tops leaning in or out
+    // out from the middle the leans alternate, and the right side mirrors the left:
+    // three cards go in, straight, in; five go out, in, straight, in, out
+    return ids.map((_, i) => {
+      if (i === mid) return 0
+      const d = Math.abs(i - mid)
+      const side = (d % 2 === 1 ? 1 : -1) * out * flip
+      return (i < mid ? side : -side) as -1 | 1
+    })
+  }
+  return ids.map((_, i) => ((i % 2 === 0 ? 1 : -1) * flip) as -1 | 1)
+}
+export function rowLooks(ids: string[], picks: (CardDetail | undefined)[] = []): Look[] {
+  const leans = rowLeans(ids)
+  const out: Look[] = []
+  ids.forEach((id, i) => {
+    const base = lookOf(id, i, out[i - 1])
+    const lean = leans[i]
+    const kinds = LEANS[lean]
+    let kind = kinds[Math.floor(hash(id, 11) * kinds.length) % kinds.length]
+    if (out[i - 1]?.kind === kind && kinds.length > 1) kind = kinds[(kinds.indexOf(kind) + 1) % kinds.length]
+    const mag = lean === 0 ? base.mag : Math.max(1.4, base.mag)
+    const look: Look = { ...base, kind, mag, lean: lean === 0 ? base.lean : lean, tilt: tiltFor(kind, mag, lean === 0 ? base.lean : lean) }
+    out.push(withDetail(look, picks[i]))
+  })
+  return out
+}
+
 /* A gem clip standing on the frame's top edge, drawn in a 16x48 box whose y=13 is
    that edge. The short outer leg is behind the card, the bend at the top wraps over
    the edge, and the long loop lies on the front. Its top sits this far above the
