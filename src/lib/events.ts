@@ -2266,7 +2266,54 @@ const CABIN_TRIP: AppEvent = {
 }
 
 // every built-in demo, one per template, in the templates' order
-const DEMOS: AppEvent[] = [DESIGN_DINNER, GAME_NIGHT, BIRTHDAY, BIG_DEMO, CABIN_TRIP, DEMO, COFFEE, CONFERENCE]
+/* ── demo dates follow today ──
+   The demos are written in 2029 so their stories line up (a dinner the week after the
+   offsite, RSVPs due before the game night). Shown, every date in them moves by the
+   same whole number of weeks, so the earliest lands about two months from today and
+   no countdown ever reads "1065 days". Whole weeks keep every weekday, so "Wed, Aug 22"
+   is still a Wednesday. Dates in prose move too ("Can we avoid Thu Aug 23?"), and each
+   day's label is rebuilt from its moved key. */
+const DEMO_LEAD_DAYS = 60
+const ISO_IN = /\b(\d{4})-(\d{2})-(\d{2})\b/g
+const MD_IN = new RegExp(`\\b(${MON.join('|')}) (\\d{1,2})(, (\\d{4}))?\\b`, 'g')
+function demoShiftDays(list: AppEvent[]): number {
+  let first = ''
+  const scan = (v: unknown) => {
+    if (typeof v === 'string') { for (const m of v.matchAll(ISO_IN)) if (!first || m[0] < first) first = m[0]; return }
+    if (Array.isArray(v)) { v.forEach(scan); return }
+    if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) { scan(k); scan(x) }
+  }
+  list.forEach(scan)
+  const start = parseLocal(first)
+  if (!start) return 0
+  const target = new Date(); target.setHours(0, 0, 0, 0); target.setDate(target.getDate() + DEMO_LEAD_DAYS)
+  const days = Math.round((target.getTime() - start.getTime()) / 86400000)
+  return Math.round(days / 7) * 7
+}
+function moveDay(d: Date, by: number): Date { const x = new Date(d); x.setDate(x.getDate() + by); return x }
+function shiftText(t: string, by: number): string {
+  return t
+    .replace(ISO_IN, (all) => { const d = parseLocal(all); return d ? isoOf(moveDay(d, by)) : all })
+    .replace(MD_IN, (all, mon: string, day: string, withYear?: string, year?: string) => {
+      const d = moveDay(new Date(Number(year ?? 2029), MON.indexOf(mon), Number(day)), by)
+      return withYear ? `${dayLabel(d)}, ${d.getFullYear()}` : dayLabel(d)
+    })
+}
+function shiftDeep<T>(v: T, by: number): T {
+  if (typeof v === 'string') return shiftText(v, by) as T
+  if (Array.isArray(v)) return v.map((x) => shiftDeep(x, by)) as T
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [shiftText(k, by), shiftDeep(x, by)])) as T
+  return v
+}
+function demosFromToday(list: AppEvent[]): AppEvent[] {
+  const by = demoShiftDays(list)
+  if (!by) return list
+  return list.map((ev) => {
+    const moved = shiftDeep(ev, by)
+    return { ...moved, days: moved.days.map((d) => { const k = parseLocal(d.key); return k ? { ...d, date: dayLabel(k) } : d }) }
+  })
+}
+const DEMOS: AppEvent[] = demosFromToday([DESIGN_DINNER, GAME_NIGHT, BIRTHDAY, BIG_DEMO, CABIN_TRIP, DEMO, COFFEE, CONFERENCE])
 
 // demos that were retired or renamed, and the one that took each one's place, so an
 // old link still opens a plan rather than "Plan not found"

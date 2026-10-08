@@ -1529,23 +1529,23 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           <div className="flex h-7 items-center overflow-hidden rounded-full border border-border bg-s1 text-[12px] font-medium" role="group" aria-label="Show times in">
             <button
               type="button" onClick={() => setMyTime(false)} aria-pressed={!myTime}
-              title={`Plan time (${tzAbbr(event.timezone)})`}
+              title={`Plan time (${tzAbbr(event.timezone, event.startDate)})`}
               // the ring is drawn inside: the rounded frame clips anything outside it
               className={`flex h-full items-center px-2 focus-visible:-outline-offset-2 ${!myTime ? 'bg-accent font-semibold text-on-accent' : 'text-dim hover:text-text'}`}
             >
               {/* baseline-align the label and the smaller mono abbr so they sit on one line */}
-              <span className="flex items-baseline gap-1">Plan <span className="font-mono text-[10.5px]">{tzAbbr(event.timezone)}</span></span>
+              <span className="flex items-baseline gap-1">Plan <span className="font-mono text-[10.5px]">{tzAbbr(event.timezone, event.startDate)}</span></span>
             </button>
             <button
               type="button" onClick={() => setMyTime(true)} aria-pressed={myTime}
-              title={`Your time (${tzAbbr(localTz)})`}
+              title={`Your time (${tzAbbr(localTz, event.startDate)})`}
               className={`flex h-full items-center px-2 focus-visible:-outline-offset-2 ${myTime ? 'bg-accent font-semibold text-on-accent' : 'text-dim hover:text-text'}`}
             >
-              <span className="flex items-baseline gap-1">Yours <span className="font-mono text-[10.5px]">{tzAbbr(localTz)}</span></span>
+              <span className="flex items-baseline gap-1">Yours <span className="font-mono text-[10.5px]">{tzAbbr(localTz, event.startDate)}</span></span>
             </button>
           </div>
         ) : (
-          <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={event.timezone} /></span>
+          <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={event.timezone} day={event.startDate} /></span>
         )}
         {/* importing fills YOUR times, so it rides with edit mode — view stays lean */}
         {!locked && mode === 'edit' && <ImportFromCalendar soon={importSoon(backendOn)} onPick={(p) => void startImport(p)} note={backendOn ? (dayPoll ? 'Free days are marked for you. Days with something on your calendar are striped as busy, for you to decide.' : 'Your free hours are painted, and what your calendar has is striped as busy.') : 'A sample calendar stands in until a backend is set up.'} />}
@@ -2108,7 +2108,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 bw ? (
                   <>
                     <span className="text-[14px] font-semibold text-ochre">{bw.dayLabel}, {fmt(gridStartMin + bw.s)} – {fmt(gridStartMin + bw.e)}</span>
-                    <TimezonePill tz={myTime && canConvert ? localTz : event.timezone} />
+                    <TimezonePill tz={myTime && canConvert ? localTz : event.timezone} day={bw.dayKey} />
                     {/* the faces and the count are one thing: who is free, and how many.
                         Apart, the faces wrapped onto a line of their own on a phone and
                         hung at the far edge, with nothing saying what they were */}

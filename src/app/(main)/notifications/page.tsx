@@ -197,7 +197,7 @@ export default function NotificationsPage() {
                             return c.startMin === 0 && c.endMin === 24 * 60 ? ` – ${ed.dow}, ${ed.date}` : `, until ${ed.dow}, ${ed.date} at ${fmtMinute(c.endMin)}`
                           })()}
                         </span>
-                        {!(c.startMin === 0 && c.endMin === 24 * 60) && <TimezonePill tz={e.timezone} />}
+                        {!(c.startMin === 0 && c.endMin === 24 * 60) && <TimezonePill tz={e.timezone} day={c.dayKey} />}
                         <span className="flex items-center gap-1">{remote ? <Video size={12} /> : <MapPin size={12} />} {place}</span>
                       </div>
                     </div>

@@ -225,7 +225,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
           <div className="flex items-center gap-2 rounded-[9px] border border-border bg-s2 px-3 py-2 text-[13px] text-dim">
             <CalendarCheck size={15} className="flex-none text-accent-text" />
             <span className="min-w-0 truncate">{confirmedSlotText(event)}</span>
-            <TimezonePill tz={event.timezone} />
+            <TimezonePill tz={event.timezone} day={event.confirmed?.dayKey ?? event.startDate} />
             <span className="flex-none text-faint">already set</span>
           </div>
         </div>
