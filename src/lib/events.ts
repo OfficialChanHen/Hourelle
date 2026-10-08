@@ -1718,11 +1718,11 @@ export function createEvent(input: CreateInput): AppEvent {
 /* ── the built-in populated demo (reachable by URL, not listed) ── */
 const DEMO: AppEvent = {
   id: 'q3-offsite',
-  title: 'Q3 Team Offsite',
+  title: 'Team Offsite',
   hostName: 'Jordan Miller',
   hostedByYou: true,
   hostKind: 'person',
-  description: 'A day out of the office for the whole team. Workshops in the morning, then lunch on the grass at Tunnel Tops. Travel is reimbursed for anyone coming from out of town.',
+  description: 'A day out of the office for the whole team. Workshops in the morning, then lunch together at Tunnel Tops. Travel is reimbursed for anyone coming from out of town.',
   timezone: 'America/Los_Angeles',
   startDate: '2029-08-20',
   endDate: '2029-08-24',
@@ -1857,11 +1857,11 @@ BIG_PARTICIPANTS.forEach((p, i) => {
 
 const BIG_DEMO: AppEvent = {
   id: 'harvest-potluck',
-  title: 'Harvest Potluck',
+  title: 'Neighborhood Potluck',
   hostName: 'Jordan Miller',
   hostedByYou: true,
   hostKind: 'person',
-  description: 'Open to anyone nearby. Bring a dish that feeds six and a blanket to sit on. Twelve parks on the ballot and three votes each.',
+  description: 'Open to anyone nearby. Bring a dish that feeds six. Twelve parks on the ballot and three votes each.',
   timezone: 'America/Los_Angeles',
   startDate: '2029-09-10',
   endDate: '2029-09-21',
