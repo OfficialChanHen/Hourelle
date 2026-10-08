@@ -1060,7 +1060,7 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
     return (
       <span className="flex flex-wrap items-center gap-1.5">
         {slotWhen(c, dayOf, fmtMinute)}
-        {!allDay && <TimezonePill tz={event.timezone} />}
+        {!allDay && <TimezonePill tz={event.timezone} day={event.confirmed?.dayKey ?? event.startDate} />}
         {editable && (
           <button onClick={() => setEditing(true)} title="Change the day or time" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
             <Pencil size={13} />
@@ -1099,7 +1099,7 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
             {dayPoll ? 'Days to be decided' : 'Time to be decided'}
           </button>
         )}
-        {!dayPoll && <TimezonePill tz={event.timezone} />}
+        {!dayPoll && <TimezonePill tz={event.timezone} day={event.startDate} />}
       </span>
     </div>
   )

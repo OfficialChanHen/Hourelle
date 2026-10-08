@@ -168,7 +168,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
           {win ? (
             <span className="min-w-0">
               Based on the best {event.granularity === 'day' ? 'day' : 'time'} so far, <span className="font-semibold text-text">{win.dayLabel}{event.granularity === 'day' ? '' : `, ${fmtMinute(gridStart + win.s)} to ${fmtMinute(gridStart + win.e)}`}</span>
-              {event.granularity !== 'day' && <> <TimezonePill tz={event.timezone} /></>}. It can change until the time is locked in.
+              {event.granularity !== 'day' && <> <TimezonePill tz={event.timezone} day={event.confirmed?.dayKey ?? event.startDate} /></>}. It can change until the time is locked in.
             </span>
           ) : (
             <span className="min-w-0">No one has marked times yet, so there is no best {event.granularity === 'day' ? 'day' : 'time'} to count against.</span>
@@ -362,7 +362,7 @@ function summaryOf(event: AppEvent, win: Win | null, locked: boolean, gridStart:
 
   if (locked && event.confirmed) {
     const slot = confirmedSlotText(event) ?? ''
-    lines.push(`${event.title} is on.`, isAllDay(event.confirmed) ? slot : `${slot} ${tzAbbr(event.timezone)}`)
+    lines.push(`${event.title} is on.`, isAllDay(event.confirmed) ? slot : `${slot} ${tzAbbr(event.timezone, event.confirmed?.dayKey)}`)
     if (where) lines.push(where)
     const going = ps.filter((p) => p.rsvp === 'attending').length
     const maybe = ps.filter((p) => p.rsvp === 'maybe').length
@@ -373,7 +373,7 @@ function summaryOf(event: AppEvent, win: Win | null, locked: boolean, gridStart:
     if (event.hostedByYou) lines.push('', `Details and RSVP: ${link}`)
   } else {
     lines.push(event.title)
-    if (win) lines.push(`Best time so far: ${win.dayLabel}, ${fmtMinute(gridStart + win.s)} – ${fmtMinute(gridStart + win.e)} ${tzAbbr(event.timezone)}`)
+    if (win) lines.push(`Best time so far: ${win.dayLabel}, ${fmtMinute(gridStart + win.s)} – ${fmtMinute(gridStart + win.e)} ${tzAbbr(event.timezone, win.dayKey)}`)
     if (where) lines.push(event.location.mode === 'remote' || lead?.confirmed ? where : `Leading place: ${where}`)
     const open = ps.filter((p) => p.rsvp !== 'not_going' && !(event.unavailableIds ?? []).includes(p.id))
     if (win) {
@@ -521,7 +521,7 @@ function SingleVenue({
                 {locked
                   ? <span className="font-semibold text-text">{win.dayLabel}{allDay ? '' : `, ${fmtMinute(gridStart + winS)} – ${fmtMinute(gridStart + winE)}`}</span>
                   : <button type="button" onClick={() => (onGoToBestWindow ? onGoToBestWindow() : onGoToTab?.('availability'))} className="font-semibold text-accent-text hover:underline">{win.dayLabel}, {fmtMinute(gridStart + winS)} – {fmtMinute(gridStart + winE)}</button>}
-                {!allDay && <TimezonePill tz={event.timezone} />}
+                {!allDay && <TimezonePill tz={event.timezone} day={event.confirmed?.dayKey ?? event.startDate} />}
                 {!locked && <BestWindowInfo mode={event.bestMode ?? 'full'} />}
               </div>
             )

@@ -32,6 +32,7 @@ Treat the editorial system below (tokens, type, spacing, color roles) as the sou
 | Cron | Vercel Cron Jobs | Triggers reminder sends |
 | Calendar sync | Google Calendar API + Microsoft Graph API | Read-only free/busy queries |
 | Deployment | Vercel | Edge functions for API routes |
+| Tests | Vitest | `npm test`; unit tests for the pure logic in `src/lib` live in `src/lib/__tests__` (fixtures in `test/`). Add or update one with every change to counting, availability, polls, import or calendar-file logic |
 
 ### GSAP usage rules
 - Import via `import { gsap } from 'gsap'` and `import { useGSAP } from '@gsap/react'`

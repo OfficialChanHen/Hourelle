@@ -134,7 +134,7 @@ export function StoredEventCard({ e, sameDay, look: given, faded = false }: { e:
         <div className="flex items-center gap-1.5">
           <Calendar size={14} className="flex-none" />
           {slot ? (
-            <><span className="truncate">{slot}</span> <TimezonePill tz={e.timezone} /></>
+            <><span className="truncate">{slot}</span> <TimezonePill tz={e.timezone} day={e.confirmed?.dayKey ?? e.startDate} /></>
           ) : (
             <span className="truncate">{dateRangeText(e)}</span>
           )}

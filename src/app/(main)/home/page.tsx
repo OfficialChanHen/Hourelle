@@ -187,9 +187,9 @@ function CompactPlan({ e, phase }: { e: AppEvent; phase: Phase }) {
         <div className="truncate font-serif text-[17px] leading-tight tracking-[-0.01em]">{e.title}</div>
         <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-dim">
           {slot
-            ? <><span>{slot}</span><TimezonePill tz={e.timezone} /></>
+            ? <><span>{slot}</span><TimezonePill tz={e.timezone} day={e.confirmed?.dayKey} /></>
             : d.best
-              ? <><span>{d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)}</span><TimezonePill tz={e.timezone} /><span>so far</span></>
+              ? <><span>{d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)}</span><TimezonePill tz={e.timezone} day={d.best.dayKey} /><span>so far</span></>
               : <span>Picking a time</span>}
         </div>
         <div className="mt-0.5 text-[13px] text-dim">{countLine(e, d, false)}</div>
@@ -594,10 +594,10 @@ function UpNext({ e, phase, sameDay, size, look, lead = false }: { e: AppEvent; 
           <ul className={`flex flex-col gap-1.5 leading-[1.45] ${small ? 'text-[13.5px]' : 'text-[14px]'}`}>
             {/* when first: the locked slot and how far off, or the best time so far */}
             {slot ? (
-              <Row icon={Calendar}>{lead ? <Highlight>{slot}</Highlight> : slot} <TimezonePill tz={e.timezone} />{d.countdown && <span className="text-dim">, {d.countdown}</span>}</Row>
+              <Row icon={Calendar}>{lead ? <Highlight>{slot}</Highlight> : slot} <TimezonePill tz={e.timezone} day={e.confirmed?.dayKey} />{d.countdown && <span className="text-dim">, {d.countdown}</span>}</Row>
             ) : d.best ? (
               <Row icon={Calendar}>
-                {lead ? <Highlight>{d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)}</Highlight> : <>{d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)}</>} <TimezonePill tz={e.timezone} /> <span className="text-dim">suits {d.best.count} of {d.total} so far</span>
+                {lead ? <Highlight>{d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)}</Highlight> : <>{d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)}</>} <TimezonePill tz={e.timezone} day={d.best.dayKey} /> <span className="text-dim">suits {d.best.count} of {d.total} so far</span>
               </Row>
             ) : (
               <Row icon={Calendar}>Picking a time, {dateRangeText(e)}</Row>

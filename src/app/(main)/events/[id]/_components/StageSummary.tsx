@@ -96,7 +96,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
     const voted = new Set(Object.values(placeVotes(event.votes ?? {})).flat()).size
     return (
       <p className={P}>
-        It&apos;s set for <strong className="font-semibold">{confirmedSlotText(event)}</strong> <TimezonePill tz={event.timezone} />.
+        It&apos;s set for <strong className="font-semibold">{confirmedSlotText(event)}</strong> <TimezonePill tz={event.timezone} day={event.confirmed.dayKey} />.
         {' '}{goingLine(rsvpPool(event), true)}.
         {where ?? ' The place is still open.'}
         {ballot > 0 && (voted === 0 ? ' No one has voted yet.' : ` ${voted} of ${total} have voted.`)}
@@ -110,7 +110,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
       {best && (
         <>
           {' '}<BestLink onClick={onGoToAvailability}><Highlight>{best.dayLabel}, {fmtMinute(gridStart + best.s)} to {fmtMinute(gridStart + best.e)}</Highlight></BestLink>{' '}
-          <TimezonePill tz={event.timezone} /> works for the most people so far.
+          <TimezonePill tz={event.timezone} day={best.dayKey} /> works for the most people so far.
         </>
       )}
       {bestDays && (

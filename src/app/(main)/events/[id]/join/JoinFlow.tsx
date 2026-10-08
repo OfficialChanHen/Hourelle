@@ -320,7 +320,7 @@ export function JoinFlow({ id }: { id: string }) {
             </span>
             <span className="flex flex-wrap items-center gap-1.5">
               <Calendar size={14} className="flex-none" />
-              {slot ?? dateRangeText(event)} <TimezonePill tz={event.timezone} />
+              {slot ?? dateRangeText(event)} <TimezonePill tz={event.timezone} day={event.confirmed?.dayKey ?? event.startDate} />
             </span>
             {lead && (
               <span className="flex items-center gap-1.5">

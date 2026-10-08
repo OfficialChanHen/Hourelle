@@ -64,7 +64,7 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
             ) : (
               <>
                 <span className="font-serif text-[27px] leading-[1.05] tracking-[-0.01em]">{slotWhen(c, dayOf, fmtMinute)}</span>
-                <TimezonePill tz={event.timezone} />
+                <TimezonePill tz={event.timezone} day={event.confirmed?.dayKey ?? event.startDate} />
               </>
             )}
           </div>
