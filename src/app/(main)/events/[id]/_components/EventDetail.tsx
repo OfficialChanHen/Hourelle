@@ -438,14 +438,14 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           </Popover>}
         </div>
         {/* the cover is the header's picture: a large framed photo wearing the plan's
-            own card detail (Style), on the right on a large screen and leading the
-            header on a phone. Beside it, the name, the group as faces and where it
+            own card detail (Style), on the right from a tablet up (768px) and leading
+            the header on a phone. Beside it, the name, the group as faces and where it
             stands. Nothing is laid over the picture. */}
-        <div className="mt-2 grid gap-x-10 gap-y-5 lg:grid-cols-[minmax(0,1fr)_minmax(300px,400px)] lg:items-center">
-          <div className="lg:order-last">
-            <PhotoFrame tilt={headLook.tilt} tape={false} pad="mid" className="mx-auto w-full max-w-[460px] lg:max-w-none">
+        <div className="mt-2 grid gap-x-8 gap-y-5 md:grid-cols-[minmax(0,1fr)_minmax(240px,300px)] md:items-center lg:gap-x-10 lg:grid-cols-[minmax(0,1fr)_minmax(300px,400px)]">
+          <div className="md:order-last">
+            <PhotoFrame tilt={headLook.tilt} tape={false} pad="mid" className="mx-auto w-full max-w-[460px] md:max-w-none">
               <div className="relative">
-                <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from={coverFrom} to={coverTo} className="h-[150px] sm:h-[190px] lg:h-[214px]" rounded="rounded-lg" />
+                <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from={coverFrom} to={coverTo} className="h-[150px] sm:h-[190px] md:h-[168px] lg:h-[214px]" rounded="rounded-lg" />
                 <Keepsake look={headLook} />
               </div>
             </PhotoFrame>
@@ -882,7 +882,7 @@ function InviteMore({ event, onPatch, openNonce = 0 }: { event: AppEvent; onPatc
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className={`flex h-9 w-full items-center justify-center gap-1.5 rounded-[9px] border text-[13px] font-semibold ${open ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`}
+        className={`flex h-11 w-full items-center justify-center gap-1.5 rounded-full border text-[13px] font-semibold sm:h-9 ${open ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`}
       >
         <Mail size={14} /> Invite by email
       </button>
@@ -1030,7 +1030,7 @@ function CopyInviteLink({ id }: { id: string }) {
   }
   return (
     <>
-      <button onClick={copy} className={`flex h-9 w-full items-center justify-center gap-1.5 rounded-[9px] border text-[13px] font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
+      <button onClick={copy} className={`flex h-11 w-full items-center justify-center gap-1.5 rounded-full border text-[13px] sm:h-9 font-semibold ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
         {copied ? <><Check size={14} /> Copied</> : <><Link2 size={14} /> Copy invite link</>}
       </button>
       <Announce text={copied ? 'Link copied' : ''} />

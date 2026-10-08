@@ -222,7 +222,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   usePhoneScreen(sheetRef, { active: sheetOpen })
   useEffect(() => {
     const el = sheetRef.current
-    if (!sheetOpen || !el || window.matchMedia('(min-width: 1024px)').matches) return
+    if (!sheetOpen || !el || window.matchMedia('(min-width: 768px)').matches) return
     const tw = gsap.fromTo(el, { y: '100%' }, { y: 0, duration: 0.36, ease: 'power3.out' })
     return () => { tw.kill(); gsap.set(el, { clearProps: 'transform' }) }
   }, [sheetOpen])
@@ -237,14 +237,14 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
     gsap.to(el, { y: '100%', duration: 0.26, ease: 'power2.in', onComplete: () => { closing.current = false; setSheetOpen(false) } })
   }
   // while it is the whole phone screen it is a modal: the keyboard stays in it, Escape
-  // puts it away, and focus goes back to the bar that raised it. On a desktop it is a
-  // plain column and none of that applies.
-  useFocusTrap(sheetRef, { active: sheetOpen, media: '(max-width: 1023px)' })
+  // puts it away, and focus goes back to the bar that raised it. From a tablet up it is
+  // part of the page and none of that applies.
+  useFocusTrap(sheetRef, { active: sheetOpen, media: '(max-width: 767px)' })
   useEffect(() => {
     if (!sheetOpen) return
     const onKey = (e: KeyboardEvent) => {
       // a popover open inside the sheet takes the first Escape for itself
-      if (e.key !== 'Escape' || e.defaultPrevented || window.matchMedia('(min-width: 1024px)').matches) return
+      if (e.key !== 'Escape' || e.defaultPrevented || window.matchMedia('(min-width: 768px)').matches) return
       closeSheet()
     }
     window.addEventListener('keydown', onKey)
@@ -529,7 +529,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
       {/* map */}
       <div className="relative flex min-w-0 flex-1">
         <div
-          className="relative min-h-[54dvh] flex-1 overflow-hidden rounded-2xl border border-border bg-s2 transition-[filter] duration-300 lg:min-h-[580px]"
+          className="relative min-h-[54dvh] flex-1 overflow-hidden rounded-2xl border border-border bg-s2 transition-[filter] duration-300 md:min-h-[420px] lg:min-h-[580px]"
           style={{ filter: blurred ? 'blur(4px) saturate(.85)' : 'none' }}
         >
           {!blurred && (
@@ -602,26 +602,28 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
         )}
       </div>
 
-      {/* mobile: a bar that lifts the venues/itinerary panel up as a bottom sheet */}
+      {/* phone: a bar that lifts the venues/itinerary panel up as a bottom sheet. From a
+          tablet up (768px) there is room for the panel itself, under the map */}
       {/* kept in the page (hidden) while the sheet is up, so focus has somewhere to go back to */}
       {mode !== 'remote' && (
-        <button type="button" onClick={() => setSheetOpen(true)} className={`${sheetOpen ? 'hidden' : 'flex'} items-center justify-between gap-2 rounded-xl border border-border bg-s1 px-4 py-3 text-left shadow-soft lg:hidden`}>
+        <button type="button" onClick={() => setSheetOpen(true)} className={`${sheetOpen ? 'hidden' : 'flex'} items-center justify-between gap-2 rounded-xl border border-border bg-s1 px-4 py-3 text-left shadow-soft md:hidden`}>
           <span className="flex items-center gap-2 text-[13.5px] font-semibold"><Route size={16} className="text-accent-text" /> {sub === 'itin' ? 'Itinerary' : 'Venue vote'}</span>
           <span className="flex items-center gap-1.5 text-[12.5px] text-dim">{places.length} {places.length === 1 ? 'place' : 'places'} <ChevronUp size={16} /></span>
         </button>
       )}
 
-      {/* side panel — only for in-person events; a bottom sheet on mobile, a column on desktop */}
+      {/* side panel — only for in-person events; a bottom sheet on a phone, a block of its
+          own height under the map on a tablet, a column beside it on a large screen */}
       {mode !== 'remote' && (
         <div
           ref={sheetRef}
           role={sheetOpen ? 'dialog' : undefined}
           aria-modal={sheetOpen ? true : undefined}
           aria-label={sheetOpen ? (sub === 'itin' ? 'Itinerary' : settled ? 'Venue' : 'Venue vote') : undefined}
-          className={`flex flex-none flex-col lg:static lg:z-auto lg:flex lg:h-[580px] lg:w-[330px] lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none ${sheetOpen ? 'fixed inset-0 z-50 w-full bg-s1 px-3' : 'hidden'}`} style={{ paddingBottom: 'env(safe-area-inset-bottom)', ...(sheetOpen ? { paddingTop: 'calc(env(safe-area-inset-top) + 8px)' } : {}) }}>
+          className={`flex flex-none flex-col md:static md:z-auto md:flex md:h-[440px] md:w-full md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none lg:h-[580px] lg:w-[330px] ${sheetOpen ? 'fixed inset-0 z-50 w-full bg-s1 px-3' : 'hidden'}`} style={{ paddingBottom: 'env(safe-area-inset-bottom)', ...(sheetOpen ? { paddingTop: 'calc(env(safe-area-inset-top) + 8px)' } : {}) }}>
           {/* runs on past the bottom edge in the panel's own colour, so the frame the pin
               lags behind a keyboard or the browser's bar shows more panel, not the page */}
-          {sheetOpen && <div className="pointer-events-none absolute inset-x-0 top-full h-[100lvh] bg-s1 lg:hidden" aria-hidden />}
+          {sheetOpen && <div className="pointer-events-none absolute inset-x-0 top-full h-[100lvh] bg-s1 md:hidden" aria-hidden />}
           <div className="mb-3 flex flex-none items-center gap-2">
             {/* whether the place is a ballot or a route is the host's decision, the
                 same as in person or remote above it. Everyone else is shown the one
@@ -717,7 +719,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 )}
               </Popover>
             )}
-            <button onClick={closeSheet} aria-label="Close" className="-mr-1.5 grid h-11 w-11 flex-none place-items-center rounded-full text-dim hover:text-text lg:hidden"><X size={18} /></button>
+            <button onClick={closeSheet} aria-label="Close" className="-mr-1.5 grid h-11 w-11 flex-none place-items-center rounded-full text-dim hover:text-text md:hidden"><X size={18} /></button>
           </div>
 
           {/* one line of how this tab works, gone once dismissed */}

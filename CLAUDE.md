@@ -574,6 +574,7 @@ The app must be fully usable from a ~360px phone to a large desktop. This is a h
 - Wide content (grids, tables) scrolls horizontally inside its own `overflow-x-auto` container — the page body never scrolls sideways
 - Toolbars and filter rows `flex-wrap` instead of overflowing; sticky headers stay compact on mobile
 - Mobile end state is the bottom tab bar from `Gatherly Mobile.dc.html`; until it exists, primary nav must still be reachable on small screens
+- **Medium screens (640 to 1023px) are their own layout, not a stretched phone:** where there is room, things sit side by side as they do on desktop (the plan header's cover beside the title from 768px, the Location tab's list inline under the map instead of a bottom sheet, the chat as a right-hand drawer, Home's Up next with what you owe beside it, the landing steps three across); single columns sit on the page's left edge in line with the headline, never centred alone; full-width stacked buttons are a phone pattern (side by side from 640px). Check with `docs/verify/medium-audit.js` at 640, 768 and 912
 - Hit targets ≥ 44px and min font 12px on mobile; sanity-check layouts at 360, 412, 768, 1024, and 1280px
 
 ---

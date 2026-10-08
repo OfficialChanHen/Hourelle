@@ -298,7 +298,7 @@ function NotesBoard({ turns, eventIds, wide }: { turns: { x: Item; t: Turn }[]; 
     <section aria-labelledby="home-turn" className="min-w-0">
       <h2 id="home-turn" className="sr-only">Your turn{owed ? `, ${owed} ${owed === 1 ? 'plan' : 'plans'} waiting on you` : ''}</h2>
       {finished.length > 0 && <span className="sr-only" role="status">{finished.map((n) => `${n.title}: done`).join('. ')}</span>}
-      <div ref={root} className="grid grid-cols-2 items-start gap-x-4 gap-y-5 sm:gap-x-5 lg:w-[460px]">
+      <div ref={root} className="grid grid-cols-2 items-start gap-x-4 gap-y-5 sm:max-w-[480px] sm:gap-x-5 lg:w-[460px]">
         {shownNotes.map((n, i) => (
           <div key={n.key} data-note={n.key} className="relative min-w-0">
             <div data-paper aria-hidden={n.done || undefined}>
@@ -383,6 +383,11 @@ export default function HomePage() {
   // one plan on a wide screen: what you owe and the create form sit beside it
   // rather than leaving half the row empty
   const solo = wide && shown.length === 1
+  // between a phone and a large screen (768 to 1023px): Up next on the left, what you
+  // owe beside it, and the new-plan form under both, rather than a phone column
+  // marooned in the middle of a tablet. Only when something is owed, or the right
+  // column would stand empty.
+  const mid = !wide && shown.length > 0 && turns.length > 0
   // each card's hand-laid details, from its plan id; a neighbour never repeats them.
   // On a phone the card lies straight, in line with the rows under it; the tilt is
   // for the photos laid out side by side on a large screen
@@ -412,7 +417,7 @@ export default function HomePage() {
           <div className="h-[200px] animate-pulse rounded-2xl bg-s2" />
         </div>
       ) : (
-        <div className={solo ? 'mt-8 grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-start gap-x-14' : ''}>
+        <div className={solo ? 'mt-8 grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-start gap-x-14' : mid ? 'md:grid md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:items-start md:gap-x-10' : ''}>
           <section aria-labelledby="home-upnext" className={solo ? '' : 'mt-6 sm:mt-8'}>
             <h2 id="home-upnext" className="sr-only">Up next</h2>
             {shown.length === 0 ? (
@@ -447,7 +452,9 @@ export default function HomePage() {
             ) : (
               /* the closest plan as the photo card, the next two as compact framed rows
                  under it: everything at a glance, one tap each, nothing to swipe */
-              <div className="mx-auto max-w-[480px]">
+              // past a phone's width it sits on the page's left edge, in line with the
+              // headline and the notes under it
+              <div className="mx-auto max-w-[480px] sm:mx-0">
                 <UpNext e={shown[0].e} phase={shown[0].phase} sameDay={sameDay(shown[0].e)} size="hero" look={looks[0]} lead />
                 {shown.length > 1 && (
                   <ul className="mt-6 flex flex-col gap-3">
@@ -459,9 +466,15 @@ export default function HomePage() {
           </section>
 
           {/* what you owe, then a new plan: side by side on a large screen */}
-          <div className={`grid gap-y-9 ${solo ? 'pt-6' : `mt-8 lg:mt-14 lg:items-start lg:gap-x-16 ${turns.length ? 'lg:grid-cols-[auto_minmax(0,1fr)]' : 'lg:max-w-[720px]'}`}`}>
-            <NotesBoard turns={turns} eventIds={eventIds} wide={wide} />
-            <QuickCreate />
+          <div className={`grid gap-y-9 ${solo ? 'pt-6' : `mt-8 lg:mt-14 lg:items-start lg:gap-x-16 ${turns.length ? 'lg:grid-cols-[auto_minmax(0,1fr)]' : 'lg:max-w-[720px]'}`} ${mid ? 'md:contents' : ''}`}>
+            {/* in the two-column middle layout the board takes the right column, level
+                with Up next, and the form runs under both */}
+            <div className={mid ? 'md:mt-8' : 'contents'}>
+              <NotesBoard turns={turns} eventIds={eventIds} wide={wide} />
+            </div>
+            <div className={mid ? 'md:col-span-2 md:mt-12' : 'contents'}>
+              <QuickCreate />
+            </div>
           </div>
         </div>
       )}

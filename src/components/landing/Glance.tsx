@@ -54,9 +54,11 @@ export function HowItWorksGlance() {
   const ends = [useRef<HTMLSpanElement>(null), useRef<HTMLSpanElement>(null)]
   const starts = [useRef<HTMLSpanElement>(null), useRef<HTMLSpanElement>(null)]
   return (
-    <ol ref={row} className="ld-stagger relative mt-10 grid gap-10 sm:gap-8 lg:grid-cols-3 lg:gap-14">
+    <ol ref={row} className="ld-stagger relative mt-10 grid gap-10 sm:gap-8 md:grid-cols-3 md:gap-6 lg:gap-14">
       {STEPS.map((s, i) => (
-        <li key={s.title} className="relative min-w-0">
+        // stacked between a phone and a tablet, a card keeps a photo's width rather
+        // than stretching across the page
+        <li key={s.title} className="relative min-w-0 sm:max-w-[440px] md:max-w-none">
           {i > 0 && <span ref={starts[i - 1]} aria-hidden className="absolute -left-3 top-[88px] hidden h-px w-px lg:block" />}
           {i < STEPS.length - 1 && <span ref={ends[i]} aria-hidden className="absolute -right-3 top-[60px] hidden h-px w-px lg:block" />}
           <PhotoFrame tilt={s.tilt} tape={s.tape} pad="mid">
@@ -156,7 +158,7 @@ export function WhatItDoesGlance() {
   return (
     <>
       <p className="ld-reveal mt-3 max-w-[560px] text-[16px] leading-[1.6] text-dim">It starts with when. The rest is there if your plan needs it.</p>
-      <ul ref={board} className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5 lg:gap-x-7 lg:gap-y-8">
+      <ul ref={board} className="mt-8 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-4 lg:gap-x-7 lg:gap-y-8">
         {NOTES.map((n) => (
           <li key={n.title} className="min-w-0">
             <StickyNote tilt={n.tilt} lift="bottom" className="h-full min-h-[138px] !gap-2.5 !px-3.5 !pb-3.5 sm:min-h-[170px] sm:!px-4 sm:!pb-4 lg:min-h-[188px] lg:!px-5">

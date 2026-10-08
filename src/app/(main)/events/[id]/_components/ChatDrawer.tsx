@@ -145,14 +145,14 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onVote, onClos
 
   return (
     <div ref={root} className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Chat">
-      <div className="cd-back absolute inset-0 bg-black/40 lg:bg-black/15" onClick={close} />
-      {/* desktop: right-side drawer */}
-      <div className="cd-panel absolute right-0 top-0 hidden h-full w-[330px] max-w-[88vw] flex-col border-l border-border bg-s0 shadow-soft lg:flex">
+      <div className="cd-back absolute inset-0 bg-black/40 md:bg-black/15" onClick={close} />
+      {/* from a tablet up (768px): a drawer on the right, the plan still in view */}
+      <div className="cd-panel absolute right-0 top-0 hidden h-full w-[330px] max-w-[88vw] flex-col border-l border-border bg-s0 shadow-soft md:flex">
         {body}
       </div>
-      {/* mobile: the whole screen */}
+      {/* phone: the whole screen */}
       <div
-        className="cd-sheet absolute inset-0 flex flex-col bg-s0 lg:hidden"
+        className="cd-sheet absolute inset-0 flex flex-col bg-s0 md:hidden"
         style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         {/* the sheet runs on past its own bottom edge in its own colour. The pin above

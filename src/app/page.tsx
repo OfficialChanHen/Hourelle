@@ -207,7 +207,8 @@ export default function Landing() {
               <p className="text-[11px] font-semibold uppercase tracking-[.15em] opacity-70">Free to use</p>
               <h2 className="mt-3 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[44px]">The next plan takes a minute to start.</h2>
             </div>
-            <div className="flex flex-col gap-2.5 lg:items-end">
+            {/* a column of full-width buttons on a phone; side by side from 640px */}
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap lg:flex-col lg:items-end">
               <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-full bg-on-accent px-6 text-[15px] font-semibold text-accent">
                 Sign up <ArrowRight size={16} />
               </Link>
