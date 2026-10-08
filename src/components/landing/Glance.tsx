@@ -8,7 +8,7 @@
    on the Help page and the tour. The cards are a moment, so they may tilt; nothing
    on them answers anything. */
 
-import { useRef } from 'react'
+import { useRef, useSyncExternalStore } from 'react'
 import { CalendarDays, Clock, Link2, Map, MessageCircle, Bell, Route, UserCheck, UserRound, Download } from 'lucide-react'
 import { FaceRibbon } from '@/components/ui/FaceRibbon'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
@@ -33,6 +33,16 @@ const HEAT = [
 ]
 const heat = (n: number) => (n === 0 ? 'var(--s1)' : n <= 2 ? 'var(--heat-low)' : n <= 3 ? 'var(--heat-mid)' : n < 6 ? 'var(--heat-high)' : 'var(--heat-full)')
 
+// tilted like hand-laid photos on a wide screen; on a phone, where the cards stack
+// one under another, they lie straight (the same call Home makes for its phone card)
+const WIDE = '(min-width: 1024px)'
+const subscribeWide = (fn: () => void) => {
+  const mq = window.matchMedia(WIDE)
+  mq.addEventListener('change', fn)
+  return () => mq.removeEventListener('change', fn)
+}
+const useWide = () => useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE).matches, () => false)
+
 const STEPS = [
   { title: 'Send the link', body: 'Share it in any chat. Guests type a name and they are in.', tilt: -2, tape: 'left' as const },
   { title: 'Everyone marks their hours', body: 'A drag across the times they are free. No account needed.', tilt: 1.5, tape: 'right' as const },
@@ -52,6 +62,7 @@ const EXTRAS: { icon: typeof Clock; text: string }[] = [
 ]
 
 export function HowItWorksGlance() {
+  const wide = useWide()
   const row = useRef<HTMLOListElement>(null)
   // tiny anchors in the gaps between cards, for the arrows to run between
   const ends = [useRef<HTMLSpanElement>(null), useRef<HTMLSpanElement>(null)]
@@ -62,7 +73,7 @@ export function HowItWorksGlance() {
         <li key={s.title} className="relative min-w-0">
           {i > 0 && <span ref={starts[i - 1]} aria-hidden className="absolute -left-3 top-[88px] hidden h-px w-px lg:block" />}
           {i < STEPS.length - 1 && <span ref={ends[i]} aria-hidden className="absolute -right-3 top-[60px] hidden h-px w-px lg:block" />}
-          <PhotoFrame tilt={s.tilt} tape={s.tape} pad="mid">
+          <PhotoFrame tilt={wide ? s.tilt : 0} tape={s.tape} pad="mid">
             <div className="h-[116px] rounded-lg bg-s2/60 p-3 sm:h-[132px] sm:p-3.5">{i === 0 ? <LinkPicture /> : i === 1 ? <GridPicture /> : <LockedPicture />}</div>
           </PhotoFrame>
           <h3 className="mt-5 font-serif text-[22px] leading-tight tracking-[-0.01em] sm:text-[24px]">{s.title}</h3>
@@ -126,6 +137,7 @@ function LockedPicture() {
 
 /** What else is there, as stickers that spill across the width. */
 export function WhatItDoesGlance() {
+  const wide = useWide()
   return (
     <>
       <p className="ld-reveal mt-3 max-w-[560px] text-[16px] leading-[1.6] text-dim">It starts with when. The rest is there if your plan needs it.</p>
@@ -134,8 +146,8 @@ export function WhatItDoesGlance() {
           <li
             key={text}
             className="flex h-9 items-center gap-1.5 rounded-full border border-border bg-s1 px-2.5 text-[12.5px] font-medium sm:h-10 sm:gap-2 sm:px-4 sm:text-[14px] [filter:var(--face-lift)]"
-            // a little loose, like stickers pressed on by hand
-            style={{ transform: `rotate(${[-1.2, 0.8, -0.4, 1.1, -0.9, 0.5][i % 6]}deg)` }}
+            // a little loose on a wide screen, like stickers pressed on by hand
+            style={wide ? { transform: `rotate(${[-1.2, 0.8, -0.4, 1.1, -0.9, 0.5][i % 6]}deg)` } : undefined}
           >
             <Icon size={14} className="hidden flex-none text-accent-text sm:block" aria-hidden />
             {text}
