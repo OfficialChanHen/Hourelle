@@ -129,14 +129,16 @@ function LockedPicture() {
    wide screen the notes sit at small angles, held by their glue; on a phone they
    lie straight in two columns, still loose enough to read as a board. */
 const NOTES: { title: string; art: React.ReactNode; tilt: number }[] = [
-  { title: 'Whole days for trips', art: <DaysArt />, tilt: -1.6 },
-  { title: 'Times to the minute', art: <ClockArt />, tilt: 1.1 },
-  { title: 'Fill from your calendar', art: <FillArt />, tilt: -0.6 },
-  { title: 'Vote on a place', art: <PinArt />, tilt: 1.6 },
-  { title: 'Routes between stops', art: <RouteArt />, tilt: 0.9 },
-  { title: 'RSVP in one tap', art: <TickArt />, tilt: -1.3 },
-  { title: 'A chat with polls', art: <ChatArt />, tilt: 0.5 },
-  { title: 'Reminders by email', art: <MailArt />, tilt: -1 },
+  // the time question first, then who is coming, then the extras; only what works
+  // today (calendar import stays off the board until it is switched on)
+  { title: 'Times to the minute', art: <ClockArt />, tilt: -1.6 },
+  { title: 'Whole days for trips', art: <DaysArt />, tilt: 1.1 },
+  { title: 'No account for guests', art: <GuestArt />, tilt: -0.6 },
+  { title: 'RSVP in one tap', art: <TickArt />, tilt: 1.6 },
+  { title: 'Reminders by email', art: <MailArt />, tilt: 0.9 },
+  { title: 'A chat with polls', art: <ChatArt />, tilt: -1.3 },
+  { title: 'Vote on a place', art: <PinArt />, tilt: 0.5 },
+  { title: 'Routes between stops', art: <RouteArt />, tilt: -1 },
 ]
 
 export function WhatItDoesGlance() {
@@ -204,13 +206,15 @@ function ClockArt() {
     </Doodle>
   )
 }
-function FillArt() {
+function GuestArt() {
   return (
     <Doodle>
-      <path {...ink} d="M4 10 H24 V34 H4 Z M4 17 H24" />
-      <path {...ink} d="M9 6 V12 M19 6 V12" />
-      <path {...accent} d="M27 22 C 32 20, 36 20, 41 22 M37 18 L 41 22 L 37 26" />
-      <path {...ink} d="M44 8 H60 V36 H44 Z M44 15 H60 M44 22 H60 M44 29 H60 M52 8 V36" />
+      <path {...ink} d="M22 6 C 31 6, 35 12, 35 18 C 35 25, 29 30, 22 30 C 14 30, 9 24, 9 18 C 9 11, 14 6, 22 6" />
+      <path {...ink} d="M18 16 V17 M26 16 V17" />
+      <path {...accent} d="M17 22 C 20 25, 24 25, 27 22" />
+      <path {...ink} d="M40 14 H60 V30 H40 Z" />
+      <path {...ink} d="M44 20 H56 M44 25 H52" />
+      <path {...ink} d="M36 22 H40" />
     </Doodle>
   )
 }
