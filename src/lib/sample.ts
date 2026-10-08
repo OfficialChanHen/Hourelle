@@ -2,10 +2,10 @@
 
 export const event = {
   id: 'q3-offsite',
-  title: 'Q3 Team Offsite Planning',
+  title: 'Team Offsite',
   host_name: 'Acme Engineering Org',
   description:
-    'Two days of strategy, workshops, and a team dinner to align on Q3 goals. Travel is reimbursed for out-of-town folks.',
+    'Two days of strategy, workshops, and a team dinner to agree on the next quarter’s goals. Travel is reimbursed for out-of-town folks.',
   status: 'planning' as const,
   timezone: 'America/Los_Angeles',
   when: 'Jul 9, 2029 at 9:00 AM',
