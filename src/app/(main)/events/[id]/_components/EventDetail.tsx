@@ -317,6 +317,8 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   const phase = phaseOf(event)
   // the same wash the plan wears on its card, under a photo or a scene or alone
   const [coverFrom, coverTo] = coverFor(event.id)
+  // the header photo hangs from its detail like any card, and turns the way that detail would let it (tiltFor)
+  const headLook = withDetail(lookOf(event.id, 0), event.keepsake)
   const locked = phase !== 'planning'
   // the viewer, wherever the `you` marker sits — the guest when a session is active
   const me = event.participants.find((p) => p.you)
@@ -441,10 +443,10 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             stands. Nothing is laid over the picture. */}
         <div className="mt-2 grid gap-x-10 gap-y-5 lg:grid-cols-[minmax(0,1fr)_minmax(300px,400px)] lg:items-center">
           <div className="lg:order-last">
-            <PhotoFrame tilt={1.5} tape={false} pad="mid" className="mx-auto w-full max-w-[460px] lg:max-w-none">
+            <PhotoFrame tilt={headLook.tilt} tape={false} pad="mid" className="mx-auto w-full max-w-[460px] lg:max-w-none">
               <div className="relative">
                 <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from={coverFrom} to={coverTo} className="h-[150px] sm:h-[190px] lg:h-[214px]" rounded="rounded-lg" />
-                <Keepsake look={{ ...withDetail(lookOf(event.id, 0), event.keepsake), tilt: 1.5 }} />
+                <Keepsake look={headLook} />
               </div>
             </PhotoFrame>
           </div>

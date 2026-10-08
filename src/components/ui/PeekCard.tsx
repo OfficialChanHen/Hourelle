@@ -4,6 +4,7 @@ import { Avatar } from './Avatar'
 import { usePeek } from '@/hooks/usePeek'
 import { useNoHover } from '@/hooks/useNoHover'
 import type { AppEvent, Participant } from '@/lib/events'
+import { useWide } from '@/hooks/useWide'
 
 /* A card with the faces of the people in it tucked behind its top edge. Hover or
    focus anywhere on it and they rise up from behind, then settle back.
@@ -54,6 +55,9 @@ export function PeekCard({
   children: React.ReactNode
 }) {
   const shown = people.slice(0, MAX)
+  // the row turns with its card on a wide screen; on a phone the card lies straight
+  const wide = useWide()
+  const rowTilt = wide ? tilt : 0
   const up = upShow ?? size - 6
   const touch = useNoHover()
   const rest = restShow > 0 ? restShow : touch ? Math.round(size / 2) : 0
@@ -78,7 +82,7 @@ export function PeekCard({
       {shown.length > 0 && (
         <div
           className="pointer-events-auto absolute left-5 right-5 z-0 flex gap-2"
-          style={{ top: room, transform: tilt ? `rotate(${tilt}deg)` : undefined }}
+          style={{ top: room, transform: rowTilt ? `rotate(${rowTilt}deg)` : undefined }}
         >
           {shown.map((p, i) => (
             <span

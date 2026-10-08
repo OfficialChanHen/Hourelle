@@ -4,6 +4,7 @@ import { useAccount } from '@/hooks/useAccount'
 import { initialsOf } from '@/lib/events'
 import { defaultFace } from '@/lib/faces'
 import { Avatar } from './Avatar'
+import { useWide } from '@/hooks/useWide'
 
 /* Your own face, big, stuck on the page at an angle like a sticker on a desk: the
    one you made on your profile (or the one you were dealt), with its die-cut edge
@@ -17,9 +18,11 @@ export function FaceSticker({ size, tilt = -7, flippable = true, className = '' 
   const account = useAccount()
   const initials = initialsOf(account.name)
   const face = account.face ?? defaultFace(initials, account.color)
+  // stuck on at an angle on a wide screen; straight on a phone
+  const wide = useWide()
   return (
     <div aria-hidden={flippable ? undefined : true} className={`grid select-none place-items-center ${flippable ? '' : 'pointer-events-none'} ${className}`}>
-      <div style={{ transform: `rotate(${tilt}deg)`, filter: 'var(--sticker-lift)' }}>
+      <div style={{ transform: wide ? `rotate(${tilt}deg)` : undefined, filter: 'var(--sticker-lift)' }}>
         <Avatar initials={initials} color={account.color} face={face} size={size} label={flippable ? account.name : undefined} flippable={flippable} />
       </div>
     </div>

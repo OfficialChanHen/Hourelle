@@ -8,7 +8,8 @@
    on the Help page and the tour. The cards are a moment, so they may tilt; nothing
    on them answers anything. */
 
-import { useRef, useSyncExternalStore } from 'react'
+import { useRef } from 'react'
+import { useWide } from '@/hooks/useWide'
 import { CalendarDays, Clock, Link2, Map, MessageCircle, Bell, Route, UserCheck, UserRound, Download } from 'lucide-react'
 import { FaceRibbon } from '@/components/ui/FaceRibbon'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
@@ -33,20 +34,11 @@ const HEAT = [
 ]
 const heat = (n: number) => (n === 0 ? 'var(--s1)' : n <= 2 ? 'var(--heat-low)' : n <= 3 ? 'var(--heat-mid)' : n < 6 ? 'var(--heat-high)' : 'var(--heat-full)')
 
-// tilted like hand-laid photos on a wide screen; on a phone, where the cards stack
-// one under another, they lie straight (the same call Home makes for its phone card)
-const WIDE = '(min-width: 1024px)'
-const subscribeWide = (fn: () => void) => {
-  const mq = window.matchMedia(WIDE)
-  mq.addEventListener('change', fn)
-  return () => mq.removeEventListener('change', fn)
-}
-const useWide = () => useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE).matches, () => false)
-
 const STEPS = [
-  { title: 'Send the link', body: 'Share it in any chat. Guests type a name and they are in.', tilt: -2, tape: 'left' as const },
+  // the tape decides which way each card turns (PhotoFrame); tilt is how far
+  { title: 'Send the link', body: 'Share it in any chat. Guests type a name and they are in.', tilt: 2, tape: 'left' as const },
   { title: 'Everyone marks their hours', body: 'A drag across the times they are free. No account needed.', tilt: 1.5, tape: 'right' as const },
-  { title: 'Lock the best time', body: 'The time that works for the most people is picked out. One tap locks it.', tilt: -1, tape: 'corner' as const },
+  { title: 'Lock the best time', body: 'The time that works for the most people is picked out. One tap locks it.', tilt: 0, tape: 'corners' as const },
 ]
 
 const EXTRAS: { icon: typeof Clock; text: string }[] = [
@@ -62,7 +54,6 @@ const EXTRAS: { icon: typeof Clock; text: string }[] = [
 ]
 
 export function HowItWorksGlance() {
-  const wide = useWide()
   const row = useRef<HTMLOListElement>(null)
   // tiny anchors in the gaps between cards, for the arrows to run between
   const ends = [useRef<HTMLSpanElement>(null), useRef<HTMLSpanElement>(null)]
@@ -73,7 +64,7 @@ export function HowItWorksGlance() {
         <li key={s.title} className="relative min-w-0">
           {i > 0 && <span ref={starts[i - 1]} aria-hidden className="absolute -left-3 top-[88px] hidden h-px w-px lg:block" />}
           {i < STEPS.length - 1 && <span ref={ends[i]} aria-hidden className="absolute -right-3 top-[60px] hidden h-px w-px lg:block" />}
-          <PhotoFrame tilt={wide ? s.tilt : 0} tape={s.tape} pad="mid">
+          <PhotoFrame tilt={s.tilt} tape={s.tape} pad="mid">
             <div className="h-[116px] rounded-lg bg-s2/60 p-3 sm:h-[132px] sm:p-3.5">{i === 0 ? <LinkPicture /> : i === 1 ? <GridPicture /> : <LockedPicture />}</div>
           </PhotoFrame>
           <h3 className="mt-5 font-serif text-[22px] leading-tight tracking-[-0.01em] sm:text-[24px]">{s.title}</h3>

@@ -1,6 +1,7 @@
 import { Avatar } from './Avatar'
 import { namesLabel } from './AvatarRow'
 import type { Avatar as Person } from '@/lib/people'
+import { useWide } from '@/hooks/useWide'
 
 /* The group's faces in a gentle wave, each tilted a little like a sticker: the
    plan header's picture of who is in it. Capped like every pile (six, then "+N"),
@@ -26,6 +27,8 @@ export function FaceRibbon({
   flippable?: boolean
   className?: string
 }) {
+  // the faces sit at small angles on a wide screen; straight on a phone
+  const wide = useWide()
   const shown = people.slice(0, max)
   const extra = people.length - shown.length
   const label = namesLabel(shown.map((p) => p.name), extra)
@@ -40,7 +43,7 @@ export function FaceRibbon({
         <span key={p.id ?? i} className="flex" style={{ transform: `translateY(${BOB[i % BOB.length]}px)` }}>
           <Avatar
             initials={p.initials} color={p.color} face={p.face} size={size} title={p.name}
-            font={Math.round(size * 0.34)} tilt={TILT[i % TILT.length]} flippable={flippable}
+            font={Math.round(size * 0.34)} tilt={wide ? TILT[i % TILT.length] : 0} flippable={flippable}
           />
         </span>
       ))}

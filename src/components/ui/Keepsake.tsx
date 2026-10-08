@@ -31,13 +31,31 @@ export const DETAIL_CHOICES: { v: CardDetail; label: string }[] = [
 
 /** A look with the host's choice laid over it, when they made one. */
 export function withDetail(look: Look, choice?: CardDetail): Look {
-  return choice ? { ...look, kind: choice } : look
+  return choice ? { ...look, kind: choice, tilt: tiltFor(choice, look.mag, look.lean) } : look
+}
+
+/* Which way a card turns, worked out the way tape works: a card held at one point
+   swings until its free side hangs lowest, so the tilt follows the detail. Held at
+   the top right (a strip across that corner, a strip down the right edge, a clip),
+   the left side drops and the card turns counter-clockwise; held on the left, it
+   turns the other way. Held at two points (pins in both top corners, the four photo
+   corners, strips across opposite corners) it stays straight. With nothing holding
+   it, a card is loose on the desk and leans whichever way it was dealt (`lean`). */
+export function tiltFor(kind: CardDetail, mag: number, lean: 1 | -1): number {
+  const dir = kind === 'tape-corner' || kind === 'tape-right' || kind === 'clip' ? -1
+    : kind === 'tape-left' ? 1
+    : kind === 'none' ? lean
+    : 0
+  return dir === 0 || mag === 0 ? 0 : dir * mag
 }
 
 export type Look = {
   kind: CardDetail
-  // degrees, sign set by the card's place in its group
+  // degrees: how far the card turns (mag) and which way (from the detail, tiltFor)
   tilt: number
+  mag: number
+  // the way a loose card (no detail) leans, from its place in its group
+  lean: 1 | -1
   // tape length in px and a small extra angle
   len: number
   jitter: number
@@ -58,7 +76,7 @@ function hash(id: string, salt: number): number {
 
 /** The look for the card at `index` in a group, given the look of the card before
     it: the same plan always gets the same details, and two neighbours never share a
-    kind or a tilt direction. */
+    kind. The tilt follows the detail (tiltFor). */
 export function lookOf(id: string, index: number, prev?: Look): Look {
   let kind = KINDS[Math.floor(hash(id, 1) * KINDS.length) % KINDS.length]
   if (prev && prev.kind === kind) kind = KINDS[(KINDS.indexOf(kind) + 1) % KINDS.length]
@@ -66,9 +84,13 @@ export function lookOf(id: string, index: number, prev?: Look): Look {
   const pads = ['thin', 'mid', 'thick'] as const
   let pad = pads[Math.floor(hash(id, 6) * 3) % 3]
   if (prev && prev.pad === pad && prev.kind === kind) pad = pads[(pads.indexOf(pad) + 1) % 3]
+  const m = Math.round(mag * 10) / 10
+  const lean: 1 | -1 = index % 2 === 0 ? -1 : 1
   return {
     kind,
-    tilt: (index % 2 === 0 ? -1 : 1) * Math.round(mag * 10) / 10,
+    tilt: tiltFor(kind, m, lean),
+    mag: m,
+    lean,
     len: Math.round(44 + hash(id, 3) * 30),
     jitter: Math.round((hash(id, 4) - 0.5) * 14),
     tone: hash(id, 5) < 0.5 ? 'a' : 'b',
@@ -90,7 +112,7 @@ const CLIP_FRONT = 'M13 8 V42 A4 4 0 0 1 5 42 V15 A3 3 0 0 1 11 15 V34'
  *  look (tape length, tint, border) still comes from its id. */
 const SHELF: KeepsakeKind[] = ['pin', 'tape-corner', 'clip', 'mounts', 'tape-two', 'tape-right', 'tape-left']
 export function shelfLooks(ids: string[]): Look[] {
-  return ids.map((id, i) => ({ ...lookOf(id, i), kind: SHELF[i % SHELF.length], tilt: 0 }))
+  return ids.map((id, i) => ({ ...lookOf(id, i), kind: SHELF[i % SHELF.length], tilt: 0, mag: 0 }))
 }
 
 function Strip({ className, rotate, len, tone }: { className: string; rotate: number; len: number; tone: 'a' | 'b' }) {

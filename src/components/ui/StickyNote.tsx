@@ -1,4 +1,5 @@
 import { Pushpin } from './Pushpin'
+import { useWide } from '@/hooks/useWide'
 
 /* A post-it for "Your turn": its own warm paper (--sticky) and inks, square cut, a
    faint band where the glue is along the top, and a lifted bottom-right corner (a
@@ -19,7 +20,9 @@ export function StickyNote({
   pin?: boolean
   className?: string
 }) {
-  const deg = Math.max(-2, Math.min(2, tilt))
+  // turned a little on a wide screen; straight on a phone
+  const wide = useWide()
+  const deg = wide ? Math.max(-2, Math.min(2, tilt)) : 0
   return (
     <div className="relative" style={{ transform: `rotate(${deg}deg)` }}>
       {/* the curl: the corner lifts off the page, so its shadow falls longer there */}
