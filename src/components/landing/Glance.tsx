@@ -124,16 +124,16 @@ function LockedPicture() {
 /* What else is there, as a board of sticky notes: a heading and a pencil doodle
    on each, no more. The doodles draw themselves once as the board comes into view
    (static under reduced motion), in the same grain as every other pencil mark. On a
-   wide screen the notes sit at small angles, a couple of them pinned; on a phone they
+   wide screen the notes sit at small angles, held by their glue; on a phone they
    lie straight in two columns, still loose enough to read as a board. */
-const NOTES: { title: string; art: React.ReactNode; tilt: number; pin?: boolean }[] = [
+const NOTES: { title: string; art: React.ReactNode; tilt: number }[] = [
   { title: 'Whole days for trips', art: <DaysArt />, tilt: -1.6 },
-  { title: 'Times to the minute', art: <ClockArt />, tilt: 1.1, pin: true },
+  { title: 'Times to the minute', art: <ClockArt />, tilt: 1.1 },
   { title: 'Fill from your calendar', art: <FillArt />, tilt: -0.6 },
   { title: 'Vote on a place', art: <PinArt />, tilt: 1.6 },
   { title: 'Routes between stops', art: <RouteArt />, tilt: 0.9 },
   { title: 'RSVP in one tap', art: <TickArt />, tilt: -1.3 },
-  { title: 'A chat with polls', art: <ChatArt />, tilt: 0.5, pin: true },
+  { title: 'A chat with polls', art: <ChatArt />, tilt: 0.5 },
   { title: 'Reminders by email', art: <MailArt />, tilt: -1 },
 ]
 
@@ -159,7 +159,7 @@ export function WhatItDoesGlance() {
       <ul ref={board} className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5 lg:gap-x-7 lg:gap-y-8">
         {NOTES.map((n) => (
           <li key={n.title} className="min-w-0">
-            <StickyNote tilt={n.tilt} pin={n.pin} className="h-full min-h-[138px] !gap-2.5 !px-3.5 !pb-3.5 sm:min-h-[170px] sm:!px-4 sm:!pb-4 lg:min-h-[188px] lg:!px-5">
+            <StickyNote tilt={n.tilt} lift="bottom" className="h-full min-h-[138px] !gap-2.5 !px-3.5 !pb-3.5 sm:min-h-[170px] sm:!px-4 sm:!pb-4 lg:min-h-[188px] lg:!px-5">
               <span className="block h-11 text-sticky-dim sm:h-14 lg:h-[74px]" aria-hidden>{n.art}</span>
               <span className="mt-auto font-serif text-[15.5px] font-medium leading-[1.2] tracking-[-0.01em] sm:text-[18px]">{n.title}</span>
             </StickyNote>
