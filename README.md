@@ -65,6 +65,12 @@ Importing free time from **Google Calendar or Outlook** is built and behind a sw
 Import button says it is coming soon. Switched on, one tap fills the grid, a toast says how
 much landed, and Undo takes it straight back out. Imported busy blocks are drawn striped and
 kept apart from the answer, so painting over them never loses what the calendar said.
+**Fill my times** on the Plans page does the same for every open plan at once, from one
+calendar question: the plans you have not answered are ticked, and one Undo puts them all
+back. Your locked-in plans count as busy, so two plans never claim the same evening.
+
+Counts read the same everywhere: "3 of 9 have answered" while deciding, and once a time is
+locked, going out of the people who can make it ("4 of 5 who can make it are going").
 
 ### Choosing a place
 
@@ -77,7 +83,8 @@ whether the plan is one venue, a route, an online call, or a question for later.
 ### Who is coming
 
 Once a time and place are locked in, the RSVP round opens with an assumption rather than a
-blank: anyone whose marked times cover the slot starts as going, and can undo it. The
+blank: anyone whose marked times cover the slot starts as going, anyone whose times miss it
+entirely starts as can't go, and both can change it. The
 attendance view answers "who is in the room, and when" for a single venue (a headcount band
 across the window, name chips for everyone there the whole time, a timing bar for each
 person who comes and goes), and "where does the headcount peak" across a multi-stop day,
@@ -90,14 +97,15 @@ group chat: when, where, how many can make it, and who is still missing, by firs
 
 | | |
 |---|---|
-| **Live discussion** | One chat per event, with unread counts, presence and typing indicators. Someone who joins later starts the chat at the moment they arrived, and the room is told when they do. |
+| **Faces** | Everyone is a small drawn face rather than a photo or a pair of initials: a shape, eyes, a mouth, hair and one extra in their colour, picked on the profile or dealt from the name for a guest. Faces sit on cards like stickers, piles stop at six with a +N, and a tap turns a face over to its initials, so a face is never the only way to tell who is who. |
+| **Live discussion** | One chat per event, with unread counts, presence and typing indicators. Someone who joins later starts the chat at the moment they arrived, and the room is told when they do. **Polls** in the chat ask a quick question that is not about a place; the host adds options (or lets everyone), and wording can be fixed until the first vote. |
 | **Accounts and guests** | Log in with Google, Microsoft or an email link, or join as a guest with just a name. A guest who leaves an email is sent their own link back, for any device. Answers given as a guest follow you if you make an account later. |
 | **The host's list** | Invite by email or from past events. Removing someone, or someone leaving, takes everything they added with them: times, votes, and their lines in the chat. |
 | **Email** | Personal invite links, a guest's own way back, nudges to people who have not replied, a lock-in announcement with a calendar file attached, reply activity for hosts, and reminders the day before and the day of. |
-| **Add to calendar** | Google Calendar, Outlook, or an `.ics` file for anything else, for a timed slot, a whole day, or a run of days. |
+| **Add to calendar** | Google Calendar, Outlook, or an `.ics` file for anything else, for a timed slot, a whole day, or a run of days. **Add plans to my calendar** on the Plans page is one subscription for every locked-in plan: a plan that locks again moves, and one you can't make or that reopens leaves (behind `NEXT_PUBLIC_CALENDAR_FEED_ON`). |
 | **Learning the app** | A short tour on a practice event of your own, one-line hints where people stall, and four silent clips on the Help page. |
 | **Accessible** | Every dropdown, slider, select, switch and tooltip sits on Radix, so they work from the keyboard and speak to screen readers. Settings adds reduced motion, underlined links and a bold focus ring, and there is a high-contrast appearance. |
-| **Two finished themes** | Warm paper and warm charcoal, with four appearances (house, Studio, Daylight, High contrast), following the device until you choose, and a 24-hour clock preference. |
+| **Two finished themes** | Warm paper and warm charcoal, with five appearances (house, Studio, Daylight, Breeze, High contrast), following the device until you choose, and a 24-hour clock preference. |
 | **Hourelle Plus** | Hosting stays free. Plus is sold through Stripe Checkout, and its webhook is the only thing that can switch it on. |
 | **Works everywhere** | Every screen is built for a 360px phone upward. Grids scroll inside their own box, never the page, and the chat and places panel take the whole screen on a phone. |
 
@@ -172,6 +180,7 @@ the local identity before it ever reaches the cache.
 | Maps | Leaflet, OpenStreetMap tiles, Photon and Nominatim for search, OSRM for routing |
 | Email | Resend, triggered from route handlers and a Vercel cron job |
 | Payments | Stripe Checkout and the customer portal, confirmed by webhook |
+| Tests | Vitest, for the pure logic in `src/lib` |
 | Hosting | Vercel |
 
 ---
@@ -195,6 +204,7 @@ npm run dev     # development server
 npm run build   # production build
 npm start       # serve the production build
 npm run lint    # eslint
+npm test        # unit tests (Vitest) for the plan logic in src/lib
 ```
 
 > **Note**
@@ -251,6 +261,7 @@ Schema lives in `supabase/migrations`, applied in order in the Supabase SQL edit
 | `0014` | Billing: where a plan came from and until when, guarded so only the server can grant it |
 | `0015` | The trigger learns the rest of the host-only fields (length, best-time mode, deadlines) |
 | `0016` | Profiles stop being readable by anyone; email lookups go through two narrow functions |
+| `0017` | `calendar_feeds`: one secret feed address per account, readable only by the server |
 
 Every migration carries its own reasoning in a header comment: what moved, and what
 went wrong before it did.
@@ -305,7 +316,7 @@ src/
 
 ## Design system
 
-Two themes and four appearances, all driven from CSS custom properties declared in
+Two themes and five appearances, all driven from CSS custom properties declared in
 `src/app/globals.css`. Components only ever use semantic tokens (`bg-s1`, `text-dim`,
 `bg-accent text-on-accent`), never raw hex, so both themes and every appearance follow for
 free.
@@ -321,7 +332,7 @@ strict roles, and they are not decorative:
 | `--ochre` | Planning, partial attendance, caution, arriving late. |
 | `--brick` | Absent, conflict, declined, danger. |
 
-Avatar colours are decorative identity only and never carry meaning.
+Faces and their colours are decorative identity only and never carry meaning.
 
 The full brief, including what never to do, lives in [`CLAUDE.md`](CLAUDE.md).
 
