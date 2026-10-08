@@ -1,8 +1,8 @@
 'use client'
 
 // The front door. Signed in, it is a hallway to /home. For everyone else it is
-// the pitch, top to bottom: what Hourelle is, how a plan comes together, what each
-// part looks like, three demos to try, and the two ways in. Outside the (main)
+// the pitch, top to bottom: what Hourelle is, how a plan comes together at a glance,
+// what else is there, three demos to try, and the two ways in. Outside the (main)
 // layout on purpose — no app chrome, this page sells rather than serves.
 
 import { useEffect, useRef, useState } from 'react'
@@ -13,11 +13,8 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useGSAP } from '@gsap/react'
 import { ArrowRight, Users } from 'lucide-react'
 import { VisitorHeader } from '@/components/VisitorHeader'
-import { HowItWorks } from '@/components/landing/HowItWorks'
 import { HeroGrid } from '@/components/landing/HeroGrid'
-import { DayPollDemo } from '@/components/landing/DayPollDemo'
-import { BallotDemo } from '@/components/landing/BallotDemo'
-import { ChatDemo } from '@/components/landing/ChatDemo'
+import { HowItWorksGlance, WhatItDoesGlance } from '@/components/landing/Glance'
 import { SiteFooter } from '@/components/SiteFooter'
 import { FlashToast } from '@/components/ui/FlashToast'
 import { rich } from '@/components/ui/rich'
@@ -27,39 +24,14 @@ import { PeekCard, peopleIn } from '@/components/ui/PeekCard'
 import { useAccess } from '@/hooks/useAccess'
 import { listDemos, type AppEvent } from '@/lib/events'
 import { reducedMotion } from '@/lib/prefs'
-import { useHeatLine, withHeatLine } from '@/hooks/useHeatLine'
 import { Em } from '@/components/ui/Em'
 import { SoftShapes } from '@/components/ui/SoftShapes'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
-import { Keepsake, lookOf, type Look } from '@/components/ui/Keepsake'
+import { Keepsake, rowLooks, type Look } from '@/components/ui/Keepsake'
 import { Highlight, PencilArrow, PencilUnderline } from '@/components/ui/Pencil'
 import { HandNote } from '@/components/ui/HandNote'
 
 gsap.registerPlugin(ScrollTrigger)
-
-const FEATURES = [
-  {
-    eyebrow: 'When',
-    title: 'See the day everyone can meet.',
-    body: 'Drag across the times you are free. {heat} The best time is picked out for you.',
-    points: ['Minute-precise edges, not just half-hour boxes', 'Day polls for trips and weekends', 'Or skip the poll when the date is already set'],
-    demo: 'daypoll',
-  },
-  {
-    eyebrow: 'Where',
-    title: 'Pick the place together.',
-    body: 'Suggest spots on a map and vote. For a whole day out, chain the winners into a route with stops and travel time between them.',
-    points: ['One vote or several, your call as host', 'A route that knows how long each leg takes', 'Online plans get a link instead of a pin'],
-    demo: 'ballot',
-  },
-  {
-    eyebrow: 'Who',
-    title: 'Know who is coming, and talk it over.',
-    body: 'See who is coming and who is running late. Each plan has its own chat.',
-    points: ['Everyone RSVPs in one tap', 'The chat shows when someone joins', 'Works in any phone browser'],
-    demo: 'chat',
-  },
-] as const
 
 // friend plans and open events first: the audience is any group planning something
 // (friends, a club, strangers at an open event), not office meetings
@@ -70,7 +42,6 @@ const DEMO_PICKS: Record<string, string> = {
 }
 
 export default function Landing() {
-  const heatLine = useHeatLine()
   const router = useRouter()
   const { ready, signedIn } = useAccess()
   const root = useRef<HTMLDivElement>(null)
@@ -174,43 +145,14 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ── how it works ── */}
-        <section id="how" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pb-8 pt-14 sm:pt-28">
-          <div className="ld-reveal max-w-[560px]">
-            <h2 className="font-serif font-normal text-[36px] leading-[1.06] tracking-[-0.01em] sm:text-[46px]"><PencilUnderline ink="graphite">How it works</PencilUnderline></h2>
-          </div>
-          <HowItWorks />
+        {/* ── how it works, and what else is there: short, to be read at a glance ── */}
+        <section id="how" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pt-14 sm:pt-24">
+          <h2 className="ld-reveal font-serif font-normal text-[36px] leading-[1.06] tracking-[-0.01em] sm:text-[46px]"><PencilUnderline ink="graphite">How it works</PencilUnderline></h2>
+          <HowItWorksGlance />
         </section>
-
-        {/* ── features, alternating ── */}
-        <section id="features" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pt-14 sm:pt-28">
-          <div className="ld-reveal max-w-[560px]">
-            <h2 className="font-serif font-normal text-[36px] leading-[1.06] tracking-[-0.01em] sm:text-[46px]"><PencilUnderline ink="graphite">What it does</PencilUnderline></h2>
-          </div>
-          <div className="mt-6 flex flex-col gap-16 sm:gap-24">
-            {FEATURES.map((f, i) => (
-              <div key={f.eyebrow} className={`grid items-center gap-8 lg:grid-cols-12 lg:gap-12 ${i % 2 ? 'lg:[&>*:first-child]:order-2' : ''}`}>
-                <div className="ld-reveal min-w-0 lg:col-span-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">{f.eyebrow}</p>
-                  <h3 className="mt-2 font-serif font-normal text-[29px] leading-[1.08] tracking-[-0.01em] sm:text-[34px]">{f.title}</h3>
-                  <p className="mt-3.5 text-[15px] leading-[1.6] text-dim">{withHeatLine(f.body, heatLine)}</p>
-                  <ul className="ld-stagger mt-5 flex flex-col gap-2.5">
-                    {f.points.map((pt) => (
-                      <li key={pt} className="flex items-start gap-2.5 text-[13.5px] leading-[1.5] text-dim">
-                        <span className="mt-[7px] h-1.5 w-1.5 flex-none rounded-full bg-accent" />
-                        {pt}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                {/* the feature itself, live: a script plays as it arrives, and it is
-                    yours the moment you touch it */}
-                <div className="ld-reveal min-w-0 lg:col-span-7">
-                  {f.demo === 'daypoll' ? <DayPollDemo /> : f.demo === 'ballot' ? <BallotDemo /> : <ChatDemo />}
-                </div>
-              </div>
-            ))}
-          </div>
+        <section id="features" className="mx-auto w-full max-w-[1240px] scroll-mt-20 px-[22px] pt-16 sm:pt-20">
+          <h2 className="ld-reveal font-serif font-normal text-[36px] leading-[1.06] tracking-[-0.01em] sm:text-[46px]"><PencilUnderline ink="graphite">What it does</PencilUnderline></h2>
+          <WhatItDoesGlance />
         </section>
 
         {/* ── demos ── */}
@@ -229,10 +171,11 @@ export default function Landing() {
               the group's faces tucked behind the top edge */}
           <div className="ld-stagger mt-8 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-3">
             {(() => {
-              const looks: Look[] = []
+              // a row: neighbours lean opposite ways, or a straight card in the middle (rowLooks)
+              const looks: Look[] = rowLooks(demos.map((d) => d.id), demos.map((d) => d.keepsake))
               return demos.map((d, i) => {
                 const [from, to] = coverFor(d.id)
-                const look = lookOf(d.id, i, looks[i - 1]); looks.push(look)
+                const look = looks[i]
                 return (
                   <PeekCard key={d.id} people={peopleIn(d)} size={30} restShow={16} upShow={24} tilt={look.tilt}>
                     <Link href={`/events/${d.id}`} className="group block">
@@ -264,7 +207,8 @@ export default function Landing() {
               <p className="text-[11px] font-semibold uppercase tracking-[.15em] opacity-70">Free to use</p>
               <h2 className="mt-3 font-serif font-normal text-[34px] leading-[1.06] tracking-[-0.01em] sm:text-[44px]">The next plan takes a minute to start.</h2>
             </div>
-            <div className="flex flex-col gap-2.5 lg:items-end">
+            {/* a column of full-width buttons on a phone; side by side from 640px */}
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap lg:flex-col lg:items-end">
               <Link href="/auth/signin?mode=up" className="flex h-12 items-center justify-center gap-2 rounded-full bg-on-accent px-6 text-[15px] font-semibold text-accent">
                 Sign up <ArrowRight size={16} />
               </Link>
