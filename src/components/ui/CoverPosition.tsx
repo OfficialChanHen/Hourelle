@@ -4,12 +4,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Move, RotateCcw, X } from 'lucide-react'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
+import { useViewportWidth } from '@/hooks/useViewportWidth'
+import { coverShapes } from '@/lib/cover-shapes'
 
 /* ── choosing which part of a photo survives the crop ──
-   A cover is never shown at one shape. The card in a list is short and wide, the
-   event's own header is wider still, and the home hero is wider again. A photo
-   dropped into all three fills each of them and loses something different to each,
-   which is why a face can sit perfectly on the card and be cropped off the header.
+   A cover is never shown at one shape. The card on the Plans shelf is short and
+   wide, the plan page's picture is closer to square, and a phone's Home lists later
+   plans with an upright cover. A photo dropped into all three fills each of them and
+   loses something different to each, which is why a face can sit perfectly on the
+   card and be cropped off the phone row.
 
    So the host does not pick a rectangle, they pick a point to keep, and every frame
    crops around it. That is exactly what object-position means, and it is why the
@@ -17,11 +20,11 @@ import { useFocusTrap } from '@/hooks/useFocusTrap'
    of the shapes.
 
    The picking is done by dragging the photo inside a frame, which is the gesture
-   everybody already knows from every other photo cropper. The frame the finger is in
-   is the tightest of the three, because a point that survives the tightest crop
-   survives them all — and the other shapes are drawn underneath, live, so nothing
-   has to be taken on trust. Both are bounded: the photo can never be dragged past
-   its own edges, so no frame ever shows a strip of nothing.
+   everybody already knows from every other photo cropper. The finger works in the
+   card, the shape most people see, and the other shapes are drawn underneath, live,
+   at their real proportions for this screen (lib/cover-shapes), so nothing has to be
+   taken on trust. The photo can never be dragged past its own edges, so no frame
+   ever shows a strip of nothing.
 
    Everything here is pointer events rather than a library: it is one gesture on one
    element, and the keyboard is served by the arrow keys below rather than by
@@ -29,12 +32,6 @@ import { useFocusTrap } from '@/hooks/useFocusTrap'
 
 export type Pos = { x: number; y: number }
 
-// the shapes a cover is actually drawn at, widest last. The first is the one the
-// finger works in, because it keeps the least.
-const SHAPES: { label: string; ratio: number }[] = [
-  { label: 'On a card', ratio: 330 / 150 },
-  { label: 'On the plan page', ratio: 1240 / 260 },
-]
 
 const clamp = (n: number) => Math.min(100, Math.max(0, n))
 
@@ -106,6 +103,9 @@ export function CoverPosition({ src, value, onChange, onClose }: {
   // no mount guard: this only ever renders after the host has pressed Position, so
   // document.body is always there by the time the portal asks for it
   const objectPosition = `${pos.x}% ${pos.y}%`
+  // the shapes a cover is drawn at on this screen
+  const { card, page, row } = coverShapes(useViewportWidth())
+  const others = [{ label: 'On the plan page', ratio: page.w / page.h }, { label: 'Phone list', ratio: row.w / row.h }]
   return createPortal(
     <div ref={root} className="fixed inset-0 z-[70] flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Position the cover photo">
       <div className="max-h-[92dvh] w-full max-w-[560px] overflow-y-auto overscroll-contain rounded-t-2xl border border-border bg-s1 p-4 shadow-soft sm:rounded-2xl sm:p-5">
@@ -129,23 +129,26 @@ export function CoverPosition({ src, value, onChange, onClose }: {
           onKeyDown={onKey}
           aria-label="Drag the photo to position it"
           className="relative w-full cursor-grab touch-none select-none overflow-hidden rounded-xl border border-border bg-s2 outline-none active:cursor-grabbing focus-visible:border-accent"
-          style={{ aspectRatio: String(SHAPES[0].ratio) }}
+          style={{ aspectRatio: String(card.w / card.h) }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img ref={img} src={src} alt="" draggable={false} className="pointer-events-none absolute inset-0 h-full w-full object-cover" style={{ objectPosition }} />
           <span className="pointer-events-none absolute bottom-2 left-2 flex items-center gap-1.5 rounded-full bg-black/45 px-2.5 py-1 text-[11.5px] font-semibold text-white">
-            <Move size={12} /> {SHAPES[0].label}
+            <Move size={12} /> On a card
           </span>
         </div>
 
-        {/* and the wider shapes, drawn from the same two numbers, so the cost of the
-            choice is visible before it is made rather than discovered later */}
-        <div className="mt-2.5 grid gap-2.5">
-          {SHAPES.slice(1).map((s) => (
-            <div key={s.label} className="relative w-full overflow-hidden rounded-xl border border-border bg-s2" style={{ aspectRatio: String(s.ratio) }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition }} />
-              <span className="pointer-events-none absolute bottom-2 left-2 rounded-full bg-black/45 px-2.5 py-1 text-[11.5px] font-semibold text-white">{s.label}</span>
+        {/* and the other shapes, drawn from the same two numbers at the same height,
+            so the cost of the choice is visible before it is made rather than
+            discovered later */}
+        <div className="mt-2.5 grid gap-2.5" style={{ gridTemplateColumns: others.map((o) => `${o.ratio}fr`).join(' ') }}>
+          {others.map((o) => (
+            <div key={o.label} className="min-w-0">
+              <div className="relative w-full overflow-hidden rounded-xl border border-border bg-s2" style={{ aspectRatio: String(o.ratio) }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition }} />
+              </div>
+              <div className="mt-1.5 text-[11.5px] font-semibold text-dim">{o.label}</div>
             </div>
           ))}
         </div>

@@ -1,11 +1,14 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Crop, ImagePlus, Loader2 } from 'lucide-react'
 import { Cover, COVER_PRESETS } from './Cover'
 import { Keepsake, DETAIL_CHOICES, lookOf, withDetail, type CardDetail } from './Keepsake'
 import { CoverPosition, type Pos } from './CoverPosition'
 import { HostTag } from './HostTag'
+import { PhotoFrame } from './PhotoFrame'
+import { useViewportWidth } from '@/hooks/useViewportWidth'
+import { coverShapes } from '@/lib/cover-shapes'
 import { useAccount } from '@/hooks/useAccount'
 import { initialsOf, type Participant } from '@/lib/events'
 import { ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, downscaleImage, isAcceptedImage } from '@/lib/image'
@@ -64,6 +67,28 @@ export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId
   // before there is an id, a stand-in), else what was picked
   const auto = lookOf(eventId ?? 'new-plan', 0)
   const look = { ...withDetail(auto, keepsake), tilt: 0 }
+  // the sizes each place draws the cover at on this screen, frame padding included
+  const vw = useViewportWidth()
+  const shapes = coverShapes(vw)
+  const cardW = shapes.card.w + FRAME_PAD.mid, pageW = shapes.page.w + FRAME_PAD.mid, rowW = shapes.row.w + 16
+  // on a phone the plan page's picture takes a line of its own under the other two
+  const narrow = vw < 640
+  // one scale for all three, so they keep their sizes against each other: as large
+  // as the space allows, never larger than real
+  const box = useRef<HTMLDivElement>(null)
+  const [room, setRoom] = useState(0)
+  useLayoutEffect(() => {
+    const el = box.current
+    if (!el) return
+    const measure = () => setRoom(el.clientWidth)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const scale = !room ? 0 : Math.min(1, narrow
+    ? Math.min((room - GAP - ROW_COL) / cardW, room / pageW)
+    : (room - 2 * GAP - ROW_COL) / (cardW + pageW))
 
   // move an old inline cover up, once, in the background. Keyed on the data URL so a
   // patch coming back through the parent cannot start it again, and a different
@@ -110,39 +135,46 @@ export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId
 
   return (
     <div className="flex flex-col gap-3">
-      {/* one preview for both: the card as a framed photo with its detail, and the
-          plan page's larger framed photo beside it, the way each is drawn */}
-      <div className="grid gap-4 sm:grid-cols-[200px_minmax(0,1fr)]">
-        <div>
+      {/* the cover in each place it shows, each drawn at its real size for this screen
+          and scaled down to fit, so the crop and the detail's size match the app's */}
+      <div
+        ref={box}
+        className="grid items-end gap-y-3"
+        style={{ columnGap: GAP, gridTemplateColumns: narrow ? `${cardW * scale}px ${ROW_COL}px` : `${cardW * scale}px ${pageW * scale}px ${ROW_COL}px`, visibility: scale ? undefined : 'hidden' }}
+      >
+        <Preview label="On a card" w={cardW} scale={scale}>
           {/* a layer of its own around the frame (isolate, with no paint of its own), so
               a clip's back leg, drawn under the frame, tucks under this frame and not
               under the page: the same as a real card */}
           <div className="isolate">
-            <div className="rounded-[12px] bg-frame p-2 pb-3 shadow-frame">
-              <div className="relative">
-                <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[92px]" rounded="rounded-lg" />
+            <PhotoFrame tilt={0} tape={false} pad={look.pad}>
+              <div className="relative mb-3">
+                <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[120px]" rounded="rounded-lg" />
                 <Keepsake look={look} />
                 {/* the name tag the card wears on Home and Plans; whoever edits the cover
                     hosts the plan, so it is always yours here */}
                 <HostTag e={{ participants: [me], hostedByYou: true, hostName: account.name }} />
               </div>
-              <div className="mt-2.5 truncate px-1 font-serif text-[16px] leading-tight tracking-[-0.01em]">{name}</div>
-            </div>
+              <div className="mb-[9px] truncate px-1 font-serif text-[20px] leading-[1.15] tracking-[-0.01em]">{name}</div>
+            </PhotoFrame>
           </div>
-          <div className="mt-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">On a card</div>
-        </div>
-        {/* the plan page's header picture: the same framed photo, larger */}
-        <div className="min-w-0">
+        </Preview>
+        <Preview label="On the plan page" w={pageW} scale={scale} className={narrow ? 'order-last col-span-2' : ''}>
           <div className="isolate">
-            <div className="rounded-[14px] bg-frame p-2.5 pb-3.5 shadow-frame">
+            <PhotoFrame tilt={0} tape={false}>
               <div className="relative">
-                <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[112px] sm:h-[150px]" rounded="rounded-lg" />
+                <div style={{ height: shapes.page.h }}><Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-full" rounded="rounded-lg" /></div>
                 <Keepsake look={look} />
               </div>
-            </div>
+            </PhotoFrame>
           </div>
-          <div className="mt-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">On the plan page</div>
-        </div>
+        </Preview>
+        {/* a phone's Home lists its later plans as rows with an upright cover */}
+        <Preview label="Phone list" w={rowW} scale={scale}>
+          <div className="rounded-[14px] bg-frame p-2 shadow-frame">
+            <div style={{ width: shapes.row.w, height: shapes.row.h }}><Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-full w-full" rounded="rounded-lg" /></div>
+          </div>
+        </Preview>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
@@ -236,6 +268,38 @@ export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId
       {err
         ? <span className="text-[12px] text-brick-text">{err}</span>
         : <span className="text-[12px] text-faint">JPG, PNG or WebP up to {MAX_UPLOAD_LABEL}, resized before it is saved.</span>}
+    </div>
+  )
+}
+
+// the phone row's column, wide enough for its label; and the gap between columns
+const ROW_COL = 84
+const GAP = 16
+
+// PhotoFrame's border, both sides together (p-2, p-2.5, p-3.5)
+const FRAME_PAD = { thin: 16, mid: 20, thick: 28 } as const
+
+/* One place the cover shows: drawn at `w`, its real width, then scaled by the shared
+   `scale`, so everything in it (the crop, the tape, the name) keeps its real
+   proportions. */
+function Preview({ label, w, scale, className = '', children }: { label: string; w: number; scale: number; className?: string; children: React.ReactNode }) {
+  const inner = useRef<HTMLDivElement>(null)
+  const [h, setH] = useState(0)
+  useLayoutEffect(() => {
+    const i = inner.current
+    if (!i) return
+    const measure = () => setH(i.offsetHeight)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(i)
+    return () => ro.disconnect()
+  }, [])
+  return (
+    <div className={`min-w-0 ${className}`}>
+      <div style={{ height: h * scale || undefined }}>
+        <div ref={inner} className="origin-top-left" style={{ width: w, transform: `scale(${scale})` }}>{children}</div>
+      </div>
+      <div className="mt-2 whitespace-nowrap text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{label}</div>
     </div>
   )
 }
