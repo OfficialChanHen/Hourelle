@@ -140,7 +140,6 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // a tap on a place in the list: focus its pin and bring the map to it
   const [panReq, setPanReq] = useState<PanRequest | null>(null)
   const goToPin = (id: string) => { setFocusPin(id); setPanReq((r) => ({ id, n: (r?.n ?? 0) + 1 })) }
-  const [copied, setCopied] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null) // placeId pending delete confirm
   const [confirmClear, setConfirmClear] = useState<'places' | 'stops' | null>(null) // clear-all pending confirm
 
@@ -541,10 +540,6 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
     ;(stopReorder.scope as React.MutableRefObject<HTMLDivElement | null>).current = el
   }
 
-  function copyLink() {
-    navigator.clipboard?.writeText(meetingLink || '').then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800) }).catch(() => {})
-  }
-
   return (
     <div className="flex flex-col gap-3.5">
       {noPlaceYet ? (
@@ -553,14 +548,14 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
           onOnline={() => changeMode('remote')}
           letVote={event.hostedByYou && !guestsCanSuggest ? toggleGuestsCanSuggest : undefined}
         />
-      ) : setPlace && sub === 'vote' && mode !== 'remote' ? (
+      ) : mode === 'remote' ? null : setPlace && sub === 'vote' ? (
         <PlaceSet
           place={setPlace} locked={locked} voters={hideVoters || settled ? [] : votesOf(setPlace.id).map(avatarOf)} people={people}
           when={locked ? confirmedSlotText(event) : null} tz={event.timezone} day={confirmed?.dayKey}
         />
       ) : (
         <TabHeading
-          eyebrow={sub === 'itin' && mode !== 'remote' ? 'The route' : 'Where'}
+          eyebrow={sub === 'itin' ? 'The route' : 'Where'}
           title={headTitle}
           sub={headSub}
           aside={owesVote && (
@@ -586,7 +581,12 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
         </div>
       )}
 
-      {!noPlaceYet && (
+      {mode === 'remote' ? (
+        <RemoteCall
+          platform={loc.platform} link={meetingLink} host={event.hostedByYou && !locked} onLink={changeLink}
+          people={event.participants.filter((p) => p.rsvp !== 'not_going')}
+        />
+      ) : !noPlaceYet && (
       <div className="flex flex-col items-stretch gap-3.5 lg:flex-row">
       {/* map */}
       <div className="relative flex min-w-0 flex-1">
@@ -617,38 +617,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
         {blurred && (
           <div className="absolute inset-0 z-[8] flex items-center justify-center p-5" style={{ background: 'color-mix(in srgb, var(--bg) 38%, transparent)' }}>
             <div className="w-full max-w-[330px] rounded-2xl border border-border2 bg-s1 px-5 py-6 text-center shadow-soft">
-              {mode === 'remote' ? (
-                <>
-                  <span className="mx-auto mb-3 grid h-[46px] w-[46px] place-items-center rounded-xl border border-accent-border bg-accent-bg text-accent-text"><Video size={25} /></span>
-                  <div className="text-[15.5px] font-semibold">This one is online</div>
-                  <p className="mb-3.5 mt-1 text-[13px] leading-[1.55] text-dim">Everyone joins online, so there is no map. The link lives here and in every reminder.</p>
-                  {event.hostedByYou ? (
-                    // host can set/change the link; it's kept if they switch venue type and back
-                    <div className="mb-2.5 flex h-[38px] items-center gap-2 rounded-[10px] border border-border bg-s2 py-0 pl-3 pr-2 focus-within:border-accent">
-                      <Link2 size={16} className="flex-none text-accent-text" />
-                      <input value={meetingLink} onChange={(e) => changeLink(e.target.value)} aria-label="Meeting link" placeholder={`Paste a ${loc.platform} link`} className="min-w-0 flex-1 bg-transparent text-left font-mono text-[13px] outline-none placeholder:text-faint" />
-                      {meetingLink && (
-                        <button onClick={copyLink} className="flex h-7 flex-none items-center gap-1 rounded-full bg-accent px-2.5 text-[12.5px] font-semibold text-on-accent">
-                          {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    // everyone else: a way into the call, not an address to pass on, since
-                    // handing out the link is the host's for now, like the invite link
-                    meetingLink ? (
-                      <a href={meetingLink} target="_blank" rel="noopener noreferrer" className="mb-2.5 flex h-11 w-full items-center justify-center gap-1.5 rounded-[10px] bg-accent text-[14px] font-semibold text-on-accent">
-                        <Video size={16} /> Join on {loc.platform || 'the call'}
-                      </a>
-                    ) : (
-                      <div className="mb-2.5 flex h-[38px] items-center justify-center gap-2 rounded-[10px] border border-border bg-s2 px-3 text-[13px] text-dim">
-                        <Link2 size={15} className="flex-none text-faint" /> The {loc.platform} link is on its way
-                      </div>
-                    )
-                  )}
-                  <div className="text-[12.5px] text-dim">{event.participants.filter((p) => p.rsvp !== 'not_going').length} joining on {loc.platform}</div>
-                </>
-              ) : (
+              {(
                 <>
                   <span className="mx-auto mb-3 grid h-[46px] w-[46px] place-items-center rounded-xl border border-ochre-border bg-ochre-bg text-ochre-text"><MapPinOff size={25} /></span>
                   <div className="text-[15.5px] font-semibold">No location yet</div>
@@ -667,7 +636,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
       {/* phone: a bar that lifts the venues/itinerary panel up as a bottom sheet. From a
           tablet up (768px) there is room for the panel itself, under the map */}
       {/* kept in the page (hidden) while the sheet is up, so focus has somewhere to go back to */}
-      {mode !== 'remote' && (
+      {(
         <button type="button" onClick={() => setSheetOpen(true)} className={`${sheetOpen ? 'hidden' : 'flex'} items-center justify-between gap-2 rounded-xl border border-border bg-s1 px-4 py-3 text-left shadow-soft md:hidden`}>
           <span className="flex items-center gap-2 text-[13.5px] font-semibold"><Route size={16} className="text-accent-text" /> {sub === 'itin' ? 'Itinerary' : 'Venue vote'}</span>
           <span className="flex items-center gap-1.5 text-[12.5px] text-dim">{places.length} {places.length === 1 ? 'place' : 'places'} <ChevronUp size={16} /></span>
@@ -676,7 +645,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
 
       {/* side panel — only for in-person events; a bottom sheet on a phone, a block of its
           own height under the map on a tablet, a column beside it on a large screen */}
-      {mode !== 'remote' && (
+      {(
         <div
           ref={sheetRef}
           role={sheetOpen ? 'dialog' : undefined}
@@ -1281,6 +1250,74 @@ function PlaceSet({ place, locked, voters, people, when, tz, day }: {
             {copied ? <><Check size={15} /> Copied</> : 'Copy address'}
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+/* Online: the tab's moment is the call itself. A framed screen holds everyone's faces
+   in tiles, the way a call looks once people join (six at most, then "+N"), with a
+   little call bar under them. A picture, so nothing in it is a control. Beside it the
+   platform, how many are joining, and the way in: the host pastes and copies the link,
+   everyone else joins with one tap. */
+function RemoteCall({ platform, link, host, onLink, people }: {
+  platform: string; link: string; host: boolean; onLink: (v: string) => void
+  people: Participant[]
+}) {
+  const [copied, setCopied] = useState(false)
+  const tiles = people.slice(0, people.length > 6 ? 5 : 6)
+  const extra = people.length - tiles.length
+  const where = platform || 'the call'
+  function copy() {
+    navigator.clipboard?.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
+  }
+  return (
+    <div className="relative isolate flex flex-col gap-8 py-4 md:flex-row md:items-center md:gap-14">
+      <PhotoFrame tilt={1.6} tape="right" className="w-full max-w-[420px] flex-none self-center md:max-w-[320px] md:self-auto lg:max-w-[420px]">
+        <div className="rounded-lg bg-s3 p-2.5" role="img" aria-label={people.length ? `On the call: ${namesLabel(people.slice(0, 5).map((p) => p.name), people.length - 5)}` : 'An empty call'}>
+          <div className="grid grid-cols-3 gap-2">
+            {tiles.map((p) => (
+              <div key={p.id} className="grid aspect-[4/3] place-items-center rounded-md bg-s1">
+                <Avatar initials={p.initials} color={p.color} face={p.face} size={40} font={13} />
+              </div>
+            ))}
+            {extra > 0 && <div className="grid aspect-[4/3] place-items-center rounded-md bg-s1 text-[15px] font-semibold text-dim">+{extra}</div>}
+            {Array.from({ length: Math.max(0, 3 - tiles.length - (extra > 0 ? 1 : 0)) }, (_, i) => (
+              <div key={`e${i}`} className="aspect-[4/3] rounded-md border-2 border-dashed border-border2" />
+            ))}
+          </div>
+          {/* the call bar: mic, camera, hang up */}
+          <div aria-hidden className="mt-2.5 flex justify-center gap-2">
+            <span className="h-6 w-6 rounded-full bg-s1" />
+            <span className="h-6 w-6 rounded-full bg-s1" />
+            <span className="h-6 w-9 rounded-full bg-brick" />
+          </div>
+        </div>
+      </PhotoFrame>
+
+      <div className="max-w-[460px] flex-1">
+        <p className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Online</p>
+        <h2 className="mt-2 font-serif text-[32px] font-normal leading-[1.12] tracking-[-0.01em] sm:text-[40px]">On {where}</h2>
+        <p className="mt-2 text-[15px] text-dim">{people.length} {people.length === 1 ? 'person' : 'people'} joining. The link goes out in every reminder.</p>
+        {host ? (
+          <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
+            <label className="flex h-11 min-w-0 items-center gap-2 rounded-[10px] border border-border2 bg-s1 px-3 focus-within:border-accent sm:h-10 sm:flex-1">
+              <Link2 size={16} className="flex-none text-accent-text" aria-hidden />
+              <input value={link} onChange={(e) => onLink(e.target.value)} aria-label="Meeting link" placeholder={`https://${(platform || 'zoom').toLowerCase().replace(/\s+/g, '')}.us/j/123`} className="min-w-0 flex-1 bg-transparent font-mono text-[13px] outline-none placeholder:text-faint" />
+            </label>
+            {link && (
+              <button type="button" onClick={copy} className={`flex h-11 flex-none items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[14px] font-semibold sm:h-10 ${copied ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'}`}>
+                {copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy link</>}
+              </button>
+            )}
+          </div>
+        ) : link ? (
+          <a href={link} target="_blank" rel="noopener noreferrer" className="mt-6 inline-flex h-11 items-center gap-1.5 rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent sm:h-10">
+            <Video size={16} aria-hidden /> Join on {where}
+          </a>
+        ) : (
+          <p className="mt-5 flex items-center gap-2 text-[14px] text-dim"><Link2 size={15} className="text-faint" aria-hidden /> The link is on its way from the host.</p>
+        )}
       </div>
     </div>
   )

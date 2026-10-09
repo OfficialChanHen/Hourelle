@@ -123,13 +123,16 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
   }, [locked, event.confirmed, event.days, gridStart, best])
   const dayIv = (win?.dayKey && availIv[win.dayKey]) || {}
 
-  const attendees = participants.filter((p) => p.rsvp === 'attending' || p.rsvp === 'maybe')
+  const attendees = useMemo(() => participants.filter((p) => p.rsvp === 'attending' || p.rsvp === 'maybe'), [participants])
   const me = participants.find((p) => p.you)
 
   // who has marked ANY availability on any day — "no times yet" means never, not
   // "not free on this particular day"
-  const markedIds = new Set<string>()
-  for (const day of Object.values(availIv)) for (const [id, ivs] of Object.entries(day)) if (ivs.length) markedIds.add(id)
+  const markedIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const day of Object.values(availIv)) for (const [id, ivs] of Object.entries(day)) if (ivs.length) ids.add(id)
+    return ids
+  }, [availIv])
   // who declared "none of these days work" — an explicit empty reply, not silence
   const unavailSet = useMemo(() => new Set(event.unavailableIds ?? []), [event.unavailableIds])
 
@@ -143,6 +146,14 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
 
   // event with the live participant list, so child views read the same list this tab edits
   const liveEvent = useMemo(() => ({ ...event, participants }), [event, participants])
+
+  // the route, worked out once for the heading and the view
+  const itinPeople = useMemo(
+    () => (locked ? attendees : participants.filter((p) => p.rsvp !== 'not_going' && !(unavailSet.has(p.id) && !markedIds.has(p.id)))),
+    [locked, attendees, participants, unavailSet, markedIds],
+  )
+  const itin = useItinerary(liveEvent, itinPeople, dayIv, gridStart)
+  const showItin = model === 'itin' && hasItinerary && itin.stopData.length > 0
 
   // where things stand, said once as a sentence. Deciding: answered out of everyone
   // invited (lib/answers), and how many can stay for the whole best time so far. Locked:
@@ -160,7 +171,9 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
   const allDay = !!win && gridStart + win.s === 0 && gridStart + win.e === 24 * 60
   const whenText = win ? `${win.dayLabel}${byDay || allDay ? '' : `, ${fmtMinute(gridStart + win.s)} to ${fmtMinute(gridStart + win.e)}`}` : ''
   const going = participants.filter((p) => p.rsvp === 'attending').length
-  const title = locked
+  const title = showItin
+    ? itinTitle(itin, itinPeople.length)
+    : locked
     ? `${goingLine(rsvpPool(liveEvent), true)}.`
     : win
       ? `${answeredLine(answered.size, participants.length)}. ${wholeNow} ${byDay ? 'can make that day' : 'can stay the whole time'}.`
@@ -212,8 +225,8 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
 
       {empty ? (
         <WaitingOnGroup event={event} me={me} mineMissing={mineMissing} locked={locked} onGoToTab={onGoToTab} />
-      ) : model === 'itin' && hasItinerary ? (
-        <ItineraryAttendance event={liveEvent} attendees={locked ? attendees : participants.filter((p) => p.rsvp !== 'not_going' && !(unavailSet.has(p.id) && !markedIds.has(p.id)))} dayIv={dayIv} gridStart={gridStart} onPerson={onViewAvailability} />
+      ) : showItin ? (
+        <ItineraryAttendance itin={itin} total={itinPeople.length} onPerson={onViewAvailability} onViewGroup={onViewAvailabilityGroup} />
       ) : (
         <SingleVenue
           event={liveEvent} attendees={attendees} win={win} locked={locked} dayIv={dayIv}
@@ -433,6 +446,8 @@ function SingleVenue({
 
   // the roster only says "here" once there is somewhere to be
   const hasVenue = event.location.mode === 'remote' || leadingPlaceOf(event) != null
+  // an online plan is a call: people are on it, not in a room
+  const online = event.location.mode === 'remote'
 
   // inline timing bars for part-time rows: one block per stretch they're around,
   // positioned within the window — gaps stay visibly empty. Each block carries its
@@ -495,7 +510,7 @@ function SingleVenue({
         )}
         {none && <p className="text-[13px] text-faint">Nobody here by that name.</p>}
 
-        <GroupCard label={locked && hasVenue ? 'Here the whole time' : 'Free the whole time'} tone="teal" count={groups.whole.length} onOpen={open(groups.whole.map((p) => p.id))}>
+        <GroupCard label={locked && hasVenue ? (online ? 'On the call the whole time' : 'Here the whole time') : 'Free the whole time'} tone="teal" count={groups.whole.length} onOpen={open(groups.whole.map((p) => p.id))}>
           {groups.whole.length
             ? <FaceGroup people={groups.whole.filter(hit)} size={46} cap={8} onPerson={onPerson} />
             : <p className="text-[13.5px] text-dim">{win ? 'Nobody can stay for all of it yet.' : 'Nobody has marked times yet.'}</p>}
@@ -976,12 +991,16 @@ function CopyReminder({ event }: { event: AppEvent }) {
   )
 }
 
-/* ── Multi-stop itinerary: O(1) per stop, exceptions not a matrix ── */
-function ItineraryAttendance({
-  event, attendees, dayIv, gridStart, onPerson,
-}: { event: AppEvent; attendees: Participant[]; dayIv: Record<string, Iv[]>; gridStart: number; onPerson?: (pid: string) => void }) {
+/* ── Multi-stop itinerary: O(1) per stop, exceptions not a matrix ──
+   Worked out once (useItinerary) and read twice: the tab's heading sentence and the
+   view below. Per stop: who is around for all of it, part of it, or none of it. Then
+   the people who miss a stop, grouped by which stops they miss, so the list grows with
+   the patterns (a handful) rather than the guest list. */
+type StopRow = { i: number; name: string; arrive: number; depart: number; present: Participant[]; partial: Participant[]; absent: Participant[] }
+type GapGroup = { key: string; names: string[]; label: string; people: Participant[] }
+function useItinerary(event: AppEvent, attendees: Participant[], dayIv: Record<string, Iv[]>, gridStart: number) {
   const placeName = (id: string) => event.location.places.find((p) => p.id === id)?.name ?? 'Stop'
-  const stops = event.itinStops ?? []
+  const stops = useMemo(() => event.itinStops ?? [], [event.itinStops])
   const dwell = event.itinDwell ?? []
   const startMin = event.itinStartMin ?? 9 * 60
   // the same road route the Location tab uses (shared cache), so travel minutes agree
@@ -991,7 +1010,8 @@ function ItineraryAttendance({
 
   // schedule + per-stop attendance, computed once (O(stops × people)). The schedule comes from
   // the shared helper, so these clock times match the Location tab exactly.
-  const stopData = useMemo(() => {
+  const stopData: StopRow[] = useMemo(() => {
+    if (!stops.length) return []
     const inputStops = stops.map((placeId, i) => ({ placeId, dwell: dwell[i] ?? 60 }))
     const modes = ((event.travelModes as TravelMode[] | undefined) ?? []).filter((m) => ALL_MODES.includes(m))
     const { schedule } = computeItinerary(event.location.places, inputStops, startMin, modes, road?.legs)
@@ -1003,102 +1023,108 @@ function ItineraryAttendance({
         if (c === 'none') absent.push(p)
         else { present.push(p); if (c === 'partial') partial.push(p) }
       }
-      return { placeId: s.placeId, name: placeName(s.placeId), i, arrive: s.arrive, depart: s.depart, present, partial, absent }
+      return { name: placeName(s.placeId), i, arrive: s.arrive, depart: s.depart, present, partial, absent }
     })
   }, [stops, dwell, startMin, gridStart, attendees, dayIv, event.location.places, event.travelModes, road]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // people missing at least one stop → the exceptions list (never an O(people × stops) grid)
-  const exceptions = useMemo(() => attendees
-    .map((p) => ({ p, misses: stopData.filter((s) => s.absent.some((a) => a.id === p.id)).map((s) => s.i + 1) }))
-    .filter((x) => x.misses.length > 0), [attendees, stopData])
-  const attendAll = attendees.length - exceptions.length
-  // people who miss the same stops, together; the biggest group first
-  const gapGroups = useMemo(() => {
-    const nameOf = (n: number) => stopData[n - 1]?.name ?? `stop ${n}`
-    const joined = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : xs[0])
-    const by = new Map<string, { key: string; label: string; people: Participant[] }>()
-    for (const { p, misses } of exceptions) {
+  // people missing at least one stop → grouped by which stops (never an O(people × stops) grid)
+  const { everyStop, gapGroups } = useMemo(() => {
+    const missesOf = new Map<string, number[]>()
+    for (const s of stopData) for (const p of s.absent) missesOf.set(p.id, [...(missesOf.get(p.id) ?? []), s.i])
+    const by = new Map<string, GapGroup>()
+    for (const p of attendees) {
+      const misses = missesOf.get(p.id)
+      if (!misses) continue
       const key = misses.join(',')
       if (!by.has(key)) {
-        const label = misses.length === stops.length ? 'Misses every stop'
-          : misses.length > 2 ? `Misses ${misses.length} stops: ${joined(misses.map(nameOf))}`
-          : `Misses ${joined(misses.map(nameOf))}`
-        by.set(key, { key, label, people: [] })
+        const names = misses.map((n) => stopData[n]?.name ?? `stop ${n + 1}`)
+        const label = misses.length === stopData.length ? 'Misses every stop' : `Misses ${joinNames(names)}`
+        by.set(key, { key, names, label, people: [] })
       }
       by.get(key)!.people.push(p)
     }
-    return [...by.values()].sort((x, y) => y.people.length - x.people.length)
-  }, [exceptions, stopData, stops.length])
-  const peak = Math.max(1, ...stopData.map((s) => s.present.length))
+    return {
+      everyStop: attendees.filter((p) => !missesOf.has(p.id)),
+      gapGroups: [...by.values()].sort((x, y) => y.people.length - x.people.length),
+    }
+  }, [stopData, attendees])
+  return { stopData, everyStop, gapGroups }
+}
+const joinNames = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : xs[0] ?? '')
+type Itin = ReturnType<typeof useItinerary>
 
+// the heading for the route: how many make all of it, and the biggest gap said plainly
+function itinTitle(itin: Itin, total: number): string {
+  const all = `${itin.everyStop.length} of ${total} make every stop.`
+  const g = itin.gapGroups[0]
+  if (!g) return 'Everyone makes every stop.'
+  const n = g.people.length
+  return g.names.length === itin.stopData.length
+    ? `${all} ${n} can’t make any of it.`
+    : `${all} ${n} ${n === 1 ? 'misses' : 'miss'} ${joinNames(g.names)}.`
+}
+
+function ItineraryAttendance({ itin, total, onPerson, onViewGroup }: {
+  itin: Itin; total: number; onPerson?: (pid: string) => void; onViewGroup?: (pids: string[]) => void
+}) {
+  const { stopData, everyStop, gapGroups } = itin
+  const open = (ids: string[]) => (onViewGroup ? () => onViewGroup(ids) : undefined)
+  const pct = (n: number) => `${total ? (n / total) * 100 : 0}%`
   return (
-    <div className="flex flex-col gap-4">
-      <div className="rounded-2xl border border-border bg-s1 p-5">
-        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-          <div className="text-[14.5px]"><span className="font-serif text-[24.5px]">{attendAll}</span> <span className="text-dim">of {attendees.length} attend all {stops.length} stops</span></div>
-          <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Headcount by stop</div>
+    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+      {/* the route top to bottom: each stop's time, a bar of who is there for all of it
+          and for part of it, a capped pile of faces, and a flag where something is off */}
+      <section className="min-w-0 rounded-2xl border border-border bg-s1 p-5">
+        <div className="mb-1 flex items-center justify-between gap-3">
+          <span className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Stop by stop</span>
+          <span className="text-[13px] text-dim">{stopData.length} {stopData.length === 1 ? 'stop' : 'stops'}</span>
         </div>
-        {/* headcount strip — one bar per stop, full vs part-time */}
-        <div className="flex items-end gap-2">
+        <ol>
           {stopData.map((s) => {
-            const h = (s.present.length / peak) * 100
-            const partFrac = s.present.length ? s.partial.length / s.present.length : 0
+            const whole = s.present.length - s.partial.length
             return (
-              <div key={s.i} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-                <div className="flex h-20 w-full items-end justify-center">
-                  <div className="relative w-full max-w-[38px] overflow-hidden rounded-t-[3px] bg-s2" style={{ height: `${Math.max(8, h)}%` }}>
-                    <div className="absolute inset-x-0 top-0 bg-ochre" style={{ height: `${partFrac * 100}%` }} />
-                    <div className="absolute inset-x-0 bottom-0 bg-teal" style={{ height: `${(1 - partFrac) * 100}%` }} />
+              <li key={s.i} className={`grid grid-cols-[30px_minmax(0,1fr)] gap-3.5 py-4 ${s.i > 0 ? 'border-t border-border' : ''}`}>
+                <span className="grid h-[30px] w-[30px] place-items-center rounded-full bg-accent text-[13px] font-bold text-on-accent">{s.i + 1}</span>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                    <span className="text-[15px] font-semibold">{s.name}</span>
+                    <span className="text-[13px] text-dim">{fmtMinuteDay(s.arrive)} to {fmtMinuteDay(s.depart)}</span>
+                  </div>
+                  <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-s2" role="img" aria-label={`${whole} there for all of it, ${s.partial.length} for part of it, out of ${total}`}>
+                    <span className="bg-teal" style={{ width: pct(whole) }} />
+                    <span className="bg-ochre" style={{ width: pct(s.partial.length) }} />
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+                    <AvatarPile people={s.present} cap={6} />
+                    <span className="text-[13px] text-dim">{s.present.length} of {total} here</span>
+                    <span className="ml-auto flex flex-wrap gap-1.5">
+                      {s.partial.length > 0 && <Flag tone="ochre">{s.partial.length} for part of it</Flag>}
+                      {s.absent.length > 0 && <Flag tone="brick">{s.absent.length} miss it</Flag>}
+                    </span>
                   </div>
                 </div>
-                <span className="grid h-4 w-4 flex-none place-items-center rounded-full bg-accent text-[10px] font-bold text-on-accent">{s.i + 1}</span>
-                <span className="w-full truncate text-center text-[10.5px] text-dim">{s.present.length}</span>
-              </div>
+              </li>
             )
           })}
+        </ol>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-[12.5px] text-dim" aria-hidden>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[3px] bg-teal" />There for all of it</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[3px] bg-ochre" />Part of it</span>
         </div>
-      </div>
+      </section>
 
-      {/* per-stop cards — bounded work, capped pile, flag chips */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {stopData.map((s) => (
-          <div key={s.i} className="rounded-xl border border-border bg-s1 p-4">
-            <div className="mb-2 flex items-center gap-2">
-              <span className="grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[12.5px] font-bold text-on-accent">{s.i + 1}</span>
-              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{s.name}</span>
-              <span className="flex flex-none items-center gap-1 text-[12px] text-faint"><Clock size={11} /> {fmtMinuteDay(s.arrive)}</span>
-            </div>
-            <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-s2">
-              <div className="h-full rounded-full bg-teal" style={{ width: `${(s.present.length / Math.max(1, attendees.length)) * 100}%` }} />
-            </div>
-            <div className="mb-2.5 text-[12.5px] text-dim">{s.present.length} of {attendees.length} here</div>
-            <div className="flex items-center justify-between">
-              <AvatarPile people={s.present} cap={6} />
-              <div className="flex flex-wrap justify-end gap-1">
-                {s.partial.length > 0 && <Flag tone="ochre">{s.partial.length} partial</Flag>}
-                {s.absent.length > 0 && <Flag tone="brick">{s.absent.length} out</Flag>}
-              </div>
-            </div>
-          </div>
+      {/* who makes all of it, then the gaps, grouped by the stops they miss */}
+      <div className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-[78px]">
+        <GroupCard label="Every stop" tone="teal" count={everyStop.length} onOpen={open(everyStop.map((p) => p.id))}>
+          {everyStop.length
+            ? <FaceGroup people={everyStop} size={42} cap={8} onPerson={onPerson} />
+            : <p className="text-[13.5px] text-dim">Nobody makes all of it yet.</p>}
+        </GroupCard>
+        {gapGroups.map((g) => (
+          <GroupCard key={g.key} label={g.label} tone="ochre" count={g.people.length} onOpen={open(g.people.map((p) => p.id))}>
+            <FaceGroup people={g.people} size={34} cap={6} onPerson={onPerson} />
+          </GroupCard>
         ))}
-      </div>
-
-      {/* the gaps, grouped by which stops are missed. It was a row per person with
-          the stop numbers they miss as bare circles, which made the reader match
-          numbers to names and grew with the guest list. People who miss the same
-          stops are one group, named by those stops, so the list grows with the
-          patterns (a handful) rather than the people. */}
-      <div className="rounded-2xl border border-border bg-s1 p-5">
-        <div className="mb-3 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Who misses a stop</div>
-        {exceptions.length === 0 ? (
-          <div className="flex items-center gap-2 text-[14px] text-teal-text"><span className="h-1.5 w-1.5 rounded-full bg-teal" /> Everyone makes every stop.</div>
-        ) : (
-          <div className="flex flex-col gap-5">
-            {gapGroups.map((g) => (
-              <RosterGroup key={g.key} compact tone="brick" label={g.label} people={g.people.map((p) => ({ p }))} onPerson={onPerson} />
-            ))}
-          </div>
-        )}
       </div>
     </div>
   )
@@ -1109,7 +1135,7 @@ function AvatarPile({ people, cap }: { people: Participant[]; cap: number }) {
   const extra = people.length - shown.length
   return (
     <div className="flex items-center" role={people.length ? 'img' : undefined} aria-label={people.length ? namesLabel(shown.map((p) => p.name), extra) : undefined}>
-      {shown.map((p, i) => <span key={p.id} className="-mr-1.5 flex"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} /></span>)}
+      {shown.map((p) => <span key={p.id} className="-mr-1.5 flex"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} /></span>)}
       {extra > 0 && <span aria-hidden className="ml-2.5 text-[12.5px] font-semibold text-dim">+{extra}</span>}
       {people.length === 0 && <span className="text-[12.5px] text-faint">nobody yet</span>}
     </div>
