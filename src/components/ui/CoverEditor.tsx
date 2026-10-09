@@ -5,6 +5,9 @@ import { Crop, ImagePlus, Loader2 } from 'lucide-react'
 import { Cover, COVER_PRESETS } from './Cover'
 import { Keepsake, DETAIL_CHOICES, lookOf, withDetail, type CardDetail } from './Keepsake'
 import { CoverPosition, type Pos } from './CoverPosition'
+import { HostTag } from './HostTag'
+import { useAccount } from '@/hooks/useAccount'
+import { initialsOf, type Participant } from '@/lib/events'
 import { ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, downscaleImage, isAcceptedImage } from '@/lib/image'
 import { removeCover, uploadCover } from '@/lib/covers'
 import { isInlineCover, isPhotoCover } from '@/lib/cover-kind'
@@ -46,6 +49,9 @@ export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId
   eventId?: string
   onChange: (patch: { image?: string; imageFit?: ImageFit; imagePos?: Pos; keepsake?: CardDetail }) => void
 }) {
+  const account = useAccount()
+  const me = { id: 'me', name: account.name, initials: initialsOf(account.name), color: account.color, face: account.face, host: true, rsvp: 'attending' } as Participant
+
   const [posing, setPosing] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -116,6 +122,9 @@ export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId
               <div className="relative">
                 <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[92px]" rounded="rounded-lg" />
                 <Keepsake look={look} />
+                {/* the name tag the card wears on Home and Plans; whoever edits the cover
+                    hosts the plan, so it is always yours here */}
+                <HostTag e={{ participants: [me], hostedByYou: true, hostName: account.name }} />
               </div>
               <div className="mt-2.5 truncate px-1 font-serif text-[16px] leading-tight tracking-[-0.01em]">{name}</div>
             </div>
