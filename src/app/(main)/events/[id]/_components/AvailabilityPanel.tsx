@@ -1358,20 +1358,20 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         <p className="mt-1.5 text-[12px] leading-[1.5] text-faint">The best time is a stretch this long.</p>
                       </div>
                     )}
-                    {/* two switches that are one choice: turning either on turns the other off */}
+                    {/* one question with a default: off favors everyone staying, on the biggest crowd */}
                     {isHost && (
-                      <SettingField label={daysAnswer ? 'Best days favor' : 'Best time favors'}>
-                        <SettingToggle
-                          nested label="Everyone stays" on={bestMode === 'full'}
-                          onChange={(v) => changeBestMode(v ? 'full' : 'crowd')}
-                          hint={daysAnswer ? 'The days the most people can make from start to end.' : 'The time the most people can stay start to finish.'}
-                        />
-                        <SettingToggle
-                          nested label="Biggest crowd" on={bestMode === 'crowd'}
-                          onChange={(v) => changeBestMode(v ? 'crowd' : 'full')}
-                          hint={daysAnswer ? 'The days with the most people around overall.' : 'The time with the most people around, even if some come and go.'}
-                        />
-                      </SettingField>
+                      <SettingToggle
+                        label={daysAnswer ? 'Count people who make only some days' : 'Count people who come and go'}
+                        on={bestMode === 'crowd'}
+                        onChange={(v) => changeBestMode(v ? 'crowd' : 'full')}
+                        hint={daysAnswer
+                          ? bestMode === 'crowd'
+                            ? 'Picks the days with the most people around overall.'
+                            : 'Picks the days the most people can make from start to end.'
+                          : bestMode === 'crowd'
+                            ? 'Picks the time with the most people around, even if some leave early.'
+                            : 'Picks the time the most people can stay start to finish.'}
+                      />
                     )}
                     {!daysAnswer && (
                       <SettingToggle label="24-hour time" on={h24} onChange={setH24} />
