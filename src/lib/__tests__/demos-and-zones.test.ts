@@ -6,11 +6,20 @@ const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 describe('demo dates', () => {
   const demos = listDemos()
-  it('start about two months out, never years', () => {
+  it('start about two months out (a few weeks either way to miss the holidays), never years', () => {
     const lead = Math.min(...demos.map((d) => daysUntil(d.startDate) ?? 0))
-    expect(lead).toBeGreaterThanOrEqual(56)
-    expect(lead).toBeLessThanOrEqual(64)
+    expect(lead).toBeGreaterThanOrEqual(28)
+    expect(lead).toBeLessThanOrEqual(64 + 63)
     for (const d of demos) expect(daysUntil(d.startDate)!).toBeLessThan(200)
+  })
+  it('keep every key day (locked day, first day, deadlines) out of the holidays', () => {
+    for (const d of demos) {
+      for (const k of [d.confirmed?.dayKey, d.startDate, d.voteDeadline, d.planDeadline, d.rsvpDeadline]) {
+        if (!k) continue
+        const [, m, dd] = k.split('-').map(Number)
+        expect((m === 12 && dd >= 20) || (m === 1 && dd <= 3), `${d.id}: ${k}`).toBe(false)
+      }
+    }
   })
   it('keep every weekday and relabel every day', () => {
     for (const d of demos) for (const g of d.days) {

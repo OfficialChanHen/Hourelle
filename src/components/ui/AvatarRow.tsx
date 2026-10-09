@@ -70,7 +70,7 @@ export function AvatarRow({
       )}
     </>
   )
-  if (flip) return <FlipGroup names={label} className="flex items-center">{faces}</FlipGroup>
+  if (flip) return <FlipGroup names={label} people={shown} more={extraCount} className="flex items-center">{faces}</FlipGroup>
   return (
     <div
       className="flex items-center"

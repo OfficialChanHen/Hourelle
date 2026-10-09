@@ -1771,7 +1771,7 @@ const DEMO: AppEvent = {
     presidio: ['DW'],
   },
   maxVotes: 2,
-  durationMin: 120,
+  durationMin: 7 * 60, // the whole route, 9 AM to 4 PM: what the lock-in set aside
   itinStartMin: 9 * 60,
   // morning workshops in Sausalito, a picnic lunch on the Tunnel Tops lawn, the
   // wrap-up at the Officers' Club — stop order follows the route, dwell minutes align by index
@@ -2395,9 +2395,25 @@ function demoShiftDays(list: AppEvent[]): number {
   list.forEach(scan)
   const start = parseLocal(first)
   if (!start) return 0
-  const target = new Date(); target.setHours(0, 0, 0, 0); target.setDate(target.getDate() + DEMO_LEAD_DAYS)
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const target = new Date(today); target.setDate(target.getDate() + DEMO_LEAD_DAYS)
   const days = Math.round((target.getTime() - start.getTime()) / 86400000)
-  return Math.round(days / 7) * 7
+  const base = Math.round(days / 7) * 7
+  // a demo's key day landing in the holidays reads as a mistake (a team offsite on
+  // Dec 30, a cabin weekend on Christmas, a vote closing on New Year's Eve), so the
+  // nearest whole-week shift that keeps them all clear is taken, never closer than four
+  // weeks out. Key days: the locked day, the first day asked about, each deadline.
+  const keyDays = list.flatMap((e) => [e.confirmed?.dayKey, e.startDate, e.voteDeadline, e.planDeadline, e.rsvpDeadline])
+    .map((k) => (k ? parseLocal(k) : null)).filter((d): d is Date => !!d)
+  const clear = (by: number) => keyDays.every((d) => !inHolidays(moveDay(d, by)))
+  const soonest = (by: number) => (moveDay(start, by).getTime() - today.getTime()) / 86400000 >= 28
+  // the demos span about seven weeks, so nine weeks later always clears the holidays
+  for (const k of [0, -7, 7, -14, 14, 21, 28, 35, 42, 49, 56, 63]) if (soonest(base + k) && clear(base + k)) return base + k
+  return base
+}
+// Dec 20 to Jan 3
+function inHolidays(d: Date): boolean {
+  return (d.getMonth() === 11 && d.getDate() >= 20) || (d.getMonth() === 0 && d.getDate() <= 3)
 }
 function moveDay(d: Date, by: number): Date { const x = new Date(d); x.setDate(x.getDate() + by); return x }
 function shiftText(t: string, by: number): string {

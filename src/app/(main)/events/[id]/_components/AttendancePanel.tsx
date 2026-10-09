@@ -1002,7 +1002,8 @@ function CopyReminder({ event }: { event: AppEvent }) {
    the people who miss a stop, grouped by which stops they miss, so the list grows with
    the patterns (a handful) rather than the guest list. */
 type StopRow = { i: number; name: string; arrive: number; depart: number; present: Participant[]; partial: Participant[]; absent: Participant[] }
-type GapGroup = { key: string; names: string[]; label: string; people: Participant[] }
+// `said` is the gap as the middle of a sentence ("is late to X" reads off it)
+type GapGroup = { key: string; names: string[]; label: string; said: string; whole: boolean; people: Participant[] }
 function useItinerary(event: AppEvent, attendees: Participant[], dayIv: Record<string, Iv[]>, gridStart: number) {
   const placeName = (id: string) => event.location.places.find((p) => p.id === id)?.name ?? 'Stop'
   const stops = useMemo(() => event.itinStops ?? [], [event.itinStops])
@@ -1032,27 +1033,49 @@ function useItinerary(event: AppEvent, attendees: Participant[], dayIv: Record<s
     })
   }, [stops, dwell, startMin, gridStart, attendees, dayIv, event.location.places, event.travelModes, road]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // people missing at least one stop → grouped by which stops (never an O(people × stops) grid)
+  // people with a gap anywhere on the route (a stop missed, a stop joined late or left
+  // early) → grouped by what the gaps are (never an O(people × stops) grid). Only the
+  // people there for all of every stop count as making every stop.
   const { everyStop, gapGroups } = useMemo(() => {
-    const missesOf = new Map<string, number[]>()
-    for (const s of stopData) for (const p of s.absent) missesOf.set(p.id, [...(missesOf.get(p.id) ?? []), s.i])
+    const gapsOf = new Map<string, { misses: number[]; late: number[]; early: number[] }>()
+    const of = (id: string) => { let g = gapsOf.get(id); if (!g) { g = { misses: [], late: [], early: [] }; gapsOf.set(id, g) } return g }
+    for (const s of stopData) {
+      for (const p of s.absent) of(p.id).misses.push(s.i)
+      for (const p of s.partial) {
+        const segs = segmentsOf(dayIv[p.id], s.arrive - gridStart, s.depart - gridStart)
+        const g = of(p.id)
+        if (segs.length && segs[0].s > s.arrive - gridStart) g.late.push(s.i)
+        if (segs.length && segs[segs.length - 1].e < s.depart - gridStart) g.early.push(s.i)
+        if (!segs.length) g.misses.push(s.i)
+      }
+    }
+    const nameOf = (n: number) => stopData[n]?.name ?? `stop ${n + 1}`
     const by = new Map<string, GapGroup>()
     for (const p of attendees) {
-      const misses = missesOf.get(p.id)
-      if (!misses) continue
-      const key = misses.join(',')
+      const g = gapsOf.get(p.id)
+      if (!g) continue
+      const key = `m${g.misses.join(',')}l${g.late.join(',')}e${g.early.join(',')}`
       if (!by.has(key)) {
-        const names = misses.map((n) => stopData[n]?.name ?? `stop ${n + 1}`)
-        const label = misses.length === stopData.length ? 'Misses every stop' : `Misses ${joinNames(names)}`
-        by.set(key, { key, names, label, people: [] })
+        // in words for the heading's sentence, by stop number for the group's short label
+        const gaps = (name: (ns: number[]) => string) => {
+          const parts: string[] = []
+          if (g.late.length) parts.push(`late to ${name(g.late)}`)
+          if (g.early.length) parts.push(`leaves ${name(g.early)} early`)
+          if (g.misses.length) parts.push(g.misses.length === stopData.length ? 'misses every stop' : `misses ${name(g.misses)}`)
+          return parts
+        }
+        const said = joinNames(gaps((ns) => joinNames(ns.map(nameOf))))
+        const short = gaps((ns) => `${ns.length > 1 ? 'stops' : 'stop'} ${joinNames(ns.map((n) => String(n + 1)))}`).join(', ')
+        const label = short.charAt(0).toUpperCase() + short.slice(1)
+        by.set(key, { key, names: g.misses.map(nameOf), label, said, whole: g.misses.length === stopData.length, people: [] })
       }
       by.get(key)!.people.push(p)
     }
     return {
-      everyStop: attendees.filter((p) => !missesOf.has(p.id)),
+      everyStop: attendees.filter((p) => !gapsOf.has(p.id)),
       gapGroups: [...by.values()].sort((x, y) => y.people.length - x.people.length),
     }
-  }, [stopData, attendees])
+  }, [stopData, attendees, dayIv, gridStart])
   return { stopData, everyStop, gapGroups }
 }
 const joinNames = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : xs[0] ?? '')
@@ -1064,9 +1087,13 @@ function itinTitle(itin: Itin, total: number): string {
   const g = itin.gapGroups[0]
   if (!g) return 'Everyone makes every stop.'
   const n = g.people.length
-  return g.names.length === itin.stopData.length
-    ? `${all} ${n} can’t make any of it.`
-    : `${all} ${n} ${n === 1 ? 'misses' : 'miss'} ${joinNames(g.names)}.`
+  if (g.whole) return `${all} ${n} can’t make any of it.`
+  // "1 is late to Cavallo", "2 are late to Cavallo", "1 misses Presidio": the group's
+  // own words, with the verb agreeing
+  const said = n === 1
+    ? g.said.replace(/^late to/, 'is late to')
+    : g.said.replace(/^late to/, 'are late to').replace(/^leaves/, 'leave').replace(/^misses/, 'miss')
+  return `${all} ${n} ${said}.`
 }
 
 function ItineraryAttendance({ itin, total, onPerson, onViewGroup }: {
@@ -1139,11 +1166,15 @@ function AvatarPile({ people, cap }: { people: Participant[]; cap: number }) {
   const shown = people.slice(0, cap)
   const extra = people.length - shown.length
   return (
-    <div className="flex items-center" role={people.length ? 'img' : undefined} aria-label={people.length ? namesLabel(shown.map((p) => p.name), extra) : undefined}>
-      {shown.map((p) => <span key={p.id} className="-mr-1.5 flex"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} /></span>)}
-      {extra > 0 && <span aria-hidden className="ml-2.5 text-[12.5px] font-semibold text-dim">+{extra}</span>}
-      {people.length === 0 && <span className="text-[12.5px] text-faint">nobody yet</span>}
-    </div>
+    people.length === 0
+      ? <span className="text-[12.5px] text-faint">nobody yet</span>
+      // the faces turn over together, and their names show while they are turned
+      : (
+        <FlipGroup names={namesLabel(shown.map((p) => (p.you ? 'you' : p.name)), extra)} people={shown} more={extra} className="flex items-center">
+          {shown.map((p) => <span key={p.id} className="-mr-1.5 flex"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} title={p.name} flippable /></span>)}
+          {extra > 0 && <span aria-hidden className="ml-2.5 text-[12.5px] font-semibold text-dim">+{extra}</span>}
+        </FlipGroup>
+      )
   )
 }
 

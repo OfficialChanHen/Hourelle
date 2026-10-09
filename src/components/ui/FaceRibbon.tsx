@@ -54,7 +54,7 @@ export function FaceRibbon({
   </>
   // flippable: the whole ribbon is one button that turns every face over in order
   if (flippable) {
-    return <FlipGroup names={label} className={`flex items-start gap-1.5 ${className}`} style={{ height: size + 8 }}>{faces}</FlipGroup>
+    return <FlipGroup names={label} people={shown} more={extra} className={`flex items-start gap-1.5 ${className}`} style={{ height: size + 8 }}>{faces}</FlipGroup>
   }
   return (
     <div

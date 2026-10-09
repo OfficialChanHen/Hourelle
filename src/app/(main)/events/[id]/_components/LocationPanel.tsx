@@ -39,13 +39,14 @@ import { useFollow } from '@/hooks/useFollow'
 import { isPollKey, pollVotes } from '@/lib/polls'
 import type { MapPin as MapPinData, PanRequest } from '@/components/EventMap'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
+import { useNoHover } from '@/hooks/useNoHover'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { usePhoneScreen } from '@/hooks/usePhoneScreen'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { OverflowText } from '@/components/ui/OverflowText'
 import { TimeSelect } from '@/components/ui/TimeSelect'
-import { Popover, PopoverTitle } from '@/components/ui/Popover'
+import { Popover } from '@/components/ui/Popover'
 import { FlipGroup } from '@/components/ui/FlipGroup'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { TimezonePill } from '@/components/ui/TimezonePill'
@@ -547,7 +548,13 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
           onOnline={() => changeMode('remote')}
           letVote={event.hostedByYou && !guestsCanSuggest ? toggleGuestsCanSuggest : undefined}
         />
-      ) : mode === 'remote' ? null : setPlace && sub === 'vote' ? (
+      ) : mode === 'remote' ? null : locked && sub === 'itin' && schedule.length > 0 ? (
+        <RouteSet
+          title={headTitle} sub={headSub}
+          stops={schedule.map((x) => placeAt(x.placeId)).filter((x): x is EventPlace => !!x)}
+          going={event.participants.filter((p) => p.rsvp === 'attending')}
+        />
+      ) : setPlace && sub === 'vote' ? (
         <PlaceSet
           place={setPlace} locked={locked} voters={hideVoters || settled ? [] : votesOf(setPlace.id).map(avatarOf)} people={people}
           when={locked ? confirmedSlotText(event) : null} tz={event.timezone} day={confirmed?.dayKey}
@@ -1229,7 +1236,7 @@ function PlaceSet({ place, locked, voters, people, when, tz, day }: {
         </PhotoFrame>
         {voters.length > 0 && (
           // the faces turn over to their initials together, like every face row
-          <FlipGroup names={namesLabel(voters.slice(0, 5).map((v) => (v.you ? 'you' : v.name)), voters.length - 5)} className="absolute -bottom-5 left-6 flex">
+          <FlipGroup names={namesLabel(voters.slice(0, 5).map((v) => (v.you ? 'you' : v.name)), voters.length - 5)} people={voters.slice(0, 5)} more={Math.max(0, voters.length - 5)} className="absolute -bottom-5 left-6 flex">
             {voters.slice(0, 5).map((v, i) => <span key={i} className="-mr-2"><Avatar initials={v.initials} color={v.color} face={v.face} size={40} font={13} title={v.name} flippable /></span>)}
           </FlipGroup>
         )}
@@ -1249,6 +1256,70 @@ function PlaceSet({ place, locked, voters, people, when, tz, day }: {
           <button type="button" onClick={copy} className={`flex h-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-[14px] font-semibold sm:h-10 ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
             {copied ? <><Check size={15} /> Copied</> : 'Copy address'}
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* The route, once it is a fact: the tab's moment for an itinerary, the same way
+   PlaceSet is for one place. A taped frame holding a pencil map with the stops as
+   numbered pins along a dashed road, the faces of the people going peeking over its
+   lower edge. Beside it the route in a sentence, the stops in order, and directions
+   through all of them. The working map and the schedule stay below, flat. */
+const ROUTE_PINS: [number, number][][] = [
+  [], [[200, 100]], [[120, 130], [290, 90]], [[90, 150], [205, 80], [320, 140]],
+  [[70, 150], [160, 80], [250, 140], [335, 75]], [[60, 150], [135, 85], [205, 150], [280, 80], [345, 140]],
+]
+function RouteSet({ title, sub, stops, going }: {
+  title: string; sub?: string; stops: EventPlace[]; going: Participant[]
+}) {
+  // past five stops the drawing keeps five pins; the list beside it has them all
+  const pins = ROUTE_PINS[Math.min(stops.length, 5)]
+  const path = pins.map(([x, y], i) => (i === 0 ? `M${x} ${y}` : `S ${(pins[i - 1][0] + x) / 2} ${y + (i % 2 ? -40 : 40)}, ${x} ${y}`)).join(' ')
+  const at = (p: EventPlace) => { const c = coordsOf(p); return c ? `${c.lat},${c.lng}` : `${p.name}, ${p.place}` }
+  const directions = stops.length > 1
+    ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(at(stops[0]))}&destination=${encodeURIComponent(at(stops[stops.length - 1]))}${stops.length > 2 ? `&waypoints=${encodeURIComponent(stops.slice(1, -1).map(at).join('|'))}` : ''}`
+    : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(at(stops[0]))}`
+  const faces = going.slice(0, 5)
+  return (
+    <div className="relative isolate flex flex-col gap-10 py-4 md:flex-row md:items-center md:gap-14">
+      <div className="relative w-full max-w-[420px] flex-none self-center md:max-w-[300px] md:self-auto lg:max-w-[420px]">
+        <PhotoFrame tilt={1.6} tape="left">
+          <div className="relative h-[190px] overflow-hidden rounded-lg bg-s2 sm:h-[230px]">
+            <svg aria-hidden className="absolute inset-0 h-full w-full" viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" fill="none" strokeLinecap="round">
+              <path d="M0 62 C 120 54, 260 70, 400 52 M0 180 C 140 190, 260 170, 400 196 M110 0 C 118 80, 104 160, 124 230 M300 0 C 290 90, 310 150, 294 230" stroke="var(--border2)" strokeWidth="9" />
+              <path d={path} stroke="var(--dim)" strokeWidth="3" strokeDasharray="2 9" />
+              {pins.map(([x, y], i) => (
+                <g key={i}>
+                  <path d={`M${x} ${y} c -11 -14, -17 -22, -17 -30 a 17 17 0 0 1 34 0 c 0 8, -6 16, -17 30 Z`} fill="var(--teal)" stroke="var(--frame)" strokeWidth="3" />
+                  <text x={x} y={y - 25} textAnchor="middle" fontSize="15" fontWeight="700" fill="var(--frame)" style={{ fontFamily: 'var(--font-sans)' }}>{i + 1}</text>
+                </g>
+              ))}
+            </svg>
+          </div>
+        </PhotoFrame>
+        {faces.length > 0 && (
+          <FlipGroup names={namesLabel(faces.map((p) => (p.you ? 'you' : p.name)), going.length - faces.length)} people={faces} more={going.length - faces.length} className="absolute -bottom-5 left-6 flex">
+            {faces.map((p) => <span key={p.id} className="-mr-2"><Avatar initials={p.initials} color={p.color} face={p.face} size={40} font={13} title={p.name} flippable /></span>)}
+          </FlipGroup>
+        )}
+      </div>
+      <div className="max-w-[460px] flex-1">
+        <p className="text-[12px] font-semibold uppercase tracking-[.13em] text-teal-text sm:text-[11px]">The route is set</p>
+        <h2 className="mt-2 font-serif text-[32px] font-normal leading-[1.12] tracking-[-0.01em] sm:text-[40px]">{title}</h2>
+        <ol className="mt-3 flex flex-col gap-1 text-[15px] text-dim">
+          {stops.map((p, i) => (
+            <li key={p.id} className="flex items-baseline gap-2.5">
+              <span className="grid h-5 w-5 flex-none translate-y-[3px] place-items-center rounded-full bg-teal-bg text-[11.5px] font-bold text-teal-text">{i + 1}</span>
+              <span className="min-w-0"><span className="text-text">{p.name}</span>{p.place && p.place !== 'Custom place' && <>, {p.place}</>}</span>
+            </li>
+          ))}
+        </ol>
+        {/* the title already has the route's own times; this is the travel between them */}
+        {sub && <p className="mt-3 text-[15px] leading-[1.6] text-dim">{sub}</p>}
+        <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
+          <a href={directions} target="_blank" rel="noopener noreferrer" className="flex h-11 items-center justify-center whitespace-nowrap rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent sm:h-10">Directions for the route</a>
         </div>
       </div>
     </div>
@@ -1325,16 +1396,21 @@ function RemoteCall({ platform, link, host, onLink, people }: {
 
 type Voter = { initials: string; name: string; color: Participant['color']; face?: Participant['face']; you?: boolean }
 
-// everyone who voted for a place, by face and full name: what the faces alone cannot say
+// everyone who voted for a place, by face and full name: a phone's way to the names,
+// where there is no hover to show them face by face
 function VoterList({ voters, place }: { voters: Voter[]; place: string }) {
   return (
     <>
-      <PopoverTitle sub={place}>Voted for</PopoverTitle>
+      <div className="mb-1 flex items-baseline justify-between gap-3 border-b border-border px-2.5 pb-2.5 pt-1.5">
+        <span className="min-w-0 truncate text-[14px] font-semibold">{place}</span>
+        <span className="flex-none text-[12px] text-faint">{voters.length} {voters.length === 1 ? 'vote' : 'votes'}</span>
+      </div>
       <ul>
         {voters.map((v, i) => (
-          <li key={i} className="flex items-center gap-2.5 px-2.5 py-1.5 text-[13.5px]">
-            <Avatar initials={v.initials} color={v.color} face={v.face} size={26} font={9.5} />
-            <span className="min-w-0 truncate">{v.name}{v.you && <span className="text-dim"> (you)</span>}</span>
+          <li key={i} className="flex items-center gap-3 px-2.5 py-2">
+            <Avatar initials={v.initials} color={v.color} face={v.face} size={28} font={10} />
+            <span className="min-w-0 flex-1 truncate text-[14px]">{v.name}</span>
+            {v.you && <span className="flex-none rounded-full border border-accent-border bg-accent-bg px-2 py-px text-[11.5px] font-semibold text-accent-text">You</span>}
           </li>
         ))}
       </ul>
@@ -1342,24 +1418,28 @@ function VoterList({ voters, place }: { voters: Voter[]; place: string }) {
   )
 }
 
-/* Who voted for a place: the faces as a button (capped, then +N) that opens the list
-   of their names. Kept out of the row's own click, which goes to the pin. */
+/* Who voted for a place, as a capped pile of faces (then +N). With a mouse each face
+   names itself on hover and that is all; on a touch screen the pile is a button that
+   opens the list of names. Kept out of the row's own click, which goes to the pin. */
 function Voters({ voters, place, cap = 6, size = 20 }: { voters: Voter[]; place: string; cap?: number; size?: number }) {
+  const touch = useNoHover()
   if (!voters.length) return null
   const shown = voters.slice(0, cap)
   const extra = voters.length - shown.length
+  const pile = (
+    <>
+      {shown.map((v, i) => <span key={i} className="-mr-[5px]"><Avatar initials={v.initials} color={v.color} face={v.face} size={size} font={8.5} title={touch ? undefined : v.name} /></span>)}
+      {extra > 0 && <span className="ml-2.5 text-[12px] font-semibold text-dim">+{extra}</span>}
+    </>
+  )
+  if (!touch) return <span className="flex items-center" role="img" aria-label={`Voted: ${namesLabel(shown.map((v) => (v.you ? 'you' : v.name)), extra)}`}>{pile}</span>
   return (
     <span className="inline-flex" onClick={(e) => e.stopPropagation()}>
       <Popover
-        width={240} align="start"
+        width={260} align="start"
         label={`See who voted for ${place}: ${namesLabel(shown.map((v) => (v.you ? 'you' : v.name)), extra)}`}
-        className="-m-1 flex items-center rounded-full p-1 hover:bg-s2"
-        trigger={() => (
-          <>
-            {shown.map((v, i) => <span key={i} className="-mr-[5px]"><Avatar initials={v.initials} color={v.color} face={v.face} size={size} font={8.5} title={v.name} /></span>)}
-            {extra > 0 && <span className="ml-2.5 text-[12px] font-semibold text-dim">+{extra}</span>}
-          </>
-        )}
+        className="-m-2 flex min-h-11 items-center p-2"
+        trigger={() => pile}
       >
         {() => <VoterList voters={voters} place={place} />}
       </Popover>
@@ -1367,13 +1447,17 @@ function Voters({ voters, place, cap = 6, size = 20 }: { voters: Voter[]; place:
   )
 }
 
-// "8 of 12 voted for it", the count itself opening the names
+// "8 of 12 voted for it": on a touch screen the count opens the names; with a mouse it
+// is just the sentence, and the faces above name themselves on hover
 function VotersLink({ voters, place, people }: { voters: Voter[]; place: string; people: number }) {
+  const touch = useNoHover()
+  const text = <>{voters.length} of {people} voted for it.</>
+  if (!touch) return text
   return (
     <Popover
-      width={240} align="start"
-      className="underline decoration-border2 underline-offset-4 hover:text-text"
-      trigger={() => <>{voters.length} of {people} voted for it.</>}
+      width={260} align="start"
+      className="underline decoration-border2 decoration-dotted underline-offset-4"
+      trigger={() => text}
     >
       {() => <VoterList voters={voters} place={place} />}
     </Popover>
