@@ -219,7 +219,7 @@ type Note = { key: string; title: string; line: string; cta?: string; href?: str
    of it, animations/peel), then the notes after it slide up into the gap (measured
    before and after, then eased from the old spot). With reduced motion done notes
    simply go. */
-function NotesBoard({ turns, eventIds, wide }: { turns: { x: Item; t: Turn }[]; eventIds: Set<string>; wide: boolean }) {
+function NotesBoard({ turns, eventIds, wide, mid }: { turns: { x: Item; t: Turn }[]; eventIds: Set<string>; wide: boolean; mid: boolean }) {
   const root = useRef<HTMLDivElement>(null)
   const [board, setBoard] = useState<Note[]>([])
   // where each note sat before the board changed, for the slide into the gap
@@ -298,7 +298,10 @@ function NotesBoard({ turns, eventIds, wide }: { turns: { x: Item; t: Turn }[]; 
     <section aria-labelledby="home-turn" className="min-w-0">
       <h2 id="home-turn" className="sr-only">Your turn{owed ? `, ${owed} ${owed === 1 ? 'plan' : 'plans'} waiting on you` : ''}</h2>
       {finished.length > 0 && <span className="sr-only" role="status">{finished.map((n) => `${n.title}: done`).join('. ')}</span>}
-      <div ref={root} className="grid grid-cols-2 items-start gap-x-4 gap-y-5 sm:max-w-[480px] sm:gap-x-5 lg:w-[460px]">
+      {/* in the tablet layout the board is the right column, and below 880px that column
+          is too narrow for two notes side by side (a note's button broke onto two
+          lines), so there the notes stack one to a row */}
+      <div ref={root} className={`grid grid-cols-2 items-start gap-x-4 gap-y-5 sm:max-w-[480px] sm:gap-x-5 lg:w-[460px] ${mid ? 'md:max-[879px]:grid-cols-1' : ''}`}>
         {shownNotes.map((n, i) => (
           <div key={n.key} data-note={n.key} className="relative min-w-0">
             <div data-paper aria-hidden={n.done || undefined}>
@@ -332,7 +335,7 @@ function NotesBoard({ turns, eventIds, wide }: { turns: { x: Item; t: Turn }[]; 
         )}
         {/* your face, stuck in the spot after the last note; on a row of its own it
             sits in the middle of it */}
-        <FaceSticker size={wide ? 140 : 110} className={(shownNotes.length + (more > 0 ? 1 : 0)) % 2 ? 'min-h-[172px]' : 'col-span-2 py-1'} />
+        <FaceSticker size={wide ? 140 : 110} className={`${(shownNotes.length + (more > 0 ? 1 : 0)) % 2 ? 'min-h-[172px]' : 'col-span-2 py-1'} ${mid ? 'md:max-[879px]:col-span-1 md:max-[879px]:min-h-0 md:max-[879px]:py-1' : ''}`} />
       </div>
     </section>
   )
@@ -422,11 +425,12 @@ export default function HomePage() {
             <h2 id="home-upnext" className="sr-only">Up next</h2>
             {shown.length === 0 ? (
               <div className="max-w-[480px]">
+                {/* the form to start one is right below, so this points to it rather
+                    than offering a second "Start a plan" */}
                 <EmptyState
                   icon={CalendarPlus}
                   title="Your next plan goes here"
-                  body="Start one and your group can pick a time together."
-                  action={{ label: 'Start a plan', href: '/create' }}
+                  body="Start one below and your group can pick a time together."
                   secondary={{ label: 'Or use a template', href: '/templates' }}
                 />
               </div>
@@ -470,7 +474,7 @@ export default function HomePage() {
             {/* in the two-column middle layout the board takes the right column, level
                 with Up next, and the form runs under both */}
             <div className={mid ? 'md:mt-8' : 'contents'}>
-              <NotesBoard turns={turns} eventIds={eventIds} wide={wide} />
+              <NotesBoard turns={turns} eventIds={eventIds} wide={wide} mid={mid} />
             </div>
             <div className={mid ? 'md:col-span-2 md:mt-12' : 'contents'}>
               <QuickCreate />
