@@ -22,7 +22,7 @@ const GROUPS: Group[] = [
     picks: {
       'cabin-trip': 'A **weekend trip** run as a **day poll**: whole days are the question, not hours. Look for the **longest run** everyone can make.',
       'design-team-dinner': 'A **dinner** on a **30-minute grid** with a **deadline** to settle by. Look for the **best window**, and who has not replied yet.',
-      'coffee-catch-up': 'A **1:1** at a café that is **already set**, so only the time is open. Look for the half hour that fits on a **15-minute grid**.',
+      'coffee-catch-up': 'A **1:1** over **video**, so only the time is open. Look for the half hour that fits on a **15-minute grid**, and the **call link** on Location.',
     },
   },
   {
@@ -41,7 +41,8 @@ const GROUPS: Group[] = [
     sub: 'The RSVP round, then the headcount through the day.',
     picks: {
       'board-game-night': 'A **game night** with the date and place **fixed from the start**. You are invited and have not replied. Look for the **RSVP deadline** and the **roster**.',
-      'indie-makers-conference': 'A **conference** in one room all day. Look for **attendance** through the day, and who **arrives late or leaves early**.',
+      'climbing-club-social': 'A **club night** locked in after **24 votes** on five bars. Look for the **winning place** on Location, and who is **going** now it is set.',
+      'indie-makers-conference': 'A **conference** in one room all day, with a **stream** for anyone remote. Look for **attendance** through the day, and who **arrives late or leaves early**.',
     },
   },
 ]
@@ -60,7 +61,7 @@ export default function DemosPage() {
     <div className="mx-auto max-w-[1240px] px-6 pb-[92px] pt-[34px] sm:px-[26px]">
       <ShelfHeader title="Demos" before={<EventBack />}>
         <p className="mt-1.5 max-w-[640px] text-[14px] leading-[1.6] text-dim">
-          Eight finished plans, one for each template, grouped by the question each one answers. Open any of them and walk through every tab.
+          Nine finished plans made from the templates, grouped by the question each one answers. Open any of them and walk through every tab.
         </p>
       </ShelfHeader>
 

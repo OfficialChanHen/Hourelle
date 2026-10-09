@@ -1937,8 +1937,9 @@ const CONFERENCE: AppEvent = {
     mode: 'set',
     planMode: 'vote',
     places: [{ id: 'fort-mason-pavilion', name: 'Festival Pavilion, Fort Mason Center', place: 'San Francisco, CA', addedBy: 'LM', lat: 37.8058, lng: -122.4318 }],
-    platform: '',
-    meetingLink: '',
+    platform: 'Zoom',
+    meetingLink: 'https://zoom.us/j/0000000000',
+    hybrid: true, // the talks are streamed for anyone who can't be in the room
   },
   votes: {},
   participants: [
@@ -2029,7 +2030,7 @@ const GAME_NIGHT: AppEvent = {
 /* ── the planning shapes. Every plan answers two questions, when and where, and
    each can arrive open or already answered:
    1. both open        → Design Team Dinner   (find a time, vote on a place)
-   2. place answered   → Coffee with Ifeoma   (café set, finding the morning)
+   2. place answered   → Coffee with Ifeoma   (online, finding the morning)
    3. time answered    → Priya's Birthday     (Friday is booked, voting the venue —
                           status stays 'planning' while the confirmed slot is a fact)
    4. both answered    → Board Game Night     (born confirmed, straight to RSVPs, above) ── */
@@ -2092,7 +2093,7 @@ const DESIGN_DINNER: AppEvent = {
   status: 'planning',
 }
 
-// 2 · place answered, time open: a 1:1 on a 15-minute grid (minutes from 8 AM)
+// 2 · place answered, time open: a 1:1 over video on a 15-minute grid (minutes from 8 AM)
 const COFFEE_DAYS = buildDays('2029-08-06', '2029-08-10')
 const COFFEE_TIMES = buildTimes('15', 8 * 60, 11 * 60)
 const COFFEE_IV: AvailIntervals = {
@@ -2107,18 +2108,18 @@ const COFFEE: AppEvent = {
   hostName: 'Jordan Miller',
   hostedByYou: true,
   hostKind: 'person',
-  description: 'A catch-up before work. The café is picked, we only need a morning that works.',
+  description: 'A coffee over video before work. The call link is set, we only need a morning that works.',
   timezone: 'America/Los_Angeles',
   startDate: '2029-08-06',
   endDate: '2029-08-10',
   granularity: '15',
   budget: '',
   location: {
-    mode: 'set',
+    mode: 'remote',
     planMode: 'vote',
-    places: [{ id: 'mint-plaza', name: 'Blue Bottle Coffee, Mint Plaza', place: 'San Francisco, CA', addedBy: 'JM', lat: 37.7825, lng: -122.4079 }],
-    platform: '',
-    meetingLink: '',
+    places: [],
+    platform: 'Google Meet',
+    meetingLink: 'https://meet.google.com/demo-coffee-io',
   },
   votes: {},
   participants: [
@@ -2265,7 +2266,88 @@ const CABIN_TRIP: AppEvent = {
   status: 'planning',
 }
 
-// every built-in demo, one per template, in the templates' order
+/* ── locked in after a busy ballot: twelve people, five bars, two votes each. The
+   vote is over, the winner is the place, and the RSVP round is under way. ── */
+const CLUB_DAYS = buildDays('2029-08-06', '2029-08-10')
+const CLUB_TIMES = buildTimes('30', 17 * 60, 22 * 60)
+const CLUB_SLOT: Iv[] = [{ s: 120, e: 270 }] // Thursday 7:00 to 9:30 PM, minutes from 5 PM
+const CLUB_IV: AvailIntervals = {
+  '2029-08-07': { JM: [{ s: 60, e: 240 }], DW: [{ s: 120, e: 300 }], RW: [{ s: 90, e: 240 }], NK: [{ s: 0, e: 300 }] },
+  '2029-08-08': { SR: [{ s: 120, e: 300 }], KL: [{ s: 60, e: 210 }], TC: [{ s: 120, e: 270 }], NK: [{ s: 60, e: 240 }] },
+  '2029-08-09': {
+    JM: CLUB_SLOT, SR: CLUB_SLOT, AT: [{ s: 90, e: 300 }], KL: CLUB_SLOT, PR: [{ s: 60, e: 270 }],
+    DW: CLUB_SLOT, CL: [{ s: 120, e: 300 }], RW: CLUB_SLOT, TC: [{ s: 90, e: 270 }], MN: [{ s: 180, e: 270 }],
+  },
+  '2029-08-10': { AT: [{ s: 120, e: 300 }], PR: [{ s: 120, e: 240 }], CL: [{ s: 0, e: 180 }] },
+}
+const CLUB_SOCIAL: AppEvent = {
+  id: 'climbing-club-social',
+  title: 'Climbing Club Social',
+  hostName: 'Jordan Miller',
+  hostedByYou: true,
+  hostKind: 'person',
+  description: 'Drinks after the Thursday session. The vote is in, Mikkeller won by a mile. Tell me if you are coming so I can book the back room.',
+  timezone: 'America/Los_Angeles',
+  startDate: '2029-08-06',
+  endDate: '2029-08-10',
+  granularity: '30',
+  budget: '',
+  location: {
+    mode: 'vote',
+    planMode: 'vote',
+    places: [
+      { id: 'mikkeller', name: 'Mikkeller Bar', place: 'San Francisco, CA', addedBy: 'SR', lat: 37.7841, lng: -122.4089 },
+      { id: 'whitechapel', name: 'Whitechapel', place: 'San Francisco, CA', addedBy: 'TC', lat: 37.7867, lng: -122.4196 },
+      { id: 'zeitgeist', name: 'Zeitgeist', place: 'San Francisco, CA', addedBy: 'DW', lat: 37.7700, lng: -122.4222 },
+      { id: 'toronado', name: 'Toronado', place: 'San Francisco, CA', addedBy: 'KL', lat: 37.7717, lng: -122.4310 },
+      { id: 'barrel-room', name: 'The Barrel Room', place: 'San Francisco, CA', addedBy: 'PR', lat: 37.7883, lng: -122.4117 },
+    ],
+    platform: '',
+    meetingLink: '',
+    guestsCanSuggest: true,
+  },
+  votes: {
+    mikkeller: ['JM', 'SR', 'AT', 'KL', 'PR', 'MN', 'CL', 'HS'],
+    whitechapel: ['TC', 'DW', 'CL', 'MN', 'HS', 'RW'],
+    zeitgeist: ['DW', 'RW', 'TC', 'AT'],
+    toronado: ['KL', 'NK', 'SR'],
+    'barrel-room': ['PR', 'JM', 'NK'],
+  },
+  maxVotes: 2,
+  participants: [
+    { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'attending', you: true, host: true },
+    { id: 'SR', initials: 'SR', name: av('SR').name, color: av('SR').color, rsvp: 'attending' },
+    { id: 'AT', initials: 'AT', name: av('AT').name, color: av('AT').color, rsvp: 'attending', rsvpAuto: true },
+    { id: 'KL', initials: 'KL', name: av('KL').name, color: av('KL').color, rsvp: 'attending' },
+    { id: 'PR', initials: 'PR', name: av('PR').name, color: av('PR').color, rsvp: 'attending', rsvpAuto: true },
+    { id: 'DW', initials: 'DW', name: av('DW').name, color: av('DW').color, rsvp: 'attending' },
+    { id: 'CL', initials: 'CL', name: av('CL').name, color: av('CL').color, rsvp: 'attending', rsvpAuto: true },
+    { id: 'RW', initials: 'RW', name: av('RW').name, color: av('RW').color, rsvp: 'attending' },
+    { id: 'TC', initials: 'TC', name: av('TC').name, color: av('TC').color, rsvp: 'maybe' },
+    { id: 'MN', initials: 'MN', name: av('MN').name, color: av('MN').color, rsvp: 'pending' },
+    { id: 'NK', initials: 'NK', name: av('NK').name, color: av('NK').color, rsvp: 'not_going', rsvpAuto: true },
+    { id: 'HS', initials: 'HS', name: av('HS').name, color: av('HS').color, rsvp: 'pending' },
+  ],
+  days: CLUB_DAYS,
+  times: CLUB_TIMES,
+  avail: intervalsToGrid(CLUB_IV, CLUB_DAYS, CLUB_TIMES.length, 30),
+  availIv: CLUB_IV,
+  durationMin: 150,
+  image: 'preset:dusk',
+  messages: [
+    { id: 'SR', name: 'Sarah R', time: 'Mon', text: 'Mikkeller has the long tables downstairs, that is my vote', you: false },
+    { id: 'TC', name: 'Tom C', time: 'Mon', text: 'Whitechapel is closer to the gym though', you: false },
+    { id: 'JM', name: 'Jordan Miller', time: 'Tue', text: 'Locked in: Thursday at Mikkeller, 7 to 9:30', you: true },
+    { id: 'TC', name: 'Tom C', time: 'Tue', text: 'Fair, the votes have spoken. Might be late', you: false },
+  ],
+  createdAt: 0,
+  demo: true,
+  status: 'confirmed',
+  confirmed: { dayKey: '2029-08-09', startMin: 19 * 60, endMin: 21 * 60 + 30, placeIds: ['mikkeller'] },
+  rsvpDeadline: '2029-08-07',
+}
+
+// every built-in demo, at least one per template, in the templates' order
 /* ── demo dates follow today ──
    The demos are written in 2029 so their stories line up (a dinner the week after the
    offsite, RSVPs due before the game night). Shown, every date in them moves by the
@@ -2313,7 +2395,7 @@ function demosFromToday(list: AppEvent[]): AppEvent[] {
     return { ...moved, days: moved.days.map((d) => { const k = parseLocal(d.key); return k ? { ...d, date: dayLabel(k) } : d }) }
   })
 }
-const DEMOS: AppEvent[] = demosFromToday([DESIGN_DINNER, GAME_NIGHT, BIRTHDAY, BIG_DEMO, CABIN_TRIP, DEMO, COFFEE, CONFERENCE])
+const DEMOS: AppEvent[] = demosFromToday([DESIGN_DINNER, CLUB_SOCIAL, GAME_NIGHT, BIRTHDAY, BIG_DEMO, CABIN_TRIP, DEMO, COFFEE, CONFERENCE])
 
 // demos that were retired or renamed, and the one that took each one's place, so an
 // old link still opens a plan rather than "Plan not found"
