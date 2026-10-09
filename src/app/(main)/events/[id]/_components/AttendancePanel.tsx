@@ -20,9 +20,14 @@
    Only the RSVP, the quorum and the itinerary's own settings are editable, and as
    on the other tabs those go to local state first so the demos work in memory. */
 
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, X } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
+import { PhotoFrame } from '@/components/ui/PhotoFrame'
+import { HandNote } from '@/components/ui/HandNote'
+import { PencilArrow } from '@/components/ui/Pencil'
+import { TabHeading } from './TabHeading'
+import { answeredLine, goingLine } from '@/lib/answers'
 import { namesLabel } from '@/components/ui/AvatarRow'
 import { Popover, PopoverNote } from '@/components/ui/Popover'
 import { SettingField, SettingStepper, SettingToggle, SettingsMenu } from '@/components/ui/Settings'
@@ -30,7 +35,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Announce } from '@/components/ui/Announce'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import {
-  availIvOf, bestWindow, byYouFirst, confirmedSlotText, dayLabel, gridStartMinOf, fmtMinute, fmtMinuteDay, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
+  answeredIds, availIvOf, bestWindow, rsvpPool, byYouFirst, confirmedSlotText, dayLabel, gridStartMinOf, fmtMinute, fmtMinuteDay, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
   type AppEvent, type AvailIntervals, type BestMode, type GridDay, type Iv, type Participant, type Rsvp,
 } from '@/lib/events'
 import { computeItinerary } from '@/lib/itinerary'
@@ -118,30 +123,18 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
   }, [locked, event.confirmed, event.days, gridStart, best])
   const dayIv = (win?.dayKey && availIv[win.dayKey]) || {}
 
-  const attendees = participants.filter((p) => p.rsvp === 'attending' || p.rsvp === 'maybe')
-  const anyResponded = participants.some((p) => p.rsvp !== 'pending')
+  const attendees = useMemo(() => participants.filter((p) => p.rsvp === 'attending' || p.rsvp === 'maybe'), [participants])
   const me = participants.find((p) => p.you)
 
   // who has marked ANY availability on any day — "no times yet" means never, not
   // "not free on this particular day"
-  const markedIds = new Set<string>()
-  for (const day of Object.values(availIv)) for (const [id, ivs] of Object.entries(day)) if (ivs.length) markedIds.add(id)
+  const markedIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const day of Object.values(availIv)) for (const [id, ivs] of Object.entries(day)) if (ivs.length) ids.add(id)
+    return ids
+  }, [availIv])
   // who declared "none of these days work" — an explicit empty reply, not silence
   const unavailSet = useMemo(() => new Set(event.unavailableIds ?? []), [event.unavailableIds])
-
-  // the planning-stage headline: people actually free (fully or partly) inside the
-  // best window right now — not RSVPs, which haven't been asked yet
-  const availableNow = win
-    ? participants.filter((p) => {
-        if (p.rsvp === 'not_going' || unavailSet.has(p.id)) return false
-        const c = coverOf(dayIv[p.id], win.s, win.e)
-        return c === 'full' || c === 'partial'
-      }).length
-    : 0
-  // planning caption counts mirror the roster groups exactly — declines plus declared
-  // "none work" on one side, everyone silent on the other
-  const outCount = participants.filter((p) => p.rsvp === 'not_going' || (!locked && unavailSet.has(p.id) && !markedIds.has(p.id))).length
-  const noTimesCount = locked ? 0 : participants.filter((p) => p.rsvp !== 'not_going' && !markedIds.has(p.id) && !unavailSet.has(p.id)).length
 
   // a locked run of days answers by day, not by clock: which days of the run each
   // person can make. ISO keys compare as strings, so the filter is a plain range.
@@ -154,59 +147,92 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
   // event with the live participant list, so child views read the same list this tab edits
   const liveEvent = useMemo(() => ({ ...event, participants }), [event, participants])
 
+  // the route, worked out once for the heading and the view
+  const itinPeople = useMemo(
+    () => (locked ? attendees : participants.filter((p) => p.rsvp !== 'not_going' && !(unavailSet.has(p.id) && !markedIds.has(p.id)))),
+    [locked, attendees, participants, unavailSet, markedIds],
+  )
+  const itin = useItinerary(liveEvent, itinPeople, dayIv, gridStart)
+  const showItin = model === 'itin' && hasItinerary && itin.stopData.length > 0
+
+  // where things stand, said once as a sentence. Deciding: answered out of everyone
+  // invited (lib/answers), and how many can stay for the whole best time so far. Locked:
+  // going out of who can make the locked time. The counts come from lib/events.
+  const answered = useMemo(() => answeredIds(liveEvent), [liveEvent])
+  const byDay = event.granularity === 'day'
+  const wholeNow = win
+    ? participants.filter((p) => p.rsvp !== 'not_going' && !unavailSet.has(p.id) && coverOf(dayIv[p.id], win.s, win.e) === 'full').length
+    : 0
+  // nothing to read yet: nobody but you has answered (or, once locked, replied)
+  const empty = locked
+    ? !participants.some((p) => !p.you && p.rsvp !== 'pending')
+    : ![...answered].some((id) => id !== me?.id)
+  const mineMissing = !locked && !!me && !markedIds.has(me.id) && !unavailSet.has(me.id)
+  const allDay = !!win && gridStart + win.s === 0 && gridStart + win.e === 24 * 60
+  const whenText = win ? `${win.dayLabel}${byDay || allDay ? '' : `, ${fmtMinute(gridStart + win.s)} to ${fmtMinute(gridStart + win.e)}`}` : ''
+  const going = participants.filter((p) => p.rsvp === 'attending').length
+  const title = showItin
+    ? itinTitle(itin, itinPeople.length)
+    : locked
+    ? `${goingLine(rsvpPool(liveEvent), true)}.`
+    : win
+      ? `${answeredLine(answered.size, participants.length)}. ${wholeNow} ${byDay ? 'can make that day' : 'can stay the whole time'}.`
+      : `${answeredLine(answered.size, participants.length)}.`
+  // the time pill ends the line, so no full stop has to sit after it
+  const sub = win ? (
+    <p>
+      {locked
+        ? event.capacity != null ? (going >= event.capacity ? `Full, all ${event.capacity} spots are taken. ` : `${event.capacity - going} of ${event.capacity} spots left. `) : ''
+        : 'It can change until the time is locked in. '}
+      {locked ? 'Locked for ' : `Best ${byDay ? 'day' : 'time'} so far: `}
+      {locked
+        ? <span className="font-semibold text-text">{whenText}</span>
+        : <button type="button" onClick={() => (onGoToBestWindow ? onGoToBestWindow() : onGoToTab?.('availability'))} className="font-semibold text-accent-text hover:underline">{whenText}</button>}
+      {!byDay && !allDay && <> <TimezonePill tz={event.timezone} day={event.confirmed?.dayKey ?? event.startDate} /></>}
+    </p>
+  ) : !locked ? `Nobody has marked times yet, so there is no best ${byDay ? 'day' : 'time'} to count against.` : undefined
+
   return (
     <div className="flex flex-col gap-4">
-      {/* "are you coming" is a locked-stage question; while planning, the ask is your times */}
+      {/* "are you coming" is a locked-stage question; while planning, the ask is your
+          times, and the empty state below asks for them itself */}
       {locked
         ? me?.rsvp === 'pending' && <YourRsvpStrip onPick={changeRsvp} full={full} />
-        : !!me && !markedIds.has(me.id) && !unavailSet.has(me.id) && <YourTimesStrip onGo={() => onGoToTab?.('availability')} />}
+        : mineMissing && !empty && <YourTimesStrip onGo={() => onGoToTab?.('availability')} />}
 
-      {/* while the plan is being decided there is no locked time to count against, so
-          this tab reads the best time (or day) so far, and says so: it can still move */}
-      {!locked && (
-        <p className="flex gap-2 rounded-xl border border-border bg-s2 px-3.5 py-2.5 text-[13px] leading-[1.6] text-dim">
-          <Info size={14} className="mt-[3px] flex-none" aria-hidden />
-          {win ? (
-            <span className="min-w-0">
-              Based on the best {event.granularity === 'day' ? 'day' : 'time'} so far, <span className="font-semibold text-text">{win.dayLabel}{event.granularity === 'day' ? '' : `, ${fmtMinute(gridStart + win.s)} to ${fmtMinute(gridStart + win.e)}`}</span>
-              {event.granularity !== 'day' && <> <TimezonePill tz={event.timezone} day={event.confirmed?.dayKey ?? event.startDate} /></>}. It can change until the time is locked in.
-            </span>
-          ) : (
-            <span className="min-w-0">No one has marked times yet, so there is no best {event.granularity === 'day' ? 'day' : 'time'} to count against.</span>
-          )}
-        </p>
-      )}
-
-      {/* header — friendly summary, share button, and (only when relevant) the model switch */}
-      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-        <RsvpSummary participants={participants} capacity={event.capacity} locked={locked} available={availableNow} planningOut={outCount} planningNoTimes={noTimesCount} />
-        <div className="flex flex-wrap items-center gap-2">
-          <CopySummaryButton event={liveEvent} win={win} locked={locked} gridStart={gridStart} dayIv={dayIv} markedIds={markedIds} />
-          {hasItinerary && (
-            <SegmentedControl label="Attendance view"
-              size="sm"
-              value={model}
-              onChange={(v) => setModel(v as 'single' | 'itin')}
-              options={[{ v: 'single', l: 'Single venue' }, { v: 'itin', l: 'Itinerary' }]}
-            />
-          )}
-        </div>
-      </div>
+      <TabHeading
+        eyebrow={locked ? 'Who’s coming' : 'Who can come'}
+        title={title}
+        sub={sub}
+        aside={!empty && (
+          <>
+            <CopySummaryButton event={liveEvent} win={win} locked={locked} gridStart={gridStart} dayIv={dayIv} markedIds={markedIds} />
+            {hasItinerary && (
+              <SegmentedControl label="Attendance view"
+                size="sm"
+                value={model}
+                onChange={(v) => setModel(v as 'single' | 'itin')}
+                options={[{ v: 'single', l: 'Single venue' }, { v: 'itin', l: 'Itinerary' }]}
+              />
+            )}
+          </>
+        )}
+      />
 
       {runDays && runDays.length > 1 && (
         <DayRunAttendance days={runDays} participants={participants} availIv={availIv} onPerson={onViewAvailability} />
       )}
 
-      {!anyResponded ? (
-        <EmptyState onGoToTab={onGoToTab} />
-      ) : model === 'itin' && hasItinerary ? (
-        <ItineraryAttendance event={liveEvent} attendees={locked ? attendees : participants.filter((p) => p.rsvp !== 'not_going' && !(unavailSet.has(p.id) && !markedIds.has(p.id)))} dayIv={dayIv} gridStart={gridStart} onPerson={onViewAvailability} />
+      {empty ? (
+        <WaitingOnGroup event={event} me={me} mineMissing={mineMissing} locked={locked} onGoToTab={onGoToTab} />
+      ) : showItin ? (
+        <ItineraryAttendance itin={itin} total={itinPeople.length} onPerson={onViewAvailability} onViewGroup={onViewAvailabilityGroup} />
       ) : (
         <SingleVenue
           event={liveEvent} attendees={attendees} win={win} locked={locked} dayIv={dayIv}
           gridStart={gridStart} step={step} rows={rows}
           quorum={quorum} onQuorum={event.hostedByYou ? changeQuorum : undefined}
-          onGoToTab={onGoToTab} onPerson={onViewAvailability} onViewGroup={onViewAvailabilityGroup} markedIds={markedIds} unavailSet={unavailSet} onGoToBestWindow={onGoToBestWindow}
+          onGoToTab={onGoToTab} onPerson={onViewAvailability} onViewGroup={onViewAvailabilityGroup} markedIds={markedIds} unavailSet={unavailSet}
         />
       )}
     </div>
@@ -299,49 +325,6 @@ function YourRsvpStrip({ onPick, full }: { onPick: (r: Rsvp) => void; full: bool
   )
 }
 
-/* ── shared: RSVP figure (borderless, open stats). One sentence, not a number soup:
-   the big figure is going, the caption walks through everyone else. ── */
-function RsvpSummary({ participants, capacity, locked, available, planningOut, planningNoTimes }: {
-  participants: Participant[]; capacity?: number; locked: boolean; available: number; planningOut: number; planningNoTimes: number
-}) {
-  const going = participants.filter((p) => p.rsvp === 'attending').length
-  const maybe = participants.filter((p) => p.rsvp === 'maybe').length
-  const out = participants.filter((p) => p.rsvp === 'not_going').length
-  const noReply = participants.filter((p) => p.rsvp === 'pending').length
-  const total = participants.length
-  const full = capacity != null && going >= capacity
-  const rest: React.ReactNode[] = []
-  if (locked) {
-    if (maybe > 0) rest.push(<span key="m" className="text-ochre-text">{maybe} maybe</span>)
-    if (out > 0) rest.push(<span key="o" className="text-brick-text">{out} can&apos;t</span>)
-    if (noReply > 0) rest.push(<span key="n" className="text-faint">{noReply} no reply</span>)
-  } else {
-    // planning caption uses the same numbers as the roster groups below
-    if (planningOut > 0) rest.push(<span key="o" className="text-brick-text">{planningOut} can&apos;t</span>)
-    if (planningNoTimes > 0) rest.push(<span key="n" className="text-faint">{planningNoTimes} no times yet</span>)
-  }
-  return (
-    <div>
-      <div className="flex items-baseline gap-2">
-        {/* planning counts people actually free in the best window; going is RSVP-real only once locked */}
-        <span className="font-serif font-normal text-[42.5px] leading-none">{locked ? going : available}</span>
-        <span className="text-[14.5px] text-dim">{locked ? 'going' : 'available'}</span>
-        {/* spots are claimed by RSVPs, which only exist once the plan is locked —
-            during planning the pill would count replies nobody has given yet */}
-        {locked && capacity != null && (
-          <span className={`rounded-[6px] border px-1.5 py-px text-[11px] font-semibold ${full ? 'border-ochre-border bg-ochre-bg text-ochre-text' : 'border-teal-border bg-teal-bg text-teal-text'}`}>
-            {full ? `full, ${capacity} spots` : `${capacity - going} of ${capacity} spots left`}
-          </span>
-        )}
-      </div>
-      <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-dim">
-        <span>{total} invited</span>
-        {rest.map((r, i) => <span key={i} className="flex items-center gap-1.5"><span className="h-3 w-px flex-none bg-border2" aria-hidden />{r}</span>)}
-      </div>
-    </div>
-  )
-}
-
 /* one tap, and the group chat has the plan. Written the way a good organiser would
    write it by hand: what and when on their own lines, the count as a sentence, the
    place, who is still missing by name, and the link that lets them fix that. A line
@@ -405,19 +388,17 @@ function CopySummaryButton({ event, win, locked, gridStart, dayIv, markedIds }: 
 
 /* ── Single venue: where it's happening, who's in the room, and when ── */
 function SingleVenue({
-  event, attendees, win, locked, dayIv, gridStart, step, rows, quorum, onQuorum, onGoToTab, onPerson, onViewGroup, markedIds, unavailSet, onGoToBestWindow,
+  event, attendees, win, locked, dayIv, gridStart, step, rows, quorum, onQuorum, onGoToTab, onPerson, onViewGroup, markedIds, unavailSet,
 }: {
   event: AppEvent; attendees: Participant[]; win: Win | null; locked: boolean
   dayIv: Record<string, Iv[]>; gridStart: number; step: number; rows: number
   quorum: number | null; onQuorum?: (q: number | null) => void
-  onGoToTab?: GoTab; onPerson?: (pid: string) => void; onViewGroup?: (pids: string[]) => void; onGoToBestWindow?: () => void
+  onGoToTab?: GoTab; onPerson?: (pid: string) => void; onViewGroup?: (pids: string[]) => void
   markedIds: Set<string>
   unavailSet: Set<string>
 }) {
   const winS = win?.s ?? 0
   const winE = win?.e ?? rows * step
-  // which roster group to show; everyone by default
-  const [showGroup, setShowGroup] = useState<'all' | 'whole' | 'part' | 'noTimes' | 'maybe' | 'out' | 'noReply'>('all')
   // a long guest list gets a name filter; it narrows every group at once
   const [query, setQuery] = useState('')
   const q = query.trim().toLowerCase()
@@ -465,6 +446,8 @@ function SingleVenue({
 
   // the roster only says "here" once there is somewhere to be
   const hasVenue = event.location.mode === 'remote' || leadingPlaceOf(event) != null
+  // an online plan is a call: people are on it, not in a room
+  const online = event.location.mode === 'remote'
 
   // inline timing bars for part-time rows: one block per stretch they're around,
   // positioned within the window — gaps stay visibly empty. Each block carries its
@@ -508,93 +491,157 @@ function SingleVenue({
     return found ? { d: found.d, gain: found.count - cur } : null
   }, [win, winS, winE, pool, dayIv, rows, step])
 
+  const open = (ids: string[]) => (onViewGroup ? () => onViewGroup(ids) : undefined)
+  const none = q && [groups.whole, groups.part.map((x) => x.p), groups.noTimes, groups.maybe, groups.out, groups.noReply].every((g) => !g.some(hit))
+  // the people who have not answered: no times yet while deciding, no reply once locked
+  const silent = locked ? groups.noReply : groups.noTimes
+
+  // the people on the left, as faces; when they are around, on the right. Below lg the
+  // two stack, the people first.
   return (
-    <div className="rounded-2xl border border-border bg-s1 p-5">
-      <div className="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{locked ? 'Who’s coming' : 'Who’s available'}</div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          {win && (() => {
-            // an all-day lock (day polls) has no clock times to show
-            const allDay = gridStart + winS === 0 && gridStart + winE === 24 * 60
-            return (
-              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] text-dim">
-                {locked ? (allDay ? 'Confirmed day' : 'Confirmed time') : 'Best window'}:{' '}
-                {locked
-                  ? <span className="font-semibold text-text">{win.dayLabel}{allDay ? '' : `, ${fmtMinute(gridStart + winS)} – ${fmtMinute(gridStart + winE)}`}</span>
-                  : <button type="button" onClick={() => (onGoToBestWindow ? onGoToBestWindow() : onGoToTab?.('availability'))} className="font-semibold text-accent-text hover:underline">{win.dayLabel}, {fmtMinute(gridStart + winS)} – {fmtMinute(gridStart + winE)}</button>}
-                {!allDay && <TimezonePill tz={event.timezone} day={event.confirmed?.dayKey ?? event.startDate} />}
-                {!locked && <BestWindowInfo mode={event.bestMode ?? 'full'} />}
-              </div>
-            )
-          })()}
-          {onQuorum && <QuorumControl quorum={quorum} max={event.participants.length} onChange={onQuorum} />}
-        </div>
-      </div>
-
-      <LeadingPlace event={event} onGoToTab={onGoToTab} />
-
-      {win
-        ? <HeadcountBars attendees={pool} dayIv={dayIv} gridStart={gridStart} step={step} winS={winS} winE={winE} quorum={quorum} />
-        : <div className="rounded-xl border border-border bg-s0 px-4 py-6 text-center text-[13.5px] text-dim">Add availability to see who is around when.</div>}
-
-      {quorum != null && win && <QuorumStatus quorum={quorum} whole={groups.whole.length} />}
-      {shift && <ShiftSuggestion shift={shift} />}
-
-      {/* explicit "none of these days work" replies are the signal to widen the window */}
-      {!locked && unavailSet.size > 0 && (
-        <div className="mt-3 flex items-start gap-2 rounded-[10px] border border-ochre-border bg-ochre-bg px-3 py-2 text-[13px] leading-[1.5] text-ochre-text">
-          <TriangleAlert size={14} className="mt-0.5 flex-none" />
-          <span>{unavailSet.size === 1 ? '1 person isn’t' : `${unavailSet.size} people aren’t`} free on any of these days. Widening the date window could bring them in.</span>
-        </div>
-      )}
-
-      {/* pick one group or read them all — the chips double as a headcount per group */}
-      <div role="group" aria-label="Show people" className="-mx-5 mt-5 flex items-center gap-1.5 overflow-x-auto px-5 py-1.5 scroll-none sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
-        {([
-          ['all', 'All', event.participants.length],
-          ['whole', locked && hasVenue ? 'Whole time' : 'Free whole time', groups.whole.length],
-          ['part', locked ? 'Part time' : 'Free part time', groups.part.length],
-          ['noTimes', 'No times yet', groups.noTimes.length],
-          ['maybe', 'Maybe', groups.maybe.length],
-          ['out', "Can't", groups.out.length],
-          ['noReply', 'No reply', groups.noReply.length],
-        ] as const).filter(([k, , n]) => k === 'all' || n > 0).map(([k, l, n]) => {
-          const on = showGroup === k
-          return (
-            <button
-              key={k} type="button" aria-pressed={on} onClick={() => setShowGroup(k)}
-              // 32 to look at, 44 to touch: the pseudo-element takes the finger
-              className={`relative flex h-8 flex-none items-center gap-1 whitespace-nowrap rounded-full border px-3 text-[12.5px] font-semibold before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] sm:h-7 sm:px-2.5 sm:before:hidden ${on ? 'border-accent bg-accent text-on-accent' : 'border-border bg-s1 text-dim hover:border-border2 hover:text-text'}`}
-            >
-              {l} <span className={on ? 'opacity-80' : 'text-faint'}>{n}</span>
-            </button>
-          )
-        })}
-      </div>
-
-      {event.participants.length > 12 && (
-        <label className="mt-3 flex h-11 items-center gap-2 rounded-[10px] border border-border bg-s0 px-3 focus-within:border-accent sm:h-9 sm:max-w-[280px]">
-          <Search size={14} className="flex-none text-faint" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name" aria-label="Find a person" className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-faint" />
-          {query && <button type="button" onClick={() => setQuery('')} aria-label="Clear" className="grid h-7 w-7 flex-none place-items-center rounded-[6px] text-faint hover:text-text"><X size={13} /></button>}
-        </label>
-      )}
-
-      <div className="mt-4 flex flex-col gap-5">
-        {q && [groups.whole, groups.part.map((x) => x.p), groups.noTimes, groups.maybe, groups.out, groups.noReply].every((g) => !g.some(hit)) && (
-          <p className="text-[13px] text-faint">Nobody here by that name.</p>
+    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+      <div className="flex min-w-0 flex-col gap-4">
+        {event.participants.length > 12 && (
+          <label className="flex h-11 items-center gap-2 rounded-[10px] border border-border bg-s1 px-3 focus-within:border-accent sm:h-9 sm:max-w-[280px]">
+            <Search size={14} className="flex-none text-faint" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name" aria-label="Find a person" className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-faint" />
+            {query && <button type="button" onClick={() => setQuery('')} aria-label="Clear" className="grid h-7 w-7 flex-none place-items-center rounded-[6px] text-faint hover:text-text"><X size={13} /></button>}
+          </label>
         )}
-        {(showGroup === 'all' || showGroup === 'whole') && <RosterGroup compact label={locked && hasVenue ? 'Here the whole time' : 'Free the whole time'} tone="teal" people={groups.whole.filter(hit).map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.whole.map((p) => p.id)) : undefined} />}
-        {(showGroup === 'all' || showGroup === 'part') && <RosterGroup label={locked && hasVenue ? 'Part of the time' : 'Free part of the time'} tone="ochre" people={groups.part.filter((x) => hit(x.p)).map((x) => ({
-          p: x.p,
-          bar: barsOf(x.segs),
-        }))} axis={axis.length ? axis : undefined} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.part.map((x) => x.p.id)) : undefined} />}
-        {(showGroup === 'all' || showGroup === 'noTimes') && <RosterGroup compact label={locked ? 'Going, no times yet' : 'No times yet'} tone="faint" people={groups.noTimes.filter(hit).map((p) => ({ p }))} action={!locked && groups.noTimes.length > 0 && event.hostedByYou ? <CopyReminder event={event} /> : undefined} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.noTimes.map((p) => p.id)) : undefined} />}
-        {(showGroup === 'all' || showGroup === 'maybe') && <RosterGroup compact label="Maybe" tone="ochre" people={groups.maybe.filter(hit).map((p) => ({ p }))} onPerson={onPerson} />}
-        {(showGroup === 'all' || showGroup === 'out') && <RosterGroup compact label="Can't make it" tone="brick" people={groups.out.filter(hit).map((p) => ({ p }))} onPerson={onPerson} onOpenGroup={onViewGroup ? () => onViewGroup(groups.out.map((p) => p.id)) : undefined} />}
-        {(showGroup === 'all' || showGroup === 'noReply') && <RosterGroup compact label="No reply" tone="faint" people={groups.noReply.filter(hit).map((p) => ({ p }))} action={event.hostedByYou ? <CopyReminder event={event} /> : undefined} onPerson={onPerson} />}
+        {none && <p className="text-[13px] text-faint">Nobody here by that name.</p>}
+
+        <GroupCard label={locked && hasVenue ? (online ? 'On the call the whole time' : 'Here the whole time') : 'Free the whole time'} tone="teal" count={groups.whole.length} onOpen={open(groups.whole.map((p) => p.id))}>
+          {groups.whole.length
+            ? <FaceGroup people={groups.whole.filter(hit)} size={46} cap={8} onPerson={onPerson} />
+            : <p className="text-[13.5px] text-dim">{win ? 'Nobody can stay for all of it yet.' : 'Nobody has marked times yet.'}</p>}
+        </GroupCard>
+
+        {groups.part.length > 0 && (
+          <GroupCard label={locked && hasVenue ? 'Comes and goes' : 'Free part of the time'} tone="ochre" count={groups.part.length} onOpen={open(groups.part.map((x) => x.p.id))}>
+            <RosterGroup bare tone="ochre" label="" people={groups.part.filter((x) => hit(x.p)).map((x) => ({ p: x.p, bar: barsOf(x.segs) }))} axis={axis.length ? axis : undefined} onPerson={onPerson} />
+          </GroupCard>
+        )}
+
+        {groups.maybe.length > 0 && (
+          <GroupCard label="Maybe" tone="ochre" count={groups.maybe.length}>
+            <FaceGroup people={groups.maybe.filter(hit)} size={34} cap={10} onPerson={onPerson} />
+          </GroupCard>
+        )}
+
+        {/* said no, and has not answered: two meanings and two different next steps
+            (nothing to do about a no; a nudge for the silent), so two small cards */}
+        {(groups.out.length > 0 || silent.length > 0) && (
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
+            {groups.out.length > 0 && (
+              <GroupCard label="Can’t make it" tone="brick" count={groups.out.length} onOpen={open(groups.out.map((p) => p.id))}>
+                <FaceGroup people={groups.out.filter(hit)} size={34} cap={6} onPerson={onPerson} />
+              </GroupCard>
+            )}
+            {silent.length > 0 && (
+              <GroupCard
+                label={locked ? 'No reply yet' : 'No answer yet'} tone="faint" count={silent.length}
+                action={event.hostedByYou ? <CopyReminder event={event} /> : undefined}
+              >
+                <FaceGroup people={silent.filter(hit)} size={34} cap={6} onPerson={onPerson} />
+              </GroupCard>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* beside a long list of people, this column stays in view as you scroll: the gap
+          under it is the room it travels in, not space to fill */}
+      <div className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-[78px]">
+        <section className="rounded-2xl border border-border bg-s1 p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <span className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">When people are here</span>
+            <span className="flex items-center gap-1">
+              {!locked && <BestWindowInfo mode={event.bestMode ?? 'full'} />}
+              {onQuorum && <QuorumControl quorum={quorum} max={event.participants.length} onChange={onQuorum} />}
+            </span>
+          </div>
+          <LeadingPlace event={event} onGoToTab={onGoToTab} />
+          {win
+            ? <HeadcountBars attendees={pool} dayIv={dayIv} gridStart={gridStart} step={step} winS={winS} winE={winE} quorum={quorum} />
+            : <div className="rounded-xl border border-border bg-s0 px-4 py-6 text-center text-[13.5px] text-dim">Add availability to see who is around when.</div>}
+          {quorum != null && win && <QuorumStatus quorum={quorum} whole={groups.whole.length} />}
+        </section>
+        {shift && <ShiftSuggestion shift={shift} />}
+        {/* explicit "none of these days work" replies are the signal to widen the window */}
+        {!locked && unavailSet.size > 0 && (
+          <div className="flex items-start gap-2 rounded-xl border border-ochre-border bg-ochre-bg px-3.5 py-2.5 text-[13px] leading-[1.5] text-ochre-text">
+            <TriangleAlert size={14} className="mt-0.5 flex-none" />
+            <span>{unavailSet.size === 1 ? '1 person isn’t' : `${unavailSet.size} people aren’t`} free on any of these days. Widening the date window could bring them in.</span>
+          </div>
+        )}
       </div>
     </div>
+  )
+}
+
+/* One group of people as a card: a coloured eyebrow says which group (teal here the
+   whole time, ochre comes and goes, brick can't make it, plain no answer), the count
+   sits beside it, and the label opens the grid filtered to these people. */
+function GroupCard({ label, tone, count, onOpen, action, children }: {
+  label: string; tone: 'teal' | 'ochre' | 'brick' | 'faint'; count: number
+  onOpen?: () => void; action?: ReactNode; children: ReactNode
+}) {
+  const ink = { teal: 'text-teal-text', ochre: 'text-ochre-text', brick: 'text-brick-text', faint: 'text-faint' }[tone]
+  const eyebrow = `text-[12px] font-semibold uppercase tracking-[.13em] sm:text-[11px] ${ink}`
+  return (
+    <section className="min-w-0 rounded-2xl border border-border bg-s1 p-5">
+      <div className="mb-4 flex min-h-7 items-center gap-2">
+        {onOpen ? (
+          <button type="button" onClick={onOpen} title="See them on the availability grid" className={`flex items-center gap-1.5 hover:underline ${eyebrow}`}>
+            {label} <CalendarRange size={13} className="text-faint" aria-hidden />
+          </button>
+        ) : <span className={eyebrow}>{label}</span>}
+        <span className="text-[13px] text-dim">{count}</span>
+        {action && <span className="ml-auto">{action}</span>}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+/* The people in a group as faces, each with a first name under it, straight and flat
+   (this is a list you read, not a moment). A face turns over to its initials; the
+   name opens their times on the grid. It stops at `cap` faces with a "+N" that opens
+   the whole group as a compact list, so a group of a hundred draws a handful. */
+function FaceGroup({ people, size, cap, onPerson }: { people: Participant[]; size: number; cap: number; onPerson?: (pid: string) => void }) {
+  const [all, setAll] = useState(false)
+  if (!people.length) return null
+  if (all) return <RosterGroup bare compact tone="faint" label="" people={people.map((p) => ({ p }))} onPerson={onPerson} />
+  const shown = people.slice(0, cap)
+  const extra = people.length - shown.length
+  const first = (p: Participant) => (p.you ? 'You' : p.name.split(' ')[0])
+  return (
+    <ul className="flex flex-wrap gap-x-3 gap-y-3.5">
+      {shown.map((p) => (
+        <li key={p.id} className="flex flex-col items-center gap-1.5" style={{ width: Math.max(size + 8, 52) }}>
+          <Avatar initials={p.initials} color={p.color} face={p.face} size={size} font={Math.round(size * 0.34)} title={p.name} flippable />
+          <button
+            type="button" onClick={onPerson ? () => onPerson(p.id) : undefined} disabled={!onPerson}
+            title={onPerson ? `See when ${p.name} is free` : undefined}
+            className="relative max-w-full truncate rounded-[6px] px-1 text-[12.5px] text-dim before:absolute before:-inset-x-1 before:-inset-y-3 before:content-[''] enabled:hover:bg-s2 enabled:hover:text-text sm:before:-inset-y-1"
+          >
+            {first(p)}
+          </button>
+        </li>
+      ))}
+      {extra > 0 && (
+        <li className="flex flex-col items-center gap-1.5" style={{ width: Math.max(size + 8, 52) }}>
+          <button
+            type="button" onClick={() => setAll(true)} aria-label={`Show all ${people.length}`}
+            className="grid flex-none place-items-center rounded-full bg-s3 font-semibold text-dim hover:text-text"
+            style={{ width: size, height: size, boxShadow: '0 0 0 2px var(--face-edge)', fontSize: Math.max(12, Math.round(size * 0.3)) }}
+          >
+            +{extra}
+          </button>
+          <span className="text-[12.5px] text-faint">more</span>
+        </li>
+      )}
+    </ul>
   )
 }
 
@@ -800,9 +847,11 @@ const TONE: Record<string, { dot: string; text: string }> = {
    a group that is simply "free the whole time" is the longest and the least
    interesting, and a row each for it pushed the people with gaps off the screen.
    Either way it stops at a sensible number and offers the rest on request. */
-function RosterGroup({ label, tone, people, cap: capIn, compact, action, onPerson, onOpenGroup, hint, axis }: {
+function RosterGroup({ label, tone, people, cap: capIn, compact, bare, action, onPerson, onOpenGroup, hint, axis }: {
   label: string; tone: keyof typeof TONE | string
   compact?: boolean
+  // no heading of its own: it sits inside a GroupCard, which names the group
+  bare?: boolean
   people: { p: Participant; note?: string; bar?: { left: string; width: string; label: string; full: string }[] | null }[]
   cap?: number
   action?: ReactNode
@@ -825,7 +874,7 @@ function RosterGroup({ label, tone, people, cap: capIn, compact, action, onPerso
   const hasBars = people.some((x) => x.bar !== undefined)
   return (
     <div>
-      <div className="mb-2 flex items-center gap-2">
+      {!bare && <div className="mb-2 flex items-center gap-2">
         <span className="h-1.5 w-1.5 rounded-full" style={{ background: t.dot }} />
         {onOpenGroup ? (
           // availability groups link to the grid filtered to just these people
@@ -837,7 +886,7 @@ function RosterGroup({ label, tone, people, cap: capIn, compact, action, onPerso
         )}
         <span className="text-[12.5px] text-faint">{people.length}</span>
         {action && <span className="ml-auto">{action}</span>}
-      </div>
+      </div>}
       {hint && <p className="mb-2 max-w-[440px] text-[12px] leading-[1.5] text-faint">{hint}</p>}
       {/* shared clock for every track below — the spacer mirrors the name column so the
           ticks land exactly over the rails */}
@@ -942,12 +991,16 @@ function CopyReminder({ event }: { event: AppEvent }) {
   )
 }
 
-/* ── Multi-stop itinerary: O(1) per stop, exceptions not a matrix ── */
-function ItineraryAttendance({
-  event, attendees, dayIv, gridStart, onPerson,
-}: { event: AppEvent; attendees: Participant[]; dayIv: Record<string, Iv[]>; gridStart: number; onPerson?: (pid: string) => void }) {
+/* ── Multi-stop itinerary: O(1) per stop, exceptions not a matrix ──
+   Worked out once (useItinerary) and read twice: the tab's heading sentence and the
+   view below. Per stop: who is around for all of it, part of it, or none of it. Then
+   the people who miss a stop, grouped by which stops they miss, so the list grows with
+   the patterns (a handful) rather than the guest list. */
+type StopRow = { i: number; name: string; arrive: number; depart: number; present: Participant[]; partial: Participant[]; absent: Participant[] }
+type GapGroup = { key: string; names: string[]; label: string; people: Participant[] }
+function useItinerary(event: AppEvent, attendees: Participant[], dayIv: Record<string, Iv[]>, gridStart: number) {
   const placeName = (id: string) => event.location.places.find((p) => p.id === id)?.name ?? 'Stop'
-  const stops = event.itinStops ?? []
+  const stops = useMemo(() => event.itinStops ?? [], [event.itinStops])
   const dwell = event.itinDwell ?? []
   const startMin = event.itinStartMin ?? 9 * 60
   // the same road route the Location tab uses (shared cache), so travel minutes agree
@@ -957,7 +1010,8 @@ function ItineraryAttendance({
 
   // schedule + per-stop attendance, computed once (O(stops × people)). The schedule comes from
   // the shared helper, so these clock times match the Location tab exactly.
-  const stopData = useMemo(() => {
+  const stopData: StopRow[] = useMemo(() => {
+    if (!stops.length) return []
     const inputStops = stops.map((placeId, i) => ({ placeId, dwell: dwell[i] ?? 60 }))
     const modes = ((event.travelModes as TravelMode[] | undefined) ?? []).filter((m) => ALL_MODES.includes(m))
     const { schedule } = computeItinerary(event.location.places, inputStops, startMin, modes, road?.legs)
@@ -969,102 +1023,108 @@ function ItineraryAttendance({
         if (c === 'none') absent.push(p)
         else { present.push(p); if (c === 'partial') partial.push(p) }
       }
-      return { placeId: s.placeId, name: placeName(s.placeId), i, arrive: s.arrive, depart: s.depart, present, partial, absent }
+      return { name: placeName(s.placeId), i, arrive: s.arrive, depart: s.depart, present, partial, absent }
     })
   }, [stops, dwell, startMin, gridStart, attendees, dayIv, event.location.places, event.travelModes, road]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // people missing at least one stop → the exceptions list (never an O(people × stops) grid)
-  const exceptions = useMemo(() => attendees
-    .map((p) => ({ p, misses: stopData.filter((s) => s.absent.some((a) => a.id === p.id)).map((s) => s.i + 1) }))
-    .filter((x) => x.misses.length > 0), [attendees, stopData])
-  const attendAll = attendees.length - exceptions.length
-  // people who miss the same stops, together; the biggest group first
-  const gapGroups = useMemo(() => {
-    const nameOf = (n: number) => stopData[n - 1]?.name ?? `stop ${n}`
-    const joined = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : xs[0])
-    const by = new Map<string, { key: string; label: string; people: Participant[] }>()
-    for (const { p, misses } of exceptions) {
+  // people missing at least one stop → grouped by which stops (never an O(people × stops) grid)
+  const { everyStop, gapGroups } = useMemo(() => {
+    const missesOf = new Map<string, number[]>()
+    for (const s of stopData) for (const p of s.absent) missesOf.set(p.id, [...(missesOf.get(p.id) ?? []), s.i])
+    const by = new Map<string, GapGroup>()
+    for (const p of attendees) {
+      const misses = missesOf.get(p.id)
+      if (!misses) continue
       const key = misses.join(',')
       if (!by.has(key)) {
-        const label = misses.length === stops.length ? 'Misses every stop'
-          : misses.length > 2 ? `Misses ${misses.length} stops: ${joined(misses.map(nameOf))}`
-          : `Misses ${joined(misses.map(nameOf))}`
-        by.set(key, { key, label, people: [] })
+        const names = misses.map((n) => stopData[n]?.name ?? `stop ${n + 1}`)
+        const label = misses.length === stopData.length ? 'Misses every stop' : `Misses ${joinNames(names)}`
+        by.set(key, { key, names, label, people: [] })
       }
       by.get(key)!.people.push(p)
     }
-    return [...by.values()].sort((x, y) => y.people.length - x.people.length)
-  }, [exceptions, stopData, stops.length])
-  const peak = Math.max(1, ...stopData.map((s) => s.present.length))
+    return {
+      everyStop: attendees.filter((p) => !missesOf.has(p.id)),
+      gapGroups: [...by.values()].sort((x, y) => y.people.length - x.people.length),
+    }
+  }, [stopData, attendees])
+  return { stopData, everyStop, gapGroups }
+}
+const joinNames = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : xs[0] ?? '')
+type Itin = ReturnType<typeof useItinerary>
 
+// the heading for the route: how many make all of it, and the biggest gap said plainly
+function itinTitle(itin: Itin, total: number): string {
+  const all = `${itin.everyStop.length} of ${total} make every stop.`
+  const g = itin.gapGroups[0]
+  if (!g) return 'Everyone makes every stop.'
+  const n = g.people.length
+  return g.names.length === itin.stopData.length
+    ? `${all} ${n} can’t make any of it.`
+    : `${all} ${n} ${n === 1 ? 'misses' : 'miss'} ${joinNames(g.names)}.`
+}
+
+function ItineraryAttendance({ itin, total, onPerson, onViewGroup }: {
+  itin: Itin; total: number; onPerson?: (pid: string) => void; onViewGroup?: (pids: string[]) => void
+}) {
+  const { stopData, everyStop, gapGroups } = itin
+  const open = (ids: string[]) => (onViewGroup ? () => onViewGroup(ids) : undefined)
+  const pct = (n: number) => `${total ? (n / total) * 100 : 0}%`
   return (
-    <div className="flex flex-col gap-4">
-      <div className="rounded-2xl border border-border bg-s1 p-5">
-        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-          <div className="text-[14.5px]"><span className="font-serif text-[24.5px]">{attendAll}</span> <span className="text-dim">of {attendees.length} attend all {stops.length} stops</span></div>
-          <div className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Headcount by stop</div>
+    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+      {/* the route top to bottom: each stop's time, a bar of who is there for all of it
+          and for part of it, a capped pile of faces, and a flag where something is off */}
+      <section className="min-w-0 rounded-2xl border border-border bg-s1 p-5">
+        <div className="mb-1 flex items-center justify-between gap-3">
+          <span className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Stop by stop</span>
+          <span className="text-[13px] text-dim">{stopData.length} {stopData.length === 1 ? 'stop' : 'stops'}</span>
         </div>
-        {/* headcount strip — one bar per stop, full vs part-time */}
-        <div className="flex items-end gap-2">
+        <ol>
           {stopData.map((s) => {
-            const h = (s.present.length / peak) * 100
-            const partFrac = s.present.length ? s.partial.length / s.present.length : 0
+            const whole = s.present.length - s.partial.length
             return (
-              <div key={s.i} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-                <div className="flex h-20 w-full items-end justify-center">
-                  <div className="relative w-full max-w-[38px] overflow-hidden rounded-t-[3px] bg-s2" style={{ height: `${Math.max(8, h)}%` }}>
-                    <div className="absolute inset-x-0 top-0 bg-ochre" style={{ height: `${partFrac * 100}%` }} />
-                    <div className="absolute inset-x-0 bottom-0 bg-teal" style={{ height: `${(1 - partFrac) * 100}%` }} />
+              <li key={s.i} className={`grid grid-cols-[30px_minmax(0,1fr)] gap-3.5 py-4 ${s.i > 0 ? 'border-t border-border' : ''}`}>
+                <span className="grid h-[30px] w-[30px] place-items-center rounded-full bg-accent text-[13px] font-bold text-on-accent">{s.i + 1}</span>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                    <span className="text-[15px] font-semibold">{s.name}</span>
+                    <span className="text-[13px] text-dim">{fmtMinuteDay(s.arrive)} to {fmtMinuteDay(s.depart)}</span>
+                  </div>
+                  <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-s2" role="img" aria-label={`${whole} there for all of it, ${s.partial.length} for part of it, out of ${total}`}>
+                    <span className="bg-teal" style={{ width: pct(whole) }} />
+                    <span className="bg-ochre" style={{ width: pct(s.partial.length) }} />
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+                    <AvatarPile people={s.present} cap={6} />
+                    <span className="text-[13px] text-dim">{s.present.length} of {total} here</span>
+                    <span className="ml-auto flex flex-wrap gap-1.5">
+                      {s.partial.length > 0 && <Flag tone="ochre">{s.partial.length} for part of it</Flag>}
+                      {s.absent.length > 0 && <Flag tone="brick">{s.absent.length} miss it</Flag>}
+                    </span>
                   </div>
                 </div>
-                <span className="grid h-4 w-4 flex-none place-items-center rounded-full bg-accent text-[10px] font-bold text-on-accent">{s.i + 1}</span>
-                <span className="w-full truncate text-center text-[10.5px] text-dim">{s.present.length}</span>
-              </div>
+              </li>
             )
           })}
+        </ol>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-[12.5px] text-dim" aria-hidden>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[3px] bg-teal" />There for all of it</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[3px] bg-ochre" />Part of it</span>
         </div>
-      </div>
+      </section>
 
-      {/* per-stop cards — bounded work, capped pile, flag chips */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {stopData.map((s) => (
-          <div key={s.i} className="rounded-xl border border-border bg-s1 p-4">
-            <div className="mb-2 flex items-center gap-2">
-              <span className="grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[12.5px] font-bold text-on-accent">{s.i + 1}</span>
-              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{s.name}</span>
-              <span className="flex flex-none items-center gap-1 text-[12px] text-faint"><Clock size={11} /> {fmtMinuteDay(s.arrive)}</span>
-            </div>
-            <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-s2">
-              <div className="h-full rounded-full bg-teal" style={{ width: `${(s.present.length / Math.max(1, attendees.length)) * 100}%` }} />
-            </div>
-            <div className="mb-2.5 text-[12.5px] text-dim">{s.present.length} of {attendees.length} here</div>
-            <div className="flex items-center justify-between">
-              <AvatarPile people={s.present} cap={6} />
-              <div className="flex flex-wrap justify-end gap-1">
-                {s.partial.length > 0 && <Flag tone="ochre">{s.partial.length} partial</Flag>}
-                {s.absent.length > 0 && <Flag tone="brick">{s.absent.length} out</Flag>}
-              </div>
-            </div>
-          </div>
+      {/* who makes all of it, then the gaps, grouped by the stops they miss */}
+      <div className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-[78px]">
+        <GroupCard label="Every stop" tone="teal" count={everyStop.length} onOpen={open(everyStop.map((p) => p.id))}>
+          {everyStop.length
+            ? <FaceGroup people={everyStop} size={42} cap={8} onPerson={onPerson} />
+            : <p className="text-[13.5px] text-dim">Nobody makes all of it yet.</p>}
+        </GroupCard>
+        {gapGroups.map((g) => (
+          <GroupCard key={g.key} label={g.label} tone="ochre" count={g.people.length} onOpen={open(g.people.map((p) => p.id))}>
+            <FaceGroup people={g.people} size={34} cap={6} onPerson={onPerson} />
+          </GroupCard>
         ))}
-      </div>
-
-      {/* the gaps, grouped by which stops are missed. It was a row per person with
-          the stop numbers they miss as bare circles, which made the reader match
-          numbers to names and grew with the guest list. People who miss the same
-          stops are one group, named by those stops, so the list grows with the
-          patterns (a handful) rather than the people. */}
-      <div className="rounded-2xl border border-border bg-s1 p-5">
-        <div className="mb-3 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Who misses a stop</div>
-        {exceptions.length === 0 ? (
-          <div className="flex items-center gap-2 text-[14px] text-teal-text"><span className="h-1.5 w-1.5 rounded-full bg-teal" /> Everyone makes every stop.</div>
-        ) : (
-          <div className="flex flex-col gap-5">
-            {gapGroups.map((g) => (
-              <RosterGroup key={g.key} compact tone="brick" label={g.label} people={g.people.map((p) => ({ p }))} onPerson={onPerson} />
-            ))}
-          </div>
-        )}
       </div>
     </div>
   )
@@ -1075,7 +1135,7 @@ function AvatarPile({ people, cap }: { people: Participant[]; cap: number }) {
   const extra = people.length - shown.length
   return (
     <div className="flex items-center" role={people.length ? 'img' : undefined} aria-label={people.length ? namesLabel(shown.map((p) => p.name), extra) : undefined}>
-      {shown.map((p, i) => <span key={p.id} className="-mr-1.5 flex"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} /></span>)}
+      {shown.map((p) => <span key={p.id} className="-mr-1.5 flex"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} /></span>)}
       {extra > 0 && <span aria-hidden className="ml-2.5 text-[12.5px] font-semibold text-dim">+{extra}</span>}
       {people.length === 0 && <span className="text-[12.5px] text-faint">nobody yet</span>}
     </div>
@@ -1087,28 +1147,59 @@ function Flag({ tone, children }: { tone: 'ochre' | 'brick'; children: React.Rea
   return <span className={`flex items-center gap-1 rounded-[6px] border px-1.5 py-px text-[10.5px] font-semibold ${cls}`}>{tone === 'brick' && <TriangleAlert size={10} />}{children}</span>
 }
 
-function EmptyState({ onGoToTab }: { onGoToTab?: GoTab }) {
+/* Nobody else has answered yet: the tab's one moment. A taped photo of the group as
+   it stands (your face, and dashed spots where the others go), and beside it what
+   happens next. When your own times are missing, a margin note points at the button
+   that fixes that. The host also gets the invite link, since inviting is theirs. */
+function WaitingOnGroup({ event, me, mineMissing, locked, onGoToTab }: {
+  event: AppEvent; me?: Participant; mineMissing: boolean; locked: boolean; onGoToTab?: GoTab
+}) {
+  const [copied, setCopied] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  const note = useRef<HTMLSpanElement>(null)
+  const task = useRef<HTMLButtonElement>(null)
+  function copy() {
+    navigator.clipboard?.writeText(`${window.location.origin}/events/${event.id}/join`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
+  }
+  const slot = 'flex-none rounded-full border-[2.5px] border-dashed border-border2'
   return (
-    <div className="grid min-h-[280px] place-items-center rounded-2xl border border-dashed border-border2 bg-s1 px-6 py-8 text-center">
-      <div className="max-w-md">
-        <span className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-xl border border-border bg-s2 text-dim"><MapPin size={22} /></span>
-        <p className="font-serif text-[27px] tracking-[-0.01em]">Waiting on the group</p>
-        <p className="mt-1.5 text-[14px] text-dim">This fills in as people reply. You can go first.</p>
-        <div className="mx-auto mt-4 flex max-w-[360px] flex-col gap-2 text-left">
-          <StepRow n={1} text="Mark when you're free" cta="Open availability" onClick={() => onGoToTab?.('availability')} />
-          <StepRow n={2} text="Vote on a place" cta="Open location" onClick={() => onGoToTab?.('location')} />
+    <div className="flex flex-col gap-8 py-2 md:flex-row md:items-center md:gap-14">
+      <PhotoFrame tilt={2} tape="right" className="w-full max-w-[360px] flex-none self-center md:self-auto">
+        <div className="flex h-[176px] items-center justify-center gap-3 rounded-lg bg-s2 sm:h-[196px] sm:gap-4">
+          <span className={`${slot} h-12 w-12 sm:h-14 sm:w-14`} />
+          <span className={`${slot} h-12 w-12 translate-y-2 sm:h-14 sm:w-14`} />
+          {me
+            ? <Avatar initials={me.initials} color={me.color} face={me.face} size={56} font={19} title={me.name} />
+            : <span className={`${slot} h-12 w-12 sm:h-14 sm:w-14`} />}
+          <span className={`${slot} h-12 w-12 translate-y-1.5 sm:h-14 sm:w-14`} />
         </div>
+        <p className="px-1 pt-3 font-serif text-[15px] italic text-dim">Just you so far.</p>
+      </PhotoFrame>
+
+      <div ref={box} className="relative max-w-[460px]">
+        <h3 className="font-serif text-[30px] font-normal leading-[1.15] tracking-[-0.01em] sm:text-[36px]">Waiting on the group</h3>
+        <p className="mt-3 text-[15px] leading-[1.6] text-dim">
+          {locked
+            ? 'Nobody else has replied yet. Once they do, who is coming shows up here.'
+            : 'Nobody else has marked their times yet. Once they do, who can come shows up here.'}
+        </p>
+        {/* the margin note, only for what you owe: your own times */}
+        {mineMissing && <HandNote ref={note} className="ml-24 mt-5 lg:-rotate-2">your times are missing</HandNote>}
+        <div className={`${mineMissing ? 'mt-7' : 'mt-6'} flex flex-col gap-2.5 sm:flex-row`}>
+          {mineMissing && (
+            <button ref={task} type="button" onClick={() => onGoToTab?.('availability')} className="flex h-11 items-center justify-center rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent sm:h-10">
+              Mark my times
+            </button>
+          )}
+          {event.hostedByYou && !event.demo && (
+            <button type="button" onClick={copy} className={`flex h-11 items-center justify-center gap-1.5 rounded-full border px-4 text-[14px] font-semibold sm:h-10 ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
+              {copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy invite link</>}
+            </button>
+          )}
+        </div>
+        {mineMissing && <PencilArrow from={note} to={task} within={box} max={120} />}
+        <Announce text={copied ? 'Invite link copied' : ''} />
       </div>
     </div>
-  )
-}
-
-function StepRow({ n, text, cta, onClick }: { n: number; text: string; cta: string; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="flex items-center gap-3 rounded-xl border border-border bg-s0 px-3.5 py-2.5 text-left transition-colors hover:bg-s2">
-      <span className="grid h-6 w-6 flex-none place-items-center rounded-full bg-accent text-[12px] font-bold text-on-accent">{n}</span>
-      <span className="min-w-0 flex-1 text-[13.5px] font-medium">{text}</span>
-      <span className="flex-none text-[12.5px] font-semibold text-accent-text">{cta}</span>
-    </button>
   )
 }
