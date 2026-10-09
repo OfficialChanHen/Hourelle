@@ -18,7 +18,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         Skip to content
       </a>
       <Header />
-      {/* a guest's browser only owns their event — every other page gates to sign-in.
+      {/* a guest keeps to their plans and the public pages; any other door sends them to sign-up.
           The toast mounts once here for every page, so a flash queued before a
           redirect (delete, leave, create) lands wherever the visitor does */}
       <main id="main" tabIndex={-1} className="relative flex-1 overflow-x-clip">
