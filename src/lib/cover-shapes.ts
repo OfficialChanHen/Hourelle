@@ -33,24 +33,17 @@ export function coverShapes(vw: number): { home: CoverShape; homeSmall: CoverSha
 
 export type CoverPlace = { label: string; ratio: number }
 
-/* The places as a short list of distinct crops, widest first, for a preview. Places
-   whose shapes are within a tenth of each other show the same crop, so they share one
-   picture and one label. The phone list is always there: the people invited look at
-   plans on their phones whatever screen the host is on. */
+/* The crops a preview shows: only the ones that look different. Home's card stands
+   for every wide card (Home's smaller ones and the Plans shelf crop much the same
+   way), then the plan page, then the upright phone list, always there because the
+   people invited look at plans on their phones whatever screen the host is on.
+   Where the cards and the plan page are within a quarter of each other's shape (a
+   phone, a small tablet) they share one picture. */
 export function coverPlaces(vw: number): CoverPlace[] {
   const s = coverShapes(vw)
-  const all: CoverPlace[] = [
-    { label: 'Home', ratio: s.home.w / s.home.h },
-    ...(s.homeSmall ? [{ label: 'Home, small', ratio: s.homeSmall.w / s.homeSmall.h }] : []),
-    { label: 'Plans', ratio: s.card.w / s.card.h },
-    { label: 'Plan page', ratio: s.page.w / s.page.h },
-    { label: 'Phone list', ratio: s.row.w / s.row.h },
-  ].sort((a, b) => b.ratio - a.ratio)
-  const out: CoverPlace[] = []
-  for (const p of all) {
-    const near = out.find((o) => Math.abs(o.ratio - p.ratio) / Math.max(o.ratio, p.ratio) < 0.1)
-    if (near) near.label += ` and ${p.label}`
-    else out.push({ ...p })
-  }
-  return out
+  const cards = s.home.w / s.home.h, page = s.page.w / s.page.h
+  const wide = Math.abs(cards - page) / Math.max(cards, page) < 0.25
+    ? [{ label: 'Cards and plan page', ratio: cards }]
+    : [{ label: 'Cards', ratio: cards }, { label: 'Plan page', ratio: page }]
+  return [...wide, { label: 'Phone list', ratio: s.row.w / s.row.h }]
 }

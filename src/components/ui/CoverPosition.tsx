@@ -146,7 +146,7 @@ export function CoverPosition({ src, value, onChange, onClose }: {
         {/* and every place's crop, drawn from the same two numbers, so the cost of the
             choice is visible before it is made rather than discovered later */}
         <div className="mt-3">
-          <CoverCrops image={src} pos={pos} from="#E4EDE7" to="#CFE0D5" height={60} />
+          <CoverCrops image={src} pos={pos} from="#E4EDE7" to="#CFE0D5" height={80} />
         </div>
 
         <div className="mt-4 flex items-center justify-between gap-3">

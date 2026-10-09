@@ -31,14 +31,14 @@ describe('cover shapes follow the layouts they copy', () => {
   })
 })
 
-describe('the preview shows each distinct crop once', () => {
-  it('on a phone, Home and Plans are near enough to share one', () => {
-    expect(coverPlaces(390).map((p) => p.label)).toEqual(['Home and Plans', 'Plan page', 'Phone list'])
+describe('the preview shows only the crops that differ', () => {
+  it('wide cards, the plan page, then the upright phone list', () => {
+    const places = coverPlaces(1280)
+    expect(places.map((p) => p.label)).toEqual(['Cards', 'Plan page', 'Phone list'])
+    expect(places[0].ratio).toBeGreaterThan(places[1].ratio)
+    expect(places[2].ratio).toBeLessThan(1)
   })
-  it('on a large screen, every place differs, widest first, phone list last', () => {
-    const labels = coverPlaces(1280).map((p) => p.label)
-    expect(labels[0]).toBe('Home, small')
-    expect(labels.at(-1)).toBe('Phone list')
-    expect(labels).toHaveLength(5)
+  it('on a phone the cards and the plan page crop alike, so they share one', () => {
+    expect(coverPlaces(390).map((p) => p.label)).toEqual(['Cards and plan page', 'Phone list'])
   })
 })

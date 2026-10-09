@@ -7,10 +7,9 @@ import { coverPlaces } from '@/lib/cover-shapes'
 
 /* The cover as each place in the app crops it on this screen, side by side at one
    height: just the picture, so the strip stays small and the crops are easy to
-   compare. Places with nearly the same shape share one picture. The height is the
-   largest up to `height` that keeps the strip on one line, and it wraps only when
-   that would go under 32px. */
-export function CoverCrops({ image, fit, pos, from, to, height = 56 }: {
+   compare. The height is the largest up to `height` that keeps the strip on one
+   line, and it wraps rather than go under 64px. */
+export function CoverCrops({ image, fit, pos, from, to, height = 96 }: {
   image?: string
   fit?: 'fill' | 'fit'
   pos?: { x: number; y: number }
@@ -34,7 +33,7 @@ export function CoverCrops({ image, fit, pos, from, to, height = 56 }: {
   const label = (s: string) => s.length * 6.4
   const widthAt = (h: number) => places.reduce((sum, p) => sum + Math.max(h * p.ratio, label(p.label)), 0) + GAP * (places.length - 1)
   let h = height
-  while (room && h > 32 && widthAt(h) > room) h -= 2
+  while (room && h > 64 && widthAt(h) > room) h -= 2
   return (
     <ul ref={list} className="flex flex-wrap items-end gap-y-2.5" style={{ columnGap: GAP }} aria-label="How the cover is cropped around the app">
       {places.map((p) => (
