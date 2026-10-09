@@ -96,7 +96,7 @@ function useWide() {
   return useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE).matches, () => false)
 }
 
-type Turn = { line: string; cta: string; href: string }
+type Turn = { line: string; cta: string; href: string; due?: string } // due: the by-when alone, "Oct 14"
 type Item = { e: AppEvent; phase: Phase }
 
 // "Oct 3", for the by-when on a task
@@ -109,11 +109,11 @@ function turnOf(e: AppEvent, phase: Phase): Turn | null {
   const me = e.participants.find((p) => p.you)
   if (!me || e.demo) return null
   if (phase === 'planning') {
-    if (!youReplied(e)) return { line: `Mark your times${e.planDeadline ? ` by ${shortDay(e.planDeadline)}` : ''}`, cta: 'Mark my times', href: `/events/${e.id}?tab=availability` }
-    if (e.location.mode === 'vote' && e.location.places.length > 0 && !youVoted(e)) return { line: `Vote on the place${e.voteDeadline ? ` by ${shortDay(e.voteDeadline)}` : ''}`, cta: 'Vote', href: `/events/${e.id}?tab=location` }
+    if (!youReplied(e)) return { line: `Mark your times${e.planDeadline ? ` by ${shortDay(e.planDeadline)}` : ''}`, cta: 'Mark my times', href: `/events/${e.id}?tab=availability`, due: e.planDeadline ? shortDay(e.planDeadline) : undefined }
+    if (e.location.mode === 'vote' && e.location.places.length > 0 && !youVoted(e)) return { line: `Vote on the place${e.voteDeadline ? ` by ${shortDay(e.voteDeadline)}` : ''}`, cta: 'Vote', href: `/events/${e.id}?tab=location`, due: e.voteDeadline ? shortDay(e.voteDeadline) : undefined }
     return null
   }
-  if (phase !== 'past' && me.rsvp === 'pending') return { line: `Say if you’re coming${e.rsvpDeadline ? ` by ${shortDay(e.rsvpDeadline)}` : ''}`, cta: 'Reply', href: `/events/${e.id}` }
+  if (phase !== 'past' && me.rsvp === 'pending') return { line: `Say if you’re coming${e.rsvpDeadline ? ` by ${shortDay(e.rsvpDeadline)}` : ''}`, cta: 'Reply', href: `/events/${e.id}`, due: e.rsvpDeadline ? shortDay(e.rsvpDeadline) : undefined }
   return null
 }
 
@@ -205,7 +205,7 @@ function CompactPlan({ e, phase }: { e: AppEvent; phase: Phase }) {
 const NOTES_KEY = 'hourelle.home.notes'
 // the most notes drawn; past it the last spot says how many more there are
 const NOTES_MAX = 5
-type Note = { key: string; title: string; line: string; cta?: string; href?: string; done?: boolean }
+type Note = { key: string; title: string; line: string; due?: string; cta?: string; href?: string; done?: boolean }
 // a note is half the width of a card, so its button says the short version: "Mark my
 // times" broke onto two lines on a tablet. The line above it still says it in full.
 const noteLabel = (cta?: string) => (cta === 'Mark my times' ? 'Add times' : cta)
@@ -227,7 +227,7 @@ function NotesBoard({ turns, eventIds, wide }: { turns: { x: Item; t: Turn }[]; 
   const [board, setBoard] = useState<Note[]>([])
   // where each note sat before the board changed, for the slide into the gap
   const from = useRef<Map<string, DOMRect>>(new Map())
-  const live = turns.map(({ x, t }) => ({ key: `${x.e.id}:${t.cta}`, title: x.e.title, line: t.line, cta: t.cta, href: t.href }))
+  const live = turns.map(({ x, t }) => ({ key: `${x.e.id}:${t.cta}`, title: x.e.title, line: t.line, due: t.due, cta: t.cta, href: t.href }))
   const liveSig = live.map((n) => n.key).join('|')
 
   // lay out the board: what it held last time in that order (a note whose task is now
@@ -313,7 +313,11 @@ function NotesBoard({ turns, eventIds, wide }: { turns: { x: Item; t: Turn }[]; 
                 className="min-h-[172px]"
               >
                 <span className="font-serif text-[18px] leading-[1.15] [overflow-wrap:anywhere]">{n.title}</span>
-                <span className={`text-[13px] leading-[1.4] text-sticky-dim ${n.done ? 'line-through decoration-1' : ''}`}>{n.line}</span>
+                {/* the button says the task; the note adds only its by-when. A note ticked
+                    Done keeps the task, struck through, so you see what was finished */}
+                {n.done
+                  ? <span className="text-[13px] leading-[1.4] text-sticky-dim line-through decoration-1">{n.line}</span>
+                  : n.due && <span className="text-[13px] leading-[1.4] text-sticky-dim">By {n.due}</span>}
                 {!n.done && n.href && (
                   <Link href={n.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent sm:h-9">
                     {noteLabel(n.cta)}
