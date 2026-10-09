@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Check, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Check, Pencil, Plus, Trash2 } from 'lucide-react'
 import { AvatarRow } from '@/components/ui/AvatarRow'
-import { SettingsMenu, SmallIcon } from '@/components/ui/Settings'
-import { Popover, PopoverItem, PopoverNote } from '@/components/ui/Popover'
+import { SettingsMenu } from '@/components/ui/Settings'
+import { PopoverItem, PopoverNote } from '@/components/ui/Popover'
 import { VoteRules } from '../VoteRules'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { daysUntil, fromDay, todayKey } from '@/lib/events'
@@ -120,12 +120,24 @@ export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPi
         {editing
           ? <p className="min-w-0 flex-1 text-[12px] font-semibold uppercase tracking-[.12em] text-faint sm:text-[11px]">Editing poll</p>
           : <p className="min-w-0 flex-1 break-words text-[14px] font-semibold leading-[1.35] text-text">{poll.q}</p>}
-        {(mayEditAny || mayDelete) && !editing && (
-          <PollMenu canEdit={mayEditAny} canDelete={mayDelete} onEdit={() => { release(); setEditing(true) }} onDelete={onDelete} />
-        )}
-        {host && !locked && (
-<SettingsMenu title="Poll settings" label="Poll settings" small className="-my-0.5 flex-none">
-            {() => <PollSettingsPanel settings={s} optionCount={poll.o.length} onChange={onSettings} />}
+        {/* one button for everything you can do to this poll: its rules (the host's),
+            then rewording and deleting it (its writer's, and the host's) */}
+        {((host && !locked) || ((mayEditAny || mayDelete) && !editing)) && (
+          <SettingsMenu title="Poll settings" label="Poll settings" small className="-my-0.5 flex-none">
+            {(close) => (
+              <>
+                {host && !locked && <PollSettingsPanel settings={s} optionCount={poll.o.length} onChange={onSettings} />}
+                {(mayEditAny || mayDelete) && !editing && (
+                  <div className="py-1.5">
+                    <PollMenuItems
+                      canEdit={mayEditAny} canDelete={mayDelete}
+                      onEdit={() => { close(); release(); setEditing(true) }}
+                      onDelete={() => { close(); onDelete() }}
+                    />
+                  </div>
+                )}
+              </>
+            )}
           </SettingsMenu>
         )}
       </div>
@@ -442,23 +454,6 @@ function PollSettingsPanel({ settings, optionCount, onChange }: { settings: Poll
       adding={{ label: 'Anyone can add options', on: draft.add }} onAdding={(v) => change({ add: v })}
       hidden={{ label: 'Hide who voted', on: draft.hide }} onHidden={(v) => change({ hide: v })}
     />
-  )
-}
-
-/* The writer's and the host's menu on a poll: Edit (while there is still something
-   to reword) and Delete, which asks once before it goes, since everyone's votes go
-   with it. */
-function PollMenu({ canEdit, canDelete, onEdit, onDelete }: { canEdit: boolean; canDelete: boolean; onEdit: () => void; onDelete: () => void }) {
-  return (
-    <Popover
-      align="end"
-      width={224}
-      label="Poll options"
-      className="-my-0.5 flex-none"
-      trigger={(open) => <SmallIcon open={open}><MoreHorizontal size={15} /></SmallIcon>}
-    >
-      {(close) => <PollMenuItems canEdit={canEdit} canDelete={canDelete} onEdit={() => { close(); onEdit() }} onDelete={() => { close(); onDelete() }} />}
-    </Popover>
   )
 }
 

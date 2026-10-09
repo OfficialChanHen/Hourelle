@@ -33,7 +33,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   CalendarPlus, CalendarClock, Calendar, Check, CopyPlus, Link2, ArrowRight, MapPin, Video, UsersRound, UserRound,
-  Trash2, UserRoundX, MoreHorizontal,
+  Trash2, UserRoundX, MoreVertical,
 } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Em } from '@/components/ui/Em'
@@ -229,7 +229,7 @@ function PlanMenu({ e, phase, className = '' }: { e: AppEvent; phase: Phase; cla
       label={`More for ${e.title}`}
       triggerClassName={className}
       trigger={(open) => (
-        <span className={`grid h-11 w-11 place-items-center rounded-full ${open ? 'bg-s2 text-text' : 'text-dim hover:bg-s2 hover:text-text'}`}><MoreHorizontal size={20} /></span>
+        <span className={`grid h-11 w-11 place-items-center rounded-full ${open ? 'bg-s2 text-text' : 'text-dim hover:bg-s2 hover:text-text'}`}><MoreVertical size={20} /></span>
       )}
       title={(
         <span className="flex min-w-0 items-center gap-3">
