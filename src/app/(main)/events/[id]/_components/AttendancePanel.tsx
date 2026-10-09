@@ -24,6 +24,7 @@ import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, X } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
+import { FlipGroup } from '@/components/ui/FlipGroup'
 import { HandNote } from '@/components/ui/HandNote'
 import { PencilArrow } from '@/components/ui/Pencil'
 import { TabHeading } from './TabHeading'
@@ -615,7 +616,10 @@ function FaceGroup({ people, size, cap, onPerson }: { people: Participant[]; siz
   const shown = people.slice(0, cap)
   const extra = people.length - shown.length
   const first = (p: Participant) => (p.you ? 'You' : p.name.split(' ')[0])
+  // the faces turn over together (one button over the row); each name stays its own
+  // button, above it, and opens that person's times
   return (
+    <FlipGroup overlay names={namesLabel(shown.map((p) => (p.you ? 'you' : p.name)), extra)}>
     <ul className="flex flex-wrap gap-x-3 gap-y-3.5">
       {shown.map((p) => (
         <li key={p.id} className="flex flex-col items-center gap-1.5" style={{ width: Math.max(size + 8, 52) }}>
@@ -623,7 +627,7 @@ function FaceGroup({ people, size, cap, onPerson }: { people: Participant[]; siz
           <button
             type="button" onClick={onPerson ? () => onPerson(p.id) : undefined} disabled={!onPerson}
             title={onPerson ? `See when ${p.name} is free` : undefined}
-            className="relative max-w-full truncate rounded-[6px] px-1 text-[12.5px] text-dim before:absolute before:-inset-x-1 before:-inset-y-3 before:content-[''] enabled:hover:bg-s2 enabled:hover:text-text sm:before:-inset-y-1"
+            className="relative z-[2] max-w-full truncate rounded-[6px] px-1 text-[12.5px] text-dim before:absolute before:-inset-x-1 before:-inset-y-3 before:content-[''] enabled:hover:bg-s2 enabled:hover:text-text sm:before:-inset-y-1"
           >
             {first(p)}
           </button>
@@ -633,7 +637,7 @@ function FaceGroup({ people, size, cap, onPerson }: { people: Participant[]; siz
         <li className="flex flex-col items-center gap-1.5" style={{ width: Math.max(size + 8, 52) }}>
           <button
             type="button" onClick={() => setAll(true)} aria-label={`Show all ${people.length}`}
-            className="grid flex-none place-items-center rounded-full bg-s3 font-semibold text-dim hover:text-text"
+            className="relative z-[2] grid flex-none place-items-center rounded-full bg-s3 font-semibold text-dim hover:text-text"
             style={{ width: size, height: size, boxShadow: '0 0 0 2px var(--face-edge)', fontSize: Math.max(12, Math.round(size * 0.3)) }}
           >
             +{extra}
@@ -642,6 +646,7 @@ function FaceGroup({ people, size, cap, onPerson }: { people: Participant[]; siz
         </li>
       )}
     </ul>
+    </FlipGroup>
   )
 }
 

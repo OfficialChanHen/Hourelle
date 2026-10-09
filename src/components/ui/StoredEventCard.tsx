@@ -9,6 +9,7 @@ import { Keepsake, lookOf, withDetail, type Look } from './Keepsake'
 import { PeekCard, peopleIn } from './PeekCard'
 import { TimezonePill } from './TimezonePill'
 import { Cover } from './Cover'
+import { HostTag } from './HostTag'
 import { Tip } from './Tip'
 import { Announce } from './Announce'
 import { daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, eventTabFor, leadingPlaceOf, phaseOf, answeredCount, rsvpPool, type AppEvent, type SameDayInfo } from '@/lib/events'
@@ -98,6 +99,7 @@ export function StoredEventCard({ e, sameDay, look: given, faded = false }: { e:
       <div className="relative mb-3">
         <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={from} to={to} className={`${CARD_COVER_H} ${faded ? 'saturate-[.45]' : ''}`} rounded="rounded-lg" />
         <Keepsake look={look} />
+        <HostTag e={e} />
         {/* the cover's top corner is the one open spot on the card: the host's way to the details tab */}
         {e.hostedByYou && !e.demo && (
           <span

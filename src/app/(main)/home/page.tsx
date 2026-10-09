@@ -33,7 +33,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   CalendarPlus, CalendarClock, Calendar, Check, CopyPlus, Link2, ArrowRight, MapPin, Video, UsersRound, UserRound,
-  Trash2, UserRoundX, ChevronRight,
+  Trash2, UserRoundX, MoreHorizontal,
 } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Em } from '@/components/ui/Em'
@@ -58,7 +58,10 @@ import { defaultFace } from '@/lib/faces'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Tip } from '@/components/ui/Tip'
-import { StageStepper } from '@/components/ui/LifecycleStrip'
+import { StageStepper, StageWord } from '@/components/ui/LifecycleStrip'
+import { HostTag } from '@/components/ui/HostTag'
+import { MenuSheet } from '@/components/ui/Sheet'
+import { PopoverItem } from '@/components/ui/Popover'
 import { placeVotes, chatLines } from '@/lib/polls'
 import { fromDay,
   createEvent, eventTabFor, listEvents, phaseOf, daysUntil, dateRangeText, confirmedSlotText, sameDayLabelFor,
@@ -181,11 +184,17 @@ function CompactPlan({ e, phase }: { e: AppEvent; phase: Phase }) {
   return (
     <div className={`relative isolate ${faces.length ? 'mr-6' : ''}`}>
       {faces.length > 0 && <PeekingFaces people={faces} plan={e.title} />}
-    <Link href={turn?.href ?? eventTabFor(e)} className="flex items-center gap-3 rounded-[14px] bg-frame p-2 pr-3 shadow-frame">
+    <Link href={turn?.href ?? eventTabFor(e)} className="flex items-center gap-3 rounded-[14px] bg-frame p-2 pr-14 shadow-frame">
       <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={from} to={to} className="h-[64px] w-[72px] flex-none" rounded="rounded-lg" />
       <div className="min-w-0 flex-1">
         <div className="truncate font-serif text-[17px] leading-tight tracking-[-0.01em]">{e.title}</div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-dim">
+        {/* where it stands as the one circled word and whose plan it is, then the
+            time question */}
+        <div className="mt-1 flex min-w-0 items-center gap-2 text-[13px]">
+          <StageWord phase={phase} className="-ml-1" />
+          <HostTag e={e} inline />
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-dim">
           {slot
             ? <><span>{slot}</span><TimezonePill tz={e.timezone} day={e.confirmed?.dayKey} /></>
             : d.best
@@ -195,9 +204,53 @@ function CompactPlan({ e, phase }: { e: AppEvent; phase: Phase }) {
         <div className="mt-0.5 text-[13px] text-dim">{countLine(e, d, false)}</div>
         {turn && <div className="mt-0.5 truncate text-[13px] font-semibold text-text">{turn.line}</div>}
       </div>
-      <ChevronRight size={17} className="flex-none text-faint" aria-hidden />
     </Link>
+      {/* the row opens the plan; this is the rest you can do with it, kept out of the
+          link so a tap on it never opens the plan */}
+      <PlanMenu e={e} phase={phase} className="absolute right-1.5 top-1/2 z-[2] -translate-y-1/2" />
     </div>
+  )
+}
+
+/* The quick things you can do with a plan from its compact row: copy its link (the
+   host's), duplicate it (with an account), and delete it (yours) or leave it (someone
+   else's), the last two at the plan's own delete zone, where it is confirmed. A sheet
+   on a phone, a small menu on anything wider. */
+function PlanMenu({ e, phase, className = '' }: { e: AppEvent; phase: Phase; className?: string }) {
+  const account = useAccount()
+  const [from, to] = coverFor(e.id)
+  function copyLink(close: () => void) {
+    navigator.clipboard?.writeText(`${window.location.origin}/events/${e.id}/join`).then(() => pushFlash(`Link to ${e.title} copied.`)).catch(() => {})
+    close()
+  }
+  if (e.demo) return null
+  return (
+    <MenuSheet
+      label={`More for ${e.title}`}
+      triggerClassName={className}
+      trigger={(open) => (
+        <span className={`grid h-11 w-11 place-items-center rounded-full ${open ? 'bg-s2 text-text' : 'text-dim hover:bg-s2 hover:text-text'}`}><MoreHorizontal size={20} /></span>
+      )}
+      title={(
+        <span className="flex min-w-0 items-center gap-3">
+          <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={from} to={to} className="h-10 w-11 flex-none" rounded="rounded-md" />
+          <span className="min-w-0">
+            <span className="block truncate font-serif text-[17px] font-normal">{e.title}</span>
+            <span className="block text-[12.5px] font-normal text-dim">{e.hostedByYou ? 'You’re hosting' : `From ${(e.participants.find((p) => p.host)?.name || e.hostName || 'the host').split(' ')[0]}`}</span>
+          </span>
+        </span>
+      )}
+    >
+      {(close) => (
+        <>
+          {e.hostedByYou && phase !== 'past' && <PopoverItem icon={<Link2 size={16} />} onClick={() => copyLink(close)}>Copy invite link</PopoverItem>}
+          {account.signedIn && <PopoverItem icon={<CopyPlus size={16} />} href={`/create?from=${e.id}`} onClick={close}>{e.hostedByYou ? 'Duplicate' : 'Duplicate as my own plan'}</PopoverItem>}
+          <PopoverItem tone="brick" icon={e.hostedByYou ? <Trash2 size={16} /> : <UserRoundX size={16} />} href={`/events/${e.id}?tab=details&focus=delete`} onClick={close}>
+            {e.hostedByYou ? 'Delete plan' : 'Leave plan'}
+          </PopoverItem>
+        </>
+      )}
+    </MenuSheet>
   )
 }
 
@@ -606,6 +659,7 @@ function UpNext({ e, phase, sameDay, size, look, lead = false }: { e: AppEvent; 
             <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className={small ? 'h-[84px]' : 'h-[112px] sm:h-[160px]'} rounded="rounded-lg" />
           </Link>
           <Keepsake look={look} />
+          <HostTag e={e} />
         </div>
         <div ref={details} className={`relative ${small ? 'px-2 pb-2 pt-2.5' : 'px-2 pb-1.5 pt-3'}`}>
           {/* its place in the stack and the way on, in the top right */}

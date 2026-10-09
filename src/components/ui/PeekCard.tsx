@@ -1,6 +1,8 @@
 'use client'
 
 import { Avatar } from './Avatar'
+import { namesLabel } from './AvatarRow'
+import { FlipGroup } from './FlipGroup'
 import { usePeek } from '@/hooks/usePeek'
 import { useNoHover } from '@/hooks/useNoHover'
 import type { AppEvent, Participant } from '@/lib/events'
@@ -10,9 +12,9 @@ import { useWide } from '@/hooks/useWide'
    focus anywhere on it and they rise up from behind, then settle back.
 
    The faces are a sibling of the card, not a child, and sit below it: the card's own
-   link or click never wraps them, so every face is a button, named for the person,
-   that flips to show their initials. A click on a face flips it and never opens the
-   card; a click on the card body opens it. The wrapper leaves room above the card for the raised faces, inside
+   link or click never wraps them, so the row of faces is one button (FlipGroup) that
+   turns them all over to their initials in order. A click on the faces flips them
+   and never opens the card; a click on the card body opens it. The wrapper leaves room above the card for the raised faces, inside
    itself, so a parent that clips (the Up next carousel does) never cuts them off.
 
    `restShow` is how much of each face shows at rest (0 hides them until hover, which
@@ -32,7 +34,9 @@ export function peopleIn(e: Pick<AppEvent, 'participants'>): Participant[] {
   const going = e.participants.filter((p) => p.rsvp === 'attending')
   // the host is marked going from the start, so that alone is not an answer: until
   // someone else says they are coming, everyone who has not said no is shown
-  return going.some((p) => !p.host) ? going : e.participants.filter((p) => p.rsvp !== 'not_going')
+  const ins = going.some((p) => !p.host) ? going : e.participants.filter((p) => p.rsvp !== 'not_going')
+  // the host leads the pile, so whose plan it is reads with the cover's name tag
+  return [...ins.filter((p) => p.host), ...ins.filter((p) => !p.host)]
 }
 
 export function PeekCard({
@@ -80,7 +84,8 @@ export function PeekCard({
       onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) settle() }}
     >
       {shown.length > 0 && (
-        <div
+        <FlipGroup
+          names={namesLabel(shown.map((p) => p.name), people.length - shown.length)}
           className="pointer-events-auto absolute left-5 right-5 z-0 flex gap-2"
           style={{ top: room, transform: rowTilt ? `rotate(${rowTilt}deg)` : undefined }}
         >
@@ -93,7 +98,7 @@ export function PeekCard({
               <Avatar initials={p.initials} color={p.color} face={p.face} size={size} font={Math.round(size * 0.34)} title={p.name} flippable />
             </span>
           ))}
-        </div>
+        </FlipGroup>
       )}
       {/* the card's box takes no pointer itself, only what is drawn in it, so a tilted
           card never blocks a face with the empty corner of its unturned box */}

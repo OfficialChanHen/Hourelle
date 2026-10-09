@@ -1,4 +1,5 @@
 import { Avatar } from './Avatar'
+import { FlipGroup } from './FlipGroup'
 import type { Avatar as Person } from '@/lib/people'
 
 /* A pile of faces, overlapping, capped. The cap is the point: a guest list is
@@ -46,17 +47,14 @@ export function AvatarRow({
   const extra = more ?? (people.length > max ? `+${people.length - max}` : '')
   const extraCount = more != null ? parseInt(more.replace(/[^\d]/g, ''), 10) || 0 : Math.max(0, people.length - max)
   const label = namesLabel(shown.map((p) => p.name), extraCount)
-  return (
-    <div
-      className="flex items-center"
-      role={decorative || !label ? undefined : flippable ? 'group' : 'img'}
-      aria-label={decorative || !label ? undefined : label}
-      aria-hidden={decorative || !label ? true : undefined}
-    >
+  // a flippable pile is one button that turns every face over in order (FlipGroup)
+  const flip = flippable && !decorative
+  const faces = (
+    <>
       {shown.map((p, i) => (
         <span key={i} className="flex" style={{ marginRight: i === shown.length - 1 && !extra ? 0 : -overlap }}>
           <Avatar
-            initials={p.initials} color={p.color} face={p.face} size={size} font={font} title={p.name} flippable={flippable && !decorative}
+            initials={p.initials} color={p.color} face={p.face} size={size} font={font} title={p.name} flippable={flip}
           />
         </span>
       ))}
@@ -70,6 +68,17 @@ export function AvatarRow({
           {extra}
         </span>
       )}
+    </>
+  )
+  if (flip) return <FlipGroup names={label} className="flex items-center">{faces}</FlipGroup>
+  return (
+    <div
+      className="flex items-center"
+      role={decorative || !label ? undefined : 'img'}
+      aria-label={decorative || !label ? undefined : label}
+      aria-hidden={decorative || !label ? true : undefined}
+    >
+      {faces}
     </div>
   )
 }
