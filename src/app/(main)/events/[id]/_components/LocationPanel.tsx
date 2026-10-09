@@ -1163,7 +1163,8 @@ function EmptyNote({ icon: Icon, text }: { icon: typeof Vote; text: string }) {
 
 /* No place on the ballot and nothing decided: the tab's quiet offer, never a blank map.
    Place matters less than time here, so it says that plainly and makes skipping easy.
-   A moment, so it takes the scrapbook look: a taped frame with a pencil pin in it. */
+   A moment, so it takes the scrapbook look: a taped frame with a pencil pin in it,
+   a question mark where its centre would be. */
 function NoPlaceYet({ canAdd, host, near, onAdd, onOnline, letVote }: {
   canAdd: boolean; host: boolean; near?: LatLng; onAdd: (p: EventPlace) => void
   onOnline: () => void; letVote?: () => void
@@ -1176,8 +1177,9 @@ function NoPlaceYet({ canAdd, host, near, onAdd, onOnline, letVote }: {
           <svg aria-hidden width="140" height="140" viewBox="0 0 150 150" fill="none" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 112 C 50 104, 100 118, 132 108" stroke="var(--dim)" strokeWidth="2.2" strokeDasharray="2 7" />
             <path d="M75 100 C 58 78, 46 64, 46 50 C 46 33, 59 22, 75 22 C 91 22, 104 33, 104 50 C 104 64, 92 78, 75 100 Z" stroke="var(--dim)" strokeWidth="2.6" />
-            <path d="M66 49 Q 75 40 84 49" stroke="var(--accent)" strokeWidth="2.6" />
-            <path d="M75 40 L 75 30" stroke="var(--accent)" strokeWidth="2.6" />
+            {/* a pencil question mark in the pin: the place is not decided yet */}
+            <path d="M65 45 C 65 34, 85 33, 85 44 C 85 52, 75 53, 75 61 L 75 64" stroke="var(--accent)" strokeWidth="2.8" />
+            <circle cx="75" cy="73" r="2.2" fill="var(--accent)" />
           </svg>
         </div>
         <p className="px-1 pt-3 font-serif text-[15px] italic text-dim">Nowhere yet, and that&apos;s fine.</p>
