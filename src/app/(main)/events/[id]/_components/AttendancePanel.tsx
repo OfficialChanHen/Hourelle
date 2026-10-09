@@ -623,7 +623,7 @@ function FaceGroup({ people, size, cap, onPerson }: { people: Participant[]; siz
     <ul className="flex flex-wrap gap-x-3 gap-y-3.5">
       {shown.map((p) => (
         <li key={p.id} className="flex flex-col items-center gap-1.5" style={{ width: Math.max(size + 8, 52) }}>
-          <Avatar initials={p.initials} color={p.color} face={p.face} size={size} font={Math.round(size * 0.34)} title={p.name} flippable />
+          <Avatar initials={p.initials} color={p.color} face={p.face} size={size} font={Math.round(size * 0.34)} title={p.name} flippable tag={false} />
           <button
             type="button" onClick={onPerson ? () => onPerson(p.id) : undefined} disabled={!onPerson}
             title={onPerson ? `See when ${p.name} is free` : undefined}
@@ -945,7 +945,7 @@ function RosterGroup({ label, tone, people, cap: capIn, compact, bare, action, o
           <div key={p.id} className="flex items-center gap-2.5">
             {/* the face turns over to show the initials; the name opens their times */}
             <span className={`flex min-w-0 items-center gap-2.5 ${hasBars ? 'w-[42%] sm:w-[160px] flex-none' : 'flex-1'}`}>
-              <Avatar initials={p.initials} color={p.color} face={p.face} size={27} font={10} title={p.name} flippable />
+              <Avatar initials={p.initials} color={p.color} face={p.face} size={27} font={10} title={p.name} flippable tag={false} />
               <button
                 type="button" onClick={onPerson ? () => onPerson(p.id) : undefined} disabled={!onPerson}
                 title={onPerson ? `See when ${p.name} is free` : undefined}

@@ -29,7 +29,9 @@ import { FaceSvg } from './FaceSvg'
 
    A face with a name (`title`) wears it in a small tag on hover (a mouse; never a
    touch, where hover sticks), and a flippable face keeps the tag up for as long as it
-   is turned over, so a tap says who it is without leaving the screen.
+   is turned over, so a tap says who it is without leaving the screen. Where the name
+   is already printed beside the face, pass `tag={false}`: the name keeps naming the
+   face for screen readers, and no tag repeats it.
 
    `tilt` turns the face a few degrees, like a sticker: for moments only (a plan's
    header, Home), never in a list of people or a grid. Capped at 3 degrees. */
@@ -42,6 +44,7 @@ export function Avatar({
   title,
   label,
   flippable = false,
+  tag = true,
   tilt,
 }: {
   initials: string
@@ -52,6 +55,7 @@ export function Avatar({
   title?: string
   label?: string
   flippable?: boolean
+  tag?: boolean
   tilt?: number
 }) {
   const look = face ?? defaultFace(initials, color)
@@ -61,12 +65,12 @@ export function Avatar({
   // in a row of faces the row is the button (FlipGroup): this face draws both sides
   // and turns with the others, with no button of its own
   const inGroup = useInFlipGroup()
-  if (flippable && inGroup) return <TurnFace initials={initials} color={color} face={look} size={size} font={font} turn={turn} title={title} />
+  if (flippable && inGroup) return <TurnFace initials={initials} color={color} face={look} size={size} font={font} turn={turn} title={tag ? title : undefined} />
   if (flippable) {
     return (
       <FlipFace
         initials={initials} color={color} face={look} size={size} font={font}
-        name={label ?? title ?? initials} turn={turn}
+        name={label ?? title ?? initials} turn={turn} tag={tag}
       />
     )
   }
@@ -76,10 +80,10 @@ export function Avatar({
       aria-label={label}
       aria-hidden={label ? undefined : true}
       style={{ width: size, height: size, transform: turn }}
-      className={`inline-flex shrink-0 select-none ${title ? 'group/face relative' : ''}`}
+      className={`inline-flex shrink-0 select-none ${title && tag ? 'group/face relative' : ''}`}
     >
       <FaceSvg face={look} color={color} size={size} />
-      {title && <NameTag name={title} />}
+      {title && tag && <NameTag name={title} />}
     </span>
   )
 }
@@ -102,8 +106,8 @@ export function NameTag({ name, shown = false, list = false }: { name: string; s
 /* The face as a button: front is the face, back is the initials on the colour. The
    button is as big as the face, and a hit area around it reaches 44px, so a small
    face in a roster row is still easy to tap. */
-function FlipFace({ initials, color, face, size, font, name, turn }: {
-  initials: string; color: PersonColor; face: Face; size: number; font?: number; name: string; turn?: string
+function FlipFace({ initials, color, face, size, font, name, turn, tag = true }: {
+  initials: string; color: PersonColor; face: Face; size: number; font?: number; name: string; turn?: string; tag?: boolean
 }) {
   const { scope, flipped, toggle } = useFaceFlip()
   const c = personVar(color)
@@ -115,7 +119,7 @@ function FlipFace({ initials, color, face, size, font, name, turn }: {
       style={{ width: size, height: size, perspective: size * 6, transform: turn, '--ring-gap': `${ringGap(size)}px` } as CSSProperties}
       className="face-ring group/face relative block shrink-0 cursor-pointer select-none rounded-full p-0 [-webkit-tap-highlight-color:transparent]"
     >
-      {name !== initials && <NameTag name={name} shown={flipped} />}
+      {tag && name !== initials && <NameTag name={name} shown={flipped} />}
       {reach > 0 && <span aria-hidden className="absolute" style={{ inset: -reach }} />}
       <span className="face-flip relative block h-full w-full" style={{ transformStyle: 'preserve-3d' }}>
         <span className="absolute inset-0" style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>

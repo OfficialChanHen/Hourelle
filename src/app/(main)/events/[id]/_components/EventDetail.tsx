@@ -886,7 +886,7 @@ function ParticipantsCard({ event, isHost, onPatch, onSetMyFace, onViewAvailabil
           return (
             <div key={p.id} className={`flex items-center gap-2.5 py-2 ${i > 0 ? 'border-t border-border' : ''}`}>
               {/* the face turns over to show the initials; the name opens their times */}
-              <Avatar initials={p.initials} color={p.color} face={p.face} size={29} font={10.5} title={p.name} flippable />
+              <Avatar initials={p.initials} color={p.color} face={p.face} size={29} font={10.5} title={p.name} flippable tag={false} />
               <button
                 type="button" onClick={() => onViewAvailability(p.id)} title={`See when ${p.name} is free`}
                 className="-mx-1 flex min-h-[29px] min-w-0 flex-1 items-center rounded-[8px] px-1 py-0.5 text-left hover:bg-s2"
