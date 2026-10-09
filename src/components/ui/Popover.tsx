@@ -5,6 +5,7 @@ import Link from 'next/link'
 import * as RPopover from '@radix-ui/react-popover'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
+import { CHROME_TOP, LAYER_Z, layerOf, type Layer } from '@/lib/layers'
 
 /**
  * Small anchored dropdown for progressive disclosure — tuck secondary settings and controls
@@ -34,11 +35,12 @@ import { useGSAP } from '@gsap/react'
  * look, the inner language below, and the entrance.
  */
 
-// z-55: over the tab bar (40) and over the surfaces that take a phone's whole screen
-// (the discussion, the places panel, both 50), since a panel opened inside one of
-// those has to land on top of it. Under tooltips (60) and the reading sheets (70).
+// The layer (lib/layers): under the header and the phone tab bar for a panel opened
+// from the page, over a modal for one opened inside it, over the bar for one opened
+// from the bar. Worked out from the trigger each time the panel opens.
 // a phone's bottom bar and the chat button own the last stretch of the screen, so the
-// panel is told to treat that as the edge and flip upward rather than open beneath it
+// panel is told to treat that as the edge and flip upward rather than open beneath it;
+// a page panel does the same with the header at the top
 const NARROW = '(max-width: 1023px)'
 const subscribeNarrow = (cb: () => void) => {
   const mq = window.matchMedia(NARROW)
@@ -60,6 +62,8 @@ export function Popover({
   label?: string
 }) {
   const [open, setOpen] = useState(false)
+  const [layer, setLayer] = useState<Layer>('page')
+  const trig = useRef<HTMLButtonElement>(null)
   const narrow = useSyncExternalStore(subscribeNarrow, () => window.matchMedia(NARROW).matches, () => false)
   const panel = useRef<HTMLDivElement>(null)
 
@@ -71,18 +75,19 @@ export function Popover({
   }, { dependencies: [open] })
 
   return (
-    <RPopover.Root open={open} onOpenChange={setOpen}>
+    <RPopover.Root open={open} onOpenChange={(o) => { if (o) setLayer(layerOf(trig.current)); setOpen(o) }}>
       <RPopover.Trigger asChild>
-        <button type="button" aria-label={label} className={className}>{trigger(open)}</button>
+        <button ref={trig} type="button" aria-label={label} className={className}>{trigger(open)}</button>
       </RPopover.Trigger>
       <RPopover.Portal>
         <RPopover.Content
           ref={panel}
           align={align}
           sideOffset={6}
-          collisionPadding={{ top: 8, right: 8, bottom: narrow ? 92 : 8, left: 8 }}
-          className="z-[55] max-w-[calc(100vw-16px)] rounded-xl border border-border bg-s1 p-1.5 shadow-soft"
-          style={{ width: width === 'fit' ? 'max-content' : width, ...(width === 'fit' ? { maxWidth: 'min(300px, calc(100vw - 16px))' } : {}), transformOrigin: 'var(--radix-popover-content-transform-origin)' }}
+          collisionPadding={{ top: layer === 'page' ? CHROME_TOP : 8, right: 8, bottom: narrow && layer !== 'modal' ? 92 : 8, left: 8 }}
+          data-layer={layer}
+          className="max-w-[calc(100vw-16px)] rounded-xl border border-border bg-s1 p-1.5 shadow-soft"
+          style={{ zIndex: LAYER_Z[layer], width: width === 'fit' ? 'max-content' : width, ...(width === 'fit' ? { maxWidth: 'min(300px, calc(100vw - 16px))' } : {}), transformOrigin: 'var(--radix-popover-content-transform-origin)' }}
         >
           {children(() => setOpen(false))}
         </RPopover.Content>

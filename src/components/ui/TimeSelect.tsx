@@ -1,8 +1,10 @@
 'use client'
 
+import { useRef, useState } from 'react'
 import * as RSelect from '@radix-ui/react-select'
 import { Check, ChevronDown, ChevronUp, Clock } from 'lucide-react'
 import { fmtMinute } from '@/lib/events'
+import { CHROME_TOP, LAYER_Z, layerOf, type Layer } from '@/lib/layers'
 
 /**
  * A time of day, picked from the times that are allowed. Bounds are enforced by
@@ -41,9 +43,14 @@ export function TimeSelect({
   // rather than leaving the trigger blank
   if (!opts.includes(value)) opts.unshift(value)
 
+  // over whatever the picker sits in (lib/layers), worked out as it opens
+  const [layer, setLayer] = useState<Layer>('page')
+  const trig = useRef<HTMLButtonElement>(null)
+
   return (
-    <RSelect.Root value={String(value)} onValueChange={(v) => onChange(Number(v))}>
+    <RSelect.Root value={String(value)} onValueChange={(v) => onChange(Number(v))} onOpenChange={(o) => { if (o) setLayer(layerOf(trig.current)) }}>
       <RSelect.Trigger
+        ref={trig}
         aria-label={title ?? 'Time'}
         title={title}
         className={`flex h-11 items-center gap-1.5 rounded-[9px] border border-border bg-s1 px-2.5 text-[13.5px] font-medium tabular-nums outline-none hover:border-border2 focus-visible:border-accent data-[state=open]:border-accent-border sm:h-8 sm:rounded-[8px] sm:px-2 sm:text-[12.5px] ${className ?? ''}`}
@@ -56,10 +63,10 @@ export function TimeSelect({
         <RSelect.Content
           position="popper"
           sideOffset={4}
-          collisionPadding={8}
-          // over the full-screen phone surfaces and the popovers a picker can sit in
-          className="z-[56] w-[128px] overflow-hidden rounded-xl border border-border bg-s1 shadow-soft"
-          style={{ maxHeight: 'min(260px, var(--radix-select-content-available-height))' }}
+          collisionPadding={{ top: layer === 'page' ? CHROME_TOP : 8, right: 8, bottom: 8, left: 8 }}
+          data-layer={layer}
+          className="w-[128px] overflow-hidden rounded-xl border border-border bg-s1 shadow-soft"
+          style={{ zIndex: LAYER_Z[layer] + 1, maxHeight: 'min(260px, var(--radix-select-content-available-height))' }}
         >
           <RSelect.ScrollUpButton className="flex h-6 items-center justify-center text-faint"><ChevronUp size={14} /></RSelect.ScrollUpButton>
           <RSelect.Viewport className="p-1">
