@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import Link from 'next/link'
 import * as RPopover from '@radix-ui/react-popover'
 import { gsap } from 'gsap'
@@ -66,6 +66,24 @@ export function Popover({
   const trig = useRef<HTMLButtonElement>(null)
   const narrow = useSyncExternalStore(subscribeNarrow, () => window.matchMedia(NARROW).matches, () => false)
   const panel = useRef<HTMLDivElement>(null)
+  // a panel opened inside a region marked data-popover-boundary (the chat's messages)
+  // stays inside it, flipping or shifting rather than covering what is around it (the
+  // box you type in); elsewhere the window is the edge
+  const [boundary, setBoundary] = useState<Element | null>(null)
+
+  // a panel whose button has scrolled out of sight closes: it would otherwise float
+  // over the page with nothing to say what it belongs to. Declared after `layer`.
+  useEffect(() => {
+    const el = trig.current
+    if (!open || !el) return
+    // on the page the header covers the top band, so a button gone under it counts as
+    // out of sight too; never more of the band than the button sat below when it
+    // opened (a phone's header slides away, and a button can then sit up there)
+    const band = layer === 'page' ? Math.max(0, Math.min(CHROME_TOP, Math.floor(el.getBoundingClientRect().top) - 1)) : 0
+    const io = new IntersectionObserver(([entry]) => { if (!entry.isIntersecting) setOpen(false) }, { rootMargin: `-${band}px 0px 0px 0px` })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [open, layer])
 
   // the entrance: a breath of scale and lift from the corner the panel grew out of.
   // Radix decides where it lands and hands back the origin; this only plays it in.
@@ -75,7 +93,7 @@ export function Popover({
   }, { dependencies: [open] })
 
   return (
-    <RPopover.Root open={open} onOpenChange={(o) => { if (o) setLayer(layerOf(trig.current)); setOpen(o) }}>
+    <RPopover.Root open={open} onOpenChange={(o) => { if (o) { setLayer(layerOf(trig.current)); setBoundary(trig.current?.closest('[data-popover-boundary]') ?? null) } setOpen(o) }}>
       <RPopover.Trigger asChild>
         <button ref={trig} type="button" aria-label={label} className={className}>{trigger(open)}</button>
       </RPopover.Trigger>
@@ -84,10 +102,12 @@ export function Popover({
           ref={panel}
           align={align}
           sideOffset={6}
-          collisionPadding={{ top: layer === 'page' ? CHROME_TOP : 8, right: 8, bottom: narrow && layer !== 'modal' ? 92 : 8, left: 8 }}
+          collisionBoundary={boundary ?? undefined}
+          collisionPadding={{ top: layer === 'page' && !boundary ? CHROME_TOP : 8, right: 8, bottom: narrow && layer !== 'modal' && !boundary ? 92 : 8, left: 8 }}
           data-layer={layer}
-          className="max-w-[calc(100vw-16px)] rounded-xl border border-border bg-s1 p-1.5 shadow-soft"
-          style={{ zIndex: LAYER_Z[layer], width: width === 'fit' ? 'max-content' : width, ...(width === 'fit' ? { maxWidth: 'min(300px, calc(100vw - 16px))' } : {}), transformOrigin: 'var(--radix-popover-content-transform-origin)' }}
+          className="max-w-[calc(100vw-16px)] overflow-y-auto overscroll-contain rounded-xl border border-border bg-s1 p-1.5 shadow-soft"
+          // never taller than the room it has: past that it scrolls inside
+          style={{ zIndex: LAYER_Z[layer], maxHeight: 'var(--radix-popover-content-available-height)', width: width === 'fit' ? 'max-content' : width, ...(width === 'fit' ? { maxWidth: 'min(300px, calc(100vw - 16px))' } : {}), transformOrigin: 'var(--radix-popover-content-transform-origin)' }}
         >
           {children(() => setOpen(false))}
         </RPopover.Content>

@@ -21,10 +21,10 @@ export function HostTag({ e, size = 'md', inline = false }: { e: Pick<AppEvent, 
     )
   }
   const sm = size === 'sm'
-  const face = sm ? 15 : 18
+  const face = sm ? 14 : 16
   return (
     <span
-      className={`absolute z-[2] inline-flex max-w-[calc(100%-8px)] items-center rounded-full bg-s1/85 font-medium text-text backdrop-blur-sm ${sm ? 'bottom-1.5 left-1.5 h-6 gap-1.5 pl-[3px] pr-2.5 text-[11px]' : 'bottom-2 left-2 h-6 gap-1.5 pl-[3px] pr-2.5 text-[11.5px]'}`}
+      className={`absolute z-[2] inline-flex max-w-[calc(100%-8px)] items-center rounded-full bg-s1/85 font-medium text-text backdrop-blur-sm ${sm ? 'bottom-1.5 left-1.5 h-6 gap-1.5 pl-[5px] pr-2.5 text-[11px]' : 'bottom-2 left-2 h-[26px] gap-1.5 pl-[5px] pr-2.5 text-[11.5px]'}`}
     >
       {host && <Avatar initials={host.initials} color={host.color} face={host.face} size={face} font={Math.round(face * 0.4)} />}
       <span className="truncate">{label}</span>
