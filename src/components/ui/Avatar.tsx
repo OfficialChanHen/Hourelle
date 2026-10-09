@@ -86,12 +86,13 @@ export function Avatar({
 
 /* The person's name over their face: shown on a mouse hover, or held up by `shown`
    (a face turned over). Never takes a pointer, so it cannot get in the way of
-   anything under it. */
-function NameTag({ name, shown = false }: { name: string; shown?: boolean }) {
+   anything under it. `list` is for a "+N", whose tag names the people it stands for
+   and may wrap. Its parent needs `group/face relative`. */
+export function NameTag({ name, shown = false, list = false }: { name: string; shown?: boolean; list?: boolean }) {
   return (
     <span
       aria-hidden
-      className={`pointer-events-none absolute bottom-full left-1/2 z-30 mb-1.5 max-w-[180px] -translate-x-1/2 truncate whitespace-nowrap rounded-full border border-border2 bg-s1 px-2 py-0.5 text-[11.5px] font-semibold leading-[1.4] text-text shadow-soft ${shown ? 'block' : 'hidden group-hover/face:block'}`}
+      className={`pointer-events-none absolute bottom-full left-1/2 z-30 mb-1.5 -translate-x-1/2 border border-border2 bg-s1 px-2 py-0.5 text-[11.5px] font-semibold leading-[1.4] text-text shadow-soft ${list ? 'w-max max-w-[240px] rounded-[10px] text-center' : 'max-w-[180px] truncate whitespace-nowrap rounded-full'} ${shown ? 'block' : 'hidden group-hover/face:block'}`}
     >
       {name}
     </span>

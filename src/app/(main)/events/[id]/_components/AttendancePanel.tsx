@@ -22,7 +22,7 @@
 
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, Video, X } from 'lucide-react'
-import { Avatar } from '@/components/ui/Avatar'
+import { Avatar, NameTag } from '@/components/ui/Avatar'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { FlipGroup } from '@/components/ui/FlipGroup'
 import { HandNote } from '@/components/ui/HandNote'
@@ -1002,8 +1002,7 @@ function CopyReminder({ event }: { event: AppEvent }) {
    the people who miss a stop, grouped by which stops they miss, so the list grows with
    the patterns (a handful) rather than the guest list. */
 type StopRow = { i: number; name: string; arrive: number; depart: number; present: Participant[]; partial: Participant[]; absent: Participant[] }
-// `said` is the gap as the middle of a sentence ("is late to X" reads off it)
-type GapGroup = { key: string; names: string[]; label: string; said: string; whole: boolean; people: Participant[] }
+type GapGroup = { key: string; label: string; people: Participant[] }
 function useItinerary(event: AppEvent, attendees: Participant[], dayIv: Record<string, Iv[]>, gridStart: number) {
   const placeName = (id: string) => event.location.places.find((p) => p.id === id)?.name ?? 'Stop'
   const stops = useMemo(() => event.itinStops ?? [], [event.itinStops])
@@ -1049,14 +1048,13 @@ function useItinerary(event: AppEvent, attendees: Participant[], dayIv: Record<s
         if (!segs.length) g.misses.push(s.i)
       }
     }
-    const nameOf = (n: number) => stopData[n]?.name ?? `stop ${n + 1}`
     const by = new Map<string, GapGroup>()
     for (const p of attendees) {
       const g = gapsOf.get(p.id)
       if (!g) continue
       const key = `m${g.misses.join(',')}l${g.late.join(',')}e${g.early.join(',')}`
       if (!by.has(key)) {
-        // in words for the heading's sentence, by stop number for the group's short label
+        // by stop number, short enough for the group's label
         const gaps = (name: (ns: number[]) => string) => {
           const parts: string[] = []
           if (g.late.length) parts.push(`late to ${name(g.late)}`)
@@ -1064,10 +1062,9 @@ function useItinerary(event: AppEvent, attendees: Participant[], dayIv: Record<s
           if (g.misses.length) parts.push(g.misses.length === stopData.length ? 'misses every stop' : `misses ${name(g.misses)}`)
           return parts
         }
-        const said = joinNames(gaps((ns) => joinNames(ns.map(nameOf))))
         const short = gaps((ns) => `${ns.length > 1 ? 'stops' : 'stop'} ${joinNames(ns.map((n) => String(n + 1)))}`).join(', ')
         const label = short.charAt(0).toUpperCase() + short.slice(1)
-        by.set(key, { key, names: g.misses.map(nameOf), label, said, whole: g.misses.length === stopData.length, people: [] })
+        by.set(key, { key, label, people: [] })
       }
       by.get(key)!.people.push(p)
     }
@@ -1081,19 +1078,10 @@ function useItinerary(event: AppEvent, attendees: Participant[], dayIv: Record<s
 const joinNames = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : xs[0] ?? '')
 type Itin = ReturnType<typeof useItinerary>
 
-// the heading for the route: how many make all of it, and the biggest gap said plainly
+// the heading for the route: how many make all of it, and no more; the groups below
+// say who misses what
 function itinTitle(itin: Itin, total: number): string {
-  const all = `${itin.everyStop.length} of ${total} make every stop.`
-  const g = itin.gapGroups[0]
-  if (!g) return 'Everyone makes every stop.'
-  const n = g.people.length
-  if (g.whole) return `${all} ${n} can’t make any of it.`
-  // "1 is late to Cavallo", "2 are late to Cavallo", "1 misses Presidio": the group's
-  // own words, with the verb agreeing
-  const said = n === 1
-    ? g.said.replace(/^late to/, 'is late to')
-    : g.said.replace(/^late to/, 'are late to').replace(/^leaves/, 'leave').replace(/^misses/, 'miss')
-  return `${all} ${n} ${said}.`
+  return itin.gapGroups.length ? `${itin.everyStop.length} of ${total} make every stop.` : 'Everyone makes every stop.'
 }
 
 function ItineraryAttendance({ itin, total, onPerson, onViewGroup }: {
@@ -1170,9 +1158,15 @@ function AvatarPile({ people, cap }: { people: Participant[]; cap: number }) {
       ? <span className="text-[12.5px] text-faint">nobody yet</span>
       // the faces turn over together, and their names show while they are turned
       : (
-        <FlipGroup names={namesLabel(shown.map((p) => (p.you ? 'you' : p.name)), extra)} people={shown} more={extra} className="flex items-center">
+        <FlipGroup names={namesLabel(shown.map((p) => (p.you ? 'you' : p.name)), extra)} people={people} className="flex items-center">
           {shown.map((p) => <span key={p.id} className="-mr-1.5 flex"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} title={p.name} flippable /></span>)}
-          {extra > 0 && <span aria-hidden className="ml-2.5 text-[12.5px] font-semibold text-dim">+{extra}</span>}
+          {/* the "+N" names the people it stands for, on hover */}
+          {extra > 0 && (
+            <span aria-hidden className="group/face relative ml-2.5 text-[12.5px] font-semibold text-dim">
+              +{extra}
+              <NameTag list name={namesLabel(people.slice(cap, cap + 8).map((p) => p.name), extra - 8)} />
+            </span>
+          )}
         </FlipGroup>
       )
   )

@@ -1,4 +1,4 @@
-import { Avatar } from './Avatar'
+import { Avatar, NameTag } from './Avatar'
 import { namesLabel } from './AvatarRow'
 import { FlipGroup } from './FlipGroup'
 import type { Avatar as Person } from '@/lib/people'
@@ -45,16 +45,18 @@ export function FaceRibbon({
       {extra > 0 && (
         <span
           aria-hidden
-          className="grid flex-none place-items-center rounded-full bg-s3 font-semibold text-dim"
+          className="group/face relative grid flex-none place-items-center rounded-full bg-s3 font-semibold text-dim"
           style={{ width: size * 40 / 44, height: size * 40 / 44, margin: size / 22, boxShadow: `0 0 0 ${size / 20}px var(--face-edge)`, filter: 'var(--face-lift)', fontSize: Math.max(12, Math.round(size * 0.34)), transform: 'translateY(3px)' }}
         >
           +{extra}
+          {/* on hover, the people the "+N" stands for */}
+          <NameTag list name={namesLabel(people.slice(max, max + 8).map((p) => p.name), extra - 8)} />
         </span>
       )}
   </>
   // flippable: the whole ribbon is one button that turns every face over in order
   if (flippable) {
-    return <FlipGroup names={label} people={shown} more={extra} className={`flex items-start gap-1.5 ${className}`} style={{ height: size + 8 }}>{faces}</FlipGroup>
+    return <FlipGroup names={label} people={people} className={`flex items-start gap-1.5 ${className}`} style={{ height: size + 8 }}>{faces}</FlipGroup>
   }
   return (
     <div

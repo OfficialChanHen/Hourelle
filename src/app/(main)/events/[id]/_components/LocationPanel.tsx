@@ -27,7 +27,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { gsap } from 'gsap'
 import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, Info, ExternalLink } from 'lucide-react'
-import { Avatar } from '@/components/ui/Avatar'
+import { Avatar, NameTag } from '@/components/ui/Avatar'
 import { namesLabel } from '@/components/ui/AvatarRow'
 import { confirmedSlotText, fromDay, todayKey, getEvent, patchEvent, fmtMinute, fmtMinuteDay, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
 import { hintDismissed as isHintDismissed, dismissHint as markHintDismissed } from '@/lib/prefs'
@@ -509,7 +509,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
               <div className="flex items-center gap-1.5">
                 <span className="text-[12px] font-bold text-teal-text">{votesOf(fp.id).length} vote{votesOf(fp.id).length === 1 ? '' : 's'}</span>
                 {!hideVoters && (
-                  <Voters voters={votesOf(fp.id).map(avatarOf)} place={fp.name} cap={5} size={19} />
+                  <Voters voters={votesOf(fp.id).map(avatarOf)} place={fp.name} cap={5} size={19} list={false} />
                 )}
               </div>
               {/* vote right from the map — the popup uses fixed light colors like the map itself */}
@@ -761,7 +761,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
               )}
               <div
                 ref={voteFlip.scope}
-                className="scroll-slim flex max-h-[55vh] min-h-0 flex-1 flex-col gap-2 overflow-auto py-0.5 pr-0.5 lg:max-h-none"
+                className="scroll-slim flex min-h-0 flex-1 flex-col gap-2 overflow-auto py-0.5 pr-0.5"
                 // a finger lifting also "leaves", so only a mouse settles the order early
                 onPointerLeave={(e) => { if (e.pointerType === 'mouse') releaseOrder() }}
               >
@@ -1214,6 +1214,9 @@ function PlaceSet({ place, locked, voters, people, when, tz, day }: {
   people: number; when: string | null; tz: string; day?: string
 }) {
   const [copied, setCopied] = useState(false)
+  // a touch screen's way to the names: the count opens them, right under it
+  const touch = useNoHover()
+  const [names, setNames] = useState(false)
   const c = coordsOf(place)
   const dest = c ? `${c.lat},${c.lng}` : `${place.name}, ${place.place}`
   const directions = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}`
@@ -1236,7 +1239,7 @@ function PlaceSet({ place, locked, voters, people, when, tz, day }: {
         </PhotoFrame>
         {voters.length > 0 && (
           // the faces turn over to their initials together, like every face row
-          <FlipGroup names={namesLabel(voters.slice(0, 5).map((v) => (v.you ? 'you' : v.name)), voters.length - 5)} people={voters.slice(0, 5)} more={Math.max(0, voters.length - 5)} className="absolute -bottom-5 left-6 flex">
+          <FlipGroup names={namesLabel(voters.slice(0, 5).map((v) => (v.you ? 'you' : v.name)), voters.length - 5)} people={voters} className="absolute -bottom-5 left-6 flex">
             {voters.slice(0, 5).map((v, i) => <span key={i} className="-mr-2"><Avatar initials={v.initials} color={v.color} face={v.face} size={40} font={13} title={v.name} flippable /></span>)}
           </FlipGroup>
         )}
@@ -1247,10 +1250,14 @@ function PlaceSet({ place, locked, voters, people, when, tz, day }: {
         {address && <p className="mt-2 text-[15px] text-dim">{address}</p>}
         {(voters.length > 0 || when) && (
           <p className="mt-3 text-[15px] leading-[1.6] text-dim">
-            {voters.length > 0 && <><VotersLink voters={voters} place={place.name} people={people} />{' '}</>}
+            {voters.length > 0 && (touch
+              ? <button type="button" onClick={() => setNames(!names)} aria-expanded={names} className="underline decoration-border2 decoration-dotted underline-offset-4">{voters.length} of {people} voted for it.</button>
+              : <>{voters.length} of {people} voted for it.</>)}
+            {voters.length > 0 && ' '}
             {when && <>{when} <TimezonePill tz={tz} day={day} /></>}
           </p>
         )}
+        {touch && names && <VoterList voters={voters} />}
         <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
           <a href={directions} target="_blank" rel="noopener noreferrer" className="flex h-11 items-center justify-center whitespace-nowrap rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent sm:h-10">Directions</a>
           <button type="button" onClick={copy} className={`flex h-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-[14px] font-semibold sm:h-10 ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
@@ -1300,7 +1307,7 @@ function RouteSet({ title, sub, stops, going }: {
           </div>
         </PhotoFrame>
         {faces.length > 0 && (
-          <FlipGroup names={namesLabel(faces.map((p) => (p.you ? 'you' : p.name)), going.length - faces.length)} people={faces} more={going.length - faces.length} className="absolute -bottom-5 left-6 flex">
+          <FlipGroup names={namesLabel(faces.map((p) => (p.you ? 'you' : p.name)), going.length - faces.length)} people={going} className="absolute -bottom-5 left-6 flex">
             {faces.map((p) => <span key={p.id} className="-mr-2"><Avatar initials={p.initials} color={p.color} face={p.face} size={40} font={13} title={p.name} flippable /></span>)}
           </FlipGroup>
         )}
@@ -1396,70 +1403,55 @@ function RemoteCall({ platform, link, host, onLink, people }: {
 
 type Voter = { initials: string; name: string; color: Participant['color']; face?: Participant['face']; you?: boolean }
 
-// everyone who voted for a place, by face and full name: a phone's way to the names,
-// where there is no hover to show them face by face
-function VoterList({ voters, place }: { voters: Voter[]; place: string }) {
+// everyone who voted for a place, by face and full name: a touch screen's way to the
+// names, where there is no hover to show them face by face. It opens in the page,
+// right under what was tapped, so it never covers anything and needs no focus games.
+function VoterList({ voters }: { voters: Voter[] }) {
   return (
-    <>
-      <div className="mb-1 flex items-baseline justify-between gap-3 border-b border-border px-2.5 pb-2.5 pt-1.5">
-        <span className="min-w-0 truncate text-[14px] font-semibold">{place}</span>
-        <span className="flex-none text-[12px] text-faint">{voters.length} {voters.length === 1 ? 'vote' : 'votes'}</span>
-      </div>
-      <ul>
-        {voters.map((v, i) => (
-          <li key={i} className="flex items-center gap-3 px-2.5 py-2">
-            <Avatar initials={v.initials} color={v.color} face={v.face} size={28} font={10} />
-            <span className="min-w-0 flex-1 truncate text-[14px]">{v.name}</span>
-            {v.you && <span className="flex-none rounded-full border border-accent-border bg-accent-bg px-2 py-px text-[11.5px] font-semibold text-accent-text">You</span>}
-          </li>
-        ))}
-      </ul>
-    </>
+    <ul className="mt-2.5 max-w-[340px] rounded-xl border border-border bg-s0 p-1">
+      {voters.map((v, i) => (
+        <li key={i} className="flex items-center gap-3 px-2.5 py-1.5">
+          <Avatar initials={v.initials} color={v.color} face={v.face} size={26} font={9.5} />
+          <span className="min-w-0 flex-1 truncate text-[14px] text-text">{v.name}</span>
+          {v.you && <span className="flex-none rounded-full border border-accent-border bg-accent-bg px-2 py-px text-[11.5px] font-semibold text-accent-text">You</span>}
+        </li>
+      ))}
+    </ul>
   )
 }
 
 /* Who voted for a place, as a capped pile of faces (then +N). With a mouse each face
    names itself on hover and that is all; on a touch screen the pile is a button that
-   opens the list of names. Kept out of the row's own click, which goes to the pin. */
-function Voters({ voters, place, cap = 6, size = 20 }: { voters: Voter[]; place: string; cap?: number; size?: number }) {
+   opens the list of names under it (`list={false}` where there is no room, the map's
+   pin popup). Kept out of the row's own click, which goes to the pin. */
+function Voters({ voters, place, cap = 6, size = 20, list = true }: { voters: Voter[]; place: string; cap?: number; size?: number; list?: boolean }) {
   const touch = useNoHover()
+  const [open, setOpen] = useState(false)
   if (!voters.length) return null
   const shown = voters.slice(0, cap)
   const extra = voters.length - shown.length
   const pile = (
     <>
       {shown.map((v, i) => <span key={i} className="-mr-[5px]"><Avatar initials={v.initials} color={v.color} face={v.face} size={size} font={8.5} title={touch ? undefined : v.name} /></span>)}
-      {extra > 0 && <span className="ml-2.5 text-[12px] font-semibold text-dim">+{extra}</span>}
+      {extra > 0 && (
+        <span className="group/face relative ml-2.5 text-[12px] font-semibold text-dim">
+          +{extra}
+          {!touch && <NameTag list name={namesLabel(voters.slice(cap, cap + 8).map((v) => v.name), extra - 8)} />}
+        </span>
+      )}
     </>
   )
-  if (!touch) return <span className="flex items-center" role="img" aria-label={`Voted: ${namesLabel(shown.map((v) => (v.you ? 'you' : v.name)), extra)}`}>{pile}</span>
+  const label = `${voters.length === 1 ? '1 vote' : `${voters.length} votes`}: ${namesLabel(shown.map((v) => (v.you ? 'you' : v.name)), extra)}`
+  if (!touch || !list) return <span className="flex items-center" role="img" aria-label={label}>{pile}</span>
   return (
-    <span className="inline-flex" onClick={(e) => e.stopPropagation()}>
-      <Popover
-        width={260} align="start"
-        label={`See who voted for ${place}: ${namesLabel(shown.map((v) => (v.you ? 'you' : v.name)), extra)}`}
-        className="-m-2 flex min-h-11 items-center p-2"
-        trigger={() => pile}
+    <div onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`See who voted for ${place}: ${label}`}
+        className="-m-2 flex min-h-11 items-center p-2 [-webkit-tap-highlight-color:transparent]"
       >
-        {() => <VoterList voters={voters} place={place} />}
-      </Popover>
-    </span>
-  )
-}
-
-// "8 of 12 voted for it": on a touch screen the count opens the names; with a mouse it
-// is just the sentence, and the faces above name themselves on hover
-function VotersLink({ voters, place, people }: { voters: Voter[]; place: string; people: number }) {
-  const touch = useNoHover()
-  const text = <>{voters.length} of {people} voted for it.</>
-  if (!touch) return text
-  return (
-    <Popover
-      width={260} align="start"
-      className="underline decoration-border2 decoration-dotted underline-offset-4"
-      trigger={() => text}
-    >
-      {() => <VoterList voters={voters} place={place} />}
-    </Popover>
+        {pile}
+      </button>
+      {open && <VoterList voters={voters} />}
+    </div>
   )
 }

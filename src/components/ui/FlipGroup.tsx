@@ -7,7 +7,7 @@ import { useGSAP } from '@gsap/react'
 import { reducedMotion } from '@/lib/prefs'
 import { useNoHover } from '@/hooks/useNoHover'
 import { personVar, type PersonColor } from '@/lib/colors'
-import { LAYER_Z, layerOf } from '@/lib/layers'
+import { CHROME_TOP, LAYER_Z, layerOf } from '@/lib/layers'
 
 /* A row of faces as one button: a tap turns every face in it over to its initials, one
    after the other, and a second tap turns them back. The faces inside draw both sides
@@ -30,8 +30,8 @@ export const useInFlipGroup = () => useContext(InGroup)
 
 export function FlipGroup({ names, people, more = 0, className = '', style, overlay = false, caption: at = 'below', children }: {
   names: string           // who is in the row, for the button's name ("Sam, Ava and 3 more")
-  people?: Who[]          // the faces shown, in order, for the card of names
-  more?: number           // how many more there are past those
+  people?: Who[]          // everyone in the row, in order (the ones past a "+N" too), for the card of names
+  more?: number           // how many more there are that `people` does not hold
   className?: string
   style?: CSSProperties
   overlay?: boolean
@@ -59,10 +59,15 @@ export function FlipGroup({ names, people, more = 0, className = '', style, over
   const label = names ? `Show initials for ${names}` : 'Show initials'
   const touch = useNoHover()
   const showCard = touch && flipped && !!at && !!people?.length
+  // the card names everyone in the row, the ones past the "+N" too, up to a dozen
+  const listed = people?.slice(0, 12) ?? []
+  const rest = more + (people?.length ?? 0) - listed.length
   const card = (
     <RPopover.Portal>
       <RPopover.Content
-        side={at === 'above' ? 'top' : 'bottom'} align="start" sideOffset={8} collisionPadding={12}
+        side={at === 'above' ? 'top' : 'bottom'} align="start" sideOffset={8}
+        // clear of the header and the phone's tab bar, like every other floating panel
+        collisionPadding={{ top: CHROME_TOP, bottom: 92, left: 12, right: 12 }}
         // the card is read, not used: focus stays on the row
         onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}
         // a tap on the row itself is the row's own toggle, not a tap away
@@ -71,7 +76,7 @@ export function FlipGroup({ names, people, more = 0, className = '', style, over
         className="min-w-[180px] max-w-[min(280px,calc(100vw-24px))] overflow-y-auto rounded-2xl border border-border bg-s1 p-1.5 shadow-soft"
         style={{ zIndex: z, maxHeight: 'var(--radix-popover-content-available-height)' }}
       >
-        {people?.map((p, i) => {
+        {listed.map((p, i) => {
           const c = personVar(p.color ?? 'gray')
           return (
             <span key={i} className="flex items-center gap-2.5 rounded-[10px] px-2 py-1.5">
@@ -80,7 +85,7 @@ export function FlipGroup({ names, people, more = 0, className = '', style, over
             </span>
           )
         })}
-        {more > 0 && <span className="block px-2 pb-1 pt-0.5 text-[12.5px] text-faint">and {more} more</span>}
+        {rest > 0 && <span className="block px-2 pb-1 pt-0.5 text-[12.5px] text-faint">and {rest} more</span>}
       </RPopover.Content>
     </RPopover.Portal>
   )
