@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Check, Pencil, Plus } from 'lucide-react'
+import { Check, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import { AvatarRow } from '@/components/ui/AvatarRow'
-import { SettingsMenu } from '@/components/ui/Settings'
+import { SettingsMenu, SmallIcon } from '@/components/ui/Settings'
+import { Popover, PopoverItem, PopoverNote } from '@/components/ui/Popover'
 import { VoteRules } from '../VoteRules'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { daysUntil, fromDay, todayKey } from '@/lib/events'
-import { canEditOption, canEditQuestion, optionKey, pollClosed, pollKey, votesPerPerson, POLL_OPTION_LIMIT, POLL_OPTION_MAX_LEN, POLL_QUESTION_MAX_LEN, type PollSettings, type PollState } from '@/lib/polls'
+import { canDeletePoll, canEditOption, canEditQuestion, optionKey, pollClosed, pollKey, votesPerPerson, POLL_OPTION_LIMIT, POLL_OPTION_MAX_LEN, POLL_QUESTION_MAX_LEN, type PollSettings, type PollState } from '@/lib/polls'
 import type { Avatar as Person } from '@/lib/people'
 
 /* A poll as it sits in the chat, run like the place ballot on the Location tab but
@@ -21,7 +22,8 @@ import type { Avatar as Person } from '@/lib/people'
    Adding an option is a quiet link that opens a field, there for the host and, once
    the host allows it, for everyone. The host gets the settings behind the sliders
    button. The pencil turns the card into a form for rewording what you may reword:
-   the host anything, everyone else what they wrote. While you are tapping, the rows
+   the host anything, everyone else what they wrote. The poll's writer and the host
+   can also take it down, from the same menu, after a confirm. While you are tapping, the rows
    keep their places, so a quick second tap lands on the option you meant; they move
    to their new ranking once you pause. Read-only after the closing day and once the
    plan is locked. */
@@ -38,7 +40,7 @@ function closesText(day: string): string {
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
-export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPick, onAdd, onSettings, onEdit, avatarOf }: {
+export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPick, onAdd, onSettings, onEdit, onDelete, avatarOf }: {
   poll: PollState
   votes: Record<string, string[]> | undefined
   me: string | null
@@ -50,6 +52,7 @@ export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPi
   onAdd: (text: string) => void
   onSettings: (s: PollSettings) => void
   onEdit: (edit: { q?: string; o?: { id: string; t: string }[] }) => void
+  onDelete: () => void
   avatarOf: (id: string) => Person
 }) {
   const [editing, setEditing] = useState(false)
@@ -103,6 +106,7 @@ export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPi
   const ballot = votes ?? {}
   const mayEditQ = canEdit && canEditQuestion(poll, me, host, ballot)
   const mayEditAny = !locked && canEdit && (mayEditQ || poll.o.some((o) => canEditOption(poll, o, me, host, ballot)))
+  const mayDelete = !locked && canEdit && canDeletePoll(poll, me, host)
   const canAdd = live && (s.add || host) && poll.o.length < POLL_OPTION_LIMIT
   // one vote each and no deadline: nothing to say, so no line
   const status = closed || max > 1 || !!s.close
@@ -111,24 +115,16 @@ export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPi
     // what changes inside a card (a count, an option someone added) is not read out
     // as a new line in the chat around it
     <div aria-live="off" className="w-full max-w-[min(92%,360px)] rounded-2xl border border-border bg-s1 p-3">
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-1">
         {/* while editing, the question is in its field below: the heading only says so */}
         {editing
           ? <p className="min-w-0 flex-1 text-[12px] font-semibold uppercase tracking-[.12em] text-faint sm:text-[11px]">Editing poll</p>
           : <p className="min-w-0 flex-1 break-words text-[14px] font-semibold leading-[1.35] text-text">{poll.q}</p>}
-        {mayEditAny && !editing && (
-          <button
-            type="button"
-            onClick={() => { release(); setEditing(true) }}
-            aria-label="Edit poll"
-            title="Edit poll"
-            className="-my-3 grid h-11 w-11 flex-none place-items-center rounded-[8px] border border-transparent text-faint hover:border-border2 hover:bg-s2 hover:text-text sm:-my-1 sm:h-7 sm:w-7"
-          >
-            <Pencil size={14} />
-          </button>
+        {(mayEditAny || mayDelete) && !editing && (
+          <PollMenu canEdit={mayEditAny} canDelete={mayDelete} onEdit={() => { release(); setEditing(true) }} onDelete={onDelete} />
         )}
         {host && !locked && (
-<SettingsMenu title="Poll settings" label="Poll settings" iconOnly className="-my-3 -mr-2 flex-none sm:-my-1 sm:-mr-1">
+<SettingsMenu title="Poll settings" label="Poll settings" small className="-my-0.5 flex-none">
             {() => <PollSettingsPanel settings={s} optionCount={poll.o.length} onChange={onSettings} />}
           </SettingsMenu>
         )}
@@ -269,6 +265,8 @@ function PollEditForm({ poll, votes, me, host, onSave }: {
     })
   }
   const field = 'h-11 w-full min-w-0 rounded-[10px] border bg-s0 px-3 text-[13.5px] outline-none focus:border-accent sm:h-9'
+  // the kit's field label, so it is clear which box is the question and which the options
+  const label = 'px-0.5 text-[12.5px] font-semibold text-dim'
   // the cursor starts in the first field: the question, or else the first option you wrote
   const focusId = mayQ ? null : poll.o.find(mayO)?.id
 
@@ -279,6 +277,7 @@ function PollEditForm({ poll, votes, me, host, onSave }: {
       className="mt-2.5 flex flex-col gap-1.5"
       aria-label="Edit poll"
     >
+      <span className={label}>Question</span>
       {!mayQ && <p className="px-0.5 text-[14px] font-semibold leading-[1.35] text-text">{poll.q}</p>}
       {mayQ && (
         <input
@@ -291,7 +290,8 @@ function PollEditForm({ poll, votes, me, host, onSave }: {
           className={`${field} font-semibold ${blankQ ? 'border-brick-border' : 'border-border'}`}
         />
       )}
-      {poll.o.map((o) => {
+      <span className={`${label} mt-2`}>Options</span>
+      {poll.o.map((o, i) => {
         if (!mayO(o)) {
           const voted = (votes[pollKey(poll.id, o.id)]?.length ?? 0) > 0
           return (
@@ -309,7 +309,7 @@ function PollEditForm({ poll, votes, me, host, onSave }: {
             value={opts[o.id] ?? ''}
             maxLength={POLL_OPTION_MAX_LEN}
             onChange={(e) => setOpts((prev) => ({ ...prev, [o.id]: e.target.value }))}
-            aria-label={`Option: ${o.t}`}
+            aria-label={`Option ${i + 1}`}
             aria-invalid={bad || undefined}
             aria-describedby={bad ? errId : undefined}
             className={`${field} ${bad ? 'border-brick-border' : 'border-border'}`}
@@ -442,5 +442,42 @@ function PollSettingsPanel({ settings, optionCount, onChange }: { settings: Poll
       adding={{ label: 'Anyone can add options', on: draft.add }} onAdding={(v) => change({ add: v })}
       hidden={{ label: 'Hide who voted', on: draft.hide }} onHidden={(v) => change({ hide: v })}
     />
+  )
+}
+
+/* The writer's and the host's menu on a poll: Edit (while there is still something
+   to reword) and Delete, which asks once before it goes, since everyone's votes go
+   with it. */
+function PollMenu({ canEdit, canDelete, onEdit, onDelete }: { canEdit: boolean; canDelete: boolean; onEdit: () => void; onDelete: () => void }) {
+  return (
+    <Popover
+      align="end"
+      width={224}
+      label="Poll options"
+      className="-my-0.5 flex-none"
+      trigger={(open) => <SmallIcon open={open}><MoreHorizontal size={15} /></SmallIcon>}
+    >
+      {(close) => <PollMenuItems canEdit={canEdit} canDelete={canDelete} onEdit={() => { close(); onEdit() }} onDelete={() => { close(); onDelete() }} />}
+    </Popover>
+  )
+}
+
+// its own component so the confirm starts over each time the menu opens
+function PollMenuItems({ canEdit, canDelete, onEdit, onDelete }: { canEdit: boolean; canDelete: boolean; onEdit: () => void; onDelete: () => void }) {
+  const [confirm, setConfirm] = useState(false)
+  if (confirm) return (
+    <>
+      <PopoverNote>Delete this poll? Everyone&apos;s votes go with it.</PopoverNote>
+      <div className="flex justify-end gap-2 px-1.5 pb-1.5 pt-0.5">
+        <button type="button" onClick={() => setConfirm(false)} className="flex h-11 items-center rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-medium hover:bg-s2 sm:h-8">Cancel</button>
+        <button type="button" autoFocus onClick={onDelete} className="flex h-11 items-center rounded-full px-3.5 text-[13px] font-semibold text-white sm:h-8" style={{ background: 'var(--brick)' }}>Delete</button>
+      </div>
+    </>
+  )
+  return (
+    <>
+      {canEdit && <PopoverItem icon={<Pencil size={15} />} onClick={onEdit}>Edit poll</PopoverItem>}
+      {canDelete && <PopoverItem icon={<Trash2 size={15} />} tone="brick" onClick={() => setConfirm(true)}>Delete poll</PopoverItem>}
+    </>
   )
 }

@@ -35,7 +35,10 @@ import { reducedMotion } from '@/lib/prefs'
 
 export const SETTINGS_WIDTH = 288
 
-export function SettingsButton({ open, iconOnly, children = 'Settings' }: { open: boolean; iconOnly?: boolean; children?: ReactNode }) {
+// `small`: a quiet 28px round icon for a crowded card (a chat poll), its touch area
+// still 44px through an invisible halo
+export function SettingsButton({ open, iconOnly, small, children = 'Settings' }: { open: boolean; iconOnly?: boolean; small?: boolean; children?: ReactNode }) {
+  if (small) return <SmallIcon open={open}><SlidersHorizontal size={14} /></SmallIcon>
   return (
     <span className={`flex h-11 items-center justify-center gap-1.5 rounded-full border text-[13px] font-semibold sm:h-8 ${iconOnly ? 'w-11 sm:w-8' : 'px-3.5 sm:px-3'} ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 text-text hover:bg-s2'}`}>
       <SlidersHorizontal size={14} className="flex-none" />
@@ -44,19 +47,30 @@ export function SettingsButton({ open, iconOnly, children = 'Settings' }: { open
   )
 }
 
+/** A small round icon control in the kit's look, for a card's corner: 28px drawn,
+ *  44px to a finger. Use inside a button. */
+export function SmallIcon({ open, children }: { open?: boolean; children: ReactNode }) {
+  return (
+    <span className={`relative grid h-7 w-7 place-items-center rounded-full border after:absolute after:-inset-2 after:content-[''] ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-transparent text-faint hover:border-border2 hover:bg-s2 hover:text-text'}`}>
+      {children}
+    </span>
+  )
+}
+
 /** The trigger and the panel together. `button` swaps the trigger's words (a value
  *  chip like "Need 8"); `iconOnly` keeps it to the icon, and then `label` names it. */
-export function SettingsMenu({ title, label, iconOnly, button, className, children }: {
+export function SettingsMenu({ title, label, iconOnly, small, button, className, children }: {
   title: ReactNode
   label?: string
   iconOnly?: boolean
+  small?: boolean
   button?: ReactNode
   className?: string
   children: (close: () => void) => ReactNode
 }) {
   const phone = useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE).matches, () => false)
   if (phone) {
-    return <SettingsSheet title={title} label={label} iconOnly={iconOnly} button={button} className={className}>{children}</SettingsSheet>
+    return <SettingsSheet title={title} label={label} iconOnly={iconOnly} small={small} button={button} className={className}>{children}</SettingsSheet>
   }
   return (
     <Popover
@@ -64,7 +78,7 @@ export function SettingsMenu({ title, label, iconOnly, button, className, childr
       width={SETTINGS_WIDTH}
       className={className}
       label={label}
-      trigger={(open) => <SettingsButton open={open} iconOnly={iconOnly}>{button}</SettingsButton>}
+      trigger={(open) => <SettingsButton open={open} iconOnly={iconOnly} small={small}>{button}</SettingsButton>}
     >
       {(close) => (
         <>
@@ -89,10 +103,11 @@ const subscribePhone = (cb: () => void) => {
    button, the page behind is locked and hidden from screen readers, Escape and a
    tap on the dimmed page close it. A downward drag on the top of the sheet closes
    it too, the way a phone's own sheets go. GSAP slides it in and out. */
-function SettingsSheet({ title, label, iconOnly, button, className, children }: {
+function SettingsSheet({ title, label, iconOnly, small, button, className, children }: {
   title: ReactNode
   label?: string
   iconOnly?: boolean
+  small?: boolean
   button?: ReactNode
   className?: string
   children: (close: () => void) => ReactNode
@@ -151,7 +166,7 @@ function SettingsSheet({ title, label, iconOnly, button, className, children }: 
     >
       <Dialog.Trigger asChild>
         <button ref={trig} type="button" aria-label={label} className={className}>
-          <SettingsButton open={open} iconOnly={iconOnly}>{button}</SettingsButton>
+          <SettingsButton open={open} iconOnly={iconOnly} small={small}>{button}</SettingsButton>
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
