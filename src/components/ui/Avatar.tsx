@@ -27,6 +27,10 @@ import { FaceSvg } from './FaceSvg'
    tell who is who. It is named for the person (`label`, else `title`). Only use it
    where the face is not already inside a link or a button.
 
+   A face with a name (`title`) wears it in a small tag on hover (a mouse; never a
+   touch, where hover sticks), and a flippable face keeps the tag up for as long as it
+   is turned over, so a tap says who it is without leaving the screen.
+
    `tilt` turns the face a few degrees, like a sticker: for moments only (a plan's
    header, Home), never in a list of people or a grid. Capped at 3 degrees. */
 export function Avatar({
@@ -68,14 +72,28 @@ export function Avatar({
   }
   return (
     <span
-      title={title}
       role={label ? 'img' : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}
       style={{ width: size, height: size, transform: turn }}
-      className="inline-flex shrink-0 select-none"
+      className={`inline-flex shrink-0 select-none ${title ? 'group/face relative' : ''}`}
     >
       <FaceSvg face={look} color={color} size={size} />
+      {title && <NameTag name={title} />}
+    </span>
+  )
+}
+
+/* The person's name over their face: shown on a mouse hover, or held up by `shown`
+   (a face turned over). Never takes a pointer, so it cannot get in the way of
+   anything under it. */
+function NameTag({ name, shown = false }: { name: string; shown?: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={`pointer-events-none absolute bottom-full left-1/2 z-30 mb-1.5 max-w-[180px] -translate-x-1/2 truncate whitespace-nowrap rounded-full border border-border2 bg-s1 px-2 py-0.5 text-[11.5px] font-semibold leading-[1.4] text-text shadow-soft ${shown ? 'block' : 'hidden group-hover/face:block'}`}
+    >
+      {name}
     </span>
   )
 }
@@ -92,10 +110,11 @@ function FlipFace({ initials, color, face, size, font, name, turn }: {
   return (
     <button
       ref={scope} type="button" onClick={toggle}
-      aria-label={name} aria-pressed={flipped} title={name}
+      aria-label={name} aria-pressed={flipped}
       style={{ width: size, height: size, perspective: size * 6, transform: turn, '--ring-gap': `${ringGap(size)}px` } as CSSProperties}
-      className="face-ring relative block shrink-0 cursor-pointer select-none rounded-full p-0 [-webkit-tap-highlight-color:transparent]"
+      className="face-ring group/face relative block shrink-0 cursor-pointer select-none rounded-full p-0 [-webkit-tap-highlight-color:transparent]"
     >
+      {name !== initials && <NameTag name={name} shown={flipped} />}
       {reach > 0 && <span aria-hidden className="absolute" style={{ inset: -reach }} />}
       <span className="face-flip relative block h-full w-full" style={{ transformStyle: 'preserve-3d' }}>
         <span className="absolute inset-0" style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>
@@ -127,10 +146,11 @@ function TurnFace({ initials, color, face, size, font, turn, title }: {
   const c = personVar(color)
   return (
     <span
-      aria-hidden title={title}
+      aria-hidden
       style={{ width: size, height: size, perspective: size * 6, transform: turn } as CSSProperties}
-      className="relative block shrink-0 select-none rounded-full"
+      className="group/face relative block shrink-0 select-none rounded-full"
     >
+      {title && <NameTag name={title} />}
       <span className="face-flip relative block h-full w-full" style={{ transformStyle: 'preserve-3d' }}>
         <span className="absolute inset-0" style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>
           <FaceSvg face={face} color={color} size={size} />

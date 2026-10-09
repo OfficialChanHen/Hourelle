@@ -619,7 +619,7 @@ function FaceGroup({ people, size, cap, onPerson }: { people: Participant[]; siz
   // the faces turn over together (one button over the row); each name stays its own
   // button, above it, and opens that person's times
   return (
-    <FlipGroup overlay names={namesLabel(shown.map((p) => (p.you ? 'you' : p.name)), extra)}>
+    <FlipGroup overlay caption={false} names={namesLabel(shown.map((p) => (p.you ? 'you' : p.name)), extra)}>
     <ul className="flex flex-wrap gap-x-3 gap-y-3.5">
       {shown.map((p) => (
         <li key={p.id} className="flex flex-col items-center gap-1.5" style={{ width: Math.max(size + 8, 52) }}>

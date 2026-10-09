@@ -12,15 +12,21 @@ import { reducedMotion } from '@/lib/prefs'
 
    By default the row itself is the button. `overlay` lays the button over the faces
    instead, for a row that also holds things of its own to tap (names that open their
-   times): give those `relative z-[2]` and they stay on top of it. */
+   times): give those `relative z-[2]` and they stay on top of it.
+
+   While the faces are turned over, their names sit in a line under the row, in the
+   same order, so each set of initials can be matched to a name. */
 const InGroup = createContext(false)
 export const useInFlipGroup = () => useContext(InGroup)
 
-export function FlipGroup({ names, className = '', style, overlay = false, children }: {
+export function FlipGroup({ names, className = '', style, overlay = false, caption: at = 'below', children }: {
   names: string           // who is in the row, for the button's name ("Sam, Ava and 3 more")
   className?: string
   style?: CSSProperties
   overlay?: boolean
+  // where the names go while the faces are turned: under the row, over it (faces that
+  // peek over a card, which covers what is below them), or nowhere (names already shown)
+  caption?: 'below' | 'above' | false
   children: ReactNode
 }) {
   const root = useRef<HTMLElement | null>(null)
@@ -37,11 +43,19 @@ export function FlipGroup({ names, className = '', style, overlay = false, child
     })()
   }
   const label = names ? `Show initials for ${names}` : 'Show initials'
+  // a row placed by its caller (absolute, sticky) is already a frame for the caption
+  const placed = /(^|\s)(absolute|fixed|sticky|relative)(\s|$)/.test(className)
+  const caption = flipped && names && at && (
+    <span aria-hidden className={`pointer-events-none absolute left-0 z-30 ${at === 'above' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-max max-w-[min(320px,80vw)] rounded-[12px] border border-border2 bg-s1 px-2.5 py-1 text-[12px] font-semibold leading-[1.45] text-text shadow-soft`}>
+      {names.charAt(0).toUpperCase() + names.slice(1)}
+    </span>
+  )
   if (overlay) {
     return (
       <InGroup.Provider value={true}>
         <div ref={(el) => { root.current = el }} className={`relative ${className}`} style={style}>
           {children}
+          {caption}
           <button
             type="button" onClick={toggle} aria-pressed={flipped} aria-label={label}
             className="absolute inset-0 z-[1] cursor-pointer rounded-xl [-webkit-tap-highlight-color:transparent]"
@@ -54,9 +68,10 @@ export function FlipGroup({ names, className = '', style, overlay = false, child
     <InGroup.Provider value={true}>
       <button
         ref={(el) => { root.current = el }} type="button" onClick={toggle} aria-pressed={flipped} aria-label={label}
-        className={`cursor-pointer rounded-xl p-0 text-left [-webkit-tap-highlight-color:transparent] ${className}`} style={style}
+        className={`cursor-pointer rounded-xl p-0 text-left [-webkit-tap-highlight-color:transparent] ${placed ? '' : 'relative'} ${className}`} style={style}
       >
         {children}
+        {caption}
       </button>
     </InGroup.Provider>
   )

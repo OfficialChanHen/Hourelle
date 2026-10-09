@@ -1356,7 +1356,7 @@ function Voters({ voters, place, cap = 6, size = 20 }: { voters: Voter[]; place:
         className="-m-1 flex items-center rounded-full p-1 hover:bg-s2"
         trigger={() => (
           <>
-            {shown.map((v, i) => <span key={i} className="-mr-[5px]"><Avatar initials={v.initials} color={v.color} face={v.face} size={size} font={8.5} /></span>)}
+            {shown.map((v, i) => <span key={i} className="-mr-[5px]"><Avatar initials={v.initials} color={v.color} face={v.face} size={size} font={8.5} title={v.name} /></span>)}
             {extra > 0 && <span className="ml-2.5 text-[12px] font-semibold text-dim">+{extra}</span>}
           </>
         )}
