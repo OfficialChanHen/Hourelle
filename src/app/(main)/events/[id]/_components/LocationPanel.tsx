@@ -26,7 +26,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { gsap } from 'gsap'
-import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, SlidersHorizontal, Info, ExternalLink } from 'lucide-react'
+import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, Info, ExternalLink } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { namesLabel } from '@/components/ui/AvatarRow'
 import { fromDay, todayKey, getEvent, patchEvent, fmtMinute, fmtMinuteDay, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
@@ -46,7 +46,8 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { OverflowText } from '@/components/ui/OverflowText'
 import { TimeSelect } from '@/components/ui/TimeSelect'
 import { Popover } from '@/components/ui/Popover'
-import { DateField } from '@/components/ui/DateField'
+import { SettingsMenu } from '@/components/ui/Settings'
+import { VoteRules } from './VoteRules'
 
 // Leaflet reads `window` when it loads, so the map only ever renders in the browser
 const EventMap = dynamic(() => import('@/components/EventMap').then((m) => m.EventMap), { ssr: false, loading: () => <div className="absolute inset-0 animate-pulse bg-s2" /> })
@@ -122,7 +123,6 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // event itself loads from localStorage first, so reading it in the initializer is safe)
   const [hintDismissed, setHintDismissed] = useState(() => isHintDismissed('location'))
   // custom mode: host sets an arbitrary votes-per-person beyond the 1/2/3 presets
-  const [customVotes, setCustomVotes] = useState(() => (event.maxVotes ?? 1) > 3)
   const stopUid = useRef(0)
   const [stops, setStops] = useState<ItinStop[]>(() => {
     const ids = (event.itinStops ?? []).filter((id) => loc.places.some((p) => p.id === id))
@@ -150,7 +150,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   useFollow(loc.mode === 'later' ? 'vote' : loc.mode, (m) => { setMode(m); if (m === 'set' || m === 'vote') inPerson.current = m })
   useFollow<'vote' | 'itin'>(loc.planMode === 'itinerary' ? 'itin' : 'vote', (v) => { setSub(v); setFocusPin(null) })
   useFollow(event.votes ?? {}, setVotes)
-  useFollow(event.maxVotes ?? 1, (n) => { setMaxVotes(n); setCustomVotes((c) => c || n > 3) })
+  useFollow(event.maxVotes ?? 1, setMaxVotes)
   useFollow(!!event.hideVoters, setHideVoters)
   useFollow(event.voteDeadline ?? '', setVoteDeadline)
   useFollow(event.itinStartMin ?? minStart, setItinStartMin)
@@ -658,66 +658,16 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
               </Popover>
             )}
             {sub === 'vote' && event.hostedByYou && !locked && !settled && (
-              <Popover
-                align="end"
-                width={236}
-                label="Voting settings"
-                trigger={(open) => (
-                  <span className={`flex h-8 flex-none items-center gap-1 rounded-full border px-2.5 text-[13px] font-semibold ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
-                    <SlidersHorizontal size={15} />
-                  </span>
-                )}
-              >
+              <SettingsMenu title="Voting settings" label="Voting settings" iconOnly className="flex-none">
                 {() => (
-                  <div className="flex flex-col gap-3 p-1">
-                    <div>
-                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Votes per person</div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <SegmentedControl label="Votes per person"
-                          size="sm"
-                          value={customVotes ? 'custom' : String(maxVotes)}
-                          onChange={(v) => {
-                            if (v === 'custom') { setCustomVotes(true); changeMaxVotes(Math.max(4, maxVotes)) }
-                            else { setCustomVotes(false); changeMaxVotes(Number(v)) }
-                          }}
-                          options={[{ v: '1', l: '1' }, { v: '2', l: '2' }, { v: '3', l: '3' }, { v: 'custom', l: 'Custom' }]}
-                        />
-                        {customVotes && (
-                          <div className="flex items-center gap-1">
-                            <button onClick={() => changeMaxVotes(maxVotes - 1)} disabled={maxVotes <= 1} className="grid h-7 w-7 place-items-center rounded-[7px] border border-border2 bg-s1 enabled:hover:bg-s2 disabled:opacity-30" aria-label="Fewer votes"><Minus size={13} /></button>
-                            <input
-                              type="number" min={1} max={voteCap} value={maxVotes}
-                              onChange={(e) => { const n = parseInt(e.target.value, 10); if (!Number.isNaN(n)) changeMaxVotes(n) }}
-                              className="h-7 w-11 rounded-[7px] border border-border bg-s1 px-1.5 text-center text-[13.5px] font-semibold text-text tabular-nums outline-none focus:border-accent"
-                              aria-label="Votes per person"
-                            />
-                            <button onClick={() => changeMaxVotes(maxVotes + 1)} disabled={maxVotes >= voteCap} className="grid h-7 w-7 place-items-center rounded-[7px] border border-border2 bg-s1 enabled:hover:bg-s2 disabled:opacity-30" aria-label="More votes"><Plus size={13} /></button>
-                            <span className="text-[12px] text-faint">of {voteCap}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="border-t border-border pt-2.5">
-                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Voting closes</div>
-                      <div className="flex items-center gap-1.5">
-                        <DateField label="Voting closes" value={voteDeadline} min={todayKey()} onChange={changeDeadline} className="h-11 min-w-0 flex-1 !bg-s1 sm:h-8" />
-                        {voteDeadline && (
-                          <button onClick={() => changeDeadline('')} title="Remove the deadline" aria-label="Remove the deadline" className="grid h-8 w-8 flex-none place-items-center rounded-[8px] border border-border2 text-dim hover:text-brick-text"><X size={14} /></button>
-                        )}
-                      </div>
-                      <p className="mt-1.5 text-[12px] leading-[1.45] text-faint">Votes and ballot changes freeze after this day.</p>
-                    </div>
-                    <label className="flex cursor-pointer items-center gap-2 border-t border-border pt-2.5 text-[13px]">
-                      <input type="checkbox" checked={guestsCanSuggest} onChange={toggleGuestsCanSuggest} className="h-3.5 w-3.5" style={{ accentColor: 'var(--accent)' }} />
-                      Guests can add places
-                    </label>
-                    <label className="flex cursor-pointer items-center gap-2 border-t border-border pt-2.5 text-[13px]">
-                      <input type="checkbox" checked={hideVoters} onChange={toggleHideVoters} className="h-3.5 w-3.5" style={{ accentColor: 'var(--accent)' }} />
-                      Hide votes
-                    </label>
-                  </div>
+                  <VoteRules
+                    votes={maxVotes} cap={voteCap} onVotes={changeMaxVotes}
+                    closes={voteDeadline} onCloses={changeDeadline}
+                    adding={{ label: 'Guests can add places', on: guestsCanSuggest }} onAdding={toggleGuestsCanSuggest}
+                    hidden={{ label: 'Hide votes', on: hideVoters }} onHidden={toggleHideVoters}
+                  />
                 )}
-              </Popover>
+              </SettingsMenu>
             )}
             <button onClick={closeSheet} aria-label="Close" className="-mr-1.5 grid h-11 w-11 flex-none place-items-center rounded-full text-dim hover:text-text md:hidden"><X size={18} /></button>
           </div>

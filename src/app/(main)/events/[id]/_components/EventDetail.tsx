@@ -65,7 +65,7 @@ import { StageSummary } from './StageSummary'
 import { ConfirmBar } from './ConfirmBar'
 import { ConfirmedHero } from './ConfirmedHero'
 import { ChatDrawer } from './ChatDrawer'
-import { ShareFirst } from './ShareFirst'
+import { ShareFirst, ShareItems } from './ShareFirst'
 import { chatLines, pollClosed, tapPollOption, type PollState } from '@/lib/polls'
 import { useIsIOS } from '@/hooks/useIsIOS'
 import { useBounceOnNew } from '@/hooks/useAttention'
@@ -425,14 +425,18 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
               </span>
             )}
           >
-            {() => (
+            {(close) => (
               // the same rule as the desktop button: nothing to hand out once it is over
               phase === 'past' ? (
                 <p className="px-3.5 py-3 text-[12.5px] leading-[1.5] text-dim">This plan is over, so its link is closed. Duplicate it to start the next one.</p>
               ) : (
-              <PopoverItem onClick={copy} icon={copied ? <Check size={15} className="text-teal-text" /> : <Link2 size={15} />}>
-                {copied ? 'Link copied' : 'Copy invite link'}
-              </PopoverItem>
+              <>
+                <PopoverTitle>Send the link</PopoverTitle>
+                <PopoverItem onClick={copy} icon={copied ? <Check size={15} className="text-teal-text" /> : <Link2 size={15} />}>
+                  {copied ? 'Link copied' : 'Copy invite link'}
+                </PopoverItem>
+                <ShareItems title={event.title} url={joinUrl} close={close} />
+              </>
               )
             )}
           </Popover>}
@@ -514,7 +518,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
                 </span>
               )}
             >
-              {() => (
+              {(close) => (
                 <>
                   <PopoverTitle>Invite link</PopoverTitle>
                   <div className="flex items-center gap-2 p-1">
@@ -526,6 +530,8 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
                       {copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy</>}
                     </button>
                   </div>
+                  <PopoverSep />
+                  <ShareItems title={event.title} url={joinUrl} close={close} />
                 </>
               )}
             </Popover>
