@@ -185,7 +185,11 @@ function CompactPlan({ e, phase }: { e: AppEvent; phase: Phase }) {
     <div className={`relative isolate ${faces.length ? 'mr-6' : ''}`}>
       {faces.length > 0 && <PeekingFaces people={faces} plan={e.title} />}
     <Link href={turn?.href ?? eventTabFor(e)} className="flex items-center gap-3 rounded-[14px] bg-frame p-2 pr-14 shadow-frame">
-      <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={from} to={to} className="h-[64px] w-[72px] flex-none" rounded="rounded-lg" />
+      {/* the cover runs the row's full height, so a line that wraps never leaves it
+          floating in a gap */}
+      <span className="flex w-[72px] flex-none self-stretch">
+        <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={from} to={to} className="h-full min-h-[64px] w-full" rounded="rounded-lg" />
+      </span>
       <div className="min-w-0 flex-1">
         <div className="truncate font-serif text-[17px] leading-tight tracking-[-0.01em]">{e.title}</div>
         {/* where it stands as the one circled word and whose plan it is, then the
@@ -198,7 +202,7 @@ function CompactPlan({ e, phase }: { e: AppEvent; phase: Phase }) {
           {slot
             ? <><span>{slot}</span><TimezonePill tz={e.timezone} day={e.confirmed?.dayKey} /></>
             : d.best
-              ? <><span>{d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)}</span><TimezonePill tz={e.timezone} day={d.best.dayKey} /><span>so far</span></>
+              ? <><span>{d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)}</span><TimezonePill tz={e.timezone} day={d.best.dayKey} /></>
               : <span>Picking a time</span>}
         </div>
         <div className="mt-0.5 text-[13px] text-dim">{countLine(e, d, false)}</div>
@@ -275,7 +279,7 @@ const noteLabel = (cta?: string) => (cta === 'Mark my times' ? 'Add times' : cta
    of it, animations/peel), then the notes after it slide up into the gap (measured
    before and after, then eased from the old spot). With reduced motion done notes
    simply go. */
-function NotesBoard({ turns, eventIds, wide }: { turns: { x: Item; t: Turn }[]; eventIds: Set<string>; wide: boolean }) {
+function NotesBoard({ turns, eventIds, wide, hasPlans }: { turns: { x: Item; t: Turn }[]; eventIds: Set<string>; wide: boolean; hasPlans: boolean }) {
   const root = useRef<HTMLDivElement>(null)
   const [board, setBoard] = useState<Note[]>([])
   // where each note sat before the board changed, for the slide into the gap
@@ -345,7 +349,18 @@ function NotesBoard({ turns, eventIds, wide }: { turns: { x: Item; t: Turn }[]; 
     return () => { t.kill() }
   }, { scope: root, dependencies: [doneKeys] })
 
-  if (!board.length) return null
+  // nothing waiting on you: your face and a line, in the spot the notes would take, so
+  // the column says so instead of standing empty (only once there are plans at all)
+  if (!board.length) {
+    if (live.length || !hasPlans) return null
+    return (
+      <section aria-labelledby="home-turn" className="flex min-w-0 flex-col items-center gap-3 py-2 sm:max-w-[480px] lg:w-[460px]">
+        <h2 id="home-turn" className="sr-only">Your turn</h2>
+        <FaceSticker size={wide ? 140 : 128} />
+        <p className="font-serif text-[18px] italic text-dim">Nothing waiting on you.</p>
+      </section>
+    )
+  }
   const owed = board.filter((n) => !n.done).length
   const shownNotes = board.slice(0, board.length > NOTES_MAX ? NOTES_MAX - 1 : NOTES_MAX)
   const more = board.length - shownNotes.length
@@ -392,7 +407,9 @@ function NotesBoard({ turns, eventIds, wide }: { turns: { x: Item; t: Turn }[]; 
         )}
         {/* your face, stuck in the spot after the last note; on a row of its own it
             sits in the middle of it */}
-        <FaceSticker size={wide ? 140 : 110} className={(shownNotes.length + (more > 0 ? 1 : 0)) % 2 ? 'min-h-[172px]' : 'col-span-2 py-1'} />
+        {/* beside an odd last note it fills that spot; after an even row it sits on a
+            row of its own, below */}
+        <FaceSticker size={wide ? 140 : (shownNotes.length + (more > 0 ? 1 : 0)) % 2 ? 136 : 120} className={(shownNotes.length + (more > 0 ? 1 : 0)) % 2 ? 'min-h-[172px]' : 'col-span-2 py-1'} />
       </div>
     </section>
   )
@@ -447,7 +464,7 @@ export default function HomePage() {
   // owe beside it, and the new-plan form under both, rather than a phone column
   // marooned in the middle of a tablet. Only when something is owed, or the right
   // column would stand empty.
-  const mid = !wide && shown.length > 0 && turns.length > 0
+  const mid = !wide && shown.length > 0
   // each card's hand-laid details, from its plan id; a neighbour never repeats them.
   // On a phone the card lies straight, in line with the rows under it; the tilt is
   // for the photos laid out side by side on a large screen
@@ -477,7 +494,7 @@ export default function HomePage() {
           <div className="h-[200px] animate-pulse rounded-2xl bg-s2" />
         </div>
       ) : (
-        <div className={solo ? 'mt-8 grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-start gap-x-14' : mid ? 'md:grid md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:items-start md:gap-x-10' : ''}>
+        <div className={solo ? 'mt-8 grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-start gap-x-14' : mid ? 'md:grid md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:items-center md:gap-x-10' : ''}>
           <section aria-labelledby="home-upnext" className={solo ? '' : 'mt-6 sm:mt-8'}>
             <h2 id="home-upnext" className="sr-only">Up next</h2>
             {shown.length === 0 ? (
@@ -527,11 +544,11 @@ export default function HomePage() {
           </section>
 
           {/* what you owe, then a new plan: side by side on a large screen */}
-          <div className={`grid gap-y-9 ${solo ? 'pt-6' : `mt-8 lg:mt-14 lg:items-start lg:gap-x-16 ${turns.length ? 'lg:grid-cols-[auto_minmax(0,1fr)]' : 'lg:max-w-[720px]'}`} ${mid ? 'md:contents' : ''}`}>
+          <div className={`grid gap-y-9 ${solo ? 'pt-6' : `mt-8 lg:mt-14 lg:items-start lg:gap-x-16 ${turns.length || shown.length ? 'lg:grid-cols-[auto_minmax(0,1fr)]' : 'lg:max-w-[720px]'}`} ${mid ? 'md:contents' : ''}`}>
             {/* in the two-column middle layout the board takes the right column, level
                 with Up next, and the form runs under both */}
             <div className={mid ? 'md:mt-8' : 'contents'}>
-              <NotesBoard turns={turns} eventIds={eventIds} wide={wide} />
+              <NotesBoard turns={turns} eventIds={eventIds} wide={wide} hasPlans={shown.length > 0} />
             </div>
             <div className={mid ? 'md:col-span-2 md:mt-12' : 'contents'}>
               <QuickCreate />
