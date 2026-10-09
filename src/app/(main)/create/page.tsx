@@ -916,7 +916,7 @@ function WhenOptions({ form, update, today, attempted, errs, zoneName }: { form:
         {/* how long the event needs, which drives the best-time search on the grid.
             The same control the grid's own settings use, and it cannot be stepped
             or typed past the daily window this event is allowed to happen in. */}
-        <Collapse icon={Timer} title="Length" summary={fmtDur(form.durationMin)}>
+        <Collapse icon={Timer} title="How long it lasts" summary={fmtDur(form.durationMin)}>
           <DurationField value={form.durationMin} max={winLen} onChange={(m) => update({ durationMin: m })} />
         </Collapse>
       </>)}

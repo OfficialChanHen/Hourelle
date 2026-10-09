@@ -181,13 +181,26 @@ export function ShareItems({ title, url, close }: { title: string; url: string; 
   const canShare = typeof navigator.share === 'function'
   const phone = window.matchMedia('(pointer: coarse)').matches
   const open = (href: string) => window.open(href, '_blank', 'noopener,noreferrer')
+  // a scheme the device hands to an app (mail, texts): a plain navigation, never the router
+  const go = (href: string) => { window.location.href = href }
+  const mailto = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`
   return (
     <>
       {phone && (
-        <PopoverItem icon={<Smartphone size={15} />} href={`sms:?&body=${encodeURIComponent(body)}`} onClick={close}>Text message</PopoverItem>
+        <PopoverItem icon={<Smartphone size={15} />} onClick={() => { go(`sms:?&body=${encodeURIComponent(body)}`); close() }}>Text message</PopoverItem>
       )}
       <PopoverItem icon={<MessageCircle size={15} />} onClick={() => { open(`https://wa.me/?text=${encodeURIComponent(body)}`); close() }}>WhatsApp</PopoverItem>
-      <PopoverItem icon={<Mail size={15} />} href={`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`} onClick={close}>Email</PopoverItem>
+      {phone ? (
+        <PopoverItem icon={<Mail size={15} />} onClick={() => { go(mailto); close() }}>Email</PopoverItem>
+      ) : (
+        // a computer often has no mail app set up, and then a mailto link does
+        // nothing at all; most people mail in a browser tab, so those come first
+        <>
+          <PopoverItem icon={<Mail size={15} />} onClick={() => { open(`https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`); close() }}>Gmail</PopoverItem>
+          <PopoverItem icon={<Mail size={15} />} onClick={() => { open(`https://outlook.live.com/mail/0/deeplink/compose?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`); close() }}>Outlook</PopoverItem>
+          <PopoverItem icon={<Mail size={15} />} onClick={() => { go(mailto); close() }}>Mail app</PopoverItem>
+        </>
+      )}
       {canShare && (
         <PopoverItem
           icon={<Share size={15} />}

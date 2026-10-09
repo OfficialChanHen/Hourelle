@@ -1353,28 +1353,28 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                       <div className="px-2.5 py-3">
                         <DurationField
                           value={durationMin} max={Math.max(step, event.times.length * step)} onChange={changeDuration}
-                          title={<span className="flex-1 text-[13px] font-semibold text-text">Length</span>}
+                          title={<span className="flex-1 text-[13px] font-semibold text-text">How long it lasts</span>}
                         />
+                        <p className="mt-1.5 text-[12px] leading-[1.5] text-faint">The best time is a stretch this long.</p>
                       </div>
                     )}
+                    {/* two switches that are one choice: turning either on turns the other off */}
                     {isHost && (
-                      <SettingField
-                        label={daysAnswer ? 'Best days favor' : 'Best time favors'}
-                        hint={daysAnswer
-                          ? bestMode === 'full'
-                            ? 'Picks the days the most people can make from start to end.'
-                            : 'Picks the days with the most people around overall.'
-                          : bestMode === 'full'
-                            ? 'Picks the time the most people can attend start to finish.'
-                            : 'Picks the time with the most people around, even if some come and go.'}
-                      >
-                        <SegmentedControl stretch size="sm" label={daysAnswer ? 'Best days favor' : 'Best time favors'} value={bestMode} onChange={(v) => changeBestMode(v as BestMode)} options={[{ v: 'full', l: 'Everyone stays' }, { v: 'crowd', l: 'Biggest crowd' }]} />
+                      <SettingField label={daysAnswer ? 'Best days favor' : 'Best time favors'}>
+                        <SettingToggle
+                          nested label="Everyone stays" on={bestMode === 'full'}
+                          onChange={(v) => changeBestMode(v ? 'full' : 'crowd')}
+                          hint={daysAnswer ? 'The days the most people can make from start to end.' : 'The time the most people can stay start to finish.'}
+                        />
+                        <SettingToggle
+                          nested label="Biggest crowd" on={bestMode === 'crowd'}
+                          onChange={(v) => changeBestMode(v ? 'crowd' : 'full')}
+                          hint={daysAnswer ? 'The days with the most people around overall.' : 'The time with the most people around, even if some come and go.'}
+                        />
                       </SettingField>
                     )}
                     {!daysAnswer && (
-                      <SettingField label="Time format">
-                        <SegmentedControl stretch size="sm" label="Time format" value={h24 ? '24' : '12'} onChange={(v) => setH24(v === '24')} options={[{ v: '12', l: '12-hour' }, { v: '24', l: '24-hour' }]} />
-                      </SettingField>
+                      <SettingToggle label="24-hour time" on={h24} onChange={setH24} />
                     )}
                     {/* the days that only square the week off. Out of the toolbar and
                         in here: it is a preference about the view, not an action */}

@@ -82,12 +82,13 @@ export function SettingField({ label, value, hint, children }: { label: ReactNod
   )
 }
 
-/** An on/off: the label and a switch on one line. */
-export function SettingToggle({ label, on, onChange, hint }: { label: string; on: boolean; onChange: (v: boolean) => void; hint?: ReactNode }) {
+/** An on/off: the label and a switch on one line. `nested` drops the row's own
+ *  padding for a toggle that sits inside a SettingField with its siblings. */
+export function SettingToggle({ label, on, onChange, hint, nested }: { label: string; on: boolean; onChange: (v: boolean) => void; hint?: ReactNode; nested?: boolean }) {
   return (
-    <div className="px-2.5 py-3">
+    <div className={nested ? 'py-1.5' : 'px-2.5 py-3'}>
       <div className="flex min-h-6 items-center justify-between gap-3">
-        <span className="text-[13px] font-semibold text-text">{label}</span>
+        <span className={`text-[13px] text-text ${nested ? 'font-medium' : 'font-semibold'}`}>{label}</span>
         <Switch on={on} onChange={onChange} label={label} />
       </div>
       <Hint>{hint}</Hint>
