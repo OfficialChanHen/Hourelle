@@ -28,7 +28,7 @@ import {
 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { Cover, COVER_PRESETS } from '@/components/ui/Cover'
+import { Cover } from '@/components/ui/Cover'
 import { CoverEditor, styleSummary } from '@/components/ui/CoverEditor'
 import { Keepsake, lookOf, withDetail } from '@/components/ui/Keepsake'
 import { pushFlash } from '@/components/ui/FlashToast'
@@ -703,13 +703,14 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
   return (
     <div className="flex flex-col gap-4">
       <TabHeading eyebrow="About this plan" title={about} sub={note} />
-      {/* two columns on large screens: the plan's facts and the host's style card left,
-          who is in right, so the two hold about the same. Below lg the same order
+      {/* two columns on large screens: the plan's facts left, who is in right. Below lg the same order
           stacks, and the open-ended roster comes after the compact cards. */}
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-3.5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3.5">
       <div className="min-w-0 rounded-2xl border border-border bg-s1 p-5">
         <DetailRow k="Name" v={<NameValue event={event} editable={isHost} onPatch={onPatch} />} />
+        {/* the look is already in the header's picture; this is only the way to change it */}
+        {isHost && <DetailRow k="Style" v={<CoverPicker event={event} onPatch={onPatch} />} />}
         {isHost && <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} onPatch={onPatch} />} />}
         <DetailRow k="When" v={<WhenValue event={event} editable={isHost && !locked} onGoToAvailability={() => onGoToTab('availability')} onGoToBestWindow={onGoToBestWindow} onPatch={onPatch} />} />
         <DetailRow k="Where" v={<WhereValue event={event} locked={locked} onGoToLocation={() => onGoToTab('location')} editable={isHost} onPatch={onPatch} />} />
@@ -742,8 +743,6 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
         </div>
       </div>
 
-      {isHost && <StyleCard event={event} onPatch={onPatch} />}
-
       {/* a guest's answers live on this device: an email makes them an account's */}
       {me?.guest && !event.demo && <KeepThisPlan eventId={event.id} defaultEmail={me.email} />}
 
@@ -758,31 +757,6 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
       {event.hostedByYou && !event.demo && <div className="min-w-0 lg:col-span-2"><DangerZone title={event.title} onDelete={onDelete} spotlight={spotlightDelete} /></div>}
       {/* someone else's event: you can't delete it, but you can take it off your side */}
       {!event.hostedByYou && !event.demo && <div className="min-w-0 lg:col-span-2"><LeaveZone title={event.title} onLeave={onLeave} spotlight={spotlightDelete} /></div>}
-      </div>
-    </div>
-  )
-}
-
-/* How the plan looks on everyone's Home and shelves: a framed preview wearing the
-   plan's own detail (the same look as the header), beside the picker. The preview is
-   the one scrapbook touch on this tab, because it is a picture of the scrapbook. */
-function StyleCard({ event, onPatch }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
-  const look = withDetail(lookOf(event.id, 0), event.keepsake)
-  const preset = COVER_PRESETS.find((p) => event.image === `preset:${p.id}`)
-  return (
-    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] items-center gap-6 rounded-2xl border border-border bg-s1 p-5 sm:grid-cols-[200px_minmax(0,1fr)]">
-      <div className="mx-auto w-full max-w-[240px] pt-2">
-        <PhotoFrame tilt={look.tilt} tape={false} pad="thin" size="sm">
-          <div className="relative">
-            <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from={preset?.from ?? '#E4EDE7'} to={preset?.to ?? '#CFE0D5'} className="h-[112px]" rounded="rounded-md" />
-            <Keepsake look={look} />
-          </div>
-          <p className="truncate px-1 pt-2 font-serif text-[14px]">{event.title}</p>
-        </PhotoFrame>
-      </div>
-      <div className="min-w-0">
-        <div className="mb-3 text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Style</div>
-        <CoverPicker event={event} onPatch={onPatch} />
       </div>
     </div>
   )
@@ -1547,11 +1521,9 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
    detail tiles, opens only when asked for */
 function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
   const [editing, setEditing] = useState(false)
-  const preset = COVER_PRESETS.find((p) => event.image === `preset:${p.id}`)
   if (!editing) {
     return (
       <div className="flex items-center gap-2.5">
-        {event.image && <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from={preset?.from ?? '#E4EDE7'} to={preset?.to ?? '#CFE0D5'} className="h-9 w-14 flex-none rounded-[8px] border border-border" />}
         <span className="text-[13px] leading-snug text-dim">{styleSummary(event.image, event.imageFit, event.keepsake)}</span>
         <button onClick={() => setEditing(true)} className="text-[13px] font-semibold leading-none text-accent-text hover:underline">
           Change
