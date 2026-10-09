@@ -45,7 +45,8 @@ import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { OverflowText } from '@/components/ui/OverflowText'
 import { TimeSelect } from '@/components/ui/TimeSelect'
-import { Popover } from '@/components/ui/Popover'
+import { Popover, PopoverTitle } from '@/components/ui/Popover'
+import { FlipGroup } from '@/components/ui/FlipGroup'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { TabHeading } from './TabHeading'
@@ -507,9 +508,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
               <div className="flex items-center gap-1.5">
                 <span className="text-[12px] font-bold text-teal-text">{votesOf(fp.id).length} vote{votesOf(fp.id).length === 1 ? '' : 's'}</span>
                 {!hideVoters && (
-                  <div className="flex" role={votesOf(fp.id).length ? 'img' : undefined} aria-label={votesOf(fp.id).length ? `Voted: ${namesLabel(votesOf(fp.id).slice(0, 5).map((id) => avatarOf(id).name), votesOf(fp.id).length - 5)}` : undefined}>
-                    {votesOf(fp.id).slice(0, 5).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} face={a.face} size={19} font={8.5} title={a.name} /></span> })}
-                  </div>
+                  <Voters voters={votesOf(fp.id).map(avatarOf)} place={fp.name} cap={5} size={19} />
                 )}
               </div>
               {/* vote right from the map — the popup uses fixed light colors like the map itself */}
@@ -790,9 +789,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                           )}
                         </div>
                         {!hideVoters && !settled && (
-                          <div className="flex" role={ids.length ? 'img' : undefined} aria-label={ids.length ? `Voted: ${namesLabel(ids.slice(0, 6).map((id) => avatarOf(id).name), ids.length - 6)}` : undefined}>
-                            {ids.slice(0, 6).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} face={a.face} size={20} font={8.5} title={a.name} /></span> })}
-                          </div>
+                          <Voters voters={ids.map(avatarOf)} place={p.name} />
                         )}
                       </div>
                       {!locked && (
@@ -1206,7 +1203,7 @@ function NoPlaceYet({ canAdd, host, near, onAdd, onOnline, letVote }: {
    voted for it peeking over its lower edge. Beside it the name, the address, and a way
    to get there. The working map and list stay below, flat. */
 function PlaceSet({ place, locked, voters, people, when, tz, day }: {
-  place: EventPlace; locked: boolean; voters: { initials: string; name: string; color: Participant['color']; face?: Participant['face'] }[]
+  place: EventPlace; locked: boolean; voters: Voter[]
   people: number; when: string | null; tz: string; day?: string
 }) {
   const [copied, setCopied] = useState(false)
@@ -1231,9 +1228,10 @@ function PlaceSet({ place, locked, voters, people, when, tz, day }: {
           </div>
         </PhotoFrame>
         {voters.length > 0 && (
-          <div className="absolute -bottom-5 left-6 flex" role="img" aria-label={`Voted for it: ${namesLabel(voters.slice(0, 5).map((v) => v.name), voters.length - 5)}`}>
-            {voters.slice(0, 5).map((v, i) => <span key={i} className="-mr-2"><Avatar initials={v.initials} color={v.color} face={v.face} size={40} font={13} /></span>)}
-          </div>
+          // the faces turn over to their initials together, like every face row
+          <FlipGroup names={namesLabel(voters.slice(0, 5).map((v) => (v.you ? 'you' : v.name)), voters.length - 5)} className="absolute -bottom-5 left-6 flex">
+            {voters.slice(0, 5).map((v, i) => <span key={i} className="-mr-2"><Avatar initials={v.initials} color={v.color} face={v.face} size={40} font={13} title={v.name} flippable /></span>)}
+          </FlipGroup>
         )}
       </div>
       <div className="max-w-[460px] flex-1">
@@ -1242,7 +1240,7 @@ function PlaceSet({ place, locked, voters, people, when, tz, day }: {
         {address && <p className="mt-2 text-[15px] text-dim">{address}</p>}
         {(voters.length > 0 || when) && (
           <p className="mt-3 text-[15px] leading-[1.6] text-dim">
-            {voters.length > 0 && `${voters.length} of ${people} voted for it. `}
+            {voters.length > 0 && <><VotersLink voters={voters} place={place.name} people={people} />{' '}</>}
             {when && <>{when} <TimezonePill tz={tz} day={day} /></>}
           </p>
         )}
@@ -1322,5 +1320,62 @@ function RemoteCall({ platform, link, host, onLink, people }: {
         )}
       </div>
     </div>
+  )
+}
+
+type Voter = { initials: string; name: string; color: Participant['color']; face?: Participant['face']; you?: boolean }
+
+// everyone who voted for a place, by face and full name: what the faces alone cannot say
+function VoterList({ voters, place }: { voters: Voter[]; place: string }) {
+  return (
+    <>
+      <PopoverTitle sub={place}>Voted for</PopoverTitle>
+      <ul>
+        {voters.map((v, i) => (
+          <li key={i} className="flex items-center gap-2.5 px-2.5 py-1.5 text-[13.5px]">
+            <Avatar initials={v.initials} color={v.color} face={v.face} size={26} font={9.5} />
+            <span className="min-w-0 truncate">{v.name}{v.you && <span className="text-dim"> (you)</span>}</span>
+          </li>
+        ))}
+      </ul>
+    </>
+  )
+}
+
+/* Who voted for a place: the faces as a button (capped, then +N) that opens the list
+   of their names. Kept out of the row's own click, which goes to the pin. */
+function Voters({ voters, place, cap = 6, size = 20 }: { voters: Voter[]; place: string; cap?: number; size?: number }) {
+  if (!voters.length) return null
+  const shown = voters.slice(0, cap)
+  const extra = voters.length - shown.length
+  return (
+    <span className="inline-flex" onClick={(e) => e.stopPropagation()}>
+      <Popover
+        width={240} align="start"
+        label={`See who voted for ${place}: ${namesLabel(shown.map((v) => (v.you ? 'you' : v.name)), extra)}`}
+        className="-m-1 flex items-center rounded-full p-1 hover:bg-s2"
+        trigger={() => (
+          <>
+            {shown.map((v, i) => <span key={i} className="-mr-[5px]"><Avatar initials={v.initials} color={v.color} face={v.face} size={size} font={8.5} /></span>)}
+            {extra > 0 && <span className="ml-2.5 text-[12px] font-semibold text-dim">+{extra}</span>}
+          </>
+        )}
+      >
+        {() => <VoterList voters={voters} place={place} />}
+      </Popover>
+    </span>
+  )
+}
+
+// "8 of 12 voted for it", the count itself opening the names
+function VotersLink({ voters, place, people }: { voters: Voter[]; place: string; people: number }) {
+  return (
+    <Popover
+      width={240} align="start"
+      className="underline decoration-border2 underline-offset-4 hover:text-text"
+      trigger={() => <>{voters.length} of {people} voted for it.</>}
+    >
+      {() => <VoterList voters={voters} place={place} />}
+    </Popover>
   )
 }

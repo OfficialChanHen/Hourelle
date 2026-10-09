@@ -21,7 +21,7 @@
    on the other tabs those go to local state first so the demos work in memory. */
 
 import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, X } from 'lucide-react'
+import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, Video, X } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { FlipGroup } from '@/components/ui/FlipGroup'
@@ -720,7 +720,7 @@ function LeadingPlace({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab
   if (event.location.mode === 'remote') {
     return (
       <div className="mb-4 flex items-center gap-3 rounded-xl border border-border bg-s0 px-4 py-3">
-        <span className="grid h-9 w-9 flex-none place-items-center rounded-lg border border-border bg-s2 text-dim"><MapPin size={16} /></span>
+        <span className="grid h-9 w-9 flex-none place-items-center rounded-lg border border-border bg-s2 text-dim"><Video size={16} /></span>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[14.5px] font-semibold">Online</div>
           <div className="text-[12.5px] text-dim">{event.location.platform || 'Meeting link on the Details tab'}</div>

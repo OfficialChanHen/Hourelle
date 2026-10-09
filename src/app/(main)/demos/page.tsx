@@ -32,7 +32,7 @@ const GROUPS: Group[] = [
     picks: {
       'priyas-birthday': 'A **birthday** with Friday night booked and **one vote each** on the restaurant. Look for how the **leader** changes as the votes move.',
       'harvest-potluck': 'A **potluck** open to anyone, with **three votes each** on the park and a **closing date**. Look for the **cap on spots** and the **minimum to go ahead**.',
-      'q3-offsite': 'A **team offsite** whose votes turned into a **three-stop route** with **travel time** between them. Look for the **itinerary**, and who makes every stop.',
+      'q3-offsite': 'A **team offsite** whose votes became a **three-stop route**, now **locked in**. Look for the **itinerary** with **travel time**, and on Attendance, who makes **every stop**.',
     },
   },
   {
@@ -42,7 +42,7 @@ const GROUPS: Group[] = [
     picks: {
       'board-game-night': 'A **game night** with the date and place **fixed from the start**. You are invited and have not replied. Look for the **RSVP deadline** and the **roster**.',
       'climbing-club-social': 'A **club night** locked in after **24 votes** on five bars. Look for the **winning place** on Location, and who is **going** now it is set.',
-      'indie-makers-conference': 'A **conference** in one room all day, with a **stream** for anyone remote. Look for **attendance** through the day, and who **arrives late or leaves early**.',
+      'indie-makers-conference': 'A **summit** held **online** all day. Look for who is **on the call** through the day, and who **joins late or drops off early**.',
     },
   },
 ]

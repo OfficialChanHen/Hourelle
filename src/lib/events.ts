@@ -10,7 +10,6 @@ import type { AccountKind } from './session'
 import {
   avail as demoAvail,
   gridDays as demoDays,
-  gridTimes as demoTimes,
   participantIds as demoIds,
   notGoingIds as demoNotGoing,
   messages as demoMsgs,
@@ -1715,7 +1714,29 @@ export function createEvent(input: CreateInput): AppEvent {
   return ev
 }
 
-/* ── the built-in populated demo (reachable by URL, not listed) ── */
+/* The offsite's times. The other days come from the sample grid (an hour a cell, from
+   9 AM); the locked day, Wed Aug 22, runs the whole route, 9 AM to 5 PM, with the
+   exceptions the Attendance tab is for: Alex leaves after lunch, Priya comes late,
+   Dana cannot make it. */
+const OFFSITE_TIMES = buildTimes('60', 9 * 60, 17 * 60)
+const OFFSITE_IV: AvailIntervals = (() => {
+  const out: AvailIntervals = {}
+  for (const [day, cells] of Object.entries(demoAvail)) {
+    const byPid: Record<string, Iv[]> = {}
+    cells.forEach((ids, i) => ids.forEach((id) => {
+      const list = (byPid[id] ??= [])
+      const last = list[list.length - 1]
+      if (last && last.e === i * 60) last.e = (i + 1) * 60
+      else list.push({ s: i * 60, e: (i + 1) * 60 })
+    }))
+    out[day] = byPid
+  }
+  const whole: Iv[] = [{ s: 0, e: 480 }]
+  out['2029-08-22'] = { JM: whole, SR: whole, KL: whole, MN: whole, CL: whole, AT: [{ s: 0, e: 300 }], PR: [{ s: 150, e: 480 }], DW: [{ s: 0, e: 60 }] }
+  return out
+})()
+
+/* ── the team offsite: votes turned into a three-stop route, locked in for Wed Aug 22 ── */
 const DEMO: AppEvent = {
   id: 'q3-offsite',
   title: 'Team Offsite',
@@ -1766,11 +1787,18 @@ const DEMO: AppEvent = {
     host: id === 'JM',
   })),
   days: demoDays.map((d) => ({ key: d.key, dow: d.dow, date: d.date, best: d.best })),
-  times: [...demoTimes],
-  avail: demoAvail,
-  messages: demoMsgs,
+  times: OFFSITE_TIMES,
+  avail: intervalsToGrid(OFFSITE_IV, demoDays.map((d) => ({ key: d.key, dow: d.dow, date: d.date })), OFFSITE_TIMES.length, 60),
+  availIv: OFFSITE_IV,
+  messages: [
+    ...demoMsgs,
+    { id: 'JM', name: 'You', time: '10m ago', text: 'Locked in: Wed Aug 22, the full route. Cavallo first, lunch at Tunnel Tops, wrap at the Officers’ Club', you: true },
+  ],
   createdAt: 0,
   demo: true,
+  status: 'confirmed',
+  confirmed: { dayKey: '2029-08-22', startMin: 9 * 60, endMin: 16 * 60, placeIds: ['cavallo', 'tunnel-tops', 'presidio'] },
+  rsvpDeadline: '2029-08-17',
 }
 
 /* ── the built-in demo at scale: 24 people, 12 venues, 3 votes each — for seeing the
@@ -1923,23 +1951,22 @@ const CONF_IV: AvailIntervals = {
 }
 const CONFERENCE: AppEvent = {
   id: 'indie-makers-conference',
-  title: 'Indie Makers Conference',
+  title: 'Indie Makers Summit',
   hostName: 'Lucía M',
   hostedByYou: false,
   hostKind: 'person',
-  description: 'One day of short talks from people who run small studios. Lunch is provided. Come for part of the day if that is what works.',
+  description: 'One day of short talks online from people who run small studios. Drop in for part of the day if that is what works.',
   timezone: 'America/Los_Angeles',
   startDate: '2029-08-18',
   endDate: '2029-08-18',
   granularity: '60',
   budget: '',
   location: {
-    mode: 'set',
+    mode: 'remote',
     planMode: 'vote',
-    places: [{ id: 'fort-mason-pavilion', name: 'Festival Pavilion, Fort Mason Center', place: 'San Francisco, CA', addedBy: 'LM', lat: 37.8058, lng: -122.4318 }],
+    places: [],
     platform: 'Zoom',
     meetingLink: 'https://zoom.us/j/0000000000',
-    hybrid: true, // the talks are streamed for anyone who can't be in the room
   },
   votes: {},
   participants: [
@@ -1963,14 +1990,14 @@ const CONFERENCE: AppEvent = {
   durationMin: 480,
   image: 'preset:city',
   messages: [
-    { id: 'LM', name: 'Lucía M', time: 'Mon', text: 'Doors open at 8:30 and the first talk starts at 9', you: false },
-    { id: 'HS', name: 'Hiro S', time: 'Tue', text: 'My flight lands at 10, so I will be there from 11', you: false },
-    { id: 'YA', name: 'Yasmin A', time: 'Tue', text: 'Leaving after lunch. A seat near the door would be kind', you: false },
+    { id: 'LM', name: 'Lucía M', time: 'Mon', text: 'The call opens at 8:45 and the first talk starts at 9', you: false },
+    { id: 'HS', name: 'Hiro S', time: 'Tue', text: 'I am on a flight until 10, so I will join from 11', you: false },
+    { id: 'YA', name: 'Yasmin A', time: 'Tue', text: 'Dropping off after lunch, I will catch the rest on the recording', you: false },
   ],
   createdAt: 0,
   demo: true,
   status: 'confirmed',
-  confirmed: { dayKey: '2029-08-18', startMin: 9 * 60, endMin: 17 * 60, placeIds: ['fort-mason-pavilion'] },
+  confirmed: { dayKey: '2029-08-18', startMin: 9 * 60, endMin: 17 * 60, placeIds: [] },
 }
 
 // Game night: date and place fixed from the start, so it goes straight to RSVPs,
