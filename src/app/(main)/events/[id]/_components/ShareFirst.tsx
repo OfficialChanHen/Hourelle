@@ -1,13 +1,14 @@
 'use client'
 
 import { useId, useRef, useState } from 'react'
-import { Check, Copy, Link2, Share, X } from 'lucide-react'
+import { Check, Copy, Link2, Mail, MessageCircle, Share, Smartphone, X } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { availIvOf, phaseOf, type AppEvent } from '@/lib/events'
 import { canEmail } from '@/lib/mail'
 import { reducedMotion } from '@/lib/prefs'
 import { useAccount } from '@/hooks/useAccount'
+import { Popover, PopoverItem, PopoverTitle } from '@/components/ui/Popover'
 
 /* ── the first thing a new event needs ──
    Right after creating an event the only useful next step is handing out the link,
@@ -82,19 +83,10 @@ function ShareFirstCard({ title, joinUrl, copied, onCopy, onInviteByEmail, onHid
   const headingId = `${uid}-title`
   const fieldId = `${uid}-link`
   const root = useRef<HTMLElement>(null)
-  // the system share sheet, where there is one (phones, mostly); read on the client,
-  // which is the only place the event page renders this
-  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
-
   useGSAP(() => {
     if (reducedMotion()) return
     gsap.fromTo(root.current, { y: 8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: 'power2.out' })
   }, { scope: root })
-
-  function share() {
-    // closing the sheet without picking anything rejects; that is not an error
-    navigator.share?.({ title, url: joinUrl }).catch(() => {})
-  }
 
   return (
     <section ref={root} aria-labelledby={headingId} className="mb-4 rounded-2xl border border-moment-border bg-s1 p-5 shadow-soft sm:mb-6 sm:p-6">
@@ -137,15 +129,7 @@ function ShareFirstCard({ title, joinUrl, copied, onCopy, onInviteByEmail, onHid
           >
             {copied ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy link</>}
           </button>
-          {canShare && (
-            <button
-              type="button"
-              onClick={share}
-              className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full border border-border2 bg-s1 px-4 text-[14px] font-semibold hover:bg-s2 sm:h-10 sm:flex-none"
-            >
-              <Share size={16} /> Share
-            </button>
-          )}
+          <ShareMenu title={title} url={joinUrl} />
         </div>
       </div>
 
@@ -159,5 +143,63 @@ function ShareFirstCard({ title, joinUrl, copied, onCopy, onInviteByEmail, onHid
         </button>
       )}
     </section>
+  )
+}
+
+/* Where the link goes besides the clipboard: the apps a group plans in. Each is a
+   plain link with the invite written in, so it works on any device without asking
+   for anything. Texting is offered where there is a phone to text from, and the
+   system sheet (every other app) where the browser has one. */
+function ShareMenu({ title, url }: { title: string; url: string }) {
+  return (
+    <Popover
+      align="end"
+      width={232}
+      className="flex flex-1 sm:flex-none"
+      trigger={(isOpen) => (
+        <span className={`flex h-11 w-full items-center justify-center gap-1.5 rounded-full border border-border2 px-4 text-[14px] font-semibold sm:h-10 ${isOpen ? 'bg-s2' : 'bg-s1 hover:bg-s2'}`}>
+          <Share size={16} /> Share
+        </span>
+      )}
+    >
+      {(close) => (
+        <>
+          <PopoverTitle>Send the link</PopoverTitle>
+          <ShareItems title={title} url={url} close={close} />
+        </>
+      )}
+    </Popover>
+  )
+}
+
+/** The send rows on their own, for any popover that hands out the invite link (this
+ *  card's Share, and the header's share buttons). Rendered when the popover opens,
+ *  so the device checks run in the browser. */
+export function ShareItems({ title, url, close }: { title: string; url: string; close: () => void }) {
+  const text = `Join ${title} and mark when you're free`
+  const body = `${text}: ${url}`
+  const canShare = typeof navigator.share === 'function'
+  const phone = window.matchMedia('(pointer: coarse)').matches
+  const open = (href: string) => window.open(href, '_blank', 'noopener,noreferrer')
+  return (
+    <>
+      {phone && (
+        <PopoverItem icon={<Smartphone size={15} />} href={`sms:?&body=${encodeURIComponent(body)}`} onClick={close}>Text message</PopoverItem>
+      )}
+      <PopoverItem icon={<MessageCircle size={15} />} onClick={() => { open(`https://wa.me/?text=${encodeURIComponent(body)}`); close() }}>WhatsApp</PopoverItem>
+      <PopoverItem icon={<Mail size={15} />} href={`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`} onClick={close}>Email</PopoverItem>
+      {canShare && (
+        <PopoverItem
+          icon={<Share size={15} />}
+          onClick={() => {
+            close()
+            // closing the sheet without picking anything rejects; that is not an error
+            navigator.share({ title, text, url }).catch(() => {})
+          }}
+        >
+          More apps
+        </PopoverItem>
+      )}
+    </>
   )
 }

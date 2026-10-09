@@ -446,17 +446,6 @@ export function CellDetail({ bands, total, fmt, gridStartMin, dayLabel, avatarOf
 }
 
 /* ── small controls ── */
-export function Segment({ value, onChange, options, compact, label }: { value: string; onChange: (v: string) => void; options: { v: string; l: string }[]; compact?: boolean; label?: string }) {
-  return (
-    <div role="group" aria-label={label} className="inline-flex w-fit rounded-full bg-s2 p-0.5">
-      {options.map((o) => (
-        <button key={o.v} type="button" aria-pressed={value === o.v} onClick={() => onChange(o.v)} className={`flex h-11 items-center rounded-full font-semibold transition-colors sm:h-7 ${compact ? 'px-2.5 text-[12.5px]' : 'px-3 text-[13px]'} ${value === o.v ? 'bg-raised text-text shadow-raised' : 'text-dim hover:text-text'}`}>
-          {o.l}
-        </button>
-      ))}
-    </div>
-  )
-}
 // touch-friendly ± stepper for one edge of the selected block (works where arrow keys can't)
 export function EdgeNudge({ label, value, onLess, onMore }: { label: string; value: string; onLess: () => void; onMore: () => void }) {
   return (

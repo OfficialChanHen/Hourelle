@@ -39,17 +39,17 @@ import { answeredLine } from '@/lib/answers'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, SlidersHorizontal, Trash2, Zap } from 'lucide-react'
+import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, Zap } from 'lucide-react'
 
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Announce } from '@/components/ui/Announce'
-import { Switch } from '@/components/ui/Switch'
 import { DurationField } from '@/components/ui/DurationField'
 import { Hint } from '@/components/ui/Hint'
 import { Popover } from '@/components/ui/Popover'
-import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, ImportFromCalendar, MissingPopover, PresetFills, Segment } from './availability/parts'
+import { SettingField, SettingToggle, SettingsMenu } from '@/components/ui/Settings'
+import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, ImportFromCalendar, MissingPopover, PresetFills } from './availability/parts'
 import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, PILE_AV, PILE_FONT, PILE_OVER, subtract, type Band, type GDay } from './availability/grid-lib'
 import { DayCalendar } from './availability/DayCalendar'
 import { WeekStrip } from './availability/WeekStrip'
@@ -1346,70 +1346,54 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           {editable && (
             <div className="mb-2.5 flex items-center justify-between gap-[9px]">
               <SegmentedControl label="Mode" size="sm" value={mode} onChange={(v) => { setMode(v as Mode); setSel(null); setDetail(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
-              <Popover
-                align="end"
-                // the host's panel holds the length track, which needs the room; anyone
-                // else's holds a toggle or two, and a panel twice their width round them
-                // was mostly empty. Captions wrap to the width and never set it.
-                width={isHost && !daysAnswer ? 284 : 'fit'}
-                trigger={(open) => (
-                  <span className={`flex h-7 items-center gap-1.5 rounded-full border px-[10px] text-[12.5px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
-                    <SlidersHorizontal size={13} /> Settings
-                  </span>
-                )}
-              >
+              <SettingsMenu title="Grid settings">
                 {(close) => (
-                  <div className="flex flex-col gap-3 p-1">
-                    {/* the length as a track the width of the panel, the value named
-                        beside its label, the way the wizard asks it */}
+                  <>
                     {isHost && !daysAnswer && (
-                      <DurationField
-                        value={durationMin} max={Math.max(step, event.times.length * step)} onChange={changeDuration}
-                        title={<span className="text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Length</span>}
-                      />
+                      <div className="px-2.5 py-3">
+                        <DurationField
+                          value={durationMin} max={Math.max(step, event.times.length * step)} onChange={changeDuration}
+                          title={<span className="flex-1 text-[13px] font-semibold text-text">Length</span>}
+                        />
+                      </div>
                     )}
-                    {isHost && <div className={daysAnswer ? '' : 'border-t border-border pt-2.5'}>
-                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">{daysAnswer ? 'Best days favor' : 'Best time favors'}</div>
-                      <Segment compact label={daysAnswer ? 'Best days favor' : 'Best time favors'} value={bestMode} onChange={(v) => changeBestMode(v as BestMode)} options={[{ v: 'full', l: 'Everyone stays' }, { v: 'crowd', l: 'Biggest crowd' }]} />
-                      <p className="mt-1.5 w-0 min-w-full text-[12px] leading-[1.5] text-faint">
-                        {daysAnswer
+                    {isHost && (
+                      <SettingField
+                        label={daysAnswer ? 'Best days favor' : 'Best time favors'}
+                        hint={daysAnswer
                           ? bestMode === 'full'
                             ? 'Picks the days the most people can make from start to end.'
                             : 'Picks the days with the most people around overall.'
                           : bestMode === 'full'
                             ? 'Picks the time the most people can attend start to finish.'
-                            : 'Picks the time with the most people around overall, even if some come and go.'}
-                      </p>
-                    </div>}
-                    {!daysAnswer && <div className={isHost ? 'border-t border-border pt-2.5' : ''}>
-                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Time format</div>
-                      <Segment label="Time format" value={h24 ? '24' : '12'} onChange={(v) => setH24(v === '24')} options={[{ v: '12', l: '12-hour' }, { v: '24', l: '24-hour' }]} />
-                    </div>}
+                            : 'Picks the time with the most people around, even if some come and go.'}
+                      >
+                        <SegmentedControl stretch size="sm" label={daysAnswer ? 'Best days favor' : 'Best time favors'} value={bestMode} onChange={(v) => changeBestMode(v as BestMode)} options={[{ v: 'full', l: 'Everyone stays' }, { v: 'crowd', l: 'Biggest crowd' }]} />
+                      </SettingField>
+                    )}
+                    {!daysAnswer && (
+                      <SettingField label="Time format">
+                        <SegmentedControl stretch size="sm" label="Time format" value={h24 ? '24' : '12'} onChange={(v) => setH24(v === '24')} options={[{ v: '12', l: '12-hour' }, { v: '24', l: '24-hour' }]} />
+                      </SettingField>
+                    )}
                     {/* the days that only square the week off. Out of the toolbar and
                         in here: it is a preference about the view, not an action */}
                     {!dayPoll && (hasLead || hasTrail) && (
-                      <div className="border-t border-border pt-2.5">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Whole week</span>
-                          <Switch on={wholeWeek} onChange={setWholeWeek} label="Show the whole week" />
-                        </div>
-                        <p className="mt-1.5 w-0 min-w-full text-[12px] leading-[1.5] text-faint">Shows the days around the poll, greyed out.</p>
-                      </div>
+                      <SettingToggle label="Show the whole week" on={wholeWeek} onChange={setWholeWeek} hint="The days around the poll, greyed out." />
                     )}
                     {youAny && (
-                      <div className="border-t border-border pt-2.5">
-                        <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Your times</div>
+                      <SettingField label="Your times">
                         <ClearTimes
                           onClear={clearAllMine}
                           onDone={close}
                           week={weekStrip ? { label: weekChips[page]?.label ?? '', any: weekDays.some((d) => !d.pad && (mine[d.key]?.length ?? 0) > 0) } : undefined}
                           onClearWeek={clearWeekMine}
                         />
-                      </div>
+                      </SettingField>
                     )}
-                  </div>
+                  </>
                 )}
-              </Popover>
+              </SettingsMenu>
             </div>
           )}
         </div>

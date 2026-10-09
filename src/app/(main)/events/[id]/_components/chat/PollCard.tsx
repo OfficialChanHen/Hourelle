@@ -1,11 +1,10 @@
 'use client'
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Check, Minus, Pencil, Plus, SlidersHorizontal, X } from 'lucide-react'
+import { Check, Pencil, Plus } from 'lucide-react'
 import { AvatarRow } from '@/components/ui/AvatarRow'
-import { Popover } from '@/components/ui/Popover'
-import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { DateField } from '@/components/ui/DateField'
+import { SettingsMenu } from '@/components/ui/Settings'
+import { VoteRules } from '../VoteRules'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { daysUntil, fromDay, todayKey } from '@/lib/events'
 import { canEditOption, canEditQuestion, optionKey, pollClosed, pollKey, votesPerPerson, POLL_OPTION_LIMIT, POLL_OPTION_MAX_LEN, POLL_QUESTION_MAX_LEN, type PollSettings, type PollState } from '@/lib/polls'
@@ -129,19 +128,9 @@ export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPi
           </button>
         )}
         {host && !locked && (
-          <Popover
-            align="end"
-            width={236}
-            label="Poll settings"
-            className="-my-3 -mr-2 flex-none sm:-my-1 sm:-mr-1"
-            trigger={(open) => (
-              <span className={`grid h-11 w-11 place-items-center rounded-[8px] border sm:h-7 sm:w-7 ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-transparent text-faint hover:border-border2 hover:bg-s2 hover:text-text'}`}>
-                <SlidersHorizontal size={14} />
-              </span>
-            )}
-          >
+<SettingsMenu title="Poll settings" label="Poll settings" iconOnly className="-my-3 -mr-2 flex-none sm:-my-1 sm:-mr-1">
             {() => <PollSettingsPanel settings={s} optionCount={poll.o.length} onChange={onSettings} />}
-          </Popover>
+          </SettingsMenu>
         )}
       </div>
 
@@ -419,7 +408,6 @@ function PollSettingsPanel({ settings, optionCount, onChange }: { settings: Poll
   const [draft, setDraft] = useState(settings)
   const cap = Math.max(1, optionCount)
   const n = Math.min(draft.n, cap)
-  const [custom, setCustom] = useState(() => n > 3)
   const sent = useRef(JSON.stringify(settings))
   const pending = useRef<PollSettings | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -447,56 +435,12 @@ function PollSettingsPanel({ settings, optionCount, onChange }: { settings: Poll
   }
   const setN = (v: number) => change({ n: Math.min(cap, Math.max(1, v)) })
 
-  const presets = [1, 2, 3].filter((v) => v <= cap).map((v) => ({ v: String(v), l: String(v) }))
-  const options = cap > 3 ? [...presets, { v: 'custom', l: 'Custom' }] : presets
-
   return (
-    <div className="flex flex-col gap-3 p-1">
-      <div>
-        <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-[.12em] text-faint sm:text-[11px]">Votes per person</div>
-        <div className="flex flex-wrap items-center gap-2">
-          <SegmentedControl
-            label="Votes per person"
-            size="sm"
-            value={custom ? 'custom' : String(n)}
-            onChange={(v) => {
-              if (v === 'custom') { setCustom(true); setN(Math.max(4, n)) }
-              else { setCustom(false); setN(Number(v)) }
-            }}
-            options={options}
-          />
-          {custom && (
-            <div className="flex items-center gap-1">
-              <button type="button" onClick={() => setN(n - 1)} disabled={n <= 1} aria-label="Fewer votes" className="grid h-11 w-11 place-items-center rounded-[7px] border border-border2 bg-s1 enabled:hover:bg-s2 disabled:opacity-30 sm:h-7 sm:w-7"><Minus size={13} /></button>
-              <input
-                type="number" min={1} max={cap} value={n}
-                onChange={(e) => { const v = parseInt(e.target.value, 10); if (!Number.isNaN(v)) setN(v) }}
-                aria-label="Votes per person"
-                className="h-11 w-11 rounded-[7px] border border-border bg-s1 px-1.5 text-center text-[13.5px] font-semibold tabular-nums text-text outline-none focus:border-accent sm:h-7"
-              />
-              <button type="button" onClick={() => setN(n + 1)} disabled={n >= cap} aria-label="More votes" className="grid h-11 w-11 place-items-center rounded-[7px] border border-border2 bg-s1 enabled:hover:bg-s2 disabled:opacity-30 sm:h-7 sm:w-7"><Plus size={13} /></button>
-              <span className="text-[12px] text-faint">of {cap}</span>
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="border-t border-border pt-2.5">
-        <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-[.12em] text-faint sm:text-[11px]">Voting closes</div>
-        <div className="flex items-center gap-1.5">
-          <DateField label="Voting closes" value={draft.close ?? ''} min={todayKey()} onChange={(v) => change({ close: fromDay(v, todayKey()) || undefined })} className="h-11 min-w-0 flex-1 !bg-s1 sm:h-8" />
-          {draft.close && (
-            <button type="button" onClick={() => change({ close: undefined })} title="Remove the closing date" aria-label="Remove the closing date" className="grid h-11 w-11 flex-none place-items-center rounded-[8px] border border-border2 text-dim hover:text-brick-text sm:h-8 sm:w-8"><X size={14} /></button>
-          )}
-        </div>
-      </div>
-      <label className="flex min-h-11 cursor-pointer items-center gap-2 border-t border-border pt-2.5 text-[13px] sm:min-h-0">
-        <input type="checkbox" checked={draft.add} onChange={() => change({ add: !draft.add })} className="h-4 w-4 sm:h-3.5 sm:w-3.5" style={{ accentColor: 'var(--accent)' }} />
-        Anyone can add options
-      </label>
-      <label className="flex min-h-11 cursor-pointer items-center gap-2 border-t border-border pt-2.5 text-[13px] sm:min-h-0">
-        <input type="checkbox" checked={draft.hide} onChange={() => change({ hide: !draft.hide })} className="h-4 w-4 sm:h-3.5 sm:w-3.5" style={{ accentColor: 'var(--accent)' }} />
-        Hide who voted
-      </label>
-    </div>
+    <VoteRules
+      votes={n} cap={cap} onVotes={setN}
+      closes={draft.close ?? ''} onCloses={(v) => change({ close: fromDay(v, todayKey()) || undefined })}
+      adding={{ label: 'Anyone can add options', on: draft.add }} onAdding={(v) => change({ add: v })}
+      hidden={{ label: 'Hide who voted', on: draft.hide }} onHidden={(v) => change({ hide: v })}
+    />
   )
 }

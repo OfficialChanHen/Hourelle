@@ -20,11 +20,12 @@
    Only the RSVP, the quorum and the itinerary's own settings are editable, and as
    on the other tabs those go to local state first so the demos work in memory. */
 
-import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, Users, X } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, X } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { namesLabel } from '@/components/ui/AvatarRow'
-import { Popover, PopoverNote, PopoverTitle } from '@/components/ui/Popover'
+import { Popover, PopoverNote } from '@/components/ui/Popover'
+import { SettingField, SettingStepper, SettingToggle, SettingsMenu } from '@/components/ui/Settings'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Announce } from '@/components/ui/Announce'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
@@ -526,7 +527,7 @@ function SingleVenue({
               </div>
             )
           })()}
-          {onQuorum && <QuorumControl quorum={quorum} onChange={onQuorum} />}
+          {onQuorum && <QuorumControl quorum={quorum} max={event.participants.length} onChange={onQuorum} />}
         </div>
       </div>
 
@@ -611,37 +612,29 @@ function BestWindowInfo({ mode }: { mode: BestMode }) {
   )
 }
 
-/* host-set minimum headcount — the tab warns when fewer can stay the whole time */
-function QuorumControl({ quorum, onChange }: { quorum: number | null; onChange: (q: number | null) => void }) {
-  const ref = useRef<HTMLInputElement>(null)
-  function save(close: () => void) {
-    const n = parseInt(ref.current?.value ?? '', 10)
-    onChange(Number.isFinite(n) && n >= 1 ? n : null)
-    close()
-  }
+/* host-set minimum headcount — the tab warns when fewer can stay the whole time.
+   In the settings kit like every tab's settings: the chip names the value, the
+   switch turns the warning on, and the stepper sets the number as you go */
+function QuorumControl({ quorum, max, onChange }: { quorum: number | null; max: number; onChange: (q: number | null) => void }) {
+  const top = Math.max(2, max, quorum ?? 0)
   return (
-    <Popover width={252} align="end" trigger={(open) => (
-      <span className={`flex h-11 sm:h-7 items-center gap-1.5 rounded-full border border-border2 px-2.5 text-[12px] font-semibold ${open ? 'bg-s2' : 'bg-s1 hover:bg-s2'}`}>
-        <Users size={13} /> {quorum != null ? `Need ${quorum}` : 'Set a minimum'}
-      </span>
-    )}>
-      {(close) => (
-        <div className="p-1">
-          <PopoverTitle sub="Warns when fewer can stay">Minimum headcount</PopoverTitle>
-          <div className="mt-2 flex items-center gap-2 px-1 pb-1">
-            <input
-              ref={ref} type="number" min={1} max={999} defaultValue={quorum ?? ''} placeholder="e.g. 8" aria-label="Minimum headcount"
-              className="h-9 w-[86px] rounded-[9px] border border-border bg-s0 px-3 text-[14px] outline-none focus:border-accent"
-              onKeyDown={(e) => { if (e.key === 'Enter') save(close) }}
-            />
-            <button onClick={() => save(close)} className="h-9 flex-none rounded-full bg-accent px-3 text-[13px] font-semibold text-on-accent">Save</button>
-            {quorum != null && (
-              <button onClick={() => { onChange(null); close() }} className="h-9 flex-none rounded-full px-2 text-[13px] font-semibold text-dim hover:bg-s2">Clear</button>
-            )}
-          </div>
-        </div>
+    <SettingsMenu title="Attendance settings" button={quorum != null ? `Need ${quorum}` : 'Settings'}>
+      {() => (
+        <>
+          <SettingToggle
+            label="Minimum headcount"
+            on={quorum != null}
+            onChange={(on) => onChange(on ? Math.min(top, Math.max(2, Math.ceil(max / 2))) : null)}
+            hint="Warns when fewer can stay the whole time."
+          />
+          {quorum != null && (
+            <SettingField label="At least">
+              <SettingStepper label="Minimum headcount" value={quorum} max={top} onChange={(n) => onChange(Math.min(top, Math.max(1, n)))} of={`of ${max}`} />
+            </SettingField>
+          )}
+        </>
       )}
-    </Popover>
+    </SettingsMenu>
   )
 }
 
