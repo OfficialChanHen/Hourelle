@@ -123,17 +123,19 @@ export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPi
         {/* one button for everything you can do to this poll: its rules (the host's),
             then rewording and deleting it (its writer's, and the host's) */}
         {((host && !locked) || ((mayEditAny || mayDelete) && !editing)) && (
-          <SettingsMenu title="Poll settings" label="Poll settings" small className="-my-0.5 flex-none">
+          <SettingsMenu title="Poll settings" label="Poll settings" small dense className="-my-0.5 flex-none">
             {(close) => (
               <>
+                {/* rewording first, the rules in the middle, deleting last */}
+                {mayEditAny && !editing && (
+                  <div className="py-1">
+                    <PopoverItem icon={<Pencil size={15} />} onClick={() => { close(); release(); setEditing(true) }}>Edit poll</PopoverItem>
+                  </div>
+                )}
                 {host && !locked && <PollSettingsPanel settings={s} optionCount={poll.o.length} onChange={onSettings} />}
-                {(mayEditAny || mayDelete) && !editing && (
-                  <div className="py-1.5">
-                    <PollMenuItems
-                      canEdit={mayEditAny} canDelete={mayDelete}
-                      onEdit={() => { close(); release(); setEditing(true) }}
-                      onDelete={() => { close(); onDelete() }}
-                    />
+                {mayDelete && !editing && (
+                  <div className="py-1">
+                    <DeletePoll onDelete={() => { close(); onDelete() }} />
                   </div>
                 )}
               </>
@@ -457,8 +459,8 @@ function PollSettingsPanel({ settings, optionCount, onChange }: { settings: Poll
   )
 }
 
-// its own component so the confirm starts over each time the menu opens
-function PollMenuItems({ canEdit, canDelete, onEdit, onDelete }: { canEdit: boolean; canDelete: boolean; onEdit: () => void; onDelete: () => void }) {
+// its own component so the confirm starts over each time the panel opens
+function DeletePoll({ onDelete }: { onDelete: () => void }) {
   const [confirm, setConfirm] = useState(false)
   if (confirm) return (
     <>
@@ -469,10 +471,5 @@ function PollMenuItems({ canEdit, canDelete, onEdit, onDelete }: { canEdit: bool
       </div>
     </>
   )
-  return (
-    <>
-      {canEdit && <PopoverItem icon={<Pencil size={15} />} onClick={onEdit}>Edit poll</PopoverItem>}
-      {canDelete && <PopoverItem icon={<Trash2 size={15} />} tone="brick" onClick={() => setConfirm(true)}>Delete poll</PopoverItem>}
-    </>
-  )
+  return <PopoverItem icon={<Trash2 size={15} />} tone="brick" onClick={() => setConfirm(true)}>Delete poll</PopoverItem>
 }

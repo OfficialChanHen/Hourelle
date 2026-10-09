@@ -55,11 +55,14 @@ export function SmallIcon({ open, children }: { open?: boolean; children: ReactN
 
 /** The trigger and the panel together. `button` swaps the trigger's words (a value
  *  chip like "Need 8"); `iconOnly` keeps it to the icon, and then `label` names it. */
-export function SettingsMenu({ title, label, iconOnly, small, button, className, children }: {
+export function SettingsMenu({ title, label, iconOnly, small, dense, button, className, children }: {
   title: ReactNode
   label?: string
   iconOnly?: boolean
   small?: boolean
+  // a narrower, tighter dropdown for a small place (a poll in the chat drawer); the
+  // phone's sheet is the same either way
+  dense?: boolean
   button?: ReactNode
   className?: string
   children: (close: () => void) => ReactNode
@@ -71,7 +74,7 @@ export function SettingsMenu({ title, label, iconOnly, small, button, className,
   return (
     <Popover
       align="end"
-      width={SETTINGS_WIDTH}
+      width={dense ? 248 : SETTINGS_WIDTH}
       className={className}
       label={label}
       trigger={(open) => <SettingsButton open={open} iconOnly={iconOnly} small={small}>{button}</SettingsButton>}
@@ -79,7 +82,7 @@ export function SettingsMenu({ title, label, iconOnly, small, button, className,
       {(close) => (
         <>
           <PopoverTitle>{title}</PopoverTitle>
-          <div className="flex flex-col divide-y divide-border">{children(close)}</div>
+          <div className={`flex flex-col divide-y divide-border ${dense ? '[&>div]:!py-2' : ''}`}>{children(close)}</div>
         </>
       )}
     </Popover>
