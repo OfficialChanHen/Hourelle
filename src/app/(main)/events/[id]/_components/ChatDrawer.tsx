@@ -12,7 +12,7 @@ import { setWatchingChat } from '@/lib/sound'
 import { removedLineTest } from '@/lib/removed'
 import { usePhoneScreen } from '@/hooks/usePhoneScreen'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
-import { chatLines, decodePoll, encodePoll, encodePollEdit, encodePollOption, encodePollSettings, messagePreview, newOptionId, reducePolls, type Poll, type PollSettings, type PollState } from '@/lib/polls'
+import { chatLines, decodePoll, encodePoll, encodePollDelete, encodePollEdit, encodePollOption, encodePollSettings, messagePreview, newOptionId, reducePolls, type Poll, type PollSettings, type PollState } from '@/lib/polls'
 import { PollCard } from './chat/PollCard'
 import { PollComposer } from './chat/PollComposer'
 import { Popover, PopoverItem } from '@/components/ui/Popover'
@@ -36,6 +36,11 @@ function dayLabel(at: number): string {
   const yd = new Date(today.getTime() - DAY_MS)
   if (d.toDateString() === yd.toDateString()) return 'Yesterday'
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+// the clock minute a line was sent in, to group lines that share a time
+function minuteOf(m: ChatMessage): string {
+  return m.at ? String(Math.floor(m.at / 60_000)) : m.time
 }
 
 function whenLabel(m: ChatMessage, h24: boolean): string {
@@ -140,6 +145,7 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onVote, onClos
     onAdd: (pollId, text) => onSend(encodePollOption(pollId, newOptionId(), text)),
     onSettings: (pollId, s) => onSend(encodePollSettings(pollId, s)),
     onEdit: (pollId, edit) => onSend(encodePollEdit(pollId, edit)),
+    onDelete: (pollId) => onSend(encodePollDelete(pollId)),
   }
   const body = <ChatBody messages={shown} unreadFrom={unreadFrom} onSend={onSend} onClose={close} avatarOf={avatarOf} readOnly={readOnly} typing={typing} onType={onType} onStopTyping={onStopTyping} polls={polls} />
 
@@ -186,12 +192,13 @@ type PollsProps = {
   onAdd: (pollId: string, text: string) => void
   onSettings: (pollId: string, s: PollSettings) => void
   onEdit: (pollId: string, edit: { q?: string; o?: { id: string; t: string }[] }) => void
+  onDelete: (pollId: string) => void
 }
 
 type Row =
   | { kind: 'day'; label: string; key: string }
   | { kind: 'new'; key: string }
-  | { kind: 'msg'; m: ChatMessage; key: string; first: boolean; poll: Poll | null } // first: opens a sender run, so it wears the header; poll: as posted, its current state is in polls.states
+  | { kind: 'msg'; m: ChatMessage; key: string; first: boolean; last: boolean; poll: Poll | null } // first: opens a sender run, so it wears the header; last: the sender's latest line in its minute, so it wears the time; poll: as posted, its current state is in polls.states
 
 // header + messages + composer, shared by the drawer and the sheet
 function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, typing, onType, onStopTyping, polls }: ChatProps) {
@@ -225,10 +232,19 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
       // line after it does too
       const sameRun = !broke && !!prev && !m.system && !prev.system && !poll && !prevPoll && prev.id === m.id && prev.you === m.you
         && (m.at && prev.at ? m.at - prev.at < 5 * 60_000 : m.time === prev?.time)
-      out.push({ kind: 'msg', m, key: `m-${i}`, first: !sameRun, poll })
+      out.push({ kind: 'msg', m, key: `m-${i}`, first: !sameRun, last: true, poll })
       prev = m
       prevPoll = !!poll
     })
+    // the time rides on the newest line, the way a phone's messages do: a line followed
+    // in the same run by another one sent in the same minute hands its time on to it
+    let next: Extract<Row, { kind: 'msg' }> | null = null
+    for (let i = out.length - 1; i >= 0; i--) {
+      const r = out[i]
+      if (r.kind !== 'msg') { next = null; continue }
+      if (next && !next.first && minuteOf(next.m) === minuteOf(r.m)) r.last = false
+      next = r
+    }
     return out
   }, [messages, unreadFrom])
 
@@ -330,7 +346,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                   <span className="h-px flex-1 bg-accent-border" />New<span className="h-px flex-1 bg-accent-border" />
                 </div>
               )
-              const { m, first, poll } = r
+              const { m, first, last, poll } = r
               const state = poll ? polls.states.get(poll.id) : undefined
               const a = avatarOf(m.id, m.name)
               // a line the app wrote ("Sam joined", "reopened the plan"): a quiet
@@ -354,7 +370,12 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                       <span className="font-semibold text-text">{m.name}</span>
                     </div>
                   )}
-                  {state ? (
+                  {state?.removed ? (
+                    // taken down: a quiet note where the card was, so the gap is explained
+                    <p className="rounded-2xl border border-dashed border-border2 px-[11px] py-2 text-[12.5px] italic text-faint">
+                      {state.removed.by === polls.me ? 'You' : avatarOf(state.removed.by).name.split(' ')[0]} removed a poll
+                    </p>
+                  ) : state ? (
                     <PollCard
                       poll={state}
                       votes={polls.votes}
@@ -367,11 +388,12 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                       onAdd={(text) => polls.onAdd(state.id, text)}
                       onSettings={(s) => polls.onSettings(state.id, s)}
                       onEdit={(edit) => polls.onEdit(state.id, edit)}
+                      onDelete={() => polls.onDelete(state.id)}
                       avatarOf={avatarOf}
                     />
                   ) : (
                   <div
-                    title={first ? undefined : whenLabel(m, h24)}
+                    title={last ? undefined : whenLabel(m, h24)}
                     className={`max-w-[min(86%,480px)] whitespace-pre-wrap break-words rounded-2xl border px-[11px] py-2 text-[13px] leading-[1.45] ${
                       m.you
                         ? `border-accent bg-accent text-on-accent ${first ? 'rounded-tr-[5px]' : ''}`
@@ -383,7 +405,7 @@ function ChatBody({ messages, unreadFrom, onSend, onClose, avatarOf, readOnly, t
                   )}
                   {/* the time under the message and on its own side, one line of its
                       own, so a long name and a time can never stack into a column */}
-                  {first && (
+                  {last && (
                     <span className={`mt-0.5 whitespace-nowrap text-[10.5px] leading-none text-faint ${m.you ? 'pr-1 text-right' : 'pl-1 text-left'}`}>
                       {whenLabel(m, h24)}
                     </span>

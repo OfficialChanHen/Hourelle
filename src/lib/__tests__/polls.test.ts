@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { webcrypto } from 'node:crypto'
 import {
-  canEditOption, canEditQuestion, decodePoll, encodePoll, encodePollEdit, encodePollOption, encodePollSettings,
+  canDeletePoll, canEditOption, canEditQuestion, decodePoll, encodePoll, encodePollDelete, encodePollEdit, encodePollOption, encodePollSettings,
   isControlMessage, makePoll, messagePreview, placeVotes, pollKey, reducePolls, tapPollOption, DEFAULT_POLL_SETTINGS,
   type PollState,
 } from '@/lib/polls'
@@ -85,6 +85,33 @@ describe('rewording', () => {
     expect(canEditOption(p, p.o[0], 'HOST', true, onA)).toBe(false)
     expect(canEditOption(p, p.o[1], 'HOST', true, onA)).toBe(true)
     expect(canEditOption(p, p.o[1], 'ANI', false, onA)).toBe(false) // not theirs
+  })
+})
+
+describe('taking a poll down', () => {
+  it('only its writer or the host can', () => {
+    const { poll, msgs, state } = posted('SAM')
+    msgs.push(line('ANI', encodePollDelete(poll.id)))
+    expect(state().removed).toBeUndefined()
+    msgs.push(line('SAM', encodePollDelete(poll.id)))
+    expect(state().removed).toEqual({ by: 'SAM' })
+    expect(canDeletePoll(state(), 'SAM', false)).toBe(true)
+    expect(canDeletePoll(state(), 'HOST', true)).toBe(true)
+    expect(canDeletePoll(state(), 'ANI', false)).toBe(false)
+  })
+  it('stays down: nothing sent for it afterwards changes it', () => {
+    const { poll, msgs, state } = posted('SAM')
+    msgs.push(line('HOST', encodePollDelete(poll.id)))
+    msgs.push(line('HOST', encodePollOption(poll.id, 'x1', 'Chess')))
+    msgs.push(line('SAM', encodePollEdit(poll.id, { q: 'Back?' })))
+    expect(state().removed).toEqual({ by: 'HOST' })
+    expect(state().q).toBe('Which game?')
+    expect(state().o).toHaveLength(2)
+  })
+  it('is a control line that previews as what it did', () => {
+    const del = line('SAM', encodePollDelete('p'))
+    expect(isControlMessage(del)).toBe(true)
+    expect(messagePreview(del)).toBe('removed a poll')
   })
 })
 

@@ -11,6 +11,7 @@ import type { ChatMessage } from './sample'
      [poll+]{"p":pollId,"id":optionId,"t":text}             someone adds an option
      [poll~]{"p":pollId,"s":{n,add,hide,close?}}            the host changes its settings
      [poll=]{"p":pollId,"q"?:text,"o"?:[{id,t}]}            someone rewords the question or options
+     [poll-]{"p":pollId}                                     the poll is taken down
 
    Who may do what (decided in reducePolls, so every copy agrees):
      - the host may change the settings, reword anything, and always add options
@@ -18,8 +19,10 @@ import type { ChatMessage } from './sample'
        options it was posted with, whoever added an option that option
      - everyone else may add options only while "Anyone can add options" is on, which
        a new poll starts with off
+     - the poll's writer may take it down, and so may the host; it stays down, and
+       nothing sent for it afterwards changes anything
 
-   The last three are control lines: never drawn in the chat, never counted as unread,
+   The last four are control lines: never drawn in the chat, never counted as unread,
    never heard or announced. reducePolls folds them into each poll's current state.
    Two people adding an option at the same moment are two appends, so both land.
 
@@ -38,12 +41,13 @@ export type PollSettings = {
 // what the [poll] line carries
 export type Poll = { id: string; q: string; o: PollOption[]; s?: PollSettings }
 // a poll as it stands after every control line so far
-export type PollState = { id: string; q: string; o: PollOption[]; s: PollSettings; by: string }
+export type PollState = { id: string; q: string; o: PollOption[]; s: PollSettings; by: string; removed?: { by: string } } // removed: taken down, and by whom
 
 export const POLL_MARKER = '[poll]'
 export const POLL_ADD_MARKER = '[poll+]'
 export const POLL_SET_MARKER = '[poll~]'
 export const POLL_EDIT_MARKER = '[poll=]'
+export const POLL_DEL_MARKER = '[poll-]'
 export const POLL_PREFIX = 'poll:'
 export const POLL_MIN_OPTIONS = 2
 export const POLL_MAX_OPTIONS = 6    // what the composer offers when posting
@@ -76,7 +80,7 @@ export function pollVotes(votes: Record<string, string[]>): Record<string, strin
 
 // a line that changes a poll rather than saying something: never shown, never counted
 export function isControlMessage(m: Pick<ChatMessage, 'text' | 'system'>): boolean {
-  return !m.system && (m.text.startsWith(POLL_ADD_MARKER) || m.text.startsWith(POLL_SET_MARKER) || m.text.startsWith(POLL_EDIT_MARKER))
+  return !m.system && (m.text.startsWith(POLL_ADD_MARKER) || m.text.startsWith(POLL_SET_MARKER) || m.text.startsWith(POLL_EDIT_MARKER) || m.text.startsWith(POLL_DEL_MARKER))
 }
 
 // the lines people actually see in the chat: what unread counts, sounds and arrivals read
@@ -138,6 +142,15 @@ export function encodePollEdit(pollId: string, edit: { q?: string; o?: { id: str
   })
 }
 
+export function encodePollDelete(pollId: string): string {
+  return POLL_DEL_MARKER + JSON.stringify({ p: pollId })
+}
+
+// may this person take the poll down: its writer, or the host
+export function canDeletePoll(poll: Pick<PollState, 'by'>, who: string | null, host: boolean): boolean {
+  return !!who && (host || who === poll.by)
+}
+
 /* May this person reword the question / this option? Who wrote it decides, the same
    rule reducePolls applies. And only until anyone has voted: the question until the
    poll's first vote, an option until its own first vote, so rewording never changes
@@ -185,16 +198,18 @@ type Control =
   | { kind: 'add'; p: string; id: string; t: string }
   | { kind: 'set'; p: string; s: unknown }
   | { kind: 'edit'; p: string; q: string | null; o: { id: string; t: string }[] }
+  | { kind: 'del'; p: string }
 
 function decodeControl(text: string): Control | null {
-  const kind = text.startsWith(POLL_ADD_MARKER) ? 'add' : text.startsWith(POLL_SET_MARKER) ? 'set' : text.startsWith(POLL_EDIT_MARKER) ? 'edit' : null
+  const kind = text.startsWith(POLL_ADD_MARKER) ? 'add' : text.startsWith(POLL_SET_MARKER) ? 'set' : text.startsWith(POLL_EDIT_MARKER) ? 'edit' : text.startsWith(POLL_DEL_MARKER) ? 'del' : null
   if (!kind) return null
   try {
-    const marker = kind === 'add' ? POLL_ADD_MARKER : kind === 'set' ? POLL_SET_MARKER : POLL_EDIT_MARKER
+    const marker = kind === 'add' ? POLL_ADD_MARKER : kind === 'set' ? POLL_SET_MARKER : kind === 'edit' ? POLL_EDIT_MARKER : POLL_DEL_MARKER
     const raw = JSON.parse(text.slice(marker.length)) as unknown
     if (!raw || typeof raw !== 'object') return null
     const { p, id, t, s, q, o } = raw as { p?: unknown; id?: unknown; t?: unknown; s?: unknown; q?: unknown; o?: unknown }
     if (typeof p !== 'string' || !p) return null
+    if (kind === 'del') return { kind, p }
     if (kind === 'set') return { kind, p, s }
     if (kind === 'edit') {
       const opts: { id: string; t: string }[] = []
@@ -219,7 +234,8 @@ function decodeControl(text: string): Control | null {
    poll allows it (the host always may). Rewording follows who wrote what (see the top
    of this file); a rewording that would repeat another option is dropped. An option
    that repeats one already there, however it is capitalised, is dropped, and so is
-   anything past the limit. A control line for a poll that is not here (its line was
+   anything past the limit. A poll taken down by its writer or the host is kept, marked
+   removed, so its line can say so. A control line for a poll that is not here (its line was
    taken out with its writer) does nothing. One pass each way, so a long chat is cheap. */
 export function reducePolls(messages: ChatMessage[], hostIds: ReadonlySet<string>): Map<string, PollState> {
   const polls = new Map<string, PollState>()
@@ -249,6 +265,12 @@ export function reducePolls(messages: ChatMessage[], hostIds: ReadonlySet<string
     const p = c && polls.get(c.p)
     if (!c || !p) continue
     const host = hostIds.has(m.id)
+    // a poll taken down stays down: nothing after that changes it
+    if (p.removed) continue
+    if (c.kind === 'del') {
+      if (canDeletePoll(p, m.id, host)) polls.set(p.id, { ...p, removed: { by: m.id } })
+      continue
+    }
     if (c.kind === 'set') {
       if (host) polls.set(p.id, { ...p, s: readSettings(c.s, p.s) })
       continue
@@ -295,6 +317,7 @@ export function messagePreview(m: Pick<ChatMessage, 'text'>): string {
   if (m.text.startsWith(POLL_ADD_MARKER)) return 'added a poll option'
   if (m.text.startsWith(POLL_SET_MARKER)) return 'changed a poll'
   if (m.text.startsWith(POLL_EDIT_MARKER)) return 'edited a poll'
+  if (m.text.startsWith(POLL_DEL_MARKER)) return 'removed a poll'
   const p = decodePoll(m.text)
   return p ? `Poll: ${p.q}` : m.text
 }
