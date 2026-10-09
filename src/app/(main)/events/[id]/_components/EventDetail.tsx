@@ -412,7 +412,8 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       <div className="relative isolate -mx-4 -mt-5 mb-4 px-4 pb-5 pt-5 sm:-mx-[26px] sm:-mt-[34px] sm:mb-6 sm:px-[26px] sm:pt-[34px]">
         <SoftShapes variant="plan" />
         <div className="flex items-center justify-between gap-3">
-          <BackLink href={backTo.href} label={backTo.label} />
+          {/* a guest has no list to go back to: their plan is the whole app */}
+          {me?.guest ? <span /> : <BackLink href={backTo.href} label={backTo.label} />}
           {/* on a phone the share link sits up here, where a phone keeps its top
               right button; inviting is the host's, for now */}
           {event.hostedByYou && <Popover
