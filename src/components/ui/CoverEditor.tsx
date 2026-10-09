@@ -1,16 +1,11 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Crop, ImagePlus, Loader2 } from 'lucide-react'
 import { Cover, COVER_PRESETS } from './Cover'
 import { Keepsake, DETAIL_CHOICES, lookOf, withDetail, type CardDetail } from './Keepsake'
 import { CoverPosition, type Pos } from './CoverPosition'
-import { HostTag } from './HostTag'
-import { PhotoFrame } from './PhotoFrame'
-import { useViewportWidth } from '@/hooks/useViewportWidth'
-import { coverShapes } from '@/lib/cover-shapes'
-import { useAccount } from '@/hooks/useAccount'
-import { initialsOf, type Participant } from '@/lib/events'
+import { CoverCrops } from './CoverCrops'
 import { ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, downscaleImage, isAcceptedImage } from '@/lib/image'
 import { removeCover, uploadCover } from '@/lib/covers'
 import { isInlineCover, isPhotoCover } from '@/lib/cover-kind'
@@ -26,10 +21,9 @@ export function styleSummary(image: string | undefined, fit: ImageFit | undefine
 
 /* One editor for the card's style (its cover and the detail that holds it down),
    shared by the create wizard and the event's details tab. The cover:
-   The preset scenes, a photo of your own, and a preview drawn exactly the way the
-   event card and the event page draw it, so what is chosen here is what the app
-   shows. A photo also gets a choice of fill or fit: fill crops the picture to the
-   frame, fit shows all of it on a soft blur of itself.
+   The preset scenes, a photo of your own, and a strip showing how each place in the
+   app crops it on this screen, so what is chosen here is what the app shows. A photo also gets a choice of fill or fit: fill crops the picture to the
+   frame, fit shows all of it on its own most common colour.
 
    WHERE THE PHOTO GOES. With an `eventId` and a session, a picked photo is uploaded
    and the event keeps a URL. Without either — the create wizard, where the event
@@ -40,21 +34,17 @@ export function styleSummary(image: string | undefined, fit: ImageFit | undefine
    A photo that is still a data URL is also moved, quietly, the first time its host
    opens this editor. That is the only way the covers already sitting in people's
    browsers ever leave them: the bytes are there, not on the server. */
-export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId, onChange }: {
+export function CoverEditor({ image, fit = 'fill', pos, keepsake, eventId, onChange }: {
   image?: string
   fit?: ImageFit
   // which part of a cropped photo to keep; the middle when nothing has been chosen
   pos?: Pos
   // the detail on the card: pins, tape, a clip, photo corners, 'none', or absent for Auto
   keepsake?: CardDetail
-  title: string
   // the event to file the photo under; absent in the wizard, where there is no event yet
   eventId?: string
   onChange: (patch: { image?: string; imageFit?: ImageFit; imagePos?: Pos; keepsake?: CardDetail }) => void
 }) {
-  const account = useAccount()
-  const me = { id: 'me', name: account.name, initials: initialsOf(account.name), color: account.color, face: account.face, host: true, rsvp: 'attending' } as Participant
-
   const [posing, setPosing] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -62,33 +52,9 @@ export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId
   const preset = COVER_PRESETS.find((p) => image === `preset:${p.id}`)
   const photo = isPhotoCover(image)
   const from = preset?.from ?? '#E4EDE7', to = preset?.to ?? '#CFE0D5'
-  const name = title.trim() || 'Your plan'
   // the card's look as it will be: Auto is what the plan's id deals (in the wizard,
   // before there is an id, a stand-in), else what was picked
   const auto = lookOf(eventId ?? 'new-plan', 0)
-  const look = { ...withDetail(auto, keepsake), tilt: 0 }
-  // the sizes each place draws the cover at on this screen, frame padding included
-  const vw = useViewportWidth()
-  const shapes = coverShapes(vw)
-  const cardW = shapes.card.w + FRAME_PAD.mid, pageW = shapes.page.w + FRAME_PAD.mid, rowW = shapes.row.w + 16
-  // on a phone the plan page's picture takes a line of its own under the other two
-  const narrow = vw < 640
-  // one scale for all three, so they keep their sizes against each other: as large
-  // as the space allows, never larger than real
-  const box = useRef<HTMLDivElement>(null)
-  const [room, setRoom] = useState(0)
-  useLayoutEffect(() => {
-    const el = box.current
-    if (!el) return
-    const measure = () => setRoom(el.clientWidth)
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-  const scale = !room ? 0 : Math.min(1, narrow
-    ? Math.min((room - GAP - ROW_COL) / cardW, room / pageW)
-    : (room - 2 * GAP - ROW_COL) / (cardW + pageW))
 
   // move an old inline cover up, once, in the background. Keyed on the data URL so a
   // patch coming back through the parent cannot start it again, and a different
@@ -135,47 +101,9 @@ export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId
 
   return (
     <div className="flex flex-col gap-3">
-      {/* the cover in each place it shows, each drawn at its real size for this screen
-          and scaled down to fit, so the crop and the detail's size match the app's */}
-      <div
-        ref={box}
-        className="grid items-end gap-y-3"
-        style={{ columnGap: GAP, gridTemplateColumns: narrow ? `${cardW * scale}px ${ROW_COL}px` : `${cardW * scale}px ${pageW * scale}px ${ROW_COL}px`, visibility: scale ? undefined : 'hidden' }}
-      >
-        <Preview label="On a card" w={cardW} scale={scale}>
-          {/* a layer of its own around the frame (isolate, with no paint of its own), so
-              a clip's back leg, drawn under the frame, tucks under this frame and not
-              under the page: the same as a real card */}
-          <div className="isolate">
-            <PhotoFrame tilt={0} tape={false} pad={look.pad}>
-              <div className="relative mb-3">
-                <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[120px]" rounded="rounded-lg" />
-                <Keepsake look={look} />
-                {/* the name tag the card wears on Home and Plans; whoever edits the cover
-                    hosts the plan, so it is always yours here */}
-                <HostTag e={{ participants: [me], hostedByYou: true, hostName: account.name }} />
-              </div>
-              <div className="mb-[9px] truncate px-1 font-serif text-[20px] leading-[1.15] tracking-[-0.01em]">{name}</div>
-            </PhotoFrame>
-          </div>
-        </Preview>
-        <Preview label="On the plan page" w={pageW} scale={scale} className={narrow ? 'order-last col-span-2' : ''}>
-          <div className="isolate">
-            <PhotoFrame tilt={0} tape={false}>
-              <div className="relative">
-                <div style={{ height: shapes.page.h }}><Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-full" rounded="rounded-lg" /></div>
-                <Keepsake look={look} />
-              </div>
-            </PhotoFrame>
-          </div>
-        </Preview>
-        {/* a phone's Home lists its later plans as rows with an upright cover */}
-        <Preview label="Phone list" w={rowW} scale={scale}>
-          <div className="rounded-[14px] bg-frame p-2 shadow-frame">
-            <div style={{ width: shapes.row.w, height: shapes.row.h }}><Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-full w-full" rounded="rounded-lg" /></div>
-          </div>
-        </Preview>
-      </div>
+      {/* the cover as each place crops it on this screen; the detail is shown on the
+          tiles below */}
+      <CoverCrops image={image} fit={fit} pos={pos} from={from} to={to} />
 
       <div className="flex flex-wrap items-center gap-1.5">
         {COVER_PRESETS.map((p) => {
@@ -231,7 +159,7 @@ export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId
           {busy ? 'Adding' : photo ? 'Replace photo' : 'Upload a photo'}
         </button>
         {photo && (
-          // fill crops to the frame; fit keeps the whole picture, letterboxed on a blur of itself
+          // fill crops to the frame; fit keeps the whole picture, the bands filled with its most common colour
           <div className="flex rounded-full border border-border bg-s1 p-0.5" role="group" aria-label="How the photo fills the frame">
             {([{ v: 'fill', l: 'Fill' }, { v: 'fit', l: 'Fit' }] as const).map((o) => (
               <button
@@ -268,38 +196,6 @@ export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId
       {err
         ? <span className="text-[12px] text-brick-text">{err}</span>
         : <span className="text-[12px] text-faint">JPG, PNG or WebP up to {MAX_UPLOAD_LABEL}, resized before it is saved.</span>}
-    </div>
-  )
-}
-
-// the phone row's column, wide enough for its label; and the gap between columns
-const ROW_COL = 84
-const GAP = 16
-
-// PhotoFrame's border, both sides together (p-2, p-2.5, p-3.5)
-const FRAME_PAD = { thin: 16, mid: 20, thick: 28 } as const
-
-/* One place the cover shows: drawn at `w`, its real width, then scaled by the shared
-   `scale`, so everything in it (the crop, the tape, the name) keeps its real
-   proportions. */
-function Preview({ label, w, scale, className = '', children }: { label: string; w: number; scale: number; className?: string; children: React.ReactNode }) {
-  const inner = useRef<HTMLDivElement>(null)
-  const [h, setH] = useState(0)
-  useLayoutEffect(() => {
-    const i = inner.current
-    if (!i) return
-    const measure = () => setH(i.offsetHeight)
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(i)
-    return () => ro.disconnect()
-  }, [])
-  return (
-    <div className={`min-w-0 ${className}`}>
-      <div style={{ height: h * scale || undefined }}>
-        <div ref={inner} className="origin-top-left" style={{ width: w, transform: `scale(${scale})` }}>{children}</div>
-      </div>
-      <div className="mt-2 whitespace-nowrap text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{label}</div>
     </div>
   )
 }

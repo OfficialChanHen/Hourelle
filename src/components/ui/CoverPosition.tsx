@@ -6,9 +6,10 @@ import { Move, RotateCcw, X } from 'lucide-react'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { useViewportWidth } from '@/hooks/useViewportWidth'
 import { coverShapes } from '@/lib/cover-shapes'
+import { CoverCrops } from './CoverCrops'
 
 /* ── choosing which part of a photo survives the crop ──
-   A cover is never shown at one shape. The card on the Plans shelf is short and
+   A cover is never shown at one shape. Home's cards and the Plans shelf are short and
    wide, the plan page's picture is closer to square, and a phone's Home lists later
    plans with an upright cover. A photo dropped into all three fills each of them and
    loses something different to each, which is why a face can sit perfectly on the
@@ -20,10 +21,10 @@ import { coverShapes } from '@/lib/cover-shapes'
    of the shapes.
 
    The picking is done by dragging the photo inside a frame, which is the gesture
-   everybody already knows from every other photo cropper. The finger works in the
-   card, the shape most people see, and the other shapes are drawn underneath, live,
-   at their real proportions for this screen (lib/cover-shapes), so nothing has to be
-   taken on trust. The photo can never be dragged past its own edges, so no frame
+   everybody already knows from every other photo cropper. The finger works in a
+   card's shape, and every place's crop is drawn underneath, live, at its real
+   proportions for this screen (lib/cover-shapes), so nothing has to be taken on
+   trust. The photo can never be dragged past its own edges, so no frame
    ever shows a strip of nothing.
 
    Everything here is pointer events rather than a library: it is one gesture on one
@@ -51,8 +52,8 @@ export function CoverPosition({ src, value, onChange, onClose }: {
      cover the frame, so only the overflow — the part hanging outside — can be
      travelled. Moving the pointer across the whole of that overflow takes the
      position from one end to the other, so a pixel of pointer is a pixel of photo
-     and the picture keeps up with the finger exactly. An axis with no overflow
-     (the photo is exactly that shape) cannot move at all, which is correct. */
+     and the picture keeps up with the finger exactly. An axis with no overflow here
+     can still be cropped by another place, so it moves the point anyway (below). */
   const travel = useCallback(() => {
     const f = frame.current, i = img.current
     if (!f || !i || !i.naturalWidth) return { x: 0, y: 0 }
@@ -69,11 +70,16 @@ export function CoverPosition({ src, value, onChange, onClose }: {
     const d = drag.current
     if (!d) return
     const t = travel()
+    // an axis this frame cannot move along still moves the point, a frame's width
+    // or height of drag for the whole way: the frame stays put, and the other places
+    // below, which crop that way, follow the finger
+    const f = frame.current
+    const tx = t.x || f?.clientWidth || 1, ty = t.y || f?.clientHeight || 1
     // dragging the picture right shows what was off its left edge, which is a
     // smaller object-position, hence the minus
     setPos({
-      x: t.x ? clamp(d.from.x - ((e.clientX - d.x) / t.x) * 100) : d.from.x,
-      y: t.y ? clamp(d.from.y - ((e.clientY - d.y) / t.y) * 100) : d.from.y,
+      x: clamp(d.from.x - ((e.clientX - d.x) / tx) * 100),
+      y: clamp(d.from.y - ((e.clientY - d.y) / ty) * 100),
     })
   }
   const onUp = () => { drag.current = null }
@@ -103,9 +109,8 @@ export function CoverPosition({ src, value, onChange, onClose }: {
   // no mount guard: this only ever renders after the host has pressed Position, so
   // document.body is always there by the time the portal asks for it
   const objectPosition = `${pos.x}% ${pos.y}%`
-  // the shapes a cover is drawn at on this screen
-  const { card, page, row } = coverShapes(useViewportWidth())
-  const others = [{ label: 'On the plan page', ratio: page.w / page.h }, { label: 'Phone list', ratio: row.w / row.h }]
+  // the finger works in a Plans card's shape on this screen
+  const { card } = coverShapes(useViewportWidth())
   return createPortal(
     <div ref={root} className="fixed inset-0 z-[70] flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Position the cover photo">
       <div className="max-h-[92dvh] w-full max-w-[560px] overflow-y-auto overscroll-contain rounded-t-2xl border border-border bg-s1 p-4 shadow-soft sm:rounded-2xl sm:p-5">
@@ -134,23 +139,14 @@ export function CoverPosition({ src, value, onChange, onClose }: {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img ref={img} src={src} alt="" draggable={false} className="pointer-events-none absolute inset-0 h-full w-full object-cover" style={{ objectPosition }} />
           <span className="pointer-events-none absolute bottom-2 left-2 flex items-center gap-1.5 rounded-full bg-black/45 px-2.5 py-1 text-[11.5px] font-semibold text-white">
-            <Move size={12} /> On a card
+            <Move size={12} /> Drag
           </span>
         </div>
 
-        {/* and the other shapes, drawn from the same two numbers at the same height,
-            so the cost of the choice is visible before it is made rather than
-            discovered later */}
-        <div className="mt-2.5 grid gap-2.5" style={{ gridTemplateColumns: others.map((o) => `${o.ratio}fr`).join(' ') }}>
-          {others.map((o) => (
-            <div key={o.label} className="min-w-0">
-              <div className="relative w-full overflow-hidden rounded-xl border border-border bg-s2" style={{ aspectRatio: String(o.ratio) }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition }} />
-              </div>
-              <div className="mt-1.5 text-[11.5px] font-semibold text-dim">{o.label}</div>
-            </div>
-          ))}
+        {/* and every place's crop, drawn from the same two numbers, so the cost of the
+            choice is visible before it is made rather than discovered later */}
+        <div className="mt-3">
+          <CoverCrops image={src} pos={pos} from="#E4EDE7" to="#CFE0D5" height={60} />
         </div>
 
         <div className="mt-4 flex items-center justify-between gap-3">
