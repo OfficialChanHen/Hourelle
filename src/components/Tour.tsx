@@ -360,7 +360,7 @@ export function Tour({ host = false, locked = false, ctx = PLAIN }: { host?: boo
   const pos = placeCard(box, 0)
 
   return createPortal(
-    // z-[42]: over the page and its header, under popovers (z-50) and the lock-in modal
+    // z-[42]: over the page and its header (lib/layers), under the modals
     <div ref={root} className="pointer-events-none fixed inset-0 z-[42]">
       <svg className="tour-dim absolute inset-0 h-full w-full" aria-hidden>
         <defs>

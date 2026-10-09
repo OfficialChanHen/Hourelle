@@ -58,7 +58,7 @@ export function Header() {
   // the welcome steps: nothing to go to yet, so the bar is the name alone
   if (pathname.startsWith('/welcome')) {
     return (
-      <header className={chrome}>
+      <header data-chrome className={chrome}>
         <div className="mx-auto flex h-[54px] max-w-[1240px] items-center px-[22px]">
           <span className="flex items-center">
             <Wordmark className="text-[24.5px] tracking-[.01em]" />
@@ -73,7 +73,7 @@ export function Header() {
   // theme (profile is gated) and the one action the rest of the app is asking for
   if (guestEventId) {
     return (
-      <header className={chrome}>
+      <header data-chrome className={chrome}>
         <div className="mx-auto flex h-[58px] max-w-[1240px] items-center gap-3 px-[22px]">
           <Link href="/" className="flex items-center">
             <Wordmark className="text-[24.5px] tracking-[.01em]" />
@@ -97,7 +97,7 @@ export function Header() {
   }
 
   return (
-    <header className={chrome}>
+    <header data-chrome className={chrome}>
       <div className="mx-auto flex h-[54px] max-w-[1240px] items-center gap-[22px] px-[22px]">
         {/* logo — the serif wordmark, on its own */}
         <Link href="/home" className="flex items-center">

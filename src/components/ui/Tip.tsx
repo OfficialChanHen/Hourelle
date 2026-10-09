@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ReactNode } from 'react'
 import * as RTooltip from '@radix-ui/react-tooltip'
+import { CHROME_TOP, LAYER_Z, layerOf, type Layer } from '@/lib/layers'
 
 /**
  * Theme-aware tooltip for the places a native `title` falls short: it follows the
@@ -24,11 +25,16 @@ export function Tip({ text, children, className = 'block w-fit max-w-full' }: { 
   const [open, setOpen] = useState(false)
   const touch = useRef(false)
   const wasOpen = useRef(false)
+  // over whatever the words sit in (lib/layers), worked out as the bubble opens
+  const [layer, setLayer] = useState<Layer>('page')
+  const trig = useRef<HTMLSpanElement>(null)
+  const show = (o: boolean) => { if (o) setLayer(layerOf(trig.current)); setOpen(o) }
   return (
     <RTooltip.Provider delayDuration={250} skipDelayDuration={200}>
-      <RTooltip.Root open={open} onOpenChange={(o) => { if (!touch.current) setOpen(o) }}>
+      <RTooltip.Root open={open} onOpenChange={(o) => { if (!touch.current) show(o) }}>
         <RTooltip.Trigger asChild>
           <span
+            ref={trig}
             className={className}
             // a keyboard reaches the words too, and Radix opens the bubble on focus
             tabIndex={0}
@@ -39,7 +45,7 @@ export function Tip({ text, children, className = 'block w-fit max-w-full' }: { 
               if (!touch.current) return
               e.preventDefault()
               e.stopPropagation()
-              setOpen(!wasOpen.current)
+              show(!wasOpen.current)
             }}
           >
             {children}
@@ -49,9 +55,10 @@ export function Tip({ text, children, className = 'block w-fit max-w-full' }: { 
           <RTooltip.Content
             side="top"
             sideOffset={6}
-            collisionPadding={8}
+            collisionPadding={{ top: layer === 'page' ? CHROME_TOP : 8, right: 8, bottom: 8, left: 8 }}
             onPointerDownOutside={() => setOpen(false)}
-            className="z-[60] max-w-[260px] rounded-[9px] border border-border2 bg-s1 px-2.5 py-1.5 text-[12px] font-medium leading-[1.45] text-text shadow-soft"
+            style={{ zIndex: LAYER_Z[layer] + 1 }}
+            className="max-w-[260px] rounded-[9px] border border-border2 bg-s1 px-2.5 py-1.5 text-[12px] font-medium leading-[1.45] text-text shadow-soft"
           >
             {text}
           </RTooltip.Content>

@@ -408,7 +408,7 @@ export function CellDetail({ bands, total, fmt, gridStartMin, dayLabel, avatarOf
       ref={wrap}
       onClick={(e) => e.stopPropagation()}
       style={style}
-      className="absolute z-40 w-[248px] rounded-xl border border-border2 bg-s1 p-2.5 shadow-soft"
+      className="absolute z-[35] w-[248px] rounded-xl border border-border2 bg-s1 p-2.5 shadow-soft"
     >
       <div className="mb-1.5 flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-[.1em] text-faint">Who&apos;s free</span>
