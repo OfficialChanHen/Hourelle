@@ -66,6 +66,7 @@ import { ConfirmBar } from './ConfirmBar'
 import { ConfirmedHero } from './ConfirmedHero'
 import { ChatDrawer } from './ChatDrawer'
 import { ShareFirst, ShareItems } from './ShareFirst'
+import { TabHeading } from './TabHeading'
 import { chatLines, pollClosed, tapPollOption, type PollState } from '@/lib/polls'
 import { useIsIOS } from '@/hooks/useIsIOS'
 import { useBounceOnNew } from '@/hooks/useAttention'
@@ -75,7 +76,7 @@ import { InviteByEmail } from '@/components/InviteByEmail'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { removeEventCovers } from '@/lib/covers'
 import { purgeRemoved } from '@/lib/remote'
-import { currentAccount } from '@/lib/session'
+import { currentAccount, sendMagicLink } from '@/lib/session'
 import { reducedMotion } from '@/lib/prefs'
 
 const TABS = [
@@ -594,7 +595,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         </div>
       )}
       {/* the wrappers give the tour something to point at on each tab */}
-      {tab === 'location' && <div data-tour="location" role="tabpanel" id="panel-location" aria-labelledby="tab-location"><PlaceOptional event={event} locked={locked}><LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} /></PlaceOptional></div>}
+      {tab === 'location' && <div data-tour="location" role="tabpanel" id="panel-location" aria-labelledby="tab-location"><LocationPanel event={event} locked={locked} confirmed={event.confirmed} onPatch={patchLive} /></div>}
       {tab === 'attendance' && <div data-tour="attendance" role="tabpanel" id="panel-attendance" aria-labelledby="tab-attendance"><AttendancePanel event={event} onGoToTab={goTab} onViewAvailability={goToAvailabilityFor} onViewAvailabilityGroup={goToAvailabilityGroup} onGoToBestWindow={goToBestWindow} /></div>}
       {tab === 'details' && <div data-tour="details" role="tabpanel" id="panel-details" aria-labelledby="tab-details"><DetailsTab event={event} onDelete={handleDelete} onLeave={handleLeave} onGoToTab={goTab} onGoToBestWindow={goToBestWindow} onPatch={patchLive} onSetMyFace={setMyFace} onViewAvailability={goToAvailabilityFor} spotlightDelete={spotlightDelete} openInvite={inviteAsk} /></div>}
 
@@ -629,31 +630,6 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           onSend={sendMessage} onVote={votePoll} onClose={() => setChatOpen(false)} readOnly={!!event.demo}
           typing={room.typing} onType={room.onType} onStopTyping={room.onStopTyping}
         />
-      )}
-    </div>
-  )
-}
-
-/* Place is optional: most plans only need a time. With no place decided and none
-   suggested, the tab leads with one quiet line and a way in, and the full place
-   tools open when someone asks for them. Anything already in play (a set place,
-   suggestions, a meeting link, a locked plan) shows the tools straight away. */
-function PlaceOptional({ event, locked, children }: { event: AppEvent; locked: boolean; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false)
-  const loc = event.location
-  const empty = !locked && (loc.mode === 'later' || (loc.mode === 'vote' && loc.places.length === 0))
-  if (!empty || open) return <>{children}</>
-  const canAdd = event.hostedByYou || !!loc.guestsCanSuggest
-  return (
-    <div className="rounded-2xl border border-border bg-s1 px-5 py-6 sm:px-6">
-      <p className="font-serif text-[20px] leading-tight tracking-[-0.01em]">{canAdd ? 'Add a place if you need one' : 'No place yet'}</p>
-      <p className="mt-1.5 text-[14px] leading-[1.5] text-dim">
-        {canAdd ? 'Add a few and everyone can vote, or make it online.' : 'The host can add one if the plan needs it.'}
-      </p>
-      {canAdd && (
-        <button type="button" onClick={() => setOpen(true)} className="mt-4 flex h-11 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-4 text-[14px] font-semibold hover:bg-s2 sm:h-9">
-          <Plus size={16} aria-hidden /> Add a place
-        </button>
       )}
     </div>
   )
@@ -702,18 +678,39 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
 }) {
   const isHost = event.hostedByYou
   const locked = event.status === 'confirmed' && !!event.confirmed
+  const account = useAccount()
+  const me = event.participants.find((p) => p.you)
+  const host = event.participants.find((p) => p.host)
+  // a copy goes into an account's own plans, so only someone with an account gets one
+  const canDuplicate = account.signedIn && !me?.guest
+
+  // the plan in one sentence: what, who hosts, and the two facts people plan around
+  const hostName = isHost ? 'you' : (event.hostName || host?.name || 'the host').split(' ')[0]
+  const facts = [
+    event.capacity != null ? `up to ${event.capacity} ${event.capacity === 1 ? 'spot' : 'spots'}` : '',
+    event.budget ? ((event.budgetMode ?? 'total') === 'person' ? `about $${Number(event.budget).toLocaleString()} each` : `$${Number(event.budget).toLocaleString()} in all`) : '',
+  ].filter(Boolean)
+  const about = `${event.title}, hosted by ${hostName}.${facts.length ? ` ${facts.join(', ').replace(/^./, (c) => c.toUpperCase())}.` : ''}`
+  // the host's own words, said by them: everyone else reads the description as a note
+  // beside the host's face (the host edits it in the rows below)
+  const note = !isHost && event.description?.trim() ? (
+    <figure className="mt-1 flex max-w-[560px] items-start gap-2.5">
+      {host && <span className="flex-none"><Avatar initials={host.initials} color={host.color} face={host.face} size={34} font={12} title={host.name} /></span>}
+      <blockquote className="whitespace-pre-line rounded-[4px_16px_16px_16px] border border-border bg-s1 px-4 py-2.5 font-serif text-[15.5px] italic leading-[1.5] text-text">{event.description.trim()}</blockquote>
+    </figure>
+  ) : undefined
 
   return (
-    // two columns on large screens: details + expenses stacked left, participants right.
-    // Below lg the same order stacks, so the open-ended roster comes last and the
-    // compact cards stay reachable without scrolling past it.
-    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-3.5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+    <div className="flex flex-col gap-4">
+      <TabHeading eyebrow="About this plan" title={about} sub={note} />
+      {/* two columns on large screens: the plan's facts and the host's style card left,
+          who is in right, so the two hold about the same. Below lg the same order
+          stacks, and the open-ended roster comes after the compact cards. */}
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-3.5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3.5">
       <div className="min-w-0 rounded-2xl border border-border bg-s1 p-5">
-        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Details</div>
         <DetailRow k="Name" v={<NameValue event={event} editable={isHost} onPatch={onPatch} />} />
-        {isHost && <DetailRow k="Style" v={<CoverPicker event={event} onPatch={onPatch} />} />}
-        <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} onPatch={onPatch} />} />
+        {isHost && <DetailRow k="Description" v={<DescriptionValue event={event} editable={isHost} onPatch={onPatch} />} />}
         <DetailRow k="When" v={<WhenValue event={event} editable={isHost && !locked} onGoToAvailability={() => onGoToTab('availability')} onGoToBestWindow={onGoToBestWindow} onPatch={onPatch} />} />
         <DetailRow k="Where" v={<WhereValue event={event} locked={locked} onGoToLocation={() => onGoToTab('location')} editable={isHost} onPatch={onPatch} />} />
         {/* optional deadlines — each reminds everyone the day before and the day of.
@@ -737,21 +734,96 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
             slot={event.confirmed ? { dayKey: event.confirmed.dayKey, endDayKey: event.confirmed.endDayKey, startMin: event.confirmed.startMin, endMin: event.confirmed.endMin } : null}
             align="start"
           />
-          <Link href={`/create?from=${event.id}`} className="flex h-8 items-center gap-1.5 rounded-full border border-border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2">
-            <CopyPlus size={15} /> Duplicate this plan
-          </Link>
+          {canDuplicate && (
+            <Link href={`/create?from=${event.id}`} className="flex h-8 items-center gap-1.5 rounded-full border border-border bg-s1 px-[11px] text-[13px] font-medium hover:border-border2">
+              <CopyPlus size={15} /> Duplicate this plan
+            </Link>
+          )}
         </div>
       </div>
+
+      {isHost && <StyleCard event={event} onPatch={onPatch} />}
+
+      {/* a guest's answers live on this device: an email makes them an account's */}
+      {me?.guest && !event.demo && <KeepThisPlan eventId={event.id} defaultEmail={me.email} />}
 
       {/* spending is real once the plan is locked — while planning, the budget row above is the whole money story */}
       {locked && <ExpensesCard event={event} isHost={isHost} onPatch={onPatch} />}
       </div>
 
-      <ParticipantsCard event={event} isHost={isHost} onPatch={onPatch} onSetMyFace={onSetMyFace} onViewAvailability={onViewAvailability} openInvite={openInvite} />
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3.5">
+        <ParticipantsCard event={event} isHost={isHost} onPatch={onPatch} onSetMyFace={onSetMyFace} onViewAvailability={onViewAvailability} openInvite={openInvite} />
+      </div>
 
       {event.hostedByYou && !event.demo && <div className="min-w-0 lg:col-span-2"><DangerZone title={event.title} onDelete={onDelete} spotlight={spotlightDelete} /></div>}
       {/* someone else's event: you can't delete it, but you can take it off your side */}
       {!event.hostedByYou && !event.demo && <div className="min-w-0 lg:col-span-2"><LeaveZone title={event.title} onLeave={onLeave} spotlight={spotlightDelete} /></div>}
+      </div>
+    </div>
+  )
+}
+
+/* How the plan looks on everyone's Home and shelves: a framed preview wearing the
+   plan's own detail (the same look as the header), beside the picker. The preview is
+   the one scrapbook touch on this tab, because it is a picture of the scrapbook. */
+function StyleCard({ event, onPatch }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
+  const look = withDetail(lookOf(event.id, 0), event.keepsake)
+  const preset = COVER_PRESETS.find((p) => event.image === `preset:${p.id}`)
+  return (
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] items-center gap-6 rounded-2xl border border-border bg-s1 p-5 sm:grid-cols-[200px_minmax(0,1fr)]">
+      <div className="mx-auto w-full max-w-[240px] pt-2">
+        <PhotoFrame tilt={look.tilt} tape={false} pad="thin" size="sm">
+          <div className="relative">
+            <Cover src={event.image} fit={event.imageFit} pos={event.imagePos} from={preset?.from ?? '#E4EDE7'} to={preset?.to ?? '#CFE0D5'} className="h-[112px]" rounded="rounded-md" />
+            <Keepsake look={look} />
+          </div>
+          <p className="truncate px-1 pt-2 font-serif text-[14px]">{event.title}</p>
+        </PhotoFrame>
+      </div>
+      <div className="min-w-0">
+        <div className="mb-3 text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Style</div>
+        <CoverPicker event={event} onPatch={onPatch} />
+      </div>
+    </div>
+  )
+}
+
+/* A guest's answers are kept on this device only. One email, one sign-in link: opening
+   it signs them in (creating the account the first time), and the account takes over
+   this entry, so the plan is on every device they sign in on. */
+function KeepThisPlan({ eventId, defaultEmail }: { eventId: string; defaultEmail?: string }) {
+  const [email, setEmail] = useState(defaultEmail ?? '')
+  const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle')
+  const [error, setError] = useState<string | null>(null)
+  const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+  async function send(e: React.FormEvent) {
+    e.preventDefault()
+    if (!ok || state === 'sending') return
+    setState('sending'); setError(null)
+    const err = await sendMagicLink(email.trim().toLowerCase(), `/events/${eventId}`)
+    if (err) { setError(err); setState('idle'); return }
+    setState('sent')
+  }
+  return (
+    <div className="min-w-0 rounded-2xl border border-accent-border bg-s1 p-5">
+      <p className="text-[15px] font-semibold">Keep this plan on your phone and laptop</p>
+      {state === 'sent' ? (
+        <p className="mt-1.5 text-[14px] leading-[1.55] text-dim">Check {email.trim()} for a link. Open it and this plan, with your times and votes, is on your account.</p>
+      ) : (
+        <>
+          <p className="mt-1.5 text-[14px] leading-[1.55] text-dim">Your answers live on this device only. Add your email and we&apos;ll send a sign-in link.</p>
+          <form onSubmit={send} className="mt-3.5 flex flex-col gap-2.5 sm:flex-row">
+            <input
+              type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="sam@example.com" aria-label="Email" autoComplete="email"
+              className="h-11 min-w-0 rounded-[10px] border border-border2 bg-s0 px-3 text-[14px] outline-none focus:border-accent sm:h-10 sm:flex-1"
+            />
+            <button type="submit" disabled={!ok || state === 'sending'} className="h-11 flex-none rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-40 sm:h-10">
+              {state === 'sending' ? 'Sending' : 'Send link'}
+            </button>
+          </form>
+          {error && <p className="mt-2 text-[12.5px] text-brick-text">{error}</p>}
+        </>
+      )}
     </div>
   )
 }
@@ -803,13 +875,17 @@ function ParticipantsCard({ event, isHost, onPatch, onSetMyFace, onViewAvailabil
   return (
     <div className="min-w-0 rounded-2xl border border-border bg-s1 p-5">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Participants</span>
+        <span className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Who&apos;s in</span>
         <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[11.5px] text-dim">{event.participants.length}</span>
         <span className="ml-auto text-[12.5px] font-normal text-dim">
           {locked
             ? <>{going} going{noReply > 0 && <span className="text-faint">, {noReply} no reply</span>}</>
             : <>{nAvail} available{nCant > 0 && <>, {nCant} can&rsquo;t make it</>}{nNone > 0 && <span className="text-faint">, {nNone} no reply</span>}</>}
         </span>
+      </div>
+      {/* everyone in it, as faces first: a capped pile, straight, since this is a list */}
+      <div className="mb-4">
+        <AvatarRow people={sorted} size={36} max={7} flippable />
       </div>
       {/* the ways in come first, and they are the host's: the link, and, where the app
           can send, the email box. Everyone else sees the roster alone, since inviting
