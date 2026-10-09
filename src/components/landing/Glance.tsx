@@ -163,7 +163,7 @@ export function WhatItDoesGlance() {
       <ul ref={board} className="mt-8 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-4 lg:gap-x-7 lg:gap-y-8">
         {NOTES.map((n) => (
           <li key={n.title} className="min-w-0">
-            <StickyNote tilt={n.tilt} lift="bottom" className="h-full min-h-[138px] !gap-2.5 !px-3.5 !pb-3.5 sm:min-h-[170px] sm:!px-4 sm:!pb-4 lg:min-h-[188px] lg:!px-5">
+            <StickyNote tilt={n.tilt} className="h-full min-h-[138px] !gap-2.5 !px-3.5 !pb-3.5 sm:min-h-[170px] sm:!px-4 sm:!pb-4 lg:min-h-[188px] lg:!px-5">
               <span className="block h-14 text-sticky-dim sm:h-[76px] lg:h-[104px]" aria-hidden>{n.art}</span>
               <span className="mt-auto font-serif text-[15.5px] font-medium leading-[1.2] tracking-[-0.01em] sm:text-[18px]">{n.title}</span>
             </StickyNote>
