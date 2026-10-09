@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Check, Pencil, Plus, Trash2 } from 'lucide-react'
 import { AvatarRow } from '@/components/ui/AvatarRow'
-import { SettingsMenu } from '@/components/ui/Settings'
+import { SettingsMenu, SmallIcon } from '@/components/ui/Settings'
 import { PopoverItem, PopoverNote } from '@/components/ui/Popover'
 import { VoteRules } from '../VoteRules'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
@@ -120,18 +120,17 @@ export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPi
         {editing
           ? <p className="min-w-0 flex-1 text-[12px] font-semibold uppercase tracking-[.12em] text-faint sm:text-[11px]">Editing poll</p>
           : <p className="min-w-0 flex-1 break-words text-[14px] font-semibold leading-[1.35] text-text">{poll.q}</p>}
-        {/* one button for everything you can do to this poll: its rules (the host's),
-            then rewording and deleting it (its writer's, and the host's) */}
-        {((host && !locked) || ((mayEditAny || mayDelete) && !editing)) && (
+        {/* rewording is one tap, a pencil beside the settings; the settings hold the
+            rules (the host's) and, last, deleting (the writer's and the host's) */}
+        {mayEditAny && !editing && (
+          <button type="button" onClick={() => { release(); setEditing(true) }} aria-label="Edit poll" title="Edit poll" className="-my-0.5 flex-none">
+            <SmallIcon><Pencil size={14} /></SmallIcon>
+          </button>
+        )}
+        {((host && !locked) || (mayDelete && !editing)) && (
           <SettingsMenu title="Poll settings" label="Poll settings" small dense className="-my-0.5 flex-none">
             {(close) => (
               <>
-                {/* rewording first, the rules in the middle, deleting last */}
-                {mayEditAny && !editing && (
-                  <div className="py-1">
-                    <PopoverItem icon={<Pencil size={15} />} onClick={() => { close(); release(); setEditing(true) }}>Edit poll</PopoverItem>
-                  </div>
-                )}
                 {host && !locked && <PollSettingsPanel settings={s} optionCount={poll.o.length} onChange={onSettings} />}
                 {mayDelete && !editing && (
                   <div className="py-1">
