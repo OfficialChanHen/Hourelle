@@ -1,9 +1,14 @@
 'use client'
 
-import type { ReactNode } from 'react'
-import { Minus, Plus, SlidersHorizontal } from 'lucide-react'
+import { useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import * as Dialog from '@radix-ui/react-dialog'
+import { Minus, Plus, SlidersHorizontal, X } from 'lucide-react'
+import { gsap } from 'gsap'
+import { useGSAP } from '@gsap/react'
 import { Popover, PopoverTitle } from './Popover'
 import { Switch } from './Switch'
+import { layerOf } from '@/lib/layers'
+import { reducedMotion } from '@/lib/prefs'
 
 /* ── one settings panel for every tab ──
    The grid, the place vote, the attendance minimum and a chat poll each had their own
@@ -20,8 +25,13 @@ import { Switch } from './Switch'
      the label and a switch on one line (SettingToggle); an on/off is always a switch
    - a count is the one stepper (SettingStepper)
    - a line of fine print only where the setting has a consequence worth saying
+   - on a phone (under 640px) the same settings open as a sheet from the bottom
+     instead of a dropdown: a dropdown squeezed onto a small screen flipped and
+     clipped, and a sheet is where a thumb already is. It covers the lower part of
+     the screen only, so the grid above still shows each change as it lands
 
-   Everything applies as it is changed; there is no Save. */
+   Everything applies as it is changed; there is no Save. The sheet's Done only
+   closes it. */
 
 export const SETTINGS_WIDTH = 288
 
@@ -44,6 +54,10 @@ export function SettingsMenu({ title, label, iconOnly, button, className, childr
   className?: string
   children: (close: () => void) => ReactNode
 }) {
+  const phone = useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE).matches, () => false)
+  if (phone) {
+    return <SettingsSheet title={title} label={label} iconOnly={iconOnly} button={button} className={className}>{children}</SettingsSheet>
+  }
   return (
     <Popover
       align="end"
@@ -59,6 +73,116 @@ export function SettingsMenu({ title, label, iconOnly, button, className, childr
         </>
       )}
     </Popover>
+  )
+}
+
+const PHONE = '(max-width: 639px)'
+const subscribePhone = (cb: () => void) => {
+  const mq = window.matchMedia(PHONE)
+  mq.addEventListener('change', cb)
+  return () => mq.removeEventListener('change', cb)
+}
+
+/* The phone's settings: a sheet from the bottom edge, over the tab bar like any
+   modal (lib/layers), at most most of the screen tall and scrolling inside past
+   that. Radix Dialog carries the modal parts: focus moves in and comes back to the
+   button, the page behind is locked and hidden from screen readers, Escape and a
+   tap on the dimmed page close it. A downward drag on the top of the sheet closes
+   it too, the way a phone's own sheets go. GSAP slides it in and out. */
+function SettingsSheet({ title, label, iconOnly, button, className, children }: {
+  title: ReactNode
+  label?: string
+  iconOnly?: boolean
+  button?: ReactNode
+  className?: string
+  children: (close: () => void) => ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  // over the chat or the places sheet when it opens from inside one
+  const [z, setZ] = useState(50)
+  const trig = useRef<HTMLButtonElement>(null)
+  // the sheet and its shade as state, not refs: Radix mounts them a render after the
+  // dialog opens, so the slide in waits for the elements to exist
+  const [sheetEl, setSheetEl] = useState<HTMLDivElement | null>(null)
+  const [shadeEl, setShadeEl] = useState<HTMLDivElement | null>(null)
+  const closing = useRef(false)
+  const drag = useRef<{ y: number; dy: number } | null>(null)
+
+  useGSAP(() => {
+    if (!sheetEl || !shadeEl || reducedMotion()) return
+    gsap.fromTo(shadeEl, { opacity: 0 }, { opacity: 1, duration: 0.25, ease: 'power2.out' })
+    gsap.fromTo(sheetEl, { yPercent: 100 }, { yPercent: 0, duration: 0.34, ease: 'power3.out' })
+  }, { dependencies: [sheetEl, shadeEl] })
+
+  function close() {
+    if (closing.current) return
+    closing.current = true
+    if (reducedMotion() || !sheetEl || !shadeEl) { setOpen(false); return }
+    gsap.to(shadeEl, { opacity: 0, duration: 0.2, ease: 'power2.in' })
+    gsap.to(sheetEl, { y: 0, yPercent: 100, duration: 0.24, ease: 'power3.in', onComplete: () => setOpen(false) })
+  }
+
+  // the grab: follow the finger down, and let go past a short distance to close
+  function onDown(e: React.PointerEvent) {
+    if (e.button !== 0 || (e.target as HTMLElement).closest('button')) return
+    drag.current = { y: e.clientY, dy: 0 }
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  }
+  function onMove(e: React.PointerEvent) {
+    if (!drag.current || !sheetEl) return
+    drag.current.dy = Math.max(0, e.clientY - drag.current.y)
+    gsap.set(sheetEl, { y: drag.current.dy })
+  }
+  function onUp() {
+    const d = drag.current
+    drag.current = null
+    if (!d || !sheetEl) return
+    if (d.dy > 80) close()
+    else gsap.to(sheetEl, { y: 0, duration: 0.2, ease: 'power2.out' })
+  }
+
+  return (
+    <Dialog.Root
+      open={open}
+      onOpenChange={(o) => {
+        if (o) { closing.current = false; setZ(layerOf(trig.current) === 'modal' ? 75 : 50); setOpen(true) }
+        else close()
+      }}
+    >
+      <Dialog.Trigger asChild>
+        <button ref={trig} type="button" aria-label={label} className={className}>
+          <SettingsButton open={open} iconOnly={iconOnly}>{button}</SettingsButton>
+        </button>
+      </Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Overlay ref={setShadeEl} className="fixed inset-0 bg-[rgba(0,0,0,.32)]" style={{ zIndex: z }} />
+        <Dialog.Content
+          ref={setSheetEl}
+          aria-modal="true"
+          aria-describedby={undefined}
+          className="fixed inset-x-0 bottom-0 flex max-h-[85dvh] flex-col rounded-t-2xl border-t border-border bg-s1 shadow-soft outline-none"
+          style={{ zIndex: z, paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
+          <div onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} className="flex-none touch-none select-none">
+            <span aria-hidden className="mx-auto mt-2 block h-1 w-10 rounded-full bg-border2" />
+            <div className="flex items-center justify-between gap-3 border-b border-border py-1 pl-5 pr-2">
+              <Dialog.Title className="text-[15px] font-semibold text-text">{title}</Dialog.Title>
+              <Dialog.Close asChild>
+                <button type="button" aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full text-dim hover:bg-s2 hover:text-text"><X size={18} /></button>
+              </Dialog.Close>
+            </div>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5">
+            {/* close reads its refs only when called, from a control in here */}
+            {/* eslint-disable-next-line react-hooks/refs */}
+            <div className="flex flex-col divide-y divide-border">{children(close)}</div>
+          </div>
+          <div className="flex-none border-t border-border px-5 py-3">
+            <button type="button" onClick={close} className="flex h-11 w-full items-center justify-center rounded-full bg-accent text-[14px] font-semibold text-on-accent">Done</button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   )
 }
 
