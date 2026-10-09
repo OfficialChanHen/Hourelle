@@ -206,6 +206,9 @@ const NOTES_KEY = 'hourelle.home.notes'
 // the most notes drawn; past it the last spot says how many more there are
 const NOTES_MAX = 5
 type Note = { key: string; title: string; line: string; cta?: string; href?: string; done?: boolean }
+// a note is half the width of a card, so its button says the short version: "Mark my
+// times" broke onto two lines on a tablet. The line above it still says it in full.
+const noteLabel = (cta?: string) => (cta === 'Mark my times' ? 'Add times' : cta)
 
 /* Your turn: one sticky note per plan waiting on you, laid out on a board in rows of
    two, each a little turned, and your own face stuck in the spot after the last note.
@@ -219,7 +222,7 @@ type Note = { key: string; title: string; line: string; cta?: string; href?: str
    of it, animations/peel), then the notes after it slide up into the gap (measured
    before and after, then eased from the old spot). With reduced motion done notes
    simply go. */
-function NotesBoard({ turns, eventIds, wide, mid }: { turns: { x: Item; t: Turn }[]; eventIds: Set<string>; wide: boolean; mid: boolean }) {
+function NotesBoard({ turns, eventIds, wide }: { turns: { x: Item; t: Turn }[]; eventIds: Set<string>; wide: boolean }) {
   const root = useRef<HTMLDivElement>(null)
   const [board, setBoard] = useState<Note[]>([])
   // where each note sat before the board changed, for the slide into the gap
@@ -298,10 +301,7 @@ function NotesBoard({ turns, eventIds, wide, mid }: { turns: { x: Item; t: Turn 
     <section aria-labelledby="home-turn" className="min-w-0">
       <h2 id="home-turn" className="sr-only">Your turn{owed ? `, ${owed} ${owed === 1 ? 'plan' : 'plans'} waiting on you` : ''}</h2>
       {finished.length > 0 && <span className="sr-only" role="status">{finished.map((n) => `${n.title}: done`).join('. ')}</span>}
-      {/* in the tablet layout the board is the right column, and below 880px that column
-          is too narrow for two notes side by side (a note's button broke onto two
-          lines), so there the notes stack one to a row */}
-      <div ref={root} className={`grid grid-cols-2 items-start gap-x-4 gap-y-5 sm:max-w-[480px] sm:gap-x-5 lg:w-[460px] ${mid ? 'md:max-[879px]:grid-cols-1' : ''}`}>
+      <div ref={root} className="grid grid-cols-2 items-start gap-x-4 gap-y-5 sm:max-w-[480px] sm:gap-x-5 lg:w-[460px]">
         {shownNotes.map((n, i) => (
           <div key={n.key} data-note={n.key} className="relative min-w-0">
             <div data-paper aria-hidden={n.done || undefined}>
@@ -316,7 +316,7 @@ function NotesBoard({ turns, eventIds, wide, mid }: { turns: { x: Item; t: Turn 
                 <span className={`text-[13px] leading-[1.4] text-sticky-dim ${n.done ? 'line-through decoration-1' : ''}`}>{n.line}</span>
                 {!n.done && n.href && (
                   <Link href={n.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent sm:h-9">
-                    {n.cta}
+                    {noteLabel(n.cta)}
                   </Link>
                 )}
               </StickyNote>
@@ -335,7 +335,7 @@ function NotesBoard({ turns, eventIds, wide, mid }: { turns: { x: Item; t: Turn 
         )}
         {/* your face, stuck in the spot after the last note; on a row of its own it
             sits in the middle of it */}
-        <FaceSticker size={wide ? 140 : 110} className={`${(shownNotes.length + (more > 0 ? 1 : 0)) % 2 ? 'min-h-[172px]' : 'col-span-2 py-1'} ${mid ? 'md:max-[879px]:col-span-1 md:max-[879px]:min-h-0 md:max-[879px]:py-1' : ''}`} />
+        <FaceSticker size={wide ? 140 : 110} className={(shownNotes.length + (more > 0 ? 1 : 0)) % 2 ? 'min-h-[172px]' : 'col-span-2 py-1'} />
       </div>
     </section>
   )
@@ -474,7 +474,7 @@ export default function HomePage() {
             {/* in the two-column middle layout the board takes the right column, level
                 with Up next, and the form runs under both */}
             <div className={mid ? 'md:mt-8' : 'contents'}>
-              <NotesBoard turns={turns} eventIds={eventIds} wide={wide} mid={mid} />
+              <NotesBoard turns={turns} eventIds={eventIds} wide={wide} />
             </div>
             <div className={mid ? 'md:col-span-2 md:mt-12' : 'contents'}>
               <QuickCreate />
