@@ -39,6 +39,17 @@ const PHASE_STEP: Record<Phase, number> = { planning: 0, upcoming: 1, soon: 2, t
    screen reader hears each step and which one is current (`aria-current="step"`).
    The circle draws itself once (Pencil.tsx), and just sits there with reduced
    motion. `labels` is kept for callers; every stage is always named now. */
+/* Only the current stage, circled in pencil the way the stepper circles it: for a
+   compact row with no room for all five words */
+export function StageWord({ phase, className = '' }: { phase: Phase; className?: string }) {
+  const idx = PHASE_STEP[phase]
+  return (
+    <span className={`flex-none px-1 font-semibold text-text ${className}`}>
+      <span className="sr-only">Stage: </span><PencilCircle>{STEPS[idx]}</PencilCircle>
+    </span>
+  )
+}
+
 export function StageStepper({ phase, className = '' }: { phase: Phase; labels?: 'auto' | 'current' | 'all'; className?: string }) {
   const idx = PHASE_STEP[phase]
   return (

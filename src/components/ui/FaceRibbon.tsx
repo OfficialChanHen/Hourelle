@@ -1,5 +1,6 @@
 import { Avatar } from './Avatar'
 import { namesLabel } from './AvatarRow'
+import { FlipGroup } from './FlipGroup'
 import type { Avatar as Person } from '@/lib/people'
 import { useWide } from '@/hooks/useWide'
 
@@ -8,8 +9,8 @@ import { useWide } from '@/hooks/useWide'
    so a plan with a hundred people draws seven things. Faces sit side by side, not
    overlapping, and bob up and down a few pixels in a fixed pattern.
 
-   `flippable` makes each face a button that turns over to its initials; the row is
-   then a group named for the people in it. For a moment surface only, never a list
+   `flippable` makes the whole ribbon one button that turns every face over to its
+   initials in order (FlipGroup). For a moment surface only, never a list
    you work through. */
 const BOB = [6, 0, 5, 1, 7, 2]
 const TILT = [-3, 2, -2, 3, -1, 2]
@@ -32,13 +33,7 @@ export function FaceRibbon({
   const shown = people.slice(0, max)
   const extra = people.length - shown.length
   const label = namesLabel(shown.map((p) => p.name), extra)
-  return (
-    <div
-      className={`flex items-start gap-1.5 ${className}`}
-      style={{ height: size + 8 }}
-      role={label ? (flippable ? 'group' : 'img') : undefined}
-      aria-label={label || undefined}
-    >
+  const faces = <>
       {shown.map((p, i) => (
         <span key={p.id ?? i} className="flex" style={{ transform: `translateY(${BOB[i % BOB.length]}px)` }}>
           <Avatar
@@ -56,6 +51,19 @@ export function FaceRibbon({
           +{extra}
         </span>
       )}
+  </>
+  // flippable: the whole ribbon is one button that turns every face over in order
+  if (flippable) {
+    return <FlipGroup names={label} className={`flex items-start gap-1.5 ${className}`} style={{ height: size + 8 }}>{faces}</FlipGroup>
+  }
+  return (
+    <div
+      className={`flex items-start gap-1.5 ${className}`}
+      style={{ height: size + 8 }}
+      role={label ? 'img' : undefined}
+      aria-label={label || undefined}
+    >
+      {faces}
     </div>
   )
 }

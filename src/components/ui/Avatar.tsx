@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react'
 import { personVar, type PersonColor } from '@/lib/colors'
 import { defaultFace, ringGap, type Face } from '@/lib/faces'
 import { useFaceFlip } from '@/hooks/useFaceFlip'
+import { useInFlipGroup } from './FlipGroup'
 import { FaceSvg } from './FaceSvg'
 
 /* Somebody's face in their own colour. The colour and the face are decorative
@@ -53,6 +54,10 @@ export function Avatar({
   // whole pixels only: a fractional box smears every edge of the drawing
   const size = Math.max(1, Math.round(rawSize))
   const turn = tilt ? `rotate(${Math.max(-3, Math.min(3, tilt))}deg)` : undefined
+  // in a row of faces the row is the button (FlipGroup): this face draws both sides
+  // and turns with the others, with no button of its own
+  const inGroup = useInFlipGroup()
+  if (flippable && inGroup) return <TurnFace initials={initials} color={color} face={look} size={size} font={font} turn={turn} title={title} />
   if (flippable) {
     return (
       <FlipFace
@@ -111,5 +116,37 @@ function FlipFace({ initials, color, face, size, font, name, turn }: {
         </span>
       </span>
     </button>
+  )
+}
+
+/* A face with both sides drawn and no button: it sits in a FlipGroup, which turns
+   every .face-flip in its row. */
+function TurnFace({ initials, color, face, size, font, turn, title }: {
+  initials: string; color: PersonColor; face: Face; size: number; font?: number; turn?: string; title?: string
+}) {
+  const c = personVar(color)
+  return (
+    <span
+      aria-hidden title={title}
+      style={{ width: size, height: size, perspective: size * 6, transform: turn } as CSSProperties}
+      className="relative block shrink-0 select-none rounded-full"
+    >
+      <span className="face-flip relative block h-full w-full" style={{ transformStyle: 'preserve-3d' }}>
+        <span className="absolute inset-0" style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}>
+          <FaceSvg face={face} color={color} size={size} />
+        </span>
+        <span
+          className="absolute grid place-items-center rounded-full font-semibold leading-none"
+          style={{
+            inset: size / 22, boxShadow: `0 0 0 ${size / 20}px var(--face-edge)`, filter: 'var(--face-lift)',
+            background: c.bg, color: c.text,
+            fontSize: font ?? Math.round(size * 0.36 * 10) / 10,
+            backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)',
+          }}
+        >
+          {initials}
+        </span>
+      </span>
+    </span>
   )
 }

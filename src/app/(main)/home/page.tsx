@@ -33,7 +33,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   CalendarPlus, CalendarClock, Calendar, Check, CopyPlus, Link2, ArrowRight, MapPin, Video, UsersRound, UserRound,
-  Trash2, UserRoundX, ChevronRight,
+  Trash2, UserRoundX, MoreVertical,
 } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Em } from '@/components/ui/Em'
@@ -58,7 +58,10 @@ import { defaultFace } from '@/lib/faces'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Tip } from '@/components/ui/Tip'
-import { StageStepper } from '@/components/ui/LifecycleStrip'
+import { StageStepper, StageWord } from '@/components/ui/LifecycleStrip'
+import { HostTag } from '@/components/ui/HostTag'
+import { MenuSheet } from '@/components/ui/Sheet'
+import { PopoverItem } from '@/components/ui/Popover'
 import { placeVotes, chatLines } from '@/lib/polls'
 import { fromDay,
   createEvent, eventTabFor, listEvents, phaseOf, daysUntil, dateRangeText, confirmedSlotText, sameDayLabelFor,
@@ -96,7 +99,7 @@ function useWide() {
   return useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE).matches, () => false)
 }
 
-type Turn = { line: string; cta: string; href: string }
+type Turn = { line: string; cta: string; href: string; due?: string } // due: the by-when alone, "Oct 14"
 type Item = { e: AppEvent; phase: Phase }
 
 // "Oct 3", for the by-when on a task
@@ -109,11 +112,11 @@ function turnOf(e: AppEvent, phase: Phase): Turn | null {
   const me = e.participants.find((p) => p.you)
   if (!me || e.demo) return null
   if (phase === 'planning') {
-    if (!youReplied(e)) return { line: `Mark your times${e.planDeadline ? ` by ${shortDay(e.planDeadline)}` : ''}`, cta: 'Mark my times', href: `/events/${e.id}?tab=availability` }
-    if (e.location.mode === 'vote' && e.location.places.length > 0 && !youVoted(e)) return { line: `Vote on the place${e.voteDeadline ? ` by ${shortDay(e.voteDeadline)}` : ''}`, cta: 'Vote', href: `/events/${e.id}?tab=location` }
+    if (!youReplied(e)) return { line: `Mark your times${e.planDeadline ? ` by ${shortDay(e.planDeadline)}` : ''}`, cta: 'Mark my times', href: `/events/${e.id}?tab=availability`, due: e.planDeadline ? shortDay(e.planDeadline) : undefined }
+    if (e.location.mode === 'vote' && e.location.places.length > 0 && !youVoted(e)) return { line: `Vote on the place${e.voteDeadline ? ` by ${shortDay(e.voteDeadline)}` : ''}`, cta: 'Vote', href: `/events/${e.id}?tab=location`, due: e.voteDeadline ? shortDay(e.voteDeadline) : undefined }
     return null
   }
-  if (phase !== 'past' && me.rsvp === 'pending') return { line: `Say if you’re coming${e.rsvpDeadline ? ` by ${shortDay(e.rsvpDeadline)}` : ''}`, cta: 'Reply', href: `/events/${e.id}` }
+  if (phase !== 'past' && me.rsvp === 'pending') return { line: `Say if you’re coming${e.rsvpDeadline ? ` by ${shortDay(e.rsvpDeadline)}` : ''}`, cta: 'Reply', href: `/events/${e.id}`, due: e.rsvpDeadline ? shortDay(e.rsvpDeadline) : undefined }
   return null
 }
 
@@ -181,23 +184,77 @@ function CompactPlan({ e, phase }: { e: AppEvent; phase: Phase }) {
   return (
     <div className={`relative isolate ${faces.length ? 'mr-6' : ''}`}>
       {faces.length > 0 && <PeekingFaces people={faces} plan={e.title} />}
-    <Link href={turn?.href ?? eventTabFor(e)} className="flex items-center gap-3 rounded-[14px] bg-frame p-2 pr-3 shadow-frame">
-      <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={from} to={to} className="h-[64px] w-[72px] flex-none" rounded="rounded-lg" />
+    <Link href={turn?.href ?? eventTabFor(e)} className="flex items-center gap-3 rounded-[14px] bg-frame p-2 pr-14 shadow-frame">
+      {/* the cover runs the row's full height, so a line that wraps never leaves it
+          floating in a gap */}
+      <span className="flex w-[72px] flex-none self-stretch">
+        <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={from} to={to} className="h-full min-h-[64px] w-full" rounded="rounded-lg" />
+      </span>
       <div className="min-w-0 flex-1">
         <div className="truncate font-serif text-[17px] leading-tight tracking-[-0.01em]">{e.title}</div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-dim">
+        {/* where it stands as the one circled word and whose plan it is, then the
+            time question */}
+        <div className="mt-1 flex min-w-0 items-center gap-2 text-[13px]">
+          <StageWord phase={phase} className="-ml-1" />
+          <HostTag e={e} inline />
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-dim">
           {slot
             ? <><span>{slot}</span><TimezonePill tz={e.timezone} day={e.confirmed?.dayKey} /></>
             : d.best
-              ? <><span>{d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)}</span><TimezonePill tz={e.timezone} day={d.best.dayKey} /><span>so far</span></>
+              ? <><span>{d.best.dayLabel}, {fmtMinute(d.gridStart + d.best.s)}</span><TimezonePill tz={e.timezone} day={d.best.dayKey} /></>
               : <span>Picking a time</span>}
         </div>
         <div className="mt-0.5 text-[13px] text-dim">{countLine(e, d, false)}</div>
         {turn && <div className="mt-0.5 truncate text-[13px] font-semibold text-text">{turn.line}</div>}
       </div>
-      <ChevronRight size={17} className="flex-none text-faint" aria-hidden />
     </Link>
+      {/* the row opens the plan; this is the rest you can do with it, kept out of the
+          link so a tap on it never opens the plan */}
+      <PlanMenu e={e} phase={phase} className="absolute right-1.5 top-1/2 z-[2] -translate-y-1/2" />
     </div>
+  )
+}
+
+/* The quick things you can do with a plan from its compact row: copy its link (the
+   host's), duplicate it (with an account), and delete it (yours) or leave it (someone
+   else's), the last two at the plan's own delete zone, where it is confirmed. A sheet
+   on a phone, a small menu on anything wider. */
+function PlanMenu({ e, phase, className = '' }: { e: AppEvent; phase: Phase; className?: string }) {
+  const account = useAccount()
+  const [from, to] = coverFor(e.id)
+  function copyLink(close: () => void) {
+    navigator.clipboard?.writeText(`${window.location.origin}/events/${e.id}/join`).then(() => pushFlash(`Link to ${e.title} copied.`)).catch(() => {})
+    close()
+  }
+  if (e.demo) return null
+  return (
+    <MenuSheet
+      label={`More for ${e.title}`}
+      triggerClassName={className}
+      trigger={(open) => (
+        <span className={`grid h-11 w-11 place-items-center rounded-full ${open ? 'bg-s2 text-text' : 'text-dim hover:bg-s2 hover:text-text'}`}><MoreVertical size={20} /></span>
+      )}
+      title={(
+        <span className="flex min-w-0 items-center gap-3">
+          <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={from} to={to} className="h-10 w-11 flex-none" rounded="rounded-md" />
+          <span className="min-w-0">
+            <span className="block truncate font-serif text-[17px] font-normal">{e.title}</span>
+            <span className="block text-[12.5px] font-normal text-dim">{e.hostedByYou ? 'You’re hosting' : `From ${(e.participants.find((p) => p.host)?.name || e.hostName || 'the host').split(' ')[0]}`}</span>
+          </span>
+        </span>
+      )}
+    >
+      {(close) => (
+        <>
+          {e.hostedByYou && phase !== 'past' && <PopoverItem icon={<Link2 size={16} />} onClick={() => copyLink(close)}>Copy invite link</PopoverItem>}
+          {account.signedIn && <PopoverItem icon={<CopyPlus size={16} />} href={`/create?from=${e.id}`} onClick={close}>{e.hostedByYou ? 'Duplicate' : 'Duplicate as my own plan'}</PopoverItem>}
+          <PopoverItem tone="brick" icon={e.hostedByYou ? <Trash2 size={16} /> : <UserRoundX size={16} />} href={`/events/${e.id}?tab=details&focus=delete`} onClick={close}>
+            {e.hostedByYou ? 'Delete plan' : 'Leave plan'}
+          </PopoverItem>
+        </>
+      )}
+    </MenuSheet>
   )
 }
 
@@ -205,7 +262,10 @@ function CompactPlan({ e, phase }: { e: AppEvent; phase: Phase }) {
 const NOTES_KEY = 'hourelle.home.notes'
 // the most notes drawn; past it the last spot says how many more there are
 const NOTES_MAX = 5
-type Note = { key: string; title: string; line: string; cta?: string; href?: string; done?: boolean }
+type Note = { key: string; title: string; line: string; due?: string; cta?: string; href?: string; done?: boolean }
+// a note is half the width of a card, so its button says the short version: "Mark my
+// times" broke onto two lines on a tablet. The line above it still says it in full.
+const noteLabel = (cta?: string) => (cta === 'Mark my times' ? 'Add times' : cta)
 
 /* Your turn: one sticky note per plan waiting on you, laid out on a board in rows of
    two, each a little turned, and your own face stuck in the spot after the last note.
@@ -219,12 +279,12 @@ type Note = { key: string; title: string; line: string; cta?: string; href?: str
    of it, animations/peel), then the notes after it slide up into the gap (measured
    before and after, then eased from the old spot). With reduced motion done notes
    simply go. */
-function NotesBoard({ turns, eventIds, wide }: { turns: { x: Item; t: Turn }[]; eventIds: Set<string>; wide: boolean }) {
+function NotesBoard({ turns, eventIds, wide, hasPlans }: { turns: { x: Item; t: Turn }[]; eventIds: Set<string>; wide: boolean; hasPlans: boolean }) {
   const root = useRef<HTMLDivElement>(null)
   const [board, setBoard] = useState<Note[]>([])
   // where each note sat before the board changed, for the slide into the gap
   const from = useRef<Map<string, DOMRect>>(new Map())
-  const live = turns.map(({ x, t }) => ({ key: `${x.e.id}:${t.cta}`, title: x.e.title, line: t.line, cta: t.cta, href: t.href }))
+  const live = turns.map(({ x, t }) => ({ key: `${x.e.id}:${t.cta}`, title: x.e.title, line: t.line, due: t.due, cta: t.cta, href: t.href }))
   const liveSig = live.map((n) => n.key).join('|')
 
   // lay out the board: what it held last time in that order (a note whose task is now
@@ -289,7 +349,18 @@ function NotesBoard({ turns, eventIds, wide }: { turns: { x: Item; t: Turn }[]; 
     return () => { t.kill() }
   }, { scope: root, dependencies: [doneKeys] })
 
-  if (!board.length) return null
+  // nothing waiting on you: your face and a line, in the spot the notes would take, so
+  // the column says so instead of standing empty (only once there are plans at all)
+  if (!board.length) {
+    if (live.length || !hasPlans) return null
+    return (
+      <section aria-labelledby="home-turn" className="flex min-w-0 flex-col items-center gap-3 py-2 sm:max-w-[480px] lg:w-[460px]">
+        <h2 id="home-turn" className="sr-only">Your turn</h2>
+        <FaceSticker size={wide ? 140 : 128} />
+        <p className="font-serif text-[18px] italic text-dim">Nothing waiting on you.</p>
+      </section>
+    )
+  }
   const owed = board.filter((n) => !n.done).length
   const shownNotes = board.slice(0, board.length > NOTES_MAX ? NOTES_MAX - 1 : NOTES_MAX)
   const more = board.length - shownNotes.length
@@ -310,10 +381,14 @@ function NotesBoard({ turns, eventIds, wide }: { turns: { x: Item; t: Turn }[]; 
                 className="min-h-[172px]"
               >
                 <span className="font-serif text-[18px] leading-[1.15] [overflow-wrap:anywhere]">{n.title}</span>
-                <span className={`text-[13px] leading-[1.4] text-sticky-dim ${n.done ? 'line-through decoration-1' : ''}`}>{n.line}</span>
+                {/* the button says the task; the note adds only its by-when. A note ticked
+                    Done keeps the task, struck through, so you see what was finished */}
+                {n.done
+                  ? <span className="text-[13px] leading-[1.4] text-sticky-dim line-through decoration-1">{n.line}</span>
+                  : n.due && <span className="text-[13px] leading-[1.4] text-sticky-dim">By {n.due}</span>}
                 {!n.done && n.href && (
                   <Link href={n.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent sm:h-9">
-                    {n.cta}
+                    {noteLabel(n.cta)}
                   </Link>
                 )}
               </StickyNote>
@@ -332,7 +407,9 @@ function NotesBoard({ turns, eventIds, wide }: { turns: { x: Item; t: Turn }[]; 
         )}
         {/* your face, stuck in the spot after the last note; on a row of its own it
             sits in the middle of it */}
-        <FaceSticker size={wide ? 140 : 110} className={(shownNotes.length + (more > 0 ? 1 : 0)) % 2 ? 'min-h-[172px]' : 'col-span-2 py-1'} />
+        {/* beside an odd last note it fills that spot; after an even row it sits on a
+            row of its own, below */}
+        <FaceSticker size={wide ? 140 : (shownNotes.length + (more > 0 ? 1 : 0)) % 2 ? 136 : 120} className={(shownNotes.length + (more > 0 ? 1 : 0)) % 2 ? 'min-h-[172px]' : 'col-span-2 py-1'} />
       </div>
     </section>
   )
@@ -387,7 +464,7 @@ export default function HomePage() {
   // owe beside it, and the new-plan form under both, rather than a phone column
   // marooned in the middle of a tablet. Only when something is owed, or the right
   // column would stand empty.
-  const mid = !wide && shown.length > 0 && turns.length > 0
+  const mid = !wide && shown.length > 0
   // each card's hand-laid details, from its plan id; a neighbour never repeats them.
   // On a phone the card lies straight, in line with the rows under it; the tilt is
   // for the photos laid out side by side on a large screen
@@ -417,16 +494,17 @@ export default function HomePage() {
           <div className="h-[200px] animate-pulse rounded-2xl bg-s2" />
         </div>
       ) : (
-        <div className={solo ? 'mt-8 grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-start gap-x-14' : mid ? 'md:grid md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:items-start md:gap-x-10' : ''}>
+        <div className={solo ? 'mt-8 grid grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-start gap-x-14' : mid ? 'md:grid md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:items-center md:gap-x-10' : ''}>
           <section aria-labelledby="home-upnext" className={solo ? '' : 'mt-6 sm:mt-8'}>
             <h2 id="home-upnext" className="sr-only">Up next</h2>
             {shown.length === 0 ? (
               <div className="max-w-[480px]">
+                {/* the form to start one is right below, so this points to it rather
+                    than offering a second "Start a plan" */}
                 <EmptyState
                   icon={CalendarPlus}
                   title="Your next plan goes here"
-                  body="Start one and your group can pick a time together."
-                  action={{ label: 'Start a plan', href: '/create' }}
+                  body="Start one below and your group can pick a time together."
                   secondary={{ label: 'Or use a template', href: '/templates' }}
                 />
               </div>
@@ -466,11 +544,11 @@ export default function HomePage() {
           </section>
 
           {/* what you owe, then a new plan: side by side on a large screen */}
-          <div className={`grid gap-y-9 ${solo ? 'pt-6' : `mt-8 lg:mt-14 lg:items-start lg:gap-x-16 ${turns.length ? 'lg:grid-cols-[auto_minmax(0,1fr)]' : 'lg:max-w-[720px]'}`} ${mid ? 'md:contents' : ''}`}>
+          <div className={`grid gap-y-9 ${solo ? 'pt-6' : `mt-8 lg:mt-14 lg:items-start lg:gap-x-16 ${turns.length || shown.length ? 'lg:grid-cols-[auto_minmax(0,1fr)]' : 'lg:max-w-[720px]'}`} ${mid ? 'md:contents' : ''}`}>
             {/* in the two-column middle layout the board takes the right column, level
                 with Up next, and the form runs under both */}
             <div className={mid ? 'md:mt-8' : 'contents'}>
-              <NotesBoard turns={turns} eventIds={eventIds} wide={wide} />
+              <NotesBoard turns={turns} eventIds={eventIds} wide={wide} hasPlans={shown.length > 0} />
             </div>
             <div className={mid ? 'md:col-span-2 md:mt-12' : 'contents'}>
               <QuickCreate />
@@ -598,6 +676,7 @@ function UpNext({ e, phase, sameDay, size, look, lead = false }: { e: AppEvent; 
             <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={coverFrom} to={coverTo} className={small ? 'h-[84px]' : 'h-[112px] sm:h-[160px]'} rounded="rounded-lg" />
           </Link>
           <Keepsake look={look} />
+          <HostTag e={e} />
         </div>
         <div ref={details} className={`relative ${small ? 'px-2 pb-2 pt-2.5' : 'px-2 pb-1.5 pt-3'}`}>
           {/* its place in the stack and the way on, in the top right */}

@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Check, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Check, Pencil, Plus, Trash2 } from 'lucide-react'
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { SettingsMenu, SmallIcon } from '@/components/ui/Settings'
-import { Popover, PopoverItem, PopoverNote } from '@/components/ui/Popover'
+import { PopoverItem, PopoverNote } from '@/components/ui/Popover'
 import { VoteRules } from '../VoteRules'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { daysUntil, fromDay, todayKey } from '@/lib/events'
@@ -120,12 +120,25 @@ export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPi
         {editing
           ? <p className="min-w-0 flex-1 text-[12px] font-semibold uppercase tracking-[.12em] text-faint sm:text-[11px]">Editing poll</p>
           : <p className="min-w-0 flex-1 break-words text-[14px] font-semibold leading-[1.35] text-text">{poll.q}</p>}
-        {(mayEditAny || mayDelete) && !editing && (
-          <PollMenu canEdit={mayEditAny} canDelete={mayDelete} onEdit={() => { release(); setEditing(true) }} onDelete={onDelete} />
+        {/* rewording is one tap, a pencil beside the settings; the settings hold the
+            rules (the host's) and, last, deleting (the writer's and the host's) */}
+        {mayEditAny && !editing && (
+          <button type="button" onClick={() => { release(); setEditing(true) }} aria-label="Edit poll" title="Edit poll" className="-my-0.5 flex-none">
+            <SmallIcon><Pencil size={14} /></SmallIcon>
+          </button>
         )}
-        {host && !locked && (
-<SettingsMenu title="Poll settings" label="Poll settings" small className="-my-0.5 flex-none">
-            {() => <PollSettingsPanel settings={s} optionCount={poll.o.length} onChange={onSettings} />}
+        {((host && !locked) || (mayDelete && !editing)) && (
+          <SettingsMenu title="Poll settings" label="Poll settings" small dense className="-my-0.5 flex-none">
+            {(close) => (
+              <>
+                {host && !locked && <PollSettingsPanel settings={s} optionCount={poll.o.length} onChange={onSettings} />}
+                {mayDelete && !editing && (
+                  <div className="py-1">
+                    <DeletePoll onDelete={() => { close(); onDelete() }} />
+                  </div>
+                )}
+              </>
+            )}
           </SettingsMenu>
         )}
       </div>
@@ -445,25 +458,8 @@ function PollSettingsPanel({ settings, optionCount, onChange }: { settings: Poll
   )
 }
 
-/* The writer's and the host's menu on a poll: Edit (while there is still something
-   to reword) and Delete, which asks once before it goes, since everyone's votes go
-   with it. */
-function PollMenu({ canEdit, canDelete, onEdit, onDelete }: { canEdit: boolean; canDelete: boolean; onEdit: () => void; onDelete: () => void }) {
-  return (
-    <Popover
-      align="end"
-      width={224}
-      label="Poll options"
-      className="-my-0.5 flex-none"
-      trigger={(open) => <SmallIcon open={open}><MoreHorizontal size={15} /></SmallIcon>}
-    >
-      {(close) => <PollMenuItems canEdit={canEdit} canDelete={canDelete} onEdit={() => { close(); onEdit() }} onDelete={() => { close(); onDelete() }} />}
-    </Popover>
-  )
-}
-
-// its own component so the confirm starts over each time the menu opens
-function PollMenuItems({ canEdit, canDelete, onEdit, onDelete }: { canEdit: boolean; canDelete: boolean; onEdit: () => void; onDelete: () => void }) {
+// its own component so the confirm starts over each time the panel opens
+function DeletePoll({ onDelete }: { onDelete: () => void }) {
   const [confirm, setConfirm] = useState(false)
   if (confirm) return (
     <>
@@ -474,10 +470,5 @@ function PollMenuItems({ canEdit, canDelete, onEdit, onDelete }: { canEdit: bool
       </div>
     </>
   )
-  return (
-    <>
-      {canEdit && <PopoverItem icon={<Pencil size={15} />} onClick={onEdit}>Edit poll</PopoverItem>}
-      {canDelete && <PopoverItem icon={<Trash2 size={15} />} tone="brick" onClick={() => setConfirm(true)}>Delete poll</PopoverItem>}
-    </>
-  )
+  return <PopoverItem icon={<Trash2 size={15} />} tone="brick" onClick={() => setConfirm(true)}>Delete poll</PopoverItem>
 }
