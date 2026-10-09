@@ -1535,7 +1535,7 @@ function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Par
   return (
     <div className="flex flex-col gap-2">
       {/* a demo is never persisted, so it has nothing to file a photo under */}
-      <CoverEditor image={event.image} fit={event.imageFit} pos={event.imagePos} keepsake={event.keepsake} title={event.title} eventId={event.demo ? undefined : event.id} onChange={(p) => onPatch(p)} />
+      <CoverEditor image={event.image} fit={event.imageFit} pos={event.imagePos} keepsake={event.keepsake} eventId={event.demo ? undefined : event.id} onChange={(p) => onPatch(p)} />
       <div>
         <button onClick={() => setEditing(false)} className="h-8 rounded-full px-2 text-[12.5px] font-semibold text-dim hover:bg-s2">Done</button>
       </div>

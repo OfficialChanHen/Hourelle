@@ -4,7 +4,7 @@
    data URL until then (see lib/covers). */
 
 import { isPhotoCover } from '@/lib/cover-kind'
-import { CoverImg } from './CoverImg'
+import { CoverImg, FitBackdrop } from './CoverImg'
 
 export type CoverPreset = { id: string; name: string; from: string; to: string; scene: React.ReactNode }
 
@@ -382,7 +382,7 @@ export function Cover({
   from: string
   to: string
   src?: string
-  // a photo either fills the frame (cropped) or fits inside it whole, on a blur of itself
+  // a photo either fills the frame (cropped) or fits inside it whole, on its own most common colour
   fit?: 'fill' | 'fit'
   // which part of a cropped photo survives the crop. Every frame in the app is a
   // different shape, so the host picks a point to keep rather than a rectangle: the
@@ -402,7 +402,7 @@ export function Cover({
         <DefaultMarks />
         {/* already downscaled on the way in, and a data URL has nothing for
             next/image to fetch, so both sources go straight to an <img> */}
-        {whole && <CoverImg src={src!} hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-xl" />}
+        {whole && <FitBackdrop src={src!} />}
         <CoverImg
           src={src!}
           className={`absolute inset-0 h-full w-full ${whole ? 'object-contain' : 'object-cover'}`}

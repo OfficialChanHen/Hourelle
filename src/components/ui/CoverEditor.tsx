@@ -5,9 +5,7 @@ import { Crop, ImagePlus, Loader2 } from 'lucide-react'
 import { Cover, COVER_PRESETS } from './Cover'
 import { Keepsake, DETAIL_CHOICES, lookOf, withDetail, type CardDetail } from './Keepsake'
 import { CoverPosition, type Pos } from './CoverPosition'
-import { HostTag } from './HostTag'
-import { useAccount } from '@/hooks/useAccount'
-import { initialsOf, type Participant } from '@/lib/events'
+import { CoverCrops } from './CoverCrops'
 import { ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL, downscaleImage, isAcceptedImage } from '@/lib/image'
 import { removeCover, uploadCover } from '@/lib/covers'
 import { isInlineCover, isPhotoCover } from '@/lib/cover-kind'
@@ -23,10 +21,9 @@ export function styleSummary(image: string | undefined, fit: ImageFit | undefine
 
 /* One editor for the card's style (its cover and the detail that holds it down),
    shared by the create wizard and the event's details tab. The cover:
-   The preset scenes, a photo of your own, and a preview drawn exactly the way the
-   event card and the event page draw it, so what is chosen here is what the app
-   shows. A photo also gets a choice of fill or fit: fill crops the picture to the
-   frame, fit shows all of it on a soft blur of itself.
+   The preset scenes, a photo of your own, and a strip showing how each place in the
+   app crops it on this screen, so what is chosen here is what the app shows. A photo also gets a choice of fill or fit: fill crops the picture to the
+   frame, fit shows all of it on its own most common colour.
 
    WHERE THE PHOTO GOES. With an `eventId` and a session, a picked photo is uploaded
    and the event keeps a URL. Without either — the create wizard, where the event
@@ -37,21 +34,17 @@ export function styleSummary(image: string | undefined, fit: ImageFit | undefine
    A photo that is still a data URL is also moved, quietly, the first time its host
    opens this editor. That is the only way the covers already sitting in people's
    browsers ever leave them: the bytes are there, not on the server. */
-export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId, onChange }: {
+export function CoverEditor({ image, fit = 'fill', pos, keepsake, eventId, onChange }: {
   image?: string
   fit?: ImageFit
   // which part of a cropped photo to keep; the middle when nothing has been chosen
   pos?: Pos
   // the detail on the card: pins, tape, a clip, photo corners, 'none', or absent for Auto
   keepsake?: CardDetail
-  title: string
   // the event to file the photo under; absent in the wizard, where there is no event yet
   eventId?: string
   onChange: (patch: { image?: string; imageFit?: ImageFit; imagePos?: Pos; keepsake?: CardDetail }) => void
 }) {
-  const account = useAccount()
-  const me = { id: 'me', name: account.name, initials: initialsOf(account.name), color: account.color, face: account.face, host: true, rsvp: 'attending' } as Participant
-
   const [posing, setPosing] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -59,11 +52,9 @@ export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId
   const preset = COVER_PRESETS.find((p) => image === `preset:${p.id}`)
   const photo = isPhotoCover(image)
   const from = preset?.from ?? '#E4EDE7', to = preset?.to ?? '#CFE0D5'
-  const name = title.trim() || 'Your plan'
   // the card's look as it will be: Auto is what the plan's id deals (in the wizard,
   // before there is an id, a stand-in), else what was picked
   const auto = lookOf(eventId ?? 'new-plan', 0)
-  const look = { ...withDetail(auto, keepsake), tilt: 0 }
 
   // move an old inline cover up, once, in the background. Keyed on the data URL so a
   // patch coming back through the parent cannot start it again, and a different
@@ -110,40 +101,9 @@ export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId
 
   return (
     <div className="flex flex-col gap-3">
-      {/* one preview for both: the card as a framed photo with its detail, and the
-          plan page's larger framed photo beside it, the way each is drawn */}
-      <div className="grid gap-4 sm:grid-cols-[200px_minmax(0,1fr)]">
-        <div>
-          {/* a layer of its own around the frame (isolate, with no paint of its own), so
-              a clip's back leg, drawn under the frame, tucks under this frame and not
-              under the page: the same as a real card */}
-          <div className="isolate">
-            <div className="rounded-[12px] bg-frame p-2 pb-3 shadow-frame">
-              <div className="relative">
-                <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[92px]" rounded="rounded-lg" />
-                <Keepsake look={look} />
-                {/* the name tag the card wears on Home and Plans; whoever edits the cover
-                    hosts the plan, so it is always yours here */}
-                <HostTag e={{ participants: [me], hostedByYou: true, hostName: account.name }} />
-              </div>
-              <div className="mt-2.5 truncate px-1 font-serif text-[16px] leading-tight tracking-[-0.01em]">{name}</div>
-            </div>
-          </div>
-          <div className="mt-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">On a card</div>
-        </div>
-        {/* the plan page's header picture: the same framed photo, larger */}
-        <div className="min-w-0">
-          <div className="isolate">
-            <div className="rounded-[14px] bg-frame p-2.5 pb-3.5 shadow-frame">
-              <div className="relative">
-                <Cover src={image} fit={fit} pos={pos} from={from} to={to} className="h-[112px] sm:h-[150px]" rounded="rounded-lg" />
-                <Keepsake look={look} />
-              </div>
-            </div>
-          </div>
-          <div className="mt-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">On the plan page</div>
-        </div>
-      </div>
+      {/* the cover as each place crops it on this screen; the detail is shown on the
+          tiles below */}
+      <CoverCrops image={image} fit={fit} pos={pos} from={from} to={to} />
 
       <div className="flex flex-wrap items-center gap-1.5">
         {COVER_PRESETS.map((p) => {
@@ -199,7 +159,7 @@ export function CoverEditor({ image, fit = 'fill', pos, keepsake, title, eventId
           {busy ? 'Adding' : photo ? 'Replace photo' : 'Upload a photo'}
         </button>
         {photo && (
-          // fill crops to the frame; fit keeps the whole picture, letterboxed on a blur of itself
+          // fill crops to the frame; fit keeps the whole picture, the bands filled with its most common colour
           <div className="flex rounded-full border border-border bg-s1 p-0.5" role="group" aria-label="How the photo fills the frame">
             {([{ v: 'fill', l: 'Fill' }, { v: 'fit', l: 'Fit' }] as const).map((o) => (
               <button

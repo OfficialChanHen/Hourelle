@@ -112,7 +112,7 @@ export type AppEvent = {
   expenses?: EventExpense[]           // actual spend logged against the budget
   unavailableIds?: string[]           // declared "none of these days work" — an explicit empty reply, not silence
   image?: string                      // cover: 'preset:<id>' or a downscaled data URL the host uploaded
-  imageFit?: 'fill' | 'fit'           // a photo cropped to the frame, or shown whole on a blur of itself
+  imageFit?: 'fill' | 'fit'           // a photo cropped to the frame, or shown whole on its most common colour
   // which part of a cropped photo to keep, as percentages, the way object-position
   // reads them. Absent means the middle, which is what every cover did before this.
   imagePos?: { x: number; y: number }

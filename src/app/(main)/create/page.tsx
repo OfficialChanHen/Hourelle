@@ -610,7 +610,7 @@ function CreateWizard() {
                 />
               </Collapse>
               <Collapse icon={ImagePlus} title="Style" summary={styleSummary(form.image, form.imageFit, form.keepsake)}>
-                <CoverEditor image={form.image} fit={form.imageFit} pos={form.imagePos} keepsake={form.keepsake} title={form.title} onChange={(p) => update(p)} />
+                <CoverEditor image={form.image} fit={form.imageFit} pos={form.imagePos} keepsake={form.keepsake} onChange={(p) => update(p)} />
               </Collapse>
               <Collapse icon={Wallet} title="Budget and spots" summary={moneySummary}>
                 <div className="flex flex-wrap gap-3.5">
