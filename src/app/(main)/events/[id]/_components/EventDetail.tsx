@@ -609,13 +609,15 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         onClick={() => { setUnreadMark(unread > 0 ? seenMsgs ?? 0 : undefined); setChatOpen(true) }}
         aria-label={unread > 0 ? `Open discussion, ${unread} unread` : 'Open discussion'}
         data-tour="chat"
-        // on iOS the bubble is clear liquid glass (frost, rim, sheen — no fill);
-        // elsewhere it stays the solid accent dot
+        // the solid accent dot everywhere, with a ring of the page's own colour so it
+        // stands clear of whatever it floats over (a cover, a map, another green
+        // button). On iOS it keeps the liquid-glass sheen over that fill: clear glass
+        // alone vanished over a dark page or a green button.
         // the bar is 56 tall plus whatever the phone reserves at the bottom, and the
         // bubble sits a thumb's width clear of it. A fixed 84 was fine on a phone
         // with no home indicator and sat on the bar on one that has.
-        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 68px)' }}
-        className={`fixed right-4 z-40 ${chatOpen ? 'hidden' : 'grid'} h-12 w-12 place-items-center rounded-full md:!bottom-6 md:right-6 ${isIOS ? 'liquid-glass text-accent-text' : 'bg-accent text-on-accent shadow-soft'}`}
+        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 68px)', outline: '3px solid var(--bg)', ...(isIOS ? { background: 'var(--accent)' } : {}) }}
+        className={`fixed right-4 z-40 ${chatOpen ? 'hidden' : 'grid'} h-12 w-12 place-items-center rounded-full text-on-accent md:!bottom-6 md:right-6 ${isIOS ? 'liquid-glass' : 'bg-accent shadow-soft'}`}
       >
         <MessageCircle size={21} />
         {unread > 0 && (

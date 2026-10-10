@@ -31,19 +31,22 @@ export function coverShapes(vw: number): { home: CoverShape; homeSmall: CoverSha
   }
 }
 
-export type CoverPlace = { label: string; ratio: number }
+// `w` and `h` are the real size, so a preview can draw the card's detail (tape, a
+// clip) at its true size against the picture; `detail` says whether the place wears one
+export type CoverPlace = { label: string; ratio: number; w: number; h: number; detail: boolean }
 
 /* The crops a preview shows: only the ones that look different. Home's card stands
    for every wide card (Home's smaller ones and the Plans shelf crop much the same
    way), then the plan page, then the upright phone list, always there because the
    people invited look at plans on their phones whatever screen the host is on.
    Where the cards and the plan page are within a quarter of each other's shape (a
-   phone, a small tablet) they share one picture. */
+   phone, a small tablet) they share one picture. The phone list's rows wear no detail. */
 export function coverPlaces(vw: number): CoverPlace[] {
   const s = coverShapes(vw)
+  const at = (label: string, c: CoverShape, detail: boolean): CoverPlace => ({ label, ratio: c.w / c.h, w: c.w, h: c.h, detail })
   const cards = s.home.w / s.home.h, page = s.page.w / s.page.h
   const wide = Math.abs(cards - page) / Math.max(cards, page) < 0.25
-    ? [{ label: 'Cards and plan page', ratio: cards }]
-    : [{ label: 'Cards', ratio: cards }, { label: 'Plan page', ratio: page }]
-  return [...wide, { label: 'Phone list', ratio: s.row.w / s.row.h }]
+    ? [at('Cards and plan page', s.home, true)]
+    : [at('Cards', s.home, true), at('Plan page', s.page, true)]
+  return [...wide, at('Phone list', s.row, false)]
 }
