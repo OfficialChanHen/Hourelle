@@ -554,10 +554,13 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
   let best: { dayKey: string; s: number; e: number; count: number; ids: string[]; anyIds: string[]; avg: number } | null = null
   let bestWeight = 0
   let bestGap = 0
+  let bestDay = -1
   // primary and secondary swap with the mode: whole-window people vs person-minutes
   // inside the window. Then the window that opens with people actually there (no dead
-  // air before the first arrival), then longer, then earlier.
-  const better = (count: number, weight: number, gap: number, s: number, e: number) => {
+  // air before the first arrival), then longer, then the earliest day, and only then
+  // the earliest start on that day: a Monday afternoon that works beats a Thursday
+  // morning that works just as well.
+  const better = (count: number, weight: number, gap: number, s: number, e: number, di: number) => {
     if (!best) return true
     const [a1, a2] = bestMode === 'crowd' ? [weight, count] : [count, weight]
     const [b1, b2] = bestMode === 'crowd' ? [bestWeight, best.count] : [best.count, bestWeight]
@@ -565,10 +568,11 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
     if (a2 !== b2) return a2 > b2
     if (gap !== bestGap) return gap < bestGap
     if (e - s !== best.e - best.s) return e - s > best.e - best.s
+    if (di !== bestDay) return di < bestDay
     return s < best.s
   }
 
-  for (const d of days) {
+  for (const [di, d] of days.entries()) {
     const byPid = availIv[d.key] ?? {}
     const ids = Object.keys(byPid)
     if (!ids.length) continue
@@ -587,7 +591,7 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
         const s = xs[i], e = xs[i + 1]
         const who = coverers(s, e)
         const weight = minutesIn(s, e)
-        if (who.length && better(who.length, weight, 0, s, e)) { best = { dayKey: d.key, s, e, count: who.length, ids: who, anyIds: who, avg: weight / (e - s) }; bestWeight = weight; bestGap = 0 }
+        if (who.length && better(who.length, weight, 0, s, e, di)) { best = { dayKey: d.key, s, e, count: who.length, ids: who, anyIds: who, avg: weight / (e - s) }; bestWeight = weight; bestGap = 0; bestDay = di }
       }
     } else {
       // candidate starts: every point where either the full-window crowd or the
@@ -612,11 +616,12 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
         const gap = firstFree === Infinity ? 0 : firstFree - s
         // the window is exactly the event's length — the frame and footers report a
         // slot you could book as-is, never a longer stretch around it
-        if (better(who.length, weight, gap, s, e)) {
+        if (better(who.length, weight, gap, s, e, di)) {
           const anyIds = ids.filter((id) => byPid[id].some((iv) => iv.s < e && iv.e > s))
           best = { dayKey: d.key, s, e, count: who.length, ids: who, anyIds, avg: weight / minLen }
           bestWeight = weight
           bestGap = gap
+          bestDay = di
         }
       }
     }
