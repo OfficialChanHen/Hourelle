@@ -609,13 +609,15 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
         onClick={() => { setUnreadMark(unread > 0 ? seenMsgs ?? 0 : undefined); setChatOpen(true) }}
         aria-label={unread > 0 ? `Open discussion, ${unread} unread` : 'Open discussion'}
         data-tour="chat"
-        // on iOS the bubble is clear liquid glass (frost, rim, sheen — no fill);
-        // elsewhere it stays the solid accent dot
+        // the solid accent dot everywhere, with a ring of the page's own colour so it
+        // stands clear of whatever it floats over (a cover, a map, another green
+        // button). On iOS it keeps the liquid-glass sheen over that fill: clear glass
+        // alone vanished over a dark page or a green button.
         // the bar is 56 tall plus whatever the phone reserves at the bottom, and the
         // bubble sits a thumb's width clear of it. A fixed 84 was fine on a phone
         // with no home indicator and sat on the bar on one that has.
-        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 68px)' }}
-        className={`fixed right-4 z-40 ${chatOpen ? 'hidden' : 'grid'} h-12 w-12 place-items-center rounded-full md:!bottom-6 md:right-6 ${isIOS ? 'liquid-glass text-accent-text' : 'bg-accent text-on-accent shadow-soft'}`}
+        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 68px)', outline: '3px solid var(--bg)', ...(isIOS ? { background: 'var(--accent)' } : {}) }}
+        className={`fixed right-4 z-40 ${chatOpen ? 'hidden' : 'grid'} h-12 w-12 place-items-center rounded-full text-on-accent md:!bottom-6 md:right-6 ${isIOS ? 'liquid-glass' : 'bg-accent shadow-soft'}`}
       >
         <MessageCircle size={21} />
         {unread > 0 && (
@@ -886,7 +888,7 @@ function ParticipantsCard({ event, isHost, onPatch, onSetMyFace, onViewAvailabil
           return (
             <div key={p.id} className={`flex items-center gap-2.5 py-2 ${i > 0 ? 'border-t border-border' : ''}`}>
               {/* the face turns over to show the initials; the name opens their times */}
-              <Avatar initials={p.initials} color={p.color} face={p.face} size={29} font={10.5} title={p.name} flippable />
+              <Avatar initials={p.initials} color={p.color} face={p.face} size={29} font={10.5} title={p.name} flippable tag={false} />
               <button
                 type="button" onClick={() => onViewAvailability(p.id)} title={`See when ${p.name} is free`}
                 className="-mx-1 flex min-h-[29px] min-w-0 flex-1 items-center rounded-[8px] px-1 py-0.5 text-left hover:bg-s2"

@@ -1149,6 +1149,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     [filterOn, combinedByDay, durationMin, bestMode], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const bwAllShown = bwAll && (!bw || bwAll.dayKey !== bw.dayKey || bwAll.s !== bw.s || bwAll.e !== bw.e) ? bwAll : null
+  // once a time is locked in, the frame and the day's header mark that time at its real
+  // length, not the best window, which no longer decides anything
+  const lockedSlot = locked && event.confirmed && !event.confirmed.endDayKey && !dayPoll ? event.confirmed : null
+  const frame = lockedSlot ? { dayKey: lockedSlot.dayKey, s: lockedSlot.startMin - gridStartMin, e: lockedSlot.endMin - gridStartMin } : bw
 
   // one footer answer, one length control: "1 day" is the best single slot (or the best
   // single day on a day poll), anything longer is the best run of consecutive days.
@@ -1315,15 +1319,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // a best-window link elsewhere (hero, attendance) jumps here: right week, view
   // mode so the frame shows, grid scrolled so the window sits mid-viewport
   useEffect(() => {
-    if (!focusBest || !bw) return
+    if (!focusBest || !frame) return
     const el = scroller.current
     if (!el) return
-    const idx = paddedDays.findIndex((d) => d.key === bw.dayKey)
+    const idx = paddedDays.findIndex((d) => d.key === frame.dayKey)
     if (idx >= 0) setPage(Math.floor(idx / WEEK))
     setMode('view')
     setBlockLen(1) // the jump targets the best single slot — keep the footer on the same answer
     if (!dayPoll) {
-      const target = Math.max(0, ((bw.s + bw.e) / 2) * pxPerMin - el.clientHeight / 2)
+      const target = Math.max(0, ((frame.s + frame.e) / 2) * pxPerMin - el.clientHeight / 2)
       el.scrollTop = target
       setScrollTop(target)
     }
@@ -1709,7 +1713,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               // winning run of days (a hairline across its headers ties the run together)
               const inBlock = mode === 'view' && !!blockKeys?.has(d.key)
               const blockFirst = inBlock && block?.startKey === d.key
-              const singleBestKey = dayPoll ? (blockLen === 1 ? block?.startKey : undefined) : bw?.dayKey
+              const singleBestKey = dayPoll ? (blockLen === 1 ? block?.startKey : undefined) : frame?.dayKey
               const isBestDay = !blockKeys && (d.best || (mode === 'view' && singleBestKey === d.key))
               return (
                 <button
@@ -1744,7 +1748,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   {mode === 'view' && (blockFirst
                     ? <span className={`mt-[3px] inline-block whitespace-nowrap rounded-[5px] border border-ochre-border bg-ochre-bg py-px font-semibold text-ochre-text ${narrow ? 'px-[3px] text-[9px]' : 'px-[5px] text-[9.5px]'}`}>{narrow ? `Best ${blockLen}` : `Best ${blockLen} days`}</span>
                     : isBestDay
-                      ? <span className={`mt-[3px] inline-block whitespace-nowrap rounded-[5px] border border-ochre-border bg-ochre-bg py-px font-semibold text-ochre-text ${narrow ? 'px-[3px] text-[9px]' : 'px-[5px] text-[9.5px]'}`}>{narrow ? 'Best' : 'Best day'}</span>
+                      ? <span className={`mt-[3px] inline-block whitespace-nowrap rounded-[5px] border border-ochre-border bg-ochre-bg py-px font-semibold text-ochre-text ${narrow ? 'px-[3px] text-[9px]' : 'px-[5px] text-[9.5px]'}`}>{locked && event.confirmed ? (narrow ? 'Set' : 'Locked in') : narrow ? 'Best' : 'Best day'}</span>
                       : null)}
                 </button>
               )
@@ -1826,7 +1830,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     // edges are protected from the sliver merge in the cells they run through
                     const protect = showSlotFrame
                       ? [
-                          ...(bw && d.key === bw.dayKey ? [bw.s, bw.e] : []),
+                          ...(frame && d.key === frame.dayKey ? [frame.s, frame.e] : []),
                           ...(bwAllShown && d.key === bwAllShown.dayKey ? [bwAllShown.s, bwAllShown.e] : []),
                         ]
                       : []
@@ -1837,7 +1841,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     const open = detail?.day === d.key && detail?.ti === ti
                     // the best window is one continuous ochre frame over its cells — a color the
                     // grid never uses for lines or heat, so it can't be mistaken for either
-                    const inBest = showSlotFrame && !!bw && d.key === bw.dayKey && w0 < bw.e && w1 > bw.s
+                    const inBest = showSlotFrame && !!frame && d.key === frame.dayKey && w0 < frame.e && w1 > frame.s
                     return (
                       <div
                         key={d.key}
@@ -1849,7 +1853,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         {inBest && (() => {
                           // frame hugs the window's true minutes, not the cell edges — a 10:30
                           // start draws the top line halfway down the 10:00 cell
-                          const bs = Math.max(bw!.s, w0), be = Math.min(bw!.e, w1)
+                          const bs = Math.max(frame!.s, w0), be = Math.min(frame!.e, w1)
                           const edge = '2.5px solid var(--ochre)'
                           return (
                             <div
@@ -1859,8 +1863,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                                 height: `${((be - bs) / step) * 100}%`,
                                 borderLeft: edge,
                                 borderRight: edge,
-                                borderTop: bs === bw!.s ? edge : undefined,
-                                borderBottom: be === bw!.e ? edge : undefined,
+                                borderTop: bs === frame!.s ? edge : undefined,
+                                borderBottom: be === frame!.e ? edge : undefined,
                               }}
                             />
                           )

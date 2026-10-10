@@ -21,8 +21,8 @@
    on the other tabs those go to local state first so the demos work in memory. */
 
 import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, X } from 'lucide-react'
-import { Avatar } from '@/components/ui/Avatar'
+import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, Video, X } from 'lucide-react'
+import { Avatar, NameTag } from '@/components/ui/Avatar'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { FlipGroup } from '@/components/ui/FlipGroup'
 import { HandNote } from '@/components/ui/HandNote'
@@ -619,11 +619,11 @@ function FaceGroup({ people, size, cap, onPerson }: { people: Participant[]; siz
   // the faces turn over together (one button over the row); each name stays its own
   // button, above it, and opens that person's times
   return (
-    <FlipGroup overlay names={namesLabel(shown.map((p) => (p.you ? 'you' : p.name)), extra)}>
+    <FlipGroup overlay caption={false} names={namesLabel(shown.map((p) => (p.you ? 'you' : p.name)), extra)}>
     <ul className="flex flex-wrap gap-x-3 gap-y-3.5">
       {shown.map((p) => (
         <li key={p.id} className="flex flex-col items-center gap-1.5" style={{ width: Math.max(size + 8, 52) }}>
-          <Avatar initials={p.initials} color={p.color} face={p.face} size={size} font={Math.round(size * 0.34)} title={p.name} flippable />
+          <Avatar initials={p.initials} color={p.color} face={p.face} size={size} font={Math.round(size * 0.34)} title={p.name} flippable tag={false} />
           <button
             type="button" onClick={onPerson ? () => onPerson(p.id) : undefined} disabled={!onPerson}
             title={onPerson ? `See when ${p.name} is free` : undefined}
@@ -720,7 +720,7 @@ function LeadingPlace({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab
   if (event.location.mode === 'remote') {
     return (
       <div className="mb-4 flex items-center gap-3 rounded-xl border border-border bg-s0 px-4 py-3">
-        <span className="grid h-9 w-9 flex-none place-items-center rounded-lg border border-border bg-s2 text-dim"><MapPin size={16} /></span>
+        <span className="grid h-9 w-9 flex-none place-items-center rounded-lg border border-border bg-s2 text-dim"><Video size={16} /></span>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[14.5px] font-semibold">Online</div>
           <div className="text-[12.5px] text-dim">{event.location.platform || 'Meeting link on the Details tab'}</div>
@@ -945,7 +945,7 @@ function RosterGroup({ label, tone, people, cap: capIn, compact, bare, action, o
           <div key={p.id} className="flex items-center gap-2.5">
             {/* the face turns over to show the initials; the name opens their times */}
             <span className={`flex min-w-0 items-center gap-2.5 ${hasBars ? 'w-[42%] sm:w-[160px] flex-none' : 'flex-1'}`}>
-              <Avatar initials={p.initials} color={p.color} face={p.face} size={27} font={10} title={p.name} flippable />
+              <Avatar initials={p.initials} color={p.color} face={p.face} size={27} font={10} title={p.name} flippable tag={false} />
               <button
                 type="button" onClick={onPerson ? () => onPerson(p.id) : undefined} disabled={!onPerson}
                 title={onPerson ? `See when ${p.name} is free` : undefined}
@@ -1002,7 +1002,7 @@ function CopyReminder({ event }: { event: AppEvent }) {
    the people who miss a stop, grouped by which stops they miss, so the list grows with
    the patterns (a handful) rather than the guest list. */
 type StopRow = { i: number; name: string; arrive: number; depart: number; present: Participant[]; partial: Participant[]; absent: Participant[] }
-type GapGroup = { key: string; names: string[]; label: string; people: Participant[] }
+type GapGroup = { key: string; label: string; people: Participant[] }
 function useItinerary(event: AppEvent, attendees: Participant[], dayIv: Record<string, Iv[]>, gridStart: number) {
   const placeName = (id: string) => event.location.places.find((p) => p.id === id)?.name ?? 'Stop'
   const stops = useMemo(() => event.itinStops ?? [], [event.itinStops])
@@ -1032,41 +1032,56 @@ function useItinerary(event: AppEvent, attendees: Participant[], dayIv: Record<s
     })
   }, [stops, dwell, startMin, gridStart, attendees, dayIv, event.location.places, event.travelModes, road]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // people missing at least one stop → grouped by which stops (never an O(people × stops) grid)
+  // people with a gap anywhere on the route (a stop missed, a stop joined late or left
+  // early) → grouped by what the gaps are (never an O(people × stops) grid). Only the
+  // people there for all of every stop count as making every stop.
   const { everyStop, gapGroups } = useMemo(() => {
-    const missesOf = new Map<string, number[]>()
-    for (const s of stopData) for (const p of s.absent) missesOf.set(p.id, [...(missesOf.get(p.id) ?? []), s.i])
+    const gapsOf = new Map<string, { misses: number[]; late: number[]; early: number[] }>()
+    const of = (id: string) => { let g = gapsOf.get(id); if (!g) { g = { misses: [], late: [], early: [] }; gapsOf.set(id, g) } return g }
+    for (const s of stopData) {
+      for (const p of s.absent) of(p.id).misses.push(s.i)
+      for (const p of s.partial) {
+        const segs = segmentsOf(dayIv[p.id], s.arrive - gridStart, s.depart - gridStart)
+        const g = of(p.id)
+        if (segs.length && segs[0].s > s.arrive - gridStart) g.late.push(s.i)
+        if (segs.length && segs[segs.length - 1].e < s.depart - gridStart) g.early.push(s.i)
+        if (!segs.length) g.misses.push(s.i)
+      }
+    }
     const by = new Map<string, GapGroup>()
     for (const p of attendees) {
-      const misses = missesOf.get(p.id)
-      if (!misses) continue
-      const key = misses.join(',')
+      const g = gapsOf.get(p.id)
+      if (!g) continue
+      const key = `m${g.misses.join(',')}l${g.late.join(',')}e${g.early.join(',')}`
       if (!by.has(key)) {
-        const names = misses.map((n) => stopData[n]?.name ?? `stop ${n + 1}`)
-        const label = misses.length === stopData.length ? 'Misses every stop' : `Misses ${joinNames(names)}`
-        by.set(key, { key, names, label, people: [] })
+        // by stop number, short enough for the group's label
+        const gaps = (name: (ns: number[]) => string) => {
+          const parts: string[] = []
+          if (g.late.length) parts.push(`late to ${name(g.late)}`)
+          if (g.early.length) parts.push(`leaves ${name(g.early)} early`)
+          if (g.misses.length) parts.push(g.misses.length === stopData.length ? 'misses every stop' : `misses ${name(g.misses)}`)
+          return parts
+        }
+        const short = gaps((ns) => `${ns.length > 1 ? 'stops' : 'stop'} ${joinNames(ns.map((n) => String(n + 1)))}`).join(', ')
+        const label = short.charAt(0).toUpperCase() + short.slice(1)
+        by.set(key, { key, label, people: [] })
       }
       by.get(key)!.people.push(p)
     }
     return {
-      everyStop: attendees.filter((p) => !missesOf.has(p.id)),
+      everyStop: attendees.filter((p) => !gapsOf.has(p.id)),
       gapGroups: [...by.values()].sort((x, y) => y.people.length - x.people.length),
     }
-  }, [stopData, attendees])
+  }, [stopData, attendees, dayIv, gridStart])
   return { stopData, everyStop, gapGroups }
 }
 const joinNames = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : xs[0] ?? '')
 type Itin = ReturnType<typeof useItinerary>
 
-// the heading for the route: how many make all of it, and the biggest gap said plainly
+// the heading for the route: how many make all of it, and no more; the groups below
+// say who misses what
 function itinTitle(itin: Itin, total: number): string {
-  const all = `${itin.everyStop.length} of ${total} make every stop.`
-  const g = itin.gapGroups[0]
-  if (!g) return 'Everyone makes every stop.'
-  const n = g.people.length
-  return g.names.length === itin.stopData.length
-    ? `${all} ${n} can’t make any of it.`
-    : `${all} ${n} ${n === 1 ? 'misses' : 'miss'} ${joinNames(g.names)}.`
+  return itin.gapGroups.length ? `${itin.everyStop.length} of ${total} make every stop.` : 'Everyone makes every stop.'
 }
 
 function ItineraryAttendance({ itin, total, onPerson, onViewGroup }: {
@@ -1139,11 +1154,21 @@ function AvatarPile({ people, cap }: { people: Participant[]; cap: number }) {
   const shown = people.slice(0, cap)
   const extra = people.length - shown.length
   return (
-    <div className="flex items-center" role={people.length ? 'img' : undefined} aria-label={people.length ? namesLabel(shown.map((p) => p.name), extra) : undefined}>
-      {shown.map((p) => <span key={p.id} className="-mr-1.5 flex"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} /></span>)}
-      {extra > 0 && <span aria-hidden className="ml-2.5 text-[12.5px] font-semibold text-dim">+{extra}</span>}
-      {people.length === 0 && <span className="text-[12.5px] text-faint">nobody yet</span>}
-    </div>
+    people.length === 0
+      ? <span className="text-[12.5px] text-faint">nobody yet</span>
+      // the faces turn over together, and their names show while they are turned
+      : (
+        <FlipGroup names={namesLabel(shown.map((p) => (p.you ? 'you' : p.name)), extra)} people={people} className="flex items-center">
+          {shown.map((p) => <span key={p.id} className="-mr-1.5 flex"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} title={p.name} flippable /></span>)}
+          {/* the "+N" names the people it stands for, on hover */}
+          {extra > 0 && (
+            <span aria-hidden className="group/face relative ml-2.5 text-[12.5px] font-semibold text-dim">
+              +{extra}
+              <NameTag list name={namesLabel(people.slice(cap, cap + 8).map((p) => p.name), extra - 8)} />
+            </span>
+          )}
+        </FlipGroup>
+      )
   )
 }
 

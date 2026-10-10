@@ -10,7 +10,6 @@ import type { AccountKind } from './session'
 import {
   avail as demoAvail,
   gridDays as demoDays,
-  gridTimes as demoTimes,
   participantIds as demoIds,
   notGoingIds as demoNotGoing,
   messages as demoMsgs,
@@ -555,10 +554,13 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
   let best: { dayKey: string; s: number; e: number; count: number; ids: string[]; anyIds: string[]; avg: number } | null = null
   let bestWeight = 0
   let bestGap = 0
+  let bestDay = -1
   // primary and secondary swap with the mode: whole-window people vs person-minutes
   // inside the window. Then the window that opens with people actually there (no dead
-  // air before the first arrival), then longer, then earlier.
-  const better = (count: number, weight: number, gap: number, s: number, e: number) => {
+  // air before the first arrival), then longer, then the earliest day, and only then
+  // the earliest start on that day: a Monday afternoon that works beats a Thursday
+  // morning that works just as well.
+  const better = (count: number, weight: number, gap: number, s: number, e: number, di: number) => {
     if (!best) return true
     const [a1, a2] = bestMode === 'crowd' ? [weight, count] : [count, weight]
     const [b1, b2] = bestMode === 'crowd' ? [bestWeight, best.count] : [best.count, bestWeight]
@@ -566,10 +568,11 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
     if (a2 !== b2) return a2 > b2
     if (gap !== bestGap) return gap < bestGap
     if (e - s !== best.e - best.s) return e - s > best.e - best.s
+    if (di !== bestDay) return di < bestDay
     return s < best.s
   }
 
-  for (const d of days) {
+  for (const [di, d] of days.entries()) {
     const byPid = availIv[d.key] ?? {}
     const ids = Object.keys(byPid)
     if (!ids.length) continue
@@ -588,7 +591,7 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
         const s = xs[i], e = xs[i + 1]
         const who = coverers(s, e)
         const weight = minutesIn(s, e)
-        if (who.length && better(who.length, weight, 0, s, e)) { best = { dayKey: d.key, s, e, count: who.length, ids: who, anyIds: who, avg: weight / (e - s) }; bestWeight = weight; bestGap = 0 }
+        if (who.length && better(who.length, weight, 0, s, e, di)) { best = { dayKey: d.key, s, e, count: who.length, ids: who, anyIds: who, avg: weight / (e - s) }; bestWeight = weight; bestGap = 0; bestDay = di }
       }
     } else {
       // candidate starts: every point where either the full-window crowd or the
@@ -613,11 +616,12 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
         const gap = firstFree === Infinity ? 0 : firstFree - s
         // the window is exactly the event's length — the frame and footers report a
         // slot you could book as-is, never a longer stretch around it
-        if (better(who.length, weight, gap, s, e)) {
+        if (better(who.length, weight, gap, s, e, di)) {
           const anyIds = ids.filter((id) => byPid[id].some((iv) => iv.s < e && iv.e > s))
           best = { dayKey: d.key, s, e, count: who.length, ids: who, anyIds, avg: weight / minLen }
           bestWeight = weight
           bestGap = gap
+          bestDay = di
         }
       }
     }
@@ -1715,7 +1719,29 @@ export function createEvent(input: CreateInput): AppEvent {
   return ev
 }
 
-/* ── the built-in populated demo (reachable by URL, not listed) ── */
+/* The offsite's times. The other days come from the sample grid (an hour a cell, from
+   9 AM); the locked day, Wed Aug 22, runs the whole route, 9 AM to 5 PM, with the
+   exceptions the Attendance tab is for: Alex leaves after lunch, Priya comes late,
+   Dana cannot make it. */
+const OFFSITE_TIMES = buildTimes('60', 9 * 60, 17 * 60)
+const OFFSITE_IV: AvailIntervals = (() => {
+  const out: AvailIntervals = {}
+  for (const [day, cells] of Object.entries(demoAvail)) {
+    const byPid: Record<string, Iv[]> = {}
+    cells.forEach((ids, i) => ids.forEach((id) => {
+      const list = (byPid[id] ??= [])
+      const last = list[list.length - 1]
+      if (last && last.e === i * 60) last.e = (i + 1) * 60
+      else list.push({ s: i * 60, e: (i + 1) * 60 })
+    }))
+    out[day] = byPid
+  }
+  const whole: Iv[] = [{ s: 0, e: 480 }]
+  out['2029-08-22'] = { JM: whole, SR: whole, KL: whole, MN: whole, CL: whole, AT: [{ s: 0, e: 300 }], PR: [{ s: 150, e: 480 }], DW: [{ s: 0, e: 60 }] }
+  return out
+})()
+
+/* ── the team offsite: votes turned into a three-stop route, locked in for Wed Aug 22 ── */
 const DEMO: AppEvent = {
   id: 'q3-offsite',
   title: 'Team Offsite',
@@ -1750,7 +1776,7 @@ const DEMO: AppEvent = {
     presidio: ['DW'],
   },
   maxVotes: 2,
-  durationMin: 120,
+  durationMin: 7 * 60, // the whole route, 9 AM to 4 PM: what the lock-in set aside
   itinStartMin: 9 * 60,
   // morning workshops in Sausalito, a picnic lunch on the Tunnel Tops lawn, the
   // wrap-up at the Officers' Club — stop order follows the route, dwell minutes align by index
@@ -1766,11 +1792,18 @@ const DEMO: AppEvent = {
     host: id === 'JM',
   })),
   days: demoDays.map((d) => ({ key: d.key, dow: d.dow, date: d.date, best: d.best })),
-  times: [...demoTimes],
-  avail: demoAvail,
-  messages: demoMsgs,
+  times: OFFSITE_TIMES,
+  avail: intervalsToGrid(OFFSITE_IV, demoDays.map((d) => ({ key: d.key, dow: d.dow, date: d.date })), OFFSITE_TIMES.length, 60),
+  availIv: OFFSITE_IV,
+  messages: [
+    ...demoMsgs,
+    { id: 'JM', name: 'You', time: '10m ago', text: 'Locked in: Wed Aug 22, the full route. Cavallo first, lunch at Tunnel Tops, wrap at the Officers’ Club', you: true },
+  ],
   createdAt: 0,
   demo: true,
+  status: 'confirmed',
+  confirmed: { dayKey: '2029-08-22', startMin: 9 * 60, endMin: 16 * 60, placeIds: ['cavallo', 'tunnel-tops', 'presidio'] },
+  rsvpDeadline: '2029-08-17',
 }
 
 /* ── the built-in demo at scale: 24 people, 12 venues, 3 votes each — for seeing the
@@ -1923,22 +1956,22 @@ const CONF_IV: AvailIntervals = {
 }
 const CONFERENCE: AppEvent = {
   id: 'indie-makers-conference',
-  title: 'Indie Makers Conference',
+  title: 'Indie Makers Summit',
   hostName: 'Lucía M',
   hostedByYou: false,
   hostKind: 'person',
-  description: 'One day of short talks from people who run small studios. Lunch is provided. Come for part of the day if that is what works.',
+  description: 'One day of short talks online from people who run small studios. Drop in for part of the day if that is what works.',
   timezone: 'America/Los_Angeles',
   startDate: '2029-08-18',
   endDate: '2029-08-18',
   granularity: '60',
   budget: '',
   location: {
-    mode: 'set',
+    mode: 'remote',
     planMode: 'vote',
-    places: [{ id: 'fort-mason-pavilion', name: 'Festival Pavilion, Fort Mason Center', place: 'San Francisco, CA', addedBy: 'LM', lat: 37.8058, lng: -122.4318 }],
-    platform: '',
-    meetingLink: '',
+    places: [],
+    platform: 'Zoom',
+    meetingLink: 'https://zoom.us/j/0000000000',
   },
   votes: {},
   participants: [
@@ -1962,14 +1995,14 @@ const CONFERENCE: AppEvent = {
   durationMin: 480,
   image: 'preset:city',
   messages: [
-    { id: 'LM', name: 'Lucía M', time: 'Mon', text: 'Doors open at 8:30 and the first talk starts at 9', you: false },
-    { id: 'HS', name: 'Hiro S', time: 'Tue', text: 'My flight lands at 10, so I will be there from 11', you: false },
-    { id: 'YA', name: 'Yasmin A', time: 'Tue', text: 'Leaving after lunch. A seat near the door would be kind', you: false },
+    { id: 'LM', name: 'Lucía M', time: 'Mon', text: 'The call opens at 8:45 and the first talk starts at 9', you: false },
+    { id: 'HS', name: 'Hiro S', time: 'Tue', text: 'I am on a flight until 10, so I will join from 11', you: false },
+    { id: 'YA', name: 'Yasmin A', time: 'Tue', text: 'Dropping off after lunch, I will catch the rest on the recording', you: false },
   ],
   createdAt: 0,
   demo: true,
   status: 'confirmed',
-  confirmed: { dayKey: '2029-08-18', startMin: 9 * 60, endMin: 17 * 60, placeIds: ['fort-mason-pavilion'] },
+  confirmed: { dayKey: '2029-08-18', startMin: 9 * 60, endMin: 17 * 60, placeIds: [] },
 }
 
 // Game night: date and place fixed from the start, so it goes straight to RSVPs,
@@ -2029,7 +2062,7 @@ const GAME_NIGHT: AppEvent = {
 /* ── the planning shapes. Every plan answers two questions, when and where, and
    each can arrive open or already answered:
    1. both open        → Design Team Dinner   (find a time, vote on a place)
-   2. place answered   → Coffee with Ifeoma   (café set, finding the morning)
+   2. place answered   → Coffee with Ifeoma   (online, finding the morning)
    3. time answered    → Priya's Birthday     (Friday is booked, voting the venue —
                           status stays 'planning' while the confirmed slot is a fact)
    4. both answered    → Board Game Night     (born confirmed, straight to RSVPs, above) ── */
@@ -2092,7 +2125,7 @@ const DESIGN_DINNER: AppEvent = {
   status: 'planning',
 }
 
-// 2 · place answered, time open: a 1:1 on a 15-minute grid (minutes from 8 AM)
+// 2 · place answered, time open: a 1:1 over video on a 15-minute grid (minutes from 8 AM)
 const COFFEE_DAYS = buildDays('2029-08-06', '2029-08-10')
 const COFFEE_TIMES = buildTimes('15', 8 * 60, 11 * 60)
 const COFFEE_IV: AvailIntervals = {
@@ -2107,18 +2140,18 @@ const COFFEE: AppEvent = {
   hostName: 'Jordan Miller',
   hostedByYou: true,
   hostKind: 'person',
-  description: 'A catch-up before work. The café is picked, we only need a morning that works.',
+  description: 'A coffee over video before work. The call link is set, we only need a morning that works.',
   timezone: 'America/Los_Angeles',
   startDate: '2029-08-06',
   endDate: '2029-08-10',
   granularity: '15',
   budget: '',
   location: {
-    mode: 'set',
+    mode: 'remote',
     planMode: 'vote',
-    places: [{ id: 'mint-plaza', name: 'Blue Bottle Coffee, Mint Plaza', place: 'San Francisco, CA', addedBy: 'JM', lat: 37.7825, lng: -122.4079 }],
-    platform: '',
-    meetingLink: '',
+    places: [],
+    platform: 'Google Meet',
+    meetingLink: 'https://meet.google.com/demo-coffee-io',
   },
   votes: {},
   participants: [
@@ -2265,7 +2298,88 @@ const CABIN_TRIP: AppEvent = {
   status: 'planning',
 }
 
-// every built-in demo, one per template, in the templates' order
+/* ── locked in after a busy ballot: twelve people, five bars, two votes each. The
+   vote is over, the winner is the place, and the RSVP round is under way. ── */
+const CLUB_DAYS = buildDays('2029-08-06', '2029-08-10')
+const CLUB_TIMES = buildTimes('30', 17 * 60, 22 * 60)
+const CLUB_SLOT: Iv[] = [{ s: 120, e: 270 }] // Thursday 7:00 to 9:30 PM, minutes from 5 PM
+const CLUB_IV: AvailIntervals = {
+  '2029-08-07': { JM: [{ s: 60, e: 240 }], DW: [{ s: 120, e: 300 }], RW: [{ s: 90, e: 240 }], NK: [{ s: 0, e: 300 }] },
+  '2029-08-08': { SR: [{ s: 120, e: 300 }], KL: [{ s: 60, e: 210 }], TC: [{ s: 120, e: 270 }], NK: [{ s: 60, e: 240 }] },
+  '2029-08-09': {
+    JM: CLUB_SLOT, SR: CLUB_SLOT, AT: [{ s: 90, e: 300 }], KL: CLUB_SLOT, PR: [{ s: 60, e: 270 }],
+    DW: CLUB_SLOT, CL: [{ s: 120, e: 300 }], RW: CLUB_SLOT, TC: [{ s: 90, e: 270 }], MN: [{ s: 180, e: 270 }],
+  },
+  '2029-08-10': { AT: [{ s: 120, e: 300 }], PR: [{ s: 120, e: 240 }], CL: [{ s: 0, e: 180 }] },
+}
+const CLUB_SOCIAL: AppEvent = {
+  id: 'climbing-club-social',
+  title: 'Climbing Club Social',
+  hostName: 'Jordan Miller',
+  hostedByYou: true,
+  hostKind: 'person',
+  description: 'Drinks after the Thursday session. The vote is in, Mikkeller won by a mile. Tell me if you are coming so I can book the back room.',
+  timezone: 'America/Los_Angeles',
+  startDate: '2029-08-06',
+  endDate: '2029-08-10',
+  granularity: '30',
+  budget: '',
+  location: {
+    mode: 'vote',
+    planMode: 'vote',
+    places: [
+      { id: 'mikkeller', name: 'Mikkeller Bar', place: 'San Francisco, CA', addedBy: 'SR', lat: 37.7841, lng: -122.4089 },
+      { id: 'whitechapel', name: 'Whitechapel', place: 'San Francisco, CA', addedBy: 'TC', lat: 37.7867, lng: -122.4196 },
+      { id: 'zeitgeist', name: 'Zeitgeist', place: 'San Francisco, CA', addedBy: 'DW', lat: 37.7700, lng: -122.4222 },
+      { id: 'toronado', name: 'Toronado', place: 'San Francisco, CA', addedBy: 'KL', lat: 37.7717, lng: -122.4310 },
+      { id: 'barrel-room', name: 'The Barrel Room', place: 'San Francisco, CA', addedBy: 'PR', lat: 37.7883, lng: -122.4117 },
+    ],
+    platform: '',
+    meetingLink: '',
+    guestsCanSuggest: true,
+  },
+  votes: {
+    mikkeller: ['JM', 'SR', 'AT', 'KL', 'PR', 'MN', 'CL', 'HS'],
+    whitechapel: ['TC', 'DW', 'CL', 'MN', 'HS', 'RW'],
+    zeitgeist: ['DW', 'RW', 'TC', 'AT'],
+    toronado: ['KL', 'NK', 'SR'],
+    'barrel-room': ['PR', 'JM', 'NK'],
+  },
+  maxVotes: 2,
+  participants: [
+    { id: 'JM', initials: 'JM', name: 'Jordan Miller', color: 'purple', rsvp: 'attending', you: true, host: true },
+    { id: 'SR', initials: 'SR', name: av('SR').name, color: av('SR').color, rsvp: 'attending' },
+    { id: 'AT', initials: 'AT', name: av('AT').name, color: av('AT').color, rsvp: 'attending', rsvpAuto: true },
+    { id: 'KL', initials: 'KL', name: av('KL').name, color: av('KL').color, rsvp: 'attending' },
+    { id: 'PR', initials: 'PR', name: av('PR').name, color: av('PR').color, rsvp: 'attending', rsvpAuto: true },
+    { id: 'DW', initials: 'DW', name: av('DW').name, color: av('DW').color, rsvp: 'attending' },
+    { id: 'CL', initials: 'CL', name: av('CL').name, color: av('CL').color, rsvp: 'attending', rsvpAuto: true },
+    { id: 'RW', initials: 'RW', name: av('RW').name, color: av('RW').color, rsvp: 'attending' },
+    { id: 'TC', initials: 'TC', name: av('TC').name, color: av('TC').color, rsvp: 'maybe' },
+    { id: 'MN', initials: 'MN', name: av('MN').name, color: av('MN').color, rsvp: 'pending' },
+    { id: 'NK', initials: 'NK', name: av('NK').name, color: av('NK').color, rsvp: 'not_going', rsvpAuto: true },
+    { id: 'HS', initials: 'HS', name: av('HS').name, color: av('HS').color, rsvp: 'pending' },
+  ],
+  days: CLUB_DAYS,
+  times: CLUB_TIMES,
+  avail: intervalsToGrid(CLUB_IV, CLUB_DAYS, CLUB_TIMES.length, 30),
+  availIv: CLUB_IV,
+  durationMin: 150,
+  image: 'preset:dusk',
+  messages: [
+    { id: 'SR', name: 'Sarah R', time: 'Mon', text: 'Mikkeller has the long tables downstairs, that is my vote', you: false },
+    { id: 'TC', name: 'Tom C', time: 'Mon', text: 'Whitechapel is closer to the gym though', you: false },
+    { id: 'JM', name: 'Jordan Miller', time: 'Tue', text: 'Locked in: Thursday at Mikkeller, 7 to 9:30', you: true },
+    { id: 'TC', name: 'Tom C', time: 'Tue', text: 'Fair, the votes have spoken. Might be late', you: false },
+  ],
+  createdAt: 0,
+  demo: true,
+  status: 'confirmed',
+  confirmed: { dayKey: '2029-08-09', startMin: 19 * 60, endMin: 21 * 60 + 30, placeIds: ['mikkeller'] },
+  rsvpDeadline: '2029-08-07',
+}
+
+// every built-in demo, at least one per template, in the templates' order
 /* ── demo dates follow today ──
    The demos are written in 2029 so their stories line up (a dinner the week after the
    offsite, RSVPs due before the game night). Shown, every date in them moves by the
@@ -2286,9 +2400,25 @@ function demoShiftDays(list: AppEvent[]): number {
   list.forEach(scan)
   const start = parseLocal(first)
   if (!start) return 0
-  const target = new Date(); target.setHours(0, 0, 0, 0); target.setDate(target.getDate() + DEMO_LEAD_DAYS)
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const target = new Date(today); target.setDate(target.getDate() + DEMO_LEAD_DAYS)
   const days = Math.round((target.getTime() - start.getTime()) / 86400000)
-  return Math.round(days / 7) * 7
+  const base = Math.round(days / 7) * 7
+  // a demo's key day landing in the holidays reads as a mistake (a team offsite on
+  // Dec 30, a cabin weekend on Christmas, a vote closing on New Year's Eve), so the
+  // nearest whole-week shift that keeps them all clear is taken, never closer than four
+  // weeks out. Key days: the locked day, the first day asked about, each deadline.
+  const keyDays = list.flatMap((e) => [e.confirmed?.dayKey, e.startDate, e.voteDeadline, e.planDeadline, e.rsvpDeadline])
+    .map((k) => (k ? parseLocal(k) : null)).filter((d): d is Date => !!d)
+  const clear = (by: number) => keyDays.every((d) => !inHolidays(moveDay(d, by)))
+  const soonest = (by: number) => (moveDay(start, by).getTime() - today.getTime()) / 86400000 >= 28
+  // the demos span about seven weeks, so nine weeks later always clears the holidays
+  for (const k of [0, -7, 7, -14, 14, 21, 28, 35, 42, 49, 56, 63]) if (soonest(base + k) && clear(base + k)) return base + k
+  return base
+}
+// Dec 20 to Jan 3
+function inHolidays(d: Date): boolean {
+  return (d.getMonth() === 11 && d.getDate() >= 20) || (d.getMonth() === 0 && d.getDate() <= 3)
 }
 function moveDay(d: Date, by: number): Date { const x = new Date(d); x.setDate(x.getDate() + by); return x }
 function shiftText(t: string, by: number): string {
@@ -2313,7 +2443,7 @@ function demosFromToday(list: AppEvent[]): AppEvent[] {
     return { ...moved, days: moved.days.map((d) => { const k = parseLocal(d.key); return k ? { ...d, date: dayLabel(k) } : d }) }
   })
 }
-const DEMOS: AppEvent[] = demosFromToday([DESIGN_DINNER, GAME_NIGHT, BIRTHDAY, BIG_DEMO, CABIN_TRIP, DEMO, COFFEE, CONFERENCE])
+const DEMOS: AppEvent[] = demosFromToday([DESIGN_DINNER, CLUB_SOCIAL, GAME_NIGHT, BIRTHDAY, BIG_DEMO, CABIN_TRIP, DEMO, COFFEE, CONFERENCE])
 
 // demos that were retired or renamed, and the one that took each one's place, so an
 // old link still opens a plan rather than "Plan not found"

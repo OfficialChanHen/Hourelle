@@ -1,4 +1,4 @@
-import { Avatar } from './Avatar'
+import { Avatar, NameTag } from './Avatar'
 import { FlipGroup } from './FlipGroup'
 import type { Avatar as Person } from '@/lib/people'
 
@@ -62,15 +62,17 @@ export function AvatarRow({
         <span
           // the same sticker as a face: a disc the size of the drawn face, with its edge
           style={{ width: size * 40 / 44, height: size * 40 / 44, margin: size / 22, boxShadow: `0 0 0 ${size / 20}px var(--face-edge)`, filter: 'var(--face-lift)', fontSize: font ?? Math.round(size * 0.4 * 10) / 10 }}
-          className="inline-flex flex-none items-center justify-center rounded-full bg-s3 font-semibold text-dim"
+          className="group/face relative inline-flex flex-none items-center justify-center rounded-full bg-s3 font-semibold text-dim"
           aria-hidden
         >
           {extra}
+          {/* on hover, the people the "+N" stands for, when this row has them */}
+          {more == null && <NameTag list name={namesLabel(people.slice(max, max + 8).map((p) => p.name), extraCount - 8)} />}
         </span>
       )}
     </>
   )
-  if (flip) return <FlipGroup names={label} className="flex items-center">{faces}</FlipGroup>
+  if (flip) return <FlipGroup names={label} people={people} more={more != null ? extraCount : 0} className="flex items-center">{faces}</FlipGroup>
   return (
     <div
       className="flex items-center"

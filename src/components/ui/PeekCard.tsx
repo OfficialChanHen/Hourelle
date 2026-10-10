@@ -85,7 +85,9 @@ export function PeekCard({
     >
       {shown.length > 0 && (
         <FlipGroup
+          caption="above"
           names={namesLabel(shown.map((p) => p.name), people.length - shown.length)}
+          people={people}
           className="pointer-events-auto absolute left-5 right-5 z-0 flex gap-2"
           style={{ top: room, transform: rowTilt ? `rotate(${rowTilt}deg)` : undefined }}
         >

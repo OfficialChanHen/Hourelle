@@ -27,7 +27,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { gsap } from 'gsap'
 import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, Info, ExternalLink } from 'lucide-react'
-import { Avatar } from '@/components/ui/Avatar'
+import { Avatar, NameTag } from '@/components/ui/Avatar'
 import { namesLabel } from '@/components/ui/AvatarRow'
 import { confirmedSlotText, fromDay, todayKey, getEvent, patchEvent, fmtMinute, fmtMinuteDay, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
 import { hintDismissed as isHintDismissed, dismissHint as markHintDismissed } from '@/lib/prefs'
@@ -39,6 +39,7 @@ import { useFollow } from '@/hooks/useFollow'
 import { isPollKey, pollVotes } from '@/lib/polls'
 import type { MapPin as MapPinData, PanRequest } from '@/components/EventMap'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
+import { useNoHover } from '@/hooks/useNoHover'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { usePhoneScreen } from '@/hooks/usePhoneScreen'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
@@ -46,6 +47,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { OverflowText } from '@/components/ui/OverflowText'
 import { TimeSelect } from '@/components/ui/TimeSelect'
 import { Popover } from '@/components/ui/Popover'
+import { FlipGroup } from '@/components/ui/FlipGroup'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { TabHeading } from './TabHeading'
@@ -507,9 +509,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
               <div className="flex items-center gap-1.5">
                 <span className="text-[12px] font-bold text-teal-text">{votesOf(fp.id).length} vote{votesOf(fp.id).length === 1 ? '' : 's'}</span>
                 {!hideVoters && (
-                  <div className="flex" role={votesOf(fp.id).length ? 'img' : undefined} aria-label={votesOf(fp.id).length ? `Voted: ${namesLabel(votesOf(fp.id).slice(0, 5).map((id) => avatarOf(id).name), votesOf(fp.id).length - 5)}` : undefined}>
-                    {votesOf(fp.id).slice(0, 5).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} face={a.face} size={19} font={8.5} title={a.name} /></span> })}
-                  </div>
+                  <Voters voters={votesOf(fp.id).map(avatarOf)} place={fp.name} cap={5} size={19} list={false} />
                 )}
               </div>
               {/* vote right from the map — the popup uses fixed light colors like the map itself */}
@@ -548,7 +548,13 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
           onOnline={() => changeMode('remote')}
           letVote={event.hostedByYou && !guestsCanSuggest ? toggleGuestsCanSuggest : undefined}
         />
-      ) : mode === 'remote' ? null : setPlace && sub === 'vote' ? (
+      ) : mode === 'remote' ? null : locked && sub === 'itin' && schedule.length > 0 ? (
+        <RouteSet
+          title={headTitle} sub={headSub}
+          stops={schedule.map((x) => placeAt(x.placeId)).filter((x): x is EventPlace => !!x)}
+          going={event.participants.filter((p) => p.rsvp === 'attending')}
+        />
+      ) : setPlace && sub === 'vote' ? (
         <PlaceSet
           place={setPlace} locked={locked} voters={hideVoters || settled ? [] : votesOf(setPlace.id).map(avatarOf)} people={people}
           when={locked ? confirmedSlotText(event) : null} tz={event.timezone} day={confirmed?.dayKey}
@@ -755,7 +761,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
               )}
               <div
                 ref={voteFlip.scope}
-                className="scroll-slim flex max-h-[55vh] min-h-0 flex-1 flex-col gap-2 overflow-auto py-0.5 pr-0.5 lg:max-h-none"
+                className="scroll-slim flex min-h-0 flex-1 flex-col gap-2 overflow-auto py-0.5 pr-0.5"
                 // a finger lifting also "leaves", so only a mouse settles the order early
                 onPointerLeave={(e) => { if (e.pointerType === 'mouse') releaseOrder() }}
               >
@@ -790,9 +796,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                           )}
                         </div>
                         {!hideVoters && !settled && (
-                          <div className="flex" role={ids.length ? 'img' : undefined} aria-label={ids.length ? `Voted: ${namesLabel(ids.slice(0, 6).map((id) => avatarOf(id).name), ids.length - 6)}` : undefined}>
-                            {ids.slice(0, 6).map((id) => { const a = avatarOf(id); return <span key={id} className="-mr-[5px]"><Avatar initials={a.initials} color={a.color} face={a.face} size={20} font={8.5} title={a.name} /></span> })}
-                          </div>
+                          <Voters voters={ids.map(avatarOf)} place={p.name} />
                         )}
                       </div>
                       {!locked && (
@@ -1206,10 +1210,13 @@ function NoPlaceYet({ canAdd, host, near, onAdd, onOnline, letVote }: {
    voted for it peeking over its lower edge. Beside it the name, the address, and a way
    to get there. The working map and list stay below, flat. */
 function PlaceSet({ place, locked, voters, people, when, tz, day }: {
-  place: EventPlace; locked: boolean; voters: { initials: string; name: string; color: Participant['color']; face?: Participant['face'] }[]
+  place: EventPlace; locked: boolean; voters: Voter[]
   people: number; when: string | null; tz: string; day?: string
 }) {
   const [copied, setCopied] = useState(false)
+  // a touch screen's way to the names: the count opens them, right under it
+  const touch = useNoHover()
+  const [names, setNames] = useState(false)
   const c = coordsOf(place)
   const dest = c ? `${c.lat},${c.lng}` : `${place.name}, ${place.place}`
   const directions = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}`
@@ -1231,9 +1238,10 @@ function PlaceSet({ place, locked, voters, people, when, tz, day }: {
           </div>
         </PhotoFrame>
         {voters.length > 0 && (
-          <div className="absolute -bottom-5 left-6 flex" role="img" aria-label={`Voted for it: ${namesLabel(voters.slice(0, 5).map((v) => v.name), voters.length - 5)}`}>
-            {voters.slice(0, 5).map((v, i) => <span key={i} className="-mr-2"><Avatar initials={v.initials} color={v.color} face={v.face} size={40} font={13} /></span>)}
-          </div>
+          // the faces turn over to their initials together, like every face row
+          <FlipGroup names={namesLabel(voters.slice(0, 5).map((v) => (v.you ? 'you' : v.name)), voters.length - 5)} people={voters} className="absolute -bottom-5 left-6 flex">
+            {voters.slice(0, 5).map((v, i) => <span key={i} className="-mr-2"><Avatar initials={v.initials} color={v.color} face={v.face} size={40} font={13} title={v.name} flippable /></span>)}
+          </FlipGroup>
         )}
       </div>
       <div className="max-w-[460px] flex-1">
@@ -1242,15 +1250,83 @@ function PlaceSet({ place, locked, voters, people, when, tz, day }: {
         {address && <p className="mt-2 text-[15px] text-dim">{address}</p>}
         {(voters.length > 0 || when) && (
           <p className="mt-3 text-[15px] leading-[1.6] text-dim">
-            {voters.length > 0 && `${voters.length} of ${people} voted for it. `}
+            {voters.length > 0 && (touch
+              ? <button type="button" onClick={() => setNames(!names)} aria-expanded={names} className="underline decoration-border2 decoration-dotted underline-offset-4">{voters.length} of {people} voted for it.</button>
+              : <>{voters.length} of {people} voted for it.</>)}
+            {voters.length > 0 && ' '}
             {when && <>{when} <TimezonePill tz={tz} day={day} /></>}
           </p>
         )}
+        {touch && names && <VoterList voters={voters} />}
         <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
           <a href={directions} target="_blank" rel="noopener noreferrer" className="flex h-11 items-center justify-center whitespace-nowrap rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent sm:h-10">Directions</a>
           <button type="button" onClick={copy} className={`flex h-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-[14px] font-semibold sm:h-10 ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
             {copied ? <><Check size={15} /> Copied</> : 'Copy address'}
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* The route, once it is a fact: the tab's moment for an itinerary, the same way
+   PlaceSet is for one place. A taped frame holding a pencil map with the stops as
+   numbered pins along a dashed road, the faces of the people going peeking over its
+   lower edge. Beside it the route in a sentence, the stops in order, and directions
+   through all of them. The working map and the schedule stay below, flat. */
+const ROUTE_PINS: [number, number][][] = [
+  [], [[200, 100]], [[120, 130], [290, 90]], [[90, 150], [205, 80], [320, 140]],
+  [[70, 150], [160, 80], [250, 140], [335, 75]], [[60, 150], [135, 85], [205, 150], [280, 80], [345, 140]],
+]
+function RouteSet({ title, sub, stops, going }: {
+  title: string; sub?: string; stops: EventPlace[]; going: Participant[]
+}) {
+  // past five stops the drawing keeps five pins; the list beside it has them all
+  const pins = ROUTE_PINS[Math.min(stops.length, 5)]
+  const path = pins.map(([x, y], i) => (i === 0 ? `M${x} ${y}` : `S ${(pins[i - 1][0] + x) / 2} ${y + (i % 2 ? -40 : 40)}, ${x} ${y}`)).join(' ')
+  const at = (p: EventPlace) => { const c = coordsOf(p); return c ? `${c.lat},${c.lng}` : `${p.name}, ${p.place}` }
+  const directions = stops.length > 1
+    ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(at(stops[0]))}&destination=${encodeURIComponent(at(stops[stops.length - 1]))}${stops.length > 2 ? `&waypoints=${encodeURIComponent(stops.slice(1, -1).map(at).join('|'))}` : ''}`
+    : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(at(stops[0]))}`
+  const faces = going.slice(0, 5)
+  return (
+    <div className="relative isolate flex flex-col gap-10 py-4 md:flex-row md:items-center md:gap-14">
+      <div className="relative w-full max-w-[420px] flex-none self-center md:max-w-[300px] md:self-auto lg:max-w-[420px]">
+        <PhotoFrame tilt={1.6} tape="left">
+          <div className="relative h-[190px] overflow-hidden rounded-lg bg-s2 sm:h-[230px]">
+            <svg aria-hidden className="absolute inset-0 h-full w-full" viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" fill="none" strokeLinecap="round">
+              <path d="M0 62 C 120 54, 260 70, 400 52 M0 180 C 140 190, 260 170, 400 196 M110 0 C 118 80, 104 160, 124 230 M300 0 C 290 90, 310 150, 294 230" stroke="var(--border2)" strokeWidth="9" />
+              <path d={path} stroke="var(--dim)" strokeWidth="3" strokeDasharray="2 9" />
+              {pins.map(([x, y], i) => (
+                <g key={i}>
+                  <path d={`M${x} ${y} c -11 -14, -17 -22, -17 -30 a 17 17 0 0 1 34 0 c 0 8, -6 16, -17 30 Z`} fill="var(--teal)" stroke="var(--frame)" strokeWidth="3" />
+                  <text x={x} y={y - 25} textAnchor="middle" fontSize="15" fontWeight="700" fill="var(--frame)" style={{ fontFamily: 'var(--font-sans)' }}>{i + 1}</text>
+                </g>
+              ))}
+            </svg>
+          </div>
+        </PhotoFrame>
+        {faces.length > 0 && (
+          <FlipGroup names={namesLabel(faces.map((p) => (p.you ? 'you' : p.name)), going.length - faces.length)} people={going} className="absolute -bottom-5 left-6 flex">
+            {faces.map((p) => <span key={p.id} className="-mr-2"><Avatar initials={p.initials} color={p.color} face={p.face} size={40} font={13} title={p.name} flippable /></span>)}
+          </FlipGroup>
+        )}
+      </div>
+      <div className="max-w-[460px] flex-1">
+        <p className="text-[12px] font-semibold uppercase tracking-[.13em] text-teal-text sm:text-[11px]">The route is set</p>
+        <h2 className="mt-2 font-serif text-[32px] font-normal leading-[1.12] tracking-[-0.01em] sm:text-[40px]">{title}</h2>
+        <ol className="mt-3 flex flex-col gap-1 text-[15px] text-dim">
+          {stops.map((p, i) => (
+            <li key={p.id} className="flex items-baseline gap-2.5">
+              <span className="grid h-5 w-5 flex-none translate-y-[3px] place-items-center rounded-full bg-teal-bg text-[11.5px] font-bold text-teal-text">{i + 1}</span>
+              <span className="min-w-0"><span className="text-text">{p.name}</span>{p.place && p.place !== 'Custom place' && <>, {p.place}</>}</span>
+            </li>
+          ))}
+        </ol>
+        {/* the title already has the route's own times; this is the travel between them */}
+        {sub && <p className="mt-3 text-[15px] leading-[1.6] text-dim">{sub}</p>}
+        <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
+          <a href={directions} target="_blank" rel="noopener noreferrer" className="flex h-11 items-center justify-center whitespace-nowrap rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent sm:h-10">Directions for the route</a>
         </div>
       </div>
     </div>
@@ -1321,6 +1397,61 @@ function RemoteCall({ platform, link, host, onLink, people }: {
           <p className="mt-5 flex items-center gap-2 text-[14px] text-dim"><Link2 size={15} className="text-faint" aria-hidden /> The link is on its way from the host.</p>
         )}
       </div>
+    </div>
+  )
+}
+
+type Voter = { initials: string; name: string; color: Participant['color']; face?: Participant['face']; you?: boolean }
+
+// everyone who voted for a place, by face and full name: a touch screen's way to the
+// names, where there is no hover to show them face by face. It opens in the page,
+// right under what was tapped, so it never covers anything and needs no focus games.
+function VoterList({ voters }: { voters: Voter[] }) {
+  return (
+    <ul className="mt-2.5 max-w-[340px] rounded-xl border border-border bg-s0 p-1">
+      {voters.map((v, i) => (
+        <li key={i} className="flex items-center gap-3 px-2.5 py-1.5">
+          <Avatar initials={v.initials} color={v.color} face={v.face} size={26} font={9.5} />
+          <span className="min-w-0 flex-1 truncate text-[14px] text-text">{v.name}</span>
+          {v.you && <span className="flex-none rounded-full border border-accent-border bg-accent-bg px-2 py-px text-[11.5px] font-semibold text-accent-text">You</span>}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/* Who voted for a place, as a capped pile of faces (then +N). With a mouse each face
+   names itself on hover and that is all; on a touch screen the pile is a button that
+   opens the list of names under it (`list={false}` where there is no room, the map's
+   pin popup). Kept out of the row's own click, which goes to the pin. */
+function Voters({ voters, place, cap = 6, size = 20, list = true }: { voters: Voter[]; place: string; cap?: number; size?: number; list?: boolean }) {
+  const touch = useNoHover()
+  const [open, setOpen] = useState(false)
+  if (!voters.length) return null
+  const shown = voters.slice(0, cap)
+  const extra = voters.length - shown.length
+  const pile = (
+    <>
+      {shown.map((v, i) => <span key={i} className="-mr-[5px]"><Avatar initials={v.initials} color={v.color} face={v.face} size={size} font={8.5} title={touch ? undefined : v.name} /></span>)}
+      {extra > 0 && (
+        <span className="group/face relative ml-2.5 text-[12px] font-semibold text-dim">
+          +{extra}
+          {!touch && <NameTag list name={namesLabel(voters.slice(cap, cap + 8).map((v) => v.name), extra - 8)} />}
+        </span>
+      )}
+    </>
+  )
+  const label = `${voters.length === 1 ? '1 vote' : `${voters.length} votes`}: ${namesLabel(shown.map((v) => (v.you ? 'you' : v.name)), extra)}`
+  if (!touch || !list) return <span className="flex items-center" role="img" aria-label={label}>{pile}</span>
+  return (
+    <div onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`See who voted for ${place}: ${label}`}
+        className="-m-2 flex min-h-11 items-center p-2 [-webkit-tap-highlight-color:transparent]"
+      >
+        {pile}
+      </button>
+      {open && <VoterList voters={voters} />}
     </div>
   )
 }

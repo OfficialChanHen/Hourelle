@@ -101,9 +101,9 @@ export function CoverEditor({ image, fit = 'fill', pos, keepsake, eventId, onCha
 
   return (
     <div className="flex flex-col gap-3">
-      {/* the cover as each place crops it on this screen; the detail is shown on the
-          tiles below */}
-      <CoverCrops image={image} fit={fit} pos={pos} from={from} to={to} />
+      {/* the cover as each place crops it on this screen, wearing the detail picked
+          below where that place does */}
+      <CoverCrops image={image} fit={fit} pos={pos} from={from} to={to} look={{ ...withDetail(auto, keepsake), tilt: 0 }} />
 
       <div className="flex flex-wrap items-center gap-1.5">
         {COVER_PRESETS.map((p) => {
