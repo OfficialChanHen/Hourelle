@@ -6,8 +6,8 @@ import Link from 'next/link'
    the sign-up sheet renders the same text with a reading bar. Plain words, and only
    claims the code actually keeps. Bump the version when the substance changes;
    acceptance is recorded against it. */
-export const LEGAL_VERSION = '2026-09-18'
-export const LEGAL_EFFECTIVE = 'September 18, 2026'
+export const LEGAL_VERSION = '2026-10-27'
+export const LEGAL_EFFECTIVE = 'October 27, 2026'
 
 export type LegalKey = 'privacy' | 'terms'
 export type LegalSection = { id: string; title: string; paragraphs: string[]; items?: string[] }
@@ -55,7 +55,7 @@ const PRIVACY: LegalDoc = {
         'Guest information. A guest who joins by a link gives a name and, only if they choose, an email address. We store both, together with a private token that makes their personal link theirs.',
         'Calendar data. If you import from Google Calendar or Outlook, your browser asks the calendar, with your permission, for the times you are busy during the plan’s days, works out your free times, and shows them for you to review. The calendar entries, their titles and their details are never sent to our servers and never stored. What we keep is the availability you save, plus a note of which stretches your calendar showed as busy, so the grid can mark them. The permission lasts about an hour, and the next import asks again.',
         'Information on your device. Your browser keeps a copy of the plans you are part of so pages open at once, your sign-in session, a guest’s place on a plan, and a few preferences such as the theme and clock style.',
-        'Technical information. Our hosting provider keeps standard request logs, including the address of the device making the request, the page requested and the time, for a short period, as every website’s host does. We do not add our own tracking to this.',
+        'Technical information. Our hosting provider keeps standard request logs, including the address of the device making the request, the page requested and the time, for a short period, as every website’s host does. We also count page views with Vercel Analytics, which sets no cookies and identifies no one. It records the page, without the plan it belongs to, along with the kind of device, browser and country, and we use it only to see which parts of Hourelle get used.',
       ],
     },
     {
@@ -79,7 +79,7 @@ const PRIVACY: LegalDoc = {
         'People on your plans. Anyone who holds a plan’s link can see that plan: its details, the availability grid, the places, the votes and the chat, including the names of the people on it. A host also sees the email addresses of the people they invited by email. Nobody else sees anyone’s email address.',
         'Supabase, which hosts our database and handles sign-in.',
         'Resend, which delivers the emails we send.',
-        'Vercel, which hosts the website and keeps the request logs mentioned above.',
+        'Vercel, which hosts the website, keeps the request logs and counts the page views mentioned above.',
         'Google and Microsoft, when you choose to sign in with them or to import a calendar. Their handling of your data is governed by their own privacy policies.',
         'OpenStreetMap, Photon and OSRM, which provide map tiles, place search and driving routes on the Location tab. The text you search for and the coordinates of a route are sent to them when you use those features.',
         'Authorities, if the law requires us to, and only to the extent it requires.',
