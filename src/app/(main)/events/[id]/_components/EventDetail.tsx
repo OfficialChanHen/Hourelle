@@ -1135,7 +1135,7 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
   const oneDay = event.startDate === event.endDate
   const dow = oneDay ? event.days[0]?.dow : null
   const dayPoll = event.granularity === 'day'
-  const best = dayPoll ? null : bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode)
+  const best = dayPoll ? null : bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode, event.needIv)
   const gridStart = gridStartMinOf(event)
   return (
     <div className="flex flex-col gap-1">

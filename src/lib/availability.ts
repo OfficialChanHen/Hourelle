@@ -69,8 +69,58 @@ export function intervalsToGrid(availIv: AvailIntervals, days: Pick<GridDay, 'ke
   return out
 }
 
-export function availIvOf(ev: Pick<AppEvent, 'avail' | 'availIv' | 'days' | 'granularity'>): AvailIntervals {
+/* Two kinds of mark: free, and "if need be" (I can make it if I have to). They live
+   apart, `availIv` and `needIv`, and one person's two never share a minute. Who can
+   make a time is both together, and that is what every count, every best time and
+   every roster reads (availIvOf). Only the heat shade and the writers want free alone
+   (freeIvOf, fullAvailIvOf), so an if-need-be mark never makes a time look better
+   than it is. */
+
+/** Both maps merged, per day and per person. */
+export function unionIv(a: AvailIntervals, b?: AvailIntervals): AvailIntervals {
+  if (!b || !Object.keys(b).length) return a
+  const out: AvailIntervals = { ...a }
+  for (const [day, byPid] of Object.entries(b)) {
+    const merged = { ...(out[day] ?? {}) }
+    for (const [pid, ivs] of Object.entries(byPid)) {
+      if (!ivs?.length) continue
+      merged[pid] = normalizeIv([...(merged[pid] ?? []), ...ivs])
+    }
+    out[day] = merged
+  }
+  return out
+}
+
+/** Free marks only: the heat shade's count, and the writers' copy. */
+export function freeIvOf(ev: Pick<AppEvent, 'avail' | 'availIv' | 'days' | 'granularity'>): AvailIntervals {
   return ev.availIv ?? gridToIntervals(ev.avail, ev.days, stepOf(ev.granularity))
+}
+
+/** Who can make it: free and if-need-be marks together. */
+export function availIvOf(ev: Pick<AppEvent, 'avail' | 'availIv' | 'needIv' | 'days' | 'granularity'>): AvailIntervals {
+  return unionIv(freeIvOf(ev), ev.needIv)
+}
+
+/** Take a range out of a list of intervals. */
+function cut(list: Iv[], r: Iv): Iv[] {
+  const out: Iv[] = []
+  for (const iv of list) {
+    if (iv.e <= r.s || iv.s >= r.e) { out.push(iv); continue }
+    if (iv.s < r.s) out.push({ s: iv.s, e: r.s })
+    if (iv.e > r.e) out.push({ s: r.e, e: iv.e })
+  }
+  return normalizeIv(out)
+}
+
+export type Brush = 'free' | 'need' | 'erase'
+
+/** Paint one range on one day of your answer. A minute is free, if need be, or
+ *  nothing, never two of them: painting one kind takes the other out from under it. */
+export function applyBrush(free: Iv[], need: Iv[], range: Iv, brush: Brush): { free: Iv[]; need: Iv[] } {
+  const f = cut(free, range), n = cut(need, range)
+  if (brush === 'free') return { free: normalizeIv([...f, range]), need: n }
+  if (brush === 'need') return { free: f, need: normalizeIv([...n, range]) }
+  return { free: f, need: n }
 }
 
 // same, but over every stored day — including dormant ones dropped from the current
@@ -114,14 +164,23 @@ export function byDay(people: Map<string, PersonAnswer>): AvailIntervals {
    stored day is kept, not just the current window, so replies on days a shrunken
    window dropped stay dormant and come back if the window re-grows. */
 export function myTimesPatch(
-  cur: Pick<AppEvent, 'avail' | 'availIv' | 'granularity'>, meId: string, days: Pick<GridDay, 'key'>[], m: Record<string, Iv[]>, rows: number, step: number,
-): Pick<AppEvent, 'availIv' | 'avail'> {
-  const availIv: AvailIntervals = { ...fullAvailIvOf(cur) }
-  for (const d of days) {
-    const day = { ...(availIv[d.key] ?? {}) }
-    if (m[d.key]?.length) day[meId] = m[d.key]
-    else delete day[meId]
-    availIv[d.key] = day
+  cur: Pick<AppEvent, 'avail' | 'availIv' | 'needIv' | 'granularity'>, meId: string, days: Pick<GridDay, 'key'>[], m: Record<string, Iv[]>, rows: number, step: number,
+  // your if-need-be marks; absent leaves them as they were
+  need?: Record<string, Iv[]>,
+): Pick<AppEvent, 'availIv' | 'avail' | 'needIv'> {
+  const put = (src: AvailIntervals, mine: Record<string, Iv[]>) => {
+    const out: AvailIntervals = { ...src }
+    for (const d of days) {
+      const day = { ...(out[d.key] ?? {}) }
+      if (mine[d.key]?.length) day[meId] = mine[d.key]
+      else delete day[meId]
+      out[d.key] = day
+    }
+    return out
   }
-  return { availIv, avail: { ...cur.avail, ...intervalsToGrid(availIv, days, rows, step) } }
+  const availIv = put(fullAvailIvOf(cur), m)
+  const needIv = need ? put(cur.needIv ?? {}, need) : undefined
+  // the per-cell view counts anyone who can make it, so lists agree with the counts
+  const both = unionIv(availIv, needIv ?? cur.needIv)
+  return { availIv, ...(needIv ? { needIv } : {}), avail: { ...cur.avail, ...intervalsToGrid(both, days, rows, step) } }
 }

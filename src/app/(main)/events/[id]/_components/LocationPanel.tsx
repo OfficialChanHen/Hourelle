@@ -88,7 +88,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // and it shouldn't run longer than the time the owner set aside for the event.
   const eventDuration = event.durationMin ?? 60
   const gridStart = gridStartMinOf(event)
-  const bw = bestWindow(availIvOf(event), event.days, eventDuration, event.bestMode)
+  const bw = bestWindow(availIvOf(event), event.days, eventDuration, event.bestMode, event.needIv)
   const winStart = bw ? gridStart + bw.s : null           // best free window, clock minutes
   const winEnd = bw ? gridStart + bw.e : null
   // start is bounded to the free window, leaving room for at least the planned duration

@@ -38,3 +38,10 @@ export function goingLine(pool: { people: { rsvp: Rsvp | string }[]; byTimes: bo
   const parts = [maybe && `${maybe} maybe`, no && `${no} said no`, waiting && `${waiting} ${waiting === 1 ? 'hasn’t' : 'haven’t'} replied`].filter(Boolean)
   return parts.length ? `${base}: ${parts.join(', ')}` : base
 }
+
+/** The tail a best time gets when some of the people it counts would only be there
+ *  if need be: "works for everyone, 2 of them if need be". Empty when nobody leans on
+ *  it, so the sentence reads exactly as it did before. */
+export function needClause(leaning: number): string {
+  return leaning > 0 ? `, ${leaning} of them if need be` : ''
+}

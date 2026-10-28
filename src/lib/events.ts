@@ -87,7 +87,8 @@ export type AppEvent = {
   days: GridDay[]
   times: string[]
   avail: Record<string, string[][]>   // per-cell view, derived from availIv — kept for lists/stats
-  availIv?: AvailIntervals            // source of truth once anyone edits with minute precision
+  availIv?: AvailIntervals            // source of truth once anyone edits with minute precision: FREE marks only
+  needIv?: AvailIntervals             // "if need be" marks, same shape; never shares a minute with the same person's availIv. availIvOf reads both
   // everyone taken off the list, by the host or by leaving: the server clears their
   // chat lines only for ids that are here and no longer on the roster, so a merge
   // (which also takes an id off the roster) can never be mistaken for a removal
@@ -516,9 +517,9 @@ export function parseHM(v: string | undefined): number | null {
    other code checks (gridStartMinOf), so it stays a single constant. */
 export {
   ALL_DAY, stepOf, parseClockLabel, gridStartMinOf, normalizeIv, gridToIntervals,
-  intervalsToGrid, availIvOf, fullAvailIvOf, myTimesPatch, byParticipant, byDay, type PersonAnswer,
+  intervalsToGrid, availIvOf, freeIvOf, unionIv, applyBrush, fullAvailIvOf, myTimesPatch, byParticipant, byDay, type PersonAnswer, type Brush,
 } from './availability'
-import { ALL_DAY, stepOf, normalizeIv, intervalsToGrid, availIvOf, gridStartMinOf } from './availability'
+import { ALL_DAY, stepOf, normalizeIv, intervalsToGrid, availIvOf, freeIvOf, applyBrush, gridStartMinOf } from './availability'
 export function buildTimes(gran: string, fromMin = 0, toMin = 24 * 60): string[] {
   if (gran === 'day') return [ALL_DAY]
   const step = gran === '15' ? 15 : gran === '60' ? 60 : 30
@@ -549,23 +550,30 @@ export function fmtMinute(min: number, h24 = false): string {
 // time; 'crowd' = the fullest room on average, even if few can stay start to finish
 export type BestMode = 'full' | 'crowd'
 
-export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0, bestMode: BestMode = 'full') {
+// `availIv` is who can make it (availIvOf: free and if need be together). `needIv`,
+// when given, is the if-need-be part: the search takes the most people who can make
+// it, and on a tie the fewest who would be there only if need be. In crowd mode an
+// if-need-be minute weighs half. `needIds` are the people in `ids` who lean on an
+// if-need-be mark to be there.
+export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0, bestMode: BestMode = 'full', needIv?: AvailIntervals) {
   // ids = people free the whole window; anyIds = everyone who overlaps it at all
-  let best: { dayKey: string; s: number; e: number; count: number; ids: string[]; anyIds: string[]; avg: number } | null = null
+  let best: { dayKey: string; s: number; e: number; count: number; ids: string[]; anyIds: string[]; needIds: string[]; avg: number } | null = null
   let bestWeight = 0
   let bestGap = 0
   let bestDay = -1
   // primary and secondary swap with the mode: whole-window people vs person-minutes
-  // inside the window. Then the window that opens with people actually there (no dead
-  // air before the first arrival), then longer, then the earliest day, and only then
-  // the earliest start on that day: a Monday afternoon that works beats a Thursday
-  // morning that works just as well.
-  const better = (count: number, weight: number, gap: number, s: number, e: number, di: number) => {
+  // inside the window. Then fewer people on if need be, then the window that opens with
+  // people actually there (no dead air before the first arrival), then longer, then the
+  // earliest day, and only then the earliest start on that day: a Monday afternoon that
+  // works beats a Thursday morning that works just as well.
+  const better = (count: number, weight: number, need: number, gap: number, s: number, e: number, di: number) => {
     if (!best) return true
     const [a1, a2] = bestMode === 'crowd' ? [weight, count] : [count, weight]
     const [b1, b2] = bestMode === 'crowd' ? [bestWeight, best.count] : [best.count, bestWeight]
     if (a1 !== b1) return a1 > b1
+    if (bestMode !== 'crowd' && need !== best.needIds.length) return need < best.needIds.length
     if (a2 !== b2) return a2 > b2
+    if (need !== best.needIds.length) return need < best.needIds.length
     if (gap !== bestGap) return gap < bestGap
     if (e - s !== best.e - best.s) return e - s > best.e - best.s
     if (di !== bestDay) return di < bestDay
@@ -574,12 +582,23 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
 
   for (const [di, d] of days.entries()) {
     const byPid = availIv[d.key] ?? {}
+    const needByPid = needIv?.[d.key] ?? {}
     const ids = Object.keys(byPid)
     if (!ids.length) continue
     const coverers = (s: number, e: number) => ids.filter((id) => byPid[id].some((iv) => iv.s <= s && iv.e >= e))
+    // free and if need be never share a minute, so someone covering the window leans on
+    // if need be exactly when an if-need-be mark of theirs falls inside it
+    const leaners = (who: string[], s: number, e: number) => who.filter((id) => (needByPid[id] ?? []).some((iv) => iv.s < e && iv.e > s))
+    const overlap = (ivs: Iv[], s: number, e: number) => {
+      let w = 0
+      for (const iv of ivs) w += Math.max(0, Math.min(iv.e, e) - Math.max(iv.s, s))
+      return w
+    }
     const minutesIn = (s: number, e: number) => {
       let w = 0
-      for (const ivs of Object.values(byPid)) for (const iv of ivs) w += Math.max(0, Math.min(iv.e, e) - Math.max(iv.s, s))
+      for (const ivs of Object.values(byPid)) w += overlap(ivs, s, e)
+      // an if-need-be minute weighs half: it helps a time without beating a free one
+      for (const ivs of Object.values(needByPid)) w -= overlap(ivs, s, e) / 2
       return w
     }
 
@@ -591,7 +610,8 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
         const s = xs[i], e = xs[i + 1]
         const who = coverers(s, e)
         const weight = minutesIn(s, e)
-        if (who.length && better(who.length, weight, 0, s, e, di)) { best = { dayKey: d.key, s, e, count: who.length, ids: who, anyIds: who, avg: weight / (e - s) }; bestWeight = weight; bestGap = 0; bestDay = di }
+        const lean = leaners(who, s, e)
+        if (who.length && better(who.length, weight, lean.length, 0, s, e, di)) { best = { dayKey: d.key, s, e, count: who.length, ids: who, anyIds: who, needIds: lean, avg: weight / (e - s) }; bestWeight = weight; bestGap = 0; bestDay = di }
       }
     } else {
       // candidate starts: every point where either the full-window crowd or the
@@ -616,9 +636,10 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
         const gap = firstFree === Infinity ? 0 : firstFree - s
         // the window is exactly the event's length — the frame and footers report a
         // slot you could book as-is, never a longer stretch around it
-        if (better(who.length, weight, gap, s, e, di)) {
+        const lean = leaners(who, s, e)
+        if (better(who.length, weight, lean.length, gap, s, e, di)) {
           const anyIds = ids.filter((id) => byPid[id].some((iv) => iv.s < e && iv.e > s))
-          best = { dayKey: d.key, s, e, count: who.length, ids: who, anyIds, avg: weight / minLen }
+          best = { dayKey: d.key, s, e, count: who.length, ids: who, anyIds, needIds: lean, avg: weight / minLen }
           bestWeight = weight
           bestGap = gap
           bestDay = di
@@ -636,8 +657,11 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
    the poll — so a weekends-only poll naturally forms Sat+Sun blocks and nothing else.
    'full' favors people who can make every day of the block; 'crowd' favors the
    most person-days overall. Earlier blocks win ties. */
-export type BestBlock = { startKey: string; endKey: string; count: number; ids: string[]; anyIds: string[]; avgPerDay: number }
-export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: number, bestMode: BestMode = 'full'): BestBlock | null {
+// With `needIv`, a day a person marked only if need be still counts for them, and ties
+// go to the block with fewer such person-days. `needIds` are the people in `ids` who
+// lean on if need be for at least one day of it.
+export type BestBlock = { startKey: string; endKey: string; count: number; ids: string[]; anyIds: string[]; needIds: string[]; avgPerDay: number }
+export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: number, bestMode: BestMode = 'full', needIv?: AvailIntervals): BestBlock | null {
   if (blockLen < 1 || days.length < blockLen) return null
   const keys = days.map((d) => d.key)
   const nextDay = (k: string) => {
@@ -649,6 +673,18 @@ export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: nu
   let best: BestBlock | null = null
   let bestPrimary = 0
   let bestSecondary = 0
+  let bestLean = 0
+  // a person-day leans on if need be when that person has if-need-be marks there and
+  // no free ones (free and if need be never share a minute, so the union minus the
+  // if-need-be part is the free part)
+  const leansOn = (k: string, id: string) => {
+    const n = needIv?.[k]?.[id] ?? []
+    if (!n.length) return false
+    const all = availIv[k]?.[id] ?? []
+    const total = all.reduce((t, iv) => t + iv.e - iv.s, 0)
+    const needMin = n.reduce((t, iv) => t + iv.e - iv.s, 0)
+    return total <= needMin
+  }
   for (let i = 0; i + blockLen <= keys.length; i++) {
     const block = keys.slice(i, i + blockLen)
     if (block.some((k, j) => j > 0 && block[j - 1] !== '' && k !== nextDay(block[j - 1]))) continue
@@ -658,11 +694,18 @@ export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: nu
     const ids = [...anySet].filter((id) => perDay.every((s) => s.has(id)))
     const personDays = perDay.reduce((n, s) => n + s.size, 0)
     if (personDays === 0) continue
+    let lean = 0
+    const needIds: string[] = []
+    if (needIv) {
+      perDay.forEach((s, j) => { for (const id of s) if (leansOn(block[j], id)) lean++ })
+      for (const id of ids) if (block.some((k) => leansOn(k, id))) needIds.push(id)
+    }
     const [p, s] = bestMode === 'crowd' ? [personDays, ids.length] : [ids.length, personDays]
-    if (p > bestPrimary || (p === bestPrimary && s > bestSecondary)) {
-      best = { startKey: block[0], endKey: block[block.length - 1], count: ids.length, ids, anyIds: [...anySet], avgPerDay: personDays / blockLen }
+    if (p > bestPrimary || (best && p === bestPrimary && (lean < bestLean || (lean === bestLean && s > bestSecondary)))) {
+      best = { startKey: block[0], endKey: block[block.length - 1], count: ids.length, ids, anyIds: [...anySet], needIds, avgPerDay: personDays / blockLen }
       bestPrimary = p
       bestSecondary = s
+      bestLean = lean
     }
   }
   return best
@@ -872,7 +915,7 @@ export function sortByAttendance(ev: AppEvent): Participant[] {
     ? ev.confirmed!.endDayKey
       ? { dayKey: ev.confirmed!.dayKey, s: 0, e: 24 * 60 - gridStart }
       : { dayKey: ev.confirmed!.dayKey, s: ev.confirmed!.startMin - gridStart, e: ev.confirmed!.endMin - gridStart }
-    : bestWindow(availIv, ev.days, ev.durationMin ?? 60, ev.bestMode)
+    : bestWindow(availIv, ev.days, ev.durationMin ?? 60, ev.bestMode, ev.needIv)
   const dayIv = win ? availIv[win.dayKey] ?? {} : {}
   const marked = new Set<string>()
   for (const day of Object.values(availIv)) for (const [id, ivs] of Object.entries(day)) if (ivs.length) marked.add(id)
@@ -925,6 +968,16 @@ export function mergeParticipantsPatch(ev: AppEvent, fromId: string, intoId: str
         return [day, merged.length ? { ...rest, [intoId]: merged } : rest]
       }))
     : ev.availIv
+  // if-need-be marks merge the same way, then give way to the merged free time: a
+  // minute either entry marked free stays free
+  const needIv = ev.needIv
+    ? Object.fromEntries(Object.entries(ev.needIv).map(([day, byPid]) => {
+        const rest = Object.fromEntries(Object.entries(byPid).filter(([pid]) => pid !== fromId && pid !== intoId))
+        let merged = normalizeIv([...(byPid[intoId] ?? []), ...(byPid[fromId] ?? [])])
+        for (const f of availIv?.[day]?.[intoId] ?? []) merged = applyBrush([], merged, f, 'erase').need
+        return [day, merged.length ? { ...rest, [intoId]: merged } : rest]
+      }))
+    : ev.needIv
   const avail = Object.fromEntries(Object.entries(ev.avail).map(([day, rows]) => [day, rows.map(dedupe)]))
   const votes = ev.votes ? Object.fromEntries(Object.entries(ev.votes).map(([place, ids]) => [place, dedupe(ids)])) : ev.votes
   const from = ev.participants.find((p) => p.id === fromId)
@@ -933,7 +986,7 @@ export function mergeParticipantsPatch(ev: AppEvent, fromId: string, intoId: str
       .filter((p) => p.id !== fromId)
       // a reply beats no reply: the surviving entry keeps its answer unless it had none
       .map((p) => (p.id === intoId && p.rsvp === 'pending' && from && from.rsvp !== 'pending' ? { ...p, rsvp: from.rsvp, rsvpAuto: from.rsvpAuto } : p)),
-    availIv, avail, votes,
+    availIv, needIv, avail, votes,
     unavailableIds: ev.unavailableIds ? dedupe(ev.unavailableIds) : ev.unavailableIds,
     messages: ev.messages.map((m) => (m.id === fromId ? { ...m, id: intoId } : m)),
     location: { ...ev.location, places: ev.location.places.map((pl) => (pl.addedBy === fromId ? { ...pl, addedBy: intoId } : pl)) },
@@ -957,6 +1010,7 @@ export function removeParticipantPatch(ev: AppEvent, pid: string): Partial<AppEv
     messages: ev.messages.filter((m) => m.id !== pid),
     avail: Object.fromEntries(Object.entries(ev.avail).map(([k, rows]) => [k, rows.map((ids) => ids.filter((id) => id !== pid))])),
     availIv: drop(ev.availIv),
+    needIv: drop(ev.needIv),
     votes: ev.votes
       ? Object.fromEntries(Object.entries(ev.votes).map(([k, ids]) => [k, ids.filter((id) => id !== pid)]))
       : undefined,
@@ -976,8 +1030,8 @@ export function setMyRsvp(id: string, rsvp: Rsvp): void {
 
 // does this person's availability cover the locked slot in full? A run of days needs
 // a mark on every day; a timed slot needs one interval spanning the whole window.
-export function slotFits(ev: AppEvent, slot: ConfirmedSlot, pid: string): boolean {
-  const availIv = availIvOf(ev)
+export function slotFits(ev: AppEvent, slot: ConfirmedSlot, pid: string, freeOnly = false): boolean {
+  const availIv = freeOnly ? freeIvOf(ev) : availIvOf(ev)
   if (slot.endDayKey) {
     const cur = parseLocal(slot.dayKey)
     const end = parseLocal(slot.endDayKey)
@@ -1030,7 +1084,9 @@ export function confirmEvent(id: string, slot: ConfirmedSlot): void {
   const ev = getEvent(id)
   const participants = ev?.participants.map((p): Participant => {
     if (p.host) return { ...p, rsvp: 'attending', rsvpAuto: undefined }
-    if (slotFits(ev, slot, p.id)) return { ...p, rsvp: 'attending', rsvpAuto: true }
+    if (slotFits(ev, slot, p.id, true)) return { ...p, rsvp: 'attending', rsvpAuto: true }
+    // covered, but only with an if-need-be mark's help
+    if (slotFits(ev, slot, p.id)) return { ...p, rsvp: 'maybe', rsvpAuto: true }
     if (ev.unavailableIds?.includes(p.id)) return { ...p, rsvp: 'not_going', rsvpAuto: true }
     if (markedAny(ev, p.id) && !slotTouches(ev, slot, p.id)) return { ...p, rsvp: 'not_going', rsvpAuto: true }
     return { ...p, rsvp: 'pending', rsvpAuto: undefined }
@@ -1149,6 +1205,7 @@ export function draftFromEvent(id: string): EventDraft | null {
 export function youReplied(ev: AppEvent): boolean {
   const my = myIdIn(ev)
   if (ev.unavailableIds?.includes(my)) return true
+  if (ev.needIv && Object.values(ev.needIv).some((day) => (day[my] ?? []).length > 0)) return true
   if (ev.availIv) return Object.values(ev.availIv).some((day) => (day[my] ?? []).length > 0)
   return Object.values(ev.avail).some((rows) => rows.some((cell) => cell.includes(my)))
 }
@@ -1314,11 +1371,14 @@ export function adoptParticipant(eventId: string, fromId: string, toId: string, 
   const availIv = ev.availIv
     ? Object.fromEntries(Object.entries(ev.availIv).map(([day, byPid]) => [day, Object.fromEntries(Object.entries(byPid).map(([pid, ivs]) => [swap(pid), ivs]))]))
     : ev.availIv
+  const needIv = ev.needIv
+    ? Object.fromEntries(Object.entries(ev.needIv).map(([day, byPid]) => [day, Object.fromEntries(Object.entries(byPid).map(([pid, ivs]) => [swap(pid), ivs]))]))
+    : ev.needIv
   const avail = Object.fromEntries(Object.entries(ev.avail).map(([day, rows]) => [day, rows.map((cell) => cell.map(swap))]))
   const votes = ev.votes ? Object.fromEntries(Object.entries(ev.votes).map(([place, ids]) => [place, ids.map(swap)])) : ev.votes
   patchEvent(eventId, {
     participants: ev.participants.map((p) => (p.id === fromId ? { ...p, ...as, id: toId, you: true, guest: undefined } : { ...p, you: undefined })),
-    availIv, avail, votes,
+    availIv, needIv, avail, votes,
     unavailableIds: ev.unavailableIds?.map(swap),
     messages: ev.messages.map((m) => (m.id === fromId ? { ...m, id: toId } : m)),
     location: { ...ev.location, places: ev.location.places.map((pl) => (pl.addedBy === fromId ? { ...pl, addedBy: toId } : pl)) },

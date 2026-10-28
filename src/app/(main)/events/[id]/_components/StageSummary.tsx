@@ -56,9 +56,9 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
   // a day poll answers in days, not clock times: its "best so far" is the leading run
   // of days (or single day), matching the grid dial's default
   const dayPoll = event.granularity === 'day'
-  const best = dayPoll ? null : bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode)
+  const best = dayPoll ? null : bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode, event.needIv)
   const bestDays = dayPoll
-    ? bestBlock(availIvOf(event), event.days, Math.min(2, longestRun(event.days)) || 1, event.bestMode)
+    ? bestBlock(availIvOf(event), event.days, Math.min(2, longestRun(event.days)) || 1, event.bestMode, event.needIv)
     : null
   const dayLabelOf = (k: string) => {
     const d = event.days.find((x) => x.key === k)

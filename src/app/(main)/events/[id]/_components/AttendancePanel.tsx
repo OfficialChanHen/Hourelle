@@ -109,7 +109,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
   const step = stepOf(event.granularity)
   const rows = event.times.length
   const locked = event.status === 'confirmed' && !!event.confirmed
-  const best = bestWindow(availIv, event.days, event.durationMin ?? 60, event.bestMode)
+  const best = bestWindow(availIv, event.days, event.durationMin ?? 60, event.bestMode, event.needIv)
 
   const win: Win | null = useMemo(() => {
     if (locked) {
