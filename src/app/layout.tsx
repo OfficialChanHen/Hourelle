@@ -6,6 +6,7 @@ import { AlertSounds } from "@/components/AlertSounds";
 import { BackendSync } from "@/components/BackendSync";
 import { NoticeRail } from "@/components/NoticeRail";
 import { PencilDefs } from "@/components/ui/Pencil";
+import { SiteAnalytics } from "@/components/SiteAnalytics";
 
 // Lora is the display serif: soft, rounded strokes with conventional letterforms,
 // and real weights — 400 for display sizes, 500 for headings under 28px (set in
@@ -59,6 +60,7 @@ export default function RootLayout({
           <NoticeRail />
           {children}
         </Providers>
+        <SiteAnalytics />
       </body>
     </html>
   );
