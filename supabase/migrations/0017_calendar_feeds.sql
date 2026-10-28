@@ -20,3 +20,8 @@ create table if not exists public.calendar_feeds (
 );
 
 alter table public.calendar_feeds enable row level security;
+
+-- From 2026-10-30 Supabase stops granting new public tables to the API roles, so the
+-- service key needs its grant spelled out. anon and authenticated get none: the
+-- browser never touches this table.
+grant select, insert, update, delete on public.calendar_feeds to service_role;
