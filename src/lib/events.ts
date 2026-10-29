@@ -519,7 +519,7 @@ export {
   ALL_DAY, stepOf, parseClockLabel, gridStartMinOf, normalizeIv, gridToIntervals,
   intervalsToGrid, availIvOf, freeIvOf, unionIv, applyBrush, fullAvailIvOf, myTimesPatch, byParticipant, byDay, type PersonAnswer, type Brush,
 } from './availability'
-import { ALL_DAY, stepOf, normalizeIv, intervalsToGrid, availIvOf, freeIvOf, applyBrush, gridStartMinOf } from './availability'
+import { ALL_DAY, stepOf, normalizeIv, intervalsToGrid, availIvOf, freeIvOf, unionIv, applyBrush, gridStartMinOf } from './availability'
 export function buildTimes(gran: string, fromMin = 0, toMin = 24 * 60): string[] {
   if (gran === 'day') return [ALL_DAY]
   const step = gran === '15' ? 15 : gran === '60' ? 60 : 30
@@ -2094,6 +2094,10 @@ const GAME_TIMES = buildTimes('30', 19 * 60, 22 * 60 + 30)
 const GAME_IV: AvailIntervals = {
   '2029-08-18': { RW: [{ s: 0, e: 210 }], TC: [{ s: 0, e: 210 }], GH: [{ s: 30, e: 210 }], EM: [{ s: 0, e: 150 }] },
 }
+// a few people who could come if need be, beside (never on) their free time
+const GAME_NEED: AvailIntervals = {
+  '2029-08-18': { GH: [{ s: 0, e: 30 }], EM: [{ s: 150, e: 210 }], NK: [{ s: 0, e: 210 }], OB: [{ s: 60, e: 150 }] },
+}
 const GAME_NIGHT: AppEvent = {
   id: 'board-game-night',
   title: 'Board Game Night',
@@ -2126,8 +2130,9 @@ const GAME_NIGHT: AppEvent = {
   ],
   days: GAME_DAYS,
   times: GAME_TIMES,
-  avail: intervalsToGrid(GAME_IV, GAME_DAYS, GAME_TIMES.length, 30),
+  avail: intervalsToGrid(unionIv(GAME_IV, GAME_NEED), GAME_DAYS, GAME_TIMES.length, 30),
   availIv: GAME_IV,
+  needIv: GAME_NEED,
   durationMin: 210,
   image: 'preset:evening',
   messages: [

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { applyBrush, availIvOf, freeIvOf, ifNeedBeOn, myTimesPatch, paintRanges, unionIv, withoutOverlap } from '@/lib/availability'
 import { cellPeople, countLabel, needSegments } from '@/app/(main)/events/[id]/_components/availability/grid-lib'
 import { answerSelect, missingNeedColumn } from '@/lib/remote'
-import { answeredIds, bestBlock, bestWindow, confirmEvent, getEvent, needOnlyIds, rsvpPool, type GridDay } from '@/lib/events'
+import { answeredIds, bestBlock, bestWindow, confirmEvent, getEvent, listDemos, needOnlyIds, rsvpPool, type GridDay } from '@/lib/events'
 import { needClause } from '@/lib/answers'
 import { person, plan, saved } from '../../../test/fixtures'
 
@@ -208,5 +208,20 @@ describe('helpers for drawing and counting if-need-be marks', () => {
       needIv: { [D1]: { B: [{ s: 120, e: 180 }], C: [{ s: 150, e: 240 }] } },
     })
     expect([...needOnlyIds(e, { dayKey: D1, startMin: 600, endMin: 720, placeIds: [] })].sort()).toEqual(['B', 'C'])
+  })
+})
+
+describe('the demos', () => {
+  it('show if-need-be marks somewhere, never on the same person\'s free time', () => {
+    const demos = listDemos()
+    expect(demos.some((d) => Object.values(d.needIv ?? {}).some((byPid) => Object.keys(byPid).length > 0))).toBe(true)
+    for (const d of demos) {
+      for (const [day, byPid] of Object.entries(d.needIv ?? {})) {
+        for (const [pid, need] of Object.entries(byPid)) {
+          const free = d.availIv?.[day]?.[pid] ?? []
+          expect(withoutOverlap(free, need), `${d.id} ${day} ${pid}`).toEqual(need)
+        }
+      }
+    }
   })
 })

@@ -20,7 +20,7 @@
    Only the RSVP, the quorum and the itinerary's own settings are editable, and as
    on the other tabs those go to local state first so the demos work in memory. */
 
-import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, Video, X } from 'lucide-react'
 import { Avatar, NameTag } from '@/components/ui/Avatar'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
@@ -36,7 +36,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Announce } from '@/components/ui/Announce'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import {
-  answeredIds, availIvOf, bestWindow, rsvpPool, byYouFirst, confirmedSlotText, dayLabel, gridStartMinOf, fmtMinute, fmtMinuteDay, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
+  answeredIds, availIvOf, bestWindow, needOnlyIds, rsvpPool, byYouFirst, confirmedSlotText, dayLabel, gridStartMinOf, fmtMinute, fmtMinuteDay, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
   type AppEvent, type AvailIntervals, type BestMode, type GridDay, type Iv, type Participant, type Rsvp,
 } from '@/lib/events'
 import { computeItinerary } from '@/lib/itinerary'
@@ -71,6 +71,9 @@ function fmtDeadline(iso: string): string {
   const dt = new Date(y, m - 1, d)
   return `${DOW[dt.getDay()]}, ${dayLabel(dt)}`
 }
+
+// who makes the time shown only with an if-need-be mark, noted beside their name
+const NeedOnly = createContext<Set<string>>(new Set())
 
 export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAvailabilityGroup, onGoToBestWindow }: { event: AppEvent; onGoToTab?: GoTab; onViewAvailability?: (pid: string) => void; onViewAvailabilityGroup?: (pids: string[]) => void; onGoToBestWindow?: () => void }) {
   const hasItinerary = (event.itinStops?.length ?? 0) > 0
@@ -123,6 +126,10 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
     return best ? { s: best.s, e: best.e, dayKey: best.dayKey, dayLabel: best.dayLabel } : null
   }, [locked, event.confirmed, event.days, gridStart, best])
   const dayIv = (win?.dayKey && availIv[win.dayKey]) || {}
+  const needOnly = useMemo(() => {
+    const slot = locked ? event.confirmed! : win ? { dayKey: win.dayKey, startMin: win.s + gridStart, endMin: win.e + gridStart, placeIds: [] } : null
+    return slot ? needOnlyIds(event, slot) : new Set<string>()
+  }, [event, locked, win, gridStart])
 
   const attendees = useMemo(() => participants.filter((p) => p.rsvp === 'attending' || p.rsvp === 'maybe'), [participants])
   const me = participants.find((p) => p.you)
@@ -194,6 +201,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
   ) : !locked ? `Nobody has marked times yet, so there is no best ${byDay ? 'day' : 'time'} to count against.` : undefined
 
   return (
+    <NeedOnly.Provider value={needOnly}>
     <div className="flex flex-col gap-4">
       {/* "are you coming" is a locked-stage question; while planning, the ask is your
           times, and the empty state below asks for them itself */}
@@ -237,6 +245,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
         />
       )}
     </div>
+    </NeedOnly.Provider>
   )
 }
 
@@ -611,6 +620,7 @@ function GroupCard({ label, tone, count, onOpen, action, children }: {
    the whole group as a compact list, so a group of a hundred draws a handful. */
 function FaceGroup({ people, size, cap, onPerson }: { people: Participant[]; size: number; cap: number; onPerson?: (pid: string) => void }) {
   const [all, setAll] = useState(false)
+  const needOnly = useContext(NeedOnly)
   if (!people.length) return null
   if (all) return <RosterGroup bare compact tone="faint" label="" people={people.map((p) => ({ p }))} onPerson={onPerson} />
   const shown = people.slice(0, cap)
@@ -631,6 +641,7 @@ function FaceGroup({ people, size, cap, onPerson }: { people: Participant[]; siz
           >
             {first(p)}
           </button>
+          {needOnly.has(p.id) && <span className="-mt-1 text-[11.5px] text-dim">if need be</span>}
         </li>
       ))}
       {extra > 0 && (
@@ -866,6 +877,7 @@ function RosterGroup({ label, tone, people, cap: capIn, compact, bare, action, o
   axis?: { pct: number; label?: string }[]
 }) {
   const [all, setAll] = useState(false)
+  const needOnly = useContext(NeedOnly)
   if (!people.length) return null
   const t = TONE[tone] ?? TONE.faint
   const cap = capIn ?? (compact ? 24 : 12)
@@ -934,7 +946,7 @@ function RosterGroup({ label, tone, people, cap: capIn, compact, bare, action, o
               className="relative flex h-8 max-w-full items-center gap-2 rounded-full border border-border bg-s0 pl-1 pr-3 before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] enabled:hover:border-border2 enabled:hover:bg-s2 sm:before:hidden"
             >
               <Avatar initials={p.initials} color={p.color} face={p.face} size={24} font={9} />
-              <span className="min-w-0 truncate text-[13px]">{p.name}{p.you && <span className="text-faint"> (You)</span>}</span>
+              <span className="min-w-0 truncate text-[13px]">{p.name}{p.you && <span className="text-faint"> (You)</span>}{needOnly.has(p.id) && <span className="text-[11.5px] text-dim"> if need be</span>}</span>
             </button>
           ))}
           {more}
@@ -951,7 +963,7 @@ function RosterGroup({ label, tone, people, cap: capIn, compact, bare, action, o
                 title={onPerson ? `See when ${p.name} is free` : undefined}
                 className={`flex min-h-[27px] min-w-0 flex-1 items-center rounded-[8px] text-left ${onPerson ? '-mx-1 px-1 py-0.5 hover:bg-s2' : ''}`}
               >
-                <span className="min-w-0 flex-1 truncate text-[14px]">{p.name}{p.you && <span className="text-faint"> (You)</span>}</span>
+                <span className="min-w-0 flex-1 truncate text-[14px]">{p.name}{p.you && <span className="text-faint"> (You)</span>}{needOnly.has(p.id) && <span className="text-[11.5px] text-dim"> if need be</span>}</span>
               </button>
             </span>
             {hasBars && (
