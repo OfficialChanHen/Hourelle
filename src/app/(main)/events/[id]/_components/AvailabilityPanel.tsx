@@ -50,15 +50,16 @@ import { Hint } from '@/components/ui/Hint'
 import { Popover } from '@/components/ui/Popover'
 import { SettingField, SettingToggle, SettingsMenu } from '@/components/ui/Settings'
 import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, ImportFromCalendar, MissingPopover, PresetFills } from './availability/parts'
-import { cellBands, clayFor, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, PILE_AV, PILE_FONT, PILE_OVER, subtract, type Band, type GDay } from './availability/grid-lib'
+import { cellBands, clayFor, needSegments, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, PILE_AV, PILE_FONT, PILE_OVER, type Band, type GDay } from './availability/grid-lib'
 import { DayCalendar } from './availability/DayCalendar'
 import { WeekStrip } from './availability/WeekStrip'
 import { prefH24, prefWholeWeek } from '@/lib/prefs'
+import { ifNeedBeOn, paintRanges, withoutOverlap, type Brush } from '@/lib/availability'
 import { useAccount } from '@/hooks/useAccount'
 import { useFollow } from '@/hooks/useFollow'
 import { canEmail, sendNudges } from '@/lib/mail'
 import {
-  addMeToEvent, listEvents, patchEvent, patchEventWith, availIvOf, myTimesPatch, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
+  addMeToEvent, listEvents, patchEvent, patchEventWith, availIvOf, freeIvOf, myTimesPatch, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
 import { googleBusyUtc, importSoon, lockedPlanBusyUtc, outlookBusyUtc, mockBusyUtc, planImport, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport, type UtcBusy } from '@/lib/calendar-import'
@@ -81,7 +82,8 @@ type Drag =
      instead. */
   | {
       kind: 'paint'; day: string; di: number; ti: number; anchorClientY: number; anchorScrollTop: number; anchorScrollLeft: number; anchorMin: number
-      trail: string[]; seen: Set<string>; on: boolean; lastX: number; lastY: number; base: Record<string, Iv[]>; moved: boolean; hit: Iv | null
+      trail: string[]; seen: Set<string>; on: boolean; lastX: number; lastY: number; base: Record<string, Iv[]>; baseNeed: Record<string, Iv[]>; moved: boolean; hit: Iv | null
+      brush: 'free' | 'need' // what the sweep paints; erasing takes out both kinds
     }
   | {
       kind: 'resize'; day: string; edge: Edge; fixedMin: number
@@ -168,7 +170,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   }, [event, meId])
   // my row as the event has it — the seed for `mine`, and what it follows afterwards
   const remoteMine = useMemo<Record<string, Iv[]>>(() => {
-    const src = availIvOf(event)
+    const src = freeIvOf(event)
     return Object.fromEntries(event.days.map((d) => [d.key, normalizeIv(src[d.key]?.[meId] ?? [])]))
   }, [event, meId])
   // mine: minute-interval ranges per day (5-min precision, mergeable). Local while I
@@ -176,6 +178,23 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // import on my other device, the host clearing my marks) — never for the echo of my
   // own write, and never mid-drag
   const [mine, setMine] = useState<Record<string, Iv[]>>(remoteMine)
+  // your if-need-be marks, beside `mine` and followed the same way. Where stored rows
+  // overlap (a device without the switch saves free only), free wins the minute
+  const remoteNeed = useMemo<Record<string, Iv[]>>(() => {
+    const src = event.needIv ?? {}
+    return Object.fromEntries(event.days.map((d) => [d.key, withoutOverlap(remoteMine[d.key] ?? [], src[d.key]?.[meId] ?? [])]))
+  }, [event, meId, remoteMine])
+  const [need, setNeedState] = useState<Record<string, Iv[]>>(remoteNeed)
+  // read by handlers registered once, so it is set the moment the state is
+  const needRef = useRef(need)
+  const setNeed = (n: Record<string, Iv[]>) => { needRef.current = n; setNeedState(n) }
+  // the brush starts on Free each time you switch to Edit mine
+  const needOn = ifNeedBeOn()
+  const [brush, setBrush] = useState<'free' | 'need'>('free')
+  // the brush in use (Free when the switch is off). The shortcuts paint with it, and
+  // one already all that kind clears instead
+  const brushKind = (): 'free' | 'need' => (needOn ? brush : 'free')
+  const brushMap = () => (brushKind() === 'need' ? needRef.current : mineRef.current)
   // what a calendar import showed as busy, per day: a striped marker beside the answer,
   // not part of it, so painting over or clearing a slot never loses what the calendar said
   const importedMine = useMemo<Record<string, Iv[]>>(() => {
@@ -189,7 +208,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // that happens to match something written before — invisible forever.
   const wroteRef = useRef<{ sig: string; at: number }[]>([])
 
-  const youAny = event.days.some((d) => (mine[d.key]?.length ?? 0) > 0)
+  const youAny = event.days.some((d) => (mine[d.key]?.length ?? 0) > 0 || (need[d.key]?.length ?? 0) > 0)
   // declared "none of these days work" — an explicit empty reply, held locally so the
   // demo works in memory and persisted for real events
   const [unavail, setUnavail] = useState<Set<string>>(() => new Set(event.unavailableIds ?? []))
@@ -239,6 +258,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const own = wroteRef.current.some((w) => w.sig === sig && Date.now() - w.at < ECHO_MS)
     if (drag || own || sig === JSON.stringify(mine)) return
     setMine(rm)
+  })
+  useFollow(remoteNeed, (rn) => {
+    if (drag || JSON.stringify(rn) === JSON.stringify(needRef.current)) return
+    setNeed(rn)
   })
   const [page, setPage] = useState(0)
   // row virtualization: only the visible slice of time rows is mounted.
@@ -421,9 +444,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   }
   useEffect(() => () => { if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current) }, [])
 
-  function persist(m: Record<string, Iv[]>, extra: Partial<AppEvent> = {}) {
+  /* Every write of your times goes through here, your if-need-be marks with them (`n`,
+     or as they stand). Free wins any minute the two share, so a free block moved,
+     stretched or quick-filled over if-need-be time takes that time. */
+  function persist(m: Record<string, Iv[]>, extra: Partial<AppEvent> = {}, n?: Record<string, Iv[]>) {
+    const cleanNeed = Object.fromEntries(Object.entries(n ?? needRef.current).map(([k, ivs]) => [k, withoutOverlap(m[k] ?? [], ivs)]))
+    if (JSON.stringify(cleanNeed) !== JSON.stringify(needRef.current)) setNeed(cleanNeed)
     // marking any time takes back an earlier "none of these days work"
-    if (Object.values(m).some((ivs) => ivs.length) && unavail.has(meId)) {
+    if ((Object.values(m).some((ivs) => ivs.length) || Object.values(cleanNeed).some((ivs) => ivs.length)) && unavail.has(meId)) {
       setUnavail((prev) => { const next = new Set(prev); next.delete(meId); return next })
       if (!event.demo) patchEventWith(event.id, (cur) => ({ unavailableIds: (cur.unavailableIds ?? []).filter((id) => id !== meId) }))
     }
@@ -434,7 +462,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     // now. It used to rebuild the whole map from what this screen last drew, so a
     // screen that had not caught up yet wrote back its older picture of other people:
     // someone's times, marked a moment before, were saved over as empty.
-    patchEventWith(event.id, (cur) => ({ ...myTimesPatch(cur, meId, event.days, m, rows, step), ...extra }))
+    patchEventWith(event.id, (cur) => ({ ...myTimesPatch(cur, meId, event.days, m, rows, step, needOn ? cleanNeed : undefined), ...extra }))
   }
   // your explicit empty reply: none of these days work — cleared by marking any time
   function toggleNoneWork() {
@@ -463,12 +491,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const s = Math.max(0, Math.min(gridMax, startClock - gridStartMin))
     const e = Math.max(0, Math.min(gridMax, endClock - gridStartMin))
     if (e <= s) return
-    setMine((pm) => {
-      const next = { ...pm }
-      for (const d of weekDays) if (!d.pad) next[d.key] = normalizeIv([...(pm[d.key] ?? []), { s, e }])
-      persist(next)
-      return next
-    })
+    paintWith(weekDays.filter((d) => !d.pad).map((d) => ({ day: d.key, s, e })), brush)
     setSel(null)
   }
   // one tap for "I'm free whenever": every time slot on every event day
@@ -535,6 +558,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   function commitDay(day: string, ivs: Iv[]): Iv[] {
     return commitDays({ [day]: ivs })[day]
   }
+  // ranges painted with a brush (or erased, both kinds) on both maps, saved in one write
+  function paintWith(ranges: { day: string; s: number; e: number }[], kind: Brush) {
+    const out = paintRanges(mineRef.current, needRef.current, ranges, kind)
+    const free = Object.fromEntries(Object.entries(out.free).map(([k, v]) => [k, normalizeIv(v)]))
+    setMine(free); setNeed(out.need)
+    persist(free, {}, out.need)
+    return free
+  }
   function selectMerged(day: string, ivs: Iv[], probe: number, edge: Edge) {
     const merged = ivs.find((iv) => probe >= iv.s && probe <= iv.e)
     if (merged) setSel({ day, s: merged.s, e: merged.e, edge })
@@ -550,43 +581,25 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
      `paintRef` carries the working copy so a sweep over twenty cells is twenty repaints
      and one save, not twenty saves. */
   const paintRef = useRef<Record<string, Iv[]> | null>(null)
+  const paintNeedRef = useRef<Record<string, Iv[]> | null>(null)
   const cellId = (day: string, ti: number) => `${day}|${ti}`
-  // one slot turned over, on a working copy rather than on the stored answer
-  function flipIn(map: Record<string, Iv[]>, day: string, ti: number): Record<string, Iv[]> {
-    const w0 = ti * step, w1 = w0 + step
-    const cur = map[day] ?? []
-    const on = cur.some((iv) => iv.s <= w0 && iv.e >= w1)
-    return { ...map, [day]: normalizeIv(on ? cur.flatMap((iv) => subtract(iv, w0, w1)) : [...cur, { s: w0, e: w1 }]) }
-  }
   // is a slot wholly inside one of the blocks
   function cellOn(map: Record<string, Iv[]>, day: string, ti: number): boolean {
     const w0 = ti * step, w1 = w0 + step
     return (map[day] ?? []).some((iv) => iv.s <= w0 && iv.e >= w1)
   }
-  // one slot set to a state, on a working copy: already there means untouched
-  function setIn(map: Record<string, Iv[]>, day: string, ti: number, on: boolean): Record<string, Iv[]> {
-    if (cellOn(map, day, ti) === on) return map
-    const w0 = ti * step, w1 = w0 + step
-    const cur = map[day] ?? []
-    return { ...map, [day]: normalizeIv(on ? [...cur, { s: w0, e: w1 }] : cur.flatMap((iv) => subtract(iv, w0, w1))) }
-  }
-  function flipSlot(day: string, ti: number) {
-    const next = flipIn(paintRef.current ?? mineRef.current, day, ti)
-    paintRef.current = next
-    setMine(next)
-    return next
-  }
   /* The sweep rebuilt from scratch: every cell the trail holds, set the sweep's way on
      top of what the day looked like before the press. A trail is as long as the cells the
-     pointer crossed, so this stays cheap. */
+     pointer crossed, so this stays cheap. Painting one kind takes the other out from under
+     it, and erasing takes out both. */
   function applyTrail(d: Extract<Drag, { kind: 'paint' }>) {
-    let next = d.base
-    for (const id of d.trail) {
-      const cut = id.lastIndexOf('|')
-      next = setIn(next, id.slice(0, cut), Number(id.slice(cut + 1)), d.on)
-    }
-    paintRef.current = next
-    setMine(next)
+    const ranges = d.trail.map((id) => {
+      const cut = id.lastIndexOf('|'), ti = Number(id.slice(cut + 1))
+      return { day: id.slice(0, cut), s: ti * step, e: (ti + 1) * step }
+    })
+    const out = paintRanges(d.base, d.baseNeed, ranges, d.on ? d.brush : 'erase')
+    paintRef.current = out.free; paintNeedRef.current = out.need
+    setMine(out.free); setNeed(out.need)
   }
 
   // ── coordinate + snapping helpers ──
@@ -601,19 +614,22 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const gridMin = Math.max(0, Math.min(gridMax, ti * step + ((clientY - top) / height) * step))
     const hit: Iv | null = (mine[day] ?? []).find((iv) => gridMin >= iv.s && gridMin <= iv.e) ?? null
     const w0 = ti * step, w1 = w0 + step
-    paintRef.current = null
+    paintRef.current = null; paintNeedRef.current = null
+    // the If need be brush always paints: no selecting, no partial bands, which belong to free blocks
+    const kind = needOn ? brush : 'free'
     const d: Drag = {
       kind: 'paint', day, di, ti, anchorClientY: clientY, anchorMin: gridMin,
       anchorScrollTop: scroller.current?.scrollTop ?? 0, anchorScrollLeft: scroller.current?.scrollLeft ?? 0,
-      trail: [], seen: new Set(), on: !cellOn(mineRef.current, day, ti), lastX: clientX, lastY: clientY, base: mineRef.current, moved: false, hit,
+      trail: [], seen: new Set(), on: !cellOn(kind === 'need' ? needRef.current : mineRef.current, day, ti), lastX: clientX, lastY: clientY,
+      base: mineRef.current, baseNeed: needRef.current, moved: false, hit: kind === 'need' ? null : hit, brush: kind,
     }
     dragRef.current = d; setDrag(d)
     lastXRef.current = clientX; lastYRef.current = clientY
-    if (hit) return // your own block: the press only arms it — release without moving selects it
+    if (d.hit) return // your own block: the press only arms it — release without moving selects it
     // a slot already holding a partial never floods to full — a press in its empty
     // stretch drops a 5-minute band right there instead (a second partial), and the
     // normalize pass coalesces it into anything it touches
-    const touching = (mine[day] ?? []).filter((iv) => iv.s < w1 && iv.e > w0)
+    const touching = kind === 'need' ? [] : (mine[day] ?? []).filter((iv) => iv.s < w1 && iv.e > w0)
     if (touching.length > 0) {
       const a = Math.max(0, Math.min(gridMax - MIN_LEN, snap5(gridMin - MIN_LEN / 2)))
       const pm = { ...mineRef.current, [day]: normalizeIv([...(mine[day] ?? []), { s: a, e: a + MIN_LEN }]) }
@@ -621,7 +637,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       return
     }
     d.trail.push(cellId(day, ti)); d.seen.add(cellId(day, ti))
-    flipSlot(day, ti)
+    applyTrail(d)
   }
   function cancelHold() {
     if (holdRef.current) { clearTimeout(holdRef.current); holdRef.current = null }
@@ -677,6 +693,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const t = tapRef.current; tapRef.current = null
     if (!t || t.day !== day || t.ti !== ti) return
     if (Math.abs(e.clientY - t.y) > SLOP || Math.abs(e.clientX - t.x) > SLOP) return // was a scroll, not a tap
+    // the If need be brush turns the slot over, the way a press does with the mouse
+    if (brushKind() === 'need') {
+      paintWith([{ day, s: ti * step, e: (ti + 1) * step }], cellOn(needRef.current, day, ti) ? 'erase' : 'need')
+      return
+    }
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
     const gridMin = Math.max(0, Math.min(gridMax, ti * step + ((e.clientY - r.top) / r.height) * step))
     const hit = (mine[day] ?? []).find((iv) => gridMin >= iv.s && gridMin <= iv.e)
@@ -797,9 +818,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       const d = dragRef.current; if (!d) return
       dragRef.current = null; touchDragRef.current = false
       if (d.kind === 'paint') {
-        const painted = paintRef.current
-        paintRef.current = null
-        const norm = painted ? commitDays(painted) : null
+        const painted = paintRef.current, paintedNeed = paintNeedRef.current
+        paintRef.current = null; paintNeedRef.current = null
+        let norm: Record<string, Iv[]> | null = null
+        if (paintedNeed) {
+          // a sweep: both maps go out together, once
+          norm = Object.fromEntries(Object.entries(painted ?? mineRef.current).map(([k, v]) => [k, normalizeIv(v)]))
+          mineRef.current = norm
+          setMine(norm); persist(norm, {}, paintedNeed)
+        } else if (painted) norm = commitDays(painted)
         /* a press that never left the cell it started in is a click, and a click is what
            asks for the fine-tune bar — on your own block, or on one you just filled. A
            sweep that crossed into another box was painting, and selects nothing. */
@@ -818,9 +845,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     // the browser took the gesture (a scroll won): drop the drag without writing anything
     function cancel() {
       if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = 0 }
-      if (!dragRef.current) return
+      const d0 = dragRef.current
+      if (!d0) return
       dragRef.current = null; touchDragRef.current = false
       paintRef.current = null
+      // the sweep is dropped: both maps go back to how they were before the press
+      if (paintNeedRef.current && d0?.kind === 'paint') { setMine(d0.base); setNeed(d0.baseNeed) }
+      paintNeedRef.current = null
       setDrag(null)
     }
     // touch: once a hold has turned into a drag, the finger paints — the grid must not
@@ -886,46 +917,52 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
 
   function toggleDay(day: string) {
     if (mode !== 'edit') return
-    const full = mine[day]?.length === 1 && mine[day][0].s === 0 && mine[day][0].e === gridMax
-    commitDay(day, full ? [] : [{ s: 0, e: gridMax }])
+    const cur = brushMap()[day] ?? []
+    const full = cur.length === 1 && cur[0].s === 0 && cur[0].e === gridMax
+    paintWith([{ day, s: 0, e: gridMax }], full ? 'erase' : brushKind())
     setSel(null)
   }
   /* a day poll's calendar sweeps the same way the timetable does: the calendar keeps the
      trail of days the pointer has crossed and hands the whole of it over on every change,
      so dragging back over one shortens the trail and that day goes back to how it was.
      The whole sweep is saved once, when it is let go. */
-  const dayBaseRef = useRef<Record<string, Iv[]> | null>(null)
+  const dayBaseRef = useRef<{ free: Record<string, Iv[]>; need: Record<string, Iv[]> } | null>(null)
   function sweepDays(trail: string[]) {
     if (mode !== 'edit') return
-    dayBaseRef.current ??= mineRef.current
-    let next = dayBaseRef.current
-    for (const key of trail) next = flipIn(next, key, 0)
-    paintRef.current = next
-    setMine(next)
+    dayBaseRef.current ??= { free: mineRef.current, need: needRef.current }
+    const kind = brushKind()
+    let { free, need: nd } = dayBaseRef.current
+    for (const key of trail) {
+      const on = cellOn(kind === 'need' ? nd : free, key, 0)
+      ;({ free, need: nd } = paintRanges(free, nd, [{ day: key, s: 0, e: step }], on ? 'erase' : kind))
+    }
+    paintRef.current = free; paintNeedRef.current = nd
+    setMine(free); setNeed(nd)
   }
   function endDayDrag() {
     dayBaseRef.current = null
-    const painted = paintRef.current
-    paintRef.current = null
-    if (painted) commitDays(painted)
+    const painted = paintRef.current, paintedNeed = paintNeedRef.current
+    paintRef.current = null; paintNeedRef.current = null
+    if (!painted) return
+    const norm = Object.fromEntries(Object.entries(painted).map(([k, v]) => [k, normalizeIv(v)]))
+    setMine(norm); persist(norm, {}, paintedNeed ?? needRef.current)
   }
   // a day poll's every control comes through here: one day, a weekday down the whole
   // poll, a week across, or the lot. All on → the tap clears them; anything off → it fills.
   function toggleDays(keys: string[]) {
     if (mode !== 'edit' || !keys.length) return
-    const allOn = keys.every((k) => (mine[k]?.length ?? 0) > 0)
-    commitDays(Object.fromEntries(keys.map((k) => [k, allOn ? [] : [{ s: 0, e: gridMax }]])))
+    const map = brushMap()
+    const allOn = keys.every((k) => (map[k]?.length ?? 0) > 0)
+    paintWith(keys.map((k) => ({ day: k, s: 0, e: gridMax })), allOn ? 'erase' : brushKind())
     setSel(null)
   }
   function toggleTime(ti: number) {
     if (mode !== 'edit') return
     const w0 = ti * step, w1 = (ti + 1) * step
     const real = weekDays.filter((d) => !d.pad) // filler days aren't part of the event
-    const allFull = real.every((d) => (mine[d.key] ?? []).some((iv) => iv.s <= w0 && iv.e >= w1))
-    for (const d of real) {
-      const base = mine[d.key] ?? []
-      commitDay(d.key, allFull ? base.flatMap((iv) => subtract(iv, w0, w1)) : [...base, { s: w0, e: w1 }])
-    }
+    const map = brushMap()
+    const allFull = real.every((d) => (map[d.key] ?? []).some((iv) => iv.s <= w0 && iv.e >= w1))
+    paintWith(real.map((d) => ({ day: d.key, s: w0, e: w1 })), allFull ? 'erase' : brushKind())
     setSel(null)
   }
 
@@ -941,7 +978,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // bulk changes (clear, calendar import) are instant with an undo window instead
   // of a scary confirm — the old times sit in state until the toast expires.
   // times: null makes it a plain notice with no Undo button
-  const [undo, setUndo] = useState<{ times: Record<string, Iv[]> | null; label: string; importedIv?: AvailIntervals } | null>(null)
+  type Times = { free: Record<string, Iv[]>; need: Record<string, Iv[]> }
+  const [undo, setUndo] = useState<{ times: Times | null; label: string; importedIv?: AvailIntervals } | null>(null)
   const toastRef = useRef<HTMLDivElement>(null)
   useGSAP(() => {
     if (!undo || !toastRef.current) return
@@ -949,25 +987,26 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   }, { dependencies: [undo] })
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (undoTimer.current) clearTimeout(undoTimer.current) }, [])
-  function stashUndo(times: Record<string, Iv[]> | null, label: string, importedIv?: AvailIntervals) {
+  function stashUndo(times: Times | null, label: string, importedIv?: AvailIntervals) {
     setUndo({ times, label, importedIv })
     if (undoTimer.current) clearTimeout(undoTimer.current)
     undoTimer.current = setTimeout(() => setUndo(null), 8000)
   }
+  // both kinds go, and Undo brings both back
   function clearAllMine() {
-    const snapshot = mine
+    const snapshot = { free: mine, need: needRef.current }
     const next = Object.fromEntries(event.days.map((d) => [d.key, [] as Iv[]]))
-    setMine(next); persist(next)
+    setMine(next); setNeed(next); persist(next, {}, next)
     setSel(null)
     stashUndo(snapshot, 'Your times were cleared')
   }
   // the week on screen only: the same write as clearing everything, with every other
   // day of yours left as it was. Filler days are not part of the poll and hold nothing.
   function clearWeekMine() {
-    const snapshot = mine
-    const next = { ...mine }
-    for (const d of weekDays) if (!d.pad) next[d.key] = []
-    setMine(next); persist(next)
+    const snapshot = { free: mine, need: needRef.current }
+    const next = { ...mine }, nextNeed = { ...needRef.current }
+    for (const d of weekDays) if (!d.pad) { next[d.key] = []; nextNeed[d.key] = [] }
+    setMine(next); setNeed(nextNeed); persist(next, {}, nextNeed)
     setSel(null)
     stashUndo(snapshot, 'Your times this week were cleared')
   }
@@ -976,7 +1015,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   function undoRestore() {
     const times = undo?.times
     if (!times) return
-    setMine(times); persist(times)
+    setMine(times.free); setNeed(times.need); persist(times.free, {}, times.need)
     if (undo?.importedIv) markImportedUndo(undo.importedIv)
     setUndo(null)
     if (undoTimer.current) clearTimeout(undoTimer.current)
@@ -1022,9 +1061,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     busy = [...busy, ...lockedPlanBusyUtc(listEvents(), event.id)]
     const calendar = provider === 'Outlook' ? 'Outlook calendar' : provider // "your Google Calendar", "your Outlook calendar"
     const span = event.days.length > 1 ? `${event.days[0].date} and ${event.days[event.days.length - 1].date}` : event.days[0]?.date ?? 'these days'
-    const snapshot = mineRef.current
+    const snapshot = { free: mineRef.current, need: needRef.current }
     const wasImported = event.importedIv ?? {}
-    const out = planImport(event, meId, snapshot, busy)
+    // the import only adds Free, and only where you marked nothing either way
+    const out = planImport(event, meId, snapshot.free, busy, snapshot.need)
     const { none, allBusy, importedIv } = out
     // the marker lives on the event, so it goes through the page's live patch when there
     // is one: the stripes show the moment the import lands, not after the next reload
@@ -1349,7 +1389,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         <div className="border-b border-border pb-[13px]">
           {editable && (
             <div className="mb-2.5 flex items-center justify-between gap-[9px]">
-              <SegmentedControl label="Mode" size="sm" value={mode} onChange={(v) => { setMode(v as Mode); setSel(null); setDetail(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
+              <SegmentedControl label="Mode" size="sm" value={mode} onChange={(v) => { setMode(v as Mode); if (v === 'edit') setBrush('free'); setSel(null); setDetail(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
               <SettingsMenu title="Grid settings">
                 {(close) => (
                   <>
@@ -1535,6 +1575,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         ) : (
           <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={event.timezone} day={event.startDate} /></span>
         )}
+        {needOn && editable && mode === 'edit' && (
+          <SegmentedControl label="Brush" size="sm" value={brush} onChange={(v) => setBrush(v as 'free' | 'need')} options={[{ v: 'free', l: 'Free', icon: FreeSwatch }, { v: 'need', l: 'If need be', icon: NeedSwatch }]} />
+        )}
         {/* importing fills YOUR times, so it rides with edit mode — view stays lean */}
         {!locked && mode === 'edit' && <ImportFromCalendar soon={importSoon(backendOn)} onPick={(p) => void startImport(p)} note={backendOn ? (dayPoll ? 'Free days are marked for you. Days with something on your calendar are striped as busy, for you to decide.' : 'Your free hours are painted, and what your calendar has is striped as busy.') : 'A sample calendar stands in until a backend is set up.'} />}
         {/* the other edit-mode helpers ride here too, so switching between View and
@@ -1585,7 +1628,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 </button>
               )}
               {unmarked.some((p) => p.you) && !locked && (
-                <button onClick={() => { setMode('edit'); setSel(null) }} className="flex items-center gap-1 text-[12.5px] font-semibold text-accent-text hover:underline">
+                <button onClick={() => { setMode('edit'); setBrush('free'); setSel(null) }} className="flex items-center gap-1 text-[12.5px] font-semibold text-accent-text hover:underline">
                   Add yours
                 </button>
               )}
@@ -1980,6 +2023,23 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                           />
                         )
                       })}
+                      {/* your if-need-be marks: the same clay, half width, with an edge line down
+                          the open side so the two kinds read apart without colour alone */}
+                      {needSegments(need[d.key] ?? [], w0, w1).map((g, k) => (
+                        <div
+                          key={`n${k}`}
+                          className="pointer-events-none absolute left-0"
+                          style={{
+                            top: `${((g.s - w0) / step) * 100}%`,
+                            height: `${((g.e - g.s) / step) * 100}%`,
+                            width: '50%',
+                            background: `linear-gradient(${clay}, ${clay}), var(--s1)`,
+                            borderRight: '1.5px solid var(--you-need-edge)',
+                            borderTopRightRadius: g.first ? 6 : 0,
+                            borderBottomRightRadius: g.last ? 6 : 0,
+                          }}
+                        />
+                      ))}
                       {/* what a calendar import showed as busy: fine stripes over the range, painted
                           or not, so the calendar's word stays readable whatever is painted later */}
                       {(importedMine[d.key] ?? []).map((iv, k) => {
@@ -2190,3 +2250,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   )
 }
 
+/* The brush's two marks, drawn the way the grid draws them: Free a whole clay square,
+   If need be half of one with its edge line. */
+function FreeSwatch({ size = 13 }: { size?: number | string }) {
+  return <span aria-hidden className="inline-block flex-none rounded-[3px]" style={{ width: size, height: size, background: 'linear-gradient(var(--you-only), var(--you-only)), var(--s1)', boxShadow: 'inset 0 0 0 1.5px var(--you-text)' }} />
+}
+function NeedSwatch({ size = 13 }: { size?: number | string }) {
+  return (
+    <span aria-hidden className="relative inline-block flex-none overflow-hidden rounded-[3px]" style={{ width: size, height: size, background: 'var(--s1)', boxShadow: 'inset 0 0 0 1px var(--border)' }}>
+      <span className="absolute inset-y-0 left-0 w-1/2" style={{ background: 'linear-gradient(var(--you-only), var(--you-only)), var(--s1)', borderRight: '1.5px solid var(--you-need-edge)' }} />
+    </span>
+  )
+}
