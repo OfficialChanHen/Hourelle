@@ -41,7 +41,7 @@ const GROUPS: Group[] = [
     sub: 'The RSVP round, then the headcount through the day.',
     picks: {
       'board-game-night': 'A **game night** with the date and place **fixed from the start**. You are invited and have not replied. Look for the **RSVP deadline** and the **roster**.',
-      'climbing-club-social': 'A **club night** locked in after **24 votes** on five bars. Look for the **winning place** on Location, and who is **going** now it is set.',
+      'climbing-club-social': 'A **club night** locked in after **37 votes** on five bars. Look for the **winning place** on Location, and who is **going** now it is set.',
       'indie-makers-conference': 'A **summit** held **online** all day. Look for who is **on the call** through the day, and who **joins late or drops off early**.',
     },
   },

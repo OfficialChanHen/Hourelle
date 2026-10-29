@@ -2021,6 +2021,27 @@ const BIG_DEMO: AppEvent = {
   status: 'planning',
 }
 
+/* ── the crowd: extra people for the bigger demos, so the shelf runs from a 1:1 to
+   dozens. Every initial is one no other demo person uses, so each face stays its own. ── */
+const CROWD: [string, string][] = [
+  ['AB', 'Ava B'], ['LG', 'Leo G'], ['MP', 'Maya P'], ['NF', 'Noah F'], ['ZA', 'Zara A'],
+  ['OP', 'Owen P'], ['RJ', 'Rosa J'], ['TW', 'Theo W'], ['LN', 'Lena N'], ['KT', 'Kai T'],
+  ['IM', 'Iris M'], ['SH', 'Sami H'], ['EP', 'Elena P'], ['MR', 'Marco R'], ['HY', 'Hana Y'],
+  ['FW', 'Felix W'], ['AO', 'Amara O'], ['DR', 'Diego R'], ['NR', 'Nadia R'], ['JB', 'Jonas B'],
+  ['PN', 'Pia N'], ['CF', 'Caleb F'], ['ML', 'Mei L'], ['TA', 'Tariq A'], ['SC', 'Sofia C'],
+  ['EC', 'Ezra C'], ['RH', 'Ruby H'], ['AM', 'Arjun M'], ['CD', 'Clara D'], ['MS', 'Mateo S'],
+  ['FL', 'Freya L'], ['KM', 'Kofi M'], ['ID', 'Ines D'], ['GL', 'Gabe L'], ['YH', 'Yara H'],
+  ['LB', 'Luca B'], ['WD', 'Wren D'], ['AK', 'Adil K'], ['BS', 'Bea S'], ['QA', 'Quinn A'],
+  ['VI', 'Vera I'], ['RI', 'Ravi I'], ['EH', 'Elsa H'], ['PG', 'Paolo G'], ['TG', 'Tessa G'],
+  ['US', 'Umar S'], ['JP', 'June P'], ['MH', 'Milo H'], ['AL', 'Ada L'], ['HB', 'Hugo B'],
+]
+// people from the crowd, starting at `from`, one per answer given
+const crowd = (from: number, rsvps: Rsvp[]): Participant[] =>
+  rsvps.map((rsvp, i) => {
+    const [ini, name] = CROWD[from + i]
+    return { id: ini, initials: ini, name, color: GUEST_COLORS[(from + i) % GUEST_COLORS.length], rsvp }
+  })
+
 /* ── invited demos: plans someone else is hosting, so the shelf shows the guest's side.
    Both land on the same Saturday on purpose — the same-day flag needs something to show. ── */
 
@@ -2036,6 +2057,18 @@ const CONF_IV: AvailIntervals = {
     KL: [{ s: 0, e: 360 }], CL: [{ s: 180, e: 480 }],
   },
 }
+// an online summit draws a crowd: 48 more, most on the call all day, some late, some
+// gone after lunch, a few in the middle only
+const CONF_CROWD = crowd(0, Array.from({ length: 48 }, (_, i): Rsvp =>
+  i % 9 === 4 ? 'not_going' : i % 7 === 2 ? 'maybe' : i % 11 === 6 ? 'pending' : 'attending'))
+CONF_CROWD.forEach((p, i) => {
+  if (p.rsvp === 'not_going' || p.rsvp === 'pending') return
+  const k = i % 6
+  CONF_IV['2029-08-18'][p.id] = k < 3 ? CONF_ALL
+    : k === 3 ? [{ s: 60 * (1 + (i % 3)), e: 480 }]
+    : k === 4 ? [{ s: 0, e: 480 - 60 * (1 + (i % 3)) }]
+    : [{ s: 120, e: 360 }]
+})
 const CONFERENCE: AppEvent = {
   id: 'indie-makers-conference',
   title: 'Indie Makers Summit',
@@ -2069,6 +2102,7 @@ const CONFERENCE: AppEvent = {
     { id: 'CL', initials: 'CL', name: av('CL').name, color: av('CL').color, rsvp: 'maybe' },
     { id: 'BH', initials: 'BH', name: av('BH').name, color: av('BH').color, rsvp: 'not_going' },
     { id: 'NK', initials: 'NK', name: av('NK').name, color: av('NK').color, rsvp: 'pending' },
+    ...CONF_CROWD,
   ],
   days: CONF_DAYS,
   times: CONF_TIMES,
@@ -2267,8 +2301,12 @@ const BIRTHDAY_IV: AvailIntervals = {
   '2029-08-03': {
     JM: [{ s: 0, e: 180 }], PR: [{ s: 0, e: 180 }], AT: [{ s: 0, e: 180 }],
     MN: [{ s: 60, e: 180 }], EM: [{ s: 0, e: 120 }],
+    FL: [{ s: 0, e: 180 }], KM: [{ s: 0, e: 180 }], ID: [{ s: 60, e: 180 }],
+    GL: [{ s: 0, e: 180 }], YH: [{ s: 0, e: 120 }], LB: [{ s: 0, e: 180 }],
   },
 }
+// friends of friends: six have marked the night, three have not opened it yet
+const BIRTHDAY_CROWD = crowd(30, ['attending', 'attending', 'attending', 'attending', 'attending', 'attending', 'pending', 'pending', 'pending'])
 const BIRTHDAY: AppEvent = {
   id: 'priyas-birthday',
   title: 'Priya’s Birthday',
@@ -2293,7 +2331,7 @@ const BIRTHDAY: AppEvent = {
     meetingLink: '',
     guestsCanSuggest: true,
   },
-  votes: { trestle: ['JM', 'MN'], zuni: ['EM', 'KL'], copita: ['AT'] },
+  votes: { trestle: ['JM', 'MN', 'KM', 'YH', 'LB'], zuni: ['EM', 'KL', 'FL', 'GL'], copita: ['AT', 'ID'] },
   maxVotes: 1,
   voteDeadline: '2029-07-30',
   participants: [
@@ -2304,6 +2342,7 @@ const BIRTHDAY: AppEvent = {
     { id: 'MN', initials: 'MN', name: av('MN').name, color: av('MN').color, rsvp: 'attending' },
     { id: 'EM', initials: 'EM', name: av('EM').name, color: av('EM').color, rsvp: 'attending' },
     { id: 'BH', initials: 'BH', name: av('BH').name, color: av('BH').color, rsvp: 'pending' },
+    ...BIRTHDAY_CROWD,
   ],
   days: BIRTHDAY_DAYS,
   times: BIRTHDAY_TIMES,
@@ -2385,7 +2424,7 @@ const CABIN_TRIP: AppEvent = {
   status: 'planning',
 }
 
-/* ── locked in after a busy ballot: twelve people, five bars, two votes each. The
+/* ── locked in after a busy ballot: twenty-two people, five bars, two votes each. The
    vote is over, the winner is the place, and the RSVP round is under way. ── */
 const CLUB_DAYS = buildDays('2029-08-06', '2029-08-10')
 const CLUB_TIMES = buildTimes('30', 17 * 60, 22 * 60)
@@ -2396,9 +2435,13 @@ const CLUB_IV: AvailIntervals = {
   '2029-08-09': {
     JM: CLUB_SLOT, SR: CLUB_SLOT, AT: [{ s: 90, e: 300 }], KL: CLUB_SLOT, PR: [{ s: 60, e: 270 }],
     DW: CLUB_SLOT, CL: [{ s: 120, e: 300 }], RW: CLUB_SLOT, TC: [{ s: 90, e: 270 }], MN: [{ s: 180, e: 270 }],
+    PN: CLUB_SLOT, CF: [{ s: 60, e: 300 }], ML: [{ s: 180, e: 300 }], TA: CLUB_SLOT,
+    EC: CLUB_SLOT, RH: [{ s: 120, e: 240 }], CD: CLUB_SLOT,
   },
-  '2029-08-10': { AT: [{ s: 120, e: 300 }], PR: [{ s: 120, e: 240 }], CL: [{ s: 0, e: 180 }] },
+  '2029-08-10': { AT: [{ s: 120, e: 300 }], PR: [{ s: 120, e: 240 }], CL: [{ s: 0, e: 180 }], SC: [{ s: 60, e: 300 }] },
 }
+// the rest of the club: most marked Thursday, Sofia only had Friday, two never opened it
+const CLUB_CROWD = crowd(20, ['attending', 'attending', 'maybe', 'attending', 'not_going', 'attending', 'attending', 'pending', 'attending', 'pending'])
 const CLUB_SOCIAL: AppEvent = {
   id: 'climbing-club-social',
   title: 'Climbing Club Social',
@@ -2426,11 +2469,11 @@ const CLUB_SOCIAL: AppEvent = {
     guestsCanSuggest: true,
   },
   votes: {
-    mikkeller: ['JM', 'SR', 'AT', 'KL', 'PR', 'MN', 'CL', 'HS'],
-    whitechapel: ['TC', 'DW', 'CL', 'MN', 'HS', 'RW'],
-    zeitgeist: ['DW', 'RW', 'TC', 'AT'],
-    toronado: ['KL', 'NK', 'SR'],
-    'barrel-room': ['PR', 'JM', 'NK'],
+    mikkeller: ['JM', 'SR', 'AT', 'KL', 'PR', 'MN', 'CL', 'HS', 'PN', 'TA', 'EC', 'CD'],
+    whitechapel: ['TC', 'DW', 'CL', 'MN', 'HS', 'RW', 'CF', 'RH'],
+    zeitgeist: ['DW', 'RW', 'TC', 'AT', 'ML', 'SC'],
+    toronado: ['KL', 'NK', 'SR', 'PN', 'CF'],
+    'barrel-room': ['PR', 'JM', 'NK', 'TA', 'EC', 'CD'],
   },
   maxVotes: 2,
   participants: [
@@ -2446,6 +2489,7 @@ const CLUB_SOCIAL: AppEvent = {
     { id: 'MN', initials: 'MN', name: av('MN').name, color: av('MN').color, rsvp: 'pending' },
     { id: 'NK', initials: 'NK', name: av('NK').name, color: av('NK').color, rsvp: 'not_going', rsvpAuto: true },
     { id: 'HS', initials: 'HS', name: av('HS').name, color: av('HS').color, rsvp: 'pending' },
+    ...CLUB_CROWD,
   ],
   days: CLUB_DAYS,
   times: CLUB_TIMES,
