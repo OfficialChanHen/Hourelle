@@ -1,5 +1,5 @@
 import { Avatar, NameTag } from './Avatar'
-import { namesLabel } from './AvatarRow'
+import { hiddenNames, namesLabel } from './AvatarRow'
 import { FlipGroup } from './FlipGroup'
 import type { Avatar as Person } from '@/lib/people'
 import { useWide } from '@/hooks/useWide'
@@ -32,6 +32,7 @@ export function FaceRibbon({
   const wide = useWide()
   const shown = people.slice(0, max)
   const extra = people.length - shown.length
+  const hidden = hiddenNames(people.slice(max).map((p) => p.name))
   const label = namesLabel(shown.map((p) => p.name), extra)
   const faces = <>
       {shown.map((p, i) => (
@@ -50,7 +51,7 @@ export function FaceRibbon({
         >
           +{extra}
           {/* on hover, the people the "+N" stands for */}
-          <NameTag list name={namesLabel(people.slice(max, max + 8).map((p) => p.name), extra - 8)} />
+          {hidden && <NameTag list name={hidden} />}
         </span>
       )}
   </>

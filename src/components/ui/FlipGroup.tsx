@@ -18,12 +18,13 @@ import { CHROME_TOP, LAYER_Z, layerOf } from '@/lib/layers'
    instead, for a row that also holds things of its own to tap (names that open their
    times): give those `relative z-[2]` and they stay on top of it.
 
-   On a touch screen, while the faces are turned over, a small card lists them in the
-   same order, each name beside the same initials disc its face has turned into. It
-   floats beside the row, never over it: under the faces, or over them when there is
-   no room below (`caption="above"` prefers over, for faces peeking over a card). A
-   tap anywhere else puts it away and turns the faces back. With a mouse there is no
-   card: every face shows its name on hover. */
+   On a touch screen, while the faces are turned over, a strip of names runs beside the
+   row in the same order, each name beside the same initials disc its face has turned
+   into. It is one line tall whatever the group's size (more names scroll sideways), so
+   it always fits under the faces, or above them (`caption="above"` prefers above, for
+   faces peeking over a card), and never has to slide over them. A tap anywhere else
+   puts it away and turns the faces back. With a mouse there is no strip: every face
+   shows its name on hover. */
 type Who = { name: string; initials: string; color?: PersonColor }
 const InGroup = createContext(false)
 export const useInFlipGroup = () => useContext(InGroup)
@@ -59,33 +60,34 @@ export function FlipGroup({ names, people, more = 0, className = '', style, over
   const label = names ? `Show initials for ${names}` : 'Show initials'
   const touch = useNoHover()
   const showCard = touch && flipped && !!at && !!people?.length
-  // the card names everyone in the row, the ones past the "+N" too, up to a dozen
-  const listed = people?.slice(0, 12) ?? []
-  const rest = more + (people?.length ?? 0) - listed.length
+  // the strip names everyone in the row, the ones past the "+N" too (it scrolls, so a
+  // long group costs no height); only people the row was never given names for are a count
+  const listed = people ?? []
+  const rest = more
   const card = (
     <RPopover.Portal>
       <RPopover.Content
         side={at === 'above' ? 'top' : 'bottom'} align="start" sideOffset={8}
         // clear of the header and the phone's tab bar, like every other floating panel
         collisionPadding={{ top: CHROME_TOP, bottom: 92, left: 12, right: 12 }}
-        // the card is read, not used: focus stays on the row
+        // the strip is read, not used: focus stays on the row
         onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}
         // a tap on the row itself is the row's own toggle, not a tap away
         onPointerDownOutside={(e) => { if (root.current?.contains(e.target as Node)) e.preventDefault() }}
         aria-hidden
-        className="min-w-[180px] max-w-[min(280px,calc(100vw-24px))] overflow-y-auto rounded-2xl border border-border bg-s1 p-1.5 shadow-soft"
-        style={{ zIndex: z, maxHeight: 'var(--radix-popover-content-available-height)' }}
+        className="flex max-w-[calc(100vw-24px)] gap-1 overflow-x-auto overscroll-x-contain rounded-full border border-border bg-s1 p-1 shadow-soft [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{ zIndex: z }}
       >
         {listed.map((p, i) => {
           const c = personVar(p.color ?? 'gray')
           return (
-            <span key={i} className="flex items-center gap-2.5 rounded-[10px] px-2 py-1.5">
+            <span key={i} className="flex flex-none items-center gap-1.5 rounded-full py-1 pl-1 pr-2.5">
               <span className="grid h-[22px] w-[22px] flex-none place-items-center rounded-full text-[9.5px] font-semibold" style={{ background: c.bg, color: c.text }}>{p.initials}</span>
-              <span className="min-w-0 truncate text-[13.5px] font-medium text-text">{p.name}</span>
+              <span className="max-w-[140px] truncate text-[13px] font-medium text-text">{p.name}</span>
             </span>
           )
         })}
-        {rest > 0 && <span className="block px-2 pb-1 pt-0.5 text-[12.5px] text-faint">and {rest} more</span>}
+        {rest > 0 && <span className="flex flex-none items-center whitespace-nowrap pl-1 pr-3 text-[12.5px] text-faint">and {rest} more</span>}
       </RPopover.Content>
     </RPopover.Portal>
   )
