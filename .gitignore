@@ -46,3 +46,6 @@ next-env.d.ts
 
 # brainstorming mockups
 .superpowers/
+
+# agent worktrees (each is its own git checkout)
+.claude/worktrees/
