@@ -54,7 +54,7 @@ import { cellBands, cellPeople, clayFor, countLabel, needSegments, fmtDur, heat,
 import { DayCalendar } from './availability/DayCalendar'
 import { WeekStrip } from './availability/WeekStrip'
 import { prefH24, prefWholeWeek } from '@/lib/prefs'
-import { ifNeedBeOn, paintRanges, withoutOverlap, type Brush } from '@/lib/availability'
+import { paintRanges, withoutOverlap, type Brush } from '@/lib/availability'
 import { useAccount } from '@/hooks/useAccount'
 import { useFollow } from '@/hooks/useFollow'
 import { canEmail, sendNudges } from '@/lib/mail'
@@ -198,11 +198,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const needRef = useRef(need)
   const setNeed = (n: Record<string, Iv[]>) => { needRef.current = n; setNeedState(n) }
   // the brush starts on Free each time you switch to Edit mine
-  const needOn = ifNeedBeOn()
   const [brush, setBrush] = useState<'free' | 'need'>('free')
-  // the brush in use (Free when the switch is off). The shortcuts paint with it, and
-  // one already all that kind clears instead
-  const brushKind = (): 'free' | 'need' => (needOn ? brush : 'free')
+  // the brush in use. The shortcuts paint with it, and one already all that kind
+  // clears instead
+  const brushKind = (): 'free' | 'need' => brush
   const brushMap = () => (brushKind() === 'need' ? needRef.current : mineRef.current)
   // what a calendar import showed as busy, per day: a striped marker beside the answer,
   // not part of it, so painting over or clearing a slot never loses what the calendar said
@@ -471,7 +470,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     // now. It used to rebuild the whole map from what this screen last drew, so a
     // screen that had not caught up yet wrote back its older picture of other people:
     // someone's times, marked a moment before, were saved over as empty.
-    patchEventWith(event.id, (cur) => ({ ...myTimesPatch(cur, meId, event.days, m, rows, step, needOn ? cleanNeed : undefined), ...extra }))
+    patchEventWith(event.id, (cur) => ({ ...myTimesPatch(cur, meId, event.days, m, rows, step, cleanNeed), ...extra }))
   }
   // your explicit empty reply: none of these days work — cleared by marking any time
   function toggleNoneWork() {
@@ -625,7 +624,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const w0 = ti * step, w1 = w0 + step
     paintRef.current = null; paintNeedRef.current = null
     // the If need be brush always paints: no selecting, no partial bands, which belong to free blocks
-    const kind = needOn ? brush : 'free'
+    const kind = brush
     const d: Drag = {
       kind: 'paint', day, di, ti, anchorClientY: clientY, anchorMin: gridMin,
       anchorScrollTop: scroller.current?.scrollTop ?? 0, anchorScrollLeft: scroller.current?.scrollLeft ?? 0,
@@ -1621,7 +1620,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         ) : (
           <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={event.timezone} day={event.startDate} /></span>
         )}
-        {needOn && editable && mode === 'edit' && (
+        {editable && mode === 'edit' && (
           <SegmentedControl label="Brush" size="sm" value={brush} onChange={(v) => setBrush(v as 'free' | 'need')} options={[{ v: 'free', l: 'Free', icon: FreeSwatch }, { v: 'need', l: 'If need be', icon: NeedSwatch }]} />
         )}
         {/* importing fills YOUR times, so it rides with edit mode — view stays lean */}

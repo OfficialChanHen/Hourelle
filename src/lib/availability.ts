@@ -76,10 +76,6 @@ export function intervalsToGrid(availIv: AvailIntervals, days: Pick<GridDay, 'ke
    (freeIvOf, fullAvailIvOf), so an if-need-be mark never makes a time look better
    than it is. */
 
-/** The if-need-be brush and its writes wait for migration 0019 (the `if_need_be`
- *  column). Until NEXT_PUBLIC_IF_NEED_BE_ON=1 says it is in, nothing new is written. */
-export const ifNeedBeOn = () => process.env.NEXT_PUBLIC_IF_NEED_BE_ON === '1'
-
 /** Both maps merged, per day and per person. */
 export function unionIv(a: AvailIntervals, b?: AvailIntervals): AvailIntervals {
   if (!b || !Object.keys(b).length) return a

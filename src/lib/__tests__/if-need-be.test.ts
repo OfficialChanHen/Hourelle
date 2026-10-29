@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
-import { applyBrush, availIvOf, freeIvOf, ifNeedBeOn, myTimesPatch, paintRanges, unionIv, withoutOverlap } from '@/lib/availability'
+import { describe, expect, it } from 'vitest'
+import { applyBrush, availIvOf, freeIvOf, myTimesPatch, paintRanges, unionIv, withoutOverlap } from '@/lib/availability'
 import { cellPeople, countLabel, needSegments } from '@/app/(main)/events/[id]/_components/availability/grid-lib'
 import { answerSelect, missingNeedColumn } from '@/lib/remote'
 import { answeredIds, bestBlock, bestWindow, confirmEvent, getEvent, listDemos, needOnlyIds, rsvpPool, type GridDay } from '@/lib/events'
@@ -159,12 +159,7 @@ describe('counts and lock-in with if-need-be marks', () => {
   })
 })
 
-describe('the switch and a database without the column', () => {
-  it('reads the flag', () => {
-    vi.stubEnv('NEXT_PUBLIC_IF_NEED_BE_ON', '1'); expect(ifNeedBeOn()).toBe(true)
-    vi.stubEnv('NEXT_PUBLIC_IF_NEED_BE_ON', ''); expect(ifNeedBeOn()).toBe(false)
-    vi.unstubAllEnvs()
-  })
+describe('a database without the column', () => {
   it('tells a missing if_need_be column from a missing table', () => {
     expect(missingNeedColumn('column availability.if_need_be does not exist')).toBe(true)
     expect(missingNeedColumn("Could not find the 'if_need_be' column of 'availability' in the schema cache")).toBe(true)

@@ -7,7 +7,7 @@
 import { supabase, backendOn } from './db'
 import { writeLocal } from './local'
 import { currentAccount } from './session'
-import { byDay, byParticipant, fullAvailIvOf, ifNeedBeOn, intervalsToGrid, unionIv, stepOf, type PersonAnswer } from './availability'
+import { byDay, byParticipant, fullAvailIvOf, intervalsToGrid, unionIv, stepOf, type PersonAnswer } from './availability'
 import type { AppEvent, ChatMessage } from './events'
 import { removedLineTest } from './removed'
 
@@ -188,7 +188,7 @@ let rowsMissing = false
 // flips true when the `if_need_be` column (migration 0019) is not there yet. That is
 // not a missing table: answers go on loading and saving without the column.
 let needColumnMissing = false
-const needColumn = () => ifNeedBeOn() && !needColumnMissing
+const needColumn = () => !needColumnMissing
 
 /** A missing `if_need_be` column, as Postgres or PostgREST words it. */
 export function missingNeedColumn(message: string | undefined): boolean {
@@ -304,8 +304,8 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
   // availability: your whole answer, upserted. An emptied answer is written as an
   // empty row rather than deleted — a missing row means "has not answered", and the
   // document's legacy `avail` would otherwise bring the old times back. Both free and
-  // if-need-be marks go into the row; they travel separately. Until the switch is on
-  // and the column is there, the row leaves `if_need_be` out and the server keeps it.
+  // if-need-be marks go into the row; they travel separately. Until the column is there
+  // (migration 0019), the row leaves `if_need_be` out.
   const withNeed = needColumn()
   const b = byParticipant(fullAvailIvOf(before)), a = byParticipant(fullAvailIvOf(after))
   const bNeed = byParticipant(withNeed ? before.needIv ?? {} : {}), aNeed = byParticipant(withNeed ? after.needIv ?? {} : {})
