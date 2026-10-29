@@ -2196,6 +2196,12 @@ const DINNER_IV: AvailIntervals = {
   '2029-08-02': { JM: [{ s: 0, e: 300 }], AT: [{ s: 60, e: 300 }] },
   '2029-08-03': { SR: [{ s: 0, e: 180 }] },
 }
+// evenings some could do if need be, beside (never on) their free time
+const DINNER_NEED: AvailIntervals = {
+  '2029-08-01': { MN: [{ s: 90, e: 270 }] },
+  '2029-08-02': { SR: [{ s: 120, e: 300 }] },
+  '2029-08-03': { AT: [{ s: 0, e: 120 }] },
+}
 const DESIGN_DINNER: AppEvent = {
   id: 'design-team-dinner',
   title: 'Design Team Dinner',
@@ -2234,8 +2240,9 @@ const DESIGN_DINNER: AppEvent = {
   ],
   days: DINNER_DAYS,
   times: DINNER_TIMES,
-  avail: intervalsToGrid(DINNER_IV, DINNER_DAYS, DINNER_TIMES.length, 30),
+  avail: intervalsToGrid(unionIv(DINNER_IV, DINNER_NEED), DINNER_DAYS, DINNER_TIMES.length, 30),
   availIv: DINNER_IV,
+  needIv: DINNER_NEED,
   durationMin: 120,
   image: 'preset:dusk',
   messages: [
