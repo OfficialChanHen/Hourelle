@@ -35,7 +35,7 @@
    per cell, and the avatars in a cell cap hard (none at all on a phone, where the
    count carries it). Nothing here is allowed to cost cells x people. */
 
-import { answeredLine } from '@/lib/answers'
+import { answeredLine, needClause } from '@/lib/answers'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -50,7 +50,7 @@ import { Hint } from '@/components/ui/Hint'
 import { Popover } from '@/components/ui/Popover'
 import { SettingField, SettingToggle, SettingsMenu } from '@/components/ui/Settings'
 import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, ImportFromCalendar, MissingPopover, PresetFills } from './availability/parts'
-import { cellBands, clayFor, needSegments, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, PILE_AV, PILE_FONT, PILE_OVER, type Band, type GDay } from './availability/grid-lib'
+import { cellBands, cellPeople, clayFor, countLabel, needSegments, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, PILE_AV, PILE_FONT, PILE_OVER, type Band, type GDay } from './availability/grid-lib'
 import { DayCalendar } from './availability/DayCalendar'
 import { WeekStrip } from './availability/WeekStrip'
 import { prefH24, prefWholeWeek } from '@/lib/prefs'
@@ -167,6 +167,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       delete byPid[meId]
       return [d.key, byPid]
     }))
+  }, [event, meId])
+  // everyone else's marks by kind: free shades the heat, if need be only adds a +N
+  const othersFree = useMemo<AvailIntervals>(() => {
+    const src = freeIvOf(event)
+    return Object.fromEntries(event.days.map((d) => { const byPid = { ...(src[d.key] ?? {}) }; delete byPid[meId]; return [d.key, byPid] }))
+  }, [event, meId])
+  const othersNeed = useMemo<AvailIntervals>(() => {
+    const src = event.needIv ?? {}
+    return Object.fromEntries(event.days.map((d) => { const byPid = { ...(src[d.key] ?? {}) }; delete byPid[meId]; return [d.key, byPid] }))
   }, [event, meId])
   // my row as the event has it — the seed for `mine`, and what it follows afterwards
   const remoteMine = useMemo<Record<string, Iv[]>>(() => {
@@ -1126,20 +1135,38 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // Scalability: cell rendering must not be O(cells × people). Build each day's combined
   // intervals ONCE per render (not once per cell), so the grid scales with days, not
   // days × rows × participants — the difference between fine and janky at 100+ people.
+  // `combinedByDay` is who can make it either way, for the best time; `freeCombinedByDay`
+  // and `needCombinedByDay` are the two kinds apart, for the heat and the +N
   const combinedByDay = useMemo<AvailIntervals>(
-    () => Object.fromEntries(event.days.map((d) => [d.key, combinedFor(d.key)])),
-    [mine, others], // eslint-disable-line react-hooks/exhaustive-deps
+    () => Object.fromEntries(event.days.map((d) => [d.key, combinedFor(d.key, normalizeIv([...(mine[d.key] ?? []), ...(need[d.key] ?? [])]))])),
+    [mine, need, others], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  const freeCombinedByDay = useMemo<AvailIntervals>(
+    () => Object.fromEntries(event.days.map((d) => [d.key, combinedFor(d.key, undefined, othersFree)])),
+    [mine, othersFree], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  const needCombinedByDay = useMemo<AvailIntervals>(
+    () => Object.fromEntries(event.days.map((d) => {
+      const n = need[d.key] ?? []
+      return [d.key, n.length ? { ...(othersNeed[d.key] ?? {}), [meId]: n } : { ...(othersNeed[d.key] ?? {}) }]
+    })),
+    [need, othersNeed, meId], // eslint-disable-line react-hooks/exhaustive-deps
   )
   // the person filter reaches edit mode too: others' context heat narrows to the selected
   // people while your own painted blocks always stay in the foreground
   const filterOnEarly = filter.size > 0
-  const othersFiltered = useMemo<AvailIntervals>(() => {
-    if (!filterOnEarly) return others
-    return Object.fromEntries(Object.entries(others).map(([k, byPid]) => [
-      k,
-      Object.fromEntries(Object.entries(byPid).filter(([id]) => filter.has(id))),
-    ]))
-  }, [others, filter, filterOnEarly])
+  const onlyFiltered = (src: AvailIntervals): AvailIntervals => Object.fromEntries(Object.entries(src).map(([k, byPid]) => [
+    k,
+    Object.fromEntries(Object.entries(byPid).filter(([id]) => filter.has(id))),
+  ]))
+  const othersFiltered = useMemo<AvailIntervals>(
+    () => (filterOnEarly ? onlyFiltered(othersFree) : othersFree),
+    [othersFree, filter, filterOnEarly], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  const othersNeedFiltered = useMemo<AvailIntervals>(
+    () => (filterOnEarly ? onlyFiltered(othersNeed) : othersNeed),
+    [othersNeed, filter, filterOnEarly], // eslint-disable-line react-hooks/exhaustive-deps
+  )
   // in edit mode the denominator is the selected people plus you (you always show)
   const editTotal = filterOnEarly ? filter.size + (filter.has(meId) ? 0 : 1) : total
 
@@ -1156,13 +1183,20 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // view mode reads through the person filter: heat, counts, popovers, and the best window
   // all recompute against just the selected people (an empty filter means everyone)
   const filterOn = filter.size > 0
-  const viewCombinedByDay = useMemo<AvailIntervals>(() => {
-    if (!filterOn) return combinedByDay
-    return Object.fromEntries(Object.entries(combinedByDay).map(([k, byPid]) => [
-      k,
-      Object.fromEntries(Object.entries(byPid).filter(([id]) => filter.has(id))),
-    ]))
-  }, [combinedByDay, filter, filterOn])
+  const viewCombinedByDay = useMemo<AvailIntervals>(
+    () => (filterOn ? onlyFiltered(combinedByDay) : combinedByDay),
+    [combinedByDay, filter, filterOn], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  const viewFreeByDay = useMemo<AvailIntervals>(
+    () => (filterOn ? onlyFiltered(freeCombinedByDay) : freeCombinedByDay),
+    [freeCombinedByDay, filter, filterOn], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  const viewNeedByDay = useMemo<AvailIntervals>(
+    () => (filterOn ? onlyFiltered(needCombinedByDay) : needCombinedByDay),
+    [needCombinedByDay, filter, filterOn], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+  // with exactly one person picked, their if-need-be marks are drawn the way yours are
+  const soloId = filter.size === 1 ? [...filter][0] : null
   const viewTotal = filterOn ? filter.size : total
 
   /* the day calendar reads whole days, not minutes: one id list per day. Hoisted once
@@ -1172,21 +1206,33 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     return byPid ? Object.keys(byPid).filter((id) => byPid[id].length > 0) : []
   }
   const dayFreeIds = useMemo<Record<string, string[]>>(
-    () => (dayPoll ? Object.fromEntries(event.days.map((d) => [d.key, idsWithTimes(viewCombinedByDay, d.key)])) : {}),
-    [dayPoll, viewCombinedByDay], // eslint-disable-line react-hooks/exhaustive-deps
+    () => (dayPoll ? Object.fromEntries(event.days.map((d) => [d.key, idsWithTimes(viewFreeByDay, d.key)])) : {}),
+    [dayPoll, viewFreeByDay], // eslint-disable-line react-hooks/exhaustive-deps
   )
+  // who marked a day only if need be: in view everyone shown, in edit everyone but you
+  // plus you when your own mark is if need be
+  const dayNeedIds = useMemo<Record<string, string[]>>(() => {
+    if (!dayPoll) return {}
+    const onlyNeed = (freeSrc: AvailIntervals, needSrc: AvailIntervals, k: string) => {
+      const free = new Set(idsWithTimes(freeSrc, k))
+      return idsWithTimes(needSrc, k).filter((id) => !free.has(id))
+    }
+    return Object.fromEntries(event.days.map((d) => [d.key, mode === 'edit'
+      ? [...onlyNeed(othersFiltered, othersNeedFiltered, d.key), ...((need[d.key]?.length ?? 0) > 0 && !(mine[d.key]?.length) ? [meId] : [])]
+      : onlyNeed(viewFreeByDay, viewNeedByDay, d.key)]))
+  }, [dayPoll, mode, othersFiltered, othersNeedFiltered, viewFreeByDay, viewNeedByDay, need, mine]) // eslint-disable-line react-hooks/exhaustive-deps
   const dayOtherIds = useMemo<Record<string, string[]>>(
     () => (dayPoll ? Object.fromEntries(event.days.map((d) => [d.key, idsWithTimes(othersFiltered, d.key)])) : {}),
     [dayPoll, othersFiltered], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   // best window (live interval sweep — most people simultaneously free, longest such stretch)
-  const bw = useMemo(() => bestWindow(viewCombinedByDay, event.days, durationMin, bestMode), [viewCombinedByDay, durationMin, bestMode]) // eslint-disable-line react-hooks/exhaustive-deps
+  const bw = useMemo(() => bestWindow(viewCombinedByDay, event.days, durationMin, bestMode, viewNeedByDay), [viewCombinedByDay, viewNeedByDay, durationMin, bestMode]) // eslint-disable-line react-hooks/exhaustive-deps
   // while a person filter is on, the whole group's best window stays on the board
   // (dashed) so the selection's best time can be compared against everyone's
   const bwAll = useMemo(
-    () => (filterOn ? bestWindow(combinedByDay, event.days, durationMin, bestMode) : null),
-    [filterOn, combinedByDay, durationMin, bestMode], // eslint-disable-line react-hooks/exhaustive-deps
+    () => (filterOn ? bestWindow(combinedByDay, event.days, durationMin, bestMode, needCombinedByDay) : null),
+    [filterOn, combinedByDay, needCombinedByDay, durationMin, bestMode], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const bwAllShown = bwAll && (!bw || bwAll.dayKey !== bw.dayKey || bwAll.s !== bw.s || bwAll.e !== bw.e) ? bwAll : null
   // once a time is locked in, the frame and the day's header mark that time at its real
@@ -1202,8 +1248,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // keep the lock-in modal in step with the dial
   useEffect(() => { onRunChange?.(blockLen) }, [blockLen]) // eslint-disable-line react-hooks/exhaustive-deps
   const block = useMemo(
-    () => bestBlock(viewCombinedByDay, event.days, blockLen, bestMode),
-    [viewCombinedByDay, blockLen, bestMode], // eslint-disable-line react-hooks/exhaustive-deps
+    () => bestBlock(viewCombinedByDay, event.days, blockLen, bestMode, viewNeedByDay),
+    [viewCombinedByDay, viewNeedByDay, blockLen, bestMode], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const blockDayLabel = (k: string) => {
     const d = event.days.find((x) => x.key === k)
@@ -1692,6 +1738,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               mode={mode}
               editable={editable}
               marked={(k) => (mine[k]?.length ?? 0) > 0}
+              needMarked={(k) => (need[k]?.length ?? 0) > 0}
+              needIds={dayNeedIds}
               imported={(k) => (importedMine[k]?.length ?? 0) > 0}
               freeIds={dayFreeIds}
               otherIds={dayOtherIds}
@@ -1864,9 +1912,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     )
                   }
                   if (mode === 'view') {
-                    const bands = cellBands(viewCombinedByDay[d.key] ?? {}, w0, w1)
+                    const bands = cellBands(viewFreeByDay[d.key] ?? {}, w0, w1)
                     const peak = peakOf(bands)
                     const n = peak.ids.length
+                    // people who make it only if need be: a lighter +N beside the count, no shade
+                    const needN = cellPeople(viewFreeByDay[d.key] ?? {}, viewNeedByDay[d.key] ?? {}, w0, w1).need.length
+                    const { extra } = countLabel(n, needN)
 
 
                     // the heat must change color exactly at the best-window frame lines, so its
@@ -1878,9 +1929,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         ]
                       : []
                     const paint = mergeSlivers(bands, minBandDur, protect.length ? protect : undefined)
-                    const title = bands.length === 1
-                      ? (n ? `${n} of ${viewTotal} free` : 'No one free')
-                      : bands.map((b) => `${fmt(gridStartMin + b.s)} – ${fmt(gridStartMin + b.e)}: ${b.ids.length} free`).join('\n')
+                    const title = (bands.length === 1
+                      ? (n ? `${n} of ${viewTotal} free` : needN ? '0 free' : 'No one free')
+                      : bands.map((b) => `${fmt(gridStartMin + b.s)} – ${fmt(gridStartMin + b.e)}: ${b.ids.length} free`).join('\n'))
+                      + (needN ? `${bands.length === 1 ? ',' : '\n'} ${needN} if need be` : '')
                     const open = detail?.day === d.key && detail?.ti === ti
                     // the best window is one continuous ochre frame over its cells — a color the
                     // grid never uses for lines or heat, so it can't be mistaken for either
@@ -1943,6 +1995,22 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                             }}
                           />
                         ))}
+                        {/* one person picked: their if-need-be marks, half width as in Edit mine */}
+                        {soloId && needSegments(viewNeedByDay[d.key]?.[soloId] ?? [], w0, w1).map((g, k) => (
+                          <div
+                            key={`n${k}`}
+                            className="pointer-events-none absolute left-0"
+                            style={{
+                              top: `${((g.s - w0) / step) * 100}%`,
+                              height: `${((g.e - g.s) / step) * 100}%`,
+                              width: '50%',
+                              background: heat(1, viewTotal),
+                              borderRight: '1.5px solid var(--you-need-edge)',
+                              borderTopRightRadius: g.first ? 6 : 0,
+                              borderBottomRightRadius: g.last ? 6 : 0,
+                            }}
+                          />
+                        ))}
                         {/* slot line redrawn above the heat fills so saturated cells can't wash it out */}
                         <div className="pointer-events-none absolute z-[1] border-b border-r border-grid-line" style={{ inset: '0 -1px -1px 0' }} />
                         {/* the pile sits on the cell's bottom left, beside the count, capped so a
@@ -1962,9 +2030,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                           )
                         })()}
                         {/* one uniform count in every cell — the theme's ink, no backplate */}
-                        {n > 0 && (
+                        {(n > 0 || needN > 0) && (
                           <span className="pointer-events-none absolute bottom-[3px] right-1 z-[1] text-[9.5px] font-bold" style={{ color: 'var(--heat-count)' }}>
-                            {n}/{viewTotal}
+                            {n > 0 && `${n}/${viewTotal}`}{extra && <span className="font-medium">{n > 0 ? ' ' : ''}{extra}</span>}
                           </span>
                         )}
                       </div>
@@ -1980,6 +2048,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   const clay = clayFor(oCount)
                   const ivs = editIvsByDay[d.key] ?? []
                   const cnt = peakOf(cellBands(editCombinedByDay[d.key] ?? {}, w0, w1)).ids.length
+                  const myNeed = need[d.key] ?? []
+                  const { extra: needExtra } = countLabel(cnt, cellPeople(editCombinedByDay[d.key] ?? {}, myNeed.length ? { ...(othersNeedFiltered[d.key] ?? {}), [meId]: myNeed } : othersNeedFiltered[d.key] ?? {}, w0, w1).need.length)
                   const isTopEdge = !!sel && !dragDel && sel.day === d.key && topCell === ti
                   const isBotEdge = !!sel && !dragDel && sel.day === d.key && botCell === ti
                   return (
@@ -2055,13 +2125,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                       })}
                       {/* slot line redrawn above the heat fills so saturated cells can't wash it out */}
                       <div className="pointer-events-none absolute z-[1] border-b border-r border-grid-line" style={{ inset: '0 -1px -1px 0' }} />
-                      {cnt > 0 && (() => {
+                      {(cnt > 0 || needExtra) && (() => {
                         // color for the surface under the corner: my clay block reaching the
                         // cell's bottom edge wants dark clay text; a full dark heat wants cream;
                         // anything paler (partials included) reads best in dark text
                         const clayAtCorner = ivs.some((iv) => iv.e >= w1 && iv.s < w1)
                         const onDarkHeat = !clayAtCorner && oCount >= editTotal
-                        return <span className="pointer-events-none absolute bottom-[2px] right-1 z-[2] text-[9px] font-bold" style={{ color: onDarkHeat ? 'var(--heat-count-full)' : 'var(--you-text)' }}>{cnt}/{editTotal}</span>
+                        return <span className="pointer-events-none absolute bottom-[2px] right-1 z-[2] text-[9px] font-bold" style={{ color: onDarkHeat ? 'var(--heat-count-full)' : 'var(--you-text)' }}>{cnt > 0 && `${cnt}/${editTotal}`}{needExtra && <span className="font-medium">{cnt > 0 ? ' ' : ''}{needExtra}</span>}</span>
                       })()}
                       {/* full-cell hit zone: empty → paint, over a block → select */}
                       <div className="absolute inset-0 z-[5] touch-auto" onPointerDown={(e) => onCellDown(e, d.key, ti)} onPointerUp={(e) => onCellTap(e, d.key, ti)} onPointerCancel={() => { cancelHold(); tapRef.current = null }} />
@@ -2103,13 +2173,16 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
 
         {/* view-mode cell breakdown — anchored to the cell but outside the scroller so nothing clips it */}
         {detail && (() => {
-          const bands = cellBands(viewCombinedByDay[detail.day] ?? {}, detail.ti * step, (detail.ti + 1) * step)
+          const dw0 = detail.ti * step, dw1 = (detail.ti + 1) * step
+          const bands = cellBands(viewFreeByDay[detail.day] ?? {}, dw0, dw1)
+          const needIds = cellPeople(viewFreeByDay[detail.day] ?? {}, viewNeedByDay[detail.day] ?? {}, dw0, dw1).need
           const W = 248, half = W / 2 + 6
           const colW = colRef.current?.clientWidth ?? 400
           const left = Math.max(half, Math.min(colW - half, detail.cx))
           return (
             <CellDetail
               bands={bands}
+              needIds={needIds}
               total={viewTotal}
               fmt={fmt}
               gridStartMin={gridStartMin}
@@ -2168,7 +2241,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         ? Math.round(bw.avg) >= 1
                           ? <span className="text-[12.5px] font-semibold text-teal-text">around {Math.round(bw.avg)} of {viewTotal} there{bw.count > 0 && <span className="font-normal text-dim">, {bw.count} the whole time</span>}</span>
                           : <span className="text-[12.5px] font-semibold text-teal-text">{bw.anyIds.length} of {viewTotal} there for part of it</span>
-                        : <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {viewTotal} free</span>}
+                        : <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {viewTotal} free{needClause(bw.needIds.length)}</span>}
                     </span>
                     {bwAllShown && (
                       <span className="flex w-full items-center gap-1.5 text-[12.5px] text-dim">
@@ -2189,10 +2262,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     <AvatarRow people={byRoster(bestMode === 'crowd' ? block.anyIds : block.ids).map(avatarOf)} size={32} max={6} overlap={8} />
                     <span className="text-[12.5px] font-semibold text-teal-text">
                       {blockLen === 1
-                        ? <>{block.count} of {viewTotal} free that day</>
+                        ? <>{block.count} of {viewTotal} free that day{needClause(block.needIds.length)}</>
                         : bestMode === 'crowd'
                           ? <>around {Math.round(block.avgPerDay)} of {viewTotal} there each day</>
-                          : <>{block.count} of {viewTotal} free every day</>}
+                          : <>{block.count} of {viewTotal} free every day{needClause(block.needIds.length)}</>}
                     </span>
                   </span>
                   {dayPoll && onLockDays && (
