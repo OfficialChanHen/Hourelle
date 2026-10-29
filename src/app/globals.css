@@ -31,7 +31,7 @@
 
   /* availability heat ramp */
   --heat-low:#EBF0EC; --heat-mid:#D0DFD4; --heat-high:#9FBBA6; --heat-full:#2E4A3C;
-  --you-only:#F1EBDF; --you-some:#E6DCC6; --you-many:#D8CBAE; --you-text:#675326;
+  --you-only:#F1EBDF; --you-some:#E6DCC6; --you-many:#D8CBAE; --you-text:#675326; --you-need-edge:var(--you-text);
   /* grid slot lines — dark, so each time block reads instantly; redrawn above the
      heat fills so saturated cells can't wash them out */
   --grid-line:#7C7A73;
@@ -236,7 +236,7 @@
   --moment:#E0623A; --moment-text:#B2401C; --moment-bg:#FDECE4; --moment-border:#F9CDBB;
   --shadow:0 1px 2px rgba(60,64,67,.12), 0 8px 24px rgba(60,64,67,.10);
   --heat-low:#E8F0FE; --heat-mid:#AECBFA; --heat-high:#669DF6; --heat-full:#0B57D0;
-  --you-only:#FEF7E0; --you-some:#FDE293; --you-many:#FDD663; --you-text:#7A5800;
+  --you-only:#FEF7E0; --you-some:#FDE293; --you-many:#FDD663; --you-text:#7A5800; --you-need-edge:#624600;
   --grid-line:#80868B; --grid-edge:#AEB3B8; --grid-dash:#AEB3B8;
   --best-head:#FEF7E0;
   --heat-count:#0B316D; --heat-count-full:#FFFFFF;
@@ -259,7 +259,7 @@
   --moment:#F59E7C; --moment-text:#F7AE92; --moment-bg:rgba(245,158,124,.14); --moment-border:rgba(245,158,124,.38);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
   --heat-low:rgba(138,180,248,.14); --heat-mid:rgba(138,180,248,.30); --heat-high:rgba(138,180,248,.55); --heat-full:#8AB4F8;
-  --you-only:rgba(253,214,99,.12); --you-some:rgba(253,214,99,.22); --you-many:rgba(253,214,99,.34); --you-text:#FDD663;
+  --you-only:rgba(253,214,99,.12); --you-some:rgba(253,214,99,.22); --you-many:rgba(253,214,99,.34); --you-text:#FDD663; --you-need-edge:var(--you-text);
   --grid-line:rgba(232,234,237,.38); --grid-edge:rgba(232,234,237,.22); --grid-dash:rgba(232,234,237,.38);
   --best-head:#33301C;
   --heat-count:#F3F7FE; --heat-count-full:#0A2A5C;
@@ -329,7 +329,7 @@
   --moment:#B8400F; --moment-text:#8F2F08; --moment-bg:#FFE7DA; --moment-border:#B8400F;
   --shadow:0 1px 2px rgba(0,0,0,.25);
   --heat-low:#E4EBFF; --heat-mid:#A9BFFF; --heat-high:#5B7FF2; --heat-full:#0033CC;
-  --you-only:#FFF3B8; --you-some:#FFE065; --you-many:#FFD02E; --you-text:#5C4A00;
+  --you-only:#FFF3B8; --you-some:#FFE065; --you-many:#FFD02E; --you-text:#5C4A00; --you-need-edge:#433600;
   --grid-line:#000000; --grid-edge:#4D4D4D; --grid-dash:#4D4D4D;
   --best-head:#FFF0D0;
   --heat-count:#001657; --heat-count-full:#FFFFFF;
@@ -364,7 +364,7 @@
   --moment:#FF8A5C; --moment-text:#FFB899; --moment-bg:rgba(255,138,92,.16); --moment-border:rgba(255,138,92,.55);
   --shadow:0 1px 2px rgba(0,0,0,.8);
   --heat-low:rgba(125,169,255,.18); --heat-mid:rgba(125,169,255,.40); --heat-high:rgba(125,169,255,.65); --heat-full:#7DA9FF;
-  --you-only:rgba(255,197,61,.16); --you-some:rgba(255,197,61,.28); --you-many:rgba(255,197,61,.43); --you-text:#FFDC85;
+  --you-only:rgba(255,197,61,.16); --you-some:rgba(255,197,61,.28); --you-many:rgba(255,197,61,.43); --you-text:#FFDC85; --you-need-edge:var(--you-text);
   --grid-line:rgba(255,255,255,.6); --grid-edge:rgba(255,255,255,.4); --grid-dash:rgba(255,255,255,.6);
   --best-head:#2E2609;
   --heat-count:#FBFCFF; --heat-count-full:#00123D;
