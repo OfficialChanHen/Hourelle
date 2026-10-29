@@ -27,6 +27,13 @@ import { CHROME_TOP, LAYER_Z, layerOf } from '@/lib/layers'
    shows its name on hover. */
 type Who = { name: string; initials: string; color?: PersonColor }
 const InGroup = createContext(false)
+
+// which edges of a sideways row have more past them, for its fade
+function fadeEdges(el: HTMLElement) {
+  const start = el.scrollLeft > 4
+  const end = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
+  el.dataset.fade = start && end ? 'both' : start ? 'start' : end ? 'end' : 'none'
+}
 export const useInFlipGroup = () => useContext(InGroup)
 
 export function FlipGroup({ names, people, more = 0, className = '', style, overlay = false, caption: at = 'below', children }: {
@@ -75,19 +82,27 @@ export function FlipGroup({ names, people, more = 0, className = '', style, over
         // a tap on the row itself is the row's own toggle, not a tap away
         onPointerDownOutside={(e) => { if (root.current?.contains(e.target as Node)) e.preventDefault() }}
         aria-hidden
-        className="flex max-w-[calc(100vw-24px)] gap-1 overflow-x-auto overscroll-x-contain rounded-full border border-border bg-s1 p-1 shadow-soft [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="max-w-[calc(100vw-24px)] overflow-hidden rounded-full border border-border bg-s1 p-1 shadow-soft"
         style={{ zIndex: z }}
       >
-        {listed.map((p, i) => {
-          const c = personVar(p.color ?? 'gray')
-          return (
-            <span key={i} className="flex flex-none items-center gap-1.5 rounded-full py-1 pl-1 pr-2.5">
-              <span className="grid h-[22px] w-[22px] flex-none place-items-center rounded-full text-[9.5px] font-semibold" style={{ background: c.bg, color: c.text }}>{p.initials}</span>
-              <span className="max-w-[140px] truncate text-[13px] font-medium text-text">{p.name}</span>
-            </span>
-          )
-        })}
-        {rest > 0 && <span className="flex flex-none items-center whitespace-nowrap pl-1 pr-3 text-[12.5px] text-faint">and {rest} more</span>}
+        {/* the names scroll inside the pill; an edge with more past it fades, like the
+            create page's template row, so the strip reads as more to see */}
+        <div
+          ref={(el) => { if (el) requestAnimationFrame(() => fadeEdges(el)) }}
+          onScroll={(e) => fadeEdges(e.currentTarget)}
+          className="flex gap-1 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden data-[fade=end]:[mask-image:linear-gradient(to_right,#000_calc(100%-40px),transparent)] data-[fade=both]:[mask-image:linear-gradient(to_right,transparent,#000_32px,#000_calc(100%-40px),transparent)] data-[fade=start]:[mask-image:linear-gradient(to_right,transparent,#000_32px)]"
+        >
+          {listed.map((p, i) => {
+            const c = personVar(p.color ?? 'gray')
+            return (
+              <span key={i} className="flex flex-none items-center gap-1.5 rounded-full py-1 pl-1 pr-2.5">
+                <span className="grid h-[22px] w-[22px] flex-none place-items-center rounded-full text-[9.5px] font-semibold" style={{ background: c.bg, color: c.text }}>{p.initials}</span>
+                <span className="max-w-[140px] truncate text-[13px] font-medium text-text">{p.name}</span>
+              </span>
+            )
+          })}
+          {rest > 0 && <span className="flex flex-none items-center whitespace-nowrap pl-1 pr-3 text-[12.5px] text-faint">and {rest} more</span>}
+        </div>
       </RPopover.Content>
     </RPopover.Portal>
   )
