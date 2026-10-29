@@ -9,7 +9,6 @@
 -- without change. New rows upserted (from the client) carry both. The client turns
 -- availIv writes into intervals updates here; needIv writes become if_need_be updates.
 
+-- Safe to run twice. availability_event_idx already exists from 0008.
 alter table public.availability
-add column if_need_be jsonb not null default '{}'::jsonb;
-
-create index availability_event_idx on public.availability (event_id);
+add column if not exists if_need_be jsonb not null default '{}'::jsonb;
