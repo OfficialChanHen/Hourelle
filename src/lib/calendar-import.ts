@@ -190,7 +190,9 @@ export type ImportOutcome = {
   stripesChanged: boolean
 }
 
-export function planImport(ev: Pick<AppEvent, 'days' | 'times' | 'granularity' | 'timezone' | 'importedIv'>, meId: string, mine: Record<string, Iv[]>, busyUtc: UtcBusy[]): ImportOutcome {
+// `need` is your if-need-be marks: a calendar that merely shows a time open never turns
+// a deliberate if-need-be mark into free, so free is added only where neither is marked
+export function planImport(ev: Pick<AppEvent, 'days' | 'times' | 'granularity' | 'timezone' | 'importedIv'>, meId: string, mine: Record<string, Iv[]>, busyUtc: UtcBusy[], need: Record<string, Iv[]> = {}): ImportOutcome {
   const dayPoll = ev.granularity === 'day'
   const gridMax = ev.times.length * stepOf(ev.granularity)
   const data = buildImportPreview(busyUtc, ev.days, gridStartMinOf(ev), gridMax, ev.timezone)
@@ -205,16 +207,16 @@ export function planImport(ev: Pick<AppEvent, 'days' | 'times' | 'granularity' |
   let addedMin = 0, addedDays = 0
   if (dayPoll) {
     for (const [day, di] of Object.entries(data)) {
-      if (di.busy.length || mine[day]?.length) continue
+      if (di.busy.length || mine[day]?.length || need[day]?.length) continue
       times[day] = [{ s: 0, e: gridMax }]
       addedDays++
     }
   } else {
     for (const [day, di] of Object.entries(data)) {
       let add = di.free
-      for (const iv of mine[day] ?? []) add = add.flatMap((a) => subtract(a, iv.s, iv.e))
+      for (const iv of [...(mine[day] ?? []), ...(need[day] ?? [])]) add = add.flatMap((a) => subtract(a, iv.s, iv.e))
       addedMin += add.reduce((m, iv) => m + (iv.e - iv.s), 0)
-      times[day] = normalizeIv([...(times[day] ?? []), ...di.free])
+      times[day] = normalizeIv([...(times[day] ?? []), ...add])
     }
   }
   return { times, importedIv, addedMin, addedDays, busyDays: busyDays.length, none, allBusy, timesChanged: dayPoll ? addedDays > 0 : addedMin > 0, stripesChanged }

@@ -61,6 +61,17 @@ describe('planImport', () => {
     expect(out.times['2026-10-21']).toEqual([{ s: 0, e: 1440 }])
     expect(out.addedDays).toBe(1)
   })
+  it('adds free time only where you have no if-need-be mark', () => {
+    const out = planImport(ev, 'H', {}, [], { '2026-10-20': [{ s: 0, e: 60 }] })
+    expect(out.times['2026-10-20']).toEqual([{ s: 60, e: 360 }])
+    expect(out.addedMin).toBe(300 + 360)
+  })
+  it('on a day poll, leaves a day you marked if need be alone', () => {
+    const dp = plan({ granularity: 'day', times: ['All day'] })
+    const out = planImport(dp, 'H', {}, [], { '2026-10-20': [{ s: 0, e: 1440 }] })
+    expect(out.times['2026-10-20']).toBeUndefined()
+    expect(out.addedDays).toBe(1)
+  })
   it('keeps the stripes it already had', () => {
     const withOld = plan({ importedIv: { '2026-10-21': { H: [{ s: 0, e: 60 }] } } })
     const out = planImport(withOld, 'H', {}, [busy('2026-10-20', 600, 660)])

@@ -127,6 +127,25 @@ export function applyBrush(free: Iv[], need: Iv[], range: Iv, brush: Brush): { f
   return { free: f, need: n }
 }
 
+/** Your if-need-be marks with every free minute taken out: where the two meet, free
+ *  wins. Stored rows can overlap (a device without the switch saves free only), and a
+ *  free block moved or stretched over if-need-be time takes that time. */
+export function withoutOverlap(free: Iv[], need: Iv[]): Iv[] {
+  return free.reduce((n, iv) => cut(n, iv), normalizeIv(need))
+}
+
+/** Several ranges painted with one brush, across days, on working copies of both maps. */
+export function paintRanges(
+  free: Record<string, Iv[]>, need: Record<string, Iv[]>, ranges: { day: string; s: number; e: number }[], brush: Brush,
+): { free: Record<string, Iv[]>; need: Record<string, Iv[]> } {
+  const f = { ...free }, n = { ...need }
+  for (const r of ranges) {
+    const out = applyBrush(f[r.day] ?? [], n[r.day] ?? [], { s: r.s, e: r.e }, brush)
+    f[r.day] = out.free; n[r.day] = out.need
+  }
+  return { free: f, need: n }
+}
+
 // same, but over every stored day — including dormant ones dropped from the current
 // range — so writers never lose the replies a later window change should bring back
 export function fullAvailIvOf(ev: Pick<AppEvent, 'avail' | 'availIv' | 'granularity'>): AvailIntervals {

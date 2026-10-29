@@ -54,6 +54,27 @@ export function peakOf(bands: Band[]): Band {
   return bands.reduce((m, b) => (b.ids.length > m.ids.length ? b : m))
 }
 
+/* ── if-need-be marks in a cell ──
+   The shade and the main count are the people fully free at the cell's busiest
+   moment. Anyone else with an if-need-be mark in the cell is the lighter "+N". */
+export function cellPeople(freeByPid: Record<string, Iv[]>, needByPid: Record<string, Iv[]>, w0: number, w1: number): { free: string[]; need: string[] } {
+  const free = peakOf(cellBands(freeByPid, w0, w1)).ids
+  const inFree = new Set(free)
+  const need = Object.keys(needByPid).filter((id) => !inFree.has(id) && needByPid[id].some((iv) => iv.s < w1 && iv.e > w0))
+  return { free, need }
+}
+/** "3" and "+1"; a cell with only if-need-be people has no main count. */
+export function countLabel(free: number, need: number): { main: string; extra: string } {
+  return { main: free ? String(free) : '', extra: need ? `+${need}` : '' }
+}
+/** Your if-need-be marks clipped to one cell. `first` and `last` say the run starts or
+ *  ends inside this cell, where its bar gets a rounded end. */
+export function needSegments(need: Iv[], w0: number, w1: number): { s: number; e: number; first: boolean; last: boolean }[] {
+  return need
+    .filter((iv) => iv.s < w1 && iv.e > w0)
+    .map((iv) => ({ s: Math.max(iv.s, w0), e: Math.min(iv.e, w1), first: iv.s >= w0, last: iv.e <= w1 }))
+}
+
 // a grid day, possibly a filler outside the event's date window (rendered greyed out, inert)
 export type GDay = GridDay & { pad?: boolean }
 export const DOW7 = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']

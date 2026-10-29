@@ -1048,6 +1048,28 @@ export function slotFits(ev: AppEvent, slot: ConfirmedSlot, pid: string, freeOnl
   return (availIv[slot.dayKey]?.[pid] ?? []).some((iv) => iv.s <= s && iv.e >= e)
 }
 
+// who leans on an if-need-be mark for this slot: someone whose if-need-be marks reach
+// into it and who isn't free for all of it. Attendance notes them beside their name.
+export function needOnlyIds(ev: AppEvent, slot: ConfirmedSlot): Set<string> {
+  const out = new Set<string>()
+  if (!ev.needIv) return out
+  const touches = (ivs: Iv[], s: number, e: number) => ivs.some((iv) => iv.s < e && iv.e > s)
+  for (const p of ev.participants) {
+    if (slotFits(ev, slot, p.id, true)) continue
+    if (slot.endDayKey) {
+      const cur = parseLocal(slot.dayKey), end = parseLocal(slot.endDayKey)
+      for (let i = 0; cur && end && i < 90 && cur <= end; i++) {
+        if ((ev.needIv[isoOf(cur)]?.[p.id] ?? []).length) { out.add(p.id); break }
+        cur.setDate(cur.getDate() + 1)
+      }
+      continue
+    }
+    const g = gridStartMinOf(ev)
+    if (touches(ev.needIv[slot.dayKey]?.[p.id] ?? [], slot.startMin - g, slot.endMin - g)) out.add(p.id)
+  }
+  return out
+}
+
 // does any of this person's availability touch the locked slot at all? Someone who can
 // make part of it (arrives late, leaves early) touches it; someone whose times all fall
 // elsewhere does not.

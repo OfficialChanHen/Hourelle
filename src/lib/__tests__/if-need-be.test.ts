@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import { applyBrush, availIvOf, freeIvOf, ifNeedBeOn, myTimesPatch, unionIv } from '@/lib/availability'
+import { applyBrush, availIvOf, freeIvOf, ifNeedBeOn, myTimesPatch, paintRanges, unionIv, withoutOverlap } from '@/lib/availability'
+import { cellPeople, countLabel, needSegments } from '@/app/(main)/events/[id]/_components/availability/grid-lib'
 import { answerSelect, missingNeedColumn } from '@/lib/remote'
-import { answeredIds, bestBlock, bestWindow, confirmEvent, getEvent, rsvpPool, type GridDay } from '@/lib/events'
+import { answeredIds, bestBlock, bestWindow, confirmEvent, getEvent, needOnlyIds, rsvpPool, type GridDay } from '@/lib/events'
 import { needClause } from '@/lib/answers'
 import { person, plan, saved } from '../../../test/fixtures'
 
@@ -173,5 +174,39 @@ describe('the switch and a database without the column', () => {
   it('asks for the column only when it should', () => {
     expect(answerSelect(true)).toContain('if_need_be')
     expect(answerSelect(false)).not.toContain('if_need_be')
+  })
+})
+
+describe('helpers for drawing and counting if-need-be marks', () => {
+  it('free wins a minute marked both ways', () => {
+    expect(withoutOverlap([{ s: 30, e: 60 }], [{ s: 0, e: 90 }])).toEqual([{ s: 0, e: 30 }, { s: 60, e: 90 }])
+    expect(withoutOverlap([], [{ s: 0, e: 30 }])).toEqual([{ s: 0, e: 30 }])
+  })
+  it('paints several ranges with one brush', () => {
+    const out = paintRanges({ d1: [{ s: 0, e: 60 }] }, {}, [{ day: 'd1', s: 30, e: 90 }, { day: 'd2', s: 0, e: 30 }], 'need')
+    expect(out.free).toEqual({ d1: [{ s: 0, e: 30 }], d2: [] })
+    expect(out.need).toEqual({ d1: [{ s: 30, e: 90 }], d2: [{ s: 0, e: 30 }] })
+  })
+  it('counts a cell as free people plus extra if-need-be people', () => {
+    const p = cellPeople({ A: [{ s: 0, e: 30 }], B: [{ s: 0, e: 30 }] }, { C: [{ s: 0, e: 30 }], A: [{ s: 30, e: 60 }] }, 0, 30)
+    expect(p).toEqual({ free: ['A', 'B'], need: ['C'] })
+    expect(countLabel(3, 1)).toEqual({ main: '3', extra: '+1' })
+    expect(countLabel(0, 2)).toEqual({ main: '', extra: '+2' })
+    expect(countLabel(3, 0)).toEqual({ main: '3', extra: '' })
+  })
+  it('clips a run of if-need-be marks to a cell and knows its ends', () => {
+    expect(needSegments([{ s: 15, e: 90 }], 0, 30)).toEqual([{ s: 15, e: 30, first: true, last: false }])
+    expect(needSegments([{ s: 15, e: 90 }], 30, 60)).toEqual([{ s: 30, e: 60, first: false, last: false }])
+    expect(needSegments([{ s: 15, e: 90 }], 60, 90)).toEqual([{ s: 60, e: 90, first: false, last: true }])
+    expect(needSegments([{ s: 15, e: 90 }], 90, 120)).toEqual([])
+  })
+  it('names who leans on an if-need-be mark for a slot: covered with one, or reaching in with one', () => {
+    const D1 = '2026-10-20'
+    const e = plan({
+      participants: [person('H', { host: true, you: true }), person('A'), person('B'), person('C')],
+      availIv: { [D1]: { A: [{ s: 60, e: 180 }], B: [{ s: 60, e: 120 }] } },
+      needIv: { [D1]: { B: [{ s: 120, e: 180 }], C: [{ s: 150, e: 240 }] } },
+    })
+    expect([...needOnlyIds(e, { dayKey: D1, startMin: 600, endMin: 720, placeIds: [] })].sort()).toEqual(['B', 'C'])
   })
 })
