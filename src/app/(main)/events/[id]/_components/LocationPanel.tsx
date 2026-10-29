@@ -563,12 +563,8 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
         <TabHeading
           eyebrow={sub === 'itin' ? 'The route' : 'Where'}
           title={headTitle}
-          sub={headSub}
-          aside={owesVote && (
-            <span className="flex h-8 items-center gap-1.5 rounded-full border border-moment-border bg-moment-bg px-3 text-[13px] font-semibold text-moment-text">
-              <span className="h-1.5 w-1.5 rounded-full bg-moment" aria-hidden /> Your turn: you haven&apos;t voted
-            </span>
-          )}
+          // what you owe leads the line, said in words like the rest of it
+          sub={owesVote ? <><span className="font-semibold text-moment-text">You haven&apos;t voted yet.</span> {headSub}</> : headSub}
         />
       )}
 
@@ -1044,7 +1040,7 @@ function TravelLeg({ est, fastest }: { est: ModeEstimate[]; fastest: ModeEstimat
       </div>
       <div className="flex flex-wrap items-center gap-1 py-1.5">
         {est.length === 0 ? (
-          <span className="flex items-center gap-1 rounded-full border border-brick-border bg-brick-bg px-2 py-0.5 text-[12px] text-brick-text"><TriangleAlert size={11} /> No allowed route</span>
+          <span className="text-[12.5px] text-brick-text">No allowed way to get here.</span>
         ) : est.map((e) => {
           const Icon = MODE_ICON[e.mode]
           // "fastest" only means something when there was a choice

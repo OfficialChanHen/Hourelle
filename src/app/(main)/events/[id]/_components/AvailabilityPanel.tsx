@@ -1554,9 +1554,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             is one tap — and marking any time takes it back */}
         {mode === 'edit' && !locked && !youAny && (
           unavail.has(meId) ? (
-            <span className="flex items-center gap-1.5 rounded-full border border-brick-border bg-brick-bg px-2.5 py-1 text-[11.5px] font-semibold text-brick-text">
-              Marked as not free on any of these days
-              <button type="button" onClick={toggleNoneWork} className="underline underline-offset-2">Undo</button>
+            <span className="text-[12.5px] text-brick-text">
+              You said none of these days work.{' '}
+              <button type="button" onClick={toggleNoneWork} className="relative font-semibold text-accent-text underline underline-offset-2 before:absolute before:-inset-x-1 before:-inset-y-3 before:content-['']">Undo</button>
             </span>
           ) : (
             <button type="button" onClick={toggleNoneWork} className="text-[12.5px] font-medium text-dim underline-offset-2 hover:text-brick-text hover:underline">

@@ -693,9 +693,9 @@ function QuorumControl({ quorum, max, onChange }: { quorum: number | null; max: 
 function QuorumStatus({ quorum, whole }: { quorum: number; whole: number }) {
   if (whole >= quorum) {
     return (
-      <div className="mt-3 flex items-center gap-2 text-[13px] text-teal-text">
-        <span className="h-1.5 w-1.5 flex-none rounded-full bg-teal" /> {whole} can stay the whole time. That clears your minimum of {quorum}.
-      </div>
+      <p className="mt-3 text-[13px] text-teal-text">
+        {whole} can stay the whole time. That clears your minimum of {quorum}.
+      </p>
     )
   }
   return (
@@ -840,11 +840,11 @@ function HeadcountBars({
   )
 }
 
-const TONE: Record<string, { dot: string; text: string }> = {
-  teal: { dot: 'var(--teal)', text: 'text-teal-text' },
-  ochre: { dot: 'var(--ochre)', text: 'text-ochre-text' },
-  brick: { dot: 'var(--brick)', text: 'text-brick-text' },
-  faint: { dot: 'var(--faint)', text: 'text-faint' },
+const TONE: Record<string, { text: string }> = {
+  teal: { text: 'text-teal-text' },
+  ochre: { text: 'text-ochre-text' },
+  brick: { text: 'text-brick-text' },
+  faint: { text: 'text-faint' },
 }
 
 /* A group of people, read one of two ways. Rows, when each person has something of
@@ -880,7 +880,6 @@ function RosterGroup({ label, tone, people, cap: capIn, compact, bare, action, o
   return (
     <div>
       {!bare && <div className="mb-2 flex items-center gap-2">
-        <span className="h-1.5 w-1.5 rounded-full" style={{ background: t.dot }} />
         {onOpenGroup ? (
           // availability groups link to the grid filtered to just these people
           <button type="button" onClick={onOpenGroup} title="See this group on the availability calendar" className={`flex items-center gap-1.5 text-[13.5px] font-semibold hover:underline ${t.text}`}>
