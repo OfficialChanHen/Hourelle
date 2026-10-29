@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { applyBrush, availIvOf, freeIvOf, myTimesPatch, unionIv } from '@/lib/availability'
+import { describe, expect, it, vi } from 'vitest'
+import { applyBrush, availIvOf, freeIvOf, ifNeedBeOn, myTimesPatch, unionIv } from '@/lib/availability'
+import { answerSelect, missingNeedColumn } from '@/lib/remote'
 import { answeredIds, bestBlock, bestWindow, confirmEvent, getEvent, rsvpPool, type GridDay } from '@/lib/events'
 import { needClause } from '@/lib/answers'
 import { person, plan, saved } from '../../../test/fixtures'
@@ -154,5 +155,23 @@ describe('counts and lock-in with if-need-be marks', () => {
     expect(needClause(0)).toBe('')
     expect(needClause(1)).toBe(', 1 of them if need be')
     expect(needClause(2)).toBe(', 2 of them if need be')
+  })
+})
+
+describe('the switch and a database without the column', () => {
+  it('reads the flag', () => {
+    vi.stubEnv('NEXT_PUBLIC_IF_NEED_BE_ON', '1'); expect(ifNeedBeOn()).toBe(true)
+    vi.stubEnv('NEXT_PUBLIC_IF_NEED_BE_ON', ''); expect(ifNeedBeOn()).toBe(false)
+    vi.unstubAllEnvs()
+  })
+  it('tells a missing if_need_be column from a missing table', () => {
+    expect(missingNeedColumn('column availability.if_need_be does not exist')).toBe(true)
+    expect(missingNeedColumn("Could not find the 'if_need_be' column of 'availability' in the schema cache")).toBe(true)
+    expect(missingNeedColumn('relation "public.availability" does not exist')).toBe(false)
+    expect(missingNeedColumn(undefined)).toBe(false)
+  })
+  it('asks for the column only when it should', () => {
+    expect(answerSelect(true)).toContain('if_need_be')
+    expect(answerSelect(false)).not.toContain('if_need_be')
   })
 })
