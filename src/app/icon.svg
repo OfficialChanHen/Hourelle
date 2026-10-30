@@ -1,23 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" role="img" aria-label="timeld">
   <!--
-  The mark: the wordmark's slanted cut on a disc. Time's indigo holds the top left,
-       meld's amber the bottom right, and a little noise lets the inks run into each
+  The mark: the wordmark's wavy cut on a disc. Time's lighter green holds the top left,
+       meld's deeper green the bottom right, and a streak of each ink runs into the
        other along the slant, the way they do through the "me" of the wordmark.
   -->
   <style>
-    .t { fill: #2C45A8 } .m { fill: #A5680A }
-    @media (prefers-color-scheme: dark) { .t { fill: #A9B7F4 } .m { fill: #EEBF60 } }
+    .t { fill: #4E9670 } .m { fill: #1F4A36 }
+    @media (prefers-color-scheme: dark) { .t { fill: #9FDCBC } .m { fill: #4F9E78 } }
   </style>
   <defs>
-    <filter id="f" filterUnits="userSpaceOnUse" x="-50" y="-50" width="200" height="200">
-      <feTurbulence type="fractalNoise" baseFrequency="0.03 0.045" numOctaves="2" seed="5" result="n"/>
-      <feDisplacementMap in="SourceGraphic" in2="n" scale="12" xChannelSelector="R" yChannelSelector="G" result="d"/>
-      <feGaussianBlur in="d" stdDeviation="0.6"/>
-    </filter>
-    <mask id="k" maskUnits="userSpaceOnUse" x="-50" y="-50" width="200" height="200">
-      <polygon points="-60,-60 160,-60 -60,160" fill="#fff" filter="url(#f)"/>
-    </mask>
+    <clipPath id="d"><circle cx="50" cy="50" r="46"/></clipPath>
   </defs>
-  <circle class="m" cx="50" cy="50" r="46"/>
-  <circle class="t" cx="50" cy="50" r="46" mask="url(#k)"/>
+  <g clip-path="url(#d)">
+    <rect class="m" width="100" height="100"/>
+    <path class="t" d="M -10,-10 L 110,-10 L 104,-4 C 90,12 78,22 66,32 C 54,42 62,54 48,62 C 34,70 22,78 -4,104 L -10,110 Z"/>
+    <path class="t" d="M 56,70 C 66,58 78,52 90,40 C 86,54 72,64 56,70 Z"/>
+    <path class="m" d="M 12,58 C 22,46 32,40 46,26 C 42,40 28,52 12,58 Z"/>
+  </g>
 </svg>
