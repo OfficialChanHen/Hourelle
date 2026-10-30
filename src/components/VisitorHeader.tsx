@@ -26,7 +26,8 @@ export function VisitorHeader({ ready = true }: { ready?: boolean }) {
     <header data-chrome className={`sticky top-0 z-40 border-b border-border bg-s0/90 backdrop-blur-md transition-transform duration-300 has-[:focus-visible]:translate-y-0 md:translate-y-0 ${hidden ? '-translate-y-full' : 'translate-y-0'}`}>
       <div className="mx-auto flex h-[58px] w-full max-w-[1240px] items-center gap-[22px] px-[22px]">
         <Link href="/" className="flex items-center">
-          <Wordmark className="text-[24.5px] tracking-[.01em]" />
+          {/* on the landing page the hero's big wordmark plays the intro, so this one stays still */}
+          <Wordmark className="text-[24.5px] tracking-[.01em]" still={pathname === '/'} />
         </Link>
         <nav className="hidden items-center gap-[3px] text-[14px] md:flex">
           {LINKS.map((l) => {

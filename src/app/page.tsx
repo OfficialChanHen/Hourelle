@@ -13,6 +13,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useGSAP } from '@gsap/react'
 import { ArrowRight, Users } from 'lucide-react'
 import { VisitorHeader } from '@/components/VisitorHeader'
+import { Wordmark } from '@/components/ui/Wordmark'
 import { HeroGrid } from '@/components/landing/HeroGrid'
 import { HowItWorksGlance, WhatItDoesGlance } from '@/components/landing/Glance'
 import { SiteFooter } from '@/components/SiteFooter'
@@ -107,8 +108,12 @@ export default function Landing() {
           <SoftShapes variant="home" />
           <div className="grid gap-10 lg:grid-cols-12 lg:items-center xl:gap-14">
             <div ref={heroText} className="ld-hero relative min-w-0 lg:col-span-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[.15em] text-faint">The little hour when people meet</p>
-              <h1 className="mt-3 font-serif font-normal text-[46px] leading-[1.0] tracking-[-0.015em] sm:text-[62px] lg:text-[54px] xl:text-[62px]">
+              {/* the name, bigger than the headline: it plays the time + meld intro here,
+                  sized so the two words still fit the column while they stand apart */}
+              <div className="leading-none">
+                <Wordmark className="text-[min(74px,18vw)] sm:text-[100px] lg:text-[80px] xl:text-[96px]" anchor="time" />
+              </div>
+              <h1 className="mt-5 font-serif font-normal text-[46px] leading-[1.0] tracking-[-0.015em] sm:text-[62px] lg:text-[54px] xl:text-[62px]">
                 Find <Highlight>the hour</Highlight> <Em>everyone</Em> can meet.
               </h1>
               <p className="mt-5 max-w-[560px] text-[16px] leading-[1.6] text-dim sm:text-[17px]">

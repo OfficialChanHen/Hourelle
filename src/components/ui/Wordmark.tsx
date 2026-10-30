@@ -85,7 +85,10 @@ function marble(w: Widths, s: Flow) {
   return { time, streaks }
 }
 
-export function Wordmark({ className = '' }: { className?: string }) {
+/* still: never plays (the landing page's header, while its hero plays the intro).
+   anchor: 'time' keeps time where it ends and brings meld in from the right, for a big
+   logo at a column's left edge where time moving left would run off the page. */
+export function Wordmark({ className = '', still = false, anchor = 'centre' }: { className?: string; still?: boolean; anchor?: 'centre' | 'time' }) {
   const id = 'wm' + useId().replace(/[^a-zA-Z0-9]/g, '')
   const svgRef = useRef<SVGSVGElement>(null)
 
@@ -123,8 +126,9 @@ export function Wordmark({ className = '' }: { className?: string }) {
       if (st.pair > 0.001) {
         pair.style.display = ''
         pair.setAttribute('opacity', st.pair.toFixed(3))
-        pTime.setAttribute('transform', `translate(${f2(-st.shift / 2)},0)`)
-        pMeld.setAttribute('transform', `translate(${f2(st.shift / 2)},0)`)
+        const lead = anchor === 'time' ? 0 : st.shift / 2
+        pTime.setAttribute('transform', `translate(${f2(-lead)},0)`)
+        pMeld.setAttribute('transform', `translate(${f2(st.shift - lead)},0)`)
         filterIf(pair, st.psoft, pblur, `${id}p`)
       } else pair.style.display = 'none'
     }
@@ -188,6 +192,8 @@ export function Wordmark({ className = '' }: { className?: string }) {
     // the first wordmark of a session's first visit claims the intro and drops the flag
     // that held it back before paint, so any later wordmark shows at once
     const html = document.documentElement
+    // a still one shows at once and leaves the flag for the wordmark that will play
+    if (still) { root.style.opacity = '1'; return }
     const claim = !introClaimed && html.hasAttribute('data-wm-intro')
     if (claim) {
       introClaimed = true
