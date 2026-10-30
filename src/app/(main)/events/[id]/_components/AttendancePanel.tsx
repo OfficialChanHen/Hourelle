@@ -20,7 +20,7 @@
    Only the RSVP, the quorum and the itinerary's own settings are editable, and as
    on the other tabs those go to local state first so the demos work in memory. */
 
-import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, Video, X } from 'lucide-react'
 import { Avatar, NameTag } from '@/components/ui/Avatar'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
@@ -617,12 +617,24 @@ function GroupCard({ label, tone, count, onOpen, action, children }: {
 /* The people in a group as faces, each with a first name under it, straight and flat
    (this is a list you read, not a moment). A face turns over to its initials; the
    name opens their times on the grid. It stops at `cap` faces with a "+N" that opens
-   the whole group as a compact list, so a group of a hundred draws a handful. */
+   the whole group as a compact list, so a group of a hundred draws a handful.
+   "Show faces" under the list goes back; focus follows to the control that swapped in. */
 function FaceGroup({ people, size, cap, onPerson }: { people: Participant[]; size: number; cap: number; onPerson?: (pid: string) => void }) {
   const [all, setAll] = useState(false)
   const needOnly = useContext(NeedOnly)
+  const swapped = useRef(false)
+  const toggle = useRef<HTMLButtonElement>(null)
+  useEffect(() => { if (swapped.current) toggle.current?.focus() }, [all])
+  const flip = (to: boolean) => { swapped.current = true; setAll(to) }
   if (!people.length) return null
-  if (all) return <RosterGroup bare compact tone="faint" label="" people={people.map((p) => ({ p }))} onPerson={onPerson} />
+  if (all) return (
+    <div className="flex flex-col gap-1">
+      <RosterGroup bare compact tone="faint" label="" people={people.map((p) => ({ p }))} onPerson={onPerson} />
+      <button ref={toggle} type="button" aria-expanded onClick={() => flip(false)} className="relative h-8 self-start rounded-full px-1 text-[12.5px] font-semibold text-accent-text before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] hover:underline">
+        Show faces
+      </button>
+    </div>
+  )
   const shown = people.slice(0, cap)
   const extra = people.length - shown.length
   const first = (p: Participant) => (p.you ? 'You' : p.name.split(' ')[0])
@@ -647,7 +659,7 @@ function FaceGroup({ people, size, cap, onPerson }: { people: Participant[]; siz
       {extra > 0 && (
         <li className="flex flex-col items-center gap-1.5" style={{ width: Math.max(size + 8, 52) }}>
           <button
-            type="button" onClick={() => setAll(true)} aria-label={`Show all ${people.length}`}
+            ref={toggle} type="button" aria-expanded={false} onClick={() => flip(true)} aria-label={`Show all ${people.length}`}
             className="relative z-[2] grid flex-none place-items-center rounded-full bg-s3 font-semibold text-dim hover:text-text"
             style={{ width: size, height: size, boxShadow: '0 0 0 2px var(--face-edge)', fontSize: Math.max(12, Math.round(size * 0.3)) }}
           >
