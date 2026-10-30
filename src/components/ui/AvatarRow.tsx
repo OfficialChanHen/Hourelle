@@ -24,6 +24,12 @@ export function namesLabel(names: string[], extra = 0): string {
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
 }
 
+// what a "+N" names on hover: everyone it stands for, never a few names and "N more"
+// (the chip already gives the count). Past a dozen the count says it alone: null.
+export function hiddenNames(names: string[]): string | null {
+  return names.length && names.length <= 12 ? namesLabel(names) : null
+}
+
 export function AvatarRow({
   people,
   size = 21,
@@ -47,6 +53,7 @@ export function AvatarRow({
   const extra = more ?? (people.length > max ? `+${people.length - max}` : '')
   const extraCount = more != null ? parseInt(more.replace(/[^\d]/g, ''), 10) || 0 : Math.max(0, people.length - max)
   const label = namesLabel(shown.map((p) => p.name), extraCount)
+  const hidden = hiddenNames(people.slice(max).map((p) => p.name))
   // a flippable pile is one button that turns every face over in order (FlipGroup)
   const flip = flippable && !decorative
   const faces = (
@@ -67,7 +74,7 @@ export function AvatarRow({
         >
           {extra}
           {/* on hover, the people the "+N" stands for, when this row has them */}
-          {more == null && <NameTag list name={namesLabel(people.slice(max, max + 8).map((p) => p.name), extraCount - 8)} />}
+          {more == null && hidden && <NameTag list name={hidden} />}
         </span>
       )}
     </>

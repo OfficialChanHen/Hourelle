@@ -29,7 +29,7 @@ import { HandNote } from '@/components/ui/HandNote'
 import { PencilArrow } from '@/components/ui/Pencil'
 import { TabHeading } from './TabHeading'
 import { answeredLine, goingLine } from '@/lib/answers'
-import { namesLabel } from '@/components/ui/AvatarRow'
+import { hiddenNames, namesLabel } from '@/components/ui/AvatarRow'
 import { Popover, PopoverNote } from '@/components/ui/Popover'
 import { SettingField, SettingStepper, SettingToggle, SettingsMenu } from '@/components/ui/Settings'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -1164,6 +1164,7 @@ function ItineraryAttendance({ itin, total, onPerson, onViewGroup }: {
 function AvatarPile({ people, cap }: { people: Participant[]; cap: number }) {
   const shown = people.slice(0, cap)
   const extra = people.length - shown.length
+  const hidden = hiddenNames(people.slice(cap).map((p) => p.name))
   return (
     people.length === 0
       ? <span className="text-[12.5px] text-faint">nobody yet</span>
@@ -1175,7 +1176,7 @@ function AvatarPile({ people, cap }: { people: Participant[]; cap: number }) {
           {extra > 0 && (
             <span aria-hidden className="group/face relative ml-2.5 text-[12.5px] font-semibold text-dim">
               +{extra}
-              <NameTag list name={namesLabel(people.slice(cap, cap + 8).map((p) => p.name), extra - 8)} />
+              {hidden && <NameTag list name={hidden} />}
             </span>
           )}
         </FlipGroup>

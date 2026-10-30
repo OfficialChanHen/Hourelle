@@ -28,7 +28,7 @@ import dynamic from 'next/dynamic'
 import { gsap } from 'gsap'
 import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, Info, ExternalLink } from 'lucide-react'
 import { Avatar, NameTag } from '@/components/ui/Avatar'
-import { namesLabel } from '@/components/ui/AvatarRow'
+import { hiddenNames, namesLabel } from '@/components/ui/AvatarRow'
 import { confirmedSlotText, fromDay, todayKey, getEvent, patchEvent, fmtMinute, fmtMinuteDay, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
 import { hintDismissed as isHintDismissed, dismissHint as markHintDismissed } from '@/lib/prefs'
 import { fmtDuration, MODE_LABEL, ALL_MODES, type TravelMode, type ModeEstimate } from '@/lib/travel'
@@ -1426,13 +1426,14 @@ function Voters({ voters, place, cap = 6, size = 20, list = true }: { voters: Vo
   if (!voters.length) return null
   const shown = voters.slice(0, cap)
   const extra = voters.length - shown.length
+  const hidden = hiddenNames(voters.slice(cap).map((v) => v.name))
   const pile = (
     <>
       {shown.map((v, i) => <span key={i} className="-mr-[5px]"><Avatar initials={v.initials} color={v.color} face={v.face} size={size} font={8.5} title={touch ? undefined : v.name} /></span>)}
       {extra > 0 && (
         <span className="group/face relative ml-2.5 text-[12px] font-semibold text-dim">
           +{extra}
-          {!touch && <NameTag list name={namesLabel(voters.slice(cap, cap + 8).map((v) => v.name), extra - 8)} />}
+          {!touch && hidden && <NameTag list name={hidden} />}
         </span>
       )}
     </>
