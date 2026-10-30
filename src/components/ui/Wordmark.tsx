@@ -11,9 +11,9 @@ import { reducedMotion } from '@/lib/prefs'
    by a wavy cut along a slant through the me, with a streak of each ink running into the
    other like combed marbling. The waves keep drifting slowly while it is on screen.
 
-   On the first load, and again on a mouse hover, it plays the merge: the me starts in
-   meld's ink, time's ink pours in from the top left past the cut and settles back, the
-   waves swell and calm, and the streaks run out of the cut. Reduced motion shows it still.
+   On the first load, and again on a mouse hover, it plays the meld: the cut starts as a
+   soft, blurred straight line and slowly sharpens into its waves while the streaks grow
+   out of it, nothing sliding. Reduced motion shows it still.
 
    Everything is drawn at font-size 100 in the SVG's own units and the caller's text
    size scales it (the SVG is 0.92em tall), so the header, the footer and the sign-in
@@ -92,19 +92,25 @@ export function Wordmark({ className = '' }: { className?: string }) {
     const svg: SVGSVGElement = el
     const q = <T extends Element>(sel: string) => svg.querySelector(sel) as T
     const root = q<SVGGElement>('[data-k="root"]'), word = q<SVGTextElement>('[data-k="word"]')
+    const ink = q<SVGGElement>('[data-k="ink"]'), blur = q<SVGElement>('[data-k="blur"]')
     const timeP = q<SVGPathElement>('[data-k="time"]'), left = q<SVGRectElement>('[data-k="left"]'), clip = q<SVGRectElement>('[data-k="clip"]')
     const streaks = Array.from(svg.querySelectorAll<SVGPathElement>('[data-k="streak"]'))
 
     const reduce = reducedMotion()
     let w = FALLBACK
     let tl: gsap.core.Timeline | null = null, drift: gsap.core.Tween | null = null, onScreen = true
-    const st = { ...REST, o: 1 }
+    const st = { ...REST, o: 1, soft: 0 }
 
     function render() {
       const m = marble(w, st)
       timeP.setAttribute('d', m.time)
       streaks.forEach((p, i) => p.setAttribute('d', m.streaks[i]))
       root.setAttribute('opacity', st.o.toFixed(3))
+      // the blur only runs while the inks are still melding; at rest the edges are crisp
+      if (st.soft > 0.05) {
+        blur.setAttribute('stdDeviation', st.soft.toFixed(2))
+        ink.setAttribute('filter', `url(#${id}f)`)
+      } else ink.removeAttribute('filter')
     }
 
     // measure the real letters once the font is in, and fit the box to them
@@ -134,16 +140,13 @@ export function Wordmark({ className = '' }: { className?: string }) {
 
     function play(delay: number) {
       tl?.kill(); drift?.kill()
-      Object.assign(st, { phase: 0, off: -70, amp: 0.4, sw: 0, o: 0 })
+      Object.assign(st, { phase: -0.8, off: -5, amp: 0, sw: 0, o: 0, soft: 6 })
       render()
       tl = gsap.timeline({ delay, onUpdate: render, onComplete: startDrift })
-        .to(st, { o: 1, duration: 0.4, ease: 'power1.out' }, 0)
-        .to(st, { off: 22, duration: 0.9, ease: 'power2.in' }, 0)
-        .to(st, { off: 0, duration: 1.1, ease: 'elastic.out(1, 0.55)' }, 0.9)
-        .to(st, { amp: 2.2, duration: 0.8, ease: 'sine.inOut' }, 0.2)
-        .to(st, { amp: 1, duration: 1.4, ease: 'sine.out' }, 1.0)
-        .to(st, { sw: 1, duration: 1.2, ease: 'power2.out' }, 0.8)
-        .to(st, { phase: 1.6, duration: 2.4, ease: 'power2.out' }, 0)
+        .to(st, { o: 1, duration: 0.35, ease: 'sine.out' }, 0)
+        .to(st, { soft: 0, duration: 1.4, ease: 'sine.inOut' }, 0.05)
+        .to(st, { amp: 1, off: 0, phase: 0, duration: 1.6, ease: 'sine.inOut' }, 0)
+        .to(st, { sw: 1, duration: 1.2, ease: 'sine.out' }, 0.35)
     }
 
     const start = contextSafe(() => {
@@ -193,6 +196,10 @@ export function Wordmark({ className = '' }: { className?: string }) {
         <mask id={`${id}k`} maskUnits="userSpaceOnUse" x={-60} y={-60} width={W + 120} height={220}>
           <text data-k="word" x={0} y={100} fontSize={100} fill="white" style={FACE}>timeld</text>
         </mask>
+        {/* the soft edge while the inks meld */}
+        <filter id={`${id}f`} filterUnits="userSpaceOnUse" x={-60} y={-60} width={W + 120} height={220}>
+          <feGaussianBlur data-k="blur" stdDeviation={0} />
+        </filter>
         {/* time's ink stops at the end of the me */}
         <clipPath id={`${id}c`}>
           <rect data-k="clip" x={-60} y={-60} width={60 + FALLBACK.time} height={220} />
@@ -201,10 +208,14 @@ export function Wordmark({ className = '' }: { className?: string }) {
       <g data-k="root" mask={`url(#${id}k)`} opacity={intro ? 0 : 1}>
         <rect x={-60} y={-60} width={W + 120} height={220} style={{ fill: 'var(--wm-meld)' }} />
         <rect data-k="left" x={-60} y={-60} width={60 + FALLBACK.ti + 2} height={220} style={{ fill: 'var(--wm-time)' }} />
-        <path data-k="time" d={m.time} clipPath={`url(#${id}c)`} style={{ fill: 'var(--wm-time)' }} />
-        {STREAKS.map((k, i) => (
-          <path key={i} data-k="streak" d={m.streaks[i]} clipPath={k.time ? `url(#${id}c)` : undefined} style={{ fill: k.time ? 'var(--wm-time)' : 'var(--wm-meld)' }} />
-        ))}
+        <g clipPath={`url(#${id}c)`}>
+          <g data-k="ink">
+            <path data-k="time" d={m.time} style={{ fill: 'var(--wm-time)' }} />
+            {STREAKS.map((k, i) => (
+              <path key={i} data-k="streak" d={m.streaks[i]} style={{ fill: k.time ? 'var(--wm-time)' : 'var(--wm-meld)' }} />
+            ))}
+          </g>
+        </g>
       </g>
     </svg>
   )
