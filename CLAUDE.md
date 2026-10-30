@@ -1,7 +1,7 @@
-# Hourelle — project context for Claude Code
+# timeld — project context for Claude Code
 
 ## What this is
-Hourelle is a modern replacement for when2meet.com. It handles the full lifecycle of event coordination: scheduling via an availability grid, collaborative location voting on a map, itinerary building for multi-stop events, real-time chat per event, and attendance tracking (multi-stop itinerary **and** single-venue). Both authenticated users and guests (via share link) can participate.
+timeld (formerly Hourelle; code, storage keys and the domain still say hourelle) is a modern replacement for when2meet.com. It handles the full lifecycle of event coordination: scheduling via an availability grid, collaborative location voting on a map, itinerary building for multi-stop events, real-time chat per event, and attendance tracking (multi-stop itinerary **and** single-venue). Both authenticated users and guests (via share link) can participate.
 
 **What it is for:** a better when2meet. The point is finding when busy people can meet, online or in person; places, attendance and budget are secondary. Keep every screen quick and simple, and lead with the time question (your times, the best time so far, who is still missing, the locked time) before anything else.
 
@@ -127,7 +127,8 @@ The ramp stays green in every appearance, Studio included: "free" has to read as
 
 ### Typography — serif display + grotesk body
 - **Display / headlines:** the display serif (Lora: 400 at display sizes, 500 under 28px), tracking `-0.01em`. Page titles, event names, big stat values, the RSVP donut figure. Sizes 24–52px by context — be generous; this carries the editorial feel. Maps to Tailwind `font-serif`.
-- **Italic accent words:** a word or two in a serif headline set in italic and the accent ink, through `<Em>` (and `<Wordmark>`) from `src/components/ui/Em.tsx`, which use the `.em-accent` class and the `--em` token (Studio sets it to plain ink). Shipped uses: the wordmark ("Hour" + italic "elle"), the one word in the Home headline ("is *happening*"), the landing headline ("everyone"), and "Your event is *live*". Restraint: never a whole line, never body text, never two in one heading, never on a coloured fill; a new one has to be a real headline moment. No ad-hoc `italic text-accent` styles.
+- **Italic accent words:** a word or two in a serif headline set in italic and the accent ink, through `<Em>` from `src/components/ui/Em.tsx`, which uses the `.em-accent` class and the `--em` token (Studio sets it to plain ink). Shipped uses: the one word in the Home headline ("is *happening*"), the landing headline ("everyone"), and "Your event is *live*". Restraint: never a whole line, never body text, never two in one heading, never on a coloured fill; a new one has to be a real headline moment. No ad-hoc `italic text-accent` styles.
+- **Wordmark:** `<Wordmark>` (`src/components/ui/Wordmark.tsx`) is the timeld diagonal meld: Lora 600 SVG, *time* and *meld* share their *me*, a slanted cut from the foot of the m to the top of the e gives time the top left in `--wm-time` (indigo) and meld the bottom right in `--wm-meld` (amber), veins of each ink from 40px up, and a slow drift along the slant that keeps moving (paused off screen). The first one on a page load plays the liquid merge (the words slide together from apart, ripple, drops cross the gap, the cut settles), and a mouse hover plays it again; reduced motion shows it still. The two logo inks are for the logo only, never chrome. The favicon is the same cut on a disc (`src/app/icon.svg`).
 - **Body / UI:** `Instrument Sans` (300–700), base 13–14px; card titles & buttons 13–15px / 600. Maps to `font-sans`. (Geist / Inter / Roboto are retired.)
 - **Eyebrow labels:** `text-[10px]`–`text-[11px] font-semibold tracking-[.13em] uppercase text-[--faint]` — above stat values and section starts.
 - **Mono:** only raw data (hex, IDs), sparingly.
@@ -504,7 +505,7 @@ Tracked on `events.status`. Shown as a 5-dot progress strip (GSAP fill animation
 
 **Navigation structure (desktop):**
 ```
-[Logo (serif wordmark)] [Home | Events | Templates] (tabs) ... [+ New event] (CTA button) [User avatar]
+[Logo (timeld wordmark)] [Home | Events | Templates] (tabs) ... [+ New event] (CTA button) [User avatar]
 ```
 "Create event" is NEVER a nav tab — always a separate button.
 

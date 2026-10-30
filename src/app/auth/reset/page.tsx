@@ -14,7 +14,7 @@ import { hasSession, updatePassword } from '@/lib/session'
 import { PasswordField } from '@/components/ui/PasswordField'
 import { PasswordRules } from '@/components/ui/PasswordRules'
 import { passwordOk } from '@/lib/password'
-import { Wordmark } from '@/components/ui/Em'
+import { Wordmark } from '@/components/ui/Wordmark'
 
 export default function ResetPasswordPage() {
   const router = useRouter()

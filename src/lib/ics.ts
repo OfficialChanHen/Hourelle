@@ -80,7 +80,7 @@ function vevent(ev: AppEvent, link: string, now: number, status?: 'CONFIRMED' | 
 export function icsFor(ev: AppEvent, link: string, now = Date.now()): string | null {
   const body = vevent(ev, link, now)
   if (!body) return null
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Hourelle//Event//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', ...body, 'END:VCALENDAR']
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//timeld//Event//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', ...body, 'END:VCALENDAR']
   return lines.map(fold).join('\r\n') + '\r\n'
 }
 
@@ -103,8 +103,8 @@ export function feedStatus(ev: AppEvent, personId: string): FeedEntry['status'] 
 
 export function icsFeed(entries: FeedEntry[], now = Date.now()): string {
   const lines = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Hourelle//Plans//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
-    'X-WR-CALNAME:Hourelle',
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//timeld//Plans//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'X-WR-CALNAME:timeld',
     // a hint, which Apple and Outlook take; Google keeps its own pace
     'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H',
   ]

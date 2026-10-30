@@ -2,7 +2,7 @@
 
 
 /* ── home: when are we meeting, and what do you owe ──
-   Hourelle is about finding the time busy people can meet, so every card here leads
+   timeld is about finding the time busy people can meet, so every card here leads
    with the time question before anything else.
      Up next      the three closest plans. On a large screen the closest one is the
                   big taped photo and the other two sit beside it as smaller photos;

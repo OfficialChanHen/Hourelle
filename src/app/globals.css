@@ -28,6 +28,9 @@
   --display:var(--font-lora), Georgia, serif;
   /* the italic accent word's ink (see Em.tsx) */
   --em:var(--accent-text);
+  /* the timeld wordmark's two inks, for the logo only: indigo for time, amber for
+     meld. They stay the same in every palette, since a logo is not chrome. */
+  --wm-time:#2C45A8; --wm-meld:#A5680A;
 
   /* availability heat ramp */
   --heat-low:#EBF0EC; --heat-mid:#D0DFD4; --heat-high:#9FBBA6; --heat-full:#2E4A3C;
@@ -106,6 +109,7 @@
   --bg:#171512; --s0:#1C1A16; --s1:#211E1A; --s2:#292520; --s3:#332F28;
   --border:rgba(245,236,220,.10); --border2:rgba(245,236,220,.19);
   --text:#F1ECE4; --dim:#B0A99D; --faint:#938C80;
+  --wm-time:#A9B7F4; --wm-meld:#EEBF60;
   --accent:#2F7A56; --accent-text:#9FDCBC; --accent-bg:rgba(111,196,152,.15); --accent-border:rgba(111,196,152,.38); --on-accent:#FFFDF9;
   --teal:#5B9A7C; --teal-text:#9BD2B7; --teal-bg:rgba(111,181,151,.14); --teal-border:rgba(111,181,151,.36);
   --ochre:#BD9A5E; --ochre-text:#E1C48F; --ochre-bg:rgba(200,165,100,.15); --ochre-border:rgba(200,165,100,.38);

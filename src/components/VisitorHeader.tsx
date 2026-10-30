@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ThemeToggle } from './ThemeToggle'
 import { useHideOnScroll } from '@/hooks/useHideOnScroll'
-import { Wordmark } from '@/components/ui/Em'
+import { Wordmark } from '@/components/ui/Wordmark'
 import { PencilHover, PencilUnderline } from '@/components/ui/Pencil'
 
 const LINKS = [

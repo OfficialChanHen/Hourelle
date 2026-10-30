@@ -1,7 +1,7 @@
 'use client'
 
 // The front door. Signed in, it is a hallway to /home. For everyone else it is
-// the pitch, top to bottom: what Hourelle is, how a plan comes together at a glance,
+// the pitch, top to bottom: what timeld is, how a plan comes together at a glance,
 // what else is there, three demos to try, and the two ways in. Outside the (main)
 // layout on purpose — no app chrome, this page sells rather than serves.
 

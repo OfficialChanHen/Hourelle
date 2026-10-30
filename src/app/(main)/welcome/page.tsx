@@ -150,7 +150,7 @@ function Welcome() {
         {waiting
           ? 'Setting up your account.'
           : step === 'terms'
-          ? 'Two short documents say what Hourelle keeps and how it may be used. Open each one, then tick its box.'
+          ? 'Two short documents say what timeld keeps and how it may be used. Open each one, then tick its box.'
           : step === 'settings' ? 'Three things people set first. Everything here can be changed in Settings later.'
             : step === 'plan' ? 'Hosting is free and stays free. Plus is a thank-you with a few extras, and it is not on sale yet.'
               : 'A short tour walks through a plan and lets you try each thing as you go. It runs on a practice plan of your own, and you can leave it at any point.'}

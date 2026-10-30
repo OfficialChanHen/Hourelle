@@ -24,7 +24,7 @@ const instrumentSans = Instrument_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Hourelle: find the hour everyone can meet",
+  title: "timeld: find the hour everyone can meet",
   description:
     "Skip the back-and-forth. Start a plan and send the link. Everyone marks when they are free and votes on where to go.",
 };

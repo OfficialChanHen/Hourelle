@@ -223,7 +223,7 @@ export function planImport(ev: Pick<AppEvent, 'days' | 'times' | 'granularity' |
 }
 
 /* Your own locked-in plans are busy time too, even ones never added to a calendar:
-   Hourelle knows about them, so two plans cannot both claim your Friday evening. Only
+   timeld knows about them, so two plans cannot both claim your Friday evening. Only
    plans you said you are going to; a plan you have not replied to yet holds nothing. */
 export function lockedPlanBusyUtc(events: AppEvent[], exceptId?: string): UtcBusy[] {
   const out: UtcBusy[] = []

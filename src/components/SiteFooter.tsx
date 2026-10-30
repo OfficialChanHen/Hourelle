@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { MessageCircle } from 'lucide-react'
 import { SupportLink } from './ui/Support'
 import { FooterLinks, type FooterPage } from './FooterLinks'
-import { Wordmark } from '@/components/ui/Em'
+import { Wordmark } from '@/components/ui/Wordmark'
 
 // One footer for the whole site: the front door has it, and so does every app page.
 // The name and the promise on one side, the pages in two short labelled groups on
@@ -36,7 +36,7 @@ export function SiteFooter() {
           </nav>
         </div>
         <div className="mt-9 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-border pt-5 text-[12px] text-faint md:mt-11">
-          <span>© {new Date().getFullYear()} Hourelle</span>
+          <span>© {new Date().getFullYear()} timeld</span>
           <span className="flex items-center gap-1.5"><MessageCircle size={12} aria-hidden /> Guests never need an account.</span>
         </div>
       </div>

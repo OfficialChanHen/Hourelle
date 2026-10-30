@@ -36,7 +36,7 @@ const GROUPS: { title: string; items: QA[] }[] = [
   {
     title: 'Your account and your data',
     items: [
-      { q: 'Where does my data live?', a: 'With an account, your plans are stored on Hourelle’s servers so they follow you between devices. Logged out, everything stays in this browser only. Demos are samples and never leave your device.' },
+      { q: 'Where does my data live?', a: 'With an account, your plans are stored on timeld’s servers so they follow you between devices. Logged out, everything stays in this browser only. Demos are samples and never leave your device.' },
       { q: 'Who can see my plan?', a: 'Anyone with its link. Links are long and random, so they cannot be guessed, but they can be forwarded. Share them the way you would share a private document.' },
       { q: 'How do I delete a plan?', a: 'The host deletes it from the Details tab, and it is gone for everyone. Anyone else can leave, which only removes it from their own list.' },
       { q: 'How do I delete my account?', a: 'Send a note through the form below from the email on the account. The account, its profile, and the plans it hosts are removed.' },

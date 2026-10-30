@@ -43,7 +43,7 @@ export const PLANS: Record<PlanKey, Plan> = {
   },
   plus: {
     key: 'plus',
-    name: 'Hourelle Plus',
+    name: 'timeld Plus',
     price: '$3',
     priceNote: 'a month',
     yearly: '$30',

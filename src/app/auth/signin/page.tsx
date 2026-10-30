@@ -15,11 +15,11 @@ import { LEGAL_VERSION, type LegalKey } from '@/content/legal'
 import { passwordOk } from '@/lib/password'
 import { PasswordField } from '@/components/ui/PasswordField'
 import { PasswordRules } from '@/components/ui/PasswordRules'
-import { Wordmark } from '@/components/ui/Em'
+import { Wordmark } from '@/components/ui/Wordmark'
 
 /* ── log in, sign up, or ask for a new password ──
    Split like the sign-in pages people know: the form on the left, the pitch on the
-   right in the signature green. The Hourelle account leads because it finishes without
+   right in the signature green. The timeld account leads because it finishes without
    leaving the page; Google sits under the divider. Guests never need this screen at
    all, an invite link works without an account. */
 
@@ -306,7 +306,7 @@ function SignInForm() {
 
             {!backendOn && (
               <p className="mt-4 rounded-[10px] border border-border bg-s0 px-3.5 py-3 text-[12.5px] leading-[1.55] text-dim">
-                No backend is configured, so accounts are switched off. Everything in Hourelle still works without one.
+                No backend is configured, so accounts are switched off. Everything in timeld still works without one.
               </p>
             )}
 

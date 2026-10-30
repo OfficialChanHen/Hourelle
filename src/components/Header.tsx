@@ -29,7 +29,7 @@ import { initialsOf } from '@/lib/events'
 import { signOut } from '@/lib/session'
 import { FaceSvg } from '@/components/ui/FaceSvg'
 import { defaultFace, ringGap } from '@/lib/faces'
-import { Wordmark } from '@/components/ui/Em'
+import { Wordmark } from '@/components/ui/Wordmark'
 
 const TABS = [
   { href: '/home', label: 'Home' },
@@ -192,7 +192,7 @@ export function Header() {
                 <PopoverItem href="/settings" onClick={close} icon={<Settings size={15} />}>Settings</PopoverItem>
                 <PopoverSep />
                 <PopoverItem href="/help" onClick={close} icon={<CircleHelp size={15} />}>Help &amp; contact</PopoverItem>
-                <PopoverItem href="/about" onClick={close} icon={<Info size={15} />}>About Hourelle</PopoverItem>
+                <PopoverItem href="/about" onClick={close} icon={<Info size={15} />}>About timeld</PopoverItem>
                 <PopoverSep />
                 {account.signedIn ? (
                   <PopoverItem
