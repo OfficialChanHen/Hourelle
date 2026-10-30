@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Avatar, NameTag } from './Avatar'
 import { FlipGroup } from './FlipGroup'
 import type { Avatar as Person } from '@/lib/people'
@@ -15,7 +16,12 @@ import type { Avatar as Person } from '@/lib/people'
 
    `flippable` turns each face into a button that shows the initials on its back.
    The pile is then a group of named buttons rather than one image. Never inside a
-   link or a button. */
+   link or a button.
+
+   `renderMore` makes the "+N" a control of its own: it is handed the chip and wraps it
+   in a button (or a popover's trigger). On a flippable pile the chip then sits beside
+   the row's flip button, not inside it, so a tap on "+N" opens the rest instead of
+   turning the faces over. */
 
 // "Jane", "Jane and Alex", "Jane, Alex and Sam", "Jane, Alex and 3 more"
 export function namesLabel(names: string[], extra = 0): string {
@@ -39,6 +45,7 @@ export function AvatarRow({
   font,
   decorative = false,
   flippable = false,
+  renderMore,
 }: {
   people: Person[]
   size?: number
@@ -48,6 +55,7 @@ export function AvatarRow({
   font?: number
   decorative?: boolean
   flippable?: boolean
+  renderMore?: (chip: ReactNode) => ReactNode
 }) {
   const shown = people.slice(0, max)
   const extra = more ?? (people.length > max ? `+${people.length - max}` : '')
@@ -56,30 +64,37 @@ export function AvatarRow({
   const hidden = hiddenNames(people.slice(max).map((p) => p.name))
   // a flippable pile is one button that turns every face over in order (FlipGroup)
   const flip = flippable && !decorative
-  const faces = (
-    <>
-      {shown.map((p, i) => (
-        <span key={i} className="flex" style={{ marginRight: i === shown.length - 1 && !extra ? 0 : -overlap }}>
-          <Avatar
-            initials={p.initials} color={p.color} face={p.face} size={size} font={font} title={p.name} flippable={flip}
-          />
-        </span>
-      ))}
-      {extra && (
-        <span
-          // the same sticker as a face: a disc the size of the drawn face, with its edge
-          style={{ width: size * 40 / 44, height: size * 40 / 44, margin: size / 22, boxShadow: `0 0 0 ${size / 20}px var(--face-edge)`, filter: 'var(--face-lift)', fontSize: font ?? Math.round(size * 0.4 * 10) / 10 }}
-          className="group/face relative inline-flex flex-none items-center justify-center rounded-full bg-s3 font-semibold text-dim"
-          aria-hidden
-        >
-          {extra}
-          {/* on hover, the people the "+N" stands for, when this row has them */}
-          {more == null && hidden && <NameTag list name={hidden} />}
-        </span>
-      )}
-    </>
-  )
-  if (flip) return <FlipGroup names={label} people={people} more={more != null ? extraCount : 0} className="flex items-center">{faces}</FlipGroup>
+  const chip = extra ? (
+    <span
+      // the same sticker as a face: a disc the size of the drawn face, with its edge
+      style={{ width: size * 40 / 44, height: size * 40 / 44, margin: size / 22, boxShadow: `0 0 0 ${size / 20}px var(--face-edge)`, filter: 'var(--face-lift)', fontSize: font ?? Math.round(size * 0.4 * 10) / 10 }}
+      className="group/face relative inline-flex flex-none items-center justify-center rounded-full bg-s3 font-semibold text-dim"
+      aria-hidden
+    >
+      {extra}
+      {/* on hover, the people the "+N" stands for, when this row has them; a "+N"
+          that opens them all needs no tag */}
+      {more == null && hidden && !renderMore && <NameTag list name={hidden} />}
+    </span>
+  ) : null
+  const faces = shown.map((p, i) => (
+    <span key={i} className="flex" style={{ marginRight: i === shown.length - 1 && !extra ? 0 : -overlap }}>
+      <Avatar
+        initials={p.initials} color={p.color} face={p.face} size={size} font={font} title={p.name} flippable={flip}
+      />
+    </span>
+  ))
+  if (chip && renderMore) {
+    return (
+      <div className="flex items-center">
+        {flip
+          ? <FlipGroup names={label} people={people} more={more != null ? extraCount : 0} className="flex items-center">{faces}</FlipGroup>
+          : <div className="flex items-center" role={label ? 'img' : undefined} aria-label={label || undefined}>{faces}</div>}
+        {renderMore(chip)}
+      </div>
+    )
+  }
+  if (flip) return <FlipGroup names={label} people={people} more={more != null ? extraCount : 0} className="flex items-center">{faces}{chip}</FlipGroup>
   return (
     <div
       className="flex items-center"
@@ -88,6 +103,7 @@ export function AvatarRow({
       aria-hidden={decorative || !label ? true : undefined}
     >
       {faces}
+      {chip}
     </div>
   )
 }

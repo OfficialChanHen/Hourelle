@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { CalendarX2 } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StoredEventCard } from '@/components/ui/StoredEventCard'
+import { FaceChipsMore } from '@/components/ui/FaceChips'
 import { FaceRibbon } from '@/components/ui/FaceRibbon'
 import { ShelfHeader } from '@/components/ui/ShelfHeader'
 import { PencilHover, PencilUnderline } from '@/components/ui/Pencil'
@@ -79,7 +80,10 @@ function EventsList() {
               {people.length === 1 ? 'You and 1 other person' : `You and ${people.length} people`}, across {active} {active === 1 ? 'plan' : 'plans'}
             </p>
             <div className="mt-4">
-              <FaceRibbon people={people} size={40} flippable />
+              <FaceRibbon
+                people={people} size={40} flippable
+                renderMore={(chip) => <FaceChipsMore chip={chip} people={people} title="Planning with" />}
+              />
             </div>
           </>
         ) : (

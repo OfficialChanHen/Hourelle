@@ -22,14 +22,15 @@
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, Video, X } from 'lucide-react'
-import { Avatar, NameTag } from '@/components/ui/Avatar'
+import { Avatar } from '@/components/ui/Avatar'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { FlipGroup } from '@/components/ui/FlipGroup'
+import { FaceChips, FaceChipsMore } from '@/components/ui/FaceChips'
 import { HandNote } from '@/components/ui/HandNote'
 import { PencilArrow } from '@/components/ui/Pencil'
 import { TabHeading } from './TabHeading'
 import { answeredLine, goingLine } from '@/lib/answers'
-import { hiddenNames, namesLabel } from '@/components/ui/AvatarRow'
+import { namesLabel } from '@/components/ui/AvatarRow'
 import { Popover, PopoverNote } from '@/components/ui/Popover'
 import { SettingField, SettingStepper, SettingToggle, SettingsMenu } from '@/components/ui/Settings'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -949,19 +950,7 @@ function RosterGroup({ label, tone, people, cap: capIn, compact, bare, action, o
         </div>
       )}
       {compact && !hasBars ? (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {shown.map(({ p }) => (
-            <button
-              key={p.id} type="button" onClick={onPerson ? () => onPerson(p.id) : undefined} disabled={!onPerson}
-              title={onPerson ? `See when ${p.name} is free` : undefined}
-              className="relative flex h-8 max-w-full items-center gap-2 rounded-full border border-border bg-s0 pl-1 pr-3 before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] enabled:hover:border-border2 enabled:hover:bg-s2 sm:before:hidden"
-            >
-              <Avatar initials={p.initials} color={p.color} face={p.face} size={24} font={9} />
-              <span className="min-w-0 truncate text-[13px]">{p.name}{p.you && <span className="text-faint"> (You)</span>}{needOnly.has(p.id) && <span className="text-[11.5px] text-dim"> if need be</span>}</span>
-            </button>
-          ))}
-          {more}
-        </div>
+        <FaceChips people={shown.map(({ p }) => p)} onPerson={onPerson} after={more} note={(p) => needOnly.has(p.id) && <span className="text-[11.5px] text-dim"> if need be</span>} />
       ) : (
       <div className="flex flex-col gap-1.5">
         {shown.map(({ p, note, bar }) => (
@@ -1176,22 +1165,27 @@ function ItineraryAttendance({ itin, total, onPerson, onViewGroup }: {
 function AvatarPile({ people, cap }: { people: Participant[]; cap: number }) {
   const shown = people.slice(0, cap)
   const extra = people.length - shown.length
-  const hidden = hiddenNames(people.slice(cap).map((p) => p.name))
   return (
     people.length === 0
       ? <span className="text-[12.5px] text-faint">nobody yet</span>
       // the faces turn over together, and their names show while they are turned
       : (
-        <FlipGroup names={namesLabel(shown.map((p) => (p.you ? 'you' : p.name)), extra)} people={people} className="flex items-center">
-          {shown.map((p) => <span key={p.id} className="-mr-1.5 flex"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} title={p.name} flippable /></span>)}
-          {/* the "+N" names the people it stands for, on hover */}
+        <span className="flex items-center">
+          <FlipGroup names={namesLabel(shown.map((p) => (p.you ? 'you' : p.name)), extra)} people={people} className="flex items-center">
+            {shown.map((p) => <span key={p.id} className="-mr-1.5 flex"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} title={p.name} flippable /></span>)}
+          </FlipGroup>
+          {/* the "+N" sits beside the faces' flip button and opens everyone as face chips */}
           {extra > 0 && (
-            <span aria-hidden className="group/face relative ml-2.5 text-[12.5px] font-semibold text-dim">
-              +{extra}
-              {hidden && <NameTag list name={hidden} />}
+            <span className="ml-2.5 flex">
+              <FaceChipsMore
+                title={`${people.length} people`} people={people}
+                chip={(
+                  <span aria-hidden className="text-[12.5px] font-semibold text-dim hover:text-text">+{extra}</span>
+                )}
+              />
             </span>
           )}
-        </FlipGroup>
+        </span>
       )
   )
 }

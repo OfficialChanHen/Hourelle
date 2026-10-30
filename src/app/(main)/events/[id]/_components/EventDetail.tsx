@@ -43,6 +43,7 @@ import { Announce } from '@/components/ui/Announce'
 import { isAllDay, slotWhen } from '@/lib/slot'
 import { Avatar } from '@/components/ui/Avatar'
 import { AvatarRow } from '@/components/ui/AvatarRow'
+import { FaceChips, FaceChipsMore } from '@/components/ui/FaceChips'
 import type { Face } from '@/lib/faces'
 import { ChangeFace } from './ChangeFace'
 import { BackLink } from '@/components/ui/BackLink'
@@ -460,7 +461,11 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             <EditableTitle title={event.title} editable={event.hostedByYou} onSave={(t) => patchLive({ title: t })} />
             {/* the group, as stickers, and who is hosting as a small note beside them */}
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-              <FaceRibbon people={event.participants} size={34} flippable />
+              {/* "+N" opens everyone as face chips in a panel, so the header never grows */}
+              <FaceRibbon
+                people={event.participants} size={34} flippable
+                renderMore={(chip) => <FaceChipsMore chip={chip} people={event.participants} title="Who's in" onPerson={goToAvailabilityFor} />}
+              />
               <span className="flex items-center gap-1.5 font-serif text-[15px] italic text-dim">
                 {(event.hostKind ?? (event.hostedByYou ? 'person' : 'org')) === 'org' && <Building2 size={15} className="flex-none" />}
                 Hosted by {event.hostName}
@@ -842,6 +847,11 @@ function ParticipantsCard({ event, isHost, onPatch, onSetMyFace, onViewAvailabil
   // eight rows said nothing the header count had not; the one "Can't make it" was
   // lost among them. The header keeps the totals, the rows keep the exceptions.
   const usual = (p: AppEvent['participants'][number]) => (locked ? p.rsvp === 'attending' : groupOf(p) === 'available')
+  const [allFaces, setAllFaces] = useState(false)
+  const swapped = useRef(false)
+  const facesToggle = useRef<HTMLButtonElement>(null)
+  useEffect(() => { if (swapped.current) facesToggle.current?.focus() }, [allFaces])
+  const flipFaces = (to: boolean) => { swapped.current = true; setAllFaces(to) }
   // long lists get a name filter and stop at ten until asked
   const [query, setQuery] = useState('')
   const [all, setAll] = useState(false)
@@ -860,9 +870,27 @@ function ParticipantsCard({ event, isHost, onPatch, onSetMyFace, onViewAvailabil
             : <>{nAvail} available{nCant > 0 && <>, {nCant} can&rsquo;t make it</>}{nNone > 0 && <span className="text-faint">, {nNone} no reply</span>}</>}
         </span>
       </div>
-      {/* everyone in it, as faces first: a capped pile, straight, since this is a list */}
+      {/* everyone in it, as faces first: a capped pile, straight, since this is a list.
+          "+N" opens the whole group as face chips in place; "Show faces" goes back, and
+          focus follows to the control that swapped in */}
       <div className="mb-4">
-        <AvatarRow people={sorted} size={36} max={7} flippable />
+        {allFaces ? (
+          <div className="flex flex-col gap-1">
+            <FaceChips people={sorted} cap={24} onPerson={onViewAvailability} />
+            <button ref={facesToggle} type="button" aria-expanded onClick={() => flipFaces(false)} className="relative h-8 self-start rounded-full px-1 text-[12.5px] font-semibold text-accent-text before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] hover:underline">
+              Show faces
+            </button>
+          </div>
+        ) : (
+          <AvatarRow
+            people={sorted} size={36} max={7} flippable
+            renderMore={(chip) => (
+              <button ref={facesToggle} type="button" aria-expanded={false} aria-label={`Show all ${sorted.length}`} onClick={() => flipFaces(true)} className="relative block rounded-full before:absolute before:-inset-1.5 before:content-['']">
+                {chip}
+              </button>
+            )}
+          />
+        )}
       </div>
       {/* the ways in come first, and they are the host's: the link, and, where the app
           can send, the email box. Everyone else sees the roster alone, since inviting
