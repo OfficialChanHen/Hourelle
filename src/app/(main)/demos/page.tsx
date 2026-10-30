@@ -21,7 +21,7 @@ const GROUPS: Group[] = [
     sub: 'The availability grid in its shapes: whole days, half hours, and quarter hours.',
     picks: {
       'cabin-trip': 'A **weekend trip** run as a **day poll**: whole days are the question, not hours. Look for the **longest run** everyone can make.',
-      'design-team-dinner': 'A **dinner** on a **30-minute grid** with a **deadline** to settle by. Look for the **best window**, and who has not replied yet.',
+      'design-team-dinner': 'A **dinner** on a **30-minute grid** with a **deadline** to settle by. Look for the **best window**, and who can come only **if need be**.',
       'coffee-catch-up': 'A **1:1** over **video**, so only the time is open. Look for the half hour that fits on a **15-minute grid**, and the **call link** on Location.',
     },
   },
@@ -41,7 +41,7 @@ const GROUPS: Group[] = [
     sub: 'The RSVP round, then the headcount through the day.',
     picks: {
       'board-game-night': 'A **game night** with the date and place **fixed from the start**. You are invited and have not replied. Look for the **RSVP deadline** and the **roster**.',
-      'climbing-club-social': 'A **club night** locked in after **24 votes** on five bars. Look for the **winning place** on Location, and who is **going** now it is set.',
+      'climbing-club-social': 'A **club night** locked in after **37 votes** on five bars. Look for the **winning place** on Location, and who is **going** now it is set.',
       'indie-makers-conference': 'A **summit** held **online** all day. Look for who is **on the call** through the day, and who **joins late or drops off early**.',
     },
   },

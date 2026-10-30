@@ -388,8 +388,10 @@ export function MissingPopover({ missing, nudged, canNudge = false, note = null,
 
 /* ── view-mode cell breakdown: who's free in each subsection of the block.
    Names are tap-to-filter, and the list scrolls so everyone free is reachable. ── */
-export function CellDetail({ bands, total, fmt, gridStartMin, dayLabel, avatarOf, onPerson, filter, style, onClose }: {
+export function CellDetail({ bands, needIds = [], total, fmt, gridStartMin, dayLabel, avatarOf, onPerson, filter, style, onClose }: {
   bands: Band[]; total: number; fmt: (m: number) => string; gridStartMin: number
+  // people who make this cell only if need be, listed apart after the free ones
+  needIds?: string[]
   // a day poll has no times to name — the date heads the list instead of a clock range
   dayLabel?: string
   avatarOf: (id: string) => { initials: string; name: string; color: Participant['color']; face?: Participant['face'] }
@@ -403,6 +405,17 @@ export function CellDetail({ bands, total, fmt, gridStartMin, dayLabel, avatarOf
     window.addEventListener('keydown', onKey); window.addEventListener('pointerdown', onDown)
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('pointerdown', onDown) }
   }, [onClose])
+  const person = (id: string) => { const a = avatarOf(id); const on = filter.has(id); return (
+    <button
+      key={id} type="button" onClick={() => onPerson(id)}
+      title={on ? `Stop filtering to ${a.name}` : `Filter the grid to ${a.name}`}
+      className={`flex min-w-0 max-w-full items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2 ${on ? 'bg-accent-bg text-accent-text' : 'bg-s2 hover:bg-s3'}`}
+    >
+      <Avatar initials={a.initials} color={a.color} face={a.face} size={26} />
+      <span className="truncate text-[12px] font-medium">{a.name}</span>
+      {on && <Check size={11} className="text-accent-text" />}
+    </button>
+  ) }
   return (
     <div
       ref={wrap}
@@ -424,22 +437,19 @@ export function CellDetail({ bands, total, fmt, gridStartMin, dayLabel, avatarOf
             {b.ids.length === 0 ? (
               <span className="text-[12px] text-faint">No one free</span>
             ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {b.ids.map((id) => { const a = avatarOf(id); const on = filter.has(id); return (
-                  <button
-                    key={id} type="button" onClick={() => onPerson(id)}
-                    title={on ? `Stop filtering to ${a.name}` : `Filter the grid to ${a.name}`}
-                    className={`flex min-w-0 max-w-full items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2 ${on ? 'bg-accent-bg text-accent-text' : 'bg-s2 hover:bg-s3'}`}
-                  >
-                    <Avatar initials={a.initials} color={a.color} face={a.face} size={26} />
-                    <span className="truncate text-[12px] font-medium">{a.name}</span>
-                    {on && <Check size={11} className="text-accent-text" />}
-                  </button>
-                ) })}
-              </div>
+              <div className="flex flex-wrap gap-1.5">{b.ids.map(person)}</div>
             )}
           </div>
         ))}
+        {needIds.length > 0 && (
+          <div className="border-t border-border pt-1.5">
+            <div className="mb-1 flex items-center justify-between text-[12px]">
+              <span className="font-semibold">If need be</span>
+              <span className="text-dim">{needIds.length}</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">{needIds.map(person)}</div>
+          </div>
+        )}
       </div>
     </div>
   )

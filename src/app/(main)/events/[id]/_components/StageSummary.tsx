@@ -1,6 +1,6 @@
 'use client'
 
-import { answeredLine, goingLine } from '@/lib/answers'
+import { answeredLine, goingLine, needClause } from '@/lib/answers'
 import Link from 'next/link'
 import { RotateCcw } from 'lucide-react'
 import { TimezonePill } from '@/components/ui/TimezonePill'
@@ -56,9 +56,9 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
   // a day poll answers in days, not clock times: its "best so far" is the leading run
   // of days (or single day), matching the grid dial's default
   const dayPoll = event.granularity === 'day'
-  const best = dayPoll ? null : bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode)
+  const best = dayPoll ? null : bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode, event.needIv)
   const bestDays = dayPoll
-    ? bestBlock(availIvOf(event), event.days, Math.min(2, longestRun(event.days)) || 1, event.bestMode)
+    ? bestBlock(availIvOf(event), event.days, Math.min(2, longestRun(event.days)) || 1, event.bestMode, event.needIv)
     : null
   const dayLabelOf = (k: string) => {
     const d = event.days.find((x) => x.key === k)
@@ -110,14 +110,14 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
       {best && (
         <>
           {' '}<BestLink onClick={onGoToAvailability}><Highlight>{best.dayLabel}, {fmtMinute(gridStart + best.s)} to {fmtMinute(gridStart + best.e)}</Highlight></BestLink>{' '}
-          <TimezonePill tz={event.timezone} day={best.dayKey} /> works for the most people so far.
+          <TimezonePill tz={event.timezone} day={best.dayKey} /> works for the most people so far{needClause(best.needIds.length)}.
         </>
       )}
       {bestDays && (
         <>
           {' '}<BestLink onClick={onGoToAvailability}>
             <Highlight>{bestDays.startKey === bestDays.endKey ? dayLabelOf(bestDays.startKey) : `${dayLabelOf(bestDays.startKey)} to ${dayLabelOf(bestDays.endKey)}`}</Highlight>
-          </BestLink>{' '}works for the most people so far.
+          </BestLink>{' '}works for the most people so far{needClause(bestDays.needIds.length)}.
         </>
       )}
       {missingNames && <> Waiting on {missingNames.length === 1 ? missingNames[0] : `${missingNames.slice(0, -1).join(', ')} and ${missingNames[missingNames.length - 1]}`}.</>}

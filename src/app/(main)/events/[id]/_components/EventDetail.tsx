@@ -485,7 +485,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
                 {/* the join flow put a name on this browser: say whose answers these are.
                     Leaving lives on the Details tab, with the other rare actions */}
                 {me?.guest && (
-                  <span className="flex items-center gap-1.5 rounded-full border border-accent-border bg-accent-bg px-2.5 py-0.5 text-[12px] font-medium text-accent-text">
+                  <span className="flex items-center gap-1.5 text-[12.5px] text-dim">
                     <Avatar initials={me.initials} color={me.color} face={me.face} size={16} font={7.5} />
                     Joined as {me.name}
                   </span>
@@ -1135,7 +1135,7 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
   const oneDay = event.startDate === event.endDate
   const dow = oneDay ? event.days[0]?.dow : null
   const dayPoll = event.granularity === 'day'
-  const best = dayPoll ? null : bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode)
+  const best = dayPoll ? null : bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode, event.needIv)
   const gridStart = gridStartMinOf(event)
   return (
     <div className="flex flex-col gap-1">

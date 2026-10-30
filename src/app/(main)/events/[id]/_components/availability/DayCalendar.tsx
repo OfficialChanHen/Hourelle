@@ -71,15 +71,17 @@ export function buildWeeks(days: GridDay[]): Week[] {
 }
 
 export function DayCalendar({
-  days, mode, editable, marked, imported, freeIds, otherIds, total, bestKeys, bestLabel,
+  days, mode, editable, marked, needMarked, imported, freeIds, needIds, otherIds, total, bestKeys, bestLabel,
   avatarOf, byRoster, narrow, cellW, openKey, onToggleDays, onSweep, onDragEnd, onOpenDetail,
 }: {
   days: GridDay[]
   mode: 'view' | 'edit'
   editable: boolean
   marked: (key: string) => boolean // this day is in your own answer
+  needMarked?: (key: string) => boolean // you can make this day only if need be
   imported?: (key: string) => boolean // your calendar is busy on this day, at least in part
   freeIds: Record<string, string[]> // who counts toward the heat, per day
+  needIds?: Record<string, string[]> // who can make a day only if need be: a +N, never heat
   otherIds: Record<string, string[]> // edit mode: everyone but you, the context tint
   total: number
   bestKeys: Set<string> | null
@@ -292,6 +294,8 @@ export function DayCalendar({
               const n = ids.length
               const oCount = (otherIds[key] ?? []).length
               const cnt = edit ? oCount + (mineOn ? 1 : 0) : n
+              const needN = needIds?.[key]?.length ?? 0
+              const mineNeed = edit && !mineOn && !!needMarked?.(key)
               // in edit mode the crowd is context under your own clay, exactly as in the
               // time grid; in view mode the cell is the crowd
               const bg = edit ? heat(oCount, total) : heat(n, total)
@@ -313,8 +317,8 @@ export function DayCalendar({
               const edges = 'border-b border-r border-grid-line'
               const busyDay = edit && !!imported?.(key)
               const title = (edit
-                ? mineOn ? `${slot.day.dow}, ${slot.day.date}: you can make it` : `${slot.day.dow}, ${slot.day.date}: mark that you can make it`
-                : `${slot.day.dow}, ${slot.day.date}: ${n} of ${total} free`) + (busyDay ? '. Busy on your calendar, at least in part' : '')
+                ? mineOn ? `${slot.day.dow}, ${slot.day.date}: you can make it` : mineNeed ? `${slot.day.dow}, ${slot.day.date}: you can make it if need be` : `${slot.day.dow}, ${slot.day.date}: mark that you can make it`
+                : `${slot.day.dow}, ${slot.day.date}: ${n} of ${total} free${needN ? `, ${needN} if need be` : ''}`) + (busyDay ? '. Busy on your calendar, at least in part' : '')
               return (
                 <button
                   key={key}
@@ -343,6 +347,13 @@ export function DayCalendar({
                     <span
                       className="pointer-events-none absolute inset-0"
                       style={{ background: `linear-gradient(${clayFor(oCount)}, ${clayFor(oCount)}), var(--s1)`, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.35)', border: '1.5px solid var(--you-text)' }}
+                    />
+                  )}
+                  {/* your if-need-be day: the same clay, half width, with its edge line */}
+                  {mineNeed && (
+                    <span
+                      className="pointer-events-none absolute inset-y-0 left-0 w-1/2"
+                      style={{ background: `linear-gradient(${clayFor(oCount)}, ${clayFor(oCount)}), var(--s1)`, borderRight: '1.5px solid var(--you-need-edge)' }}
                     />
                   )}
                   {inBest && (
@@ -396,12 +407,12 @@ export function DayCalendar({
                       </span>
                     )
                   })()}
-                  {cnt > 0 && (
+                  {(cnt > 0 || needN > 0) && (
                     <span
                       className="pointer-events-none absolute bottom-[3px] right-1 z-[2] text-[9.5px] font-bold"
                       style={{ color: edit && mineOn ? 'var(--you-text)' : onFull ? 'var(--heat-count-full)' : 'var(--heat-count)' }}
                     >
-                      {cnt}/{total}
+                      {cnt > 0 && `${cnt}/${total}`}{needN > 0 && <span className="font-medium">{cnt > 0 ? ' ' : ''}+{needN}</span>}
                     </span>
                   )}
                 </button>

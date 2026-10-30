@@ -43,3 +43,9 @@ next-env.d.ts
 # local planning notes stay private, but the README's screenshots ship
 /docs/*
 !/docs/screenshots/
+
+# brainstorming mockups
+.superpowers/
+
+# agent worktrees (each is its own git checkout)
+.claude/worktrees/

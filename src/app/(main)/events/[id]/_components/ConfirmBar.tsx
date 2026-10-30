@@ -102,7 +102,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
   const loc = event.location
   const gridStart = gridStartMinOf(event)
   const duration = event.durationMin ?? 60
-  const bw = bestWindow(availIvOf(event), event.days, duration, event.bestMode)
+  const bw = bestWindow(availIvOf(event), event.days, duration, event.bestMode, event.needIv)
 
   // a date fixed at creation is a fact, not a choice — the form only asks for the place
   const timeSet = event.confirmed ?? null

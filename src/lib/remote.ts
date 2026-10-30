@@ -7,7 +7,7 @@
 import { supabase, backendOn } from './db'
 import { writeLocal } from './local'
 import { currentAccount } from './session'
-import { byDay, byParticipant, fullAvailIvOf, intervalsToGrid, stepOf, type PersonAnswer } from './availability'
+import { byDay, byParticipant, fullAvailIvOf, intervalsToGrid, unionIv, stepOf, type PersonAnswer } from './availability'
 import type { AppEvent, ChatMessage } from './events'
 import { removedLineTest } from './removed'
 
@@ -179,13 +179,28 @@ export async function fetchEvent(id: string): Promise<boolean> {
    is applied by hand. Until it is, every call here fails softly and the app keeps
    working exactly as it did, out of the document. */
 
-type AvailRow = { event_id: string; participant_id: string; intervals: PersonAnswer | null; unavailable: boolean }
+type AvailRow = { event_id: string; participant_id: string; intervals: PersonAnswer | null; if_need_be?: PersonAnswer | null; unavailable: boolean }
 type VoteRow = { event_id: string; place_id: string; participant_id: string }
 
 // flips true the first time either table answers "no such table", so a database
 // without the migration is asked once rather than on every write
 let rowsMissing = false
+// flips true when the `if_need_be` column (migration 0019) is not there yet. That is
+// not a missing table: answers go on loading and saving without the column.
+let needColumnMissing = false
+const needColumn = () => !needColumnMissing
+
+/** A missing `if_need_be` column, as Postgres or PostgREST words it. */
+export function missingNeedColumn(message: string | undefined): boolean {
+  return !!message && /if_need_be/i.test(message) && /does not exist|schema cache/i.test(message)
+}
+/** The availability columns to read, with or without the if-need-be marks. */
+export function answerSelect(withNeed: boolean): string {
+  return `event_id, participant_id, intervals, ${withNeed ? 'if_need_be, ' : ''}unavailable`
+}
+
 function noteMissing(message: string | undefined): boolean {
+  if (missingNeedColumn(message)) { needColumnMissing = true; return true }
   // 42P01 is undefined_table; PostgREST reports an unknown relation the same way
   if (message && /does not exist|schema cache/i.test(message)) { rowsMissing = true; return true }
   return false
@@ -194,17 +209,20 @@ function noteMissing(message: string | undefined): boolean {
 /** Every answer row for a set of events, or null when the tables are not there. */
 async function loadAnswers(ids: string[]): Promise<{ avail: AvailRow[]; votes: VoteRow[] } | null> {
   if (!backendOn || rowsMissing || !ids.length) return null
-  const [a, v] = await Promise.all([
-    supabase!.from('availability').select('event_id, participant_id, intervals, unavailable').in('event_id', ids),
+  const avail = () => supabase!.from('availability').select(answerSelect(needColumn())).in('event_id', ids)
+  let [a, v] = await Promise.all([
+    avail(),
     supabase!.from('votes').select('event_id, place_id, participant_id').in('event_id', ids),
   ])
+  // the column is not there yet: ask again without it, and stop asking for it
+  if (a.error && missingNeedColumn(a.error.message)) { needColumnMissing = true; a = await avail() }
   if (a.error || v.error) {
     if (noteMissing(a.error?.message) || noteMissing(v.error?.message)) return null
     console.warn('hourelle: answers pull failed', a.error?.message ?? v.error?.message)
     return null
   }
   rowsReady = true
-  return { avail: (a.data ?? []) as AvailRow[], votes: (v.data ?? []) as VoteRow[] }
+  return { avail: (a.data ?? []) as unknown as AvailRow[], votes: (v.data ?? []) as VoteRow[] }
 }
 
 /** Fold this event's rows into the document shape the app reads. The document is
@@ -212,12 +230,15 @@ async function loadAnswers(ids: string[]): Promise<{ avail: AvailRow[]; votes: V
  *  `avail` — and every row overrides that one person's answer. */
 function withAnswers(doc: AppEvent, avail: AvailRow[], votes: VoteRow[]): AppEvent {
   const people = byParticipant(fullAvailIvOf(doc))
+  const needPeople = byParticipant(doc.needIv ?? {})
   const unavailable = new Set<string>()
   for (const r of avail) {
     people.set(r.participant_id, r.intervals ?? {})
+    if (r.if_need_be) needPeople.set(r.participant_id, r.if_need_be)
     if (r.unavailable) unavailable.add(r.participant_id)
   }
   const availIv = byDay(people)
+  const needIv = byDay(needPeople)
   // The ballot has no per-person floor to fall back on — it is one map for everyone —
   // so the document answers only while no row exists at all. That is the shape of the
   // transition: before migration 0008 the votes are in the document and there are no
@@ -228,7 +249,8 @@ function withAnswers(doc: AppEvent, avail: AvailRow[], votes: VoteRow[]): AppEve
   return {
     ...doc,
     availIv,
-    avail: { ...doc.avail, ...intervalsToGrid(availIv, doc.days, doc.times.length, stepOf(doc.granularity)) },
+    ...(needIv && Object.values(needIv).some((day) => Object.keys(day).length > 0) ? { needIv } : {}),
+    avail: { ...doc.avail, ...intervalsToGrid(unionIv(availIv, needIv), doc.days, doc.times.length, stepOf(doc.granularity)) },
     votes: votes.length ? ballot : doc.votes ?? {},
     unavailableIds: [...unavailable],
   }
@@ -281,8 +303,12 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
 
   // availability: your whole answer, upserted. An emptied answer is written as an
   // empty row rather than deleted — a missing row means "has not answered", and the
-  // document's legacy `avail` would otherwise bring the old times back.
+  // document's legacy `avail` would otherwise bring the old times back. Both free and
+  // if-need-be marks go into the row; they travel separately. Until the column is there
+  // (migration 0019), the row leaves `if_need_be` out.
+  const withNeed = needColumn()
   const b = byParticipant(fullAvailIvOf(before)), a = byParticipant(fullAvailIvOf(after))
+  const bNeed = byParticipant(withNeed ? before.needIv ?? {} : {}), aNeed = byParticipant(withNeed ? after.needIv ?? {} : {})
   const bUn = new Set(before.unavailableIds ?? []), aUn = new Set(after.unavailableIds ?? [])
   const me = after.participants.find((p) => p.you)?.id
   const onList = new Set(after.participants.map((p) => p.id))
@@ -302,7 +328,7 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
   let heldBack = false
   const allowed = (pid: string) => { if (mayWrite(pid)) return true; heldBack = true; return false }
 
-  for (const pid of new Set([...a.keys(), ...b.keys(), ...aUn, ...bUn])) {
+  for (const pid of new Set([...a.keys(), ...b.keys(), ...aNeed.keys(), ...bNeed.keys(), ...aUn, ...bUn])) {
     // someone taken off the event: their row goes, rather than being kept as an empty
     // answer, which is what an emptied answer from someone still on the list is
     if (!onList.has(pid)) {
@@ -313,16 +339,18 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
       continue
     }
     const from = b.get(pid) ?? {}, to = a.get(pid) ?? {}
-    if (JSON.stringify(from) === JSON.stringify(to) && bUn.has(pid) === aUn.has(pid)) continue
+    const fromNeed = bNeed.get(pid) ?? {}, toNeed = aNeed.get(pid) ?? {}
+    if (JSON.stringify(from) === JSON.stringify(to) && JSON.stringify(fromNeed) === JSON.stringify(toNeed) && bUn.has(pid) === aUn.has(pid)) continue
     if (!allowed(pid)) continue
     // an answer of your own on somebody else's event: once it is saved, the host may
     // want to hear about it
-    const answer = pid === me && !after.hostedByYou && (aUn.has(pid) || Object.values(to).some((iv) => iv.length > 0))
-    const row = { event_id: after.id, participant_id: pid, intervals: to, unavailable: aUn.has(pid), updated_at: new Date().toISOString() }
+    const answer = pid === me && !after.hostedByYou && (aUn.has(pid) || Object.values(to).some((iv) => iv.length > 0) || Object.values(toNeed).some((iv) => iv.length > 0))
+    const plain = { event_id: after.id, participant_id: pid, intervals: to, unavailable: aUn.has(pid), updated_at: new Date().toISOString() }
+    const upsert = (row: typeof plain & { if_need_be?: PersonAnswer }) => supabase!.from('availability').upsert(row, { onConflict: 'event_id,participant_id' })
     inOrder(after.id, () =>
-      supabase!
-        .from('availability')
-        .upsert(row, { onConflict: 'event_id,participant_id' })
+      upsert(withNeed ? { ...plain, if_need_be: toNeed } : plain)
+        // the column is not there yet: keep the answer, saved without it
+        .then((r) => (r.error && missingNeedColumn(r.error.message) ? (needColumnMissing = true, upsert(plain)) : r))
         .then((r) => { fail('save your times')(r); if (!r.error && answer) tellHost(after.id, pid) }),
     )
   }

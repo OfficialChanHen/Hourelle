@@ -87,7 +87,8 @@ export type AppEvent = {
   days: GridDay[]
   times: string[]
   avail: Record<string, string[][]>   // per-cell view, derived from availIv — kept for lists/stats
-  availIv?: AvailIntervals            // source of truth once anyone edits with minute precision
+  availIv?: AvailIntervals            // source of truth once anyone edits with minute precision: FREE marks only
+  needIv?: AvailIntervals             // "if need be" marks, same shape; never shares a minute with the same person's availIv. availIvOf reads both
   // everyone taken off the list, by the host or by leaving: the server clears their
   // chat lines only for ids that are here and no longer on the roster, so a merge
   // (which also takes an id off the roster) can never be mistaken for a removal
@@ -516,9 +517,9 @@ export function parseHM(v: string | undefined): number | null {
    other code checks (gridStartMinOf), so it stays a single constant. */
 export {
   ALL_DAY, stepOf, parseClockLabel, gridStartMinOf, normalizeIv, gridToIntervals,
-  intervalsToGrid, availIvOf, fullAvailIvOf, myTimesPatch, byParticipant, byDay, type PersonAnswer,
+  intervalsToGrid, availIvOf, freeIvOf, unionIv, applyBrush, fullAvailIvOf, myTimesPatch, byParticipant, byDay, type PersonAnswer, type Brush,
 } from './availability'
-import { ALL_DAY, stepOf, normalizeIv, intervalsToGrid, availIvOf, gridStartMinOf } from './availability'
+import { ALL_DAY, stepOf, normalizeIv, intervalsToGrid, availIvOf, freeIvOf, unionIv, applyBrush, gridStartMinOf } from './availability'
 export function buildTimes(gran: string, fromMin = 0, toMin = 24 * 60): string[] {
   if (gran === 'day') return [ALL_DAY]
   const step = gran === '15' ? 15 : gran === '60' ? 60 : 30
@@ -549,23 +550,30 @@ export function fmtMinute(min: number, h24 = false): string {
 // time; 'crowd' = the fullest room on average, even if few can stay start to finish
 export type BestMode = 'full' | 'crowd'
 
-export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0, bestMode: BestMode = 'full') {
+// `availIv` is who can make it (availIvOf: free and if need be together). `needIv`,
+// when given, is the if-need-be part: the search takes the most people who can make
+// it, and on a tie the fewest who would be there only if need be. In crowd mode an
+// if-need-be minute weighs half. `needIds` are the people in `ids` who lean on an
+// if-need-be mark to be there.
+export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0, bestMode: BestMode = 'full', needIv?: AvailIntervals) {
   // ids = people free the whole window; anyIds = everyone who overlaps it at all
-  let best: { dayKey: string; s: number; e: number; count: number; ids: string[]; anyIds: string[]; avg: number } | null = null
+  let best: { dayKey: string; s: number; e: number; count: number; ids: string[]; anyIds: string[]; needIds: string[]; avg: number } | null = null
   let bestWeight = 0
   let bestGap = 0
   let bestDay = -1
   // primary and secondary swap with the mode: whole-window people vs person-minutes
-  // inside the window. Then the window that opens with people actually there (no dead
-  // air before the first arrival), then longer, then the earliest day, and only then
-  // the earliest start on that day: a Monday afternoon that works beats a Thursday
-  // morning that works just as well.
-  const better = (count: number, weight: number, gap: number, s: number, e: number, di: number) => {
+  // inside the window. Then fewer people on if need be, then the window that opens with
+  // people actually there (no dead air before the first arrival), then longer, then the
+  // earliest day, and only then the earliest start on that day: a Monday afternoon that
+  // works beats a Thursday morning that works just as well.
+  const better = (count: number, weight: number, need: number, gap: number, s: number, e: number, di: number) => {
     if (!best) return true
     const [a1, a2] = bestMode === 'crowd' ? [weight, count] : [count, weight]
     const [b1, b2] = bestMode === 'crowd' ? [bestWeight, best.count] : [best.count, bestWeight]
     if (a1 !== b1) return a1 > b1
+    if (bestMode !== 'crowd' && need !== best.needIds.length) return need < best.needIds.length
     if (a2 !== b2) return a2 > b2
+    if (need !== best.needIds.length) return need < best.needIds.length
     if (gap !== bestGap) return gap < bestGap
     if (e - s !== best.e - best.s) return e - s > best.e - best.s
     if (di !== bestDay) return di < bestDay
@@ -574,12 +582,23 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
 
   for (const [di, d] of days.entries()) {
     const byPid = availIv[d.key] ?? {}
+    const needByPid = needIv?.[d.key] ?? {}
     const ids = Object.keys(byPid)
     if (!ids.length) continue
     const coverers = (s: number, e: number) => ids.filter((id) => byPid[id].some((iv) => iv.s <= s && iv.e >= e))
+    // free and if need be never share a minute, so someone covering the window leans on
+    // if need be exactly when an if-need-be mark of theirs falls inside it
+    const leaners = (who: string[], s: number, e: number) => who.filter((id) => (needByPid[id] ?? []).some((iv) => iv.s < e && iv.e > s))
+    const overlap = (ivs: Iv[], s: number, e: number) => {
+      let w = 0
+      for (const iv of ivs) w += Math.max(0, Math.min(iv.e, e) - Math.max(iv.s, s))
+      return w
+    }
     const minutesIn = (s: number, e: number) => {
       let w = 0
-      for (const ivs of Object.values(byPid)) for (const iv of ivs) w += Math.max(0, Math.min(iv.e, e) - Math.max(iv.s, s))
+      for (const ivs of Object.values(byPid)) w += overlap(ivs, s, e)
+      // an if-need-be minute weighs half: it helps a time without beating a free one
+      for (const ivs of Object.values(needByPid)) w -= overlap(ivs, s, e) / 2
       return w
     }
 
@@ -591,7 +610,8 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
         const s = xs[i], e = xs[i + 1]
         const who = coverers(s, e)
         const weight = minutesIn(s, e)
-        if (who.length && better(who.length, weight, 0, s, e, di)) { best = { dayKey: d.key, s, e, count: who.length, ids: who, anyIds: who, avg: weight / (e - s) }; bestWeight = weight; bestGap = 0; bestDay = di }
+        const lean = leaners(who, s, e)
+        if (who.length && better(who.length, weight, lean.length, 0, s, e, di)) { best = { dayKey: d.key, s, e, count: who.length, ids: who, anyIds: who, needIds: lean, avg: weight / (e - s) }; bestWeight = weight; bestGap = 0; bestDay = di }
       }
     } else {
       // candidate starts: every point where either the full-window crowd or the
@@ -616,9 +636,10 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
         const gap = firstFree === Infinity ? 0 : firstFree - s
         // the window is exactly the event's length — the frame and footers report a
         // slot you could book as-is, never a longer stretch around it
-        if (better(who.length, weight, gap, s, e, di)) {
+        const lean = leaners(who, s, e)
+        if (better(who.length, weight, lean.length, gap, s, e, di)) {
           const anyIds = ids.filter((id) => byPid[id].some((iv) => iv.s < e && iv.e > s))
-          best = { dayKey: d.key, s, e, count: who.length, ids: who, anyIds, avg: weight / minLen }
+          best = { dayKey: d.key, s, e, count: who.length, ids: who, anyIds, needIds: lean, avg: weight / minLen }
           bestWeight = weight
           bestGap = gap
           bestDay = di
@@ -636,8 +657,11 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
    the poll — so a weekends-only poll naturally forms Sat+Sun blocks and nothing else.
    'full' favors people who can make every day of the block; 'crowd' favors the
    most person-days overall. Earlier blocks win ties. */
-export type BestBlock = { startKey: string; endKey: string; count: number; ids: string[]; anyIds: string[]; avgPerDay: number }
-export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: number, bestMode: BestMode = 'full'): BestBlock | null {
+// With `needIv`, a day a person marked only if need be still counts for them, and ties
+// go to the block with fewer such person-days. `needIds` are the people in `ids` who
+// lean on if need be for at least one day of it.
+export type BestBlock = { startKey: string; endKey: string; count: number; ids: string[]; anyIds: string[]; needIds: string[]; avgPerDay: number }
+export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: number, bestMode: BestMode = 'full', needIv?: AvailIntervals): BestBlock | null {
   if (blockLen < 1 || days.length < blockLen) return null
   const keys = days.map((d) => d.key)
   const nextDay = (k: string) => {
@@ -649,6 +673,18 @@ export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: nu
   let best: BestBlock | null = null
   let bestPrimary = 0
   let bestSecondary = 0
+  let bestLean = 0
+  // a person-day leans on if need be when that person has if-need-be marks there and
+  // no free ones (free and if need be never share a minute, so the union minus the
+  // if-need-be part is the free part)
+  const leansOn = (k: string, id: string) => {
+    const n = needIv?.[k]?.[id] ?? []
+    if (!n.length) return false
+    const all = availIv[k]?.[id] ?? []
+    const total = all.reduce((t, iv) => t + iv.e - iv.s, 0)
+    const needMin = n.reduce((t, iv) => t + iv.e - iv.s, 0)
+    return total <= needMin
+  }
   for (let i = 0; i + blockLen <= keys.length; i++) {
     const block = keys.slice(i, i + blockLen)
     if (block.some((k, j) => j > 0 && block[j - 1] !== '' && k !== nextDay(block[j - 1]))) continue
@@ -658,11 +694,18 @@ export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: nu
     const ids = [...anySet].filter((id) => perDay.every((s) => s.has(id)))
     const personDays = perDay.reduce((n, s) => n + s.size, 0)
     if (personDays === 0) continue
+    let lean = 0
+    const needIds: string[] = []
+    if (needIv) {
+      perDay.forEach((s, j) => { for (const id of s) if (leansOn(block[j], id)) lean++ })
+      for (const id of ids) if (block.some((k) => leansOn(k, id))) needIds.push(id)
+    }
     const [p, s] = bestMode === 'crowd' ? [personDays, ids.length] : [ids.length, personDays]
-    if (p > bestPrimary || (p === bestPrimary && s > bestSecondary)) {
-      best = { startKey: block[0], endKey: block[block.length - 1], count: ids.length, ids, anyIds: [...anySet], avgPerDay: personDays / blockLen }
+    if (p > bestPrimary || (best && p === bestPrimary && (lean < bestLean || (lean === bestLean && s > bestSecondary)))) {
+      best = { startKey: block[0], endKey: block[block.length - 1], count: ids.length, ids, anyIds: [...anySet], needIds, avgPerDay: personDays / blockLen }
       bestPrimary = p
       bestSecondary = s
+      bestLean = lean
     }
   }
   return best
@@ -872,7 +915,7 @@ export function sortByAttendance(ev: AppEvent): Participant[] {
     ? ev.confirmed!.endDayKey
       ? { dayKey: ev.confirmed!.dayKey, s: 0, e: 24 * 60 - gridStart }
       : { dayKey: ev.confirmed!.dayKey, s: ev.confirmed!.startMin - gridStart, e: ev.confirmed!.endMin - gridStart }
-    : bestWindow(availIv, ev.days, ev.durationMin ?? 60, ev.bestMode)
+    : bestWindow(availIv, ev.days, ev.durationMin ?? 60, ev.bestMode, ev.needIv)
   const dayIv = win ? availIv[win.dayKey] ?? {} : {}
   const marked = new Set<string>()
   for (const day of Object.values(availIv)) for (const [id, ivs] of Object.entries(day)) if (ivs.length) marked.add(id)
@@ -925,6 +968,16 @@ export function mergeParticipantsPatch(ev: AppEvent, fromId: string, intoId: str
         return [day, merged.length ? { ...rest, [intoId]: merged } : rest]
       }))
     : ev.availIv
+  // if-need-be marks merge the same way, then give way to the merged free time: a
+  // minute either entry marked free stays free
+  const needIv = ev.needIv
+    ? Object.fromEntries(Object.entries(ev.needIv).map(([day, byPid]) => {
+        const rest = Object.fromEntries(Object.entries(byPid).filter(([pid]) => pid !== fromId && pid !== intoId))
+        let merged = normalizeIv([...(byPid[intoId] ?? []), ...(byPid[fromId] ?? [])])
+        for (const f of availIv?.[day]?.[intoId] ?? []) merged = applyBrush([], merged, f, 'erase').need
+        return [day, merged.length ? { ...rest, [intoId]: merged } : rest]
+      }))
+    : ev.needIv
   const avail = Object.fromEntries(Object.entries(ev.avail).map(([day, rows]) => [day, rows.map(dedupe)]))
   const votes = ev.votes ? Object.fromEntries(Object.entries(ev.votes).map(([place, ids]) => [place, dedupe(ids)])) : ev.votes
   const from = ev.participants.find((p) => p.id === fromId)
@@ -933,7 +986,7 @@ export function mergeParticipantsPatch(ev: AppEvent, fromId: string, intoId: str
       .filter((p) => p.id !== fromId)
       // a reply beats no reply: the surviving entry keeps its answer unless it had none
       .map((p) => (p.id === intoId && p.rsvp === 'pending' && from && from.rsvp !== 'pending' ? { ...p, rsvp: from.rsvp, rsvpAuto: from.rsvpAuto } : p)),
-    availIv, avail, votes,
+    availIv, needIv, avail, votes,
     unavailableIds: ev.unavailableIds ? dedupe(ev.unavailableIds) : ev.unavailableIds,
     messages: ev.messages.map((m) => (m.id === fromId ? { ...m, id: intoId } : m)),
     location: { ...ev.location, places: ev.location.places.map((pl) => (pl.addedBy === fromId ? { ...pl, addedBy: intoId } : pl)) },
@@ -957,6 +1010,7 @@ export function removeParticipantPatch(ev: AppEvent, pid: string): Partial<AppEv
     messages: ev.messages.filter((m) => m.id !== pid),
     avail: Object.fromEntries(Object.entries(ev.avail).map(([k, rows]) => [k, rows.map((ids) => ids.filter((id) => id !== pid))])),
     availIv: drop(ev.availIv),
+    needIv: drop(ev.needIv),
     votes: ev.votes
       ? Object.fromEntries(Object.entries(ev.votes).map(([k, ids]) => [k, ids.filter((id) => id !== pid)]))
       : undefined,
@@ -976,8 +1030,8 @@ export function setMyRsvp(id: string, rsvp: Rsvp): void {
 
 // does this person's availability cover the locked slot in full? A run of days needs
 // a mark on every day; a timed slot needs one interval spanning the whole window.
-export function slotFits(ev: AppEvent, slot: ConfirmedSlot, pid: string): boolean {
-  const availIv = availIvOf(ev)
+export function slotFits(ev: AppEvent, slot: ConfirmedSlot, pid: string, freeOnly = false): boolean {
+  const availIv = freeOnly ? freeIvOf(ev) : availIvOf(ev)
   if (slot.endDayKey) {
     const cur = parseLocal(slot.dayKey)
     const end = parseLocal(slot.endDayKey)
@@ -992,6 +1046,28 @@ export function slotFits(ev: AppEvent, slot: ConfirmedSlot, pid: string): boolea
   const s = slot.startMin - gridStart
   const e = slot.endMin - gridStart
   return (availIv[slot.dayKey]?.[pid] ?? []).some((iv) => iv.s <= s && iv.e >= e)
+}
+
+// who leans on an if-need-be mark for this slot: someone whose if-need-be marks reach
+// into it and who isn't free for all of it. Attendance notes them beside their name.
+export function needOnlyIds(ev: AppEvent, slot: ConfirmedSlot): Set<string> {
+  const out = new Set<string>()
+  if (!ev.needIv) return out
+  const touches = (ivs: Iv[], s: number, e: number) => ivs.some((iv) => iv.s < e && iv.e > s)
+  for (const p of ev.participants) {
+    if (slotFits(ev, slot, p.id, true)) continue
+    if (slot.endDayKey) {
+      const cur = parseLocal(slot.dayKey), end = parseLocal(slot.endDayKey)
+      for (let i = 0; cur && end && i < 90 && cur <= end; i++) {
+        if ((ev.needIv[isoOf(cur)]?.[p.id] ?? []).length) { out.add(p.id); break }
+        cur.setDate(cur.getDate() + 1)
+      }
+      continue
+    }
+    const g = gridStartMinOf(ev)
+    if (touches(ev.needIv[slot.dayKey]?.[p.id] ?? [], slot.startMin - g, slot.endMin - g)) out.add(p.id)
+  }
+  return out
 }
 
 // does any of this person's availability touch the locked slot at all? Someone who can
@@ -1030,7 +1106,9 @@ export function confirmEvent(id: string, slot: ConfirmedSlot): void {
   const ev = getEvent(id)
   const participants = ev?.participants.map((p): Participant => {
     if (p.host) return { ...p, rsvp: 'attending', rsvpAuto: undefined }
-    if (slotFits(ev, slot, p.id)) return { ...p, rsvp: 'attending', rsvpAuto: true }
+    if (slotFits(ev, slot, p.id, true)) return { ...p, rsvp: 'attending', rsvpAuto: true }
+    // covered, but only with an if-need-be mark's help
+    if (slotFits(ev, slot, p.id)) return { ...p, rsvp: 'maybe', rsvpAuto: true }
     if (ev.unavailableIds?.includes(p.id)) return { ...p, rsvp: 'not_going', rsvpAuto: true }
     if (markedAny(ev, p.id) && !slotTouches(ev, slot, p.id)) return { ...p, rsvp: 'not_going', rsvpAuto: true }
     return { ...p, rsvp: 'pending', rsvpAuto: undefined }
@@ -1149,6 +1227,7 @@ export function draftFromEvent(id: string): EventDraft | null {
 export function youReplied(ev: AppEvent): boolean {
   const my = myIdIn(ev)
   if (ev.unavailableIds?.includes(my)) return true
+  if (ev.needIv && Object.values(ev.needIv).some((day) => (day[my] ?? []).length > 0)) return true
   if (ev.availIv) return Object.values(ev.availIv).some((day) => (day[my] ?? []).length > 0)
   return Object.values(ev.avail).some((rows) => rows.some((cell) => cell.includes(my)))
 }
@@ -1314,11 +1393,14 @@ export function adoptParticipant(eventId: string, fromId: string, toId: string, 
   const availIv = ev.availIv
     ? Object.fromEntries(Object.entries(ev.availIv).map(([day, byPid]) => [day, Object.fromEntries(Object.entries(byPid).map(([pid, ivs]) => [swap(pid), ivs]))]))
     : ev.availIv
+  const needIv = ev.needIv
+    ? Object.fromEntries(Object.entries(ev.needIv).map(([day, byPid]) => [day, Object.fromEntries(Object.entries(byPid).map(([pid, ivs]) => [swap(pid), ivs]))]))
+    : ev.needIv
   const avail = Object.fromEntries(Object.entries(ev.avail).map(([day, rows]) => [day, rows.map((cell) => cell.map(swap))]))
   const votes = ev.votes ? Object.fromEntries(Object.entries(ev.votes).map(([place, ids]) => [place, ids.map(swap)])) : ev.votes
   patchEvent(eventId, {
     participants: ev.participants.map((p) => (p.id === fromId ? { ...p, ...as, id: toId, you: true, guest: undefined } : { ...p, you: undefined })),
-    availIv, avail, votes,
+    availIv, needIv, avail, votes,
     unavailableIds: ev.unavailableIds?.map(swap),
     messages: ev.messages.map((m) => (m.id === fromId ? { ...m, id: toId } : m)),
     location: { ...ev.location, places: ev.location.places.map((pl) => (pl.addedBy === fromId ? { ...pl, addedBy: toId } : pl)) },
@@ -1939,6 +2021,27 @@ const BIG_DEMO: AppEvent = {
   status: 'planning',
 }
 
+/* ── the crowd: extra people for the bigger demos, so the shelf runs from a 1:1 to
+   dozens. Every initial is one no other demo person uses, so each face stays its own. ── */
+const CROWD: [string, string][] = [
+  ['AB', 'Ava B'], ['LG', 'Leo G'], ['MP', 'Maya P'], ['NF', 'Noah F'], ['ZA', 'Zara A'],
+  ['OP', 'Owen P'], ['RJ', 'Rosa J'], ['TW', 'Theo W'], ['LN', 'Lena N'], ['KT', 'Kai T'],
+  ['IM', 'Iris M'], ['SH', 'Sami H'], ['EP', 'Elena P'], ['MR', 'Marco R'], ['HY', 'Hana Y'],
+  ['FW', 'Felix W'], ['AO', 'Amara O'], ['DR', 'Diego R'], ['NR', 'Nadia R'], ['JB', 'Jonas B'],
+  ['PN', 'Pia N'], ['CF', 'Caleb F'], ['ML', 'Mei L'], ['TA', 'Tariq A'], ['SC', 'Sofia C'],
+  ['EC', 'Ezra C'], ['RH', 'Ruby H'], ['AM', 'Arjun M'], ['CD', 'Clara D'], ['MS', 'Mateo S'],
+  ['FL', 'Freya L'], ['KM', 'Kofi M'], ['ID', 'Ines D'], ['GL', 'Gabe L'], ['YH', 'Yara H'],
+  ['LB', 'Luca B'], ['WD', 'Wren D'], ['AK', 'Adil K'], ['BS', 'Bea S'], ['QA', 'Quinn A'],
+  ['VI', 'Vera I'], ['RI', 'Ravi I'], ['EH', 'Elsa H'], ['PG', 'Paolo G'], ['TG', 'Tessa G'],
+  ['US', 'Umar S'], ['JP', 'June P'], ['MH', 'Milo H'], ['AL', 'Ada L'], ['HB', 'Hugo B'],
+]
+// people from the crowd, starting at `from`, one per answer given
+const crowd = (from: number, rsvps: Rsvp[]): Participant[] =>
+  rsvps.map((rsvp, i) => {
+    const [ini, name] = CROWD[from + i]
+    return { id: ini, initials: ini, name, color: GUEST_COLORS[(from + i) % GUEST_COLORS.length], rsvp }
+  })
+
 /* ── invited demos: plans someone else is hosting, so the shelf shows the guest's side.
    Both land on the same Saturday on purpose — the same-day flag needs something to show. ── */
 
@@ -1954,6 +2057,18 @@ const CONF_IV: AvailIntervals = {
     KL: [{ s: 0, e: 360 }], CL: [{ s: 180, e: 480 }],
   },
 }
+// an online summit draws a crowd: 48 more, most on the call all day, some late, some
+// gone after lunch, a few in the middle only
+const CONF_CROWD = crowd(0, Array.from({ length: 48 }, (_, i): Rsvp =>
+  i % 9 === 4 ? 'not_going' : i % 7 === 2 ? 'maybe' : i % 11 === 6 ? 'pending' : 'attending'))
+CONF_CROWD.forEach((p, i) => {
+  if (p.rsvp === 'not_going' || p.rsvp === 'pending') return
+  const k = i % 6
+  CONF_IV['2029-08-18'][p.id] = k < 3 ? CONF_ALL
+    : k === 3 ? [{ s: 60 * (1 + (i % 3)), e: 480 }]
+    : k === 4 ? [{ s: 0, e: 480 - 60 * (1 + (i % 3)) }]
+    : [{ s: 120, e: 360 }]
+})
 const CONFERENCE: AppEvent = {
   id: 'indie-makers-conference',
   title: 'Indie Makers Summit',
@@ -1987,6 +2102,7 @@ const CONFERENCE: AppEvent = {
     { id: 'CL', initials: 'CL', name: av('CL').name, color: av('CL').color, rsvp: 'maybe' },
     { id: 'BH', initials: 'BH', name: av('BH').name, color: av('BH').color, rsvp: 'not_going' },
     { id: 'NK', initials: 'NK', name: av('NK').name, color: av('NK').color, rsvp: 'pending' },
+    ...CONF_CROWD,
   ],
   days: CONF_DAYS,
   times: CONF_TIMES,
@@ -2011,6 +2127,10 @@ const GAME_DAYS = buildDays('2029-08-18', '2029-08-18')
 const GAME_TIMES = buildTimes('30', 19 * 60, 22 * 60 + 30)
 const GAME_IV: AvailIntervals = {
   '2029-08-18': { RW: [{ s: 0, e: 210 }], TC: [{ s: 0, e: 210 }], GH: [{ s: 30, e: 210 }], EM: [{ s: 0, e: 150 }] },
+}
+// a few people who could come if need be, beside (never on) their free time
+const GAME_NEED: AvailIntervals = {
+  '2029-08-18': { GH: [{ s: 0, e: 30 }], EM: [{ s: 150, e: 210 }], NK: [{ s: 0, e: 210 }], OB: [{ s: 60, e: 150 }] },
 }
 const GAME_NIGHT: AppEvent = {
   id: 'board-game-night',
@@ -2044,8 +2164,9 @@ const GAME_NIGHT: AppEvent = {
   ],
   days: GAME_DAYS,
   times: GAME_TIMES,
-  avail: intervalsToGrid(GAME_IV, GAME_DAYS, GAME_TIMES.length, 30),
+  avail: intervalsToGrid(unionIv(GAME_IV, GAME_NEED), GAME_DAYS, GAME_TIMES.length, 30),
   availIv: GAME_IV,
+  needIv: GAME_NEED,
   durationMin: 210,
   image: 'preset:evening',
   messages: [
@@ -2074,6 +2195,12 @@ const DINNER_IV: AvailIntervals = {
   '2029-08-01': { JM: [{ s: 60, e: 300 }], AT: [{ s: 0, e: 240 }], SR: [{ s: 120, e: 300 }] },
   '2029-08-02': { JM: [{ s: 0, e: 300 }], AT: [{ s: 60, e: 300 }] },
   '2029-08-03': { SR: [{ s: 0, e: 180 }] },
+}
+// evenings some could do if need be, beside (never on) their free time
+const DINNER_NEED: AvailIntervals = {
+  '2029-08-01': { MN: [{ s: 90, e: 270 }] },
+  '2029-08-02': { SR: [{ s: 120, e: 300 }] },
+  '2029-08-03': { AT: [{ s: 0, e: 120 }] },
 }
 const DESIGN_DINNER: AppEvent = {
   id: 'design-team-dinner',
@@ -2113,8 +2240,9 @@ const DESIGN_DINNER: AppEvent = {
   ],
   days: DINNER_DAYS,
   times: DINNER_TIMES,
-  avail: intervalsToGrid(DINNER_IV, DINNER_DAYS, DINNER_TIMES.length, 30),
+  avail: intervalsToGrid(unionIv(DINNER_IV, DINNER_NEED), DINNER_DAYS, DINNER_TIMES.length, 30),
   availIv: DINNER_IV,
+  needIv: DINNER_NEED,
   durationMin: 120,
   image: 'preset:dusk',
   messages: [
@@ -2180,8 +2308,12 @@ const BIRTHDAY_IV: AvailIntervals = {
   '2029-08-03': {
     JM: [{ s: 0, e: 180 }], PR: [{ s: 0, e: 180 }], AT: [{ s: 0, e: 180 }],
     MN: [{ s: 60, e: 180 }], EM: [{ s: 0, e: 120 }],
+    FL: [{ s: 0, e: 180 }], KM: [{ s: 0, e: 180 }], ID: [{ s: 60, e: 180 }],
+    GL: [{ s: 0, e: 180 }], YH: [{ s: 0, e: 120 }], LB: [{ s: 0, e: 180 }],
   },
 }
+// friends of friends: six have marked the night, three have not opened it yet
+const BIRTHDAY_CROWD = crowd(30, ['attending', 'attending', 'attending', 'attending', 'attending', 'attending', 'pending', 'pending', 'pending'])
 const BIRTHDAY: AppEvent = {
   id: 'priyas-birthday',
   title: 'Priya’s Birthday',
@@ -2206,7 +2338,7 @@ const BIRTHDAY: AppEvent = {
     meetingLink: '',
     guestsCanSuggest: true,
   },
-  votes: { trestle: ['JM', 'MN'], zuni: ['EM', 'KL'], copita: ['AT'] },
+  votes: { trestle: ['JM', 'MN', 'KM', 'YH', 'LB'], zuni: ['EM', 'KL', 'FL', 'GL'], copita: ['AT', 'ID'] },
   maxVotes: 1,
   voteDeadline: '2029-07-30',
   participants: [
@@ -2217,6 +2349,7 @@ const BIRTHDAY: AppEvent = {
     { id: 'MN', initials: 'MN', name: av('MN').name, color: av('MN').color, rsvp: 'attending' },
     { id: 'EM', initials: 'EM', name: av('EM').name, color: av('EM').color, rsvp: 'attending' },
     { id: 'BH', initials: 'BH', name: av('BH').name, color: av('BH').color, rsvp: 'pending' },
+    ...BIRTHDAY_CROWD,
   ],
   days: BIRTHDAY_DAYS,
   times: BIRTHDAY_TIMES,
@@ -2298,7 +2431,7 @@ const CABIN_TRIP: AppEvent = {
   status: 'planning',
 }
 
-/* ── locked in after a busy ballot: twelve people, five bars, two votes each. The
+/* ── locked in after a busy ballot: twenty-two people, five bars, two votes each. The
    vote is over, the winner is the place, and the RSVP round is under way. ── */
 const CLUB_DAYS = buildDays('2029-08-06', '2029-08-10')
 const CLUB_TIMES = buildTimes('30', 17 * 60, 22 * 60)
@@ -2309,9 +2442,13 @@ const CLUB_IV: AvailIntervals = {
   '2029-08-09': {
     JM: CLUB_SLOT, SR: CLUB_SLOT, AT: [{ s: 90, e: 300 }], KL: CLUB_SLOT, PR: [{ s: 60, e: 270 }],
     DW: CLUB_SLOT, CL: [{ s: 120, e: 300 }], RW: CLUB_SLOT, TC: [{ s: 90, e: 270 }], MN: [{ s: 180, e: 270 }],
+    PN: CLUB_SLOT, CF: [{ s: 60, e: 300 }], ML: [{ s: 180, e: 300 }], TA: CLUB_SLOT,
+    EC: CLUB_SLOT, RH: [{ s: 120, e: 240 }], CD: CLUB_SLOT,
   },
-  '2029-08-10': { AT: [{ s: 120, e: 300 }], PR: [{ s: 120, e: 240 }], CL: [{ s: 0, e: 180 }] },
+  '2029-08-10': { AT: [{ s: 120, e: 300 }], PR: [{ s: 120, e: 240 }], CL: [{ s: 0, e: 180 }], SC: [{ s: 60, e: 300 }] },
 }
+// the rest of the club: most marked Thursday, Sofia only had Friday, two never opened it
+const CLUB_CROWD = crowd(20, ['attending', 'attending', 'maybe', 'attending', 'not_going', 'attending', 'attending', 'pending', 'attending', 'pending'])
 const CLUB_SOCIAL: AppEvent = {
   id: 'climbing-club-social',
   title: 'Climbing Club Social',
@@ -2339,11 +2476,11 @@ const CLUB_SOCIAL: AppEvent = {
     guestsCanSuggest: true,
   },
   votes: {
-    mikkeller: ['JM', 'SR', 'AT', 'KL', 'PR', 'MN', 'CL', 'HS'],
-    whitechapel: ['TC', 'DW', 'CL', 'MN', 'HS', 'RW'],
-    zeitgeist: ['DW', 'RW', 'TC', 'AT'],
-    toronado: ['KL', 'NK', 'SR'],
-    'barrel-room': ['PR', 'JM', 'NK'],
+    mikkeller: ['JM', 'SR', 'AT', 'KL', 'PR', 'MN', 'CL', 'HS', 'PN', 'TA', 'EC', 'CD'],
+    whitechapel: ['TC', 'DW', 'CL', 'MN', 'HS', 'RW', 'CF', 'RH'],
+    zeitgeist: ['DW', 'RW', 'TC', 'AT', 'ML', 'SC'],
+    toronado: ['KL', 'NK', 'SR', 'PN', 'CF'],
+    'barrel-room': ['PR', 'JM', 'NK', 'TA', 'EC', 'CD'],
   },
   maxVotes: 2,
   participants: [
@@ -2359,6 +2496,7 @@ const CLUB_SOCIAL: AppEvent = {
     { id: 'MN', initials: 'MN', name: av('MN').name, color: av('MN').color, rsvp: 'pending' },
     { id: 'NK', initials: 'NK', name: av('NK').name, color: av('NK').color, rsvp: 'not_going', rsvpAuto: true },
     { id: 'HS', initials: 'HS', name: av('HS').name, color: av('HS').color, rsvp: 'pending' },
+    ...CLUB_CROWD,
   ],
   days: CLUB_DAYS,
   times: CLUB_TIMES,

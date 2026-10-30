@@ -594,7 +594,7 @@ function digestOf(e: AppEvent, phase: Phase) {
   // when
   const du = daysUntil(e.confirmed?.dayKey ?? e.startDate)
   const countdown = !locked || du === null || du < 0 ? null : du === 0 ? 'today' : du === 1 ? 'tomorrow' : `in ${du} days`
-  const best = !locked && e.granularity !== 'day' && answered.size > 0 ? bestWindow(availIvOf(e), e.days, e.durationMin ?? 60, e.bestMode) : null
+  const best = !locked && e.granularity !== 'day' && answered.size > 0 ? bestWindow(availIvOf(e), e.days, e.durationMin ?? 60, e.bestMode, e.needIv) : null
   const gridStart = gridStartMinOf(e)
 
   // where
