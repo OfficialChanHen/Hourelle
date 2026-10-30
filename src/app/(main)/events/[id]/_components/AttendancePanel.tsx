@@ -45,6 +45,7 @@ import { isAllDay } from '@/lib/slot'
 import { coordsOf, type LatLng } from '@/lib/geo'
 import { useRoute } from '@/hooks/useRoute'
 import { useFollow } from '@/hooks/useFollow'
+import { useNoHover } from '@/hooks/useNoHover'
 import { ALL_MODES, type TravelMode } from '@/lib/travel'
 
 type GoTab = (t: 'availability' | 'location') => void
@@ -1165,6 +1166,11 @@ function ItineraryAttendance({ itin, total, onPerson, onViewGroup }: {
 function AvatarPile({ people, cap }: { people: Participant[]; cap: number }) {
   const shown = people.slice(0, cap)
   const extra = people.length - shown.length
+  // with a mouse the "+N" is its own control, beside the faces' flip button, and
+  // opens everyone as a list; on a touch screen it stays in the flip, whose strip of
+  // names already shows everyone
+  const touch = useNoHover()
+  const plus = <span aria-hidden className="text-[12.5px] font-semibold text-dim hover:text-text">+{extra}</span>
   return (
     people.length === 0
       ? <span className="text-[12.5px] text-faint">nobody yet</span>
@@ -1173,16 +1179,11 @@ function AvatarPile({ people, cap }: { people: Participant[]; cap: number }) {
         <span className="flex items-center">
           <FlipGroup names={namesLabel(shown.map((p) => (p.you ? 'you' : p.name)), extra)} people={people} className="flex items-center">
             {shown.map((p) => <span key={p.id} className="-mr-1.5 flex"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} title={p.name} flippable /></span>)}
+            {extra > 0 && touch && <span className="ml-2.5 flex">{plus}</span>}
           </FlipGroup>
-          {/* the "+N" sits beside the faces' flip button and opens everyone as face chips */}
-          {extra > 0 && (
+          {extra > 0 && !touch && (
             <span className="ml-2.5 flex">
-              <FaceChipsMore
-                title={`${people.length} people`} people={people}
-                chip={(
-                  <span aria-hidden className="text-[12.5px] font-semibold text-dim hover:text-text">+{extra}</span>
-                )}
-              />
+              <FaceChipsMore title={`${people.length} people`} people={people} chip={plus} />
             </span>
           )}
         </span>

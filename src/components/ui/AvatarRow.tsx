@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Avatar, NameTag } from './Avatar'
 import { FlipGroup } from './FlipGroup'
+import { useNoHover } from '@/hooks/useNoHover'
 import type { Avatar as Person } from '@/lib/people'
 
 /* A pile of faces, overlapping, capped. The cap is the point: a guest list is
@@ -20,8 +21,10 @@ import type { Avatar as Person } from '@/lib/people'
 
    `renderMore` makes the "+N" a control of its own: it is handed the chip and wraps it
    in a button (or a popover's trigger). On a flippable pile the chip then sits beside
-   the row's flip button, not inside it, so a tap on "+N" opens the rest instead of
-   turning the faces over. */
+   the row's flip button, not inside it, so a click on "+N" opens the rest instead of
+   turning the faces over. That is for a mouse: on a touch screen a flippable pile keeps
+   its "+N" in the flip, since turning the faces already opens the strip of everyone's
+   names, and a second way to see them would only repeat it. */
 
 // "Jane", "Jane and Alex", "Jane, Alex and Sam", "Jane, Alex and 3 more"
 export function namesLabel(names: string[], extra = 0): string {
@@ -64,6 +67,8 @@ export function AvatarRow({
   const hidden = hiddenNames(people.slice(max).map((p) => p.name))
   // a flippable pile is one button that turns every face over in order (FlipGroup)
   const flip = flippable && !decorative
+  const touch = useNoHover()
+  const own = renderMore && !(touch && flip) ? renderMore : undefined
   const chip = extra ? (
     <span
       // the same sticker as a face: a disc the size of the drawn face, with its edge
@@ -74,7 +79,7 @@ export function AvatarRow({
       {extra}
       {/* on hover, the people the "+N" stands for, when this row has them; a "+N"
           that opens them all needs no tag */}
-      {more == null && hidden && !renderMore && <NameTag list name={hidden} />}
+      {more == null && hidden && !own && <NameTag list name={hidden} />}
     </span>
   ) : null
   const faces = shown.map((p, i) => (
@@ -84,13 +89,13 @@ export function AvatarRow({
       />
     </span>
   ))
-  if (chip && renderMore) {
+  if (chip && own) {
     return (
       <div className="flex items-center">
         {flip
           ? <FlipGroup names={label} people={people} more={more != null ? extraCount : 0} className="flex items-center">{faces}</FlipGroup>
           : <div className="flex items-center" role={label ? 'img' : undefined} aria-label={label || undefined}>{faces}</div>}
-        {renderMore(chip)}
+        {own(chip)}
       </div>
     )
   }
