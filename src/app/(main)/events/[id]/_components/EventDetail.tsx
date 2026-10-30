@@ -43,6 +43,7 @@ import { Announce } from '@/components/ui/Announce'
 import { isAllDay, slotWhen } from '@/lib/slot'
 import { Avatar } from '@/components/ui/Avatar'
 import { AvatarRow } from '@/components/ui/AvatarRow'
+import { FaceChipsMore } from '@/components/ui/FaceChips'
 import type { Face } from '@/lib/faces'
 import { ChangeFace } from './ChangeFace'
 import { BackLink } from '@/components/ui/BackLink'
@@ -460,7 +461,11 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             <EditableTitle title={event.title} editable={event.hostedByYou} onSave={(t) => patchLive({ title: t })} />
             {/* the group, as stickers, and who is hosting as a small note beside them */}
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-              <FaceRibbon people={event.participants} size={34} flippable />
+              {/* "+N" opens everyone as face chips in a panel, so the header never grows */}
+              <FaceRibbon
+                people={event.participants} size={34} flippable
+                renderMore={(chip) => <FaceChipsMore chip={chip} people={event.participants} title="Who's invited" onPerson={goToAvailabilityFor} />}
+              />
               <span className="flex items-center gap-1.5 font-serif text-[15px] italic text-dim">
                 {(event.hostKind ?? (event.hostedByYou ? 'person' : 'org')) === 'org' && <Building2 size={15} className="flex-none" />}
                 Hosted by {event.hostName}
@@ -805,7 +810,7 @@ function KeepThisPlan({ eventId, defaultEmail }: { eventId: string; defaultEmail
   )
 }
 
-/* Participants: who's in, how they replied, and (for the host) the levers per person.
+/* Participants: who's invited, how they replied, and (for the host) the levers per person.
    While planning, the chip and the header counts come from actual replies: marked a
    time in the current window (or vouched for by the host) → Available, said no days
    work (or the host marked them out) → Can't make it, silence → No reply. One group each. */
@@ -852,17 +857,13 @@ function ParticipantsCard({ event, isHost, onPatch, onSetMyFace, onViewAvailabil
   return (
     <div className="min-w-0 rounded-2xl border border-border bg-s1 p-5">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Who&apos;s in</span>
+        <span className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Who&apos;s invited</span>
         <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[11.5px] text-dim">{event.participants.length}</span>
         <span className="ml-auto text-[12.5px] font-normal text-dim">
           {locked
             ? <>{going} going{noReply > 0 && <span className="text-faint">, {noReply} no reply</span>}</>
             : <>{nAvail} available{nCant > 0 && <>, {nCant} can&rsquo;t make it</>}{nNone > 0 && <span className="text-faint">, {nNone} no reply</span>}</>}
         </span>
-      </div>
-      {/* everyone in it, as faces first: a capped pile, straight, since this is a list */}
-      <div className="mb-4">
-        <AvatarRow people={sorted} size={36} max={7} flippable />
       </div>
       {/* the ways in come first, and they are the host's: the link, and, where the app
           can send, the email box. Everyone else sees the roster alone, since inviting

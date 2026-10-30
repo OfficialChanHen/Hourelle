@@ -42,6 +42,7 @@ import { useGSAP } from '@gsap/react'
 import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, Zap } from 'lucide-react'
 
 import { AvatarRow } from '@/components/ui/AvatarRow'
+import { FaceChipsMore } from '@/components/ui/FaceChips'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Announce } from '@/components/ui/Announce'
@@ -2233,7 +2234,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         Apart, the faces wrapped onto a line of their own on a phone and
                         hung at the far edge, with nothing saying what they were */}
                     <span className="flex min-w-0 items-center gap-2 sm:ml-auto">
-                      <AvatarRow people={byRoster(bestMode === 'crowd' ? bw.anyIds : bw.ids).map(avatarOf)} size={32} max={6} overlap={8} />
+                      {(() => {
+                        const free = byRoster(bestMode === 'crowd' ? bw.anyIds : bw.ids).map((id) => ({ id, ...avatarOf(id) }))
+                        // a tap turns the faces over and, on a touch screen, shows everyone's
+                        // names in a strip; with a mouse "+N" opens everyone free then as a list
+                        return <AvatarRow people={free} size={32} max={6} overlap={8} flippable renderMore={(chip) => <FaceChipsMore chip={chip} people={free} title="Free then" />} />
+                      })()}
                       {bestMode === 'crowd'
                         // never round a partial attendee away: below one person on average,
                         // count everyone who shows up at all instead

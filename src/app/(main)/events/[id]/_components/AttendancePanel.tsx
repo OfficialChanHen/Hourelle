@@ -20,16 +20,17 @@
    Only the RSVP, the quorum and the itinerary's own settings are editable, and as
    on the other tabs those go to local state first so the demos work in memory. */
 
-import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, Video, X } from 'lucide-react'
-import { Avatar, NameTag } from '@/components/ui/Avatar'
+import { Avatar } from '@/components/ui/Avatar'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { FlipGroup } from '@/components/ui/FlipGroup'
+import { FaceChips, FaceChipsMore } from '@/components/ui/FaceChips'
 import { HandNote } from '@/components/ui/HandNote'
 import { PencilArrow } from '@/components/ui/Pencil'
 import { TabHeading } from './TabHeading'
 import { answeredLine, goingLine } from '@/lib/answers'
-import { hiddenNames, namesLabel } from '@/components/ui/AvatarRow'
+import { namesLabel } from '@/components/ui/AvatarRow'
 import { Popover, PopoverNote } from '@/components/ui/Popover'
 import { SettingField, SettingStepper, SettingToggle, SettingsMenu } from '@/components/ui/Settings'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
@@ -44,6 +45,7 @@ import { isAllDay } from '@/lib/slot'
 import { coordsOf, type LatLng } from '@/lib/geo'
 import { useRoute } from '@/hooks/useRoute'
 import { useFollow } from '@/hooks/useFollow'
+import { useNoHover } from '@/hooks/useNoHover'
 import { ALL_MODES, type TravelMode } from '@/lib/travel'
 
 type GoTab = (t: 'availability' | 'location') => void
@@ -617,12 +619,24 @@ function GroupCard({ label, tone, count, onOpen, action, children }: {
 /* The people in a group as faces, each with a first name under it, straight and flat
    (this is a list you read, not a moment). A face turns over to its initials; the
    name opens their times on the grid. It stops at `cap` faces with a "+N" that opens
-   the whole group as a compact list, so a group of a hundred draws a handful. */
+   the whole group as a compact list, so a group of a hundred draws a handful.
+   "Show faces" under the list goes back; focus follows to the control that swapped in. */
 function FaceGroup({ people, size, cap, onPerson }: { people: Participant[]; size: number; cap: number; onPerson?: (pid: string) => void }) {
   const [all, setAll] = useState(false)
   const needOnly = useContext(NeedOnly)
+  const swapped = useRef(false)
+  const toggle = useRef<HTMLButtonElement>(null)
+  useEffect(() => { if (swapped.current) toggle.current?.focus() }, [all])
+  const flip = (to: boolean) => { swapped.current = true; setAll(to) }
   if (!people.length) return null
-  if (all) return <RosterGroup bare compact tone="faint" label="" people={people.map((p) => ({ p }))} onPerson={onPerson} />
+  if (all) return (
+    <div className="flex flex-col gap-1">
+      <RosterGroup bare compact tone="faint" label="" people={people.map((p) => ({ p }))} onPerson={onPerson} />
+      <button ref={toggle} type="button" aria-expanded onClick={() => flip(false)} className="relative h-8 cursor-pointer self-start rounded-full px-1 text-[12.5px] font-semibold text-accent-text before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] hover:underline">
+        Show faces
+      </button>
+    </div>
+  )
   const shown = people.slice(0, cap)
   const extra = people.length - shown.length
   const first = (p: Participant) => (p.you ? 'You' : p.name.split(' ')[0])
@@ -645,15 +659,20 @@ function FaceGroup({ people, size, cap, onPerson }: { people: Participant[]; siz
         </li>
       ))}
       {extra > 0 && (
-        <li className="flex flex-col items-center gap-1.5" style={{ width: Math.max(size + 8, 52) }}>
+        <li className="flex flex-col items-center" style={{ width: Math.max(size + 8, 52) }}>
+          {/* the disc and "more" are one button, so either one opens the group */}
           <button
-            type="button" onClick={() => setAll(true)} aria-label={`Show all ${people.length}`}
-            className="relative z-[2] grid flex-none place-items-center rounded-full bg-s3 font-semibold text-dim hover:text-text"
-            style={{ width: size, height: size, boxShadow: '0 0 0 2px var(--face-edge)', fontSize: Math.max(12, Math.round(size * 0.3)) }}
+            ref={toggle} type="button" aria-expanded={false} onClick={() => flip(true)} aria-label={`Show all ${people.length}`}
+            className="group/more relative z-[2] flex cursor-pointer flex-col items-center gap-1.5 rounded-xl"
           >
-            +{extra}
+            <span
+              aria-hidden className="grid flex-none place-items-center rounded-full bg-s3 font-semibold text-dim group-hover/more:text-text"
+              style={{ width: size, height: size, boxShadow: '0 0 0 2px var(--face-edge)', fontSize: Math.max(12, Math.round(size * 0.3)) }}
+            >
+              +{extra}
+            </span>
+            <span aria-hidden className="text-[12.5px] text-faint group-hover/more:text-text">more</span>
           </button>
-          <span className="text-[12.5px] text-faint">more</span>
         </li>
       )}
     </ul>
@@ -937,19 +956,7 @@ function RosterGroup({ label, tone, people, cap: capIn, compact, bare, action, o
         </div>
       )}
       {compact && !hasBars ? (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {shown.map(({ p }) => (
-            <button
-              key={p.id} type="button" onClick={onPerson ? () => onPerson(p.id) : undefined} disabled={!onPerson}
-              title={onPerson ? `See when ${p.name} is free` : undefined}
-              className="relative flex h-8 max-w-full items-center gap-2 rounded-full border border-border bg-s0 pl-1 pr-3 before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] enabled:hover:border-border2 enabled:hover:bg-s2 sm:before:hidden"
-            >
-              <Avatar initials={p.initials} color={p.color} face={p.face} size={24} font={9} />
-              <span className="min-w-0 truncate text-[13px]">{p.name}{p.you && <span className="text-faint"> (You)</span>}{needOnly.has(p.id) && <span className="text-[11.5px] text-dim"> if need be</span>}</span>
-            </button>
-          ))}
-          {more}
-        </div>
+        <FaceChips people={shown.map(({ p }) => p)} onPerson={onPerson} after={more} note={(p) => needOnly.has(p.id) && <span className="text-[11.5px] text-dim"> if need be</span>} />
       ) : (
       <div className="flex flex-col gap-1.5">
         {shown.map(({ p, note, bar }) => (
@@ -1164,22 +1171,27 @@ function ItineraryAttendance({ itin, total, onPerson, onViewGroup }: {
 function AvatarPile({ people, cap }: { people: Participant[]; cap: number }) {
   const shown = people.slice(0, cap)
   const extra = people.length - shown.length
-  const hidden = hiddenNames(people.slice(cap).map((p) => p.name))
+  // with a mouse the "+N" is its own control, beside the faces' flip button, and
+  // opens everyone as a list; on a touch screen it stays in the flip, whose strip of
+  // names already shows everyone
+  const touch = useNoHover()
+  const plus = <span aria-hidden className="text-[12.5px] font-semibold text-dim hover:text-text">+{extra}</span>
   return (
     people.length === 0
       ? <span className="text-[12.5px] text-faint">nobody yet</span>
       // the faces turn over together, and their names show while they are turned
       : (
-        <FlipGroup names={namesLabel(shown.map((p) => (p.you ? 'you' : p.name)), extra)} people={people} className="flex items-center">
-          {shown.map((p) => <span key={p.id} className="-mr-1.5 flex"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} title={p.name} flippable /></span>)}
-          {/* the "+N" names the people it stands for, on hover */}
-          {extra > 0 && (
-            <span aria-hidden className="group/face relative ml-2.5 text-[12.5px] font-semibold text-dim">
-              +{extra}
-              {hidden && <NameTag list name={hidden} />}
+        <span className="flex items-center">
+          <FlipGroup names={namesLabel(shown.map((p) => (p.you ? 'you' : p.name)), extra)} people={people} className="flex items-center">
+            {shown.map((p) => <span key={p.id} className="-mr-1.5 flex"><Avatar initials={p.initials} color={p.color} face={p.face} size={25} font={9.5} title={p.name} flippable /></span>)}
+            {extra > 0 && touch && <span className="ml-2.5 flex">{plus}</span>}
+          </FlipGroup>
+          {extra > 0 && !touch && (
+            <span className="ml-2.5 flex">
+              <FaceChipsMore title={`${people.length} people`} people={people} chip={plus} />
             </span>
           )}
-        </FlipGroup>
+        </span>
       )
   )
 }
