@@ -611,6 +611,12 @@ input[type="date"]::-webkit-date-and-time-value {
   }
 }
 
+/* the wordmark's intro plays on the first visit of a session: the logo is held back
+   before paint so the finished word never flashes first. The Wordmark takes over at once
+   and drops the flag; if scripts never run, it shows after 3s anyway. */
+html[data-wm-intro] [data-wm-root] { opacity: 0; animation: wm-show 0s 3s forwards; }
+@keyframes wm-show { to { opacity: 1; } }
+
 /* ── accessibility settings (Settings, Accessibility) ──
    Each is an attribute on <html>, set before paint from the saved choice. Unlayered
    like the rule above, so they win over the utilities they have to override. */
