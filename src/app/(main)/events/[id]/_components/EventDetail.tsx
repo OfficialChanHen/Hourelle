@@ -464,7 +464,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
               {/* "+N" opens everyone as face chips in a panel, so the header never grows */}
               <FaceRibbon
                 people={event.participants} size={34} flippable
-                renderMore={(chip) => <FaceChipsMore chip={chip} people={event.participants} title="Who's in" onPerson={goToAvailabilityFor} />}
+                renderMore={(chip) => <FaceChipsMore chip={chip} people={event.participants} title="Who's invited" onPerson={goToAvailabilityFor} />}
               />
               <span className="flex items-center gap-1.5 font-serif text-[15px] italic text-dim">
                 {(event.hostKind ?? (event.hostedByYou ? 'person' : 'org')) === 'org' && <Building2 size={15} className="flex-none" />}
@@ -810,7 +810,7 @@ function KeepThisPlan({ eventId, defaultEmail }: { eventId: string; defaultEmail
   )
 }
 
-/* Participants: who's in, how they replied, and (for the host) the levers per person.
+/* Participants: who's invited, how they replied, and (for the host) the levers per person.
    While planning, the chip and the header counts come from actual replies: marked a
    time in the current window (or vouched for by the host) → Available, said no days
    work (or the host marked them out) → Can't make it, silence → No reply. One group each. */
@@ -847,7 +847,6 @@ function ParticipantsCard({ event, isHost, onPatch, onSetMyFace, onViewAvailabil
   // eight rows said nothing the header count had not; the one "Can't make it" was
   // lost among them. The header keeps the totals, the rows keep the exceptions.
   const usual = (p: AppEvent['participants'][number]) => (locked ? p.rsvp === 'attending' : groupOf(p) === 'available')
-  const listRef = useRef<HTMLDivElement>(null)
   // long lists get a name filter and stop at ten until asked
   const [query, setQuery] = useState('')
   const [all, setAll] = useState(false)
@@ -858,30 +857,13 @@ function ParticipantsCard({ event, isHost, onPatch, onSetMyFace, onViewAvailabil
   return (
     <div className="min-w-0 rounded-2xl border border-border bg-s1 p-5">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Who&apos;s in</span>
+        <span className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Who&apos;s invited</span>
         <span className="rounded-full border border-border bg-s2 px-[7px] py-px text-[11.5px] text-dim">{event.participants.length}</span>
         <span className="ml-auto text-[12.5px] font-normal text-dim">
           {locked
             ? <>{going} going{noReply > 0 && <span className="text-faint">, {noReply} no reply</span>}</>
             : <>{nAvail} available{nCant > 0 && <>, {nCant} can&rsquo;t make it</>}{nNone > 0 && <span className="text-faint">, {nNone} no reply</span>}</>}
         </span>
-      </div>
-      {/* everyone in it, as faces first: a capped pile, straight, since this is a list.
-          With a mouse, "+N" opens the whole list below (it already names everyone, so
-          nothing here repeats it); on a touch screen it stays in the faces' flip */}
-      <div className="mb-4">
-        <AvatarRow
-          people={sorted} size={36} max={7} flippable
-          renderMore={(chip) => (
-            <button
-              type="button" aria-label={`Show all ${sorted.length} in the list`}
-              onClick={() => { setQuery(''); setAll(true); requestAnimationFrame(() => listRef.current?.querySelector<HTMLElement>('button')?.focus()) }}
-              className="relative block rounded-full before:absolute before:-inset-1.5 before:content-['']"
-            >
-              {chip}
-            </button>
-          )}
-        />
       </div>
       {/* the ways in come first, and they are the host's: the link, and, where the app
           can send, the email box. Everyone else sees the roster alone, since inviting
@@ -898,7 +880,7 @@ function ParticipantsCard({ event, isHost, onPatch, onSetMyFace, onViewAvailabil
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name" aria-label="Find a participant" className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-faint" />
         </label>
       )}
-      <div ref={listRef} className="flex flex-col">
+      <div className="flex flex-col">
         {q && !found.length && <p className="py-2 text-[13px] text-faint">Nobody here by that name.</p>}
         {shown.map((p, i) => {
           const chip = locked
