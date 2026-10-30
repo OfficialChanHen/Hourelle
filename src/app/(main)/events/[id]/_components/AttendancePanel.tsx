@@ -632,7 +632,7 @@ function FaceGroup({ people, size, cap, onPerson }: { people: Participant[]; siz
   if (all) return (
     <div className="flex flex-col gap-1">
       <RosterGroup bare compact tone="faint" label="" people={people.map((p) => ({ p }))} onPerson={onPerson} />
-      <button ref={toggle} type="button" aria-expanded onClick={() => flip(false)} className="relative h-8 self-start rounded-full px-1 text-[12.5px] font-semibold text-accent-text before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] hover:underline">
+      <button ref={toggle} type="button" aria-expanded onClick={() => flip(false)} className="relative h-8 cursor-pointer self-start rounded-full px-1 text-[12.5px] font-semibold text-accent-text before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] hover:underline">
         Show faces
       </button>
     </div>
@@ -659,15 +659,20 @@ function FaceGroup({ people, size, cap, onPerson }: { people: Participant[]; siz
         </li>
       ))}
       {extra > 0 && (
-        <li className="flex flex-col items-center gap-1.5" style={{ width: Math.max(size + 8, 52) }}>
+        <li className="flex flex-col items-center" style={{ width: Math.max(size + 8, 52) }}>
+          {/* the disc and "more" are one button, so either one opens the group */}
           <button
             ref={toggle} type="button" aria-expanded={false} onClick={() => flip(true)} aria-label={`Show all ${people.length}`}
-            className="relative z-[2] grid flex-none place-items-center rounded-full bg-s3 font-semibold text-dim hover:text-text"
-            style={{ width: size, height: size, boxShadow: '0 0 0 2px var(--face-edge)', fontSize: Math.max(12, Math.round(size * 0.3)) }}
+            className="group/more relative z-[2] flex cursor-pointer flex-col items-center gap-1.5 rounded-xl"
           >
-            +{extra}
+            <span
+              aria-hidden className="grid flex-none place-items-center rounded-full bg-s3 font-semibold text-dim group-hover/more:text-text"
+              style={{ width: size, height: size, boxShadow: '0 0 0 2px var(--face-edge)', fontSize: Math.max(12, Math.round(size * 0.3)) }}
+            >
+              +{extra}
+            </span>
+            <span aria-hidden className="text-[12.5px] text-faint group-hover/more:text-text">more</span>
           </button>
-          <span className="text-[12.5px] text-faint">more</span>
         </li>
       )}
     </ul>

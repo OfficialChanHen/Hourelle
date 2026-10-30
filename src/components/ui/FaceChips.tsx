@@ -64,7 +64,7 @@ export function FaceChipsMore<P extends ChipPerson>({ chip, people, title, onPer
   return (
     <Popover
       align="start" width={320} label={`Show all ${people.length}`}
-      className="relative block rounded-full before:absolute before:-inset-1.5 before:content-['']"
+      className="relative block cursor-pointer rounded-full before:absolute before:-inset-1.5 before:content-['']"
       trigger={() => chip}
     >
       {(close) => (
