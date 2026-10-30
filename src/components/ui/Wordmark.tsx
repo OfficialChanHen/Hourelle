@@ -5,7 +5,7 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { reducedMotion } from '@/lib/prefs'
 
-/* The timeld wordmark: time and meld share their "me". The word is set once and used as
+/* The Timeld wordmark: time and meld share their "me". The word is set once and used as
    a mask; inside it the two inks are plain vector shapes, so the edges stay sharp at any
    size. Time's ink holds "ti" and the top left of the me, meld's the bottom right, split
    by a wavy cut along a slant through the me, with a streak of each ink running into the
@@ -24,7 +24,7 @@ import { reducedMotion } from '@/lib/prefs'
 
 type Widths = { ti: number; tim: number; time: number; all: number }
 // Lora 600 at 100 units with -0.025em tracking; measured again once the font is in
-const FALLBACK: Widths = { ti: 68.52, tim: 157.02, time: 210.54, all: 299.48 }
+const FALLBACK: Widths = { ti: 97.1, tim: 188.53, time: 239.12, all: 328 }
 
 const TOP = 14, H = 92
 // the cut crosses where the m meets the e, rising to the right at about 43 degrees
@@ -144,7 +144,7 @@ export function Wordmark({ className = '', still = false, anchor = 'centre' }: {
         t.remove()
         return len
       }
-      const got = { ti: m('ti'), tim: m('tim'), time: m('time'), all: m('timeld') }
+      const got = { ti: m('Ti'), tim: m('Tim'), time: m('Time'), all: m('Timeld') }
       if (got.ti > 0 && got.tim > got.ti) w = got
       svg.setAttribute('viewBox', `-4 ${TOP} ${f2(w.all + 8)} ${H}`)
       svg.style.width = `${((w.all + 8) / H) * 0.92}em`
@@ -237,14 +237,14 @@ export function Wordmark({ className = '', still = false, anchor = 'centre' }: {
       ref={svgRef}
       viewBox={`-4 ${TOP} ${W + 8} ${H}`}
       role="img"
-      aria-label="timeld"
+      aria-label="Timeld"
       className={`inline-block shrink-0 overflow-visible ${className}`}
       style={{ height: '0.92em', width: `${((W + 8) / H) * 0.92}em` }}
     >
       <defs>
         {/* the word itself is the mask, so the inks only ever show inside the letters */}
         <mask id={`${id}k`} maskUnits="userSpaceOnUse" x={-60} y={-60} width={W + 120} height={220}>
-          <text data-k="word" x={0} y={100} fontSize={100} fill="white" style={FACE}>timeld</text>
+          <text data-k="word" x={0} y={100} fontSize={100} fill="white" style={FACE}>Timeld</text>
         </mask>
         {/* the soft edge while the inks meld */}
         <filter id={`${id}f`} filterUnits="userSpaceOnUse" x={-60} y={-60} width={W + 120} height={220}>
@@ -274,7 +274,7 @@ export function Wordmark({ className = '', still = false, anchor = 'centre' }: {
         {/* the intro's two words, apart until they meld */}
         <g data-k="pair" aria-hidden="true" style={{ display: 'none' }}>
           <text data-k="pm" x={FALLBACK.ti} y={100} fontSize={100} style={{ ...FACE, fill: 'var(--wm-meld)' }}>meld</text>
-          <text data-k="pt" x={0} y={100} fontSize={100} style={{ ...FACE, fill: 'var(--wm-time)' }}>time</text>
+          <text data-k="pt" x={0} y={100} fontSize={100} style={{ ...FACE, fill: 'var(--wm-time)' }}>Time</text>
         </g>
       </g>
     </svg>

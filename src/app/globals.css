@@ -28,10 +28,10 @@
   --display:var(--font-lora), Georgia, serif;
   /* the italic accent word's ink (see Em.tsx) */
   --em:var(--accent-text);
-  /* the timeld wordmark's two inks, for the logo only: one green in two depths, a
+  /* the Timeld wordmark's two inks, for the logo only: one green in two depths, a
      lighter time and a deeper meld settling under it. They stay the same in every
-     palette, since a logo is not chrome. (Kept for future themes: ink #1F1B16 + clay
-     #B4502F, dark #F1ECE4 + #E8916F; forest #2E4A3C + ochre #A0712A, dark #9BD2B7 + #E1B66A.) */
+     palette but Ink and clay, which wears its own pair; a logo is not chrome. (Kept for
+     future themes: forest #2E4A3C + ochre #A0712A, dark #9BD2B7 + #E1B66A.) */
   --wm-time:#4E9670; --wm-meld:#1F4A36;
 
   /* availability heat ramp */
@@ -170,8 +170,7 @@
 /* ── Appearances — optional palettes layered over the same tokens ──
    data-palette on <html> picks the family (absent = the house warm neutral);
    data-theme still picks light or dark inside it, so the sun/moon toggle keeps
-   working everywhere. Each block redefines the full token set. Three of them, each
-   earning its place: a neutral, a bright one, and one for low vision. */
+   working everywhere. Each block redefines the full token set. */
 
 /* Studio — cool neutral, ink as the accent, and the display face drops to the
    grotesk. The quiet register for anyone who wants no warmth at all. The heat ramp
@@ -319,6 +318,53 @@
   --frame:#25221D; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
   --sticky:#3B3320; --sticky-text:#F7ECCB; --sticky-dim:#D9CBA3; --sticky-kicker:#FFBDA3;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
+  --tour-lit:var(--accent-text);
+}
+
+/* Ink and clay — rosy paper, black ink and clay: the logo's saved ink + clay pair
+   worn as a whole look. Ink fills the buttons and the selected tab, clay carries
+   interactive text and the accent word, and the moment turns rose so it never meets
+   the clay. The wordmark takes the same two inks here. The heat ramp stays green. */
+[data-palette="clay"] {
+  --bg:#FBF4F1; --s0:#FDF8F6; --s1:#FFFCFB; --s2:#F4E9E4; --s3:#EADBD4;
+  --border:#EADBD4; --border2:#D7C3BA;
+  --text:#1F1B16; --dim:#66574F; --faint:#6B5C54;
+  --accent:#1F1B16; --accent-text:#9A4128; --accent-bg:#F7E6DF; --accent-border:#EBCBBE; --on-accent:#FFFCFB;
+  --teal:#3F6B55; --teal-text:#31523F; --teal-bg:#E7EFE9; --teal-border:#C6DACC;
+  --ochre:#8F6A33; --ochre-text:#72521F; --ochre-bg:#F5ECDC; --ochre-border:#E6D6BA;
+  --brick:#9C4A46; --brick-text:#823C39; --brick-bg:#F5E3E0; --brick-border:#E8CAC5;
+  --moment:#C24B6E; --moment-text:#9E2F52; --moment-bg:#FBE4EB; --moment-border:#F2C4D2;
+  --shadow:0 1px 2px rgba(60,30,25,.05), 0 12px 32px rgba(60,30,25,.07);
+  --em:var(--accent-text);
+  --wm-time:#1F1B16; --wm-meld:#B4502F;
+  --shape-a:#F7E6DF; --shape-b:#F9E5EB; --shape-c:#F3ECE6;
+  --tape:rgba(236,214,200,.9);
+  --tape-2:rgba(240,200,212,.85); --pin:#B4502F; --clip:#9A8F8B;
+  --highlight:rgba(240,170,190,.45); --highlight-blend:multiply;
+  --frame:#FFFCFB; --frame-shadow:0 1px 2px rgba(60,30,25,.06), 0 16px 32px rgba(60,30,25,.12);
+  --sticky:#FADFE5; --sticky-text:#1F1B16; --sticky-dim:#5E4A4D; --sticky-kicker:#9E2F52;
+  --sticky-shadow:0 8px 18px rgba(60,30,25,.10);
+  --face-edge:#FFFCFB;
+}
+[data-palette="clay"][data-theme="dark"] {
+  --bg:#171314; --s0:#1C1718; --s1:#211B1C; --s2:#2A2324; --s3:#342C2D;
+  --border:rgba(245,228,224,.10); --border2:rgba(245,228,224,.19);
+  --text:#F3EBE8; --dim:#B5A7A3; --faint:#978A86;
+  --accent:#F1ECE4; --accent-text:#EE9C7E; --accent-bg:rgba(232,145,111,.15); --accent-border:rgba(232,145,111,.38); --on-accent:#1A1516;
+  --teal:#5B9A7C; --teal-text:#9BD2B7; --teal-bg:rgba(111,181,151,.14); --teal-border:rgba(111,181,151,.36);
+  --ochre:#BD9A5E; --ochre-text:#E1C48F; --ochre-bg:rgba(200,165,100,.15); --ochre-border:rgba(200,165,100,.38);
+  --brick:#C57F78; --brick-text:#E5ACA6; --brick-bg:rgba(205,138,130,.14); --brick-border:rgba(205,138,130,.36);
+  --moment:#E8829F; --moment-text:#F6B5C8; --moment-bg:rgba(232,130,159,.15); --moment-border:rgba(232,130,159,.40);
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
+  --wm-time:#F1ECE4; --wm-meld:#E8916F;
+  --shape-a:#271C1A; --shape-b:#2A1B21; --shape-c:#221D1C;
+  --tape:rgba(240,205,195,.2);
+  --tape-2:rgba(246,181,200,.2); --pin:#E8916F; --clip:#8A7F7B;
+  --highlight:rgba(232,130,159,.24); --highlight-blend:normal;
+  --frame:#272022; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
+  --sticky:#3A2429; --sticky-text:#F8E4E8; --sticky-dim:#D9BEC4; --sticky-kicker:#F6B5C8;
+  --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
+  --face-edge:#5A4C4D;
   --tour-lit:var(--accent-text);
 }
 

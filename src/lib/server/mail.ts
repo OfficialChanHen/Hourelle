@@ -31,7 +31,7 @@ export function joinLink(site: string, ev: Pick<AppEvent, 'id'>, p?: Pick<Partic
 /* ── the send ── */
 export const mailConfigured = !!process.env.RESEND_API_KEY
 
-const FROM = process.env.MAIL_FROM_EMAIL || process.env.FEEDBACK_FROM_EMAIL || 'timeld <onboarding@resend.dev>'
+const FROM = process.env.MAIL_FROM_EMAIL || process.env.FEEDBACK_FROM_EMAIL || 'Timeld <onboarding@resend.dev>'
 
 export type Attachment = { filename: string; content: string; contentType: string } // content is base64
 // `thread` is the event id: every mail about one event references the same root, so
@@ -49,7 +49,7 @@ export function calendarAttachment(ev: AppEvent, link: string): Attachment[] | u
 }
 
 /** The sending address stays the verified one; the display name may be the person
- *  the message is really from ("Sam via timeld"), which is what a mailbox shows
+ *  the message is really from ("Sam via Timeld"), which is what a mailbox shows
  *  and one of the things that separates a note from a person from a campaign. */
 function fromFor(name?: string): string {
   if (!name) return FROM
@@ -311,12 +311,12 @@ export function inviteMail(ev: AppEvent, p: Participant, to: string, site: strin
   // a plan already locked in travels with its calendar entry
   const attachments = calendarAttachment(ev, link)
   if (attachments) facts.push('The calendar entry is attached.')
-  const footer = `Sent by timeld on behalf of ${host}. Reply to this email to reach them.`
+  const footer = `Sent by Timeld on behalf of ${host}. Reply to this email to reach them.`
   const text = [lines[0], ...facts, '', ask, '', link, '', footer].join('\n')
   // the HTML says the same things in the same order as the text, because a message
   // whose two halves agree reads as correspondence and not as a template
   const html = note([lines[0], ...(facts.length ? [facts.join('\n')] : []), ask], link, footer)
-  return { to, subject: `${host} invited you to ${ev.title}`, text, html, replyTo: hostEmail ?? undefined, fromName: `${host} via timeld`, attachments, thread: ev.id }
+  return { to, subject: `${host} invited you to ${ev.title}`, text, html, replyTo: hostEmail ?? undefined, fromName: `${host} via Timeld`, attachments, thread: ev.id }
 }
 
 /* A guest who joined with their email gets their way back, once. Written as a note
@@ -332,14 +332,14 @@ export function joinedMail(ev: AppEvent, p: Participant, to: string, site: strin
   const footer = `You're getting this because you joined ${host}'s plan with this address. If that wasn't you, you can ignore it.`
   const text = [lines[0], ...facts, '', lines[1], '', link, '', footer].join('\n')
   const html = note([lines[0], ...(facts.length ? [facts.join('\n')] : []), lines[1]], link, footer)
-  return { to, subject: `Your link to ${ev.title}`, text, html, fromName: 'timeld', thread: ev.id }
+  return { to, subject: `Your link to ${ev.title}`, text, html, fromName: 'Timeld', thread: ev.id }
 }
 
 export function nudgeMail(ev: AppEvent, p: Participant, to: string, site: string, hostEmail?: string | null): Mail {
   const host = hostNameOf(ev), link = joinLink(site, ev, p)
   const lines = [`Hi ${firstName(p)}, ${host} is still waiting on your times for ${ev.title}.`, 'Mark when you are free so the host can pick a time. Even a rough answer helps.']
   const text = [...lines, '', link].join('\n')
-  return { to, subject: `${host} is waiting on your times for ${ev.title}`, text, html: shell({ title: `A quick one from ${host}`, lines, cta: { label: 'Mark when you are free', href: link }, preheader: lines[0], footer: `Sent by timeld on behalf of ${host}. Reply to this email to reach them.` }), replyTo: hostEmail ?? undefined, fromName: `${host} via timeld`, thread: ev.id }
+  return { to, subject: `${host} is waiting on your times for ${ev.title}`, text, html: shell({ title: `A quick one from ${host}`, lines, cta: { label: 'Mark when you are free', href: link }, preheader: lines[0], footer: `Sent by Timeld on behalf of ${host}. Reply to this email to reach them.` }), replyTo: hostEmail ?? undefined, fromName: `${host} via Timeld`, thread: ev.id }
 }
 
 /* The lock-in announcement: the host settled the time and place, here is the entry
@@ -361,7 +361,7 @@ export function lockedMail(ev: AppEvent, p: Participant, to: string, site: strin
     preheader: when ? `${when}${place ? `, ${place}` : ''}` : lines[1],
     footer,
   })
-  return { to, subject: `${ev.title} is locked in${when ? `: ${when}` : ''}`, text, html, replyTo: hostEmail ?? undefined, fromName: `${host} via timeld`, attachments, thread: ev.id }
+  return { to, subject: `${ev.title} is locked in${when ? `: ${when}` : ''}`, text, html, replyTo: hostEmail ?? undefined, fromName: `${host} via Timeld`, attachments, thread: ev.id }
 }
 
 /* Reply activity: a host who asked to hear when someone answers (Settings, off by
@@ -382,11 +382,11 @@ export function replyMail(ev: AppEvent, p: Participant, host: Participant, to: s
 export function accountDeletedMail(to: string, name: string | null, site: string): Mail {
   const first = (name ?? '').split(' ')[0] || 'there'
   const lines = [
-    `Hi ${first}, the timeld account for ${to} was deleted just now, together with the plans it hosted, its answers on other people’s plans and its messages. Nothing about it is kept.`,
+    `Hi ${first}, the Timeld account for ${to} was deleted just now, together with the plans it hosted, its answers on other people’s plans and its messages. Nothing about it is kept.`,
     'If that was you, there is nothing more to do. If it was not, someone else had your login: they cannot get in again, and you can write to us from the Help page.',
   ]
   const cta = { label: 'Write to us', href: `${site}/help` }
-  return { to, subject: 'Your timeld account was deleted', text: [...lines, '', cta.href].join('\n'), html: shell({ title: 'Your account was deleted', lines, cta, preheader: lines[0] }), fromName: 'timeld' }
+  return { to, subject: 'Your Timeld account was deleted', text: [...lines, '', cta.href].join('\n'), html: shell({ title: 'Your account was deleted', lines, cta, preheader: lines[0] }), fromName: 'Timeld' }
 }
 
 export function reminderMail(kind: MailKind, ev: AppEvent, p: Participant, to: string, site: string): Mail {

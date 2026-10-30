@@ -32,7 +32,7 @@ export function subscribeLinks(url: string): { google: string; outlook: string; 
   const webcal = url.replace(/^https?:\/\//, 'webcal://')
   return {
     google: `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcal)}`,
-    outlook: `https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(url)}&name=timeld`,
+    outlook: `https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(url)}&name=Timeld`,
     apple: webcal,
   }
 }

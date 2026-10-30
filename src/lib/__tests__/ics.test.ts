@@ -44,7 +44,7 @@ describe('the feed', () => {
   })
   it('carries each entry’s status', () => {
     const feed = icsFeed([{ ev: locked, link: 'https://x/e', status: 'TENTATIVE' }], 0)
-    expect(feed).toContain('X-WR-CALNAME:timeld')
+    expect(feed).toContain('X-WR-CALNAME:Timeld')
     expect(feed).toContain('STATUS:TENTATIVE')
     expect(feed.match(/BEGIN:VEVENT/g)).toHaveLength(1)
   })

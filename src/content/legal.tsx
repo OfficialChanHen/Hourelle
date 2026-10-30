@@ -38,12 +38,12 @@ const PRIVACY: LegalDoc = {
   title: 'Privacy Policy',
   short: 'Privacy Policy',
   eyebrow: 'Privacy',
-  lead: 'What timeld collects, why, who it is shared with, and the choices you have.',
+  lead: 'What Timeld collects, why, who it is shared with, and the choices you have.',
   sections: [
     {
       id: 'who-we-are', title: 'Who we are and what this policy covers',
       paragraphs: [
-        'timeld is an independent service for settling on a time and a place with other people. It is operated by its maker, reachable through the [Help page](/help). This policy explains what personal information timeld collects when you use the website at hourelle.com, how it is used, who it is shared with and the rights you have over it.',
+        'Timeld is an independent service for settling on a time and a place with other people. It is operated by its maker, reachable through the [Help page](/help). This policy explains what personal information Timeld collects when you use the website at hourelle.com, how it is used, who it is shared with and the rights you have over it.',
         'It applies to everyone who uses the service: people with an account, guests who join a plan by a link, and visitors reading the public pages.',
       ],
     },
@@ -55,7 +55,7 @@ const PRIVACY: LegalDoc = {
         'Guest information. A guest who joins by a link gives a name and, only if they choose, an email address. We store both, together with a private token that makes their personal link theirs.',
         'Calendar data. If you import from Google Calendar or Outlook, your browser asks the calendar, with your permission, for the times you are busy during the plan’s days, works out your free times, and shows them for you to review. The calendar entries, their titles and their details are never sent to our servers and never stored. What we keep is the availability you save, plus a note of which stretches your calendar showed as busy, so the grid can mark them. The permission lasts about an hour, and the next import asks again.',
         'Information on your device. Your browser keeps a copy of the plans you are part of so pages open at once, your sign-in session, a guest’s place on a plan, and a few preferences such as the theme and clock style.',
-        'Technical information. Our hosting provider keeps standard request logs, including the address of the device making the request, the page requested and the time, for a short period, as every website’s host does. We also count page views with Vercel Analytics, which sets no cookies and identifies no one. It records the page, without the plan it belongs to, along with the kind of device, browser and country, and we use it only to see which parts of timeld get used.',
+        'Technical information. Our hosting provider keeps standard request logs, including the address of the device making the request, the page requested and the time, for a short period, as every website’s host does. We also count page views with Vercel Analytics, which sets no cookies and identifies no one. It records the page, without the plan it belongs to, along with the kind of device, browser and country, and we use it only to see which parts of Timeld get used.',
       ],
     },
     {
@@ -94,7 +94,7 @@ const PRIVACY: LegalDoc = {
     {
       id: 'cookies', title: 'Cookies and local storage',
       paragraphs: [
-        'timeld does not use advertising or analytics cookies. Your browser stores your sign-in session and a copy of your plans in its own storage so that the service works and pages open quickly. Clearing your browser’s site data removes all of it; an account gets its plans back from the server on the next visit.',
+        'Timeld does not use advertising or analytics cookies. Your browser stores your sign-in session and a copy of your plans in its own storage so that the service works and pages open quickly. Clearing your browser’s site data removes all of it; an account gets its plans back from the server on the next visit.',
       ],
     },
     {
@@ -118,13 +118,13 @@ const PRIVACY: LegalDoc = {
     {
       id: 'children', title: 'Children',
       paragraphs: [
-        'timeld is not directed at children under 13, and we do not knowingly keep an account for anyone under that age. If you believe a child has made one, write to us and we will remove it.',
+        'Timeld is not directed at children under 13, and we do not knowingly keep an account for anyone under that age. If you believe a child has made one, write to us and we will remove it.',
       ],
     },
     {
       id: 'transfers', title: 'Where information is stored',
       paragraphs: [
-        'Information is stored in data centres operated by our providers. If you use timeld from outside the country where those centres are, your information is transferred there. Our providers commit to safeguards for such transfers that the law recognises.',
+        'Information is stored in data centres operated by our providers. If you use Timeld from outside the country where those centres are, your information is transferred there. Our providers commit to safeguards for such transfers that the law recognises.',
       ],
     },
     {
@@ -144,18 +144,18 @@ const TERMS: LegalDoc = {
   title: 'Terms and Conditions',
   short: 'Terms and Conditions',
   eyebrow: 'Terms',
-  lead: 'The agreement between you and timeld for using the service.',
+  lead: 'The agreement between you and Timeld for using the service.',
   sections: [
     {
       id: 'agreement', title: 'Agreement to these terms',
       paragraphs: [
-        'These terms and conditions are an agreement between you and timeld, operated by its maker and reachable through the [Help page](/help). By creating an account, joining a plan or otherwise using the service at hourelle.com you agree to them and to the [Privacy Policy](/privacy), which explains how personal information is handled. If you do not agree, please do not use the service.',
+        'These terms and conditions are an agreement between you and Timeld, operated by its maker and reachable through the [Help page](/help). By creating an account, joining a plan or otherwise using the service at hourelle.com you agree to them and to the [Privacy Policy](/privacy), which explains how personal information is handled. If you do not agree, please do not use the service.',
       ],
     },
     {
-      id: 'eligibility', title: 'Who may use timeld',
+      id: 'eligibility', title: 'Who may use Timeld',
       paragraphs: [
-        'You must be at least 13 years old to use timeld, and old enough to enter into this agreement where you live. If you use the service on behalf of an organisation, you confirm that you may bind it to these terms.',
+        'You must be at least 13 years old to use Timeld, and old enough to enter into this agreement where you live. If you use the service on behalf of an organisation, you confirm that you may bind it to these terms.',
       ],
     },
     {
@@ -167,13 +167,13 @@ const TERMS: LegalDoc = {
     {
       id: 'your-content', title: 'Your content',
       paragraphs: [
-        'Everything you add to timeld stays yours: plans, descriptions, pictures, answers and messages. You grant us a non-exclusive, worldwide, royalty-free licence to store, copy and display that content only as needed to provide the service, which means showing it to the people you share the plan with and sending the emails the service sends. The licence ends when the content is deleted, except for copies held briefly in backups.',
+        'Everything you add to Timeld stays yours: plans, descriptions, pictures, answers and messages. You grant us a non-exclusive, worldwide, royalty-free licence to store, copy and display that content only as needed to provide the service, which means showing it to the people you share the plan with and sending the emails the service sends. The licence ends when the content is deleted, except for copies held briefly in backups.',
         'You are responsible for what you add. Only add pictures and text you have the right to share, and nothing that is unlawful or that infringes someone else’s rights.',
       ],
     },
     {
       id: 'acceptable-use', title: 'Acceptable use',
-      paragraphs: ['When using timeld you agree not to:'],
+      paragraphs: ['When using Timeld you agree not to:'],
       items: [
         'harass, threaten, defame or impersonate anyone, or post content that is unlawful, hateful or sexually explicit;',
         'use invitations or the chat to send unsolicited messages, advertising or anything unrelated to a genuine plan;',
@@ -186,7 +186,7 @@ const TERMS: LegalDoc = {
     {
       id: 'invitations', title: 'Invitations and email',
       paragraphs: [
-        'When you invite someone by email, timeld sends them a message on your behalf, with your name on it. Only invite people who will want to hear from you about that plan. We may limit or stop sending on behalf of an account that sends unwanted mail.',
+        'When you invite someone by email, Timeld sends them a message on your behalf, with your name on it. Only invite people who will want to hear from you about that plan. We may limit or stop sending on behalf of an account that sends unwanted mail.',
         'Anyone holding a plan’s link can open the plan, so share links with the people the plan is for.',
       ],
     },
@@ -205,13 +205,13 @@ const TERMS: LegalDoc = {
     {
       id: 'our-content', title: 'Our content',
       paragraphs: [
-        'The timeld name, wordmark and design are ours and may not be used to suggest endorsement without permission. The source code of the service is published on GitHub under the licence stated there; that licence, not these terms, governs its use.',
+        'The Timeld name, wordmark and design are ours and may not be used to suggest endorsement without permission. The source code of the service is published on GitHub under the licence stated there; that licence, not these terms, governs its use.',
       ],
     },
     {
       id: 'free-service', title: 'A free service',
       paragraphs: [
-        'timeld is free to use. If we ever offer paid extras, they will be described separately and hosting a plan will remain free. Contributions made through the coffee link are voluntary gifts, not payments for a service, and are not refundable.',
+        'Timeld is free to use. If we ever offer paid extras, they will be described separately and hosting a plan will remain free. Contributions made through the coffee link are voluntary gifts, not payments for a service, and are not refundable.',
       ],
     },
     {
@@ -223,31 +223,31 @@ const TERMS: LegalDoc = {
     {
       id: 'liability', title: 'Limitation of liability',
       paragraphs: [
-        'To the extent the law allows, timeld and its maker are not liable for any indirect, incidental, special, consequential or punitive damages, or for any loss of data, profits or goodwill, arising from your use of or inability to use the service, however caused. Our total liability for any claim relating to the service is limited to one hundred US dollars. Nothing in these terms limits liability that cannot be limited by law, and nothing removes rights that the law gives you as a consumer.',
+        'To the extent the law allows, Timeld and its maker are not liable for any indirect, incidental, special, consequential or punitive damages, or for any loss of data, profits or goodwill, arising from your use of or inability to use the service, however caused. Our total liability for any claim relating to the service is limited to one hundred US dollars. Nothing in these terms limits liability that cannot be limited by law, and nothing removes rights that the law gives you as a consumer.',
       ],
     },
     {
       id: 'termination', title: 'Suspension and termination',
       paragraphs: [
-        'You may stop using timeld at any time and delete your account from your profile. We may suspend or close an account, or remove content, that breaks these terms or the law, or that puts the service or other people at risk, and we will say why unless the law prevents it. Sections that by their nature should survive, such as those on your content, disclaimers and liability, survive termination.',
+        'You may stop using Timeld at any time and delete your account from your profile. We may suspend or close an account, or remove content, that breaks these terms or the law, or that puts the service or other people at risk, and we will say why unless the law prevents it. Sections that by their nature should survive, such as those on your content, disclaimers and liability, survive termination.',
       ],
     },
     {
       id: 'changes', title: 'Changes to the service and these terms',
       paragraphs: [
-        'We may change the service, and we may change these terms. When the terms change in substance, the effective date at the top changes, new accounts accept the new version at sign-up, and we will tell existing accounts by email or a notice in the app. Continuing to use timeld after a change means you accept it.',
+        'We may change the service, and we may change these terms. When the terms change in substance, the effective date at the top changes, new accounts accept the new version at sign-up, and we will tell existing accounts by email or a notice in the app. Continuing to use Timeld after a change means you accept it.',
       ],
     },
     {
       id: 'law', title: 'Governing law and disputes',
       paragraphs: [
-        'These terms are governed by the laws of the United States and of the state in which timeld is operated, without regard to conflict-of-law rules, and any dispute will be brought in the courts there, except where the law of the country you live in gives you the right to bring it at home. Before going to court, please write to us; most things can be sorted out that way.',
+        'These terms are governed by the laws of the United States and of the state in which Timeld is operated, without regard to conflict-of-law rules, and any dispute will be brought in the courts there, except where the law of the country you live in gives you the right to bring it at home. Before going to court, please write to us; most things can be sorted out that way.',
       ],
     },
     {
       id: 'general', title: 'General',
       paragraphs: [
-        'These terms and the Privacy Policy are the whole agreement between you and timeld about the service. If any part of them is found unenforceable, the rest still applies. Our not enforcing a term is not a waiver of it. You may not transfer this agreement to anyone else; we may transfer it to a successor that takes over the service.',
+        'These terms and the Privacy Policy are the whole agreement between you and Timeld about the service. If any part of them is found unenforceable, the rest still applies. Our not enforcing a term is not a waiver of it. You may not transfer this agreement to anyone else; we may transfer it to a successor that takes over the service.',
       ],
     },
     {

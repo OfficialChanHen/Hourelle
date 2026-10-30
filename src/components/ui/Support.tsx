@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Coffee } from 'lucide-react'
 
-/* timeld is free to host and free to join, and stays that way. The one ask is a
+/* Timeld is free to host and free to join, and stays that way. The one ask is a
    coffee, for whoever feels like it. The link is the Buy Me a Coffee page, overridable
    from the environment. */
 export const SUPPORT_URL = process.env.NEXT_PUBLIC_SUPPORT_URL || 'https://www.buymeacoffee.com/ChanHen'
@@ -24,7 +24,7 @@ export function SupportCard() {
       <div className="min-w-[220px] flex-1">
         <p className="text-[14px] font-semibold">Free to host, free to join</p>
         <p className="mt-1 text-[13.5px] leading-[1.6] text-dim">
-          timeld costs nothing. If it saved you a group chat or two, a coffee keeps the servers and the reminders going.
+          Timeld costs nothing. If it saved you a group chat or two, a coffee keeps the servers and the reminders going.
         </p>
       </div>
       {/* the official button, so it is recognised at a glance; an image from their CDN, no script */}

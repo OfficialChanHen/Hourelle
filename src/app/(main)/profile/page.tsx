@@ -25,7 +25,7 @@ const Eyebrow = ({ children }: { children: React.ReactNode }) => (
 const LINKS = [
   { href: '/settings', label: 'Settings', sub: 'Theme, clock style, reminders', icon: Settings },
   { href: '/help', label: 'Help & contact', sub: 'Common questions, and where to reach us', icon: CircleHelp },
-  { href: '/about', label: 'About timeld', sub: 'What this is and where your data lives', icon: Info },
+  { href: '/about', label: 'About Timeld', sub: 'What this is and where your data lives', icon: Info },
 ]
 
 export default function ProfilePage() {

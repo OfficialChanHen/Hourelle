@@ -256,7 +256,7 @@ export default function SettingsPage() {
               </button>
             )}
             <Link href="/pricing" className="flex h-9 flex-none items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2">
-              <Sparkles size={14} className="text-accent-text" /> {planState.plan === 'plus' ? 'What Plus includes' : 'See timeld Plus'}
+              <Sparkles size={14} className="text-accent-text" /> {planState.plan === 'plus' ? 'What Plus includes' : 'See Timeld Plus'}
             </Link>
           </div>
         </div>

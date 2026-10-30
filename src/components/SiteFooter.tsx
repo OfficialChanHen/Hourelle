@@ -36,7 +36,7 @@ export function SiteFooter() {
           </nav>
         </div>
         <div className="mt-9 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-border pt-5 text-[12px] text-faint md:mt-11">
-          <span>© {new Date().getFullYear()} timeld</span>
+          <span>© {new Date().getFullYear()} Timeld</span>
           <span className="flex items-center gap-1.5"><MessageCircle size={12} aria-hidden /> Guests never need an account.</span>
         </div>
       </div>

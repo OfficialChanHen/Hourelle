@@ -408,7 +408,7 @@ export async function connectCalendar(provider: OAuthProvider, next: string): Pr
       const { error } = await supabase!.auth.linkIdentity({ provider, options })
       if (!error) return null
       if (/already|exists|registered|taken/i.test(error.message)) {
-        return `That ${PROVIDER_LABEL[provider]} account is already its own timeld account. Log in with it to import that calendar.`
+        return `That ${PROVIDER_LABEL[provider]} account is already its own Timeld account. Log in with it to import that calendar.`
       }
       return error.message
     }
@@ -457,7 +457,7 @@ export async function linkProvider(provider: OAuthProvider, next: string): Promi
   // the one refusal worth explaining: that account is already its own account
   // here, and the way to put them together is the merge below
   if (/already|exists|registered|taken/i.test(error.message)) {
-    return `That ${label} account is already its own timeld account. Log in with ${label} to use it.`
+    return `That ${label} account is already its own Timeld account. Log in with ${label} to use it.`
   }
   return error.message
 }
