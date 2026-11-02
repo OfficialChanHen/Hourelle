@@ -59,7 +59,7 @@ import { paintRanges, withoutOverlap, type Brush } from '@/lib/availability'
 import { useAccount } from '@/hooks/useAccount'
 import { useFollow } from '@/hooks/useFollow'
 import { useGuestMode } from '@/hooks/useGuestMode'
-import { planUsualWeek, weekHasTime } from '@/lib/usual-week'
+import { planUsualWeek, weekFits } from '@/lib/usual-week'
 import { canEmail, sendNudges } from '@/lib/mail'
 import {
   addMeToEvent, listEvents, patchEvent, patchEventWith, availIvOf, freeIvOf, myTimesPatch, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
@@ -259,7 +259,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // guest and a sample plan never see it; 'empty' points at the profile to paint one
   const guestMode = useGuestMode()
   const weekOn = !event.demo && guestMode !== event.id && (account.signedIn || !backendOn) && event.days.every((d) => ISO_DAY.test(d.key))
-  const usualWeek = weekOn ? (weekHasTime(account.usualWeek) ? 'ready' : 'empty') : null
+  const usualWeek = weekOn ? (weekFits(account.usualWeek, dayPoll) ? 'ready' : 'empty') : null
   // what the panel offers depends on whose event it is: how long the thing needs and
   // what the best window should favour are the host's answers, and they change the
   // event for everybody. Everything else in there is about this screen or your own
@@ -1120,12 +1120,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // time outside it is not busy. What a calendar striped and your locked-in plans stay out.
   function fillFromWeek() {
     const week = account.usualWeek
-    if (!week || !weekHasTime(week)) return
+    if (!week || !weekFits(week, dayPoll)) return
     const snapshot = { free: mineRef.current, need: needRef.current }
     const out = planUsualWeek(event, meId, snapshot.free, week, snapshot.need, lockedPlanBusyUtc(listEvents(), event.id))
     if (!out.timesChanged) {
       stashUndo(null, out.none
-        ? (dayPoll ? 'Your usual week has no time on these days.' : 'Your usual week has no time inside these hours.')
+        ? (dayPoll ? 'None of these days is a whole day in your usual week.' : 'Your usual week has no time inside these hours.')
         : 'Nothing new to add from your usual week.')
       return
     }
@@ -1652,7 +1652,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           <SegmentedControl label="Brush" size="sm" value={brush} onChange={(v) => setBrush(v as 'free' | 'need')} options={[{ v: 'free', l: 'Free', icon: FreeSwatch }, { v: 'need', l: 'If need be', icon: NeedSwatch }]} />
         )}
         {/* importing fills YOUR times, so it rides with edit mode — view stays lean */}
-        {!locked && mode === 'edit' && <ImportFromCalendar soon={importSoon(backendOn)} week={usualWeek} onPick={(p) => void startImport(p)} note={backendOn ? (dayPoll ? 'Free days are marked for you. Days with something on your calendar are striped as busy, for you to decide.' : 'Your free hours are painted, and what your calendar has is striped as busy.') : 'A sample calendar stands in until a backend is set up.'} />}
+        {!locked && mode === 'edit' && <ImportFromCalendar soon={importSoon(backendOn)} week={usualWeek} dayPoll={dayPoll} onPick={(p) => void startImport(p)} note={backendOn ? (dayPoll ? 'Free days are marked for you. Days with something on your calendar are striped as busy, for you to decide.' : 'Your free hours are painted, and what your calendar has is striped as busy.') : 'A sample calendar stands in until a backend is set up.'} />}
         {/* the other edit-mode helpers ride here too, so switching between View and
             Edit mine only changes this line and the people below never move */}
         {mode === 'edit' && (dayPoll

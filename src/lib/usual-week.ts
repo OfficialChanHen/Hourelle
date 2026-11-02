@@ -9,23 +9,30 @@
    carried abroad. A fill follows the calendar import's rule: free time joins what
    you marked, nothing you marked is removed, and what a calendar striped as busy or
    a plan you are going to holds is left out. Time outside the week is not busy, so
-   a fill draws no stripes. */
+   a fill draws no stripes.
+
+   Beside the hours sit whole days: the weekdays you can usually give a whole day to.
+   A plan that asks for days reads only those, so an hour free on a Tuesday never
+   says you can do the Tuesday. */
 
 import type { AppEvent, Iv } from './events'
 import { gridStartMinOf, normalizeIv, stepOf } from './availability'
 import { tzOffsetMin, zonedToUtc } from './tz'
 import type { ImportOutcome, UtcBusy } from './calendar-import'
 
-export type UsualWeek = { tz: string; days: Iv[][] } // seven weekdays, Sunday first (Date.getDay())
+// seven weekdays, Sunday first (Date.getDay()): clock ranges for plans that ask for
+// times, and whether the whole day is usually yours for plans that ask for days
+export type UsualWeek = { tz: string; days: Iv[][]; wholeDays: boolean[] }
 
 const DAY_MIN = 24 * 60
 const DAY_MS = DAY_MIN * 60000
 const ISO = /^\d{4}-\d{2}-\d{2}$/
-// a day poll counts a day as one you can make when the week has this much of it
-const DAY_POLL_MIN = 60
-
-export const emptyWeek = (tz: string): UsualWeek => ({ tz, days: [[], [], [], [], [], [], []] })
-export const weekHasTime = (w: UsualWeek | undefined): boolean => !!w?.days.some((d) => d.length > 0)
+export const emptyWeek = (tz: string): UsualWeek => ({ tz, days: [[], [], [], [], [], [], []], wholeDays: [false, false, false, false, false, false, false] })
+export const hasHours = (w: UsualWeek | undefined): boolean => !!w?.days.some((d) => d.length > 0)
+export const hasWholeDays = (w: UsualWeek | undefined): boolean => !!w?.wholeDays.some(Boolean)
+export const weekHasTime = (w: UsualWeek | undefined): boolean => hasHours(w) || hasWholeDays(w)
+/** Whether the week has anything for this kind of plan. */
+export const weekFits = (w: UsualWeek | undefined, dayPoll: boolean): boolean => (dayPoll ? hasWholeDays(w) : hasHours(w))
 
 /** What storage hands back, made safe: seven sorted, merged lists inside the day. */
 export function cleanUsualWeek(raw: unknown): UsualWeek | undefined {
@@ -35,7 +42,9 @@ export function cleanUsualWeek(raw: unknown): UsualWeek | undefined {
     .filter((iv): iv is Iv => typeof iv?.s === 'number' && typeof iv?.e === 'number')
     .map((iv) => ({ s: Math.max(0, Math.min(iv.s, iv.e)), e: Math.min(DAY_MIN, Math.max(iv.s, iv.e)) }))
     .filter((iv) => iv.e > iv.s)))
-  return { tz: r.tz, days }
+  const whole = (r as { wholeDays?: unknown }).wholeDays
+  const wholeDays = Array.from({ length: 7 }, (_, i) => Array.isArray(whole) && whole[i] === true)
+  return { tz: r.tz, days, wholeDays }
 }
 
 const isoOfUtc = (ms: number) => new Date(ms).toISOString().slice(0, 10)
@@ -91,19 +100,24 @@ export function planUsualWeek(
     const s = zonedToUtc(d.key, gridStart, ev.timezone)
     const e = zonedToUtc(d.key, gridStart + gridMax, ev.timezone)
     const toGrid = (b: UtcBusy): Iv => ({ s: (Math.max(b.s, s) - s) / 60000, e: (Math.min(b.e, e) - s) / 60000 })
-    let free = normalizeIv(usualFreeUtc(week, s, e).map(toGrid))
-    if (free.length) any = true
-    free = cut(free, [
+    const taken = [
       ...ev.importedIv?.[d.key]?.[meId] ?? [],
       ...blockedUtc.filter((b) => b.e > s && b.s < e).map(toGrid),
-    ])
+    ]
     const marked = [...(mine[d.key] ?? []), ...(need[d.key] ?? [])]
     if (dayPoll) {
-      if (marked.length || free.reduce((m, iv) => m + iv.e - iv.s, 0) < DAY_POLL_MIN) continue
+      // the plan's own date, so its weekday is the one the plan means; a day a
+      // calendar striped or a plan you are going to holds is not a whole free day
+      if (!week.wholeDays[weekdayOf(d.key)]) continue
+      any = true
+      if (marked.length || taken.length) continue
       times[d.key] = [{ s: 0, e: gridMax }]
       addedDays++
       continue
     }
+    let free = normalizeIv(usualFreeUtc(week, s, e).map(toGrid))
+    if (free.length) any = true
+    free = cut(free, taken)
     const add = cut(free, marked)
     if (!add.length) continue
     addedMin += add.reduce((m, iv) => m + iv.e - iv.s, 0)
@@ -136,5 +150,5 @@ export function moveWeekToZone(week: UsualWeek, tz: string, at = Date.now()): Us
       }
     }
   })
-  return { tz, days: days.map(normalizeIv) }
+  return { tz, days: days.map(normalizeIv), wholeDays: week.wholeDays }
 }

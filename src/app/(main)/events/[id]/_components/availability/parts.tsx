@@ -163,7 +163,7 @@ export function FilterModal({ participants, filter, onToggle, onClear, onSelectA
    apply (a guest, a sample), 'empty' when there is none yet (the item goes to the
    profile to paint one). */
 export const USUAL_WEEK = 'My usual week'
-export function ImportFromCalendar({ onPick, providers = ['Google Calendar', 'Outlook'], note, soon = false, week = null }: { onPick: (provider: string) => void; providers?: string[]; note?: string; soon?: boolean; week?: 'ready' | 'empty' | null }) {
+export function ImportFromCalendar({ onPick, providers = ['Google Calendar', 'Outlook'], note, soon = false, week = null, dayPoll = false }: { onPick: (provider: string) => void; providers?: string[]; note?: string; soon?: boolean; week?: 'ready' | 'empty' | null; dayPoll?: boolean }) {
   return (
     <Popover
       align="start"
@@ -184,8 +184,8 @@ export function ImportFromCalendar({ onPick, providers = ['Google Calendar', 'Ou
             </PopoverItem>
           )}
           {week === 'empty' && (
-            <PopoverItem href="/profile#usual-week" onClick={close} icon={<CalendarHeart size={15} className="text-accent-text" />}>
-              Set up my usual week
+            <PopoverItem href={dayPoll ? '/profile#usual-days' : '/profile#usual-week'} onClick={close} icon={<CalendarHeart size={15} className="text-accent-text" />}>
+              {dayPoll ? 'Set up my usual whole days' : 'Set up my usual week'}
             </PopoverItem>
           )}
           {week && <PopoverSep />}

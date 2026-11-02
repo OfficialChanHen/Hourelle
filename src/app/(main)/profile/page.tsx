@@ -40,8 +40,8 @@ export default function ProfilePage() {
   useEffect(() => {
     const go = () => {
       const id = window.location.hash.slice(1)
-      if (id !== 'face' && id !== 'usual-week') return
-      document.getElementById(id)?.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' })
+      if (id !== 'face' && id !== 'usual-week' && id !== 'usual-days') return
+      document.getElementById(id === 'usual-days' ? 'usual-week' : id)?.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' })
     }
     go()
     window.addEventListener('hashchange', go)

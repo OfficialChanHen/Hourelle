@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { zonedToUtc } from '@/lib/calendar-import'
-import { cleanUsualWeek, emptyWeek, moveWeekToZone, planUsualWeek, usualFreeUtc, weekHasTime, type UsualWeek } from '@/lib/usual-week'
+import { cleanUsualWeek, emptyWeek, moveWeekToZone, planUsualWeek, usualFreeUtc, weekFits, weekHasTime, type UsualWeek } from '@/lib/usual-week'
 import { day, plan } from '../../../test/fixtures'
 
 const TZ = 'America/Chicago'
@@ -65,16 +65,26 @@ describe('planUsualWeek', () => {
     expect(out.times['2026-10-20']).toEqual([{ s: 60, e: 180 }, { s: 240, e: 360 }])
     expect(out.importedIv).toEqual(striped.importedIv)
   })
-  it('on a day poll, marks days with an hour or more free and nothing marked', () => {
-    const dp = plan({ granularity: 'day', times: ['All day'], days: [day('2026-10-20'), day('2026-10-21'), day('2026-10-22')] })
+  it('on a day poll, marks only the whole days, never a day with just some hours', () => {
+    const dp = plan({ granularity: 'day', times: ['All day'], days: [day('2026-10-20'), day('2026-10-21'), day('2026-10-22'), day('2026-10-23')] })
     const w = emptyWeek(TZ)
-    w.days[2] = [{ s: 1080, e: 1200 }] // Tue 2h
-    w.days[3] = [{ s: 1080, e: 1110 }] // Wed 30m, too short
-    w.days[4] = [{ s: 1080, e: 1200 }] // Thu, but already marked
-    const out = planUsualWeek(dp, 'H', { '2026-10-22': [{ s: 0, e: 1440 }] }, w)
+    w.days[3] = [{ s: 0, e: 1200 }] // Wed: most of the day in hours, but not a whole day
+    w.wholeDays[2] = true // Tue
+    w.wholeDays[4] = true // Thu, but already marked
+    w.wholeDays[5] = true // Fri, but a locked plan holds part of it
+    const locked = [{ s: zonedToUtc('2026-10-23', 1140, TZ), e: zonedToUtc('2026-10-23', 1260, TZ) }]
+    const out = planUsualWeek(dp, 'H', { '2026-10-22': [{ s: 0, e: 1440 }] }, w, {}, locked)
     expect(out.times['2026-10-20']).toEqual([{ s: 0, e: 1440 }])
     expect(out.times['2026-10-21']).toBeUndefined()
+    expect(out.times['2026-10-23']).toBeUndefined()
     expect(out.addedDays).toBe(1)
+    expect(out.none).toBe(false)
+  })
+  it('on a day poll, says when the week has no whole days', () => {
+    const dp = plan({ granularity: 'day', times: ['All day'] })
+    const out = planUsualWeek(dp, 'H', {}, week([[0, 1440]], [2, 3]))
+    expect(out.none).toBe(true)
+    expect(out.timesChanged).toBe(false)
   })
   it('says when the week has nothing in the plan’s window', () => {
     const out = planUsualWeek(ev, 'H', {}, week([[1080, 1200]], [2, 3]))
@@ -90,8 +100,13 @@ describe('the stored week', () => {
     const w = cleanUsualWeek({ tz: 'UTC', days: [[{ s: 60, e: 0 }, { s: 0, e: 30 }, { s: 20, e: 90 }], [], [], [], [], [], [{ s: 1400, e: 2000 }]] })!
     expect(w.days[0]).toEqual([{ s: 0, e: 90 }])
     expect(w.days[6]).toEqual([{ s: 1400, e: 1440 }])
+    expect(w.wholeDays).toEqual([false, false, false, false, false, false, false])
     expect(weekHasTime(w)).toBe(true)
     expect(weekHasTime(emptyWeek('UTC'))).toBe(false)
+    const whole = cleanUsualWeek({ tz: 'UTC', days: [[], [], [], [], [], [], []], wholeDays: [true, 'yes', false, false, false, false, true] })!
+    expect(whole.wholeDays).toEqual([true, false, false, false, false, false, true])
+    expect(weekFits(whole, true)).toBe(true)
+    expect(weekFits(whole, false)).toBe(false)
   })
 })
 

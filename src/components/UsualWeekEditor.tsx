@@ -1,30 +1,34 @@
 'use client'
 
 /* ── my usual week, painted on the profile page ──
-   The plan grid's look and its way of painting, on a week with no dates: Monday to
-   Sunday, 6 AM to midnight in half hours, only your own marks. Drag across cells to
-   paint, drag from a marked cell to rub out; on a phone a finger that rests for a
-   beat paints and a quick swipe scrolls, as on a plan. It saves as you go. Plans fill
-   from it only when you ask (see lib/usual-week.ts). */
+   Two views of one week, under a switch. Hours: the plan grid's look and its way of
+   painting, on a week with no dates, Monday to Sunday, 12 AM to 12 AM in half hours,
+   only your own marks. Drag across cells to paint, drag from a marked cell to rub
+   out; on a phone a finger that rests for a beat paints and a quick swipe scrolls, as
+   on a plan. Whole days: the weekdays you can usually give a whole day to, which is
+   all a plan asking for days reads. It saves as you go. Plans fill from it only when
+   you ask (see lib/usual-week.ts). */
 
 import { useEffect, useRef, useState } from 'react'
 import { Check, Eraser } from 'lucide-react'
 import { TimezonePill } from '@/components/ui/TimezonePill'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { localTimeZone } from '@/lib/calendar-import'
 import { paintRanges } from '@/lib/availability'
 import { prefH24 } from '@/lib/prefs'
 import { updateUsualWeek, type Account } from '@/lib/session'
-import { emptyWeek, moveWeekToZone, weekHasTime, type UsualWeek } from '@/lib/usual-week'
+import { emptyWeek, hasHours, hasWholeDays, moveWeekToZone, weekHasTime, type UsualWeek } from '@/lib/usual-week'
 import type { Iv } from '@/lib/events'
 
 const COLS = [1, 2, 3, 4, 5, 6, 0] // Monday first; the numbers are Date.getDay()
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-const START = 6 * 60, STEP = 30, ROWS = (24 * 60 - START) / STEP
+const START = 0, STEP = 30, ROWS = (24 * 60 - START) / STEP
 const HOLD_MS = 160 // touch: rest the finger this long to paint; a quicker swipe scrolls
 const SLOP = 8
 const SAVE_MS = 600
 
+type View = 'hours' | 'days'
 type Pt = { c: number; r: number }
 type Drag = { a: Pt; b: Pt; erase: boolean }
 
@@ -49,6 +53,19 @@ export function UsualWeekEditor({ account }: { account: Account }) {
   const [saved, setSaved] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [cleared, setCleared] = useState<UsualWeek | null>(null)
+  // a plan asking for days links here with #usual-days; otherwise the view that has
+  // something in it, hours first
+  const [view, setView] = useState<View>(() => {
+    const w = account.usualWeek
+    return hasWholeDays(w) && !hasHours(w) ? 'days' : 'hours'
+  })
+  // a link can set the address after this first draws, so it is read here and on change
+  useEffect(() => {
+    const read = () => { if (window.location.hash === '#usual-days') setView('days') }
+    read()
+    window.addEventListener('hashchange', read)
+    return () => window.removeEventListener('hashchange', read)
+  }, [])
   const grid = useRef<HTMLDivElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
   // opens on the earliest time you marked, an hour above it; an empty week on 5 PM,
@@ -63,7 +80,7 @@ export function UsualWeekEditor({ account }: { account: Account }) {
     const row = grid.current?.querySelector<HTMLElement>(`[data-uw="0:${Math.round((at - START) / STEP)}"]`)
     const head = grid.current?.querySelector<HTMLElement>('[role="columnheader"]')
     if (row) el.scrollTop = row.offsetTop - (head?.offsetHeight ?? 0)
-  }, [week])
+  }, [week, view])
   const hold = useRef<{ timer: ReturnType<typeof setTimeout> | null; pt: Pt; x: number; y: number } | null>(null)
 
   // saves a beat after the last change, and only a real change
@@ -184,23 +201,43 @@ export function UsualWeekEditor({ account }: { account: Account }) {
     const full = Array.from({ length: ROWS }, (_, r) => r).every((r) => on(week.days[wd], r))
     paint([{ wd, r0: 0, r1: ROWS - 1 }], full)
   }
+  function toggleWhole(wd: number) {
+    setWeek((w) => ({ ...w, wholeDays: w.wholeDays.map((v, i) => (i === wd ? !v : v)) }))
+  }
+  // clears the view on screen; Undo puts the whole week back as it was
   function clear() {
     setCleared(week)
-    setWeek((w) => emptyWeek(w.tz))
+    setWeek((w) => (view === 'hours' ? { ...w, days: emptyWeek(w.tz).days } : { ...w, wholeDays: emptyWeek(w.tz).wholeDays }))
+  }
+  function switchTo(v: View) {
+    // the hours grid opens again on your earliest time
+    if (v === 'hours') placed.current = false
+    setView(v)
   }
 
   const here = localTimeZone()
-  const moved = here !== week.tz && weekHasTime(week)
+  const moved = view === 'hours' && here !== week.tz && hasHours(week)
+  const anyHere = view === 'hours' ? hasHours(week) : hasWholeDays(week)
 
   return (
     <div className="rounded-2xl border border-border bg-s1 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <p className="min-w-0 text-[13.5px] leading-[1.5] text-dim">Paint the times you are usually free. Any plan can fill from it.</p>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <SegmentedControl
+          label="Show"
+          value={view}
+          onChange={(v) => switchTo(v as View)}
+          options={[{ v: 'hours', l: 'Hours' }, { v: 'days', l: 'Whole days' }]}
+        />
         <div className="flex items-center gap-3">
           {saved && <span className="flex items-center gap-1 text-[12px] font-medium text-teal-text" role="status"><Check size={13} /> Saved</span>}
-          <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={week.tz} /></span>
+          {view === 'hours' && <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={week.tz} /></span>}
         </div>
       </div>
+      <p className="mt-3 text-[13.5px] leading-[1.5] text-dim">
+        {view === 'hours'
+          ? 'Paint the times you are usually free. Plans that ask for times fill from these.'
+          : 'Pick the days you can usually give a whole day to. Plans that ask for days fill from these only.'}
+      </p>
       {moved && (
         <p className="mt-2.5 text-[12.5px] text-dim">
           Your week is in {week.tz.split('/').pop()!.replace(/_/g, ' ')} time.{' '}
@@ -210,6 +247,7 @@ export function UsualWeekEditor({ account }: { account: Account }) {
         </p>
       )}
 
+      {view === 'hours' ? (
       <div ref={scroller} className="scroll-slim relative mt-4 max-h-[440px] overflow-y-auto rounded-xl border border-grid-edge" style={{ overscrollBehavior: 'contain' }}>
         <div
           ref={grid}
@@ -242,7 +280,7 @@ export function UsualWeekEditor({ account }: { account: Account }) {
             const line = hour ? 'border-grid-line/50' : 'border-grid-line/20'
             return (
               <div key={r} role="row" className="contents">
-                <div className={`sticky left-0 z-[5] flex h-6 items-start justify-end border-r border-grid-edge bg-s0 pr-1.5 text-[11px] font-medium leading-none text-dim ${r < ROWS - 1 ? `border-b ${line}` : ''}`}>
+                <div className={`sticky left-0 z-[5] flex h-6 items-start justify-end border-b border-r border-grid-edge bg-s0 pr-1.5 text-[11px] font-medium leading-none text-dim ${line}`}>
                   {hour && <span className="-mt-[1px] whitespace-nowrap pt-0.5">{clock(min, h24)}</span>}
                 </div>
                 {COLS.map((wd, c) => {
@@ -275,7 +313,7 @@ export function UsualWeekEditor({ account }: { account: Account }) {
                         e.preventDefault()
                         grid.current?.querySelector<HTMLElement>(`[data-uw="${to[0]}:${to[1]}"]`)?.focus()
                       }}
-                      className={`h-6 focus-visible:-outline-offset-2 ${c < 6 ? 'border-r border-grid-line/20' : ''} ${r < ROWS - 1 ? `border-b ${line}` : ''}`}
+                      className={`h-6 border-b focus-visible:-outline-offset-2 ${line} ${c < 6 ? 'border-r border-r-grid-line/20' : ''}`}
                       style={{
                         background: mark ? 'linear-gradient(var(--you-some), var(--you-some)), var(--s1)' : 'var(--s2)',
                         boxShadow: edges,
@@ -286,11 +324,45 @@ export function UsualWeekEditor({ account }: { account: Account }) {
               </div>
             )
           })}
+          {/* the day closes where it opened: 12 AM again under the last row */}
+          <div className="sticky left-0 z-[5] flex h-5 items-start justify-end border-r border-grid-edge bg-s0 pr-1.5 text-[11px] font-medium leading-none text-dim">
+            <span className="whitespace-nowrap pt-0.5">{clock(24 * 60, h24)}</span>
+          </div>
+          <div className="bg-s0" style={{ gridColumn: '2 / -1' }} />
         </div>
       </div>
+      ) : (
+        <div className="mt-4 grid grid-cols-7 overflow-hidden rounded-xl border border-grid-edge" role="group" aria-label="Whole days">
+          {COLS.map((wd, c) => {
+            const mark = week.wholeDays[wd]
+            const weekend = wd === 0 || wd === 6
+            return (
+              <button
+                key={wd}
+                type="button"
+                onClick={() => toggleWhole(wd)}
+                aria-pressed={mark}
+                aria-label={DOW_LONG[wd]}
+                className={`flex h-24 flex-col items-center justify-between py-2.5 focus-visible:-outline-offset-2 sm:h-28 ${c < 6 ? 'border-r border-grid-edge' : ''}`}
+                style={{
+                  background: mark ? 'linear-gradient(var(--you-some), var(--you-some)), var(--s1)' : 'var(--s2)',
+                  boxShadow: mark ? 'inset 0 0 0 1.5px var(--you-text)' : undefined,
+                }}
+              >
+                <span className={`text-[12px] font-semibold ${weekend && !mark ? 'text-faint' : 'text-text'}`}>
+                  <span className="sm:hidden">{DOW[wd][0]}</span><span className="hidden sm:inline">{DOW[wd]}</span>
+                </span>
+                <span className={`grid h-5 w-5 place-items-center rounded-[6px] border ${mark ? 'border-accent bg-accent text-on-accent' : 'border-border2 text-transparent'}`}>
+                  <Check size={13} />
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        {weekHasTime(week) && (
+        {anyHere && (
           <button type="button" onClick={clear} className="flex h-11 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-semibold text-dim hover:bg-s2 hover:text-text sm:h-9">
             <Eraser size={14} /> Clear
           </button>
