@@ -23,14 +23,23 @@ import { backendOn } from '@/lib/db'
 import { importSoon } from '@/lib/calendar-import'
 import { connectCalendar, providerToken } from '@/lib/session'
 import { reducedMotion } from '@/lib/prefs'
+import { weekHasTime } from '@/lib/usual-week'
+import { useAccount } from '@/hooks/useAccount'
 
-const LABEL: Record<FillProvider, string> = { google: 'Google Calendar', outlook: 'Outlook calendar' }
+const LABEL: Record<FillProvider, string> = { google: 'Google Calendar', outlook: 'Outlook calendar', week: 'usual week' }
+const SHORT: Record<FillProvider, string> = { google: 'Google', outlook: 'Outlook', week: 'Usual week' }
 const LAST = 'hourelle.fill.provider'
 
 function dur(m: number) { return m < 60 ? `${m}m` : m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h` }
 
 export function FillFromCalendar({ events, onChanged }: { events: AppEvent[]; onChanged: () => void }) {
   const plans = fillablePlans(events)
+  const account = useAccount()
+  // your usual week needs no calendar permission, so it is offered even while the
+  // calendars are still "Coming soon"
+  const calendarsOn = !importSoon(backendOn)
+  const weekReady = weekHasTime(account.usualWeek) && (account.signedIn || !backendOn)
+  const sources: FillProvider[] = [...(weekReady ? ['week' as const] : []), ...(calendarsOn ? ['google' as const, 'outlook' as const] : [])]
   const [open, setOpen] = useState(false)
   // back from Google or Microsoft with the permission: open on the fill that sent you
   const [resume, setResume] = useState<{ provider: FillProvider; ids: string[] } | null>(null)
@@ -50,7 +59,7 @@ export function FillFromCalendar({ events, onChanged }: { events: AppEvent[]; on
   }, [])
   if (!plans.length && !open) return null
   // "Coming soon" until the plan page's own Import works: the same switches stand behind both
-  if (importSoon(backendOn)) return (
+  if (!sources.length) return (
     <Popover
       align="end"
       width={260}
@@ -70,12 +79,13 @@ export function FillFromCalendar({ events, onChanged }: { events: AppEvent[]; on
       <button type="button" onClick={() => { setResume(null); setOpen(true) }} className={calButton}>
         <CalendarPlus size={15} /> Fill my times
       </button>
-      {open && createPortal(<FillDialog plans={plans} resume={resume} close={() => { setOpen(false); setResume(null) }} onChanged={onChanged} />, document.body)}
+      {open && createPortal(<FillDialog plans={plans} sources={sources} resume={resume} close={() => { setOpen(false); setResume(null) }} onChanged={onChanged} />, document.body)}
     </div>
   )
 }
 
-function FillDialog({ plans, resume, close, onChanged }: { plans: AppEvent[]; resume: { provider: FillProvider; ids: string[] } | null; close: () => void; onChanged: () => void }) {
+function FillDialog({ plans, sources, resume, close, onChanged }: { plans: AppEvent[]; sources: FillProvider[]; resume: { provider: FillProvider; ids: string[] } | null; close: () => void; onChanged: () => void }) {
+  const account = useAccount()
   const root = useRef<HTMLDivElement>(null)
   const card = useRef<HTMLDivElement>(null)
   useGSAP(() => {
@@ -94,7 +104,12 @@ function FillDialog({ plans, resume, close, onChanged }: { plans: AppEvent[]; re
 
   const [provider, setProvider] = useState<FillProvider>(() => {
     if (resume) return resume.provider
-    try { return localStorage.getItem(LAST) === 'outlook' ? 'outlook' : 'google' } catch { return 'google' }
+    // the source used last, while it is still on offer; else the first one
+    try {
+      const last = localStorage.getItem(LAST) as FillProvider | null
+      if (last && sources.includes(last)) return last
+    } catch { /* private mode */ }
+    return sources[0]
   })
   const [picked, setPicked] = useState<Set<string>>(() => new Set(resume ? resume.ids : plans.filter(checkedByDefault).map((p) => p.id)))
   const [busy, setBusy] = useState(false)
@@ -107,6 +122,14 @@ function FillDialog({ plans, resume, close, onChanged }: { plans: AppEvent[]; re
     if (!ids.length) return
     try { localStorage.setItem(LAST, provider) } catch { /* private mode */ }
     setBusy(true); setError(null)
+    if (provider === 'week') {
+      const week = account.usualWeek
+      const out = week ? applyFill(ids, { week }) : null
+      if (out?.ok) setDone(out)
+      setBusy(false)
+      onChanged()
+      return
+    }
     // with a backend the calendar is real: no token yet means one trip to the provider,
     // which lands back on this page and finishes the same fill
     const remote = provider === 'google' ? 'google' : 'azure'
@@ -163,7 +186,7 @@ function FillDialog({ plans, resume, close, onChanged }: { plans: AppEvent[]; re
       <div ref={card} className="flex max-h-[calc(100dvh-32px)] w-full max-w-[440px] flex-col rounded-2xl border border-border bg-s1 shadow-soft">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <div className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint">From your calendar</div>
+            <div className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint">{provider === 'week' ? 'From your usual week' : 'From your calendar'}</div>
             <div id={titleId} className="mt-0.5 text-[15.5px] font-semibold">Fill my times</div>
           </div>
           <button onClick={close} aria-label="Close" className="grid h-11 w-11 place-items-center rounded-full text-dim hover:bg-s2 hover:text-text sm:h-8 sm:w-8">
@@ -179,7 +202,7 @@ function FillDialog({ plans, resume, close, onChanged }: { plans: AppEvent[]; re
               <>
                 <p className="text-[14px] font-medium">
                   {filled.length
-                    ? `Added free time to ${filled.length} of ${done.results.length} ${done.results.length === 1 ? 'plan' : 'plans'}. Busy times are striped.`
+                    ? `Added free time to ${filled.length} of ${done.results.length} ${done.results.length === 1 ? 'plan' : 'plans'}.${provider === 'week' ? '' : ' Busy times are striped.'}`
                     : `Nothing new to add from your ${LABEL[provider]}.`}
                 </p>
                 <ul className="mt-3 divide-y divide-border">
@@ -199,14 +222,16 @@ function FillDialog({ plans, resume, close, onChanged }: { plans: AppEvent[]; re
           </div>
         ) : (
           <div className="scroll-slim min-h-0 flex-1 overflow-auto px-5 py-4">
-            <SegmentedControl
-              value={provider}
-              onChange={(v) => setProvider(v as FillProvider)}
-              options={[{ v: 'google', l: 'Google' }, { v: 'outlook', l: 'Outlook' }]}
-              label="Calendar"
-              stretch
-            />
-            <ul className="mt-4 divide-y divide-border" aria-label="Plans to fill">
+            {sources.length > 1 && (
+              <SegmentedControl
+                value={provider}
+                onChange={(v) => setProvider(v as FillProvider)}
+                options={sources.map((v) => ({ v, l: SHORT[v] }))}
+                label="Fill from"
+                stretch
+              />
+            )}
+            <ul className={`${sources.length > 1 ? 'mt-4' : ''} divide-y divide-border`} aria-label="Plans to fill">
               {plans.map((p) => {
                 const answered = !checkedByDefault(p)
                 return (
@@ -222,7 +247,7 @@ function FillDialog({ plans, resume, close, onChanged }: { plans: AppEvent[]; re
                 )
               })}
             </ul>
-            <p className="mt-3 text-[12.5px] leading-[1.5] text-dim">Adds the free times on your calendar. Nothing you marked is removed.</p>
+            <p className="mt-3 text-[12.5px] leading-[1.5] text-dim">{provider === 'week' ? 'Adds the times in your usual week.' : 'Adds the free times on your calendar.'} Nothing you marked is removed.</p>
             {error && <p className="mt-3 rounded-xl border border-brick-border bg-brick-bg px-3 py-2 text-[13px] text-brick-text" role="alert">{error}</p>}
           </div>
         )}

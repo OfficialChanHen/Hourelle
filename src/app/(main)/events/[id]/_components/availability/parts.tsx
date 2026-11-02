@@ -4,7 +4,7 @@
    calendar import menu, clear-times, drag handles, quick fills,
    the who's-missing popover, the cell breakdown, and small controls */
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { Bell, CalendarPlus, Check, ChevronDown, Eraser, GripHorizontal, Minus, Plus, Search, Users, X, Zap } from 'lucide-react'
+import { Bell, CalendarHeart, CalendarPlus, Check, ChevronDown, Eraser, GripHorizontal, Minus, Plus, Search, Users, X, Zap } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
@@ -158,8 +158,12 @@ export function FilterModal({ participants, filter, onToggle, onClear, onSelectA
 /* ── import from calendar (availability stage): connect a provider and auto-fill busy times ──
    `soon` keeps the door in its place but says it is not open yet: the import needs
    switches on the Google, Microsoft and Supabase side that are not all on, and a
-   button that silently does nothing is worse than one that says so. */
-export function ImportFromCalendar({ onPick, providers = ['Google Calendar', 'Outlook'], note, soon = false }: { onPick: (provider: string) => void; providers?: string[]; note?: string; soon?: boolean }) {
+   button that silently does nothing is worse than one that says so. Your usual week
+   needs none of that, so it stays open either way; `week` is null where it does not
+   apply (a guest, a sample), 'empty' when there is none yet (the item goes to the
+   profile to paint one). */
+export const USUAL_WEEK = 'My usual week'
+export function ImportFromCalendar({ onPick, providers = ['Google Calendar', 'Outlook'], note, soon = false, week = null, dayPoll = false }: { onPick: (provider: string) => void; providers?: string[]; note?: string; soon?: boolean; week?: 'ready' | 'empty' | null; dayPoll?: boolean }) {
   return (
     <Popover
       align="start"
@@ -170,21 +174,33 @@ export function ImportFromCalendar({ onPick, providers = ['Google Calendar', 'Ou
         </span>
       )}
     >
-      {(close) => soon ? (
-        <>
-          <PopoverTitle>Coming soon</PopoverTitle>
-          <p className="px-2.5 pb-2 text-[12.5px] leading-[1.5] text-dim">Filling your times from Google Calendar or Outlook is almost ready. For now, drag across the grid to mark when you&apos;re free.</p>
-        </>
-      ) : (
+      {(close) => (
         <>
           {/* applies instantly; the toast afterward says what landed and offers Undo */}
-          <PopoverTitle>Fills your free times</PopoverTitle>
-          {note && <p className="mb-1.5 px-2.5 text-[12px] leading-[1.45] text-dim">{note}</p>}
-          {providers.map((name) => (
-            <PopoverItem key={name} onClick={() => { close(); onPick(name) }} icon={<CalendarPlus size={15} className="text-accent-text" />}>
-              {name}
+          <PopoverTitle>{soon && !week ? 'Coming soon' : 'Fills your free times'}</PopoverTitle>
+          {week === 'ready' && (
+            <PopoverItem onClick={() => { close(); onPick(USUAL_WEEK) }} icon={<CalendarHeart size={15} className="text-accent-text" />}>
+              {USUAL_WEEK}
             </PopoverItem>
-          ))}
+          )}
+          {week === 'empty' && (
+            <PopoverItem href={dayPoll ? '/profile#usual-days' : '/profile#usual-week'} onClick={close} icon={<CalendarHeart size={15} className="text-accent-text" />}>
+              {dayPoll ? 'Set up my usual whole days' : 'Set up my usual week'}
+            </PopoverItem>
+          )}
+          {week && <PopoverSep />}
+          {soon ? (
+            <p className="px-2.5 pb-2 pt-1 text-[12.5px] leading-[1.5] text-dim">Filling your times from Google Calendar or Outlook is almost ready.{week ? '' : ' For now, drag across the grid to mark when you\u2019re free.'}</p>
+          ) : (
+            <>
+              {note && <p className="mb-1.5 px-2.5 text-[12px] leading-[1.45] text-dim">{note}</p>}
+              {providers.map((name) => (
+                <PopoverItem key={name} onClick={() => { close(); onPick(name) }} icon={<CalendarPlus size={15} className="text-accent-text" />}>
+                  {name}
+                </PopoverItem>
+              ))}
+            </>
+          )}
         </>
       )}
     </Popover>

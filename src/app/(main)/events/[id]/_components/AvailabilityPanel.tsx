@@ -39,7 +39,7 @@ import { answeredLine, needClause } from '@/lib/answers'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, Zap } from 'lucide-react'
+import { CalendarHeart, ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, Zap } from 'lucide-react'
 
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { FaceChipsMore } from '@/components/ui/FaceChips'
@@ -50,7 +50,7 @@ import { DurationField } from '@/components/ui/DurationField'
 import { Hint } from '@/components/ui/Hint'
 import { Popover } from '@/components/ui/Popover'
 import { SettingField, SettingToggle, SettingsMenu } from '@/components/ui/Settings'
-import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, ImportFromCalendar, MissingPopover, PresetFills } from './availability/parts'
+import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, ImportFromCalendar, MissingPopover, PresetFills, USUAL_WEEK } from './availability/parts'
 import { cellBands, cellPeople, clayFor, countLabel, needSegments, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, PILE_AV, PILE_FONT, PILE_OVER, type Band, type GDay } from './availability/grid-lib'
 import { DayCalendar } from './availability/DayCalendar'
 import { WeekStrip } from './availability/WeekStrip'
@@ -58,6 +58,8 @@ import { prefH24, prefWholeWeek } from '@/lib/prefs'
 import { paintRanges, withoutOverlap, type Brush } from '@/lib/availability'
 import { useAccount } from '@/hooks/useAccount'
 import { useFollow } from '@/hooks/useFollow'
+import { useGuestMode } from '@/hooks/useGuestMode'
+import { planUsualWeek, weekFits } from '@/lib/usual-week'
 import { canEmail, sendNudges } from '@/lib/mail'
 import {
   addMeToEvent, listEvents, patchEvent, patchEventWith, availIvOf, freeIvOf, myTimesPatch, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
@@ -116,8 +118,12 @@ function subscribeCoarse(cb: () => void) {
 }
 const OVERSCAN = 6 // rows rendered beyond the viewport each side, so scrolling doesn't flash blank
 
-export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0, onLockDays, onRunChange, onPatch }: {
+export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0, onLockDays, onRunChange, onPatch, pattern }: {
   event: AppEvent; locked?: boolean; initialFilter?: string[] | string | null; focusBest?: number
+  // the profile's usual week: the same grid and the same painting on a week with no
+  // dates and only you on it. Every write goes to `onChange` instead of a plan, and
+  // everything about other people, the best time and the plan's settings is left out
+  pattern?: { onChange: (times: Record<string, Iv[]>) => void }
   // lets a change made here (adding yourself to the list) reach the always-mounted surfaces
   onPatch?: (patch: Partial<AppEvent>) => void
   // host-only shortcut on day polls: hand the footer's winning run straight to the confirm modal
@@ -234,7 +240,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // once the plan is locked the grid is reference only; otherwise open in edit
   // until you've marked something — the page's one ask of a new participant.
   // Arriving with a person to focus (clicked from another tab) always opens in view.
-  const [mode, setMode] = useState<Mode>(locked || initialFilter || notListed ? 'view' : !youAny ? 'edit' : 'view')
+  const [mode, setMode] = useState<Mode>(pattern ? 'edit' : locked || initialFilter || notListed ? 'view' : !youAny ? 'edit' : 'view')
   // there is nobody to write to — stay in view no matter what else says otherwise
   const editable = !locked && !notListed
   if (notListed && mode === 'edit') setMode('view')
@@ -253,6 +259,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // nudges are emails from the host: only the host, logged in, with a backend
   const account = useAccount()
   const canNudge = !!event.hostedByYou && canEmail(account.signedIn)
+  // your usual week belongs to an account (or to this browser with no backend), so a
+  // guest and a sample plan never see it; 'empty' points at the profile to paint one
+  const guestMode = useGuestMode()
+  const weekOn = !event.demo && guestMode !== event.id && (account.signedIn || !backendOn) && event.days.every((d) => ISO_DAY.test(d.key))
+  const usualWeek = weekOn ? (weekFits(account.usualWeek, dayPoll) ? 'ready' : 'empty') : null
   // what the panel offers depends on whose event it is: how long the thing needs and
   // what the best window should favour are the host's answers, and they change the
   // event for everybody. Everything else in there is about this screen or your own
@@ -457,6 +468,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
      or as they stand). Free wins any minute the two share, so a free block moved,
      stretched or quick-filled over if-need-be time takes that time. */
   function persist(m: Record<string, Iv[]>, extra: Partial<AppEvent> = {}, n?: Record<string, Iv[]>) {
+    if (pattern) { pattern.onChange(m); return }
     const cleanNeed = Object.fromEntries(Object.entries(n ?? needRef.current).map(([k, ivs]) => [k, withoutOverlap(m[k] ?? [], ivs)]))
     if (JSON.stringify(cleanNeed) !== JSON.stringify(needRef.current)) setNeed(cleanNeed)
     // marking any time takes back an earlier "none of these days work"
@@ -1041,6 +1053,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     // with a backend the calendars are real: no token yet means a trip to the provider
     // that lands back here with ?import=google or ?import=outlook (see the effect
     // below); otherwise the sample calendar stands in so the flow can be tried without keys
+    if (provider === USUAL_WEEK) { fillFromWeek(); return }
     const remote: OAuthProvider | null = provider === 'Google Calendar' ? 'google' : provider === 'Outlook' ? 'azure' : null
     let busy: UtcBusy[]
     if (remote && backendOn) {
@@ -1106,6 +1119,25 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     stashUndo(snapshot, none
       ? `Nothing on your ${calendar} between ${span}, so every hour is marked free.`
       : `Added ${fmtDur(out.addedMin)} of free time from your ${calendar}. Its busy times are striped.`, wasImported)
+  }
+
+  // the usual week: the same additive rule as a calendar, minus the stripes, since
+  // time outside it is not busy. What a calendar striped and your locked-in plans stay out.
+  function fillFromWeek() {
+    const week = account.usualWeek
+    if (!week || !weekFits(week, dayPoll)) return
+    const snapshot = { free: mineRef.current, need: needRef.current }
+    const out = planUsualWeek(event, meId, snapshot.free, week, snapshot.need, lockedPlanBusyUtc(listEvents(), event.id))
+    if (!out.timesChanged) {
+      stashUndo(null, out.none
+        ? (dayPoll ? 'None of these days is a whole day in your usual week.' : 'Your usual week has no time inside these hours.')
+        : 'Nothing new to add from your usual week.')
+      return
+    }
+    setMine(out.times); persist(out.times); setSel(null)
+    stashUndo(snapshot, dayPoll
+      ? `${out.addedDays} ${out.addedDays === 1 ? 'day' : 'days'} marked from your usual week.`
+      : `Added ${fmtDur(out.addedMin)} of free time from your usual week.`)
   }
 
   // back from Google or Microsoft with the calendar permission: finish the import
@@ -1432,8 +1464,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       <div ref={colRef} data-tour="grid-all" className="relative flex min-w-0 min-h-0 flex-1 flex-col p-4">
         {/* toolbar — first row pairs the mode toggle with Settings (always right-aligned);
             the date range (a one-week poll only) and time controls flow on their own row below */}
-        <div className="border-b border-border pb-[13px]">
-          {editable && (
+        <div className={pattern ? '' : 'border-b border-border pb-[13px]'}>
+          {editable && !pattern && (
             <div className="mb-2.5 flex items-center justify-between gap-[9px]">
               <SegmentedControl label="Mode" size="sm" value={mode} onChange={(v) => { setMode(v as Mode); if (v === 'edit') setBrush('free'); setSel(null); setDetail(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
               <SettingsMenu title="Grid settings">
@@ -1490,7 +1522,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
 
         {/* the people: who is in, the filter, who has answered. Nothing here comes and
             goes with the mode, so the faces hold still when one is tapped */}
-        <div data-tour="people" className="flex flex-wrap items-center gap-2.5 py-[11px]">
+        {!pattern && <div data-tour="people" className="flex flex-wrap items-center gap-2.5 py-[11px]">
           <span className="text-[12.5px] text-dim">Participants</span>
           <FilterAvatars participants={nameSorted} filter={filter} onToggle={toggleFilter} onClear={clearFilter} onSelectAll={selectAllFilter} />
           {/* responded count opens the who's-missing / nudge popover */}
@@ -1570,9 +1602,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               )}
             </Popover>
           </span>
-        </div>
+        </div>}
         {/* times, and the edit-only helpers, under the people: they come and go with
             the mode, so they sit below the faces and never move them */}
+        {pattern ? (
+          <div className="flex flex-wrap items-center gap-[9px] pb-[11px]">
+            <PresetFills onFill={fillPreset} onFillAll={fillAllDays} />
+          </div>
+        ) : (
         <div className="flex flex-wrap items-center gap-[9px] pb-[11px]">
         {dayPoll ? (
           <span className="text-[13.5px] font-semibold leading-tight">
@@ -1625,7 +1662,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           <SegmentedControl label="Brush" size="sm" value={brush} onChange={(v) => setBrush(v as 'free' | 'need')} options={[{ v: 'free', l: 'Free', icon: FreeSwatch }, { v: 'need', l: 'If need be', icon: NeedSwatch }]} />
         )}
         {/* importing fills YOUR times, so it rides with edit mode — view stays lean */}
-        {!locked && mode === 'edit' && <ImportFromCalendar soon={importSoon(backendOn)} onPick={(p) => void startImport(p)} note={backendOn ? (dayPoll ? 'Free days are marked for you. Days with something on your calendar are striped as busy, for you to decide.' : 'Your free hours are painted, and what your calendar has is striped as busy.') : 'A sample calendar stands in until a backend is set up.'} />}
+        {!locked && mode === 'edit' && <ImportFromCalendar soon={importSoon(backendOn)} week={usualWeek} dayPoll={dayPoll} onPick={(p) => void startImport(p)} note={backendOn ? (dayPoll ? 'Free days are marked for you. Days with something on your calendar are striped as busy, for you to decide.' : 'Your free hours are painted, and what your calendar has is striped as busy.') : 'A sample calendar stands in until a backend is set up.'} />}
         {/* the other edit-mode helpers ride here too, so switching between View and
             Edit mine only changes this line and the people below never move */}
         {mode === 'edit' && (dayPoll
@@ -1641,6 +1678,17 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           : <PresetFills onFill={fillPreset} onFillAll={fillAllDays} />)}
         {/* the explicit empty reply: with nothing marked, "none of these days work"
             is one tap — and marking any time takes it back */}
+        {/* one tap from nothing marked to your usual week; hidden once you have said
+            none of these days work, since that is an answer too */}
+        {mode === 'edit' && editable && !youAny && !unavail.has(meId) && usualWeek === 'ready' && (
+          <button
+            type="button"
+            onClick={fillFromWeek}
+            className="flex h-11 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-[11px] text-[12.5px] font-semibold text-accent-text hover:bg-s2 sm:h-7"
+          >
+            <CalendarHeart size={13} /> Use my usual week
+          </button>
+        )}
         {mode === 'edit' && !locked && !youAny && (
           unavail.has(meId) ? (
             <span className="text-[12.5px] text-brick-text">
@@ -1654,6 +1702,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           )
         )}
         </div>
+        )}
 
         {/* filtered-in people with no times yet — say so instead of showing a silently empty grid */}
         {mode === 'view' && unmarked.length > 0 && (() => {
@@ -1713,7 +1762,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         {/* one line of what to do, gone once dismissed. What the colours mean lives in
             the grid's info button, so it is not said twice. Edit mode has its own line
             about dragging, and a grid you cannot edit has nothing to ask of you */}
-        {mode !== 'edit' && editable && (
+        {mode !== 'edit' && editable && !pattern && (
           <Hint name="grid" className="mb-2">
             {dayPoll ? 'Tap the days you can make.' : 'Press Edit mine and drag across the hours you can meet.'}
           </Hint>
@@ -1822,6 +1871,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   }}
                   title={mode === 'edit' ? 'Click to fill the whole day' : undefined}
                 >
+                  {pattern ? (
+                    // a week with no dates: the weekday is the whole label
+                    <div className={`font-semibold leading-tight ${narrow ? 'text-[13px]' : 'text-[14px]'}`}>{narrow ? d.dow[0] : d.dow}</div>
+                  ) : (<>
                   <div className={`text-dim ${narrow ? 'text-[10px]' : 'text-[11px]'}`}>{narrow ? d.dow[0] : d.dow}</div>
                   <div className={`font-semibold leading-tight ${narrow ? 'text-[13px]' : 'text-[14px]'}`} style={{ color: isBestDay || inBlock ? 'var(--ochre-text)' : 'var(--text)' }}>
                     {narrow ? (
@@ -1831,6 +1884,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                       </>
                     ) : d.date}
                   </div>
+                  </>)}
                   {mode === 'edit' && (
                     <span className={`mx-auto mt-[3px] grid h-4 w-4 place-items-center rounded-[5px] border ${dayFull ? 'border-accent bg-accent text-on-accent' : 'border-border2 text-transparent'}`}>
                       <Check size={11} />
@@ -2125,7 +2179,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                       })}
                       {/* slot line redrawn above the heat fills so saturated cells can't wash it out */}
                       <div className="pointer-events-none absolute z-[1] border-b border-r border-grid-line" style={{ inset: '0 -1px -1px 0' }} />
-                      {(cnt > 0 || needExtra) && (() => {
+                      {!pattern && (cnt > 0 || needExtra) && (() => {
                         // color for the surface under the corner: my clay block reaching the
                         // cell's bottom edge wants dark clay text; a full dark heat wants cream;
                         // anything paler (partials included) reads best in dark text
@@ -2199,7 +2253,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         {/* best-answer footer — gone once a time exists (locked in, or fixed at creation
             while the place vote runs). One line, one length control: "1 day" answers with
             the best single slot (or day), longer answers with the best run of days. */}
-        {!locked && !event.confirmed && <div className="mt-0.5 flex flex-wrap items-center gap-2.5 border-t border-border px-0.5 pt-3">
+        {!locked && !event.confirmed && !pattern && <div className="mt-0.5 flex flex-wrap items-center gap-2.5 border-t border-border px-0.5 pt-3">
           {responded === 0 ? (
             <span className="text-[12.5px] text-dim">
               {dayPoll

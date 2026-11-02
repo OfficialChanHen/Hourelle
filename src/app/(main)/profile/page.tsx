@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Check, ChevronRight, CircleHelp, Info, Loader2, LogIn, LogOut, Pencil, Settings, Trash2, X } from 'lucide-react'
@@ -11,7 +11,9 @@ import { backendOn } from '@/lib/db'
 import { PasswordField } from '@/components/ui/PasswordField'
 import { initialsOf, restampMe } from '@/lib/events'
 import { SignInMethods } from './_components/SignInMethods'
-import { YourFace } from './_components/YourFace'
+import { FacePicker, useFaceDraft } from './_components/YourFace'
+import { useHashOpen } from '@/hooks/useHashOpen'
+import { UsualWeekCard } from './_components/UsualWeekCard'
 import { reducedMotion } from '@/lib/prefs'
 import { APP_NAME } from '@/lib/brand'
 
@@ -34,39 +36,60 @@ export default function ProfilePage() {
   const router = useRouter()
 
   // /profile#face (the account menu's Your face, an event's Change face) lands on
-  // the face. The section only renders once the account is known, which can be after
+  // the face, and /profile#usual-week (a plan's Import menu) on the usual week. The section only renders once the account is known, which can be after
   // the router has already looked for it, so it is looked for again when it appears.
   const faceShown = account.signedIn || !backendOn
   useEffect(() => {
     const go = () => {
-      if (window.location.hash !== '#face') return
-      document.getElementById('face')?.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' })
+      const id = window.location.hash.slice(1)
+      if (id !== 'face' && id !== 'usual-week' && id !== 'usual-days') return
+      document.getElementById(id === 'usual-days' ? 'usual-week' : id)?.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' })
     }
     go()
     window.addEventListener('hashchange', go)
     return () => window.removeEventListener('hashchange', go)
   }, [faceShown])
 
-  // editing: the name. The colour is picked with the face, in Your face below
+  // editing: the name and, where there is an owner to keep it, the face and colour
   const [editing, setEditing] = useState(false)
+  const faceDraft = useFaceDraft(account)
   const [name, setName] = useState(account.name)
   const [saving, setSaving] = useState(false)
   const [saveErr, setSaveErr] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const clean = name.trim().replace(/\s+/g, ' ')
-  const dirty = clean !== account.name
+  const nameDirty = account.signedIn && clean !== account.name
+  const nameBad = nameDirty && clean.length < 2
+  const dirty = nameDirty || faceDraft.dirty
+
+  function edit() { setName(account.name); faceDraft.reset(); setSaveErr(null); setSaved(false); setEditing(true) }
+  // the account menu's Your face and a plan's Change face land here to change it
+  useHashOpen(faceShown ? ['face'] : [], () => { if (!editing) edit() })
+  // focus goes back to Edit once the editor folds away
+  const editBtn = useRef<HTMLButtonElement>(null)
+  const wasEditing = useRef(false)
+  useEffect(() => {
+    if (wasEditing.current && !editing) editBtn.current?.focus()
+    wasEditing.current = editing
+  }, [editing])
 
   async function save() {
-    if (!dirty || clean.length < 2) return
+    if (!dirty || nameBad || saving) return
     setSaving(true); setSaveErr(null)
-    const err = await updateProfile({ name: clean })
+    if (nameDirty) {
+      const err = await updateProfile({ name: clean })
+      if (err) { setSaving(false); setSaveErr(err); return }
+      // every event this account sits on shows the new name
+      restampMe({ name: clean })
+    }
+    if (faceDraft.dirty) {
+      const err = await faceDraft.save()
+      if (err) { setSaving(false); setSaveErr(err); return }
+    }
     setSaving(false)
-    if (err) { setSaveErr(err); return }
-    // every event this account sits on shows the new name
-    restampMe({ name: clean })
     setEditing(false); setSaved(true); setTimeout(() => setSaved(false), 1800)
   }
-  function cancel() { setEditing(false); setName(account.name); setSaveErr(null) }
+  function cancel() { setEditing(false); setName(account.name); faceDraft.reset(); setSaveErr(null) }
 
   // the end of the account: a second step spells out what goes with it and asks
   // for the words "delete my account" typed out, the way most services confirm
@@ -90,28 +113,31 @@ export default function ProfilePage() {
     <div className="mx-auto max-w-[760px] px-4 pb-[92px] pt-[34px] sm:px-[26px]">
       <h1 className="font-serif font-normal text-[33.5px] leading-[1.04] tracking-[-0.01em]">Profile</h1>
 
+      {/* who you are: name, email and the face everyone sees on your plans. The face
+          belongs to an account, or to this browser when there is no backend; a
+          visitor with neither has none to make */}
+      <section id="face" aria-label="Account" className="scroll-mt-[72px]">
       <Eyebrow>Account</Eyebrow>
       <div className="rounded-2xl border border-border bg-s1 p-5">
         {!editing ? (
           <div className="flex items-center gap-3.5">
             <Avatar initials={initialsOf(account.name)} color={account.color} face={account.face} size={52} font={19} />
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 text-[16px] font-semibold">{account.name}{saved && <span className="flex items-center gap-1 text-[12px] font-medium text-teal-text"><Check size={13} /> Saved</span>}</div>
+              <div className="flex items-center gap-2 text-[16px] font-semibold">{account.name}{saved && <span role="status" className="flex items-center gap-1 text-[12px] font-medium text-teal-text"><Check size={13} /> Saved</span>}</div>
               <div className="truncate text-[13px] text-dim">
                 {account.signedIn ? account.email : 'Not logged in. Your plans live on this device.'}
               </div>
             </div>
-            {account.signedIn && (
-              <button onClick={() => { setName(account.name); setSaveErr(null); setEditing(true) }} className="flex h-9 flex-none items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2 hover:text-text">
+            {faceShown && (
+              <button ref={editBtn} onClick={edit} className="flex h-11 flex-none items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2 hover:text-text sm:h-9">
                 <Pencil size={14} /> Edit
               </button>
             )}
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-3.5">
-              <Avatar initials={initialsOf(clean || account.name)} color={account.color} face={account.face} size={52} font={19} />
-              <div className="min-w-0 flex-1">
+          <div className="flex flex-col gap-5">
+            {account.signedIn && (
+              <div>
                 <label htmlFor="profile-name" className="block text-[12.5px] font-semibold text-dim">Your name</label>
                 <input
                   id="profile-name" value={name} autoFocus
@@ -123,24 +149,29 @@ export default function ProfilePage() {
                 />
                 <p id="profile-name-hint" className="mt-1.5 text-[12px] text-faint">{clean.length < 2 ? 'At least two characters.' : 'Shows on every plan you are part of.'}</p>
               </div>
+            )}
+            <div>
+              <p className="mb-3 text-[12.5px] font-semibold text-dim">Your face</p>
+              <FacePicker account={account} draft={faceDraft} />
             </div>
             {saveErr && <p role="alert" className="text-[12.5px] font-medium text-brick-text">{saveErr}</p>}
-            <div className="flex items-center gap-2">
-              <button onClick={() => void save()} disabled={!dirty || clean.length < 2 || saving} className="flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-40">
+            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+              <button onClick={() => void save()} disabled={!dirty || nameBad || saving} className="flex h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-40 sm:h-10">
                 {saving ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Save
               </button>
-              <button onClick={cancel} className="flex h-10 items-center gap-1.5 rounded-full border border-border2 px-4 text-[14px] font-semibold text-dim hover:bg-s2"><X size={15} /> Cancel</button>
+              <button onClick={cancel} disabled={saving} className="flex h-11 items-center gap-1.5 rounded-full border border-border2 px-4 text-[14px] font-semibold text-dim hover:bg-s2 sm:h-10"><X size={15} /> Cancel</button>
             </div>
           </div>
         )}
       </div>
+      </section>
 
-      {/* the face everyone sees on your events. It belongs to an account, or to this
-          browser when there is no backend; a visitor with neither has none to make */}
+      {/* the week a plan can fill from, when you ask it to; it belongs to the same
+          owner as the face */}
       {faceShown && (
-        <section id="face" aria-label="Your face" className="scroll-mt-[72px]">
-          <Eyebrow>Your face</Eyebrow>
-          <YourFace account={account} />
+        <section id="usual-week" aria-label="My usual week" className="scroll-mt-[72px]">
+          <Eyebrow>My usual week</Eyebrow>
+          <UsualWeekCard account={account} />
         </section>
       )}
 
