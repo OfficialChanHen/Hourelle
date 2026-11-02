@@ -1,7 +1,14 @@
+import type { Metadata } from 'next'
 import { EventDetail } from './_components/EventDetail'
+import { previewMetadata } from '@/lib/server/preview'
 
 const TABS = ['availability', 'location', 'attendance', 'details'] as const
 type TabKey = (typeof TABS)[number]
+
+// a locked plan's link is shared as the plan page itself; it gets the same preview
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  return previewMetadata((await params).id)
+}
 
 export default async function EventPage({
   params,
