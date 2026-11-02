@@ -9,9 +9,16 @@ export function useHashOpen(ids: string[], open: () => void) {
   latest.current = open
   const key = ids.join(' ')
   useEffect(() => {
-    const read = () => { if (key.split(' ').includes(window.location.hash.slice(1))) latest.current() }
+    const read = () => { if (hashOpens(key ? key.split(' ') : [], window.location.hash)) latest.current() }
     read()
     window.addEventListener('hashchange', read)
     return () => window.removeEventListener('hashchange', read)
   }, [key])
+}
+
+// an empty hash never opens anything: with no ids, a joined key splits to [''] and
+// would match a page loaded with no hash at all
+export function hashOpens(ids: string[], hash: string): boolean {
+  const id = hash.replace(/^#/, '')
+  return id !== '' && ids.includes(id)
 }
