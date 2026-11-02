@@ -1,15 +1,17 @@
-/* ── repeating plans: a group's regular time, kept ──
+/* ── repeating plans: a group's regular plan, asked again on its own ──
    When a host locks a plan in they can say it repeats: every week, every 2 weeks or
-   every month (on the same weekday of the month, "the 1st Tue"). Once that plan is
-   over, the host's app opens the next one the way Duplicate would (same people, place
-   and cover) but already locked at the same clock time, so the group only answers
-   whether they are going. It marks the old plan with its successor, so it opens once,
-   and the new plan repeats the same way until the host stops it.
+   every month (on the same weekday of the month, "the 1st Tue"). Once it is over, a
+   copy opens for the next dates: the same people, place, window and cover, back on
+   the availability grid with nobody's answers in it, and still repeating. The
+   original stays as it was, a past plan with its own answers.
 
-   Everyone starts at no reply: last time's going is not this time's. */
+   The copy is made without the host: by the server (a daily cron, and sooner when
+   anyone on the plan opens the app and asks it to; lib/server/repeats.ts), or by this
+   browser when there is no backend. Either way it is built here, by nextPlanDoc,
+   and the old plan records the copy's id so it is made once. */
 
-import type { AppEvent, ConfirmedSlot, CreateInput, Repeat } from './events'
-import { createEvent, draftFromEvent, getEvent, listEvents, patchEvent, phaseOf, todayKey } from './events'
+import type { AppEvent, ConfirmedSlot, Participant, Repeat } from './events'
+import { bornShape, buildDaysFrom, getEvent, insertEvent, listEvents, newEventId, patchEvent, phaseOf, todayKey } from './events'
 
 export type Cadence = Repeat['every']
 export const CADENCES: Cadence[] = ['week', '2weeks', 'month']
@@ -19,10 +21,9 @@ const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const ms = (iso: string) => Date.parse(`${iso}T00:00:00Z`)
 const iso = (t: number) => new Date(t).toISOString().slice(0, 10)
 const plus = (key: string, days: number) => iso(ms(key) + days * DAY_MS)
-const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 
-// which of its weekday in the month a date is, 1 to 4, or 5 for the last one
-// past the 4th (a 5th Friday becomes "the last Friday" in months that have four)
+// which of its weekday in the month a date is, 1 to 4, or 5 for a 5th one, which
+// reads as "the last" (it always is, and months with four take their 4th)
 const nthOf = (key: string) => Math.ceil(Number(key.slice(8, 10)) / 7)
 
 // the nth weekday of a month, the last one when n is 5
@@ -34,50 +35,106 @@ function nthWeekday(y: number, m: number, dow: number, n: number): string {
   return iso(Date.UTC(y, m, d))
 }
 
-/** How a cadence reads, for the plan locked on `dayKey`. */
+/** How a cadence reads, for the plan anchored on `dayKey`. */
 export function repeatLabel(every: Cadence, dayKey: string): string {
   if (every === 'week') return 'Every week'
   if (every === '2weeks') return 'Every 2 weeks'
-  const n = nthOf(dayKey)
-  return `Every month on the ${['1st', '2nd', '3rd', '4th', 'last'][n - 1]} ${DOW[new Date(ms(dayKey)).getUTCDay()]}`
+  return `Every month on the ${['1st', '2nd', '3rd', '4th', 'last'][nthOf(dayKey) - 1]} ${DOW[new Date(ms(dayKey)).getUTCDay()]}`
 }
 
-/** The locked slot moved on by the cadence to the first one starting on or after
- *  `today`, in the shape the create wizard's set date takes. */
-export function nextSlot(c: ConfirmedSlot, every: Cadence, today: string): NonNullable<CreateInput['fixed']> {
-  const step = (key: string, k: number): string => {
-    if (every !== 'month') return plus(key, k * (every === 'week' ? 7 : 14))
-    const d = new Date(ms(c.dayKey))
-    return nthWeekday(d.getUTCFullYear(), d.getUTCMonth() + k, d.getUTCDay(), nthOf(c.dayKey))
-  }
+/** `dayKey` moved on by the cadence, at least once, to the first date on or after
+ *  `today`. A step is always a whole number of weeks, so the weekday holds. */
+export function nextOccurrence(dayKey: string, every: Cadence, today: string): string {
+  const d = new Date(ms(dayKey))
+  const step = (k: number) => every === 'month'
+    ? nthWeekday(d.getUTCFullYear(), d.getUTCMonth() + k, d.getUTCDay(), nthOf(dayKey))
+    : plus(dayKey, k * (every === 'week' ? 7 : 14))
   let k = 1
-  let day = step(c.dayKey, k)
-  while (day < today && k < 1000) day = step(c.dayKey, ++k)
-  const run = c.endDayKey ? Math.round((ms(c.endDayKey) - ms(c.dayKey)) / DAY_MS) : 0
-  return { day, ...(run > 0 ? { endDay: plus(day, run) } : {}), start: hm(c.startMin), end: hm(c.endMin), allDay: c.startMin === 0 && c.endMin === 24 * 60 }
+  let day = step(k)
+  while (day < today && k < 1000) day = step(++k)
+  return day
 }
 
-/** Your repeating plans that are over and whose next one is not open yet. */
-export function dueRepeats(events: AppEvent[]): AppEvent[] {
-  return events.filter((e) => e.hostedByYou && !e.demo && !e.practice && !!e.repeat && !e.repeat.nextId
-    && e.status === 'confirmed' && !!e.confirmed && phaseOf(e) === 'past')
+/** A repeating plan that is over and has no copy yet. Anyone on it may ask for the
+ *  copy; making it is the server's job (or this browser's, with no backend). */
+export function isDue(e: AppEvent): boolean {
+  return !e.demo && !e.practice && !!e.repeat && !e.repeat.nextId && e.status === 'confirmed' && !!e.confirmed && phaseOf(e) === 'past'
 }
 
-/** Open the next plan of a repeating one, once. Returns the new plan, or null
- *  when there is nothing to do. */
-export function openNext(id: string): AppEvent | null {
-  const prev = getEvent(id)
-  if (!prev?.repeat || prev.repeat.nextId || !prev.confirmed) return null
-  const d = draftFromEvent(id)
-  if (!d) return null
-  const made = createEvent({ ...(d as CreateInput), fixed: nextSlot(prev.confirmed, prev.repeat.every, todayKey()) })
-  const patch: Partial<AppEvent> = { repeat: { every: prev.repeat.every }, repeatOf: prev.id }
-  patchEvent(made.id, patch)
-  patchEvent(prev.id, { repeat: { ...prev.repeat, nextId: made.id } })
-  return { ...made, ...patch }
+/** The next plan in the series, built from the one that just ended: its dates moved
+ *  on by the cadence, everything anyone answered left behind. Pure, so the server and
+ *  the browser build the same copy. */
+export function nextPlanDoc(prev: AppEvent, id: string, today: string, now: number): AppEvent {
+  const every = prev.repeat?.every ?? 'week'
+  const c = prev.confirmed
+  // the plan's first day carries the cadence; everything else keeps its distance from it
+  const start = nextOccurrence(prev.startDate, every, today)
+  const delta = Math.round((ms(start) - ms(prev.startDate)) / DAY_MS)
+  const move = (k: string) => plus(k, delta)
+  const days = buildDaysFrom(prev.days.map((d) => move(d.key)), prev.days.length)
+  // born with its date set, it comes back set; a poll comes back as a poll
+  const set = !!c && bornShape(prev) !== null
+  // a place that was locked in is the place now; an open ballot starts again empty
+  const isItin = prev.location.planMode === 'itinerary'
+  const byId = new Map(prev.location.places.map((p) => [p.id, p]))
+  const locked = (c?.placeIds ?? []).map((pid) => byId.get(pid)).filter((p) => !!p)
+  const venue = !isItin && locked.length === 1 && prev.location.mode !== 'remote'
+  // the people who can be reached again: accounts, and guests who left an address.
+  // A guest who joined by the link alone is this device's, on that plan only.
+  const participants = prev.participants
+    .filter((p) => !p.guest || !!p.email)
+    .map((p): Participant => {
+      const q: Participant = { ...p, rsvp: p.host ? 'attending' : 'pending' }
+      delete q.rsvpAuto
+      return q
+    })
+  const next: AppEvent = {
+    ...prev,
+    id,
+    startDate: move(prev.startDate),
+    endDate: move(prev.endDate),
+    days,
+    avail: Object.fromEntries(days.map((d) => [d.key, prev.times.map(() => [] as string[])])),
+    availIv: Object.fromEntries(days.map((d) => [d.key, {}])),
+    needIv: undefined,
+    importedIv: undefined,
+    unavailableIds: [],
+    votes: {},
+    location: venue ? { ...prev.location, mode: 'set', places: locked } : prev.location,
+    itinStops: isItin && c?.placeIds.length ? c.placeIds : prev.itinStops,
+    participants,
+    removedIds: undefined,
+    expenses: undefined,
+    messages: [],
+    createdAt: now,
+    reopenedAt: undefined,
+    planDeadline: prev.planDeadline ? move(prev.planDeadline) : undefined,
+    voteDeadline: prev.voteDeadline ? move(prev.voteDeadline) : undefined,
+    rsvpDeadline: set && prev.rsvpDeadline ? move(prev.rsvpDeadline) : undefined,
+    status: set ? 'confirmed' : 'planning',
+    confirmed: set && c ? movedSlot(c, move) : undefined,
+    confirmedAt: set ? now : undefined,
+    repeat: { every },
+    repeatOf: prev.id,
+  }
+  // a document says nothing it does not mean: drop the keys left undefined
+  return JSON.parse(JSON.stringify(next)) as AppEvent
 }
 
-/** Open every repeating plan that is due. Safe to call as often as pages load. */
-export function openDueRepeats(): AppEvent[] {
-  return dueRepeats(listEvents()).map((e) => openNext(e.id)).filter((e): e is AppEvent => !!e)
+const movedSlot = (c: ConfirmedSlot, move: (k: string) => string): ConfirmedSlot => ({
+  ...c, dayKey: move(c.dayKey), ...(c.endDayKey ? { endDayKey: move(c.endDayKey) } : {}),
+})
+
+/** With no backend: open the copy of every due plan in this browser. */
+export function openDueRepeatsHere(): AppEvent[] {
+  const made: AppEvent[] = []
+  for (const prev of listEvents().filter(isDue)) {
+    const fresh = getEvent(prev.id)
+    if (!fresh?.repeat || fresh.repeat.nextId) continue
+    const next = nextPlanDoc(fresh, newEventId(fresh.title), todayKey(), Date.now())
+    insertEvent(next)
+    patchEvent(fresh.id, { repeat: { ...fresh.repeat, nextId: next.id } })
+    made.push(next)
+  }
+  return made
 }

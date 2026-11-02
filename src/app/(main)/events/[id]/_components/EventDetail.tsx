@@ -59,6 +59,7 @@ import { Tour, type TourContext } from '@/components/Tour'
 import { AskTour } from '@/components/AskTour'
 import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, patchEventWith, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { RepeatSelect } from '@/components/ui/RepeatSelect'
+import { RepeatTag } from '@/components/ui/RepeatTag'
 import { repeatLabel } from '@/lib/repeat'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
@@ -472,6 +473,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
                 {(event.hostKind ?? (event.hostedByYou ? 'person' : 'org')) === 'org' && <Building2 size={15} className="flex-none" />}
                 Hosted by {event.hostName}
               </span>
+              <RepeatTag e={event} />
             </div>
             {(room.here.length > 0 || me?.guest) && (
               <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13.5px] text-dim">
@@ -1385,12 +1387,12 @@ function DeadlineValue({ label, value, editable, onChange, hint, max }: {
 // the closing words on a plan that is over: where the next one comes from
 function nextTimeNote(event: AppEvent): string {
   if (event.repeat?.nextId) return 'The next one has its own link.'
-  if (event.repeat) return 'The next one opens on its own at the same time.'
+  if (event.repeat) return 'It opens again on its own for the next dates.'
   return 'Duplicate it to start the next one.'
 }
 
-/* How often the plan comes back: once it is over, the next one opens on its own with
-   the same people at the same time, already locked (lib/repeat.ts). Once it has, this
+/* How often the plan comes back: once it is over, a copy opens on its own for the
+   next dates, with the same people and an empty grid (lib/repeat.ts). Once it has, this
    row points at it instead, and the choice lives on the new plan. */
 function RepeatValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
   const nextId = event.repeat?.nextId
@@ -1406,7 +1408,7 @@ function RepeatValue({ event, editable, onPatch }: { event: AppEvent; editable: 
   return (
     <span className="flex flex-col gap-1">
       <RepeatSelect value={event.repeat?.every ?? ''} dayKey={dayKey} onChange={(v) => onPatch({ repeat: v ? { every: v } : undefined })} className="max-w-[280px]" />
-      {event.repeat && <span className="text-[12.5px] font-normal text-dim">Once this one is over, the next one opens at the same time.</span>}
+      {event.repeat && <span className="text-[12.5px] font-normal text-dim">Once this one is over, it opens again for the next dates.</span>}
     </span>
   )
 }

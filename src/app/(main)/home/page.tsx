@@ -28,6 +28,7 @@
    disagrees with a visitor in another timezone. `useLiveEvents` re-reads the list
    whenever the cloud changes something. */
 
+import { RepeatTag } from '@/components/ui/RepeatTag'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -197,6 +198,7 @@ function CompactPlan({ e, phase }: { e: AppEvent; phase: Phase }) {
         <div className="mt-1 flex min-w-0 items-center gap-2 text-[13px]">
           <StageWord phase={phase} className="-ml-1" />
           <HostTag e={e} inline />
+          <RepeatTag e={e} variant="icon" />
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-dim">
           {slot
@@ -683,6 +685,7 @@ function UpNext({ e, phase, sameDay, size, look, lead = false }: { e: AppEvent; 
           <Link href={eventTabFor(e)} className={`block font-serif leading-[1.15] tracking-[-0.01em] [overflow-wrap:anywhere] hover:underline ${small ? 'text-[18px]' : 'text-[22px] sm:text-[24px]'}`}>
             {e.title}
           </Link>
+          {e.repeat && <RepeatTag e={e} variant="inline" className="mt-1 text-[13px] text-dim" />}
           <StageStepper phase={phase} labels={small ? 'current' : 'auto'} className={`max-w-[340px] ${small ? 'mb-2.5 mt-2.5' : 'mb-3 mt-3'}`} />
           <ul className={`flex flex-col gap-1.5 leading-[1.45] ${small ? 'text-[13.5px]' : 'text-[14px]'}`}>
             {/* when first: the locked slot and how far off, or the best time so far */}

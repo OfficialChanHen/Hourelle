@@ -12,6 +12,7 @@ import { Cover } from './Cover'
 import { HostTag } from './HostTag'
 import { Tip } from './Tip'
 import { Announce } from './Announce'
+import { RepeatTag } from '@/components/ui/RepeatTag'
 import { daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, eventTabFor, leadingPlaceOf, phaseOf, answeredCount, rsvpPool, type AppEvent, type SameDayInfo } from '@/lib/events'
 import { PHASE_BADGE, PHASE_TINT } from './LifecycleStrip'
 import { answeredLine, goingLine } from '@/lib/answers'
@@ -112,6 +113,12 @@ export function StoredEventCard({ e, sameDay, look: given, faded = false }: { e:
           <>
             <span className="h-3 w-px flex-none bg-border2" aria-hidden />
             <span className={du >= 0 && du <= 14 ? 'text-accent-text' : ''}>{daysUntilLabel(du)}</span>
+          </>
+        )}
+        {e.repeat && (
+          <>
+            <span className="h-3 w-px flex-none bg-border2" aria-hidden />
+            <RepeatTag e={e} variant="inline" />
           </>
         )}
       </div>

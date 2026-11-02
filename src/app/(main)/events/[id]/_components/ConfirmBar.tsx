@@ -184,7 +184,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
   // locking in opens the RSVP round, so the deadline for it is asked here — optional,
   // and soft: it nudges and shifts emphasis, late answers still count
   const [rsvpBy, setRsvpBy] = useState(event.rsvpDeadline ?? '')
-  // a regular group's plan can come back on its own at the same time (lib/repeat.ts)
+  // a regular group's plan opens again on its own once it is over (lib/repeat.ts)
   const [repeatEvery, setRepeatEvery] = useState<Cadence | ''>(event.repeat?.every ?? '')
   const d0 = new Date()
   const todayKey = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`
@@ -365,7 +365,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
       <div>
         <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Repeats</div>
         <RepeatSelect value={repeatEvery} dayKey={timeSet ? event.confirmed?.dayKey ?? dayKey : dayKey} onChange={setRepeatEvery} />
-        {repeatEvery && <p className="mt-1.5 text-[12px] text-faint">Once this one is over, the next one opens at the same time.</p>}
+        {repeatEvery && <p className="mt-1.5 text-[12px] text-faint">Once this one is over, it opens again for the next dates.</p>}
       </div>
 
       <div>

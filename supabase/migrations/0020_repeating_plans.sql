@@ -1,11 +1,10 @@
 -- Step 20: repeating plans are the host's to set.
 --
--- A host can say a locked plan repeats (every week, every 2 weeks or every month);
--- once it is over, the host's app opens the next one and records it on this one
--- (`repeat.nextId`).
--- The new plan, locked at the same clock time, carries `repeatOf`. Both live in
--- the event document, so no column is needed; this adds them to the fields only a
--- host may change, so a guest cannot stop a club's series.
+-- A host can say a locked plan repeats (every week, every 2 weeks or every month).
+-- Once it is over, the server opens a copy for the next dates (lib/server/repeats.ts,
+-- with the service key) and records it on this one (`repeat.nextId`); the copy
+-- carries `repeatOf`. Both live in the event document, so no column is needed. This
+-- adds them to the fields only a host may change, so a guest cannot stop a series.
 --
 -- The function is 0015's with that one check added. Safe to run more than once.
 

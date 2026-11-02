@@ -1187,14 +1187,10 @@ export function draftFromEvent(id: string): EventDraft | null {
   const excludedDows = [0, 1, 2, 3, 4, 5, 6].filter((dow) => { const mine = all.filter((k) => dowOf(k) === dow); return mine.length > 0 && mine.every((k) => !have.has(k)) })
   // born with its date set: one day, and the grid was built around the slot itself.
   // Only that shape comes back set; a poll that was locked in comes back as a poll.
-  const bornFixed = !!c && !c.endDayKey && !(c.startMin === 0 && c.endMin === 24 * 60)
-    && ev.days.length === 1 && ev.days[0]?.key === c.dayKey && gridStart === c.startMin && gridEnd === c.endMin
-  // or born all day, or as a run of days, timed or not: a day grid that is exactly
-  // the locked day or run
+  const born = bornShape(ev)
+  const bornFixed = born === 'fixed', bornWhole = born === 'whole'
   const runEnd = c?.endDayKey ?? c?.dayKey
   const cAllDay = !!c && c.startMin === 0 && c.endMin === 24 * 60
-  const bornWhole = !!c && ev.granularity === 'day' && (cAllDay || !!c.endDayKey)
-    && ev.startDate === c.dayKey && ev.endDate === runEnd && ev.days.length === selectedDayKeys(c.dayKey, runEnd!, [], []).length
   const runSpan = (() => { const x = parseLocal(c?.dayKey ?? ''), y = parseLocal(runEnd ?? ''); return x && y ? Math.round((y.getTime() - x.getTime()) / 86400000) : 0 })()
   const fixed = bornFixed && c ? { day: nextSameDow(c.dayKey), start: hm(c.startMin), end: hm(c.endMin) }
     : bornWhole && c ? { day: nextSameDow(c.dayKey), endDay: shift(nextSameDow(c.dayKey), runSpan), start: cAllDay ? '18:00' : hm(c.startMin), end: cAllDay ? '21:00' : hm(c.endMin), allDay: cAllDay }
@@ -1229,6 +1225,36 @@ export function draftFromEvent(id: string): EventDraft | null {
     emails: ev.participants.filter((p) => p.guest && p.email).map((p) => p.email!.toLowerCase()),
     accounts: ev.participants.filter((p) => !p.guest && !p.you && p.id !== myIdIn(ev)).map((p) => ({ id: p.id, name: p.name, color: p.color, email: p.email })),
   }
+}
+
+/** Was this plan born with its date set, rather than locked from a poll? 'fixed' is
+ *  one day whose grid was built around the slot itself; 'whole' is all day, or a run
+ *  of days, on a day grid that is exactly the locked day or run. Null for a poll. */
+export function bornShape(ev: Pick<AppEvent, 'confirmed' | 'days' | 'times' | 'granularity' | 'startDate' | 'endDate'>): 'fixed' | 'whole' | null {
+  const c = ev.confirmed
+  if (!c) return null
+  const gridStart = gridStartMinOf(ev), gridEnd = gridStart + ev.times.length * stepOf(ev.granularity)
+  const allDay = c.startMin === 0 && c.endMin === 24 * 60
+  if (!c.endDayKey && !allDay && ev.days.length === 1 && ev.days[0]?.key === c.dayKey && gridStart === c.startMin && gridEnd === c.endMin) return 'fixed'
+  const runEnd = c.endDayKey ?? c.dayKey
+  if (ev.granularity === 'day' && (allDay || !!c.endDayKey) && ev.startDate === c.dayKey && ev.endDate === runEnd
+    && ev.days.length === selectedDayKeys(c.dayKey, runEnd, [], []).length) return 'whole'
+  return null
+}
+
+/** Add a finished event to this browser's list and send it up, as createEvent does
+ *  at the end (a repeating plan's next copy is built whole, not from a form). */
+export function insertEvent(ev: AppEvent): void {
+  const list = readAll()
+  if (list.some((e) => e.id === ev.id)) return
+  list.push(ev)
+  writeAll(list)
+  pushNewEvent(ev)
+}
+
+/** A fresh id for a new event: its title's readable stem and an unguessable tail. */
+export function newEventId(title: string): string {
+  return uniqueSlug(slugify(title))
 }
 
 // have you answered this poll at all — marked a time, or declared no days work

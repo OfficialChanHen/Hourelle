@@ -1,37 +1,44 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useAccount } from '@/hooks/useAccount'
 import { backendOn } from '@/lib/db'
-import { cloudSynced, EVENTS_SYNCED } from '@/lib/remote'
-import { openDueRepeats } from '@/lib/repeat'
-import { copyCoverInto } from '@/lib/covers'
-import { canEmail, sendInvites } from '@/lib/mail'
-import { patchEvent } from '@/lib/events'
+import { cloudSynced, EVENTS_SYNCED, syncFromCloud } from '@/lib/remote'
+import { isDue, openDueRepeatsHere } from '@/lib/repeat'
+import { listEvents } from '@/lib/events'
 import { pushFlash } from '@/components/ui/FlashToast'
 
-/* Opens the next plan for each repeating plan of yours that is over (lib/repeat.ts).
-   It waits for the first pull from the cloud, so a plan another device already
-   repeated is known before this one decides; then the new plan gets its own copy of
-   the cover and its email invites, the way the create wizard does it. Draws nothing. */
+// asked once per page load per plan, so a server that said no is not asked again
+const asked = new Set<string>()
+
+/* Repeating plans (lib/repeat.ts): once one is over, its next copy opens. With a
+   backend the server makes it, daily on its own; this asks it about the plans in view
+   so it happens the next time anyone on the plan opens the app, then pulls the copy
+   in. With no backend there is no server, so this browser makes the copy itself.
+   Draws nothing. */
 export function RepeatOpener() {
-  const account = useAccount()
-  const ready = account.signedIn || !backendOn
   useEffect(() => {
-    if (!ready) return
+    const say = (titles: string[]) => {
+      if (titles.length === 1) pushFlash(`The next ${titles[0]} is open.`)
+      else if (titles.length > 1) pushFlash(`${titles.length} repeating plans are open again.`)
+    }
     const run = () => {
+      if (!backendOn) { say(openDueRepeatsHere().map((e) => e.title)); return }
       if (!cloudSynced()) return
-      const made = openDueRepeats()
-      for (const ev of made) {
-        if (ev.image) void copyCoverInto(ev.id, ev.image).then((url) => { if (url) patchEvent(ev.id, { image: url }) })
-        if (canEmail(account.signedIn) && ev.participants.some((p) => p.guest && p.email)) void sendInvites(ev.id)
-      }
-      if (made.length === 1) pushFlash(`The next ${made[0].title} is open.`)
-      else if (made.length > 1) pushFlash(`The next ${made.length} repeating plans are open.`)
+      const ids = listEvents().filter((e) => isDue(e) && !asked.has(e.id)).map((e) => e.id)
+      if (!ids.length) return
+      ids.forEach((id) => asked.add(id))
+      void fetch('/api/repeats', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids }) })
+        .then((r) => (r.ok ? r.json() : { opened: [] }))
+        .then(async (r: { opened?: { title: string }[] }) => {
+          if (!r.opened?.length) return
+          await syncFromCloud()
+          say(r.opened.map((o) => o.title))
+        })
+        .catch(() => {})
     }
     run()
     window.addEventListener(EVENTS_SYNCED, run)
     return () => window.removeEventListener(EVENTS_SYNCED, run)
-  }, [ready, account.signedIn])
+  }, [])
   return null
 }
