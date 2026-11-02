@@ -1,6 +1,8 @@
 /* The two plans, as data, so the welcome step, the plans page and the Settings
    section all say the same thing. Hosting is free and stays free; Plus is a
    thank-you with a few extras, and it is not on sale yet. */
+import { APP_NAME } from '@/lib/brand'
+
 export type PlanKey = 'free' | 'plus'
 
 export type Plan = {
@@ -43,7 +45,7 @@ export const PLANS: Record<PlanKey, Plan> = {
   },
   plus: {
     key: 'plus',
-    name: 'Timeld Plus',
+    name: `${APP_NAME} Plus`,
     price: '$3',
     priceNote: 'a month',
     yearly: '$30',

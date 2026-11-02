@@ -9,6 +9,7 @@
 
 import type { AppEvent } from './events'
 import { zonedToUtc } from './tz'
+import { APP_NAME } from '@/lib/brand'
 
 const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n')
 // long lines fold at 75 octets with a leading space on the continuation. Byte
@@ -80,7 +81,7 @@ function vevent(ev: AppEvent, link: string, now: number, status?: 'CONFIRMED' | 
 export function icsFor(ev: AppEvent, link: string, now = Date.now()): string | null {
   const body = vevent(ev, link, now)
   if (!body) return null
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Timeld//Event//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', ...body, 'END:VCALENDAR']
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:-//${APP_NAME}//Event//EN`, 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', ...body, 'END:VCALENDAR']
   return lines.map(fold).join('\r\n') + '\r\n'
 }
 
@@ -103,8 +104,8 @@ export function feedStatus(ev: AppEvent, personId: string): FeedEntry['status'] 
 
 export function icsFeed(entries: FeedEntry[], now = Date.now()): string {
   const lines = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Timeld//Plans//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
-    'X-WR-CALNAME:Timeld',
+    'BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:-//${APP_NAME}//Plans//EN`, 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    `X-WR-CALNAME:${APP_NAME}`,
     // a hint, which Apple and Outlook take; Google keeps its own pace
     'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H',
   ]

@@ -4,6 +4,8 @@ import { useId, useRef } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { reducedMotion } from '@/lib/prefs'
+import { BRAND } from '@/lib/brand'
+import { Em } from '@/components/ui/Em'
 
 /* The Timeld wordmark: time and meld share their "me". The word is set once and used as
    a mask; inside it the two inks are plain vector shapes, so the edges stay sharp at any
@@ -85,10 +87,26 @@ function marble(w: Widths, s: Flow) {
   return { time, streaks }
 }
 
+type WordmarkProps = { className?: string; still?: boolean; anchor?: 'centre' | 'time' }
+
+/* the name this build carries (lib/brand): the meld for Timeld, the serif word with
+   its italic "elle" for Hourelle, which production keeps until the new name is settled */
+export function Wordmark(props: WordmarkProps) {
+  return BRAND === 'timeld' ? <MeldWordmark {...props} /> : <HourelleWordmark className={props.className} />
+}
+
+function HourelleWordmark({ className = '' }: { className?: string }) {
+  return (
+    <span className={`font-serif leading-none ${className}`}>
+      Hour<Em>elle</Em>
+    </span>
+  )
+}
+
 /* still: never plays (the landing page's header, while its hero plays the intro).
    anchor: 'time' keeps time where it ends and brings meld in from the right, for a big
    logo at a column's left edge where time moving left would run off the page. */
-export function Wordmark({ className = '', still = false, anchor = 'centre' }: { className?: string; still?: boolean; anchor?: 'centre' | 'time' }) {
+function MeldWordmark({ className = '', still = false, anchor = 'centre' }: WordmarkProps) {
   const id = 'wm' + useId().replace(/[^a-zA-Z0-9]/g, '')
   const svgRef = useRef<SVGSVGElement>(null)
 

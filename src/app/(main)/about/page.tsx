@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ExternalLink } from 'lucide-react'
 import { EventBack } from '@/components/EventBack'
 import { SupportCard } from '@/components/ui/Support'
+import { APP_NAME } from '@/lib/brand'
 
 /* ── about: why Timeld exists, what it holds to, and how it treats what you give it ── */
 
@@ -23,7 +24,7 @@ export default function AboutPage() {
         Find the hour everyone can meet.
       </h1>
       <p className="mt-4 text-[15px] leading-[1.65] text-dim">
-        Timeld is an independent service for settling plans with other people: when, where, and
+        {APP_NAME} is an independent service for settling plans with other people: when, where, and
         who is coming. One link goes out, everyone answers in a minute, and the host locks it in.
       </p>
 
@@ -35,7 +36,7 @@ export default function AboutPage() {
         headcount, and the reminders to the chat.
       </p>
       <p className="mt-3 text-[14.5px] leading-[1.7] text-dim">
-        Timeld carries a plan from the first message to the day itself. The grid finds the hour,
+        {APP_NAME} carries a plan from the first message to the day itself. The grid finds the hour,
         the map and the ballot find the place, the roster says who is coming, and the reminders go
         out on their own. It is built for the dinner for six as much as the offsite for sixty, and
         for the person who ends up organising both.
@@ -69,14 +70,14 @@ export default function AboutPage() {
       <h2 className="mt-9 font-serif font-normal text-[26px] leading-[1.15] tracking-[-0.01em]">The project</h2>
       <div className="mt-4 rounded-2xl border border-border bg-s1 px-5 py-4 text-[13.5px] leading-[1.65] text-dim">
         <p>
-          Timeld is in early access and is made by one person. Questions, problems and ideas are
+          {APP_NAME} is in early access and is made by one person. Questions, problems and ideas are
           welcome through the <Link href="/help" className="font-semibold text-accent-text hover:underline">Help page</Link>,
           and the answer comes from the person who built it.
         </p>
         <p className="mt-2.5">
           The code is published in the open. Its README explains how the service is put together:{' '}
           <Link href="https://github.com/OfficialChanHen/Hourelle" target="_blank" className="inline-flex items-center gap-1 font-semibold text-accent-text hover:underline">
-            Timeld on GitHub <ExternalLink size={12} className="text-faint" />
+            {APP_NAME} on GitHub <ExternalLink size={12} className="text-faint" />
           </Link>.
         </p>
       </div>
@@ -84,7 +85,7 @@ export default function AboutPage() {
       <SupportCard />
 
       <p className="mt-6 text-[12.5px] leading-[1.6] text-faint">
-        Map data © OpenStreetMap contributors. Timeld is an independent project and is not affiliated with Google, Microsoft, or OpenStreetMap.
+        Map data © OpenStreetMap contributors. {APP_NAME} is an independent project and is not affiliated with Google, Microsoft, or OpenStreetMap.
       </p>
     </div>
   )

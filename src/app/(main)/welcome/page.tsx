@@ -19,6 +19,7 @@ import { prefNotify, setPrefNotify, NOTIFY_DEFAULTS, type NotifyPrefs } from '@/
 import { markWelcomed } from '@/lib/plan'
 import { resetAppearance, resetHint, resetHints, setTourWanted } from '@/lib/prefs'
 import { ensurePracticeEvent } from '@/lib/practice'
+import { APP_NAME } from '@/lib/brand'
 
 /* The steps after an account is made: the terms first, only when the account never
    accepted them (a Google or Microsoft account made through the log-in button), then
@@ -150,7 +151,7 @@ function Welcome() {
         {waiting
           ? 'Setting up your account.'
           : step === 'terms'
-          ? 'Two short documents say what Timeld keeps and how it may be used. Open each one, then tick its box.'
+          ? `Two short documents say what ${APP_NAME} keeps and how it may be used. Open each one, then tick its box.`
           : step === 'settings' ? 'Three things people set first. Everything here can be changed in Settings later.'
             : step === 'plan' ? 'Hosting is free and stays free. Plus is a thank-you with a few extras, and it is not on sale yet.'
               : 'A short tour walks through a plan and lets you try each thing as you go. It runs on a practice plan of your own, and you can leave it at any point.'}

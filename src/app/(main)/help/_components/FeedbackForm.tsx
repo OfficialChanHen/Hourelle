@@ -8,11 +8,12 @@ import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { Bug, Check, HelpCircle, Lightbulb, Loader2 } from 'lucide-react'
 import { useAccount } from '@/hooks/useAccount'
+import { APP_NAME } from '@/lib/brand'
 
 type Kind = 'bug' | 'idea' | 'question'
 const KINDS: { key: Kind; label: string; icon: typeof Bug; ask: string }[] = [
   { key: 'bug', label: 'Something broke', icon: Bug, ask: 'What were you doing, and what happened instead?' },
-  { key: 'idea', label: 'An idea', icon: Lightbulb, ask: 'What would you like Timeld to do?' },
+  { key: 'idea', label: 'An idea', icon: Lightbulb, ask: `What would you like ${APP_NAME} to do?` },
   { key: 'question', label: 'A question', icon: HelpCircle, ask: 'What can we help with?' },
 ]
 
@@ -111,7 +112,7 @@ export function FeedbackForm() {
       {state === 'stored' && <p role="status" className="mt-4 flex items-center gap-2 rounded-[10px] border border-teal-border bg-teal-bg px-3.5 py-3 text-[13px] text-teal-text"><Check size={15} /> Got it. Thank you.</p>}
       {state === 'nowhere' && (
         <p role="alert" className="mt-4 rounded-[10px] border border-ochre-border bg-ochre-bg px-3.5 py-3 text-[13px] leading-[1.55] text-ochre-text">
-          Reports are not wired to an inbox on this copy of Timeld yet. Please try again later.
+          Reports are not wired to an inbox on this copy of {APP_NAME} yet. Please try again later.
         </p>
       )}
       {state === 'error' && <p role="alert" className="mt-4 rounded-[10px] border border-brick-border bg-brick-bg px-3.5 py-3 text-[13px] text-brick-text">That did not go through. Try again in a moment.</p>}

@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { APP_NAME } from '@/lib/brand'
 
 export const runtime = 'nodejs'
 
@@ -38,9 +39,9 @@ export async function POST(req: Request) {
   let emailed = false
   const key = process.env.RESEND_API_KEY
   const to = process.env.FEEDBACK_TO_EMAIL
-  const from = process.env.FEEDBACK_FROM_EMAIL || 'Timeld <onboarding@resend.dev>'
+  const from = process.env.FEEDBACK_FROM_EMAIL || `${APP_NAME} <onboarding@resend.dev>`
   if (key && to) {
-    const subject = `[Timeld] ${kind === 'bug' ? 'Bug report' : kind === 'idea' ? 'Idea' : 'Question'}${page ? ` from ${page}` : ''}`
+    const subject = `[${APP_NAME}] ${kind === 'bug' ? 'Bug report' : kind === 'idea' ? 'Idea' : 'Question'}${page ? ` from ${page}` : ''}`
     const text = [
       message, '',
       `— from: ${email ?? 'no email given'}`,

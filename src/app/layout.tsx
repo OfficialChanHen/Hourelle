@@ -7,6 +7,7 @@ import { BackendSync } from "@/components/BackendSync";
 import { NoticeRail } from "@/components/NoticeRail";
 import { PencilDefs } from "@/components/ui/Pencil";
 import { SiteAnalytics } from "@/components/SiteAnalytics";
+import { APP_NAME, BRAND } from "@/lib/brand";
 
 // Lora is the display serif: soft, rounded strokes with conventional letterforms,
 // and real weights — 400 for display sizes, 500 for headings under 28px (set in
@@ -24,9 +25,11 @@ const instrumentSans = Instrument_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Timeld: find the hour everyone can meet",
+  title: `${APP_NAME}: find the hour everyone can meet`,
   description:
     "Skip the back-and-forth. Start a plan and send the link. Everyone marks when they are free and votes on where to go.",
+  // the icons follow the name this build carries (lib/brand)
+  icons: { icon: `/brand/${BRAND}-icon.svg`, apple: `/brand/${BRAND}-apple-icon.png` },
 };
 
 export default function RootLayout({

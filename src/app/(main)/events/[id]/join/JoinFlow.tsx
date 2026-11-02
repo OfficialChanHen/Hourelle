@@ -27,6 +27,7 @@ import {
   addMeToEvent, adoptParticipant, claimGuestSession, confirmedSlotText, dateRangeText, getEvent, guestSessionId, isAccountId,
   joinEvent, leadingPlaceOf, participantByInvite, phaseOf, pickColor, type AppEvent, type Participant,
 } from '@/lib/events'
+import { APP_NAME } from '@/lib/brand'
 
 // names compare loosely — case and stray spaces shouldn't decide whether two
 // people "match"
@@ -494,7 +495,7 @@ export function JoinFlow({ id }: { id: string }) {
             {accountEmail && (
               <div role="status" className="mt-4 flex flex-col gap-2.5 rounded-[10px] border border-accent-border bg-accent-bg px-3.5 py-3">
                 <p className="text-[12.5px] leading-[1.55] text-accent-text">
-                  <span className="font-semibold">{accountEmail}</span> has a Timeld account. Log in to join as yourself, with your earlier answers.
+                  <span className="font-semibold">{accountEmail}</span> has a {APP_NAME} account. Log in to join as yourself, with your earlier answers.
                 </p>
                 <Link
                   href={`/auth/signin?mode=login&email=${encodeURIComponent(accountEmail)}&next=${encodeURIComponent(`/events/${id}/join${inviteToken ? `?invite=${inviteToken}` : ''}`)}`}

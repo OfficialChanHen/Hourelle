@@ -16,6 +16,7 @@ import { passwordOk } from '@/lib/password'
 import { PasswordField } from '@/components/ui/PasswordField'
 import { PasswordRules } from '@/components/ui/PasswordRules'
 import { Wordmark } from '@/components/ui/Wordmark'
+import { APP_NAME } from '@/lib/brand'
 
 /* ── log in, sign up, or ask for a new password ──
    Split like the sign-in pages people know: the form on the left, the pitch on the
@@ -306,7 +307,7 @@ function SignInForm() {
 
             {!backendOn && (
               <p className="mt-4 rounded-[10px] border border-border bg-s0 px-3.5 py-3 text-[12.5px] leading-[1.55] text-dim">
-                No backend is configured, so accounts are switched off. Everything in Timeld still works without one.
+                No backend is configured, so accounts are switched off. Everything in {APP_NAME} still works without one.
               </p>
             )}
 
