@@ -32,6 +32,7 @@ import { loadReminderPrefs, saveReminderPrefs } from '@/lib/mail'
 import { resetProfile } from '@/lib/session'
 import { restampMe } from '@/lib/events'
 import { RotateCcw } from 'lucide-react'
+import { APP_NAME } from '@/lib/brand'
 
 const Eyebrow = ({ children }: { children: React.ReactNode }) => (
   <p className="mb-2 mt-7 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">{children}</p>
@@ -256,7 +257,7 @@ export default function SettingsPage() {
               </button>
             )}
             <Link href="/pricing" className="flex h-9 flex-none items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-semibold hover:bg-s2">
-              <Sparkles size={14} className="text-accent-text" /> {planState.plan === 'plus' ? 'What Plus includes' : 'See Hourelle Plus'}
+              <Sparkles size={14} className="text-accent-text" /> {planState.plan === 'plus' ? 'What Plus includes' : `See ${APP_NAME} Plus`}
             </Link>
           </div>
         </div>

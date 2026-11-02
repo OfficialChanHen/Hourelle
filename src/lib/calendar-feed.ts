@@ -5,6 +5,7 @@
 // stored on this device.
 
 import { supabase, backendOn } from './db'
+import { APP_NAME } from '@/lib/brand'
 
 // The feed needs migration 0017 and the service key on the server. With a backend it
 // says "Coming soon" until NEXT_PUBLIC_CALENDAR_FEED_ON=1 says both are in place;
@@ -32,7 +33,7 @@ export function subscribeLinks(url: string): { google: string; outlook: string; 
   const webcal = url.replace(/^https?:\/\//, 'webcal://')
   return {
     google: `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcal)}`,
-    outlook: `https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(url)}&name=Hourelle`,
+    outlook: `https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(url)}&name=${APP_NAME}`,
     apple: webcal,
   }
 }

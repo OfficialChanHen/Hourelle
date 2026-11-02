@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" role="img" aria-label="Timeld">
+  <!--
+  The mark: the wordmark's wavy cut on a disc. Time's lighter green holds the top left,
+       meld's deeper green the bottom right, and a streak of each ink runs into the
+       other along the slant, the way they do through the "me" of the wordmark.
+  -->
+  <style>
+    .t { fill: #4E9670 } .m { fill: #1F4A36 }
+    @media (prefers-color-scheme: dark) { .t { fill: #9FDCBC } .m { fill: #4F9E78 } }
+  </style>
+  <defs>
+    <clipPath id="d"><circle cx="50" cy="50" r="46"/></clipPath>
+  </defs>
+  <g clip-path="url(#d)">
+    <rect class="m" width="100" height="100"/>
+    <path class="t" d="M -10,-10 L 110,-10 L 104,-4 C 90,12 78,22 66,32 C 54,42 62,54 48,62 C 34,70 22,78 -4,104 L -10,110 Z"/>
+    <path class="t" d="M 56,70 C 66,58 78,52 90,40 C 86,54 72,64 56,70 Z"/>
+    <path class="m" d="M 12,58 C 22,46 32,40 46,26 C 42,40 28,52 12,58 Z"/>
+  </g>
+</svg>
