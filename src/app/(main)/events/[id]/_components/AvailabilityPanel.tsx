@@ -39,7 +39,7 @@ import { answeredLine, needClause } from '@/lib/answers'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, Zap } from 'lucide-react'
+import { CalendarHeart, ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, Zap } from 'lucide-react'
 
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { FaceChipsMore } from '@/components/ui/FaceChips'
@@ -50,7 +50,7 @@ import { DurationField } from '@/components/ui/DurationField'
 import { Hint } from '@/components/ui/Hint'
 import { Popover } from '@/components/ui/Popover'
 import { SettingField, SettingToggle, SettingsMenu } from '@/components/ui/Settings'
-import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, ImportFromCalendar, MissingPopover, PresetFills } from './availability/parts'
+import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, ImportFromCalendar, MissingPopover, PresetFills, USUAL_WEEK } from './availability/parts'
 import { cellBands, cellPeople, clayFor, countLabel, needSegments, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, PILE_AV, PILE_FONT, PILE_OVER, type Band, type GDay } from './availability/grid-lib'
 import { DayCalendar } from './availability/DayCalendar'
 import { WeekStrip } from './availability/WeekStrip'
@@ -58,6 +58,8 @@ import { prefH24, prefWholeWeek } from '@/lib/prefs'
 import { paintRanges, withoutOverlap, type Brush } from '@/lib/availability'
 import { useAccount } from '@/hooks/useAccount'
 import { useFollow } from '@/hooks/useFollow'
+import { useGuestMode } from '@/hooks/useGuestMode'
+import { planUsualWeek, weekHasTime } from '@/lib/usual-week'
 import { canEmail, sendNudges } from '@/lib/mail'
 import {
   addMeToEvent, listEvents, patchEvent, patchEventWith, availIvOf, freeIvOf, myTimesPatch, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
@@ -253,6 +255,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // nudges are emails from the host: only the host, logged in, with a backend
   const account = useAccount()
   const canNudge = !!event.hostedByYou && canEmail(account.signedIn)
+  // your usual week belongs to an account (or to this browser with no backend), so a
+  // guest and a sample plan never see it; 'empty' points at the profile to paint one
+  const guestMode = useGuestMode()
+  const weekOn = !event.demo && guestMode !== event.id && (account.signedIn || !backendOn) && event.days.every((d) => ISO_DAY.test(d.key))
+  const usualWeek = weekOn ? (weekHasTime(account.usualWeek) ? 'ready' : 'empty') : null
   // what the panel offers depends on whose event it is: how long the thing needs and
   // what the best window should favour are the host's answers, and they change the
   // event for everybody. Everything else in there is about this screen or your own
@@ -1041,6 +1048,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     // with a backend the calendars are real: no token yet means a trip to the provider
     // that lands back here with ?import=google or ?import=outlook (see the effect
     // below); otherwise the sample calendar stands in so the flow can be tried without keys
+    if (provider === USUAL_WEEK) { fillFromWeek(); return }
     const remote: OAuthProvider | null = provider === 'Google Calendar' ? 'google' : provider === 'Outlook' ? 'azure' : null
     let busy: UtcBusy[]
     if (remote && backendOn) {
@@ -1106,6 +1114,25 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     stashUndo(snapshot, none
       ? `Nothing on your ${calendar} between ${span}, so every hour is marked free.`
       : `Added ${fmtDur(out.addedMin)} of free time from your ${calendar}. Its busy times are striped.`, wasImported)
+  }
+
+  // the usual week: the same additive rule as a calendar, minus the stripes, since
+  // time outside it is not busy. What a calendar striped and your locked-in plans stay out.
+  function fillFromWeek() {
+    const week = account.usualWeek
+    if (!week || !weekHasTime(week)) return
+    const snapshot = { free: mineRef.current, need: needRef.current }
+    const out = planUsualWeek(event, meId, snapshot.free, week, snapshot.need, lockedPlanBusyUtc(listEvents(), event.id))
+    if (!out.timesChanged) {
+      stashUndo(null, out.none
+        ? (dayPoll ? 'Your usual week has no time on these days.' : 'Your usual week has no time inside these hours.')
+        : 'Nothing new to add from your usual week.')
+      return
+    }
+    setMine(out.times); persist(out.times); setSel(null)
+    stashUndo(snapshot, dayPoll
+      ? `${out.addedDays} ${out.addedDays === 1 ? 'day' : 'days'} marked from your usual week.`
+      : `Added ${fmtDur(out.addedMin)} of free time from your usual week.`)
   }
 
   // back from Google or Microsoft with the calendar permission: finish the import
@@ -1625,7 +1652,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           <SegmentedControl label="Brush" size="sm" value={brush} onChange={(v) => setBrush(v as 'free' | 'need')} options={[{ v: 'free', l: 'Free', icon: FreeSwatch }, { v: 'need', l: 'If need be', icon: NeedSwatch }]} />
         )}
         {/* importing fills YOUR times, so it rides with edit mode — view stays lean */}
-        {!locked && mode === 'edit' && <ImportFromCalendar soon={importSoon(backendOn)} onPick={(p) => void startImport(p)} note={backendOn ? (dayPoll ? 'Free days are marked for you. Days with something on your calendar are striped as busy, for you to decide.' : 'Your free hours are painted, and what your calendar has is striped as busy.') : 'A sample calendar stands in until a backend is set up.'} />}
+        {!locked && mode === 'edit' && <ImportFromCalendar soon={importSoon(backendOn)} week={usualWeek} onPick={(p) => void startImport(p)} note={backendOn ? (dayPoll ? 'Free days are marked for you. Days with something on your calendar are striped as busy, for you to decide.' : 'Your free hours are painted, and what your calendar has is striped as busy.') : 'A sample calendar stands in until a backend is set up.'} />}
         {/* the other edit-mode helpers ride here too, so switching between View and
             Edit mine only changes this line and the people below never move */}
         {mode === 'edit' && (dayPoll
@@ -1641,6 +1668,17 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           : <PresetFills onFill={fillPreset} onFillAll={fillAllDays} />)}
         {/* the explicit empty reply: with nothing marked, "none of these days work"
             is one tap — and marking any time takes it back */}
+        {/* one tap from nothing marked to your usual week; hidden once you have said
+            none of these days work, since that is an answer too */}
+        {mode === 'edit' && editable && !youAny && !unavail.has(meId) && usualWeek === 'ready' && (
+          <button
+            type="button"
+            onClick={fillFromWeek}
+            className="flex h-11 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-[11px] text-[12.5px] font-semibold text-accent-text hover:bg-s2 sm:h-7"
+          >
+            <CalendarHeart size={13} /> Use my usual week
+          </button>
+        )}
         {mode === 'edit' && !locked && !youAny && (
           unavail.has(meId) ? (
             <span className="text-[12.5px] text-brick-text">

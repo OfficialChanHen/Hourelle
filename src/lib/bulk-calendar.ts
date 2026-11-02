@@ -6,10 +6,11 @@
 // reads its own days out of the answer in its own timezone through the same
 // `planImport` the plan page uses. One trip to Google or Microsoft whatever the count.
 
-import { availIvOf, getEvent, gridStartMinOf, listEvents, myTimesPatch, nowIn, patchEventWith, phaseOf, stepOf, youReplied, type AppEvent, type AvailIntervals, type Iv } from './events'
+import { freeIvOf, getEvent, gridStartMinOf, listEvents, myTimesPatch, nowIn, patchEventWith, phaseOf, stepOf, youReplied, type AppEvent, type AvailIntervals, type Iv } from './events'
+import { planUsualWeek, type UsualWeek } from './usual-week'
 import { gridSpanUtc, ISO_DAY, lockedPlanBusyUtc, mockBusyUtc, planImport, googleBusyRange, outlookBusyRange, type UtcBusy } from './calendar-import'
 
-export type FillProvider = 'google' | 'outlook'
+export type FillProvider = 'google' | 'outlook' | 'week'
 
 /* A plan the fill can write to: one you are on, still deciding its time, with real
    dates of which at least one is still ahead. A plan with its time set (locked, or
@@ -54,23 +55,30 @@ export async function busyFor(plans: AppEvent[], provider: FillProvider, token: 
 }
 
 /** Write the import into each plan. Each write reads the plan as this device holds it
- *  at that moment (patchEventWith), so someone's times arriving meanwhile are kept. */
-export function applyFill(ids: string[], busyCal: UtcBusy[]): FillOutcome {
+ *  at that moment (patchEventWith), so someone's times arriving meanwhile are kept.
+ *  The source is a calendar's busy times, or your usual week. */
+export function applyFill(ids: string[], source: UtcBusy[] | { week: UsualWeek }): FillOutcome {
   // your locked-in plans are busy too, whether or not they are on that calendar
-  const busy = [...busyCal, ...lockedPlanBusyUtc(listEvents())]
+  const locked = lockedPlanBusyUtc(listEvents())
+  const busy = Array.isArray(source) ? [...source, ...locked] : locked
+  const fill = (ev: AppEvent, meId: string, mine: Record<string, Iv[]>) => {
+    // your if-need-be marks are never painted over as free
+    const need = myRows(ev.needIv, meId, ev.days)
+    return Array.isArray(source) ? planImport(ev, meId, mine, busy, need) : planUsualWeek(ev, meId, mine, source.week, need, busy)
+  }
   const results: FillResult[] = []
   const undo: Before[] = []
   for (const id of ids) {
     const seen = getEvent(id)
     const meId = seen?.participants.find((p) => p.you)?.id
     if (!seen || !meId) continue
-    const preview = planImport(seen, meId, myRows(availIvOf(seen), meId, seen.days), busy)
+    const preview = fill(seen, meId, myRows(freeIvOf(seen), meId, seen.days))
     results.push({ id, title: seen.title, addedMin: preview.addedMin, addedDays: preview.addedDays, dayPoll: seen.granularity === 'day', striped: preview.stripesChanged })
     // a plan the calendar has nothing new for is left alone, not written back unchanged
     if (!preview.timesChanged && !preview.stripesChanged) continue
     patchEventWith(id, (cur) => {
-      const mine = myRows(availIvOf(cur), meId, cur.days)
-      const out = planImport(cur, meId, mine, busy)
+      const mine = myRows(freeIvOf(cur), meId, cur.days)
+      const out = fill(cur, meId, mine)
       const wasUnavailable = !!cur.unavailableIds?.includes(meId)
       undo.push({ id, meId, times: mine, stripes: myRows(cur.importedIv, meId, cur.days), unavailable: wasUnavailable })
       return {

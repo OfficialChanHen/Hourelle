@@ -13,6 +13,7 @@ import { forgetPlan } from './plan'
 import type { PersonColor } from './colors'
 import { cleanFace, type Face } from './faces'
 import { passwordProblem } from './password'
+import { cleanUsualWeek, type UsualWeek } from './usual-week'
 
 export type AccountKind = 'person' | 'org'
 export type Account = {
@@ -28,6 +29,9 @@ export type Account = {
   // the face made on the profile page. Kept in the auth user's metadata, so it needs
   // no table; absent until the person makes one
   face?: Face
+  // the times you are usually free, painted on the profile page and filled into a
+  // plan only when you ask. Kept beside the face, in the auth user's metadata
+  usualWeek?: UsualWeek
 }
 
 // the stubbed identity: what the app is when nobody has signed in
@@ -37,6 +41,7 @@ const CACHE_KEY = 'hourelle.account'
 // with no backend the app is the stub, whose cache is never written; the face made
 // on the profile page is kept here instead, so local mode keeps it across reloads
 const LOCAL_FACE_KEY = 'hourelle.account.face'
+const LOCAL_WEEK_KEY = 'hourelle.account.usualWeek'
 export const ACCOUNT_CHANGED = 'hourelle:account-changed'
 
 let cached: Account | null = null
@@ -53,7 +58,8 @@ function readCache(): Account {
       cached = JSON.parse(raw) as Account
     } else {
       const face = backendOn ? undefined : cleanFace(JSON.parse(localStorage.getItem(LOCAL_FACE_KEY) ?? 'null'))
-      cached = face ? { ...STUB, face } : STUB
+      const usualWeek = backendOn ? undefined : cleanUsualWeek(JSON.parse(localStorage.getItem(LOCAL_WEEK_KEY) ?? 'null'))
+      cached = face || usualWeek ? { ...STUB, ...(face ? { face } : {}), ...(usualWeek ? { usualWeek } : {}) } : STUB
     }
   } catch {
     cached = STUB
@@ -110,6 +116,7 @@ async function accountFromSession(userId: string, email: string | undefined, met
     signedIn: true,
     colorChosen: !!row?.color_set,
     face: cleanFace(meta?.face),
+    usualWeek: cleanUsualWeek(meta?.usualWeek),
   }
 }
 
@@ -361,6 +368,28 @@ export async function updateFace(face: Face): Promise<string | null> {
     try { localStorage.setItem(LOCAL_FACE_KEY, JSON.stringify(face)) } catch { /* private mode */ }
   }
   writeCache({ ...acc, face })
+  return null
+}
+
+/** Keep your usual week, or forget it with null. Stored like the face: the auth
+ *  user's metadata when signed in, this browser with no backend. */
+export async function updateUsualWeek(week: UsualWeek | null): Promise<string | null> {
+  const acc = readCache()
+  if (acc.signedIn) {
+    if (backendOn) {
+      const { error } = await supabase!.auth.updateUser({ data: { usualWeek: week } })
+      if (error) return error.message
+    }
+  } else {
+    if (backendOn) return 'Log in first.'
+    try {
+      if (week) localStorage.setItem(LOCAL_WEEK_KEY, JSON.stringify(week))
+      else localStorage.removeItem(LOCAL_WEEK_KEY)
+    } catch { /* private mode */ }
+  }
+  const next = { ...acc, usualWeek: week ?? undefined }
+  if (!week) delete next.usualWeek
+  writeCache(next)
   return null
 }
 

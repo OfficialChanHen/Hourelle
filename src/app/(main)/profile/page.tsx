@@ -12,6 +12,7 @@ import { PasswordField } from '@/components/ui/PasswordField'
 import { initialsOf, restampMe } from '@/lib/events'
 import { SignInMethods } from './_components/SignInMethods'
 import { YourFace } from './_components/YourFace'
+import { UsualWeekEditor } from '@/components/UsualWeekEditor'
 import { reducedMotion } from '@/lib/prefs'
 
 // eyebrow labels give the page the sectioned shape settings pages are expected to
@@ -33,13 +34,14 @@ export default function ProfilePage() {
   const router = useRouter()
 
   // /profile#face (the account menu's Your face, an event's Change face) lands on
-  // the face. The section only renders once the account is known, which can be after
+  // the face, and /profile#usual-week (a plan's Import menu) on the usual week. The section only renders once the account is known, which can be after
   // the router has already looked for it, so it is looked for again when it appears.
   const faceShown = account.signedIn || !backendOn
   useEffect(() => {
     const go = () => {
-      if (window.location.hash !== '#face') return
-      document.getElementById('face')?.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' })
+      const id = window.location.hash.slice(1)
+      if (id !== 'face' && id !== 'usual-week') return
+      document.getElementById(id)?.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' })
     }
     go()
     window.addEventListener('hashchange', go)
@@ -140,6 +142,15 @@ export default function ProfilePage() {
         <section id="face" aria-label="Your face" className="scroll-mt-[72px]">
           <Eyebrow>Your face</Eyebrow>
           <YourFace account={account} />
+        </section>
+      )}
+
+      {/* the week a plan can fill from, when you ask it to; it belongs to the same
+          owner as the face. Keyed by account, so a new log-in starts from its own week */}
+      {faceShown && (
+        <section id="usual-week" aria-label="My usual week" className="scroll-mt-[72px]">
+          <Eyebrow>My usual week</Eyebrow>
+          <UsualWeekEditor key={account.id} account={account} />
         </section>
       )}
 
