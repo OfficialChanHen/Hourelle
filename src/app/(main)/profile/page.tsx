@@ -14,6 +14,7 @@ import { SignInMethods } from './_components/SignInMethods'
 import { YourFace } from './_components/YourFace'
 import { UsualWeekEditor } from '@/components/UsualWeekEditor'
 import { reducedMotion } from '@/lib/prefs'
+import { APP_NAME } from '@/lib/brand'
 
 // eyebrow labels give the page the sectioned shape settings pages are expected to
 // have — account first, the rest of the account surface after, the exit at the end
@@ -26,7 +27,7 @@ const Eyebrow = ({ children }: { children: React.ReactNode }) => (
 const LINKS = [
   { href: '/settings', label: 'Settings', sub: 'Theme, clock style, reminders', icon: Settings },
   { href: '/help', label: 'Help & contact', sub: 'Common questions, and where to reach us', icon: CircleHelp },
-  { href: '/about', label: 'About Hourelle', sub: 'What this is and where your data lives', icon: Info },
+  { href: '/about', label: `About ${APP_NAME}`, sub: 'What this is and where your data lives', icon: Info },
 ]
 
 export default function ProfilePage() {
