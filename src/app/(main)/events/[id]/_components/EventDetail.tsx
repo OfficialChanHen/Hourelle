@@ -58,6 +58,7 @@ import { Hint } from '@/components/ui/Hint'
 import { Tour, type TourContext } from '@/components/Tour'
 import { AskTour } from '@/components/AskTour'
 import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, patchEventWith, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
+import { Switch } from '@/components/ui/Switch'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -431,7 +432,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             {(close) => (
               // the same rule as the desktop button: nothing to hand out once it is over
               phase === 'past' ? (
-                <p className="px-3.5 py-3 text-[12.5px] leading-[1.5] text-dim">This plan is over, so its link is closed. Duplicate it to start the next one.</p>
+                <p className="px-3.5 py-3 text-[12.5px] leading-[1.5] text-dim">This plan is over, so its link is closed. {nextTimeNote(event)}</p>
               ) : (
               <>
                 <PopoverTitle>Send the link</PopoverTitle>
@@ -730,6 +731,10 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
         {locked && (isHost || event.rsvpDeadline) && (
           <DetailRow k="RSVP by" v={<DeadlineValue label="RSVP by" value={event.rsvpDeadline} editable={isHost} onChange={(v) => onPatch({ rsvpDeadline: v })} hint="Everyone gets a reminder the day before and the day of. Late answers still count." max={event.confirmed?.dayKey} />} />
         )}
+        {/* a weekly series: the host turns it on once a time is locked; everyone sees that it repeats */}
+        {!event.demo && (event.repeat || (isHost && locked)) && (
+          <DetailRow k="Repeats" v={<RepeatValue event={event} editable={isHost} onPatch={onPatch} />} />
+        )}
         <DetailRow k="Spots" v={<CapacityValue event={event} editable={isHost} onPatch={onPatch} />} />
         <DetailRow
           k="Budget"
@@ -934,7 +939,7 @@ function InviteMore({ event, onPatch, openNonce = 0 }: { event: AppEvent; onPatc
   // nobody is invited to something that already happened; the copy is where the
   // next one starts, and that one is open again from the moment it is made
   if (phaseOf(event) === 'past') {
-    return <p className="rounded-[9px] border border-border bg-s0 px-3.5 py-2.5 text-[12.5px] leading-[1.5] text-dim">This plan is over, so invitations are closed. Duplicate it to start the next one.</p>
+    return <p className="rounded-[9px] border border-border bg-s0 px-3.5 py-2.5 text-[12.5px] leading-[1.5] text-dim">This plan is over, so invitations are closed. {nextTimeNote(event)}</p>
   }
   return (
     <div ref={wrap}>
@@ -1376,6 +1381,38 @@ function DeadlineValue({ label, value, editable, onChange, hint, max }: {
 /* Where: the confirmed venue once locked; before that, the vote leader for a single venue,
    or a pointer to the itinerary on the Location tab. */
 /* Spots: the host caps the guest list; everyone sees the number, only the host edits it */
+/* "Repeat every week": once this plan is over, next week's opens on its own with the
+   same people (lib/repeat.ts). Once it has, this row points at it instead, and the
+   switch lives on the new plan. */
+// the closing words on a plan that is over: where the next one comes from
+function nextTimeNote(event: AppEvent): string {
+  if (event.repeat?.nextId) return 'Next week\'s plan has its own link.'
+  if (event.repeat) return 'Next week\'s plan opens on its own.'
+  return 'Duplicate it to start the next one.'
+}
+
+function RepeatValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
+  const nextId = event.repeat?.nextId
+  if (nextId) {
+    // only a plan you are on: the link is the permission, so it is never handed out here
+    const next = getEvent(nextId)
+    return next
+      ? <Link href={`/events/${next.id}`} className="font-semibold text-accent-text underline-offset-2 hover:underline">Next week&apos;s plan is open</Link>
+      : <span>Every week</span>
+  }
+  if (!editable) return <span>Every week</span>
+  const on = !!event.repeat
+  return (
+    <span className="flex flex-col gap-1">
+      <span className="flex items-center gap-2.5">
+        <Switch on={on} onChange={(v) => onPatch({ repeat: v ? { every: 'week' } : undefined })} label="Repeat every week" />
+        <span>Every week</span>
+      </span>
+      {on && <span className="text-[12.5px] font-normal text-dim">Next week&apos;s plan opens on its own once this one is over.</span>}
+    </span>
+  )
+}
+
 function CapacityValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
   const [v, setV] = useState(event.capacity?.toString() ?? '')
   const going = event.participants.filter((p) => p.rsvp === 'attending').length
