@@ -15,3 +15,16 @@ export function isPhotoCover(src?: string): boolean {
 export function isInlineCover(src?: string): boolean {
   return !!src?.startsWith('data:')
 }
+
+// the default cover: a soft gradient picked by the event id, so the same event wears
+// the same cover everywhere (cards, the home hero, the join page, its link preview)
+const COVERS: [string, string][] = [
+  ['#E4EDE7', '#CFE0D5'], ['#E7E2EE', '#D9CFE4'], ['#DEE7EC', '#C7DAE2'],
+  ['#EFE7D6', '#E4D3B4'], ['#EEE1DD', '#E4CCC7'], ['#E4EADB', '#CDDCBB'],
+]
+
+export function coverFor(id: string): [string, string] {
+  let h = 0
+  for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0
+  return COVERS[h % COVERS.length]
+}

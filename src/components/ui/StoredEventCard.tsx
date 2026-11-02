@@ -15,20 +15,13 @@ import { Announce } from './Announce'
 import { daysUntil, daysUntilLabel, dateRangeText, confirmedSlotText, eventTabFor, leadingPlaceOf, phaseOf, answeredCount, rsvpPool, type AppEvent, type SameDayInfo } from '@/lib/events'
 import { PHASE_BADGE, PHASE_TINT } from './LifecycleStrip'
 import { answeredLine, goingLine } from '@/lib/answers'
+import { coverFor } from '@/lib/cover-kind'
 
-const COVERS: [string, string][] = [
-  ['#E4EDE7', '#CFE0D5'], ['#E7E2EE', '#D9CFE4'], ['#DEE7EC', '#C7DAE2'],
-  ['#EFE7D6', '#E4D3B4'], ['#EEE1DD', '#E4CCC7'], ['#E4EADB', '#CDDCBB'],
-]
-// shared with the home hero, so the same event wears the same cover everywhere
 /** The cover height every event card wears, here and on the landing page. */
 export const CARD_COVER_H = 'h-[120px]'
 
-export function coverFor(id: string): [string, string] {
-  let h = 0
-  for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0
-  return COVERS[h % COVERS.length]
-}
+// the default cover lives in lib/cover-kind, where the server can draw it too
+export { coverFor }
 
 // stops a click on an in-card action from following the card's own link
 function asAction(fn: () => void) {
