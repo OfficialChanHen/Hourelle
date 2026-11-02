@@ -118,8 +118,12 @@ function subscribeCoarse(cb: () => void) {
 }
 const OVERSCAN = 6 // rows rendered beyond the viewport each side, so scrolling doesn't flash blank
 
-export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0, onLockDays, onRunChange, onPatch }: {
+export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0, onLockDays, onRunChange, onPatch, pattern }: {
   event: AppEvent; locked?: boolean; initialFilter?: string[] | string | null; focusBest?: number
+  // the profile's usual week: the same grid and the same painting on a week with no
+  // dates and only you on it. Every write goes to `onChange` instead of a plan, and
+  // everything about other people, the best time and the plan's settings is left out
+  pattern?: { onChange: (times: Record<string, Iv[]>) => void }
   // lets a change made here (adding yourself to the list) reach the always-mounted surfaces
   onPatch?: (patch: Partial<AppEvent>) => void
   // host-only shortcut on day polls: hand the footer's winning run straight to the confirm modal
@@ -236,7 +240,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // once the plan is locked the grid is reference only; otherwise open in edit
   // until you've marked something — the page's one ask of a new participant.
   // Arriving with a person to focus (clicked from another tab) always opens in view.
-  const [mode, setMode] = useState<Mode>(locked || initialFilter || notListed ? 'view' : !youAny ? 'edit' : 'view')
+  const [mode, setMode] = useState<Mode>(pattern ? 'edit' : locked || initialFilter || notListed ? 'view' : !youAny ? 'edit' : 'view')
   // there is nobody to write to — stay in view no matter what else says otherwise
   const editable = !locked && !notListed
   if (notListed && mode === 'edit') setMode('view')
@@ -464,6 +468,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
      or as they stand). Free wins any minute the two share, so a free block moved,
      stretched or quick-filled over if-need-be time takes that time. */
   function persist(m: Record<string, Iv[]>, extra: Partial<AppEvent> = {}, n?: Record<string, Iv[]>) {
+    if (pattern) { pattern.onChange(m); return }
     const cleanNeed = Object.fromEntries(Object.entries(n ?? needRef.current).map(([k, ivs]) => [k, withoutOverlap(m[k] ?? [], ivs)]))
     if (JSON.stringify(cleanNeed) !== JSON.stringify(needRef.current)) setNeed(cleanNeed)
     // marking any time takes back an earlier "none of these days work"
@@ -1459,8 +1464,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       <div ref={colRef} data-tour="grid-all" className="relative flex min-w-0 min-h-0 flex-1 flex-col p-4">
         {/* toolbar — first row pairs the mode toggle with Settings (always right-aligned);
             the date range (a one-week poll only) and time controls flow on their own row below */}
-        <div className="border-b border-border pb-[13px]">
-          {editable && (
+        <div className={pattern ? '' : 'border-b border-border pb-[13px]'}>
+          {editable && !pattern && (
             <div className="mb-2.5 flex items-center justify-between gap-[9px]">
               <SegmentedControl label="Mode" size="sm" value={mode} onChange={(v) => { setMode(v as Mode); if (v === 'edit') setBrush('free'); setSel(null); setDetail(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
               <SettingsMenu title="Grid settings">
@@ -1517,7 +1522,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
 
         {/* the people: who is in, the filter, who has answered. Nothing here comes and
             goes with the mode, so the faces hold still when one is tapped */}
-        <div data-tour="people" className="flex flex-wrap items-center gap-2.5 py-[11px]">
+        {!pattern && <div data-tour="people" className="flex flex-wrap items-center gap-2.5 py-[11px]">
           <span className="text-[12.5px] text-dim">Participants</span>
           <FilterAvatars participants={nameSorted} filter={filter} onToggle={toggleFilter} onClear={clearFilter} onSelectAll={selectAllFilter} />
           {/* responded count opens the who's-missing / nudge popover */}
@@ -1597,9 +1602,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               )}
             </Popover>
           </span>
-        </div>
+        </div>}
         {/* times, and the edit-only helpers, under the people: they come and go with
             the mode, so they sit below the faces and never move them */}
+        {pattern ? (
+          <div className="flex flex-wrap items-center gap-[9px] pb-[11px]">
+            <PresetFills onFill={fillPreset} onFillAll={fillAllDays} />
+          </div>
+        ) : (
         <div className="flex flex-wrap items-center gap-[9px] pb-[11px]">
         {dayPoll ? (
           <span className="text-[13.5px] font-semibold leading-tight">
@@ -1692,6 +1702,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           )
         )}
         </div>
+        )}
 
         {/* filtered-in people with no times yet — say so instead of showing a silently empty grid */}
         {mode === 'view' && unmarked.length > 0 && (() => {
@@ -1751,7 +1762,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         {/* one line of what to do, gone once dismissed. What the colours mean lives in
             the grid's info button, so it is not said twice. Edit mode has its own line
             about dragging, and a grid you cannot edit has nothing to ask of you */}
-        {mode !== 'edit' && editable && (
+        {mode !== 'edit' && editable && !pattern && (
           <Hint name="grid" className="mb-2">
             {dayPoll ? 'Tap the days you can make.' : 'Press Edit mine and drag across the hours you can meet.'}
           </Hint>
@@ -1860,6 +1871,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   }}
                   title={mode === 'edit' ? 'Click to fill the whole day' : undefined}
                 >
+                  {pattern ? (
+                    // a week with no dates: the weekday is the whole label
+                    <div className={`font-semibold leading-tight ${narrow ? 'text-[13px]' : 'text-[14px]'}`}>{narrow ? d.dow[0] : d.dow}</div>
+                  ) : (<>
                   <div className={`text-dim ${narrow ? 'text-[10px]' : 'text-[11px]'}`}>{narrow ? d.dow[0] : d.dow}</div>
                   <div className={`font-semibold leading-tight ${narrow ? 'text-[13px]' : 'text-[14px]'}`} style={{ color: isBestDay || inBlock ? 'var(--ochre-text)' : 'var(--text)' }}>
                     {narrow ? (
@@ -1869,6 +1884,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                       </>
                     ) : d.date}
                   </div>
+                  </>)}
                   {mode === 'edit' && (
                     <span className={`mx-auto mt-[3px] grid h-4 w-4 place-items-center rounded-[5px] border ${dayFull ? 'border-accent bg-accent text-on-accent' : 'border-border2 text-transparent'}`}>
                       <Check size={11} />
@@ -2163,7 +2179,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                       })}
                       {/* slot line redrawn above the heat fills so saturated cells can't wash it out */}
                       <div className="pointer-events-none absolute z-[1] border-b border-r border-grid-line" style={{ inset: '0 -1px -1px 0' }} />
-                      {(cnt > 0 || needExtra) && (() => {
+                      {!pattern && (cnt > 0 || needExtra) && (() => {
                         // color for the surface under the corner: my clay block reaching the
                         // cell's bottom edge wants dark clay text; a full dark heat wants cream;
                         // anything paler (partials included) reads best in dark text
@@ -2237,7 +2253,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         {/* best-answer footer — gone once a time exists (locked in, or fixed at creation
             while the place vote runs). One line, one length control: "1 day" answers with
             the best single slot (or day), longer answers with the best run of days. */}
-        {!locked && !event.confirmed && <div className="mt-0.5 flex flex-wrap items-center gap-2.5 border-t border-border px-0.5 pt-3">
+        {!locked && !event.confirmed && !pattern && <div className="mt-0.5 flex flex-wrap items-center gap-2.5 border-t border-border px-0.5 pt-3">
           {responded === 0 ? (
             <span className="text-[12.5px] text-dim">
               {dayPoll
