@@ -2,7 +2,7 @@
 
 /* ── my usual week, painted on the profile page ──
    Two views of one week, under a switch. Hours: the plan grid's look and its way of
-   painting, on a week with no dates, Monday to Sunday, 12 AM to 12 AM in half hours,
+   painting, on a week with no dates, Monday to Sunday, the whole day in half hours,
    only your own marks. Drag across cells to paint, drag from a marked cell to rub
    out; on a phone a finger that rests for a beat paints and a quick swipe scrolls, as
    on a plan. Whole days: the weekdays you can usually give a whole day to, which is
@@ -43,6 +43,12 @@ function clock(min: number, h24: boolean) {
   const h = Math.floor(min / 60) % 24, m = String(min % 60).padStart(2, '0')
   if (h24) return `${String(h).padStart(2, '0')}:${m}`
   return `${h % 12 === 0 ? 12 : h % 12}${m === '00' ? '' : `:${m}`} ${h < 12 ? 'AM' : 'PM'}`
+}
+
+// the rail's label: "12:30" or "7:00" beside a small AM or PM, or "19:30" on a 24-hour clock
+function clockMain(min: number, h24: boolean) {
+  const h = Math.floor(min / 60) % 24, m = String(min % 60).padStart(2, '0')
+  return h24 ? `${String(h).padStart(2, '0')}:${m}` : `${h % 12 === 0 ? 12 : h % 12}:${m}`
 }
 
 export function UsualWeekEditor({ account }: { account: Account }) {
@@ -254,7 +260,7 @@ export function UsualWeekEditor({ account }: { account: Account }) {
           role="grid"
           aria-label="My usual week"
           className="grid select-none"
-          style={{ gridTemplateColumns: '44px repeat(7, minmax(0, 1fr))', WebkitTouchCallout: 'none' }}
+          style={{ gridTemplateColumns: '52px repeat(7, minmax(0, 1fr))', WebkitTouchCallout: 'none' }}
           onContextMenu={(e) => e.preventDefault()}
         >
           <div className="sticky left-0 top-0 z-20 border-b border-r border-grid-edge bg-s0" />
@@ -280,8 +286,20 @@ export function UsualWeekEditor({ account }: { account: Account }) {
             const line = hour ? 'border-grid-line/50' : 'border-grid-line/20'
             return (
               <div key={r} role="row" className="contents">
-                <div className={`sticky left-0 z-[5] flex h-6 items-start justify-end border-b border-r border-grid-edge bg-s0 pr-1.5 text-[11px] font-medium leading-none text-dim ${line}`}>
-                  {hour && <span className="-mt-[1px] whitespace-nowrap pt-0.5">{clock(min, h24)}</span>}
+                {/* the rail reads like a day calendar's: each time sits ON the line that
+                    opens its row, with a tick either side, so the day's two ends, 12 AM
+                    at the top and at the bottom, are the two lines it never names */}
+                <div className={`sticky left-0 z-[5] h-6 border-b border-r border-grid-edge bg-s0 font-medium leading-none ${line}`}>
+                  {r > 0 && (
+                    <span className="pointer-events-none absolute inset-x-0 top-[-0.5px] flex -translate-y-1/2 items-center gap-[3px]">
+                      <span className="h-px w-[3px] flex-none bg-grid-edge" />
+                      <span className={`flex items-baseline gap-[2px] whitespace-nowrap ${hour ? 'text-[11px] text-dim' : 'text-[10.5px] text-faint'}`}>
+                        <span>{clockMain(min, h24)}</span>
+                        {!h24 && <span className="text-[8.5px] font-semibold tracking-[.04em] text-faint">{min < 720 ? 'AM' : 'PM'}</span>}
+                      </span>
+                      <span className="h-px flex-1 bg-grid-edge" />
+                    </span>
+                  )}
                 </div>
                 {COLS.map((wd, c) => {
                   const list = week.days[wd]
@@ -324,11 +342,6 @@ export function UsualWeekEditor({ account }: { account: Account }) {
               </div>
             )
           })}
-          {/* the day closes where it opened: 12 AM again under the last row */}
-          <div className="sticky left-0 z-[5] flex h-5 items-start justify-end border-r border-grid-edge bg-s0 pr-1.5 text-[11px] font-medium leading-none text-dim">
-            <span className="whitespace-nowrap pt-0.5">{clock(24 * 60, h24)}</span>
-          </div>
-          <div className="bg-s0" style={{ gridColumn: '2 / -1' }} />
         </div>
       </div>
       ) : (
