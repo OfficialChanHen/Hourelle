@@ -9,6 +9,8 @@ import { TimeSelect } from '@/components/ui/TimeSelect'
 import { DateField } from '@/components/ui/DateField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { TimezonePill } from '@/components/ui/TimezonePill'
+import { RepeatSelect } from '@/components/ui/RepeatSelect'
+import type { Cadence } from '@/lib/repeat'
 import { canEmail, sendLockedMail } from '@/lib/mail'
 import { useAccount } from '@/hooks/useAccount'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
@@ -182,6 +184,8 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
   // locking in opens the RSVP round, so the deadline for it is asked here — optional,
   // and soft: it nudges and shifts emphasis, late answers still count
   const [rsvpBy, setRsvpBy] = useState(event.rsvpDeadline ?? '')
+  // a regular group's plan can come back on its own at the same time (lib/repeat.ts)
+  const [repeatEvery, setRepeatEvery] = useState<Cadence | ''>(event.repeat?.every ?? '')
   const d0 = new Date()
   const todayKey = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`
 
@@ -210,6 +214,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
     // clamp a stale pick (the chosen day may have moved under it) before storing
     const deadline = rsvpBy && rsvpBy >= todayKey && rsvpBy <= dayKey ? rsvpBy : undefined
     if (deadline !== event.rsvpDeadline) patchEvent(event.id, { rsvpDeadline: deadline })
+    if (repeatEvery !== (event.repeat?.every ?? '')) patchEvent(event.id, { repeat: repeatEvery ? { every: repeatEvery } : undefined })
     // everyone hears about it, calendar entry attached, in the background; the
     // server waits for the lock-in to land before it writes to anyone
     if (canEmail(account.signedIn) && !event.demo) void sendLockedMail(event.id, getEvent(event.id)?.confirmedAt)
@@ -355,6 +360,12 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
           )}
         </div>
         <p className="mt-1.5 text-[12px] text-faint">Everyone gets a reminder the day before and the day of. Late answers still count.</p>
+      </div>
+
+      <div>
+        <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Repeats</div>
+        <RepeatSelect value={repeatEvery} dayKey={timeSet ? event.confirmed?.dayKey ?? dayKey : dayKey} onChange={setRepeatEvery} />
+        {repeatEvery && <p className="mt-1.5 text-[12px] text-faint">Once this one is over, the next one opens at the same time.</p>}
       </div>
 
       <div>

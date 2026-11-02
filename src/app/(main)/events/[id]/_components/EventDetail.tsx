@@ -58,7 +58,8 @@ import { Hint } from '@/components/ui/Hint'
 import { Tour, type TourContext } from '@/components/Tour'
 import { AskTour } from '@/components/AskTour'
 import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, patchEventWith, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
-import { Switch } from '@/components/ui/Switch'
+import { RepeatSelect } from '@/components/ui/RepeatSelect'
+import { repeatLabel } from '@/lib/repeat'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -731,7 +732,7 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
         {locked && (isHost || event.rsvpDeadline) && (
           <DetailRow k="RSVP by" v={<DeadlineValue label="RSVP by" value={event.rsvpDeadline} editable={isHost} onChange={(v) => onPatch({ rsvpDeadline: v })} hint="Everyone gets a reminder the day before and the day of. Late answers still count." max={event.confirmed?.dayKey} />} />
         )}
-        {/* a weekly series: the host turns it on once a time is locked; everyone sees that it repeats */}
+        {/* a repeating plan: the host sets it at lock-in or here; everyone sees that it repeats */}
         {!event.demo && (event.repeat || (isHost && locked)) && (
           <DetailRow k="Repeats" v={<RepeatValue event={event} editable={isHost} onPatch={onPatch} />} />
         )}
@@ -1381,34 +1382,31 @@ function DeadlineValue({ label, value, editable, onChange, hint, max }: {
 /* Where: the confirmed venue once locked; before that, the vote leader for a single venue,
    or a pointer to the itinerary on the Location tab. */
 /* Spots: the host caps the guest list; everyone sees the number, only the host edits it */
-/* "Repeat every week": once this plan is over, next week's opens on its own with the
-   same people (lib/repeat.ts). Once it has, this row points at it instead, and the
-   switch lives on the new plan. */
 // the closing words on a plan that is over: where the next one comes from
 function nextTimeNote(event: AppEvent): string {
-  if (event.repeat?.nextId) return 'Next week\'s plan has its own link.'
-  if (event.repeat) return 'Next week\'s plan opens on its own.'
+  if (event.repeat?.nextId) return 'The next one has its own link.'
+  if (event.repeat) return 'The next one opens on its own at the same time.'
   return 'Duplicate it to start the next one.'
 }
 
+/* How often the plan comes back: once it is over, the next one opens on its own with
+   the same people at the same time, already locked (lib/repeat.ts). Once it has, this
+   row points at it instead, and the choice lives on the new plan. */
 function RepeatValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
   const nextId = event.repeat?.nextId
+  const dayKey = event.confirmed?.dayKey ?? event.startDate
   if (nextId) {
     // only a plan you are on: the link is the permission, so it is never handed out here
     const next = getEvent(nextId)
     return next
-      ? <Link href={`/events/${next.id}`} className="font-semibold text-accent-text underline-offset-2 hover:underline">Next week&apos;s plan is open</Link>
-      : <span>Every week</span>
+      ? <Link href={`/events/${next.id}`} className="font-semibold text-accent-text underline-offset-2 hover:underline">The next one is open</Link>
+      : <span>{event.repeat ? repeatLabel(event.repeat.every, dayKey) : ''}</span>
   }
-  if (!editable) return <span>Every week</span>
-  const on = !!event.repeat
+  if (!editable) return <span>{event.repeat ? repeatLabel(event.repeat.every, dayKey) : 'Doesn\'t repeat'}</span>
   return (
     <span className="flex flex-col gap-1">
-      <span className="flex items-center gap-2.5">
-        <Switch on={on} onChange={(v) => onPatch({ repeat: v ? { every: 'week' } : undefined })} label="Repeat every week" />
-        <span>Every week</span>
-      </span>
-      {on && <span className="text-[12.5px] font-normal text-dim">Next week&apos;s plan opens on its own once this one is over.</span>}
+      <RepeatSelect value={event.repeat?.every ?? ''} dayKey={dayKey} onChange={(v) => onPatch({ repeat: v ? { every: v } : undefined })} className="max-w-[280px]" />
+      {event.repeat && <span className="text-[12.5px] font-normal text-dim">Once this one is over, the next one opens at the same time.</span>}
     </span>
   )
 }

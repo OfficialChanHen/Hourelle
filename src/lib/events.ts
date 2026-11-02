@@ -57,8 +57,6 @@ export type GridDay = { key: string; dow: string; date: string; best?: boolean }
 // minute-precise availability: grid-minutes from the top of the grid, block covers [s, e)
 export type Iv = { s: number; e: number }
 export type AvailIntervals = Record<string, Record<string, Iv[]>> // dayKey → participantId → merged ranges
-// one person's answer on the last plan of a repeating series, moved onto this plan's days
-export type LastAnswer = { free: Record<string, Iv[]>; need?: Record<string, Iv[]> }
 
 export type AppEvent = {
   id: string
@@ -131,13 +129,15 @@ export type AppEvent = {
   // was fixed at creation. A planning event with a slot here is "time set, place still open".
   confirmed?: ConfirmedSlot
   confirmedAt?: number
-  // a weekly series (see lib/repeat.ts): set by the host on a locked plan; nextId once
-  // next week's plan is open. The plan it came from, and everyone's answers on it,
-  // offered on the grid as a starting point and never counted as an answer.
-  repeat?: { every: 'week'; nextId?: string }
+  // a repeating series (see lib/repeat.ts): set by the host at or after lock-in; nextId
+  // once the next plan is open, at the same time. repeatOf is the plan it came from.
+  repeat?: Repeat
   repeatOf?: string
-  lastAnswers?: Record<string, LastAnswer>
 }
+
+// how often a locked plan comes back: weekly, fortnightly, or monthly on the same
+// weekday of the month
+export type Repeat = { every: 'week' | '2weeks' | 'month'; nextId?: string }
 
 // what the create wizard hands us (a superset is fine). The host is always the
 // signed-in account — creating an event requires one, so there is nothing to choose.
@@ -1152,7 +1152,7 @@ export function reopenEvent(id: string): void {
    travel: it is a new plan, and the wizard is where the host checks the people
    list before it exists. */
 export type EventDraft = Partial<CreateInput> & { excludedDows?: number[] }
-export function draftFromEvent(id: string, opts: { after?: string } = {}): EventDraft | null {
+export function draftFromEvent(id: string): EventDraft | null {
   const ev = getEvent(id)
   if (!ev) return null
   const isItin = ev.location.planMode === 'itinerary'
@@ -1170,10 +1170,8 @@ export function draftFromEvent(id: string, opts: { after?: string } = {}): Event
 
   const today = todayKey()
   const shift = (key: string, days: number) => { const d = parseLocal(key); if (!d) return key; d.setDate(d.getDate() + days); return isoOf(d) }
-  // the first day on or after today (or after `after`, for a repeat) with the same
-  // weekday as the given one
-  const floor = opts.after && shift(opts.after, 1) > today ? shift(opts.after, 1) : today
-  const nextSameDow = (key: string) => { const d = parseLocal(key), t = parseLocal(floor); return d && t ? shift(floor, (d.getDay() - t.getDay() + 7) % 7) : key }
+  // the first day on or after today with the same weekday as the given one
+  const nextSameDow = (key: string) => { const d = parseLocal(key), t = parseLocal(today); return d && t ? shift(today, (d.getDay() - t.getDay() + 7) % 7) : key }
   const a = parseLocal(ev.startDate), b = parseLocal(ev.endDate)
   const span = a && b ? Math.max(0, Math.round((b.getTime() - a.getTime()) / 86400000)) : 0
   const startDate = nextSameDow(ev.startDate)

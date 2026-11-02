@@ -39,7 +39,7 @@ import { answeredLine, needClause } from '@/lib/answers'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { CalendarHeart, History, ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, Zap } from 'lucide-react'
+import { CalendarHeart, ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, Zap } from 'lucide-react'
 
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { FaceChipsMore } from '@/components/ui/FaceChips'
@@ -1140,18 +1140,6 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       : `Added ${fmtDur(out.addedMin)} of free time from your usual week.`)
   }
 
-  // a repeating plan carries your answer from last week (lib/repeat.ts), moved to
-  // these days. It is offered, never filled in for you, since it would count as an answer.
-  const lastWeek = event.lastAnswers?.[meId]
-  function fillFromLast() {
-    if (!lastWeek) return
-    const snapshot = { free: mineRef.current, need: needRef.current }
-    const pick = (src?: Record<string, Iv[]>) => Object.fromEntries(event.days.map((d) => [d.key, normalizeIv(src?.[d.key] ?? [])]))
-    const free = pick(lastWeek.free), maybe = pick(lastWeek.need)
-    setMine(free); setNeed(maybe); persist(free, {}, maybe); setSel(null)
-    stashUndo(snapshot, 'Filled in your times from last week.')
-  }
-
   // back from Google or Microsoft with the calendar permission: finish the import
   // that started it, once, and take the marker off the address bar
   const importOnce = useRef(false)
@@ -1692,15 +1680,6 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             is one tap — and marking any time takes it back */}
         {/* one tap from nothing marked to your usual week; hidden once you have said
             none of these days work, since that is an answer too */}
-        {mode === 'edit' && editable && !locked && !youAny && !unavail.has(meId) && lastWeek && (
-          <button
-            type="button"
-            onClick={fillFromLast}
-            className="flex h-11 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-[11px] text-[12.5px] font-semibold text-accent-text hover:bg-s2 sm:h-7"
-          >
-            <History size={13} /> Use last week&apos;s times
-          </button>
-        )}
         {mode === 'edit' && editable && !youAny && !unavail.has(meId) && usualWeek === 'ready' && (
           <button
             type="button"

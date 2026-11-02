@@ -1,11 +1,11 @@
 -- Step 20: repeating plans are the host's to set.
 --
--- A host can turn on "Repeat every week" on a locked plan; once it is over, the
--- host's app opens next week's plan and records it on this one (`repeat.nextId`).
--- The new plan carries `repeatOf` and `lastAnswers`, everyone's answers from the
--- week before, offered on the grid as a starting point. All three live in the event
--- document, so no column is needed; this adds them to the fields only a host may
--- change, so a guest cannot stop a club's series or rewrite what it offers.
+-- A host can say a locked plan repeats (every week, every 2 weeks or every month);
+-- once it is over, the host's app opens the next one and records it on this one
+-- (`repeat.nextId`).
+-- The new plan, locked at the same clock time, carries `repeatOf`. Both live in
+-- the event document, so no column is needed; this adds them to the fields only a
+-- host may change, so a guest cannot stop a club's series.
 --
 -- The function is 0015's with that one check added. Safe to run more than once.
 
@@ -69,11 +69,10 @@ begin
     raise exception 'Only the host can change how this event is set up';
   end if;
 
-  -- a weekly series: whether it repeats, which plan it came from, and the last
-  -- answers it offers each person are written by the host's app alone
+  -- a repeating plan: whether it repeats and which plan it came from are written by
+  -- the host's app alone
   if new.data->'repeat' is distinct from old.data->'repeat'
-     or new.data->>'repeatOf' is distinct from old.data->>'repeatOf'
-     or new.data->'lastAnswers' is distinct from old.data->'lastAnswers' then
+     or new.data->>'repeatOf' is distinct from old.data->>'repeatOf' then
     raise exception 'Only the host can change how this event repeats';
   end if;
 

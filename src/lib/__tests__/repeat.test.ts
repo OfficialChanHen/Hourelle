@@ -1,11 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getEvent, listEvents, type AppEvent } from '@/lib/events'
-import { carryAnswers, dueRepeats, openDueRepeats, openNextWeek } from '@/lib/repeat'
+import { dueRepeats, nextSlot, openDueRepeats, openNext, repeatLabel } from '@/lib/repeat'
 import { day, person, plan, saved } from '../../../test/fixtures'
 
-// Tue Oct 20 and Wed Oct 21 2026, hourly 9 AM to 3 PM; next week is Oct 27 and 28
-const next = (extra: Partial<AppEvent> = {}) => plan({ id: 'plan-2', days: [day('2026-10-27'), day('2026-10-28')], ...extra })
-// locked on the Tuesday, 10 to 11 AM
+// a poll over Tue Oct 20 and Wed Oct 21 2026, locked on the Tuesday, 10 to 11 AM
 const locked = (extra: Partial<AppEvent> = {}) => plan({
   status: 'confirmed', confirmed: { dayKey: '2026-10-20', startMin: 600, endMin: 660, placeIds: [] }, confirmedAt: 1,
   repeat: { every: 'week' }, ...extra,
@@ -13,38 +11,35 @@ const locked = (extra: Partial<AppEvent> = {}) => plan({
 
 afterEach(() => { vi.useRealTimers() })
 
-describe('carryAnswers', () => {
-  it('moves each answer to the same weekday of the new plan', () => {
-    const prev = plan({ participants: [person('H', { host: true }), person('A')], availIv: { '2026-10-20': { A: [{ s: 0, e: 120 }] }, '2026-10-21': { A: [{ s: 180, e: 240 }] } } })
-    const out = carryAnswers(prev, next({ participants: [person('H', { host: true }), person('A')] }))
-    expect(out.A.free).toEqual({ '2026-10-27': [{ s: 0, e: 120 }], '2026-10-28': [{ s: 180, e: 240 }] })
-    expect(out.H).toBeUndefined()
+const slot = (dayKey: string, startMin = 600, endMin = 660, endDayKey?: string) => ({ dayKey, startMin, endMin, placeIds: [], ...(endDayKey ? { endDayKey } : {}) })
+
+describe('nextSlot', () => {
+  it('every week is the same weekday and clock time a week on', () => {
+    expect(nextSlot(slot('2026-10-20'), 'week', '2026-10-21')).toEqual({ day: '2026-10-27', start: '10:00', end: '11:00', allDay: false })
   })
-  it('keeps if-need-be marks apart from free ones', () => {
-    const prev = plan({ participants: [person('A')], availIv: { '2026-10-20': { A: [{ s: 0, e: 60 }] } }, needIv: { '2026-10-20': { A: [{ s: 60, e: 120 }] } } })
-    const out = carryAnswers(prev, next({ participants: [person('A')] }))
-    expect(out.A.free).toEqual({ '2026-10-27': [{ s: 0, e: 60 }] })
-    expect(out.A.need).toEqual({ '2026-10-27': [{ s: 60, e: 120 }] })
+  it('skips the dates already gone', () => {
+    expect(nextSlot(slot('2026-10-20'), 'week', '2026-11-05').day).toBe('2026-11-10')
+    expect(nextSlot(slot('2026-10-20'), '2weeks', '2026-10-21').day).toBe('2026-11-03')
+    expect(nextSlot(slot('2026-10-20'), '2weeks', '2026-11-04').day).toBe('2026-11-17')
   })
-  it('finds a guest again by email, since a guest gets a new id on every plan', () => {
-    const prev = plan({ participants: [person('g-old', { guest: true, email: 'Sam@x.com' })], availIv: { '2026-10-20': { 'g-old': [{ s: 0, e: 60 }] } } })
-    const out = carryAnswers(prev, next({ participants: [person('g-new', { guest: true, email: 'sam@x.com' })] }))
-    expect(out['g-new'].free).toEqual({ '2026-10-27': [{ s: 0, e: 60 }] })
+  it('every month keeps the weekday of the month', () => {
+    // Tue Oct 6 2026 is the 1st Tuesday; Nov's is Nov 3
+    expect(nextSlot(slot('2026-10-06'), 'month', '2026-10-07').day).toBe('2026-11-03')
+    // Fri Oct 30 is the last Friday; Nov's is Nov 27
+    expect(nextSlot(slot('2026-10-30'), 'month', '2026-10-31').day).toBe('2026-11-27')
   })
-  it('reads the clock, so a grid that starts later keeps the same hours', () => {
-    const prev = plan({ participants: [person('A')], availIv: { '2026-10-20': { A: [{ s: 60, e: 240 }] } } }) // 10 AM to 1 PM
-    const out = carryAnswers(prev, next({ participants: [person('A')], times: ['11 AM', '12 PM', '1 PM', '2 PM'] }))
-    expect(out.A.free).toEqual({ '2026-10-27': [{ s: 0, e: 120 }] }) // 11 AM to 1 PM
+  it('keeps a run of days and an all-day slot whole', () => {
+    expect(nextSlot(slot('2026-10-23', 0, 1440, '2026-10-25'), 'week', '2026-10-26'))
+      .toEqual({ day: '2026-10-30', endDay: '2026-11-01', start: '00:00', end: '24:00', allDay: true })
   })
-  it('takes the latest of two days on the same weekday', () => {
-    const prev = plan({ participants: [person('A')], days: [day('2026-10-13'), day('2026-10-20')], availIv: { '2026-10-13': { A: [{ s: 0, e: 60 }] }, '2026-10-20': { A: [{ s: 120, e: 180 }] } } })
-    const out = carryAnswers(prev, next({ participants: [person('A')] }))
-    expect(out.A.free).toEqual({ '2026-10-27': [{ s: 120, e: 180 }] })
-  })
-  it('carries nothing for someone who said no days work, or across a change of kind', () => {
-    const prev = plan({ participants: [person('A'), person('B')], unavailableIds: ['B'], availIv: { '2026-10-20': { A: [{ s: 0, e: 60 }] } } })
-    expect(carryAnswers(prev, next({ participants: [person('A'), person('B')] })).B).toBeUndefined()
-    expect(carryAnswers(prev, next({ participants: [person('A')], granularity: 'day', times: ['All day'] }))).toEqual({})
+})
+
+describe('repeatLabel', () => {
+  it('says the cadence, naming the weekday of the month for monthly', () => {
+    expect(repeatLabel('week', '2026-10-20')).toBe('Every week')
+    expect(repeatLabel('2weeks', '2026-10-20')).toBe('Every 2 weeks')
+    expect(repeatLabel('month', '2026-10-06')).toBe('Every month on the 1st Tue')
+    expect(repeatLabel('month', '2026-10-30')).toBe('Every month on the last Fri')
   })
 })
 
@@ -62,28 +57,25 @@ describe('dueRepeats', () => {
   })
 })
 
-describe('openNextWeek', () => {
-  it('opens the same plan a week on, repeating, with last answers offered', () => {
+describe('openNext', () => {
+  it('opens next week already locked at the same time, with the same people', () => {
     vi.useFakeTimers({ now: new Date(2026, 9, 21, 12) }) // Wed Oct 21, the day after
-    saved(locked({ participants: [person('H', { host: true, you: true }), person('A', { email: 'a@x.com', guest: true })], availIv: { '2026-10-20': { A: [{ s: 0, e: 60 }] } } }))
-    const made = openNextWeek('plan-1')!
-    expect(made.startDate).toBe('2026-10-27')
-    expect(made.status).toBe('planning')
+    saved(locked({ participants: [person('H', { host: true, you: true }), person('A', { email: 'a@x.com', guest: true, rsvp: 'attending' })] }))
+    const made = openNext('plan-1')!
+    expect(made.status).toBe('confirmed')
+    expect(made.confirmed).toMatchObject({ dayKey: '2026-10-27', startMin: 600, endMin: 660 })
     expect(made.repeat).toEqual({ every: 'week' })
     expect(made.repeatOf).toBe('plan-1')
-    const a = made.participants.find((p) => p.email === 'a@x.com')!
-    expect(made.lastAnswers?.[a.id].free).toEqual({ '2026-10-27': [{ s: 0, e: 60 }] })
-    // no one is answered for: the new grid starts empty
-    expect(Object.values(made.availIv ?? {}).every((d) => Object.keys(d).length === 0)).toBe(true)
+    // everyone is asked again: last week's going is not this week's
+    expect(made.participants.find((p) => p.email === 'a@x.com')?.rsvp).toBe('pending')
     expect(getEvent('plan-1')!.repeat?.nextId).toBe(made.id)
   })
-  it('brings a plan whose date was set back set, on the same weekday', () => {
-    vi.useFakeTimers({ now: new Date(2026, 9, 20, 22) }) // Tue Oct 20, 10 PM, after it ended
-    // born set: one day, the grid built around 7 to 9 PM
-    saved(plan({ days: [day('2026-10-20')], endDate: '2026-10-20', times: ['7 PM', '8 PM'], status: 'confirmed', confirmed: { dayKey: '2026-10-20', startMin: 1140, endMin: 1260, placeIds: [] }, confirmedAt: 1, repeat: { every: 'week' } }))
-    const made = openDueRepeats()[0]
-    expect(made.status).toBe('confirmed')
-    expect(made.confirmed).toMatchObject({ dayKey: '2026-10-27', startMin: 1140, endMin: 1260 })
+  it('keeps the cadence it was given', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 21, 12) })
+    saved(locked({ repeat: { every: 'month' } }))
+    const made = openNext('plan-1')!
+    expect(made.repeat).toEqual({ every: 'month' })
+    expect(made.confirmed?.dayKey).toBe('2026-11-17') // the 3rd Tuesday
   })
   it('opens each due plan once, however often it is asked', () => {
     vi.useFakeTimers({ now: new Date(2026, 9, 21, 12) })
@@ -91,5 +83,12 @@ describe('openNextWeek', () => {
     expect(openDueRepeats()).toHaveLength(1)
     expect(openDueRepeats()).toHaveLength(0)
     expect(listEvents()).toHaveLength(2)
+  })
+  it('repeats a plan whose date was set at creation the same way', () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 20, 22) }) // Tue Oct 20, 10 PM, after it ended
+    saved(plan({ days: [day('2026-10-20')], endDate: '2026-10-20', times: ['7 PM', '8 PM'], status: 'confirmed', confirmed: { dayKey: '2026-10-20', startMin: 1140, endMin: 1260, placeIds: [] }, confirmedAt: 1, repeat: { every: 'week' } }))
+    const made = openDueRepeats()[0]
+    expect(made.status).toBe('confirmed')
+    expect(made.confirmed).toMatchObject({ dayKey: '2026-10-27', startMin: 1140, endMin: 1260 })
   })
 })
