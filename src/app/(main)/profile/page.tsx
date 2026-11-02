@@ -12,7 +12,7 @@ import { PasswordField } from '@/components/ui/PasswordField'
 import { initialsOf, restampMe } from '@/lib/events'
 import { SignInMethods } from './_components/SignInMethods'
 import { YourFace } from './_components/YourFace'
-import { UsualWeekEditor } from '@/components/UsualWeekEditor'
+import { UsualWeekCard } from './_components/UsualWeekCard'
 import { reducedMotion } from '@/lib/prefs'
 import { APP_NAME } from '@/lib/brand'
 
@@ -147,11 +147,11 @@ export default function ProfilePage() {
       )}
 
       {/* the week a plan can fill from, when you ask it to; it belongs to the same
-          owner as the face. Keyed by account, so a new log-in starts from its own week */}
+          owner as the face */}
       {faceShown && (
         <section id="usual-week" aria-label="My usual week" className="scroll-mt-[72px]">
           <Eyebrow>My usual week</Eyebrow>
-          <UsualWeekEditor key={account.id} account={account} />
+          <UsualWeekCard account={account} />
         </section>
       )}
 

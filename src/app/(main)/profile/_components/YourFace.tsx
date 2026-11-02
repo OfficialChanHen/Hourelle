@@ -1,17 +1,19 @@
 'use client'
 
-/* Your face: a large preview, one row of small faces per part, and a shuffle.
+/* Your face: compact to start (the face, one line, Edit), like Your account above.
+   Edit opens a large preview, one row of small faces per part, and a shuffle.
    Every option is drawn as your face with that one part swapped, so the rows show
    what a tap does without words. Colour is the profile colour, picked here too.
 
-   Nothing is kept until Save: a tap only changes the preview. Saving writes the face
+   Nothing is kept until Save: a tap only changes the preview, and Save or Cancel
+   folds it back. Saving writes the face
    to the account (the auth user's metadata; this browser alone with no backend) and
    puts it on your entry in every event this device holds, which then syncs. */
 
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { Check, Loader2, Shuffle, X } from 'lucide-react'
+import { Check, Loader2, Pencil, Shuffle, X } from 'lucide-react'
 import { FaceSvg } from '@/components/ui/FaceSvg'
 import { FaceParts } from '@/components/ui/FaceParts'
 import { personColors, personVar, type PersonColor } from '@/lib/colors'
@@ -19,6 +21,7 @@ import { defaultFace, sameFace, shuffleFace, type Face } from '@/lib/faces'
 import { initialsOf, restampMe, stampMyFace } from '@/lib/events'
 import { updateFace, updateProfile, type Account } from '@/lib/session'
 import { reducedMotion } from '@/lib/prefs'
+import { useHashOpen } from '@/hooks/useHashOpen'
 
 const COLORS = Object.keys(personColors) as PersonColor[]
 
@@ -36,6 +39,16 @@ export function YourFace({ account }: { account: Account }) {
   const [err, setErr] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const ids = useId()
+  // the account menu's Your face and a plan's Change face land here to change it
+  const [editing, setEditing] = useState(false)
+  useHashOpen(['face'], () => setEditing(true))
+  // focus goes back to Edit once the editor folds away
+  const editBtn = useRef<HTMLButtonElement>(null)
+  const wasEditing = useRef(false)
+  useEffect(() => {
+    if (wasEditing.current && !editing) editBtn.current?.focus()
+    wasEditing.current = editing
+  }, [editing])
 
   // a small pop on the preview when it changes, so a tap reads as a change
   const preview = useRef<HTMLDivElement>(null)
@@ -64,10 +77,24 @@ export function YourFace({ account }: { account: Account }) {
       if (e) { setSaving(false); setErr(e); return }
       stampMyFace()
     }
-    setSaving(false); setDraft(null); setDraftColor(null)
+    setSaving(false); setDraft(null); setDraftColor(null); setEditing(false)
     setSaved(true); setTimeout(() => setSaved(false), 1800)
   }
-  function cancel() { setDraft(null); setDraftColor(null); setErr(null) }
+  function cancel() { setDraft(null); setDraftColor(null); setErr(null); setEditing(false) }
+
+  if (!editing) return (
+    <div className="flex items-center gap-3.5 rounded-2xl border border-border bg-s1 p-5">
+      <FaceSvg face={current} color={account.color} size={52} className="h-[52px] w-[52px] flex-none" />
+      <div className="min-w-0 flex-1 text-[13px] text-dim">
+        {saved
+          ? <span role="status" className="flex items-center gap-1 font-medium text-teal-text"><Check size={13} /> Saved</span>
+          : 'People in your plans see this face.'}
+      </div>
+      <button ref={editBtn} type="button" onClick={() => { setSaved(false); setEditing(true) }} className="flex h-11 flex-none items-center gap-1.5 rounded-full border border-border2 bg-s1 px-3 text-[13px] font-semibold text-dim hover:bg-s2 hover:text-text sm:h-9">
+        <Pencil size={14} /> Edit
+      </button>
+    </div>
+  )
 
   return (
     <div className="rounded-2xl border border-border bg-s1 p-5">
@@ -107,19 +134,11 @@ export function YourFace({ account }: { account: Account }) {
       </div>
 
       {err && <p role="alert" className="mt-4 text-[12.5px] font-medium text-brick-text">{err}</p>}
-      <div className="mt-4 flex min-h-10 flex-wrap items-center gap-2 border-t border-border pt-4">
-        {dirty ? (
-          <>
-            <button onClick={() => void save()} disabled={saving} className="flex h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-40 sm:h-10">
-              {saving ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Save
-            </button>
-            <button onClick={cancel} disabled={saving} className="flex h-11 items-center gap-1.5 rounded-full border border-border2 px-4 text-[14px] font-semibold text-dim hover:bg-s2 sm:h-10"><X size={15} /> Cancel</button>
-          </>
-        ) : saved ? (
-          <span role="status" className="flex items-center gap-1 text-[13px] font-medium text-teal-text"><Check size={14} /> Saved</span>
-        ) : (
-          <span className="text-[13px] text-dim">People in your plans see this face.</span>
-        )}
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
+        <button onClick={() => void save()} disabled={!dirty || saving} className="flex h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-40 sm:h-10">
+          {saving ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Save
+        </button>
+        <button onClick={cancel} disabled={saving} className="flex h-11 items-center gap-1.5 rounded-full border border-border2 px-4 text-[14px] font-semibold text-dim hover:bg-s2 sm:h-10"><X size={15} /> Cancel</button>
       </div>
     </div>
   )

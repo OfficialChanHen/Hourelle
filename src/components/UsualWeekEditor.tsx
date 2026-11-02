@@ -5,11 +5,12 @@
    (AvailabilityPanel in its `pattern` mode): the same painting, edge handles, presets
    and day and row checkboxes, on a week with no dates, Monday to Sunday, the whole
    day, with only you on it. Whole days are the weekdays you can usually give a whole
-   day to, which is all a plan asking for days reads. It saves as you go. Plans fill
-   from it only when you ask (see lib/usual-week.ts). */
+   day to, which is all a plan asking for days reads. Nothing is kept until Save;
+   Cancel puts the week back. Plans fill from it only when you ask (see
+   lib/usual-week.ts). */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, Eraser } from 'lucide-react'
+import { Check, Eraser, Loader2, X } from 'lucide-react'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { AvailabilityPanel } from '@/app/(main)/events/[id]/_components/AvailabilityPanel'
@@ -21,7 +22,6 @@ import { initialsOf, type AppEvent, type Iv } from '@/lib/events'
 const COLS = [1, 2, 3, 4, 5, 6, 0] // Monday first; the numbers are Date.getDay()
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-const SAVE_MS = 600
 const ME = 'me'
 const keyOf = (wd: number) => `wd${wd}`
 
@@ -47,13 +47,13 @@ function asPlan(week: UsualWeek, account: Account): AppEvent {
   } as unknown as AppEvent
 }
 
-export function UsualWeekEditor({ account }: { account: Account }) {
+export function UsualWeekEditor({ account, onDone }: { account: Account; onDone: (saved: boolean) => void }) {
   const [week, setWeek] = useState<UsualWeek>(() => account.usualWeek ?? emptyWeek(localTimeZone()))
   // the grid holds its own marks while you paint; a change made out here (Clear, Undo,
-  // a new timezone, the stored week arriving) hands it a fresh copy
+  // a new timezone) hands it a fresh copy
   const [rev, setRev] = useState(0)
   const replace = (next: UsualWeek | ((w: UsualWeek) => UsualWeek)) => { setWeek(next); setRev((r) => r + 1) }
-  const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [cleared, setCleared] = useState<UsualWeek | null>(null)
   const [view, setView] = useState<View>(() => {
@@ -69,32 +69,16 @@ export function UsualWeekEditor({ account }: { account: Account }) {
     return () => window.removeEventListener('hashchange', read)
   }, [])
 
-  // saves a beat after the last change, and only a real change
-  const stored = useRef(JSON.stringify(account.usualWeek ?? null))
-  useEffect(() => {
-    const next = weekHasTime(week) ? week : null
-    if (JSON.stringify(next) === stored.current) return
-    const t = setTimeout(async () => {
-      const e = await updateUsualWeek(next)
-      setErr(e)
-      if (!e) { stored.current = JSON.stringify(next); setSaved(true) }
-    }, SAVE_MS)
-    return () => clearTimeout(t)
-  }, [week])
-  // the stored week can arrive after the first render (the account is read from this
-  // browser, or from a log-in, a moment after the page draws) or change in another
-  // tab; take it whenever it differs from what was last saved here
-  const incoming = JSON.stringify(account.usualWeek ?? null)
-  useEffect(() => {
-    if (incoming === stored.current) return
-    stored.current = incoming
-    replace(account.usualWeek ?? emptyWeek(localTimeZone()))
-  }, [incoming]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (!saved) return
-    const t = setTimeout(() => setSaved(false), 1600)
-    return () => clearTimeout(t)
-  }, [saved])
+  const toKeep = weekHasTime(week) ? week : null
+  const dirty = JSON.stringify(toKeep) !== JSON.stringify(account.usualWeek ?? null)
+  async function save() {
+    if (!dirty || saving) return
+    setSaving(true); setErr(null)
+    const e = await updateUsualWeek(toKeep)
+    setSaving(false)
+    if (e) { setErr(e); return }
+    onDone(true)
+  }
   useEffect(() => {
     if (!cleared) return
     const t = setTimeout(() => setCleared(null), 6000)
@@ -130,10 +114,7 @@ export function UsualWeekEditor({ account }: { account: Account }) {
           onChange={(v) => setView(v as View)}
           options={[{ v: 'hours', l: 'Hours' }, { v: 'days', l: 'Whole days' }]}
         />
-        <div className="flex items-center gap-3">
-          {saved && <span className="flex items-center gap-1 text-[12px] font-medium text-teal-text" role="status"><Check size={13} /> Saved</span>}
-          {view === 'hours' && <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={week.tz} /></span>}
-        </div>
+        {view === 'hours' && <span className="flex items-center gap-1.5 text-[12.5px] text-dim">Times in <TimezonePill tz={week.tz} /></span>}
       </div>
       <p className="mt-3 text-[13.5px] leading-[1.5] text-dim">
         {view === 'hours'
@@ -194,7 +175,14 @@ export function UsualWeekEditor({ account }: { account: Account }) {
             <button type="button" onClick={() => { replace(cleared); setCleared(null) }} className="font-semibold text-accent-text underline underline-offset-2">Undo</button>
           </span>
         )}
-        {err && <p role="alert" className="text-[12.5px] font-medium text-brick-text">{err}</p>}
+      </div>
+
+      {err && <p role="alert" className="mt-3 text-[12.5px] font-medium text-brick-text">{err}</p>}
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
+        <button type="button" onClick={() => void save()} disabled={!dirty || saving} className="flex h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent disabled:opacity-40 sm:h-10">
+          {saving ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Save
+        </button>
+        <button type="button" onClick={() => onDone(false)} disabled={saving} className="flex h-11 items-center gap-1.5 rounded-full border border-border2 px-4 text-[14px] font-semibold text-dim hover:bg-s2 sm:h-10"><X size={15} /> Cancel</button>
       </div>
     </div>
   )
