@@ -51,7 +51,7 @@ import { Hint } from '@/components/ui/Hint'
 import { Popover } from '@/components/ui/Popover'
 import { SettingField, SettingToggle, SettingsMenu } from '@/components/ui/Settings'
 import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, ImportFromCalendar, MissingPopover, PresetFills, USUAL_WEEK } from './availability/parts'
-import { cellBands, cellPeople, clayFor, countLabel, needSegments, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, PILE_AV, PILE_FONT, PILE_OVER, type Band, type GDay } from './availability/grid-lib'
+import { cellBands, cellPeople, clayFor, countLabel, localDayOffset, needSegments, nextDayRow, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, PILE_AV, PILE_FONT, PILE_OVER, shiftDay, yourHours, type Band, type GDay } from './availability/grid-lib'
 import { DayCalendar } from './availability/DayCalendar'
 import { StartStrip } from './availability/StartStrip'
 import { WeekStrip } from './availability/WeekStrip'
@@ -369,8 +369,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const ownLeft = (di: number) => di > 0 && cols[di - 1].pad
   // true when this column opens a month the one before it was not in (or opens the week)
   const monthTurn = (di: number) => {
-    const mine = cols[di]?.date.split(' ')[0]
-    for (let i = di - 1; i >= 0; i--) if (!cols[i].pad) return cols[i].date.split(' ')[0] !== mine
+    const mine = cols[di] && headDay(cols[di]).date.split(' ')[0]
+    for (let i = di - 1; i >= 0; i--) if (!cols[i].pad) return headDay(cols[i]).date.split(' ')[0] !== mine
     return true
   }
 
@@ -400,6 +400,26 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const shift = myTime && canConvert ? rawShift : 0
   const localTz = localTimeZone()
   const fmt = (min: number) => fmtMinute(min + shift, h24)
+  // your time keeps the plan's columns and moves only the clock, so a column can run past
+  // your midnight: its header names your date where it starts, and the row where your
+  // next date begins is marked
+  const startOff = shift ? localDayOffset(gridStartMin, shift) : 0
+  const turnRow = shift && !dayPoll ? nextDayRow(gridStartMin, shift, step, rows) : -1
+  const headDay = <D extends GDay>(d: D): D => (startOff && ISO_DAY.test(d.key) ? shiftDay(d, startOff) : d)
+  // a day and time as you read it: the date the start falls on, and "next day" on an end past it
+  const dayTime = (w: { dayKey: string; dayLabel: string; s: number; e: number }) => {
+    const day = shift && ISO_DAY.test(w.dayKey) ? event.days.find((d) => d.key === w.dayKey) : undefined
+    if (!day) return `${w.dayLabel}, ${fmt(gridStartMin + w.s)} – ${fmt(gridStartMin + w.e)}`
+    const off = localDayOffset(gridStartMin + w.s, shift)
+    const on = shiftDay(day, off)
+    const past = localDayOffset(gridStartMin + w.e - 1, shift) > off
+    return `${on.dow}, ${on.date}, ${fmt(gridStartMin + w.s)} – ${fmt(gridStartMin + w.e)}${past ? ' next day' : ''}`
+  }
+  // a plan that asks for set hours, read from a zone far enough away that they move a
+  // good part of the day: say where they land, so nobody hunts for an evening it never had
+  const farHours = !dayPoll && canConvert && gridMax < 24 * 60 && Math.abs(rawShift) >= 3 * 60
+    ? yourHours(gridStartMin, gridMax, rawShift, h24)
+    : null
 
   useEffect(() => { timeColRef.current = timeCol }, [timeCol])
   const mineRef = useRef(mine); useEffect(() => { mineRef.current = mine }, [mine])
@@ -1705,6 +1725,12 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           />
         )}
 
+        {farHours && (
+          <p className="mb-2 text-[12.5px] text-dim">
+            This plan asks for <span className="font-semibold text-text">{farHours.plan}</span> {tzAbbr(event.timezone, event.startDate)}. That is <span className="font-semibold text-text">{farHours.yours}</span> for you.
+          </p>
+        )}
+
         {/* filtered-in people with no times yet — say so instead of showing a silently empty grid */}
         {mode === 'view' && unmarked.length > 0 && (() => {
           const names = unmarked.map((p) => (p.you ? 'You' : p.name.split(' ')[0]))
@@ -1840,12 +1866,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 their own. The corner stays pinned through both scroll directions. */}
             <div style={{ gridColumn: 1, gridRow: 1 }} className="sticky left-0 top-0 z-[30] border-b border-r border-grid-edge bg-s0"/>
             {cols.map((d, di) => {
+              // the labels read your dates; everything else keys on the plan day
+              const hd = headDay(d)
               // filler day outside the event's window — labeled but inert
               if (d.pad) {
                 return (
                   <div key={d.key} style={{ gridColumn: di + 2, gridRow: 1 }} className={`sticky top-0 z-20 border-b border-r border-border bg-s0 py-2 text-center ${narrow ? 'px-0' : 'px-1.5'}`}>
-                    <div className="text-[11px] text-faint">{d.dow}</div>
-                    {!narrow && <div className="text-[14px] font-semibold text-faint">{d.date}</div>}
+                    <div className="text-[11px] text-faint">{hd.dow}</div>
+                    {!narrow && <div className="text-[14px] font-semibold text-faint">{hd.date}</div>}
                   </div>
                 )
               }
@@ -1874,16 +1902,16 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 >
                   {pattern ? (
                     // a week with no dates: the weekday is the whole label
-                    <div className={`font-semibold leading-tight ${narrow ? 'text-[13px]' : 'text-[14px]'}`}>{narrow ? d.dow[0] : d.dow}</div>
+                    <div className={`font-semibold leading-tight ${narrow ? 'text-[13px]' : 'text-[14px]'}`}>{narrow ? hd.dow[0] : hd.dow}</div>
                   ) : (<>
-                  <div className={`text-dim ${narrow ? 'text-[10px]' : 'text-[11px]'}`}>{narrow ? d.dow[0] : d.dow}</div>
+                  <div className={`text-dim ${narrow ? 'text-[10px]' : 'text-[11px]'}`}>{narrow ? hd.dow[0] : hd.dow}</div>
                   <div className={`font-semibold leading-tight ${narrow ? 'text-[13px]' : 'text-[14px]'}`} style={{ color: isBestDay || inBlock ? 'var(--ochre-text)' : 'var(--text)' }}>
                     {narrow ? (
                       <>
-                        <span className="block h-[10px] text-[8.5px] font-semibold uppercase leading-[10px] tracking-[.06em] text-faint">{monthTurn(di) ? d.date.split(' ')[0] : ''}</span>
-                        {d.date.split(' ')[1]}
+                        <span className="block h-[10px] text-[8.5px] font-semibold uppercase leading-[10px] tracking-[.06em] text-faint">{monthTurn(di) ? hd.date.split(' ')[0] : ''}</span>
+                        {hd.date.split(' ')[1]}
                       </>
-                    ) : d.date}
+                    ) : hd.date}
                   </div>
                   </>)}
                   {mode === 'edit' && (
@@ -1912,6 +1940,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               const labelSub = h24 ? null : rowH < 12 ? 'AM' : 'PM'
               const w0 = ti * step, w1 = (ti + 1) * step
               const rowFull = cols.every((d) => d.pad || (mine[d.key] ?? []).some((iv) => iv.s <= w0 && iv.e >= w1))
+              // the first row on your next date: the rail says so, and the rule above it is
+              // heavier. It is the bottom border of the row before, since a cell's own
+              // contents would cover anything drawn inside it.
+              const turn = ti === turnRow
+              const turnLine = ti === turnRow - 1 ? '2px solid var(--dim)' : undefined
               return (
               <div key={ti} className="contents">
                 <button
@@ -1924,7 +1957,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                      nothing at all to its left. The first row keeps the header's plain
                      border, so the ticks start one step in and the top time is the one
                      time the rail never has to name. */
-                  className={`sticky left-0 z-[15] flex items-center justify-end gap-1.5 border-r border-grid-edge bg-s0 px-1.5 font-medium text-dim ${narrow ? 'text-[10px]' : 'text-[12px]'}`}
+                  className={`sticky left-0 z-[15] flex justify-end gap-1.5 border-r border-grid-edge bg-s0 px-1.5 font-medium text-dim ${turn ? 'items-end pb-2' : 'items-center'} ${narrow ? 'text-[10px]' : 'text-[12px]'}`}
                   style={{ cursor: mode === 'edit' ? 'pointer' : 'default' }}
                   aria-label={mode === 'edit' ? `Fill ${fmt(gridStartMin + ti * step)} across the week` : `${fmt(gridStartMin + ti * step)} row`}
                   title={mode === 'edit' ? 'Click to fill this time across the week' : undefined}
@@ -1944,13 +1977,17 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                       className="pointer-events-none absolute inset-x-0 flex -translate-y-1/2 items-center leading-none"
                       style={{ top: '-0.5px', gap: narrow ? 4 : TICK_GAP }}
                     >
-                      <span className="h-px flex-1 bg-grid-edge" />
-                      <span className="flex items-baseline gap-[3px] whitespace-nowrap">
+                      <span className={`h-px flex-1 ${turn ? 'bg-dim' : 'bg-grid-edge'}`} />
+                      <span className={`flex items-baseline gap-[3px] whitespace-nowrap ${turn ? 'text-text' : ''}`}>
                         <span>{labelMain}</span>
                         {labelSub && <span className={`font-semibold tracking-[.04em] text-faint ${narrow ? 'text-[8px]' : 'text-[9.5px]'}`}>{labelSub}</span>}
                       </span>
-                      <span className="h-px flex-1 bg-grid-edge" />
+                      <span className={`h-px flex-1 ${turn ? 'bg-dim' : 'bg-grid-edge'}`} />
                     </span>
+                  )}
+                  {turn && (
+                    // under the time; the edit checkbox drops to the row's foot to make room
+                    <span className={`pointer-events-none absolute left-1.5 top-[7px] font-semibold leading-none text-dim ${narrow ? 'text-[12px]' : 'text-[11px]'}`}>Next day</span>
                   )}
                 </button>
                 {cols.map((d, di) => {
@@ -1961,7 +1998,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                       <div
                         key={d.key}
                         className="min-h-[50px] border-b border-r border-border"
-                        style={{ background: 'repeating-linear-gradient(-45deg, var(--s0) 0 5px, var(--s2) 5px 6px)' }}
+                        style={{ background: 'repeating-linear-gradient(-45deg, var(--s0) 0 5px, var(--s2) 5px 6px)', borderBottom: turnLine }}
                         title="Outside this plan's dates"
                       />
                     )
@@ -1997,7 +2034,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         key={d.key}
                         onClick={(e) => openDetail(e, d.key, ti)}
                         className={`relative min-h-[50px] cursor-pointer border-b border-r border-grid-line ${ownLeft(di) ? 'border-l border-l-grid-line' : ''}`}
-                        style={{ boxShadow: open ? 'inset 0 0 0 1.5px var(--accent)' : d.best ? 'inset 0 0 0 1px var(--ochre-border)' : undefined }}
+                        style={{ boxShadow: open ? 'inset 0 0 0 1.5px var(--accent)' : d.best ? 'inset 0 0 0 1px var(--ochre-border)' : undefined, borderBottom: turnLine }}
                         title={title}
                       >
                         {inBest && (() => {
@@ -2108,7 +2145,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   const isTopEdge = !!sel && !dragDel && sel.day === d.key && topCell === ti
                   const isBotEdge = !!sel && !dragDel && sel.day === d.key && botCell === ti
                   return (
-                    <div key={d.key} data-cell={cellId(d.key, ti)} className={`relative h-[50px] select-none border-b border-r border-grid-line ${ownLeft(di) ? 'border-l border-l-grid-line' : ''}`} style={{ background: 'var(--s2)', boxShadow: d.best ? 'inset 1px 0 0 0 var(--ochre-border), inset -1px 0 0 0 var(--ochre-border)' : undefined }}>
+                    <div key={d.key} data-cell={cellId(d.key, ti)} className={`relative h-[50px] select-none border-b border-r border-grid-line ${ownLeft(di) ? 'border-l border-l-grid-line' : ''}`} style={{ background: 'var(--s2)', boxShadow: d.best ? 'inset 1px 0 0 0 var(--ochre-border), inset -1px 0 0 0 var(--ochre-border)' : undefined, borderBottom: turnLine }}>
                       {oPaint.map((b, k) => (
                         <div
                           key={`o${k}`}
@@ -2283,7 +2320,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               {blockLen === 1 && !dayPoll ? (
                 bw ? (
                   <>
-                    <span className="text-[14px] font-semibold text-ochre">{bw.dayLabel}, {fmt(gridStartMin + bw.s)} – {fmt(gridStartMin + bw.e)}</span>
+                    <span className="text-[14px] font-semibold text-ochre">{dayTime(bw)}</span>
                     <TimezonePill tz={myTime && canConvert ? localTz : event.timezone} day={bw.dayKey} />
                     {/* the faces and the count are one thing: who is free, and how many.
                         Apart, the faces wrapped onto a line of their own on a phone and
@@ -2306,7 +2343,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     {bwAllShown && (
                       <span className="flex w-full items-center gap-1.5 text-[12.5px] text-dim">
                         <span className="inline-block h-0 w-[18px] border-t-2 border-dashed border-ochre" aria-hidden />
-                        Everyone&apos;s best stays marked for comparison: <span className="font-semibold text-text">{bwAllShown.dayLabel}, {fmt(gridStartMin + bwAllShown.s)} – {fmt(gridStartMin + bwAllShown.e)}</span>
+                        Everyone&apos;s best stays marked for comparison: <span className="font-semibold text-text">{dayTime(bwAllShown)}</span>
                       </span>
                     )}
                   </>

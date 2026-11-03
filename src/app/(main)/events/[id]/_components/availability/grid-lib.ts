@@ -1,5 +1,5 @@
 // pure grid math and shared bits for the availability panel — no react in here
-import { dayLabel, type GridDay, type Iv } from '@/lib/events'
+import { dayLabel, fmtMinute, type GridDay, type Iv } from '@/lib/events'
 import { ISO_DAY } from '@/lib/calendar-import'
 
 export type Band = { s: number; e: number; ids: string[] } // constant-crowd segment inside one cell
@@ -142,4 +142,31 @@ export function pileFit(n: number, cap: number, colW: number, total: number): { 
   while (shown > 0 && pileWidth(shown + (n > shown ? 1 : 0)) > avail) shown--
   // a lone +N says nothing a count does not already say, so below one face it all goes
   return shown > 0 ? { shown, chip: n - shown } : { shown: 0, chip: 0 }
+}
+
+/* ── the plan read on your own clock ──
+   "Yours" keeps the plan's day columns and moves only the clock, so a column can run
+   past your midnight. `shift` is the minutes to add to a plan clock time to read it
+   in your zone. */
+export function localDayOffset(clockMin: number, shift: number): number {
+  return Math.floor((clockMin + shift) / (24 * 60))
+}
+/** The first row that is on your next date, or -1 when the column stays on one date. */
+export function nextDayRow(gridStartMin: number, shift: number, step: number, rows: number): number {
+  const m = (localDayOffset(gridStartMin, shift) + 1) * 24 * 60 - gridStartMin - shift // grid minutes to your next midnight
+  const ti = Math.ceil(m / step)
+  return ti < rows ? ti : -1
+}
+/** The same grid day moved by whole dates. */
+export function shiftDay<D extends { key: string; dow: string; date: string }>(d: D, n: number): D {
+  if (!n) return d
+  const [y, m, dd] = d.key.split('-').map(Number)
+  const x = new Date(y, m - 1, dd + n)
+  const key = `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
+  return { ...d, key, dow: DOW7[x.getDay()], date: dayLabel(x) }
+}
+/** The plan's daily hours on its own clock and on yours. */
+export function yourHours(gridStartMin: number, gridMax: number, shift: number, h24: boolean): { plan: string; yours: string } {
+  const f = (a: number) => `${fmtMinute(a, h24)} to ${fmtMinute(a + gridMax, h24)}`
+  return { plan: f(gridStartMin), yours: f(gridStartMin + shift) }
 }
