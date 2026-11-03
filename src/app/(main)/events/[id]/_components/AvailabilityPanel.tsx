@@ -39,7 +39,7 @@ import { answeredLine, needClause } from '@/lib/answers'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { CalendarHeart, ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, Zap } from 'lucide-react'
+import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, CalendarCheck } from 'lucide-react'
 
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { FaceChipsMore } from '@/components/ui/FaceChips'
@@ -53,6 +53,7 @@ import { SettingField, SettingToggle, SettingsMenu } from '@/components/ui/Setti
 import { CellDetail, ClearTimes, EdgeHandle, EdgeNudge, FilterAvatars, ImportFromCalendar, MissingPopover, PresetFills, USUAL_WEEK } from './availability/parts'
 import { cellBands, cellPeople, clayFor, countLabel, needSegments, fmtDur, heat, mergeSlivers, padToWeeks, peakOf, pileFit, PILE_AV, PILE_FONT, PILE_OVER, type Band, type GDay } from './availability/grid-lib'
 import { DayCalendar } from './availability/DayCalendar'
+import { StartStrip } from './availability/StartStrip'
 import { WeekStrip } from './availability/WeekStrip'
 import { prefH24, prefWholeWeek } from '@/lib/prefs'
 import { paintRanges, withoutOverlap, type Brush } from '@/lib/availability'
@@ -273,6 +274,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const [sel, setSel] = useState<Sel | null>(null)
   const [nudgeStep, setNudgeStep] = useState(5) // minutes the − / + buttons move an edge
   const [drag, setDrag] = useState<Drag | null>(null)
+  // the start strip: the quick ways to answer, while you have nothing marked. It holds
+  // through a drag that marks your first time and folds once the drag is let go, so
+  // the grid never moves under the pointer
+  const startWant = !pattern && mode === 'edit' && editable && !youAny
+  const [startHeld, setStartHeld] = useState(startWant)
+  if (startWant && !startHeld) setStartHeld(true)
+  if (!startWant && !drag && startHeld) setStartHeld(false)
+  const startOpen = startWant || startHeld
+  const importNote = backendOn ? (dayPoll ? 'Free days are marked for you. Days with something on your calendar are striped as busy, for you to decide.' : 'Your free hours are painted, and what your calendar has is striped as busy.') : 'A sample calendar stands in until a backend is set up.'
   useFollow(remoteMine, (rm) => {
     const sig = JSON.stringify(rm)
     const own = wroteRef.current.some((w) => w.sig === sig && Date.now() - w.at < ECHO_MS)
@@ -1662,7 +1672,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           <SegmentedControl label="Brush" size="sm" value={brush} onChange={(v) => setBrush(v as 'free' | 'need')} options={[{ v: 'free', l: 'Free', icon: FreeSwatch }, { v: 'need', l: 'If need be', icon: NeedSwatch }]} />
         )}
         {/* importing fills YOUR times, so it rides with edit mode — view stays lean */}
-        {!locked && mode === 'edit' && <ImportFromCalendar soon={importSoon(backendOn)} week={usualWeek} dayPoll={dayPoll} onPick={(p) => void startImport(p)} note={backendOn ? (dayPoll ? 'Free days are marked for you. Days with something on your calendar are striped as busy, for you to decide.' : 'Your free hours are painted, and what your calendar has is striped as busy.') : 'A sample calendar stands in until a backend is set up.'} />}
+        {/* with nothing marked the start strip below carries it */}
+        {!locked && mode === 'edit' && !startOpen && <ImportFromCalendar soon={importSoon(backendOn)} week={usualWeek} dayPoll={dayPoll} onPick={(p) => void startImport(p)} note={importNote} />}
         {/* the other edit-mode helpers ride here too, so switching between View and
             Edit mine only changes this line and the people below never move */}
         {mode === 'edit' && (dayPoll
@@ -1672,36 +1683,26 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 onClick={fillAllDays}
                 className="flex h-11 items-center gap-1.5 rounded-full border border-border bg-s1 px-[11px] text-[12.5px] font-medium hover:border-border2 sm:h-7"
               >
-                <Zap size={13} /> Free for all of it
+                <CalendarCheck size={13} /> Free for all of it
               </button>
             )
-          : <PresetFills onFill={fillPreset} onFillAll={fillAllDays} />)}
-        {/* the explicit empty reply: with nothing marked, "none of these days work"
-            is one tap — and marking any time takes it back */}
-        {/* one tap from nothing marked to your usual week; hidden once you have said
-            none of these days work, since that is an answer too */}
-        {mode === 'edit' && editable && !youAny && !unavail.has(meId) && usualWeek === 'ready' && (
-          <button
-            type="button"
-            onClick={fillFromWeek}
-            className="flex h-11 items-center gap-1.5 rounded-full border border-border2 bg-s1 px-[11px] text-[12.5px] font-semibold text-accent-text hover:bg-s2 sm:h-7"
-          >
-            <CalendarHeart size={13} /> Use my usual week
-          </button>
-        )}
-        {mode === 'edit' && !locked && !youAny && (
-          unavail.has(meId) ? (
-            <span className="text-[12.5px] text-brick-text">
-              You said none of these days work.{' '}
-              <button type="button" onClick={toggleNoneWork} className="relative font-semibold text-accent-text underline underline-offset-2 before:absolute before:-inset-x-1 before:-inset-y-3 before:content-['']">Undo</button>
-            </span>
-          ) : (
-            <button type="button" onClick={toggleNoneWork} className="text-[12.5px] font-medium text-dim underline-offset-2 hover:text-brick-text hover:underline">
-              None of these days work?
-            </button>
-          )
-        )}
+          : <PresetFills onFill={fillPreset} onFillAll={fillAllDays} tz={tzAbbr(event.timezone, event.startDate)} />)}
         </div>
+        )}
+        {!pattern && (
+          <StartStrip
+            open={startOpen}
+            soon={importSoon(backendOn)}
+            week={usualWeek}
+            weekDays={account.usualWeek?.days}
+            weekWhole={account.usualWeek?.wholeDays}
+            dayPoll={dayPoll}
+            note={importNote}
+            noneSaid={unavail.has(meId)}
+            onPick={(p) => void startImport(p)}
+            onWeek={fillFromWeek}
+            onNone={toggleNoneWork}
+          />
         )}
 
         {/* filtered-in people with no times yet — say so instead of showing a silently empty grid */}
