@@ -535,7 +535,8 @@ export function fmtMinuteDay(min: number, h24 = false): string {
 }
 
 export function fmtMinute(min: number, h24 = false): string {
-  const h = Math.floor(min / 60) % 24
+  // a clock read in a zone behind the plan's can run below midnight
+  const h = ((Math.floor(min / 60) % 24) + 24) % 24
   const mm = ((min % 60) + 60) % 60
   if (h24) return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
   const ap = h < 12 ? 'AM' : 'PM'
