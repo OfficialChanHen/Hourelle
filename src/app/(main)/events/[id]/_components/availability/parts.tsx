@@ -4,7 +4,7 @@
    calendar import menu, clear-times, drag handles, quick fills,
    the who's-missing popover, the cell breakdown, and small controls */
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { Bell, CalendarHeart, CalendarPlus, Check, ChevronDown, Eraser, GripHorizontal, Minus, Plus, Search, Users, X, Zap } from 'lucide-react'
+import { Bell, CalendarHeart, CalendarPlus, Check, ChevronDown, Eraser, GripHorizontal, Minus, Plus, Search, Users, X } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Avatar } from '@/components/ui/Avatar'
@@ -314,30 +314,66 @@ export function EdgeHandle({ pct, label, active, side, onDown }: { pct: number; 
 
 /* ── quick-fill presets (edit mode): one small dropdown instead of a row of pills —
    fill a standard block across every visible day, or the whole event in one tap ── */
-export function PresetFills({ onFill, onFillAll }: { onFill: (startClock: number, endClock: number) => void; onFillAll: () => void }) {
+// the hours a fill row draws its band across: the grid's own 6 AM to 11 PM
+const DAY_FROM = 6 * 60, DAY_TO = 23 * 60
+const CLAY: CSSProperties = { background: 'color-mix(in srgb, var(--you-text) 30%, var(--you-many))', boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--you-text) 55%, transparent)' }
+
+// where the band sits in the day, drawn like a row of the grid turned on its side
+function DayBand({ s, e }: { s: number; e: number }) {
+  const at = (m: number) => ((Math.min(Math.max(m, DAY_FROM), DAY_TO) - DAY_FROM) / (DAY_TO - DAY_FROM)) * 100
+  return (
+    <span aria-hidden className="relative h-[10px] w-[84px] flex-none overflow-hidden rounded-full bg-s2">
+      {/* noon and six, so a band reads against the day */}
+      <span className="absolute inset-y-0 w-px bg-border2" style={{ left: `${at(12 * 60)}%` }} />
+      <span className="absolute inset-y-0 w-px bg-border2" style={{ left: `${at(18 * 60)}%` }} />
+      <span className="absolute inset-y-0 rounded-full" style={{ left: `${at(s)}%`, width: `${at(e) - at(s)}%`, ...CLAY }} />
+    </span>
+  )
+}
+
+/* ── the same hours on every day on screen: mornings, afternoons, evenings, or all of it ── */
+export function PresetFills({ onFill, onFillAll, tz }: { onFill: (startClock: number, endClock: number) => void; onFillAll: () => void; tz?: string }) {
   const P = [
-    { l: 'Mornings', hint: '8 AM – 12 PM', s: 8 * 60, e: 12 * 60 },
-    { l: 'Afternoons', hint: '12 – 5 PM', s: 12 * 60, e: 17 * 60 },
-    { l: 'Evenings', hint: '5 – 9 PM', s: 17 * 60, e: 21 * 60 },
+    { l: 'Mornings', hint: '8 AM to noon', s: 8 * 60, e: 12 * 60 },
+    { l: 'Afternoons', hint: 'Noon to 5 PM', s: 12 * 60, e: 17 * 60 },
+    { l: 'Evenings', hint: '5 to 9 PM', s: 17 * 60, e: 21 * 60 },
   ]
+  const row = 'flex min-h-11 w-full items-center gap-3 rounded-[9px] px-2.5 text-left hover:bg-s2 focus-visible:bg-s2 sm:min-h-[42px]'
   return (
     <Popover
-      width={216}
+      width={272}
       trigger={(open) => (
-        <span className={`flex h-11 sm:h-7 items-center gap-1.5 rounded-full border px-[10px] text-[12.5px] font-medium ${open ? 'border-accent bg-accent-bg text-accent-text' : 'border-border bg-s1 hover:border-border2'}`}>
-          <Zap size={13} /> Quick fill <ChevronDown size={12} className={open ? 'rotate-180' : ''} />
+        <span className={`flex h-11 sm:h-7 items-center gap-2 rounded-full border px-[11px] text-[12.5px] font-medium ${open ? 'border-border2 bg-s2' : 'border-border bg-s1 hover:border-border2'}`}>
+          {/* a day in three parts, morning to evening */}
+          <span aria-hidden className="flex gap-[2px]">
+            {['var(--you-only)', 'var(--you-some)', 'var(--you-many)'].map((c) => (
+              <span key={c} className="h-[9px] w-[6px] rounded-[2px]" style={{ background: c, boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--you-text) 45%, transparent)' }} />
+            ))}
+          </span>
+          Times of day <ChevronDown size={12} className={`text-faint ${open ? 'rotate-180' : ''}`} />
         </span>
       )}
     >
       {(close) => (
         <>
+          <div className="flex items-center justify-between px-2.5 pb-1.5 pt-1">
+            <span className="text-[12px] font-semibold text-dim">The same hours on every day</span>
+            {tz && <span className="rounded-full bg-s2 px-1.5 py-px font-mono text-[10.5px] text-dim">{tz}</span>}
+          </div>
           {P.map((p) => (
-            <PopoverItem key={p.l} onClick={() => { onFill(p.s, p.e); close() }} trailing={p.hint}>
-              {p.l}
-            </PopoverItem>
+            <button key={p.l} type="button" onClick={() => { onFill(p.s, p.e); close() }} className={row}>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="text-[13px] font-semibold leading-tight">{p.l}</span>
+                <span className="text-[12px] leading-tight text-dim">{p.hint}</span>
+              </span>
+              <DayBand s={p.s} e={p.e} />
+            </button>
           ))}
           <PopoverSep />
-          <PopoverItem tone="accent" onClick={() => { onFillAll(); close() }}>Free for all of it</PopoverItem>
+          <button type="button" onClick={() => { onFillAll(); close() }} className={row}>
+            <span className="min-w-0 flex-1 text-[13px] font-semibold text-accent-text">Free for all of it</span>
+            <DayBand s={DAY_FROM} e={DAY_TO} />
+          </button>
         </>
       )}
     </Popover>

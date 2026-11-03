@@ -40,7 +40,7 @@ const GHOST: Block[][] = [[{ s: 1080, e: 1320 }], [{ s: 1080, e: 1320 }], [{ s: 
 
 function MiniWeek({ cols, tone = 'plain' }: { cols: Block[][]; tone?: 'plain' | 'none' | 'ghost' }) {
   return (
-    <span aria-hidden className={`flex h-[34px] flex-none items-stretch gap-[3px] rounded-lg border p-1 sm:h-[44px] sm:p-[5px] ${tone === 'none' ? 'border-brick-border bg-s1' : tone === 'ghost' ? 'border-dashed border-border2 bg-s1' : 'border-border bg-s1'}`}>
+    <span aria-hidden className={`flex h-[34px] min-w-[72px] flex-none items-stretch justify-center gap-[3px] rounded-lg border p-1 sm:h-[44px] sm:min-w-0 sm:p-[5px] ${tone === 'none' ? 'border-brick-border bg-s1' : tone === 'ghost' ? 'border-dashed border-border2 bg-s1' : 'border-border bg-s1'}`}>
       {cols.map((blocks, i) => (
         <span
           key={i}
@@ -72,14 +72,16 @@ function weekCols(days: Iv[][] | undefined, whole: boolean[] | undefined, dayPol
     : (days?.[d] ?? []).map((iv) => ({ s: iv.s, e: iv.e }))))
 }
 
-const tile = 'flex min-h-11 w-full min-w-0 flex-col items-start gap-1.5 rounded-xl border p-2 text-left sm:gap-2 sm:p-2.5 lg:flex-row lg:items-center lg:gap-3 lg:pr-4'
-const idle = 'border-border bg-s0 hover:border-border2 hover:bg-s1'
+// a phone reads them as one list, each row saying what it does; from 640px they are
+// tiles side by side, the week above the words until there is room beside them
+const tile = 'flex min-h-14 w-full min-w-0 flex-row items-center gap-3 px-3 py-2 text-left sm:min-h-11 sm:flex-col sm:items-start sm:gap-2 sm:rounded-xl sm:border sm:p-2.5 lg:flex-row lg:items-center lg:gap-3 lg:pr-4'
+const idle = 'bg-s0 hover:bg-s1 sm:border-border sm:hover:border-border2'
 
 function TileText({ title, line }: { title: ReactNode; line?: ReactNode }) {
   return (
     <span className="flex min-w-0 flex-col gap-0.5">
-      <span className="text-[12.5px] font-semibold leading-tight sm:text-[13px]">{title}</span>
-      {line && <span className="hidden text-[12px] leading-snug text-dim sm:block">{line}</span>}
+      <span className="text-[13px] font-semibold leading-tight">{title}</span>
+      {line && <span className="text-[12px] leading-snug text-dim">{line}</span>}
     </span>
   )
 }
@@ -131,7 +133,7 @@ export function StartStrip({
   const count = 2 + (week ? 1 : 0)
   return (
     <div ref={ref} className="overflow-hidden" aria-hidden={!open || undefined} inert={!open || undefined}>
-      <div role="group" aria-label="Ways to fill your times" className={`grid gap-2 pb-3 sm:gap-2.5 ${count === 3 ? 'grid-cols-3 sm:grid-cols-[repeat(3,minmax(0,300px))]' : 'grid-cols-2 sm:grid-cols-[repeat(2,minmax(0,300px))]'}`}>
+      <div role="group" aria-label="Ways to fill your times" className={`mb-3 grid divide-y divide-border overflow-hidden rounded-xl border border-border sm:gap-2.5 sm:divide-y-0 sm:overflow-visible sm:rounded-none sm:border-0 ${count === 3 ? 'sm:grid-cols-[repeat(3,minmax(0,300px))]' : 'sm:grid-cols-[repeat(2,minmax(0,300px))]'}`}>
         <Popover
           align="start"
           width={248}
@@ -139,7 +141,7 @@ export function StartStrip({
           trigger={() => (
             <>
               <MiniWeek cols={SAMPLE} />
-              <TileText title={<><span className="sm:hidden">Calendar</span><span className="hidden sm:inline">Import from calendar</span></>} line={soon ? 'Almost ready' : 'Google or Outlook'} />
+              <TileText title={'Import from calendar'} line={soon ? 'Almost ready' : 'Google or Outlook'} />
             </>
           )}
         >
@@ -166,7 +168,7 @@ export function StartStrip({
           <button type="button" onClick={onWeek} className={`${tile} ${idle}`}>
             <MiniWeek cols={weekCols(weekDays, weekWhole, dayPoll)} />
             <TileText
-              title={<><span className="sm:hidden">Usual week</span><span className="hidden sm:inline">{dayPoll ? 'Use my usual days' : 'Use my usual week'}</span></>}
+              title={dayPoll ? 'Use my usual days' : 'Use my usual week'}
               line={dayPoll ? 'The days you keep free' : 'The hours you keep free'}
             />
           </button>
@@ -175,7 +177,7 @@ export function StartStrip({
           <Link href={dayPoll ? '/profile#usual-days' : '/profile#usual-week'} className={`${tile} ${idle}`}>
             <MiniWeek cols={GHOST} tone="ghost" />
             <TileText
-              title={<><span className="sm:hidden">Usual week</span><span className="hidden sm:inline">{dayPoll ? 'Set up my usual days' : 'Set up my usual week'}</span></>}
+              title={dayPoll ? 'Set up my usual days' : 'Set up my usual week'}
               line="Once, on your profile"
             />
           </Link>
@@ -185,13 +187,11 @@ export function StartStrip({
           type="button"
           onClick={onNone}
           aria-pressed={noneSaid}
-          className={`${tile} ${noneSaid ? 'border-brick-border bg-brick-bg text-brick-text' : `${idle} hover:text-brick-text`}`}
+          className={`${tile} ${noneSaid ? 'bg-brick-bg text-brick-text sm:border-brick-border' : `${idle} hover:text-brick-text`}`}
         >
           <MiniWeek cols={[[], [], [], [], []]} tone={noneSaid ? 'none' : 'plain'} />
           <TileText
-            title={noneSaid
-              ? <><span className="sm:hidden">None of these</span><span className="hidden sm:inline">You said none of these days work</span></>
-              : <><span className="sm:hidden">None of these</span><span className="hidden sm:inline">None of these days work</span></>}
+            title={noneSaid ? 'You said none of these days work' : 'None of these days work'}
             line={noneSaid ? <span className="text-brick-text">Tap again to take it back</span> : 'Tells the group you can’t make it'}
           />
         </button>

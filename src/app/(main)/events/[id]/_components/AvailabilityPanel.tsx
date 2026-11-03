@@ -39,7 +39,7 @@ import { answeredLine, needClause } from '@/lib/answers'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, Zap } from 'lucide-react'
+import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, CalendarCheck } from 'lucide-react'
 
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { FaceChipsMore } from '@/components/ui/FaceChips'
@@ -1683,10 +1683,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                 onClick={fillAllDays}
                 className="flex h-11 items-center gap-1.5 rounded-full border border-border bg-s1 px-[11px] text-[12.5px] font-medium hover:border-border2 sm:h-7"
               >
-                <Zap size={13} /> Free for all of it
+                <CalendarCheck size={13} /> Free for all of it
               </button>
             )
-          : <PresetFills onFill={fillPreset} onFillAll={fillAllDays} />)}
+          : <PresetFills onFill={fillPreset} onFillAll={fillAllDays} tz={tzAbbr(event.timezone, event.startDate)} />)}
         </div>
         )}
         {!pattern && (
