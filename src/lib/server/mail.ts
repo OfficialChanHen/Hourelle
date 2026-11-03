@@ -5,7 +5,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { AppEvent, Participant } from '@/lib/events'
 import { icsFileName, icsFor } from '@/lib/ics'
-import { isAllDay, slotWhen } from '@/lib/slot'
+import { isAllDay, slotWhen, type SlotLike } from '@/lib/slot'
 import { serverDb } from './db'
 import { APP_NAME } from '@/lib/brand'
 
@@ -101,7 +101,7 @@ function explainRefusal(status: number, detail: string): string {
 }
 
 /* ── the log: one row per message, and the key that stops repeats ── */
-export type MailKind = 'invite' | 'joined' | 'nudge' | 'locked' | 'reply' | 'event-eve' | 'event-day' | 'plan-eve' | 'plan-day' | 'vote-eve' | 'vote-day' | 'rsvp-eve' | 'rsvp-day'
+export type MailKind = 'invite' | 'joined' | 'nudge' | 'ask' | 'locked' | 'reply' | 'event-eve' | 'event-day' | 'plan-eve' | 'plan-day' | 'vote-eve' | 'vote-day' | 'rsvp-eve' | 'rsvp-day'
 
 /** Send once. The log row is claimed before the message goes out (the unique key
  *  refuses a second claim), so two overlapping runs cannot both send. A failed
@@ -341,6 +341,36 @@ export function nudgeMail(ev: AppEvent, p: Participant, to: string, site: string
   const lines = [`Hi ${firstName(p)}, ${host} is still waiting on your times for ${ev.title}.`, 'Mark when you are free so the host can pick a time. Even a rough answer helps.']
   const text = [...lines, '', link].join('\n')
   return { to, subject: `${host} is waiting on your times for ${ev.title}`, text, html: shell({ title: `A quick one from ${host}`, lines, cta: { label: 'Mark when you are free', href: link }, preheader: lines[0], footer: `Sent by ${APP_NAME} on behalf of ${host}. Reply to this email to reach them.` }), replyTo: hostEmail ?? undefined, fromName: `${host} via ${APP_NAME}`, thread: ev.id }
+}
+
+/* The time someone is asked about, read from the request but only kept if it is a
+   real stretch on the plan's own days, so the email says nothing the plan does not. */
+export function askSlot(ev: AppEvent, raw: unknown): SlotLike | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const keys = new Set(ev.days.map((d) => d.key))
+  const dayKey = typeof r.dayKey === 'string' && keys.has(r.dayKey) ? r.dayKey : null
+  const endDayKey = r.endDayKey === undefined ? undefined : typeof r.endDayKey === 'string' && keys.has(r.endDayKey) ? r.endDayKey : null
+  const startMin = Number(r.startMin), endMin = Number(r.endMin)
+  if (!dayKey || endDayKey === null) return null
+  if (endDayKey !== undefined && endDayKey <= dayKey) return null
+  if (!Number.isInteger(startMin) || !Number.isInteger(endMin) || startMin < 0 || endMin > 24 * 60) return null
+  if (endDayKey === undefined && endMin <= startMin) return null
+  return { dayKey, ...(endDayKey ? { endDayKey } : {}), startMin, endMin }
+}
+
+/* "Can you make it?": the best time so far works for everyone but this person (and
+   maybe one other), so the host asks them whether they could move things around. */
+export function askMail(ev: AppEvent, p: Participant, to: string, site: string, at: SlotLike, others: number, hostEmail?: string | null): Mail {
+  const host = hostNameOf(ev), link = joinLink(site, ev, p)
+  const [y, m, d] = at.dayKey.split('-').map(Number)
+  const when = isAllDay(at) ? slotWhen(at, fmtDay, fmtMinute) : `${slotWhen(at, fmtDay, fmtMinute)} ${tzAbbr(ev.timezone, new Date(Date.UTC(y, m - 1, d, 12)))}`
+  const lines = [
+    `Hi ${firstName(p)}, ${when} works for ${others > 0 ? 'everyone but you and one other person' : 'everyone else'} on ${ev.title} so far.`,
+    'If you could make it after all, change your times. If not, nothing to do.',
+  ]
+  const text = [...lines, '', link].join('\n')
+  return { to, subject: `Can you make ${ev.title} on ${when}?`, text, html: shell({ title: `A quick one from ${host}`, lines, cta: { label: 'Change my times', href: link }, preheader: lines[0], footer: `Sent by ${APP_NAME} on behalf of ${host}. Reply to this email to reach them.` }), replyTo: hostEmail ?? undefined, fromName: `${host} via ${APP_NAME}`, thread: ev.id }
 }
 
 /* The lock-in announcement: the host settled the time and place, here is the entry

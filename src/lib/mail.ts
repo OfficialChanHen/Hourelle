@@ -5,6 +5,7 @@
 
 import { supabase, backendOn } from './db'
 import type { NotifyPrefs } from './prefs'
+import type { SlotLike } from './slot'
 
 async function authHeaders(): Promise<Record<string, string> | null> {
   if (!backendOn) return null
@@ -45,6 +46,12 @@ export type NudgeResult = { sent: string[]; already: string[]; noEmail: string[]
 /** Ask the given people for their times. One email per person per day. */
 export function sendNudges(eventId: string, participantIds: string[]) {
   return post<NudgeResult>('/api/mail/nudge', { eventId, participantIds })
+}
+
+/** Ask the one or two people blocking the best time so far whether they can make it
+ *  (`at` in clock minutes on the plan's days). One email per person per day. */
+export function sendAsk(eventId: string, participantIds: string[], at: SlotLike) {
+  return post<NudgeResult>('/api/mail/nudge', { eventId, participantIds, ask: at })
 }
 
 /** A guest who joined with their email: ask the server to send their personal link,

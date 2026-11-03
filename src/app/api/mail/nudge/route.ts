@@ -1,15 +1,17 @@
 // "Nudge": the host asks the people who have not marked their times to do so.
-// One nudge per person per day — the log key carries the date — so a host can
-// press the button twice without anyone getting two emails.
+// With `ask` it is the other ask: the best time so far works for everyone but these
+// one or two people, so can they make it? One of each per person per day (the log
+// key carries the date), so a host can press the button twice without anyone getting
+// two emails.
 
 import { NextResponse } from 'next/server'
 import type { AppEvent } from '@/lib/events'
 import { userFromRequest } from '@/lib/server/db'
-import { emailsFor, eventRow, lastMailRefusal, mailConfigured, nudgeMail, sendOnce, serverDb, siteUrl } from '@/lib/server/mail'
+import { askMail, askSlot, emailsFor, eventRow, lastMailRefusal, mailConfigured, nudgeMail, sendOnce, serverDb, siteUrl } from '@/lib/server/mail'
 
 export const runtime = 'nodejs'
 
-type Body = { eventId?: string; participantIds?: string[] }
+type Body = { eventId?: string; participantIds?: string[]; ask?: unknown }
 
 export async function POST(req: Request) {
   let body: Body
@@ -30,6 +32,8 @@ export async function POST(req: Request) {
   if (row.host_id !== user.id) return NextResponse.json({ error: 'Only the host can send nudges.' }, { status: 403 })
 
   const ev = row.data
+  const at = body.ask === undefined ? null : askSlot(ev, body.ask)
+  if (body.ask !== undefined && !at) return NextResponse.json({ error: 'That time is not on this plan.' }, { status: 400 })
   const wanted = new Set(ids)
   const people = ev.participants.filter((p) => wanted.has(p.id) && !p.host)
   const emails = await emailsFor(db, people)
@@ -40,7 +44,9 @@ export async function POST(req: Request) {
   for (const p of people) {
     const to = emails.get(p.id)
     if (!to) { noEmail.push(p.id); continue }
-    const r = await sendOnce(db, `${ev.id}:${p.id}:nudge:${day}`, { eventId: ev.id, participantId: p.id, kind: 'nudge' }, nudgeMail(ev, p, to, site, user.email))
+    const r = at
+      ? await sendOnce(db, `${ev.id}:${p.id}:ask:${day}`, { eventId: ev.id, participantId: p.id, kind: 'ask' }, askMail(ev, p, to, site, at, people.length - 1, user.email))
+      : await sendOnce(db, `${ev.id}:${p.id}:nudge:${day}`, { eventId: ev.id, participantId: p.id, kind: 'nudge' }, nudgeMail(ev, p, to, site, user.email))
     ;(r === 'sent' ? sent : r === 'already' ? already : failed).push(p.id)
   }
   return NextResponse.json({ sent, already, noEmail, failed, ...(failed.length ? { reason: lastMailRefusal() } : {}) })

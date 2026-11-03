@@ -1266,6 +1266,16 @@ export function answeredIds(ev: Pick<AppEvent, 'participants' | 'days' | 'avail'
 }
 export const answeredCount = (ev: Parameters<typeof answeredIds>[0]) => answeredIds(ev).size
 
+/* Who stands between the group and the best time so far: people still on the plan who
+   have answered but are not among `canMake` (the best time's `ids`, which already counts
+   someone free there only if need be, since that means they can make it). People who
+   have not answered yet are waited on, not blocking. */
+export function blockersOf(ev: Parameters<typeof answeredIds>[0], canMake: string[]): Participant[] {
+  const answered = answeredIds(ev)
+  const can = new Set(canMake)
+  return ev.participants.filter((p) => answered.has(p.id) && !can.has(p.id))
+}
+
 /* Once a time is locked: who the going count is out of. The people available for that
    time, meaning their marked times cover it, plus anyone who has said going or maybe
    since, so the count can never read more going than available. A plan whose date was

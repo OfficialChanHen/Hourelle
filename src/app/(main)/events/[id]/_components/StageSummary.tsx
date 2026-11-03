@@ -1,14 +1,18 @@
 'use client'
 
-import { answeredLine, goingLine, needClause } from '@/lib/answers'
+import { useState } from 'react'
+import { answeredLine, blockedClause, goingLine, needClause } from '@/lib/answers'
 import Link from 'next/link'
-import { RotateCcw } from 'lucide-react'
+import { Check, RotateCcw } from 'lucide-react'
+import { useAccount } from '@/hooks/useAccount'
+import { canEmail, sendAsk } from '@/lib/mail'
+import type { SlotLike } from '@/lib/slot'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Highlight } from '@/components/ui/Pencil'
 import { placeVotes } from '@/lib/polls'
 import {
   availIvOf, bestBlock, bestWindow, confirmedSlotText, dateRangeText, fmtMinute, gridStartMinOf,
-  longestRun, answeredIds, rsvpPool, type AppEvent, type Phase,
+  longestRun, answeredIds, blockersOf, rsvpPool, type AppEvent, type Phase,
 } from '@/lib/events'
 
 /* ── where the plan stands, said as a sentence ──
@@ -17,7 +21,9 @@ import {
    far, where it is) is a clause here, in the order someone would say it. The best
    time is a link down to it on the grid. Once a time is locked the ConfirmedHero
    carries the answer, and this only says how many have replied out of everyone,
-   and how many are going. */
+   and how many are going. When one or two people who answered are all that stand
+   between the group and the best time, it names them ("works for everyone but Sam"),
+   and the host can ask them by email whether they could make it. */
 
 const P = 'text-[15px] leading-[1.6] text-text sm:text-[16px]'
 
@@ -32,7 +38,30 @@ function BestLink({ children, onClick }: { children: React.ReactNode; onClick?: 
   )
 }
 
+// the host's one-tap ask to the people blocking the best time; the note says what
+// happened, since an email is a real thing to have sent
+function AskBlockers({ eventId, ids, at, label }: { eventId: string; ids: string[]; at: SlotLike; label: string }) {
+  const [state, setState] = useState<'idle' | 'sending' | 'done'>('idle')
+  const [note, setNote] = useState<string | null>(null)
+  async function ask() {
+    setState('sending')
+    const r = await sendAsk(eventId, ids, at)
+    if (!r.ok) { setState('idle'); setNote(r.error); return }
+    const reached = r.data.sent.length + r.data.already.length
+    setState(reached ? 'done' : 'idle')
+    setNote(reached ? null : r.data.noEmail.length ? 'No email to reach them.' : 'It could not be sent.')
+  }
+  if (state === 'done') return <span className="ml-1 inline-flex items-center gap-1 text-[14px] font-semibold text-teal-text"><Check size={13} /> Asked</span>
+  return (
+    <>
+      {' '}<button type="button" onClick={() => void ask()} disabled={state === 'sending'} className="relative inline font-semibold text-accent-text hover:underline after:absolute after:inset-x-0 after:-inset-y-2.5 after:content-[''] disabled:opacity-60">{label}</button>
+      {note && <span className="ml-1.5 text-[13px] text-dim">{note}</span>}
+    </>
+  )
+}
+
 export function StageSummary({ event, phase, onGoToAvailability }: { event: AppEvent; phase: Phase; onGoToAvailability?: () => void }) {
+  const account = useAccount()
   if (phase === 'past') {
     const went = event.participants.filter((p) => p.rsvp === 'attending').length
     return (
@@ -65,6 +94,17 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
     return d ? `${d.dow}, ${d.date}` : k
   }
   const gridStart = gridStartMinOf(event)
+  // who stands between the group and the best time: answered, and can't make it
+  const canMake = best?.ids ?? bestDays?.ids ?? []
+  const blockers = best || bestDays ? blockersOf(event, canMake) : []
+  const works = blockedClause(blockers, canMake.length)
+  const named = works.includes(' but ')
+  const askAt: SlotLike | null = best
+    ? { dayKey: best.dayKey, startMin: gridStart + best.s, endMin: gridStart + best.e }
+    : bestDays ? { dayKey: bestDays.startKey, ...(bestDays.endKey !== bestDays.startKey ? { endDayKey: bestDays.endKey } : {}), startMin: 0, endMin: 24 * 60 } : null
+  const ask = named && askAt && !event.demo && event.hostedByYou && canEmail(account.signedIn) && blockers.every((p) => !p.you && !p.host)
+    ? <AskBlockers eventId={event.id} ids={blockers.map((p) => p.id)} at={askAt} label={blockers.length === 1 ? `Ask ${blockers[0].name.split(' ')[0]}` : 'Ask them'} />
+    : null
   // who is still missing, by first name when it is one to three people
   const missing = event.participants.filter((p) => !answeredSet.has(p.id))
   const missingNames = missing.length >= 1 && missing.length <= 3 && responded > 0
@@ -110,14 +150,14 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
       {best && (
         <>
           {' '}<BestLink onClick={onGoToAvailability}><Highlight>{best.dayLabel}, {fmtMinute(gridStart + best.s)} to {fmtMinute(gridStart + best.e)}</Highlight></BestLink>{' '}
-          <TimezonePill tz={event.timezone} day={best.dayKey} /> works for the most people so far{needClause(best.needIds.length)}.
+          <TimezonePill tz={event.timezone} day={best.dayKey} /> {works}{needClause(best.needIds.length)}.{ask}
         </>
       )}
       {bestDays && (
         <>
           {' '}<BestLink onClick={onGoToAvailability}>
             <Highlight>{bestDays.startKey === bestDays.endKey ? dayLabelOf(bestDays.startKey) : `${dayLabelOf(bestDays.startKey)} to ${dayLabelOf(bestDays.endKey)}`}</Highlight>
-          </BestLink>{' '}works for the most people so far{needClause(bestDays.needIds.length)}.
+          </BestLink>{' '}{works}{needClause(bestDays.needIds.length)}.{ask}
         </>
       )}
       {missingNames && <> Waiting on {missingNames.length === 1 ? missingNames[0] : `${missingNames.slice(0, -1).join(', ')} and ${missingNames[missingNames.length - 1]}`}.</>}
