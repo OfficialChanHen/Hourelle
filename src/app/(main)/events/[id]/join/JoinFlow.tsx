@@ -59,6 +59,9 @@ export function JoinFlow({ id }: { id: string }) {
   const [emailOpen, setEmailOpen] = useState(false)
   const emailBox = useRef<HTMLDivElement>(null)
   const focusEmail = useRef(false)
+  // the account doors fold away the same way: a quiet line until asked for
+  const [doorsOpen, setDoorsOpen] = useState(false)
+  const doorsBox = useRef<HTMLDivElement>(null)
   const [joining, setJoining] = useState(false)
   // a magic link went out to prove an email — the page waits here
   const [sent, setSent] = useState<string | null>(null)
@@ -168,6 +171,16 @@ export function JoinFlow({ id }: { id: string }) {
       if (focusEmail.current) { focusEmail.current = false; emailBox.current.querySelector('input')?.focus() }
     },
     { dependencies: [emailOpen] },
+  )
+
+  // the log-in and sign-up buttons open in place of their line, focus on the first
+  useGSAP(
+    () => {
+      if (!doorsOpen || !doorsBox.current) return
+      if (!reducedMotion()) gsap.fromTo(doorsBox.current, { opacity: 0, y: -6 }, { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' })
+      doorsBox.current.querySelector('a')?.focus()
+    },
+    { dependencies: [doorsOpen] },
   )
 
   // a small turn on the face when a tap deals a new one
@@ -291,6 +304,8 @@ export function JoinFlow({ id }: { id: string }) {
   const past = phase === 'past'
   const host = event.participants.find((p) => p.host)
   const emailShown = emailOpen || email !== ''
+  // a log-in or sign-up from here comes back to this invite
+  const backHere = `/events/${id}/join${inviteToken ? `?invite=${inviteToken}` : ''}`
   // the preview wears what joining will hand them: this face, and the colour the
   // event would deal the name typed so far
   const myFace = face ?? dealt ?? pickFace(event.participants, `${id}:join`)
@@ -490,6 +505,34 @@ export function JoinFlow({ id }: { id: string }) {
                     Get reminders by email
                   </button>
                 )}
+                {doorsOpen ? (
+                  <div ref={doorsBox} className="mt-3 border-t border-border pt-3">
+                    <p className="text-[12.5px] leading-[1.55] text-dim">Join with an account to keep this plan on any device.</p>
+                    <div className="mt-2.5 grid grid-cols-2 gap-2">
+                      <Link
+                        href={`/auth/signin?next=${encodeURIComponent(backHere)}`}
+                        className="flex h-11 items-center justify-center rounded-full border border-border2 bg-s1 text-[14px] font-semibold hover:bg-s2 sm:h-10"
+                      >
+                        Log in
+                      </Link>
+                      <Link
+                        href={`/auth/signin?mode=up&next=${encodeURIComponent(backHere)}`}
+                        className="flex h-11 items-center justify-center rounded-full border border-border2 bg-s1 text-[14px] font-semibold hover:bg-s2 sm:h-10"
+                      >
+                        Sign up
+                      </Link>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setDoorsOpen(true)}
+                    aria-expanded={false}
+                    className="flex h-11 w-full items-center justify-center text-[13px] font-medium text-faint hover:text-text hover:underline sm:h-9"
+                  >
+                    Log in or sign up instead
+                  </button>
+                )}
               </>
             )}
             {accountEmail && (
@@ -498,7 +541,7 @@ export function JoinFlow({ id }: { id: string }) {
                   <span className="font-semibold">{accountEmail}</span> has a {APP_NAME} account. Log in to join as yourself, with your earlier answers.
                 </p>
                 <Link
-                  href={`/auth/signin?mode=login&email=${encodeURIComponent(accountEmail)}&next=${encodeURIComponent(`/events/${id}/join${inviteToken ? `?invite=${inviteToken}` : ''}`)}`}
+                  href={`/auth/signin?email=${encodeURIComponent(accountEmail)}&next=${encodeURIComponent(backHere)}`}
                   className="flex h-10 w-fit items-center gap-1.5 rounded-full bg-accent px-3.5 text-[13.5px] font-semibold text-on-accent"
                 >
                   Log in <ArrowRight size={14} />
