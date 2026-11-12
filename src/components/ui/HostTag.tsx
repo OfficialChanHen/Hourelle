@@ -1,17 +1,19 @@
+import { canManage } from '@/lib/cohosts'
 import { Avatar } from './Avatar'
 import type { AppEvent } from '@/lib/events'
 
 /* Whose plan this is, as a name tag on its picture, like the return address on an
-   envelope: the host's face and "Hosting" when it is yours, "From Sam" when you were
+   envelope: the host's face and "Hosting" when it is yours, "Co-hosting" when the
+   host made you a co-host, "From Sam" when you were
    invited. Words and a face, never a colour, so it reads at a glance for everyone.
    It sits on the cover (the picture is already the card's scrapbook part), bottom
    left, so it never covers the name or the details. */
 // `inline` is the same words and face in a line of text, for a row whose picture is too
 // small to carry a tag (Home's compact rows)
-export function HostTag({ e, size = 'md', inline = false }: { e: Pick<AppEvent, 'participants' | 'hostedByYou' | 'hostName'>; size?: 'sm' | 'md'; inline?: boolean }) {
+export function HostTag({ e, size = 'md', inline = false }: { e: Pick<AppEvent, 'participants' | 'hostedByYou' | 'hostName' | 'demo'>; size?: 'sm' | 'md'; inline?: boolean }) {
   const host = e.participants.find((p) => p.host)
   const name = (host?.name || e.hostName || '').split(' ')[0]
-  const label = e.hostedByYou ? 'Hosting' : name ? `From ${name}` : 'Invited'
+  const label = e.hostedByYou ? 'Hosting' : canManage(e) ? 'Co-hosting' : name ? `From ${name}` : 'Invited'
   if (inline) {
     return (
       <span className="inline-flex min-w-0 items-center gap-1.5 text-[13px] text-dim">

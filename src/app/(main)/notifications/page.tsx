@@ -1,5 +1,6 @@
 'use client'
 
+import { canManage } from '@/lib/cohosts'
 import { answeredLine } from '@/lib/answers'
 import { useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
@@ -82,7 +83,7 @@ export default function NotificationsPage() {
                       </span>
                       <div className="min-w-0 flex-1">
                         {titleOf(e.title, key)}
-                        <div className="mt-0.5 text-[12.5px] text-dim">Planning wraps up {du <= 0 ? 'today' : 'tomorrow'}{e.hostedByYou ? ', time to lock it in' : ''}</div>
+                        <div className="mt-0.5 text-[12.5px] text-dim">Planning wraps up {du <= 0 ? 'today' : 'tomorrow'}{canManage(e) ? ', time to lock it in' : ''}</div>
                       </div>
                       <ChevronRight size={17} className="flex-none text-faint" />
                     </Link>

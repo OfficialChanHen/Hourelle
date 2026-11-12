@@ -45,7 +45,7 @@ import {
   Info, Vote, ArrowRight, Mail, Route, GripVertical,
   Loader2, Link2, Copy, UserPlus, Users, PartyPopper, AlignLeft, Wallet, ImagePlus,
   Map, Presentation, Repeat, Utensils, Dices, CookingPot, CalendarDays, LayoutGrid, Timer, Globe,
-  CalendarCheck, type LucideIcon,
+  CalendarCheck, ShieldCheck, type LucideIcon,
 } from 'lucide-react'
 import { personVar, type PersonColor } from '@/lib/colors'
 import { gsap } from 'gsap'
@@ -521,7 +521,7 @@ function CreateWizard() {
           ? form.picked.length ? `${form.picked.length} ${form.picked.length === 1 ? 'stop' : 'stops'} planned` : 'Plan a route'
           : form.picked.length ? `${form.picked.length} on the ballot` : 'Guests vote'
   const peopleSummary = inviteTotal
-    ? `${inviteTotal} ${inviteTotal === 1 ? 'person' : 'people'} added`
+    ? `${inviteTotal} ${inviteTotal === 1 ? 'person' : 'people'} added${form.accounts.some((a) => a.cohost) ? `, ${form.accounts.filter((a) => a.cohost).length} as co-host` : ''}`
     : 'Invite now, or just share the link after'
   const moneySummary = [
     form.budget ? `$${Number(form.budget).toLocaleString()} ${form.budgetMode === 'person' ? 'per person' : 'total'}` : '',
@@ -1218,6 +1218,7 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
   }
   const isOn = (r: Invitee) => (r.account ? hasAccount(r.id) : !!r.email && hasEmail(r.email))
   const total = form.emails.length + form.accounts.length
+  const cohosts = form.accounts.filter((a) => a.cohost).length
 
   return (
     <div className="flex flex-col gap-5">
@@ -1234,6 +1235,17 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
             {form.accounts.map((a) => (
               <span key={a.id} className="flex h-[30px] items-center gap-1.5 rounded-full border border-accent-border bg-accent-bg py-0 pl-1.5 pr-2 text-[13.5px]" title={a.email ? `${a.email} (has an account)` : 'Has an account'}>
                 <Avatar initials={initialsOf(a.name)} color={a.color} size={20} font={8.5} /> {a.name}
+                {/* someone with an account can run the plan with you from the start */}
+                <button
+                  type="button"
+                  aria-pressed={!!a.cohost}
+                  aria-label={`${a.name} as co-host`}
+                  title={a.cohost ? 'Co-host: can run the plan with you' : 'Make co-host'}
+                  onClick={() => update((f) => ({ accounts: f.accounts.map((x) => (x.id === a.id ? { ...x, cohost: !x.cohost || undefined } : x)) }))}
+                  className={`relative flex h-[22px] items-center gap-1 rounded-full px-2 text-[12px] font-semibold before:absolute before:-inset-y-[11px] before:inset-x-0 before:content-[''] sm:before:hidden ${a.cohost ? 'bg-accent text-on-accent' : 'border border-accent-border bg-s1 text-accent-text hover:bg-s2'}`}
+                >
+                  {a.cohost ? <Check size={13} /> : <ShieldCheck size={13} />} Co-host
+                </button>
                 <button type="button" onClick={() => update((f) => ({ accounts: f.accounts.filter((x) => x.id !== a.id) }))} aria-label="Remove"><X size={15} className="text-faint hover:text-brick-text" /></button>
               </span>
             ))}
@@ -1281,7 +1293,7 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
 
       <div className="flex items-center gap-1.5 text-[13px] text-dim">
         <Users size={15} />
-        {total === 0 ? 'No one added yet. You can also invite people after the plan is started.' : `${total} ${total === 1 ? 'person' : 'people'} will be invited when you start the plan.`}
+        {total === 0 ? 'No one added yet. You can also invite people after the plan is started.' : `${total} ${total === 1 ? 'person' : 'people'} will be invited when you start the plan${cohosts ? `, ${cohosts} as ${cohosts === 1 ? 'a co-host' : 'co-hosts'}` : ''}.`}
       </div>
     </div>
   )

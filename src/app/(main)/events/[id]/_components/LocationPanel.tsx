@@ -23,6 +23,7 @@
    to local state first (so the demos work in memory) and are persisted for real
    events through `persist`. */
 
+import { canManage } from '@/lib/cohosts'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { gsap } from 'gsap'
@@ -111,10 +112,10 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   const votingClosed = deadlineDu !== null && deadlineDu < 0
   // a set venue is a fact the host stated — no voting, no guest suggestions
   const settled = mode === 'set'
-  const canAddPlaces = !locked && !votingClosed && !!YOU && (event.hostedByYou || (guestsCanSuggest && !settled))
+  const canAddPlaces = !locked && !votingClosed && !!YOU && (canManage(event) || (guestsCanSuggest && !settled))
   // the itinerary is the host's to build: its stops, their order, how long each one
   // takes and when the day starts. Everyone else reads it.
-  const canEditItin = event.hostedByYou && !locked
+  const canEditItin = canManage(event) && !locked
   const pById = new Map(event.participants.map((p) => [p.id, p]))
   const avatarOf = (id: string) => {
     const p = pById.get(id)
@@ -467,7 +468,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
       : `${leadPlace.name} leads with ${nVotes(votesOf(leadingId!).length)}.`
   const closesLine = voteDeadline ? (votingClosed ? 'Voting is closed.' : `Voting closes ${deadlineText(voteDeadline)}.`) : ''
   const headSub = mode === 'remote'
-    ? (meetingLink ? 'The link is below and in every reminder.' : event.hostedByYou ? 'Paste the meeting link below.' : 'The host is adding the link.')
+    ? (meetingLink ? 'The link is below and in every reminder.' : canManage(event) ? 'Paste the meeting link below.' : 'The host is adding the link.')
     : sub === 'itin'
       ? stops.length && legs.length ? `${fmtDuration(routeMinutes)} of travel in all.` : undefined
       : [`${voterCount} of ${people} ${voterCount === 1 && people === 1 ? 'has' : 'have'} voted.`, closesLine].filter(Boolean).join(' ')
@@ -544,9 +545,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
     <div className="flex flex-col gap-3.5">
       {noPlaceYet ? (
         <NoPlaceYet
-          canAdd={canAddPlaces} host={event.hostedByYou} near={near} onAdd={addPlace}
+          canAdd={canAddPlaces} host={canManage(event)} near={near} onAdd={addPlace}
           onOnline={() => changeMode('remote')}
-          letVote={event.hostedByYou && !guestsCanSuggest ? toggleGuestsCanSuggest : undefined}
+          letVote={canManage(event) && !guestsCanSuggest ? toggleGuestsCanSuggest : undefined}
         />
       ) : mode === 'remote' ? null : locked && sub === 'itin' && schedule.length > 0 ? (
         <RouteSet
@@ -569,7 +570,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
       )}
 
       {/* venue-type switch (host) — switching keeps each mode's data */}
-      {event.hostedByYou && !locked && !noPlaceYet && (
+      {canManage(event) && !locked && !noPlaceYet && (
         <div className="flex items-center gap-2">
           <SegmentedControl label="Meeting type"
             size="sm"
@@ -585,7 +586,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
 
       {mode === 'remote' ? (
         <RemoteCall
-          platform={loc.platform} link={meetingLink} host={event.hostedByYou && !locked} onLink={changeLink}
+          platform={loc.platform} link={meetingLink} host={canManage(event) && !locked} onLink={changeLink}
           people={event.participants.filter((p) => p.rsvp !== 'not_going')}
         />
       ) : !noPlaceYet && (
@@ -661,7 +662,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
             {/* whether the place is a ballot or a route is the host's decision, the
                 same as in person or remote above it. Everyone else is shown the one
                 that was chosen, and moves with it when the host changes their mind. */}
-            {event.hostedByYou ? (
+            {canManage(event) ? (
               <SegmentedControl label="Vote or route"
                 size="sm"
                 stretch
@@ -690,7 +691,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 {() => <AddStopList near={near} places={places} stops={stops} canAdd={canAddPlaces} onExisting={addStop} onNew={addNewPlaceAsStop} />}
               </Popover>
             )}
-            {sub === 'vote' && event.hostedByYou && !locked && !settled && (
+            {sub === 'vote' && canManage(event) && !locked && !settled && (
               <SettingsMenu title="Voting settings" label="Voting settings" iconOnly className="flex-none">
                 {() => (
                   <VoteRules
@@ -738,7 +739,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                       ? <span className="rounded-[5px] border border-brick-border bg-brick-bg px-[6px] py-px text-[10.5px] font-semibold text-brick-text">Voting closed</span>
                       : <span className={`rounded-[5px] border px-[6px] py-px text-[10.5px] font-semibold ${(deadlineDu ?? 9) <= 2 ? 'border-ochre-border bg-ochre-bg text-ochre-text' : 'border-border bg-s2 text-dim'}`}>Closes {deadlineText(voteDeadline)}</span>
                   )}
-                  {event.hostedByYou && (
+                  {canManage(event) && (
                     <button ref={clearPlacesBtn} onClick={() => setConfirmClear('places')} className="ml-auto flex items-center gap-1 text-[12px] font-medium text-faint hover:text-brick-text">
                       <Trash2 size={13} /> Remove all
                     </button>
@@ -806,7 +807,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                           >
                             {you ? <Check size={18} /> : <ArrowUp size={18} />}
                           </button>}
-                          {event.hostedByYou && (
+                          {canManage(event) && (
                             <button data-remove-trigger onClick={() => attemptRemovePlace(p.id)} title="Remove this place" aria-label={`Remove ${p.name}`} className="grid h-[34px] w-7 place-items-center rounded-[9px] text-faint hover:text-brick-text">
                               <Trash2 size={16} />
                             </button>
@@ -878,7 +879,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 </div>
               ) : (
                 <>
-                  {!locked && event.hostedByYou && (
+                  {!locked && canManage(event) && (
                     confirmClear === 'stops' ? (
                       <div className="flex flex-none flex-wrap items-center gap-2 rounded-[10px] border border-brick-border bg-brick-bg px-2.5 py-2">
                         <TriangleAlert size={17} className="flex-none text-brick-text" />

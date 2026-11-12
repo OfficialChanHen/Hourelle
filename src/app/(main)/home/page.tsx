@@ -28,6 +28,7 @@
    disagrees with a visitor in another timezone. `useLiveEvents` re-reads the list
    whenever the cloud changes something. */
 
+import { canManage } from '@/lib/cohosts'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -240,14 +241,14 @@ function PlanMenu({ e, phase, className = '' }: { e: AppEvent; phase: Phase; cla
           <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={from} to={to} className="h-10 w-11 flex-none" rounded="rounded-md" />
           <span className="min-w-0">
             <span className="block truncate font-serif text-[17px] font-normal">{e.title}</span>
-            <span className="block text-[12.5px] font-normal text-dim">{e.hostedByYou ? 'You’re hosting' : `From ${(e.participants.find((p) => p.host)?.name || e.hostName || 'the host').split(' ')[0]}`}</span>
+            <span className="block text-[12.5px] font-normal text-dim">{e.hostedByYou ? 'You’re hosting' : canManage(e) ? 'You’re co-hosting' : `From ${(e.participants.find((p) => p.host)?.name || e.hostName || 'the host').split(' ')[0]}`}</span>
           </span>
         </span>
       )}
     >
       {(close) => (
         <>
-          {e.hostedByYou && phase !== 'past' && <PopoverItem icon={<Link2 size={16} />} onClick={() => copyLink(close)}>Copy invite link</PopoverItem>}
+          {canManage(e) && phase !== 'past' && <PopoverItem icon={<Link2 size={16} />} onClick={() => copyLink(close)}>Copy invite link</PopoverItem>}
           {account.signedIn && <PopoverItem icon={<CopyPlus size={16} />} href={`/create?from=${e.id}`} onClick={close}>{e.hostedByYou ? 'Duplicate' : 'Duplicate as my own plan'}</PopoverItem>}
           <PopoverItem tone="brick" icon={e.hostedByYou ? <Trash2 size={16} /> : <UserRoundX size={16} />} href={`/events/${e.id}?tab=details&focus=delete`} onClick={close}>
             {e.hostedByYou ? 'Delete plan' : 'Leave plan'}
@@ -779,7 +780,7 @@ function PlanActions({ e, phase }: { e: AppEvent; phase: Phase }) {
   const round = 'grid h-11 w-11 place-items-center rounded-full border sm:h-9 sm:w-9'
   return (
     <span className="flex items-center gap-2">
-      {e.hostedByYou && phase !== 'past' && (
+      {canManage(e) && phase !== 'past' && (
         <button
           type="button" onClick={copyLink} aria-label={copied ? `Link to ${e.title} copied` : `Copy link to ${e.title}`} title={copied ? 'Link copied' : 'Copy the invite link'}
           className={`${round} ${copied ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border2 bg-s1 text-text hover:bg-s2'}`}

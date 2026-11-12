@@ -4,6 +4,7 @@
 
 import { NextResponse } from 'next/server'
 import type { AppEvent } from '@/lib/events'
+import { managesEvent } from '@/lib/cohosts'
 import { userFromRequest } from '@/lib/server/db'
 import { emailsFor, eventRow, inviteMail, lastMailRefusal, mailConfigured, sendOnce, serverDb, siteUrl } from '@/lib/server/mail'
 
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
     row = (data as Row | null) ?? null
   }
   if (!row) return NextResponse.json({ error: 'That plan has not reached the server yet. Try again in a moment.' }, { status: 409 })
-  if (row.host_id !== user.id) return NextResponse.json({ error: 'Only the host can send invites.' }, { status: 403 })
+  if (!managesEvent(row.data, row.host_id, user.id)) return NextResponse.json({ error: 'Only the host or a co-host can send invites.' }, { status: 403 })
 
   const ev = row.data
   // guests need an address on their entry; an account invitee's comes from their
