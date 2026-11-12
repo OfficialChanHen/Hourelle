@@ -7,7 +7,7 @@ import { useGSAP } from '@gsap/react'
 import Link from 'next/link'
 import { Bell, CalendarClock, CalendarRange, ChevronRight, Hourglass, MapPin, Undo2, UserCheck, Video, Vote } from 'lucide-react'
 import { TimezonePill } from '@/components/ui/TimezonePill'
-import { dateRangeText, fmtMinute, listEvents, answeredCount, type AppEvent } from '@/lib/events'
+import { confirmedSlotText, dateRangeText, fmtMinute, listEvents, answeredCount, type AppEvent } from '@/lib/events'
 import { deriveNotifications, markAllNotificationsSeen, seenNotificationKeys, type NotificationItem } from '@/lib/notifications'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { reducedMotion } from '@/lib/prefs'
@@ -188,6 +188,7 @@ export default function NotificationsPage() {
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12.5px] text-dim">
                         <span>
                           {du <= 0 ? 'Today' : `In ${du} day${du === 1 ? '' : 's'}`}, locked in
+                          {c.sessions || c.openEnd ? ` for ${confirmedSlotText(e)}` : <>
                           {day ? ` for ${day.dow}, ${day.date}` : ''}
                           {c.startMin === 0 && c.endMin === 24 * 60 ? '' : ` at ${fmtMinute(c.startMin)}`}
                           {c.endDayKey && (() => {
@@ -196,6 +197,7 @@ export default function NotificationsPage() {
                             if (!ed) return ''
                             return c.startMin === 0 && c.endMin === 24 * 60 ? ` – ${ed.dow}, ${ed.date}` : `, until ${ed.dow}, ${ed.date} at ${fmtMinute(c.endMin)}`
                           })()}
+                          </>}
                         </span>
                         {!(c.startMin === 0 && c.endMin === 24 * 60) && <TimezonePill tz={e.timezone} day={c.dayKey} />}
                         <span className="flex items-center gap-1">{remote ? <Video size={12} /> : <MapPin size={12} />} {place}</span>

@@ -15,12 +15,16 @@ function plusDay(iso: string): string {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
 }
 
-export type CalendarSlot = { dayKey: string; endDayKey?: string; startMin: number; endMin: number }
+export type CalendarSlot = { dayKey: string; endDayKey?: string; startMin: number; endMin: number; sessions?: { dayKey: string; startMin: number; endMin: number }[]; openEnd?: boolean }
 
 export function AddToCalendar({ event, slot, align = 'end' }: { event: AppEvent; slot: CalendarSlot | null; align?: 'start' | 'end' }) {
   // a timed entry needs a real date; otherwise export the full date range as all-day.
   // A locked all-day slot (day polls) exports as an all-day entry over its run of days.
-  const timed = slot && /^\d{4}-\d{2}-\d{2}$/.test(slot.dayKey) ? slot : null
+  // a run with its own hours each day: the web links take one entry, so they add the
+  // first day and the file adds them all
+  const days = slot?.sessions?.length ?? 0
+  const one: CalendarSlot | null = slot?.sessions?.[0] ? { ...slot.sessions[0] } : slot
+  const timed = one && /^\d{4}-\d{2}-\d{2}$/.test(one.dayKey) ? one : null
   const slotAllDay = !!timed && timed.startMin === 0 && timed.endMin === 24 * 60
   const canExport = !!timed || /^\d{4}-\d{2}-\d{2}$/.test(event.startDate)
   const location = event.location.mode === 'remote'
@@ -90,11 +94,15 @@ export function AddToCalendar({ event, slot, align = 'end' }: { event: AppEvent;
           <>
             {/* what gets added lives in the title, not a caption — the items stay bare */}
             <PopoverTitle>
-              {timed && slotAllDay
-                ? 'Adds an all-day entry'
-                : timed
-                  ? `Adds ${fmtMinute(timed.startMin)} – ${fmtMinute(timed.endMin)}`
-                  : 'Adds the date window, all day'}
+              {days > 1
+                ? `Google and Outlook add the first day. The file adds all ${days}.`
+                : timed && slotAllDay
+                  ? 'Adds an all-day entry'
+                  : timed && slot?.openEnd
+                    ? `Adds ${fmtMinute(timed.startMin)} – ${fmtMinute(timed.endMin)}, how late most can stay`
+                    : timed
+                      ? `Adds ${fmtMinute(timed.startMin)} – ${fmtMinute(timed.endMin)}`
+                      : 'Adds the date window, all day'}
             </PopoverTitle>
             <PopoverItem onClick={() => exportTo('google')} icon={<CalendarPlus size={15} className="text-accent-text" />}>Google Calendar</PopoverItem>
             <PopoverItem onClick={() => exportTo('outlook')} icon={<CalendarPlus size={15} className="text-accent-text" />}>Outlook</PopoverItem>

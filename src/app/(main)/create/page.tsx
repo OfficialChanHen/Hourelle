@@ -57,6 +57,7 @@ import { centroidOf, searchPlaces } from '@/lib/geo'
 import { canEmail, sendInvites } from '@/lib/mail'
 import { InviteByEmail } from '@/components/InviteByEmail'
 import { DurationField } from '@/components/ui/DurationField'
+import { Switch } from '@/components/ui/Switch'
 import { useAccount } from '@/hooks/useAccount'
 import { OverflowText } from '@/components/ui/OverflowText'
 import { DaysPicker } from '@/components/ui/DaysPicker'
@@ -128,6 +129,7 @@ type Form = {
   windowStart: string
   windowEnd: string
   durationMin: number
+  openLength: boolean
   timezone: string
   budget: string
   budgetMode: 'total' | 'person'
@@ -149,7 +151,7 @@ type Form = {
 const initialForm: Form = {
   title: '', description: '',
   scheduleMode: 'find', fixedDay: '', fixedEndDay: '', fixedAllDay: false, fixedStart: '18:00', fixedEnd: '21:00', rsvpBy: '',
-  startDate: '', endDate: '', excludedDows: [], excludedDays: [], granularity: '30', windowPreset: 'any', windowStart: '', windowEnd: '', durationMin: 60,
+  startDate: '', endDate: '', excludedDows: [], excludedDays: [], granularity: '30', windowPreset: 'any', windowStart: '', windowEnd: '', durationMin: 60, openLength: false,
   timezone: '', budget: '', budgetMode: 'total', capacity: '', // timezone deliberately unset: picking it is a required, conscious step
   locMode: 'vote', planMode: 'vote', locSettled: false, picked: [], platform: 'Google Meet', meetingLink: '',
   emails: [], accounts: [],
@@ -281,6 +283,7 @@ function CreateWizard() {
       timezone: d.timezone ?? f.timezone,
       granularity: d.granularity ?? f.granularity,
       durationMin: d.durationMin ?? f.durationMin,
+      openLength: d.openLength ?? f.openLength,
       budget: d.budget ?? f.budget,
       budgetMode: d.budgetMode ?? f.budgetMode,
       capacity: d.capacity ?? f.capacity,
@@ -916,8 +919,16 @@ function WhenOptions({ form, update, today, attempted, errs, zoneName }: { form:
         {/* how long the event needs, which drives the best-time search on the grid.
             The same control the grid's own settings use, and it cannot be stepped
             or typed past the daily window this event is allowed to happen in. */}
-        <Collapse icon={Timer} title="How long it lasts" summary={fmtDur(form.durationMin)}>
-          <DurationField value={form.durationMin} max={winLen} onChange={(m) => update({ durationMin: m })} />
+        <Collapse icon={Timer} title="How long it lasts" summary={form.openLength && form.granularity !== 'day' ? 'Unknown' : fmtDur(form.durationMin)}>
+          {form.granularity !== 'day' && (
+            <div className="mb-3 flex min-h-11 items-center justify-between gap-3 sm:min-h-0">
+              <span className="text-[13.5px] font-semibold text-text">Length unknown</span>
+              <Switch on={form.openLength} onChange={(v) => update({ openLength: v })} label="Length unknown" />
+            </div>
+          )}
+          {form.openLength && form.granularity !== 'day'
+            ? <p className="text-[12.5px] leading-[1.5] text-faint">The best time is when the most people can start and stay longest.</p>
+            : <DurationField value={form.durationMin} max={winLen} onChange={(m) => update({ durationMin: m })} />}
         </Collapse>
       </>)}
 

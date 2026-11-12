@@ -4,9 +4,10 @@ import { useState } from 'react'
 import { Check, HelpCircle, MapPin, Route, Undo2, Video, X } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { TimezonePill } from '@/components/ui/TimezonePill'
-import { dateRangeText, daysUntil, daysUntilLabel, fmtMinute, reopenEvent, setMyRsvp, type AppEvent, type Rsvp } from '@/lib/events'
+import { confirmedSlotLines, dateRangeText, daysUntil, daysUntilLabel, fmtMinute, reopenEvent, setMyRsvp, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { JustLocked } from './JustLocked'
+import { StayNote } from './StayNote'
 import { slotWhen } from '@/lib/slot'
 
 // your answer to the locked-in plan — strict role colors: teal going, ochre maybe, brick out
@@ -59,7 +60,7 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
           <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
             {/* an all-day lock has no clock times to show, and an all-day run of days
                 reads as the range alone; a timed run names the time at each end */}
-            {c.startMin === 0 && c.endMin === 24 * 60 ? (
+            {!c.sessions && c.startMin === 0 && c.endMin === 24 * 60 ? (
               <span className="font-serif text-[27px] leading-[1.05] tracking-[-0.01em]">{dayText}{endDay ? '' : ', all day'}</span>
             ) : (
               <>
@@ -68,6 +69,13 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
               </>
             )}
           </div>
+          {/* a run with its own hours: each day under the span, at the size of a detail */}
+          {c.sessions && c.sessions.length > 1 && (
+            <ul className="mt-2 flex flex-col gap-0.5 text-[13.5px] text-dim">
+              {(confirmedSlotLines(event) ?? []).map((line) => <li key={line}>{line}</li>)}
+            </ul>
+          )}
+          {c.openEnd && !c.sessions && <StayNote event={event} session={c} className="mt-1.5" />}
           <div className="mt-2 flex items-center gap-1.5 text-[13.5px] text-dim">
             {event.location.mode === 'remote' ? (
               <><Video size={15} className="flex-none text-accent-text" /> Online on {event.location.platform}</>
@@ -84,7 +92,7 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
         </div>
         {/* wraps under the date on narrow phones and never exceeds the card */}
         <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
-          <AddToCalendar event={event} slot={{ dayKey: c.dayKey, endDayKey: c.endDayKey, startMin: c.startMin, endMin: c.endMin }} />
+          <AddToCalendar event={event} slot={c} />
           {/* reopening is consequential — everyone's RSVPs reset — so it asks once */}
           {event.hostedByYou && !confirmReopen && (
             <button onClick={() => setConfirmReopen(true)} className="flex h-11 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-medium text-dim hover:bg-s2 hover:text-text sm:h-8">

@@ -231,9 +231,13 @@ export function lockedPlanBusyUtc(events: AppEvent[], exceptId?: string): UtcBus
     const c = ev.confirmed
     if (ev.id === exceptId || ev.demo || !c || !ISO_DAY.test(c.dayKey)) continue
     if (ev.participants.find((p) => p.you)?.rsvp !== 'attending') continue
-    const s = zonedToUtc(c.dayKey, c.startMin, ev.timezone)
-    const e = zonedToUtc(c.endDayKey ?? c.dayKey, c.endMin, ev.timezone)
-    if (e > s) out.push({ s, e })
+    // a run with its own hours holds each of its days, not the nights between
+    const spans: { dayKey: string; endDayKey?: string; startMin: number; endMin: number }[] = c.sessions?.length ? c.sessions : [c]
+    for (const x of spans) {
+      const s = zonedToUtc(x.dayKey, x.startMin, ev.timezone)
+      const e = zonedToUtc(x.endDayKey ?? x.dayKey, x.endMin, ev.timezone)
+      if (e > s) out.push({ s, e })
+    }
   }
   return out
 }

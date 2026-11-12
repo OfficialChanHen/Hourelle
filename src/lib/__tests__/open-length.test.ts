@@ -78,3 +78,12 @@ describe('stayLine', () => {
     expect(stayLine(ev, { ...session, startMin: h(14) + 30 })).toBeNull()
   })
 })
+
+describe('carrying it over', () => {
+  it('a duplicate keeps the length unknown', async () => {
+    const { draftFromEvent } = await import('@/lib/events')
+    const { saved } = await import('../../../test/fixtures')
+    saved(plan({ id: 'open-1', openLength: true }))
+    expect(draftFromEvent('open-1')?.openLength).toBe(true)
+  })
+})

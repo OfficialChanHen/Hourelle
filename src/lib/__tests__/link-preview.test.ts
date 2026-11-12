@@ -72,4 +72,14 @@ describe('link preview', () => {
     expect(previewVersion(a)).toBe(previewVersion(previewOf(deciding())!))
     expect(previewVersion(a)).not.toBe(previewVersion(previewOf(more)!))
   })
+  it('says a run with its own hours as its span of days', () => {
+    const p = previewOf({
+      ...deciding(), status: 'confirmed',
+      confirmed: {
+        dayKey: FUTURE[0], endDayKey: FUTURE[1], startMin: 18 * 60, endMin: 13 * 60, placeIds: [],
+        sessions: [{ dayKey: FUTURE[0], startMin: 18 * 60, endMin: 22 * 60 }, { dayKey: FUTURE[1], startMin: 11 * 60, endMin: 13 * 60 }],
+      },
+    })!
+    expect(p.when).toMatch(/, 2 days$/)
+  })
 })

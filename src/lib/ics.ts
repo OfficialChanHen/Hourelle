@@ -7,7 +7,7 @@
 // METHOD:PUBLISH rather than REQUEST: the mailbox offers "add to calendar" without
 // RSVP buttons that would reply to a sending address nobody reads.
 
-import type { AppEvent } from './events'
+import { fmtMinute, slotSessions, stayLine, type AppEvent } from './events'
 import { zonedToUtc } from './tz'
 import { APP_NAME } from '@/lib/brand'
 
@@ -46,40 +46,52 @@ export function icsLocation(ev: AppEvent): string {
   return ''
 }
 
-// one plan's VEVENT lines, or null while nothing is locked in. `status` is said only
-// in the feed, where it carries your own reply (CONFIRMED going, TENTATIVE not yet)
-function vevent(ev: AppEvent, link: string, now: number, status?: 'CONFIRMED' | 'TENTATIVE'): string[] | null {
+// one plan's VEVENTs, or null while nothing is locked in: one for the slot, or one per
+// day of a run locked with its own hours. The first keeps the plan's own UID, so a
+// single day relocked as several days updates its entry; the rest add the day to it.
+// `status` is said only in the feed, where it carries your own reply (CONFIRMED going,
+// TENTATIVE not yet)
+function vevents(ev: AppEvent, link: string, now: number, status?: 'CONFIRMED' | 'TENTATIVE'): string[] | null {
   const c = ev.confirmed
   if (!c || !/^\d{4}-\d{2}-\d{2}$/.test(c.dayKey)) return null
-  const allDay = c.startMin === 0 && c.endMin === 24 * 60
-  const lines = [
-    'BEGIN:VEVENT',
-    `UID:${ev.id}@hourelle.com`,
-    `DTSTAMP:${stamp(now)}`,
-    `SEQUENCE:${ev.confirmedAt ? Math.floor(ev.confirmedAt / 1000) : 0}`,
-  ]
-  if (allDay) {
-    lines.push(`DTSTART;VALUE=DATE:${dateOnly(c.dayKey)}`, `DTEND;VALUE=DATE:${dateOnly(plusDay(c.endDayKey ?? c.dayKey))}`)
-  } else {
-    lines.push(
-      `DTSTART:${stamp(zonedToUtc(c.dayKey, c.startMin, ev.timezone))}`,
-      `DTEND:${stamp(zonedToUtc(c.endDayKey ?? c.dayKey, c.endMin, ev.timezone))}`,
-    )
-  }
-  lines.push(`SUMMARY:${esc(ev.title)}`)
+  const allDay = !c.sessions?.length && c.startMin === 0 && c.endMin === 24 * 60
+  const parts = c.sessions?.length ? slotSessions(c) : [null]
   const where = icsLocation(ev)
-  if (where) lines.push(`LOCATION:${esc(where)}`)
-  const description = [ev.description.trim(), `The plan, the people and the chat: ${link}`].filter(Boolean).join('\n\n')
-  lines.push(`DESCRIPTION:${esc(description)}`, `URL:${link}`)
-  if (status) lines.push(`STATUS:${status}`)
-  lines.push('END:VEVENT')
+  const lines: string[] = []
+  parts.forEach((x, i) => {
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:${ev.id}${i === 0 || !x ? '' : `-${x.dayKey}`}@hourelle.com`,
+      `DTSTAMP:${stamp(now)}`,
+      `SEQUENCE:${ev.confirmedAt ? Math.floor(ev.confirmedAt / 1000) : 0}`,
+    )
+    if (x) {
+      lines.push(`DTSTART:${stamp(zonedToUtc(x.dayKey, x.startMin, ev.timezone))}`, `DTEND:${stamp(zonedToUtc(x.dayKey, x.endMin, ev.timezone))}`)
+    } else if (allDay) {
+      lines.push(`DTSTART;VALUE=DATE:${dateOnly(c.dayKey)}`, `DTEND;VALUE=DATE:${dateOnly(plusDay(c.endDayKey ?? c.dayKey))}`)
+    } else {
+      lines.push(
+        `DTSTART:${stamp(zonedToUtc(c.dayKey, c.startMin, ev.timezone))}`,
+        `DTEND:${stamp(zonedToUtc(c.endDayKey ?? c.dayKey, c.endMin, ev.timezone))}`,
+      )
+    }
+    lines.push(`SUMMARY:${esc(ev.title)}`)
+    if (where) lines.push(`LOCATION:${esc(where)}`)
+    // an open end: the entry runs to how late most can stay, and says it is open
+    const stay = c.openEnd ? stayLine(ev, x ?? { dayKey: c.dayKey, startMin: c.startMin, endMin: c.endMin }) : null
+    const open = c.openEnd ? (stay ? `Open end. Most can stay until ${stay.mostIsEnd ? 'the end of the day' : fmtMinute(stay.most)}.` : 'Open end.') : ''
+    const description = [open, ev.description.trim(), `The plan, the people and the chat: ${link}`].filter(Boolean).join('\n\n')
+    lines.push(`DESCRIPTION:${esc(description)}`, `URL:${link}`)
+    if (status) lines.push(`STATUS:${status}`)
+    lines.push('END:VEVENT')
+  })
   return lines
 }
 
 /** The .ics text for a locked-in event, or null while nothing is locked in. `link`
  *  is the reader's own way into the event and goes in the description and URL. */
 export function icsFor(ev: AppEvent, link: string, now = Date.now()): string | null {
-  const body = vevent(ev, link, now)
+  const body = vevents(ev, link, now)
   if (!body) return null
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:-//${APP_NAME}//Event//EN`, 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', ...body, 'END:VCALENDAR']
   return lines.map(fold).join('\r\n') + '\r\n'
@@ -109,7 +121,7 @@ export function icsFeed(entries: FeedEntry[], now = Date.now()): string {
     // a hint, which Apple and Outlook take; Google keeps its own pace
     'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H',
   ]
-  for (const e of entries) lines.push(...(vevent(e.ev, e.link, now, e.status) ?? []))
+  for (const e of entries) lines.push(...(vevents(e.ev, e.link, now, e.status) ?? []))
   lines.push('END:VCALENDAR')
   return lines.map(fold).join('\r\n') + '\r\n'
 }

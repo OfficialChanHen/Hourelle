@@ -784,7 +784,7 @@ export function openBest(ev: AppEvent, days: GridDay[] = ev.days) {
 
 /** How late people can stay from a locked open start, read from their marks now:
  *  "most" is when the group drops below half, `last` the one person who stays later
- *  than that, by first name. `*IsEnd` when it is the end of the day's hours, which is
+ *  than that, by first name ("you" for you). `*IsEnd` when it is the end of the day's hours, which is
  *  as far as a mark can reach. Clock minutes; null when nobody can make the start. */
 export function stayLine(ev: AppEvent, session: Session): { most: number; mostIsEnd: boolean; last?: { name: string; until: number; isEnd: boolean } } | null {
   const g = gridStartMinOf(ev)
@@ -796,7 +796,7 @@ export function stayLine(ev: AppEvent, session: Session): { most: number; mostIs
   const latest = ids.reduce((a, b) => (stay[b] > stay[a] ? b : a))
   const until = g + stay[latest]
   const who = ev.participants.find((p) => p.id === latest)
-  const last = until > most && who ? { name: who.name.split(' ')[0], until, isEnd: until >= end } : undefined
+  const last = until > most && who ? { name: who.you ? 'you' : who.name.split(' ')[0], until, isEnd: until >= end } : undefined
   return { most, mostIsEnd: most >= end, ...(last ? { last } : {}) }
 }
 
@@ -1276,6 +1276,7 @@ export function draftFromEvent(id: string): EventDraft | null {
     granularity: ev.granularity,
     durationMin: ev.durationMin,
     bestMode: ev.bestMode,
+    openLength: ev.openLength,
     budget: ev.budget,
     budgetMode: ev.budgetMode,
     capacity: ev.capacity?.toString(),
@@ -1857,6 +1858,8 @@ export function createEvent(input: CreateInput): AppEvent {
     itinStartMin: hasWin ? (winS as number) : fixed && !fxAllDay ? fixed.s : 9 * 60,
     durationMin: fixed?.whole ? 24 * 60 : fixed ? fixed.e - fixed.s : input.durationMin && input.durationMin >= 1 ? Math.min(24 * 60, input.durationMin) : 60,
     bestMode: input.bestMode,
+    // a date set at creation has its length already; only a poll can leave it open
+    ...(input.openLength && !fixed && input.granularity !== 'day' ? { openLength: true } : {}),
     capacity: input.capacity && Number(input.capacity) >= 1 ? Number(input.capacity) : undefined,
     ...(input.image ? { image: input.image, imageFit: input.imageFit, imagePos: input.imagePos } : {}),
     ...(input.keepsake ? { keepsake: input.keepsake } : {}),

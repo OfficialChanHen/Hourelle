@@ -37,11 +37,12 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Announce } from '@/components/ui/Announce'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import {
-  answeredIds, availIvOf, openBest, needOnlyIds, rsvpPool, byYouFirst, confirmedSlotText, dayLabel, gridStartMinOf, fmtMinute, fmtMinuteDay, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
+  answeredIds, availIvOf, openBest, needOnlyIds, rsvpPool, byYouFirst, confirmedSlotLines, confirmedSlotText, dayLabel, MIN_STAY, slotSessions, gridStartMinOf, fmtMinute, fmtMinuteDay, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
   type AppEvent, type AvailIntervals, type BestMode, type GridDay, type Iv, type Participant, type Rsvp,
 } from '@/lib/events'
 import { computeItinerary } from '@/lib/itinerary'
 import { isAllDay } from '@/lib/slot'
+import { StayNote } from './StayNote'
 import { coordsOf, type LatLng } from '@/lib/geo'
 import { useRoute } from '@/hooks/useRoute'
 import { useFollow } from '@/hooks/useFollow'
@@ -120,10 +121,13 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
     if (locked) {
       const c = event.confirmed!
       const d = event.days.find((x) => x.key === c.dayKey)
-      // a run of days is counted by day (runDays below); its window is the first day whole
-      return c.endDayKey
+      // a run of days is counted by day (runDays below); its window is the first day,
+      // whole or at its own hours. An open end is read over its first hour.
+      const first = slotSessions(c)[0]
+      const end = c.openEnd ? Math.min(first.startMin + MIN_STAY, first.endMin) : first.endMin
+      return c.endDayKey && !c.sessions
         ? { s: 0, e: 24 * 60 - gridStart, dayKey: c.dayKey, dayLabel: d ? `${d.dow}, ${d.date}` : c.dayKey }
-        : { s: c.startMin - gridStart, e: c.endMin - gridStart, dayKey: c.dayKey, dayLabel: d ? `${d.dow}, ${d.date}` : c.dayKey }
+        : { s: first.startMin - gridStart, e: end - gridStart, dayKey: c.dayKey, dayLabel: d ? `${d.dow}, ${d.date}` : c.dayKey }
     }
     return best ? { s: best.s, e: best.e, dayKey: best.dayKey, dayLabel: best.dayLabel } : null
   }, [locked, event.confirmed, event.days, gridStart, best])
@@ -151,8 +155,19 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
   const runDays = useMemo(() => {
     const c = event.confirmed
     if (!locked || !c?.endDayKey) return null
+    if (c.sessions) {
+      const keys = new Set(c.sessions.map((x) => x.dayKey))
+      return event.days.filter((d) => keys.has(d.key))
+    }
     return event.days.filter((d) => d.key >= c.dayKey && d.key <= c.endDayKey!)
   }, [locked, event.confirmed, event.days])
+
+  // the hours each day of a run with its own hours asks for (an open end: its first hour)
+  const runHours = useMemo(() => {
+    const c = event.confirmed
+    if (!locked || !c?.sessions) return undefined
+    return Object.fromEntries(c.sessions.map((x) => [x.dayKey, { s: x.startMin - gridStart, e: (c.openEnd ? Math.min(x.startMin + MIN_STAY, x.endMin) : x.endMin) - gridStart }]))
+  }, [locked, event.confirmed, gridStart])
 
   // event with the live participant list, so child views read the same list this tab edits
   const liveEvent = useMemo(() => ({ ...event, participants }), [event, participants])
@@ -179,7 +194,10 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
     : ![...answered].some((id) => id !== me?.id)
   const mineMissing = !locked && !!me && !markedIds.has(me.id) && !unavailSet.has(me.id)
   const allDay = !!win && gridStart + win.s === 0 && gridStart + win.e === 24 * 60
-  const whenText = win ? `${win.dayLabel}${byDay || allDay ? '' : `, ${fmtMinute(gridStart + win.s)} to ${fmtMinute(gridStart + win.e)}`}` : ''
+  const lockedSlot = locked ? event.confirmed! : null
+  const whenText = lockedSlot && (lockedSlot.sessions || lockedSlot.openEnd)
+    ? confirmedSlotText(event) ?? ''
+    : win ? `${win.dayLabel}${byDay || allDay ? '' : event.openLength && !locked ? `, ${fmtMinute(gridStart + win.s)}, open end` : `, ${fmtMinute(gridStart + win.s)} to ${fmtMinute(gridStart + win.e)}`}` : ''
   const going = participants.filter((p) => p.rsvp === 'attending').length
   const title = showItin
     ? itinTitle(itin, itinPeople.length)
@@ -199,6 +217,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
         ? <span className="font-semibold text-text">{whenText}</span>
         : <button type="button" onClick={() => (onGoToBestWindow ? onGoToBestWindow() : onGoToTab?.('availability'))} className="font-semibold text-accent-text hover:underline">{whenText}</button>}
       {!byDay && !allDay && <> <TimezonePill tz={event.timezone} day={event.confirmed?.dayKey ?? event.startDate} /></>}
+      {lockedSlot?.openEnd && !lockedSlot.sessions && <StayNote event={liveEvent} session={lockedSlot} className="mt-1" />}
     </p>
   ) : !locked ? `Nobody has marked times yet, so there is no best ${byDay ? 'day' : 'time'} to count against.` : undefined
 
@@ -231,7 +250,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
       />
 
       {runDays && runDays.length > 1 && (
-        <DayRunAttendance days={runDays} participants={participants} availIv={availIv} onPerson={onViewAvailability} />
+        <DayRunAttendance days={runDays} participants={participants} availIv={availIv} hours={runHours} onPerson={onViewAvailability} />
       )}
 
       {empty ? (
@@ -254,12 +273,18 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
 /* ── day-by-day attendance for a locked run of days ──
    One row per day (bar + count), then exceptions only: people who can make some
    days but not all get a row with the days they miss — never a person × day matrix. */
-function DayRunAttendance({ days, participants, availIv, onPerson }: {
+function DayRunAttendance({ days, participants, availIv, hours, onPerson }: {
   days: GridDay[]; participants: Participant[]; availIv: AvailIntervals
+  // a run with its own hours: the grid-minute window each day asks for; absent, any mark that day counts
+  hours?: Record<string, Iv>
   onPerson?: (pid: string) => void
 }) {
   const ppl = participants.filter((p) => p.rsvp !== 'not_going')
-  const covered = (id: string, k: string) => (availIv[k]?.[id] ?? []).length > 0
+  const covered = (id: string, k: string) => {
+    const ivs = availIv[k]?.[id] ?? []
+    const h = hours?.[k]
+    return h ? ivs.some((iv) => iv.s <= h.s && iv.e >= h.e) : ivs.length > 0
+  }
   const perDay = days.map((d) => ({ d, n: ppl.filter((p) => covered(p.id, d.key)).length }))
   const everyDay = ppl.filter((p) => days.every((d) => covered(p.id, d.key)))
   const someDays = ppl.filter((p) => !days.every((d) => covered(p.id, d.key)) && days.some((d) => covered(p.id, d.key)))
@@ -357,8 +382,9 @@ function summaryOf(event: AppEvent, win: Win | null, locked: boolean, gridStart:
     : lead ? `${lead.place.name}${lead.place.place ? `, ${lead.place.place}` : ''}` : ''
 
   if (locked && event.confirmed) {
-    const slot = confirmedSlotText(event) ?? ''
-    lines.push(`${event.title} is on.`, isAllDay(event.confirmed) ? slot : `${slot} ${tzAbbr(event.timezone, event.confirmed?.dayKey)}`)
+    // one line per day where a run has its own hours, the zone said once at the end
+    const when = confirmedSlotLines(event) ?? []
+    lines.push(`${event.title} is on.`, ...(isAllDay(event.confirmed) ? when : when.map((l, i) => (i === when.length - 1 ? `${l} ${tzAbbr(event.timezone, event.confirmed?.dayKey)}` : l))))
     if (where) lines.push(where)
     const going = ps.filter((p) => p.rsvp === 'attending').length
     const maybe = ps.filter((p) => p.rsvp === 'maybe').length

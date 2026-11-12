@@ -40,7 +40,8 @@ import { TimeSelect } from '@/components/ui/TimeSelect'
 import { DateField } from '@/components/ui/DateField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Announce } from '@/components/ui/Announce'
-import { isAllDay, slotWhen } from '@/lib/slot'
+import { isAllDay, slotLines, slotWhen } from '@/lib/slot'
+import { StayNote } from './StayNote'
 import { Avatar } from '@/components/ui/Avatar'
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { FaceChipsMore } from '@/components/ui/FaceChips'
@@ -740,7 +741,7 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
         <div className="mt-1 flex flex-wrap items-center gap-2 border-t border-border pt-3.5">
           <AddToCalendar
             event={event}
-            slot={event.confirmed ? { dayKey: event.confirmed.dayKey, endDayKey: event.confirmed.endDayKey, startMin: event.confirmed.startMin, endMin: event.confirmed.endMin } : null}
+            slot={event.confirmed ?? null}
             align="start"
           />
           {canDuplicate && (
@@ -1119,15 +1120,32 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
       const label = x ? `${x.dow}, ${x.date}` : k
       return k === lastKey ? `${label}, ${k.slice(0, 4)}` : label
     }
+    // a run with its own hours each day reads one day a line; the editor here only
+    // knows one span, so that shape is changed by reopening and locking in again
+    if (c.sessions && c.sessions.length > 1) {
+      return (
+        <span className="flex flex-col gap-0.5">
+          {slotLines(c, dayOf, fmtMinute).map((line, i) => (
+            <span key={line} className="flex flex-wrap items-center gap-1.5">
+              {line}
+              {i === 0 && <TimezonePill tz={event.timezone} day={c.dayKey} />}
+            </span>
+          ))}
+        </span>
+      )
+    }
     return (
+      <span className="flex flex-col gap-1">
       <span className="flex flex-wrap items-center gap-1.5">
         {slotWhen(c, dayOf, fmtMinute)}
         {!allDay && <TimezonePill tz={event.timezone} day={event.confirmed?.dayKey ?? event.startDate} />}
-        {editable && (
+        {editable && !c.openEnd && (
           <button onClick={() => setEditing(true)} title="Change the day or time" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
             <Pencil size={13} />
           </button>
         )}
+      </span>
+      {c.openEnd && <StayNote event={event} session={c} />}
       </span>
     )
   }

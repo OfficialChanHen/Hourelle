@@ -14,9 +14,10 @@ import { useAccount } from '@/hooks/useAccount'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { getEvent } from '@/lib/events'
 import {
-  availIvOf, bestWindow, confirmedSlotText, confirmEvent, fmtMinute, gridStartMinOf, patchEvent, answeredCount,
-  type AppEvent, type ConfirmedSlot,
+  confirmedSlotText, confirmEvent, fmtMinute, gridStartMinOf, openBest, patchEvent, answeredCount, slotFromRows, stayLine, stepOf,
+  type AppEvent, type ConfirmedSlot, type DayRow,
 } from '@/lib/events'
+import { DayHoursRows } from './DayHoursRows'
 
 /* ── the host's one clear action while planning: lock in whatever is still open ──
    Usually that's a time and a place; when the date was fixed at creation the time
@@ -102,7 +103,9 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
   const loc = event.location
   const gridStart = gridStartMinOf(event)
   const duration = event.durationMin ?? 60
-  const bw = bestWindow(availIvOf(event), event.days, duration, event.bestMode, event.needIv)
+  const bw = openBest(event)
+  // the last minute anyone can mark: an open end's soft end never runs past it
+  const gridEnd = gridStart + event.times.length * stepOf(event.granularity)
 
   // a date fixed at creation is a fact, not a choice — the form only asks for the place
   const timeSet = event.confirmed ?? null
@@ -125,6 +128,14 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
     return out
   }
   const runMode = wantRun >= 2
+  // length unknown: a start and an open end, never a set end
+  const openLen = !!event.openLength && !dayPoll
+  // how late most of the group can stay from a start, the open end's soft end: from
+  // their marks, else two hours, never past the grid
+  const softEnd = (k: string, start: number) => {
+    const stay = stayLine(event, { dayKey: k, startMin: start, endMin: start })
+    return Math.min(stay ? stay.most : start + 120, gridEnd, 24 * 60)
+  }
 
   // best window for everyone, cut to the event length; a handed-in prefill (the grid's
   // "Lock these days" shortcut) beats the computed default
@@ -142,6 +153,23 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
     })
   }
   const [startMin, setStartMin] = useState(() => timeSet?.startMin ?? (dayPoll ? 0 : bw ? gridStart + bw.s : 18 * 60))
+
+  // a run on a timed poll: whole days as before, or its own hours each day. Each day
+  // starts at its own best time; a host's change or skip is kept per day, so moving
+  // the run's ends never loses it.
+  const [hoursMode, setHoursMode] = useState<'whole' | 'hours'>('hours')
+  const setHours = runMode && !dayPoll && hoursMode === 'hours'
+  const [rowEdits, setRowEdits] = useState<Record<string, Partial<Omit<DayRow, 'dayKey'>>>>({})
+  const runKeys = runMode ? runFrom(dayKey).filter((k) => k <= lastDay) : []
+  const rows: DayRow[] = runKeys.map((k) => {
+    const day = event.days.find((d) => d.key === k)
+    const b = day ? openBest(event, [day]) : null
+    const start = b ? gridStart + b.s : startMin
+    const end = openLen ? softEnd(k, start) : b ? gridStart + b.e : Math.min(start + duration, 24 * 60 - 5)
+    return { dayKey: k, startMin: start, endMin: end, skip: false, ...rowEdits[k] }
+  }).map((r) => (openLen && rowEdits[r.dayKey]?.startMin !== undefined ? { ...r, endMin: softEnd(r.dayKey, r.startMin) } : r))
+  const keptCount = rows.filter((r) => !r.skip).length
+  const dayLabelOf = (k: string) => { const d = event.days.find((x) => x.key === k); return d ? `${d.dow}, ${d.date}` : k }
   const [endMin, setEndMin] = useState(() => {
     if (timeSet) return timeSet.endMin
     if (dayPoll) return 24 * 60
@@ -169,9 +197,13 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
   const placeReady = loc.mode === 'remote'
     || settled
     || (source === 'itin' ? hasItin : hasBallot && placeIds.length > 0)
-  const timeReady = !!dayKey && (dayPoll || runMode || endMin > startMin)
+  const timeReady = !!dayKey && (dayPoll || runMode || openLen || endMin > startMin)
   const blockedReason = !timeReady
     ? 'Pick a day and time first.'
+    : setHours && keptCount === 0
+      ? 'Keep at least one day.'
+    : setHours && !openLen && rows.some((r) => !r.skip && r.endMin <= r.startMin)
+      ? 'Each day needs an end after its start.'
     : !placeReady
       ? hasBallot ? 'Pick at least one place.' : 'Add a place before locking in.'
       : null
@@ -197,15 +229,20 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
     if (blockedReason) return
     // a run of days (or any day-poll lock) is all-day; only a single-day lock on a
     // minute poll carries clock times
-    const allDay = dayPoll || runMode
-    const slot: ConfirmedSlot = {
-      dayKey,
-      ...(runMode && lastDay !== dayKey ? { endDayKey: lastDay } : {}),
-      startMin: allDay ? 0 : startMin,
-      endMin: allDay ? 24 * 60 : endMin,
-      // a set venue locks in as-is even though it never ran as a ballot
-      placeIds: settled ? placeIds : !hasBallot ? [] : source === 'itin' ? stops : placeIds,
-    }
+    const allDay = dayPoll || (runMode && !setHours)
+    // a set venue locks in as-is even though it never ran as a ballot
+    const lockedPlaces = settled ? placeIds : !hasBallot ? [] : source === 'itin' ? stops : placeIds
+    const slot: ConfirmedSlot | null = setHours
+      ? slotFromRows(rows, lockedPlaces, openLen)
+      : {
+          dayKey,
+          ...(runMode && lastDay !== dayKey ? { endDayKey: lastDay } : {}),
+          startMin: allDay ? 0 : startMin,
+          endMin: allDay ? 24 * 60 : openLen ? softEnd(dayKey, startMin) : endMin,
+          placeIds: lockedPlaces,
+          ...(openLen && !allDay ? { openEnd: true } : {}),
+        }
+    if (!slot) return
     confirmEvent(event.id, slot)
     // clamp a stale pick (the chosen day may have moved under it) before storing
     const deadline = rsvpBy && rsvpBy >= todayKey && rsvpBy <= dayKey ? rsvpBy : undefined
@@ -269,14 +306,51 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
             </div>
           )}
 
+          {runMode && !dayPoll && (
+            <div>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Hours</span>
+                <TimezonePill tz={event.timezone} day={dayKey} />
+              </div>
+              <SegmentedControl label="Hours" size="sm" stretch value={hoursMode} onChange={(v) => setHoursMode(v as 'whole' | 'hours')}
+                options={[{ v: 'hours', l: 'Set hours' }, { v: 'whole', l: 'Whole days' }]} />
+              {setHours && (
+                <div className="mt-2">
+                  <DayHoursRows
+                    rows={rows}
+                    openEnd={openLen}
+                    dayLabel={dayLabelOf}
+                    keptCount={keptCount}
+                    onChange={(k, patch) => setRowEdits((m) => ({ ...m, [k]: { ...m[k], ...patch } }))}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           {!dayPoll && !runMode && <div>
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Time</div>
             <div className="flex items-center gap-2">
               <TimeSelect value={startMin} onChange={changeStart} step={15} title="Start time" />
-              <span className="text-[13px] text-dim">to</span>
-              <TimeSelect value={endMin} onChange={setEndMin} min={startMin + 15} step={15} title="End time" />
+              {openLen
+                ? <span className="text-[13px] text-dim">open end</span>
+                : <>
+                    <span className="text-[13px] text-dim">to</span>
+                    <TimeSelect value={endMin} onChange={setEndMin} min={startMin + 15} step={15} title="End time" />
+                  </>}
+              <TimezonePill tz={event.timezone} day={dayKey} />
             </div>
-            {bw && (
+            {openLen ? (() => {
+              const stay = stayLine(event, { dayKey, startMin, endMin: startMin })
+              if (!stay) return <p className="mt-1.5 text-[12px] text-faint">No one has marked this start yet.</p>
+              const at = (m: number, end: boolean) => (end ? 'the end of the day' : fmtMinute(m))
+              return (
+                <p className="mt-1.5 text-[12px] text-faint">
+                  Most can stay until <span className="font-semibold text-text">{at(stay.most, stay.mostIsEnd)}</span>
+                  {stay.last && <>, {stay.last.name} until <span className="font-semibold text-text">{at(stay.last.until, stay.last.isEnd)}</span></>}.
+                </p>
+              )
+            })() : bw && (
               <p className="mt-1.5 text-[12px] text-faint">
                 Best window: {event.bestMode === 'crowd'
                   ? Math.round(bw.avg) >= 1

@@ -31,6 +31,36 @@ describe('icsFor', () => {
     expect(ics).toContain('DTSTART;VALUE=DATE:20261020')
     expect(ics).toContain('DTEND;VALUE=DATE:20261023')
   })
+  it('writes one entry per day for a run with its own hours, the first keeping the plan’s id', () => {
+    const run = plan({
+      id: 'trip',
+      confirmed: {
+        dayKey: '2026-11-20', endDayKey: '2026-11-22', startMin: 18 * 60, endMin: 13 * 60, placeIds: [],
+        sessions: [
+          { dayKey: '2026-11-20', startMin: 18 * 60, endMin: 22 * 60 },
+          { dayKey: '2026-11-21', startMin: 11 * 60, endMin: 16 * 60 },
+          { dayKey: '2026-11-22', startMin: 11 * 60, endMin: 13 * 60 },
+        ],
+      },
+    })
+    const ics = icsFor(run, 'https://x/e', 0)!
+    expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(3)
+    expect(ics).toContain('UID:trip@hourelle.com')
+    expect(ics).toContain('UID:trip-2026-11-21@hourelle.com')
+    expect(ics).toContain('UID:trip-2026-11-22@hourelle.com')
+    expect(ics).toContain('DTSTART:20261121T170000Z') // Saturday 11 AM Chicago, standard time
+    expect(ics).toContain('DTEND:20261121T220000Z')
+  })
+  it('says an open end in the description', () => {
+    const open = plan({
+      days: [{ key: '2026-10-20', dow: 'Tue', date: 'Oct 20' }],
+      participants: [person('H', { host: true, you: true, rsvp: 'attending' }), person('A')],
+      availIv: { '2026-10-20': { A: [{ s: 0, e: 4 * 60 }] } },
+      confirmed: { dayKey: '2026-10-20', startMin: 9 * 60, endMin: 13 * 60, placeIds: [], openEnd: true },
+    })
+    const ics = icsFor(open, 'https://x/e', 0)!.replace(/\r\n /g, '')
+    expect(ics).toContain('DESCRIPTION:Open end. Most can stay until 1:00 PM.')
+  })
   it('has nothing to write before lock-in', () => {
     expect(icsFor(plan(), 'https://x/e')).toBeNull()
   })

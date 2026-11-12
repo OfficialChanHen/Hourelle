@@ -63,7 +63,7 @@ import { useGuestMode } from '@/hooks/useGuestMode'
 import { planUsualWeek, weekFits } from '@/lib/usual-week'
 import { canEmail, sendNudges } from '@/lib/mail'
 import {
-  addMeToEvent, listEvents, patchEvent, patchEventWith, availIvOf, freeIvOf, myTimesPatch, normalizeIv, bestBlock, bestOpenStart, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
+  addMeToEvent, listEvents, patchEvent, patchEventWith, availIvOf, freeIvOf, myTimesPatch, normalizeIv, bestBlock, bestOpenStart, bestWindow, byYouFirst, slotSessions, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
 import { googleBusyUtc, importSoon, lockedPlanBusyUtc, outlookBusyUtc, mockBusyUtc, planImport, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport, type UtcBusy } from '@/lib/calendar-import'
@@ -1314,8 +1314,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const bwAllShown = bwAll && (!bw || bwAll.dayKey !== bw.dayKey || bwAll.s !== bw.s || bwAll.e !== bw.e) ? bwAll : null
   // once a time is locked in, the frame and the day's header mark that time at its real
   // length, not the best window, which no longer decides anything
-  const lockedSlot = locked && event.confirmed && !event.confirmed.endDayKey && !dayPoll ? event.confirmed : null
-  const frame = lockedSlot ? { dayKey: lockedSlot.dayKey, s: lockedSlot.startMin - gridStartMin, e: lockedSlot.endMin - gridStartMin } : bw
+  // A run with its own hours frames each of its days.
+  const lockedSlot = locked && event.confirmed && (!event.confirmed.endDayKey || event.confirmed.sessions) && !dayPoll ? event.confirmed : null
+  const lockedFrames = useMemo(
+    () => (lockedSlot ? slotSessions(lockedSlot).map((x) => ({ dayKey: x.dayKey, s: x.startMin - gridStartMin, e: x.endMin - gridStartMin })) : null),
+    [lockedSlot, gridStartMin],
+  )
+  const frame = lockedFrames ? lockedFrames[0] : bw
+  const frameFor = (k: string) => (lockedFrames ? lockedFrames.find((f) => f.dayKey === k) : frame && frame.dayKey === k ? frame : undefined)
 
   // one footer answer, one length control: "1 day" is the best single slot (or the best
   // single day on a day poll), anything longer is the best run of consecutive days.
@@ -1902,7 +1908,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               const inBlock = mode === 'view' && !!blockKeys?.has(d.key)
               const blockFirst = inBlock && block?.startKey === d.key
               const singleBestKey = dayPoll ? (blockLen === 1 ? block?.startKey : undefined) : frame?.dayKey
-              const isBestDay = !blockKeys && (d.best || (mode === 'view' && singleBestKey === d.key))
+              const isBestDay = !blockKeys && (d.best || (mode === 'view' && (lockedFrames ? !!frameFor(d.key) : singleBestKey === d.key)))
               return (
                 <button
                   key={d.key}
@@ -2033,9 +2039,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
 
                     // the heat must change color exactly at the best-window frame lines, so its
                     // edges are protected from the sliver merge in the cells they run through
+                    const fr = frameFor(d.key)
                     const protect = showSlotFrame
                       ? [
-                          ...(frame && d.key === frame.dayKey ? [frame.s, frame.e] : []),
+                          ...(fr ? [fr.s, fr.e] : []),
                           ...(bwAllShown && d.key === bwAllShown.dayKey ? [bwAllShown.s, bwAllShown.e] : []),
                         ]
                       : []
@@ -2047,7 +2054,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     const open = detail?.day === d.key && detail?.ti === ti
                     // the best window is one continuous ochre frame over its cells — a color the
                     // grid never uses for lines or heat, so it can't be mistaken for either
-                    const inBest = showSlotFrame && !!frame && d.key === frame.dayKey && w0 < frame.e && w1 > frame.s
+                    const inBest = showSlotFrame && !!fr && w0 < fr.e && w1 > fr.s
                     return (
                       <div
                         key={d.key}
@@ -2059,7 +2066,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         {inBest && (() => {
                           // frame hugs the window's true minutes, not the cell edges — a 10:30
                           // start draws the top line halfway down the 10:00 cell
-                          const bs = Math.max(frame!.s, w0), be = Math.min(frame!.e, w1)
+                          const bs = Math.max(fr!.s, w0), be = Math.min(fr!.e, w1)
                           const edge = '2.5px solid var(--ochre)'
                           return (
                             <div
@@ -2069,8 +2076,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                                 height: `${((be - bs) / step) * 100}%`,
                                 borderLeft: edge,
                                 borderRight: edge,
-                                borderTop: bs === frame!.s ? edge : undefined,
-                                borderBottom: be === frame!.e ? edge : undefined,
+                                borderTop: bs === fr!.s ? edge : undefined,
+                                borderBottom: be === fr!.e ? edge : undefined,
                               }}
                             />
                           )

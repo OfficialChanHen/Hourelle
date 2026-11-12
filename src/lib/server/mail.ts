@@ -5,7 +5,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { AppEvent, Participant } from '@/lib/events'
 import { icsFileName, icsFor } from '@/lib/ics'
-import { isAllDay, slotWhen } from '@/lib/slot'
+import { isAllDay, slotLines, slotWhen } from '@/lib/slot'
 import { serverDb } from './db'
 import { APP_NAME } from '@/lib/brand'
 
@@ -185,7 +185,8 @@ export function hostNameOf(ev: AppEvent): string {
 export function whenText(ev: AppEvent): string {
   const c = ev.confirmed
   if (c) {
-    const text = slotWhen(c, fmtDay, fmtMinute)
+    // a run with its own hours names each day's hours, one after another
+    const text = c.sessions && c.sessions.length > 1 ? slotLines(c, fmtDay, fmtMinute).join('; ') : slotWhen(c, fmtDay, fmtMinute)
     return isAllDay(c) ? text : `${text} ${tzAbbr(ev.timezone)}`
   }
   if (ev.startDate && ev.endDate && ev.startDate !== ev.endDate) return `${fmtDay(ev.startDate)} – ${fmtDay(ev.endDate)}`
