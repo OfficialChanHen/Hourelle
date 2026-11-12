@@ -65,7 +65,7 @@ import { PopoverItem } from '@/components/ui/Popover'
 import { placeVotes, chatLines } from '@/lib/polls'
 import { fromDay,
   createEvent, eventTabFor, listEvents, phaseOf, daysUntil, dateRangeText, confirmedSlotText, sameDayLabelFor,
-  leadingPlaceOf, youReplied, youVoted, bestWindow, availIvOf, gridStartMinOf, fmtMinute, seenMessageCount,
+  leadingPlaceOf, youReplied, youVoted, openBest, gridStartMinOf, fmtMinute, seenMessageCount,
   type AppEvent, type Participant, type Phase, type SameDayInfo,
   answeredIds, rsvpPool,
 } from '@/lib/events'
@@ -594,7 +594,7 @@ function digestOf(e: AppEvent, phase: Phase) {
   // when
   const du = daysUntil(e.confirmed?.dayKey ?? e.startDate)
   const countdown = !locked || du === null || du < 0 ? null : du === 0 ? 'today' : du === 1 ? 'tomorrow' : `in ${du} days`
-  const best = !locked && e.granularity !== 'day' && answered.size > 0 ? bestWindow(availIvOf(e), e.days, e.durationMin ?? 60, e.bestMode, e.needIv) : null
+  const best = !locked && e.granularity !== 'day' && answered.size > 0 ? openBest(e) : null
   const gridStart = gridStartMinOf(e)
 
   // where

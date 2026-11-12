@@ -57,7 +57,7 @@ import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/
 import { Hint } from '@/components/ui/Hint'
 import { Tour, type TourContext } from '@/components/Tour'
 import { AskTour } from '@/components/AskTour'
-import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, patchEventWith, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
+import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, patchEventWith, appendMessage, claimEvent, availIvOf, openBest, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -1136,7 +1136,7 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
   const oneDay = event.startDate === event.endDate
   const dow = oneDay ? event.days[0]?.dow : null
   const dayPoll = event.granularity === 'day'
-  const best = dayPoll ? null : bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode, event.needIv)
+  const best = dayPoll ? null : openBest(event)
   const gridStart = gridStartMinOf(event)
   return (
     <div className="flex flex-col gap-1">
@@ -1153,7 +1153,7 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
           <>
             Best time so far
             <button onClick={onGoToBestWindow} title="See it on the Availability tab" className="font-medium text-accent-text hover:underline">
-              {best.dayLabel}, {fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)}
+              {best.dayLabel}, {fmtMinute(gridStart + best.s)}{event.openLength ? ', open end' : ` – ${fmtMinute(gridStart + best.e)}`}
             </button>
           </>
         ) : (

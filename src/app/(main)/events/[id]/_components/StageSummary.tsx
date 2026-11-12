@@ -7,7 +7,7 @@ import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Highlight } from '@/components/ui/Pencil'
 import { placeVotes } from '@/lib/polls'
 import {
-  availIvOf, bestBlock, bestWindow, confirmedSlotText, dateRangeText, fmtMinute, gridStartMinOf,
+  availIvOf, bestBlock, openBest, confirmedSlotText, dateRangeText, fmtMinute, gridStartMinOf,
   longestRun, answeredIds, rsvpPool, type AppEvent, type Phase,
 } from '@/lib/events'
 
@@ -56,7 +56,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
   // a day poll answers in days, not clock times: its "best so far" is the leading run
   // of days (or single day), matching the grid dial's default
   const dayPoll = event.granularity === 'day'
-  const best = dayPoll ? null : bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode, event.needIv)
+  const best = dayPoll ? null : openBest(event)
   const bestDays = dayPoll
     ? bestBlock(availIvOf(event), event.days, Math.min(2, longestRun(event.days)) || 1, event.bestMode, event.needIv)
     : null
@@ -109,7 +109,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
       {answeredLine(responded, total)}.
       {best && (
         <>
-          {' '}<BestLink onClick={onGoToAvailability}><Highlight>{best.dayLabel}, {fmtMinute(gridStart + best.s)} to {fmtMinute(gridStart + best.e)}</Highlight></BestLink>{' '}
+          {' '}<BestLink onClick={onGoToAvailability}><Highlight>{best.dayLabel}, {fmtMinute(gridStart + best.s)}{event.openLength ? ', open end' : <> to {fmtMinute(gridStart + best.e)}</>}</Highlight></BestLink>{' '}
           <TimezonePill tz={event.timezone} day={best.dayKey} /> works for the most people so far{needClause(best.needIds.length)}.
         </>
       )}

@@ -37,7 +37,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Announce } from '@/components/ui/Announce'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import {
-  answeredIds, availIvOf, bestWindow, needOnlyIds, rsvpPool, byYouFirst, confirmedSlotText, dayLabel, gridStartMinOf, fmtMinute, fmtMinuteDay, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
+  answeredIds, availIvOf, openBest, needOnlyIds, rsvpPool, byYouFirst, confirmedSlotText, dayLabel, gridStartMinOf, fmtMinute, fmtMinuteDay, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
   type AppEvent, type AvailIntervals, type BestMode, type GridDay, type Iv, type Participant, type Rsvp,
 } from '@/lib/events'
 import { computeItinerary } from '@/lib/itinerary'
@@ -114,7 +114,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
   const step = stepOf(event.granularity)
   const rows = event.times.length
   const locked = event.status === 'confirmed' && !!event.confirmed
-  const best = bestWindow(availIv, event.days, event.durationMin ?? 60, event.bestMode, event.needIv)
+  const best = openBest(event)
 
   const win: Win | null = useMemo(() => {
     if (locked) {

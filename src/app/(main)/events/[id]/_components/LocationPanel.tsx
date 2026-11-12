@@ -29,7 +29,7 @@ import { gsap } from 'gsap'
 import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, Info, ExternalLink } from 'lucide-react'
 import { Avatar, NameTag } from '@/components/ui/Avatar'
 import { hiddenNames, namesLabel } from '@/components/ui/AvatarRow'
-import { confirmedSlotText, fromDay, todayKey, getEvent, patchEvent, fmtMinute, fmtMinuteDay, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
+import { confirmedSlotText, fromDay, todayKey, getEvent, patchEvent, fmtMinute, fmtMinuteDay, openBest, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
 import { hintDismissed as isHintDismissed, dismissHint as markHintDismissed } from '@/lib/prefs'
 import { fmtDuration, MODE_LABEL, ALL_MODES, type TravelMode, type ModeEstimate } from '@/lib/travel'
 import { computeItinerary, legKm } from '@/lib/itinerary'
@@ -88,7 +88,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // and it shouldn't run longer than the time the owner set aside for the event.
   const eventDuration = event.durationMin ?? 60
   const gridStart = gridStartMinOf(event)
-  const bw = bestWindow(availIvOf(event), event.days, eventDuration, event.bestMode, event.needIv)
+  const bw = openBest(event)
   const winStart = bw ? gridStart + bw.s : null           // best free window, clock minutes
   const winEnd = bw ? gridStart + bw.e : null
   // start is bounded to the free window, leaving room for at least the planned duration

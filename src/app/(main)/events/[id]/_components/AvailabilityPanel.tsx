@@ -63,7 +63,7 @@ import { useGuestMode } from '@/hooks/useGuestMode'
 import { planUsualWeek, weekFits } from '@/lib/usual-week'
 import { canEmail, sendNudges } from '@/lib/mail'
 import {
-  addMeToEvent, listEvents, patchEvent, patchEventWith, availIvOf, freeIvOf, myTimesPatch, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
+  addMeToEvent, listEvents, patchEvent, patchEventWith, availIvOf, freeIvOf, myTimesPatch, normalizeIv, bestBlock, bestOpenStart, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
 import { googleBusyUtc, importSoon, lockedPlanBusyUtc, outlookBusyUtc, mockBusyUtc, planImport, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport, type UtcBusy } from '@/lib/calendar-import'
@@ -254,6 +254,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const [myTime, setMyTime] = useState(false) // show times in the viewer's local zone
   const [durationMin, setDurationMin] = useState(event.durationMin ?? 60)
   const [bestMode, setBestMode] = useState<BestMode>(event.bestMode ?? 'full')
+  const [openLength, setOpenLength] = useState(!!event.openLength)
   const [detail, setDetail] = useState<{ day: string; ti: number; cx: number; cyTop: number; cyBottom: number; below: boolean } | null>(null) // view-mode cell breakdown
   const [showMissing, setShowMissing] = useState(false)
   const [nudged, setNudged] = useState<Set<string>>(new Set())
@@ -415,6 +416,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const past = localDayOffset(gridStartMin + w.e - 1, shift) > off
     return `${on.dow}, ${on.date}, ${fmt(gridStartMin + w.s)} – ${fmt(gridStartMin + w.e)}${past ? ' next day' : ''}`
   }
+  // an open start says only when it starts: its end is how long the group holds, said beside it
+  const dayStart = (w: { dayKey: string; dayLabel: string; s: number }) => {
+    const day = shift && ISO_DAY.test(w.dayKey) ? event.days.find((d) => d.key === w.dayKey) : undefined
+    if (!day) return `${w.dayLabel}, ${fmt(gridStartMin + w.s)}`
+    const on = shiftDay(day, localDayOffset(gridStartMin + w.s, shift))
+    return `${on.dow}, ${on.date}, ${fmt(gridStartMin + w.s)}`
+  }
   // a plan that asks for set hours, read from a zone far enough away that they move a
   // good part of the day: say where they land, so nobody hunts for an evening it never had
   const farHours = !dayPoll && canConvert && gridMax < 24 * 60 && Math.abs(rawShift) >= 3 * 60
@@ -532,6 +540,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   function changeDuration(v: number) {
     setDurationMin(v)
     if (!event.demo) patchEvent(event.id, { durationMin: v })
+  }
+  function changeOpenLength(v: boolean) {
+    setOpenLength(v)
+    if (!event.demo) patchEvent(event.id, { openLength: v || undefined })
   }
   function changeBestMode(v: BestMode) {
     setBestMode(v)
@@ -1289,12 +1301,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   )
 
   // best window (live interval sweep — most people simultaneously free, longest such stretch)
-  const bw = useMemo(() => bestWindow(viewCombinedByDay, event.days, durationMin, bestMode, viewNeedByDay), [viewCombinedByDay, viewNeedByDay, durationMin, bestMode]) // eslint-disable-line react-hooks/exhaustive-deps
+  // with the length unknown, the best start the most people can make and hold longest
+  const openSearch = openLength && !dayPoll
+  const bestOf = (iv: AvailIntervals, need: AvailIntervals | undefined) => (openSearch ? bestOpenStart(iv, event.days, need) : bestWindow(iv, event.days, durationMin, bestMode, need))
+  const bw = useMemo(() => bestOf(viewCombinedByDay, viewNeedByDay), [viewCombinedByDay, viewNeedByDay, durationMin, bestMode, openSearch]) // eslint-disable-line react-hooks/exhaustive-deps
   // while a person filter is on, the whole group's best window stays on the board
   // (dashed) so the selection's best time can be compared against everyone's
   const bwAll = useMemo(
-    () => (filterOn ? bestWindow(combinedByDay, event.days, durationMin, bestMode, needCombinedByDay) : null),
-    [filterOn, combinedByDay, needCombinedByDay, durationMin, bestMode], // eslint-disable-line react-hooks/exhaustive-deps
+    () => (filterOn ? bestOf(combinedByDay, needCombinedByDay) : null),
+    [filterOn, combinedByDay, needCombinedByDay, durationMin, bestMode, openSearch], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const bwAllShown = bwAll && (!bw || bwAll.dayKey !== bw.dayKey || bwAll.s !== bw.s || bwAll.e !== bw.e) ? bwAll : null
   // once a time is locked in, the frame and the day's header mark that time at its real
@@ -1501,7 +1516,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               <SettingsMenu title="Grid settings">
                 {(close) => (
                   <>
-                    {isHost && !daysAnswer && (
+                    {isHost && !dayPoll && (
+                      <SettingToggle label="Length unknown" on={openLength} onChange={changeOpenLength} hint={openLength ? 'The best time is when the most people can start and stay longest.' : undefined} />
+                    )}
+                    {isHost && !daysAnswer && !openLength && (
                       <div className="px-2.5 py-3">
                         <DurationField
                           value={durationMin} max={Math.max(step, event.times.length * step)} onChange={changeDuration}
@@ -1510,8 +1528,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         <p className="mt-1.5 text-[12px] leading-[1.5] text-faint">The best time is a stretch this long.</p>
                       </div>
                     )}
-                    {/* one question with a default: off favors everyone staying, on the biggest crowd */}
-                    {isHost && (
+                    {/* one question with a default: off favors everyone staying, on the biggest crowd.
+                        An open length has no window to stay in, so it is not asked then */}
+                    {isHost && (daysAnswer || !openLength) && (
                       <SettingToggle
                         label={daysAnswer ? 'Count people who make only some days' : 'Count people who come and go'}
                         on={bestMode === 'crowd'}
@@ -2314,25 +2333,27 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   {blockLen >= 2 && <span className="text-[12.5px] text-dim">in a row</span>}
                 </>
               ) : (
-                <span className="text-[12.5px] text-dim">{dayPoll ? 'Best day' : `Best ${fmtDur(durationMin)} slot`}</span>
+                <span className="text-[12.5px] text-dim">{dayPoll ? 'Best day' : openSearch ? 'Best start' : `Best ${fmtDur(durationMin)} slot`}</span>
               )}
               {filterOn && <span className="text-[12.5px] text-dim">for your selection</span>}
               {blockLen === 1 && !dayPoll ? (
                 bw ? (
                   <>
-                    <span className="text-[14px] font-semibold text-ochre">{dayTime(bw)}</span>
+                    <span className="text-[14px] font-semibold text-ochre">{openSearch ? dayStart(bw) : dayTime(bw)}</span>
                     <TimezonePill tz={myTime && canConvert ? localTz : event.timezone} day={bw.dayKey} />
                     {/* the faces and the count are one thing: who is free, and how many.
                         Apart, the faces wrapped onto a line of their own on a phone and
                         hung at the far edge, with nothing saying what they were */}
                     <span className="flex min-w-0 items-center gap-2 sm:ml-auto">
                       {(() => {
-                        const free = byRoster(bestMode === 'crowd' ? bw.anyIds : bw.ids).map((id) => ({ id, ...avatarOf(id) }))
+                        const free = byRoster(bestMode === 'crowd' && !openSearch ? bw.anyIds : bw.ids).map((id) => ({ id, ...avatarOf(id) }))
                         // a tap turns the faces over and, on a touch screen, shows everyone's
                         // names in a strip; with a mouse "+N" opens everyone free then as a list
                         return <AvatarRow people={free} size={32} max={6} overlap={8} flippable renderMore={(chip) => <FaceChipsMore chip={chip} people={free} title="Free then" />} />
                       })()}
-                      {bestMode === 'crowd'
+                      {openSearch
+                        ? <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {viewTotal} free{needClause(bw.needIds.length)}<span className="font-normal text-dim">, most until {fmt(gridStartMin + bw.e)}</span></span>
+                        : bestMode === 'crowd'
                         // never round a partial attendee away: below one person on average,
                         // count everyone who shows up at all instead
                         ? Math.round(bw.avg) >= 1
@@ -2343,12 +2364,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     {bwAllShown && (
                       <span className="flex w-full items-center gap-1.5 text-[12.5px] text-dim">
                         <span className="inline-block h-0 w-[18px] border-t-2 border-dashed border-ochre" aria-hidden />
-                        Everyone&apos;s best stays marked for comparison: <span className="font-semibold text-text">{dayTime(bwAllShown)}</span>
+                        Everyone&apos;s best stays marked for comparison: <span className="font-semibold text-text">{openSearch ? dayStart(bwAllShown) : dayTime(bwAllShown)}</span>
                       </span>
                     )}
                   </>
                 ) : (
-                  <span className="text-[12.5px] text-dim">No block long enough for a <span className="font-semibold text-text">{fmtDur(durationMin)}</span> plan yet. Try a shorter length, or wait for more responses.</span>
+                  openSearch
+                    ? <span className="text-[12.5px] text-dim">No one is free for an hour yet.</span>
+                    : <span className="text-[12.5px] text-dim">No block long enough for a <span className="font-semibold text-text">{fmtDur(durationMin)}</span> plan yet. Try a shorter length, or wait for more responses.</span>
                 )
               ) : block ? (
                 <>
