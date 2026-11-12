@@ -28,6 +28,7 @@ import {
   joinEvent, leadingPlaceOf, participantByInvite, phaseOf, pickColor, type AppEvent, type Participant,
 } from '@/lib/events'
 import { APP_NAME } from '@/lib/brand'
+import { noteInvite } from '@/lib/nav'
 
 // names compare loosely — case and stray spaces shouldn't decide whether two
 // people "match"
@@ -154,6 +155,8 @@ export function JoinFlow({ id }: { id: string }) {
   }, [id, go, inviteToken, authReady, account.signedIn, account.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { resolve() }, [resolve])
+  // the log-in page leads back here, whichever door the visitor takes
+  useEffect(() => { noteInvite(`/events/${id}/join${inviteToken ? `?invite=${inviteToken}` : ''}`) }, [id, inviteToken])
   useLiveEvents(resolve)
 
   useGSAP(

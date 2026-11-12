@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useRef, useState } from 'react'
+import { Suspense, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { gsap } from 'gsap'
@@ -17,12 +17,16 @@ import { PasswordField } from '@/components/ui/PasswordField'
 import { PasswordRules } from '@/components/ui/PasswordRules'
 import { Wordmark } from '@/components/ui/Wordmark'
 import { APP_NAME } from '@/lib/brand'
+import { lastInvite } from '@/lib/nav'
 
 /* ── log in, sign up, or ask for a new password ──
    Split like the sign-in pages people know: the form on the left, the pitch on the
    right in the signature green. The Timeld account leads because it finishes without
    leaving the page; Google sits under the divider. Guests never need this screen at
    all, an invite link works without an account. */
+
+// sessionStorage has no change event within a tab; read once is enough here
+const noStore = () => () => {}
 
 const BENEFITS = [
   'Host plans and watch replies come in',
@@ -79,7 +83,10 @@ function SignInForm() {
   // an invite page that found the email belongs to an account sends the person here
   // with the address typed and the way back; only our own paths are followed
   const rawNext = params.get('next') ?? ''
-  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/home'
+  const askedNext = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null
+  // a visitor who came from an invite lands back on it, whichever door they took
+  const invite = useSyncExternalStore(noStore, lastInvite, () => null)
+  const next = askedNext ?? invite ?? '/home'
   const [mode, setMode] = useState<Mode>(wanted === 'up' ? 'up' : 'in')
   // sign-up only: both documents read to the end and the box ticked
   const [legalOk, setLegalOk] = useState(false)
@@ -93,8 +100,12 @@ function SignInForm() {
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null) // check your mail, in both senses
   const guestEventId = useGuestMode()
-  // a guest's way back is their event; everyone else came from the front door
-  const backHref = guestEventId ? `/events/${guestEventId}` : '/'
+  // the way back: where they were sent from, a guest's own plan, the invite they
+  // were looking at, or else the front door
+  const backHref = askedNext?.startsWith('/events/') ? askedNext
+    : guestEventId ? `/events/${guestEventId}`
+    : invite ?? '/'
+  const backLabel = backHref.includes('/join') ? 'Back to the invite' : backHref.startsWith('/events/') ? 'Back to your plan' : 'Back to the app'
 
   useGSAP(() => {
     gsap.fromTo(root.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' })
@@ -324,7 +335,7 @@ function SignInForm() {
             {reading && <LegalSheet k={reading} onClose={() => setReading(null)} />}
 
             <Link href={backHref} className="mt-6 flex w-fit items-center gap-1.5 text-[13px] font-semibold text-accent-text hover:underline">
-              <ArrowLeft size={14} /> {guestEventId ? 'Back to your plan' : 'Back to the app'}
+              <ArrowLeft size={14} /> {backLabel}
             </Link>
           </div>
 
@@ -354,7 +365,11 @@ function SignInForm() {
 
         {/* the guest path never comes through here, say so where phones can see it too */}
         <p className="mt-4 text-center text-[12.5px] leading-[1.55] text-dim md:hidden">
-          Here from an invite link? You don&apos;t need an account. Open the link again and just add your name.
+          {invite ? (
+            <>You don&apos;t need an account for an invite. <Link href={invite} className="font-semibold text-accent-text hover:underline">Go back and add your name</Link>.</>
+          ) : (
+            <>Here from an invite link? You don&apos;t need an account. Open the link again and just add your name.</>
+          )}
         </p>
       </div>
     </div>

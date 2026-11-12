@@ -26,3 +26,20 @@ export function lastListPage(): ListPage | null {
     return v === 'home' || v === 'events' || v === 'demos' ? v : null
   } catch { return null }
 }
+
+// The invite a visitor last opened, so the log-in page can lead back to it and
+// land there afterwards, whichever door they took (the header, the tab bar, the
+// join form). Kept for the browser session only.
+const INVITE_KEY = 'hourelle.last-invite'
+
+export function noteInvite(path: string): void {
+  try { sessionStorage.setItem(INVITE_KEY, path) } catch { /* private mode */ }
+}
+
+export function lastInvite(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const v = sessionStorage.getItem(INVITE_KEY)
+    return v && /^\/events\/[^/]+\/join(\?|$)/.test(v) ? v : null
+  } catch { return null }
+}
