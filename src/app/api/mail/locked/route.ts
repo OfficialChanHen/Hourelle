@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server'
 import type { AppEvent } from '@/lib/events'
+import { managesEvent } from '@/lib/cohosts'
 import { userFromRequest } from '@/lib/server/db'
 import { emailsFor, eventRow, lastMailRefusal, lockedMail, mailConfigured, prefsFor, sendOnce, serverDb, siteUrl } from '@/lib/server/mail'
 
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
     await new Promise((res) => setTimeout(res, 700))
   }
   if (!row) return NextResponse.json({ error: 'The lock-in has not reached the server yet. The announcement was not sent.' }, { status: 409 })
-  if (row.host_id !== user.id) return NextResponse.json({ error: 'Only the host can announce a lock-in.' }, { status: 403 })
+  if (!managesEvent(row.data, row.host_id, user.id)) return NextResponse.json({ error: 'Only the host or a co-host can announce a lock-in.' }, { status: 403 })
 
   const ev = row.data
   const people = ev.participants.filter((p) => !p.host && (p.guest ? !!p.email : true))

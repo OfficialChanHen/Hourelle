@@ -35,6 +35,7 @@
    per cell, and the avatars in a cell cap hard (none at all on a phone, where the
    count carries it). Nothing here is allowed to cost cells x people. */
 
+import { canManage } from '@/lib/cohosts'
 import { answeredLine, needClause } from '@/lib/answers'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
@@ -259,7 +260,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const [nudged, setNudged] = useState<Set<string>>(new Set())
   // nudges are emails from the host: only the host, logged in, with a backend
   const account = useAccount()
-  const canNudge = !!event.hostedByYou && canEmail(account.signedIn)
+  const canNudge = canManage(event) && canEmail(account.signedIn)
   // your usual week belongs to an account (or to this browser with no backend), so a
   // guest and a sample plan never see it; 'empty' points at the profile to paint one
   const guestMode = useGuestMode()
@@ -269,7 +270,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // what the best window should favour are the host's answers, and they change the
   // event for everybody. Everything else in there is about this screen or your own
   // times, so it is everybody's.
-  const isHost = !!event.hostedByYou
+  const isHost = canManage(event)
   const [nudgeNote, setNudgeNote] = useState<string | null>(null)
   const [sel, setSel] = useState<Sel | null>(null)
   const [nudgeStep, setNudgeStep] = useState(5) // minutes the − / + buttons move an edge

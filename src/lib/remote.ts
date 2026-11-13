@@ -4,6 +4,7 @@
 // after each local write, and a realtime subscription for other people's writes.
 // When `backendOn` is false every function here is a silent no-op.
 
+import { canManage } from './cohosts'
 import { supabase, backendOn } from './db'
 import { writeLocal } from './local'
 import { currentAccount } from './session'
@@ -318,13 +319,13 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
      was built from a screen that had not caught up, other people's answers show up
      in it as changed: sent, they overwrite a newer answer with an older one, or
      someone's first times with nothing. That is how a guest's marks came back empty
-     after a reload. The host is the exception, because the host changes other
+     after a reload. The host (and a co-host) is the exception, because they change other
      people's answers on purpose: taking someone off the list, or changing the poll
      in a way that clears it. When an entry changes hands (an account taking over the
      guest entry it came in as), the old id leaving the list is that same person. */
   const wasMe = before.participants.find((p) => p.you)?.id
   const rekeyed = !!me && !before.participants.some((p) => p.id === me)
-  const mayWrite = (pid: string) => !!after.hostedByYou || pid === me || pid === wasMe || (rekeyed && !onList.has(pid))
+  const mayWrite = (pid: string) => canManage(after) || pid === me || pid === wasMe || (rekeyed && !onList.has(pid))
   let heldBack = false
   const allowed = (pid: string) => { if (mayWrite(pid)) return true; heldBack = true; return false }
 

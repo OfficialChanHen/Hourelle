@@ -1,4 +1,5 @@
 import type { PersonColor } from './colors'
+import { isCohost } from './cohosts'
 import { defaultFace, pickFace, sameFace, type Face } from './faces'
 import { av } from './people'
 import { isMine, purgeRemoved, pushAnswers, pushDelete, pushEvent, pushMessage, pushNewEvent } from './remote'
@@ -35,6 +36,9 @@ export type Participant = {
   // they answer themselves, so the UI can say "marked going from your times"
   rsvpAuto?: boolean
   you?: boolean; host?: boolean; guest?: boolean
+  // made a co-host by the host: runs the plan with them, short of deleting it,
+  // the budget and naming other co-hosts (lib/cohosts). Accounts only
+  cohost?: boolean
   // a guest's opt-in at join: reminders, and the cross-device claim by magic link —
   // never required to participate
   email?: string
@@ -172,7 +176,8 @@ export type CreateInput = {
 
 // someone with an account, invited by id: their name comes with them, and their
 // colour too when they picked it themselves (otherwise the event deals a distinct one)
-export type AccountInvitee = { id: string; name: string; color: PersonColor; email?: string; colorChosen?: boolean }
+// cohost: the host chose them as a co-host in the wizard (lib/cohosts)
+export type AccountInvitee = { id: string; name: string; color: PersonColor; email?: string; colorChosen?: boolean; cohost?: boolean }
 
 // how the hosting account reads: a person or an organization. Decided by the login
 // (Google workspace accounts read as org); every account is a person for now.
@@ -1220,7 +1225,7 @@ export function draftFromEvent(id: string): EventDraft | null {
     // guests come back by the email they were invited with; one who joined by the
     // link without leaving an email cannot be invited again. Accounts come back by id.
     emails: ev.participants.filter((p) => p.guest && p.email).map((p) => p.email!.toLowerCase()),
-    accounts: ev.participants.filter((p) => !p.guest && !p.you && p.id !== myIdIn(ev)).map((p) => ({ id: p.id, name: p.name, color: p.color, email: p.email })),
+    accounts: ev.participants.filter((p) => !p.guest && !p.you && p.id !== myIdIn(ev)).map((p) => ({ id: p.id, name: p.name, color: p.color, email: p.email, ...(isCohost(p) ? { cohost: true } : {}) })),
   }
 }
 
@@ -1693,7 +1698,7 @@ export function createEvent(input: CreateInput): AppEvent {
   ]
   for (const a of input.accounts) {
     const initials = initialsOf(a.name)
-    participants.push({ id: a.id, initials, name: a.name, color: a.colorChosen ? a.color : pickColor(participants, { initials, name: a.name }), face: pickFace(participants, a.id), rsvp: 'pending' as Rsvp, ...(a.email ? { email: a.email } : {}) })
+    participants.push({ id: a.id, initials, name: a.name, color: a.colorChosen ? a.color : pickColor(participants, { initials, name: a.name }), face: pickFace(participants, a.id), rsvp: 'pending' as Rsvp, ...(a.email ? { email: a.email } : {}), ...(a.cohost && UUID_RE.test(a.id) && UUID_RE.test(host.id) ? { cohost: true } : {}) })
   }
   for (const email of input.emails) participants.push(guestFromEmail(email, participants))
 

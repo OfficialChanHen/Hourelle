@@ -1,5 +1,6 @@
 'use client'
 
+import { isCohost } from '@/lib/cohosts'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDown, ListChecks, Plus, Send, X } from 'lucide-react'
 import { gsap } from 'gsap'
@@ -127,7 +128,7 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onVote, onClos
   // lines after it, which are never drawn themselves. Picks live in event.votes, which
   // the page reads live, so the counts move as other people vote. Once the plan is
   // locked the polls are a record.
-  const hostKey = event.participants.filter((p) => p.host).map((p) => p.id).join('|')
+  const hostKey = event.participants.filter((p) => p.host || isCohost(p)).map((p) => p.id).join('|')
   const hostIds = useMemo(() => new Set(hostKey ? hostKey.split('|') : []), [hostKey])
   const states = useMemo(() => reducePolls(all, hostIds), [all, hostIds])
   const shown = useMemo(() => chatLines(all), [all])

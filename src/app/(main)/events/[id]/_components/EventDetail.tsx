@@ -19,12 +19,13 @@
    The panels keep their own in-progress edits in local state, which is what lets a
    message arriving mid-drag change the page around you rather than under you. */
 
+import { canBeCohost, canManage, isCohost, setCohostPatch } from '@/lib/cohosts'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Building2, Link2, Copy, Merge, MessageCircle, Pencil, EllipsisVertical, CopyPlus,
-  Check, Trash2, TriangleAlert, Receipt, Plus, X, Video, UserRoundX, Mail, Search,
+  Check, Trash2, TriangleAlert, Receipt, Plus, X, Video, UserRoundX, Mail, Search, ShieldCheck,
 } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -405,7 +406,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       {/* the share button and the phone menu only swap their words; this says it out loud */}
       <Announce text={copied ? 'Link copied' : ''} />
       {/* the tour, only when it was asked for, and the one question a new guest gets; both mount on the body */}
-      {phase !== 'past' && <Tour host={event.hostedByYou} locked={phase !== 'planning'} ctx={tourContextOf(event)} />}
+      {phase !== 'past' && <Tour host={canManage(event)} locked={phase !== 'planning'} ctx={tourContextOf(event)} />}
       {/* header: the plan's cover as a small taped photo beside its name, the group's
           faces in a wave, and where it stands said as a sentence. It is the page's
           moment, so it takes the scrapbook touches; everything under the tabs stays
@@ -417,7 +418,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           {me?.guest ? <span /> : <BackLink href={backTo.href} label={backTo.label} />}
           {/* on a phone the share link sits up here, where a phone keeps its top
               right button; inviting is the host's, for now */}
-          {event.hostedByYou && <Popover
+          {canManage(event) && <Popover
             align="end"
             width={216}
             className="-mt-2 flex-none sm:hidden"
@@ -458,7 +459,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             </PhotoFrame>
           </div>
           <div className="min-w-0">
-            <EditableTitle title={event.title} editable={event.hostedByYou} onSave={(t) => patchLive({ title: t })} />
+            <EditableTitle title={event.title} editable={canManage(event)} onSave={(t) => patchLive({ title: t })} />
             {/* the group, as stickers, and who is hosting as a small note beside them */}
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
               {/* "+N" opens everyone as face chips in a panel, so the header never grows */}
@@ -507,12 +508,12 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           <StageStepper phase={phase} className="w-full max-w-[380px]" />
           {/* ml-auto keeps the actions hugging the right edge when the row wraps; on a
               phone the host's lock-in takes the row's full width instead of floating */}
-          <div className={`${event.hostedByYou && phase === 'planning' ? 'flex w-full sm:w-auto' : 'hidden sm:flex'} min-w-0 items-center gap-2 sm:ml-auto`}>
-            {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToDetails={() => goTab('details')} onGoToLocation={() => goTab('location')} prefill={lockAsk} openNonce={lockAsk?.nonce} runLen={runLen ?? undefined} />}
+          <div className={`${canManage(event) && phase === 'planning' ? 'flex w-full sm:w-auto' : 'hidden sm:flex'} min-w-0 items-center gap-2 sm:ml-auto`}>
+            {canManage(event) && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToDetails={() => goTab('details')} onGoToLocation={() => goTab('location')} prefill={lockAsk} openNonce={lockAsk?.nonce} runLen={runLen ?? undefined} />}
             {/* discussion lives in the floating bubble alone. Sharing closes when the
                 plan does: a link handed out afterwards only brings somebody to a plan
                 they have already missed. The invite link is the host's, for now */}
-            {!event.hostedByYou ? null : phase === 'past' ? (
+            {!canManage(event) ? null : phase === 'past' ? (
               <span className="hidden h-9 items-center rounded-full border border-border bg-s0 px-3.5 text-[13px] text-faint sm:flex">Sharing closed</span>
             ) : (
             <Popover
@@ -557,7 +558,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
       {locked && phase !== 'past' && <ConfirmedHero event={event} onChanged={refresh} />}
 
       {/* the host's one line about the lock-in, gone once dismissed */}
-      {event.hostedByYou && phase === 'planning' && (
+      {canManage(event) && phase === 'planning' && (
         <Hint name="lock" className="mb-4">Once enough people are free at the same time, Lock it in sets the time and tells everyone.</Hint>
       )}
 
@@ -592,7 +593,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           locked={locked}
           initialFilter={availFocus}
           focusBest={bestFocus}
-          onLockDays={event.hostedByYou && phase === 'planning'
+          onLockDays={canManage(event) && phase === 'planning'
             ? (startKey, endKey) => setLockAsk((p) => ({ dayKey: startKey, endDayKey: endKey !== startKey ? endKey : undefined, nonce: (p?.nonce ?? 0) + 1 }))
             : undefined}
           onRunChange={setRunLen}
@@ -684,7 +685,8 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
   onPatch: (patch: Partial<AppEvent>) => void; onSetMyFace: (face: Face) => void; onViewAvailability: (pid: string) => void; spotlightDelete?: boolean
   openInvite?: number
 }) {
-  const isHost = event.hostedByYou
+  // host or co-host: they run the plan. The budget and deleting stay the host's
+  const isHost = canManage(event)
   const locked = event.status === 'confirmed' && !!event.confirmed
   const account = useAccount()
   const me = event.participants.find((p) => p.you)
@@ -693,7 +695,7 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
   const canDuplicate = account.signedIn && !me?.guest
 
   // the plan in one sentence: what, who hosts, and the two facts people plan around
-  const hostName = isHost ? 'you' : (event.hostName || host?.name || 'the host').split(' ')[0]
+  const hostName = event.hostedByYou ? 'you' : (event.hostName || host?.name || 'the host').split(' ')[0]
   const facts = [
     event.capacity != null ? `up to ${event.capacity} ${event.capacity === 1 ? 'spot' : 'spots'}` : '',
     event.budget ? ((event.budgetMode ?? 'total') === 'person' ? `about $${Number(event.budget).toLocaleString()} each` : `$${Number(event.budget).toLocaleString()} in all`) : '',
@@ -733,7 +735,7 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
         <DetailRow k="Spots" v={<CapacityValue event={event} editable={isHost} onPatch={onPatch} />} />
         <DetailRow
           k="Budget"
-          v={isHost ? <BudgetEditor event={event} onPatch={onPatch} /> : <BudgetReadOnly event={event} />}
+          v={event.hostedByYou ? <BudgetEditor event={event} onPatch={onPatch} /> : <BudgetReadOnly event={event} />}
           last
         />
         {/* logistics people come here for: put the plan on a calendar, or reuse its shape */}
@@ -892,14 +894,17 @@ function ParticipantsCard({ event, isHost, onPatch, onSetMyFace, onViewAvailabil
               <Avatar initials={p.initials} color={p.color} face={p.face} size={29} font={10.5} title={p.name} flippable tag={false} />
               <button
                 type="button" onClick={() => onViewAvailability(p.id)} title={`See when ${p.name} is free`}
-                className="-mx-1 flex min-h-[29px] min-w-0 flex-1 items-center rounded-[8px] px-1 py-0.5 text-left hover:bg-s2"
+                className="-mx-1 flex min-h-[29px] min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 rounded-[8px] px-1 py-0.5 text-left hover:bg-s2"
               >
-                <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{p.name}{p.you && <span className="font-normal text-faint"> (You)</span>}</span>
+                <span className="min-w-0 max-w-full truncate text-[13.5px] font-medium">{p.name}{p.you && <span className="font-normal text-faint"> (You)</span>}</span>
+                {/* the role sits with the name and drops under it when the row is narrow */}
+                {(p.host || isCohost(p)) && (
+                  <span className="flex-none rounded-md border border-accent-border bg-accent-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-accent-text">{p.host ? 'Host' : 'Co-host'}</span>
+                )}
               </button>
-              {p.host && <span className="flex-none rounded-md border border-accent-border bg-accent-bg px-1.5 py-0.5 text-[10.5px] font-semibold text-accent-text">Host</span>}
               {!usual(p) && <span className="flex-none rounded-md px-2 py-0.5 text-[10.5px] font-semibold" style={{ color: chip.color, background: chip.bg }}>{chip.label}</span>}
               {p.you && !event.demo && <ChangeFace me={p} onSave={onSetMyFace} />}
-              {isHost && !p.you && <ParticipantMenu p={p} event={event} onPatch={onPatch} />}
+              {isHost && !p.you && !p.host && (event.hostedByYou || !isCohost(p)) && <ParticipantMenu p={p} event={event} onPatch={onPatch} />}
             </div>
           )
         })}
@@ -1008,7 +1013,13 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
   }
   // or send it: the host, logged in, may email an invitee their link (again)
   const account = useAccount()
-  const mayEmail = !p.host && (p.guest ? !!p.email : true) && !!event.hostedByYou && canEmail(account.signedIn)
+  // the host alone chooses co-hosts, and only from people with an account
+  const mayCohost = !!event.hostedByYou && !event.demo && canBeCohost(event, p)
+  function toggleCohost() {
+    onPatch(setCohostPatch(event, p.id, !isCohost(p)))
+    close()
+  }
+  const mayEmail = !p.host && (p.guest ? !!p.email : true) && canManage(event) && canEmail(account.signedIn)
   const [mail, setMail] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [mailErr, setMailErr] = useState<string | null>(null)
   async function emailInvite() {
@@ -1072,6 +1083,11 @@ function ParticipantMenuBody({ p, event, onPatch, close }: {
         </div>
       ) : (
         <>
+          {mayCohost && (
+            <PopoverItem onClick={toggleCohost} icon={<ShieldCheck size={15} />}>
+              {isCohost(p) ? 'Remove as co-host' : 'Make co-host'}
+            </PopoverItem>
+          )}
           {others.length > 0 && (
             <PopoverItem onClick={() => setMerging(true)} icon={<Merge size={15} />}>Merge into someone else</PopoverItem>
           )}
@@ -1412,7 +1428,7 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
   // the meeting link follows the invite link's rule: the host hands it out, so only
   // the host sees the address with a Copy beside it. Everyone else gets a way into the
   // call and nothing to pass on.
-  const linkRow = !event.hostedByYou ? (
+  const linkRow = !canManage(event) ? (
     <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex h-11 w-fit items-center gap-1.5 rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent sm:h-8">
       <Video size={14} /> Join the call
     </a>
@@ -1430,7 +1446,7 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
     return (
       <div className="flex flex-col gap-1.5">
         <span>Online on {loc.platform || 'a platform to be decided'}</span>
-        {link ? linkRow : event.hostedByYou ? (
+        {link ? linkRow : canManage(event) ? (
           <button onClick={onGoToLocation} className="text-left text-[12.5px] font-medium text-accent-text hover:underline">
             Add a meeting link on the Location tab so it lands in every reminder
           </button>

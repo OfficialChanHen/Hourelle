@@ -1,5 +1,6 @@
 'use client'
 
+import { canManage } from '@/lib/cohosts'
 import { useState } from 'react'
 import { Check, HelpCircle, MapPin, Route, Undo2, Video, X } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
@@ -86,12 +87,12 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
         <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
           <AddToCalendar event={event} slot={{ dayKey: c.dayKey, endDayKey: c.endDayKey, startMin: c.startMin, endMin: c.endMin }} />
           {/* reopening is consequential — everyone's RSVPs reset — so it asks once */}
-          {event.hostedByYou && !confirmReopen && (
+          {canManage(event) && !confirmReopen && (
             <button onClick={() => setConfirmReopen(true)} className="flex h-11 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-medium text-dim hover:bg-s2 hover:text-text sm:h-8">
               <Undo2 size={14} /> Reopen planning
             </button>
           )}
-          {event.hostedByYou && confirmReopen && (
+          {canManage(event) && confirmReopen && (
             <span className="flex flex-wrap items-center gap-2 rounded-xl border border-ochre-border bg-ochre-bg px-2.5 py-1.5">
               <span className="text-[12.5px] font-medium text-ochre-text">Unlocks it for everyone and clears the RSVPs.</span>
               <button onClick={reopen} className="h-7 rounded-full px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--ochre)' }}>Reopen</button>

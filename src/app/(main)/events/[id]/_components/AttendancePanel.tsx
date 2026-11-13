@@ -20,6 +20,7 @@
    Only the RSVP, the quorum and the itinerary's own settings are editable, and as
    on the other tabs those go to local state first so the demos work in memory. */
 
+import { canManage } from '@/lib/cohosts'
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, Video, X } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
@@ -242,7 +243,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
         <SingleVenue
           event={liveEvent} attendees={attendees} win={win} locked={locked} dayIv={dayIv}
           gridStart={gridStart} step={step} rows={rows}
-          quorum={quorum} onQuorum={event.hostedByYou ? changeQuorum : undefined}
+          quorum={quorum} onQuorum={canManage(event) ? changeQuorum : undefined}
           onGoToTab={onGoToTab} onPerson={onViewAvailability} onViewGroup={onViewAvailabilityGroup} markedIds={markedIds} unavailSet={unavailSet}
         />
       )}
@@ -366,7 +367,7 @@ function summaryOf(event: AppEvent, win: Win | null, locked: boolean, gridStart:
     const waiting = ps.filter((p) => p.rsvp === 'pending').sort(byYouFirst)
     if (waiting.length) lines.push(`Still to reply: ${firstNames(waiting)}.`)
     // the link is the invitation, and inviting is the host's for now
-    if (event.hostedByYou) lines.push('', `Details and RSVP: ${link}`)
+    if (canManage(event)) lines.push('', `Details and RSVP: ${link}`)
   } else {
     lines.push(event.title)
     if (win) lines.push(`Best time so far: ${win.dayLabel}, ${fmtMinute(gridStart + win.s)} – ${fmtMinute(gridStart + win.e)} ${tzAbbr(event.timezone, win.dayKey)}`)
@@ -379,7 +380,7 @@ function summaryOf(event: AppEvent, win: Win | null, locked: boolean, gridStart:
     }
     const silent = open.filter((p) => !markedIds.has(p.id)).sort(byYouFirst)
     if (silent.length) lines.push(`Still need times from ${firstNames(silent)}.`)
-    if (event.hostedByYou) lines.push('', `Add yours: ${link}`)
+    if (canManage(event)) lines.push('', `Add yours: ${link}`)
   }
   return lines.join('\n')
 }
@@ -552,7 +553,7 @@ function SingleVenue({
             {silent.length > 0 && (
               <GroupCard
                 label={locked ? 'No reply yet' : 'No answer yet'} tone="faint" count={silent.length}
-                action={event.hostedByYou ? <CopyReminder event={event} /> : undefined}
+                action={canManage(event) ? <CopyReminder event={event} /> : undefined}
               >
                 <FaceGroup people={silent.filter(hit)} size={34} cap={6} onPerson={onPerson} />
               </GroupCard>
@@ -1245,7 +1246,7 @@ function WaitingOnGroup({ event, me, mineMissing, locked, onGoToTab }: {
               Mark my times
             </button>
           )}
-          {event.hostedByYou && !event.demo && (
+          {canManage(event) && !event.demo && (
             <button type="button" onClick={copy} className={`flex h-11 items-center justify-center gap-1.5 rounded-full border px-4 text-[14px] font-semibold sm:h-10 ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
               {copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy invite link</>}
             </button>

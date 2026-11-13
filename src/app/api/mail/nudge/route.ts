@@ -4,6 +4,7 @@
 
 import { NextResponse } from 'next/server'
 import type { AppEvent } from '@/lib/events'
+import { managesEvent } from '@/lib/cohosts'
 import { userFromRequest } from '@/lib/server/db'
 import { emailsFor, eventRow, lastMailRefusal, mailConfigured, nudgeMail, sendOnce, serverDb, siteUrl } from '@/lib/server/mail'
 
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
   const { data } = await eventRow(db, eventId)
   const row = data as { id: string; data: AppEvent; host_id: string | null } | null
   if (!row) return NextResponse.json({ error: 'That plan is not on the server.' }, { status: 404 })
-  if (row.host_id !== user.id) return NextResponse.json({ error: 'Only the host can send nudges.' }, { status: 403 })
+  if (!managesEvent(row.data, row.host_id, user.id)) return NextResponse.json({ error: 'Only the host or a co-host can send nudges.' }, { status: 403 })
 
   const ev = row.data
   const wanted = new Set(ids)
