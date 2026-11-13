@@ -5,6 +5,7 @@ import { Providers } from "./providers";
 import { AlertSounds } from "@/components/AlertSounds";
 import { BackendSync } from "@/components/BackendSync";
 import { NoticeRail } from "@/components/NoticeRail";
+import { RouteTrail } from "@/components/RouteTrail";
 import { PencilDefs } from "@/components/ui/Pencil";
 import { SiteAnalytics } from "@/components/SiteAnalytics";
 import { APP_NAME, BRAND } from "@/lib/brand";
@@ -61,6 +62,7 @@ export default function RootLayout({
           <BackendSync />
           <AlertSounds />
           <NoticeRail />
+          <RouteTrail />
           {children}
         </Providers>
         <SiteAnalytics />
