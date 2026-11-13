@@ -509,7 +509,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           {/* ml-auto keeps the actions hugging the right edge when the row wraps; on a
               phone the host's lock-in takes the row's full width instead of floating */}
           <div className={`${event.hostedByYou && phase === 'planning' ? 'flex w-full sm:w-auto' : 'hidden sm:flex'} min-w-0 items-center gap-2 sm:ml-auto`}>
-            {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToDetails={() => goTab('details')} onGoToLocation={() => goTab('location')} prefill={lockAsk} openNonce={lockAsk?.nonce} runLen={runLen ?? undefined} />}
+            {event.hostedByYou && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToLocation={() => goTab('location')} prefill={lockAsk} openNonce={lockAsk?.nonce} runLen={runLen ?? undefined} />}
             {/* discussion lives in the floating bubble alone. Sharing closes when the
                 plan does: a link handed out afterwards only brings somebody to a plan
                 they have already missed. The invite link is the host's, for now */}
