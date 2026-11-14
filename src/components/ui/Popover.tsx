@@ -5,6 +5,7 @@ import Link from 'next/link'
 import * as RPopover from '@radix-ui/react-popover'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
+import { DUR } from '@/lib/motion'
 import { CHROME_TOP, LAYER_Z, layerOf, type Layer } from '@/lib/layers'
 
 /**
@@ -85,11 +86,13 @@ export function Popover({
     return () => io.disconnect()
   }, [open, layer])
 
-  // the entrance: a breath of scale and lift from the corner the panel grew out of.
-  // Radix decides where it lands and hands back the origin; this only plays it in.
+  // the entrance: the panel grows out of the corner by its button, a little stretched
+  // the way it is opening (taller than wide), and settles a hair past its size. Radix
+  // decides where it lands and hands back the origin, so this reads right whichever
+  // side it opens on. A menu opens often, so it stays quick.
   useGSAP(() => {
     if (!open || !panel.current) return
-    gsap.fromTo(panel.current, { opacity: 0, y: -5, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.22, ease: 'power3.out' })
+    gsap.fromTo(panel.current, { opacity: 0, scaleX: 0.97, scaleY: 0.9 }, { opacity: 1, scaleX: 1, scaleY: 1, duration: DUR.ui, ease: 'back.out(1.6)' })
   }, { dependencies: [open] })
 
   return (

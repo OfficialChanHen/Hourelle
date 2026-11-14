@@ -33,9 +33,12 @@ export function useBounceOnNew(ref: RefObject<HTMLElement | null>, count: number
   useGSAP(() => {
     const el = ref.current
     if (!rose(mem, count) || !active || !el) return
-    gsap.timeline()
-      .to(el, { y: -14, duration: 0.18, ease: 'power2.out' })
-      .to(el, { y: 0, duration: 0.55, ease: 'bounce.out' })
+    // stretched as it rises, squashed where it lands: the hop has weight
+    gsap.timeline({ defaults: { transformOrigin: '50% 100%' } })
+      .to(el, { y: -14, scaleX: 0.92, scaleY: 1.1, duration: 0.18, ease: 'power2.out' })
+      .to(el, { y: 0, scaleX: 1, scaleY: 1, duration: 0.16, ease: 'power2.in' })
+      .to(el, { scaleX: 1.12, scaleY: 0.86, duration: 0.06, ease: 'power2.out' })
+      .to(el, { scaleX: 1, scaleY: 1, duration: 0.24, ease: 'back.out(2.4)' })
   }, { dependencies: [count, active] })
 }
 

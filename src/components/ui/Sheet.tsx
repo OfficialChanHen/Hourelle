@@ -8,6 +8,7 @@ import { useGSAP } from '@gsap/react'
 import { Popover } from './Popover'
 import { layerOf } from '@/lib/layers'
 import { reducedMotion } from '@/lib/prefs'
+import { DUR, EASE } from '@/lib/motion'
 
 /* The phone's sheet: a panel from the bottom edge, over the tab bar like any modal
    (lib/layers), at most most of the screen tall and scrolling inside past that.
@@ -39,16 +40,21 @@ export function Sheet({ trigger, label, triggerClassName, title, children, foote
 
   useGSAP(() => {
     if (!sheetEl || !shadeEl || reducedMotion()) return
-    gsap.fromTo(shadeEl, { opacity: 0 }, { opacity: 1, duration: 0.25, ease: 'power2.out' })
-    gsap.fromTo(sheetEl, { yPercent: 100 }, { yPercent: 0, duration: 0.34, ease: 'power3.out' })
+    // the shade dims the page first so the eye goes to the sheet; the sheet slows into
+    // place, and what is inside it trails a moment behind and settles (follow-through)
+    gsap.fromTo(shadeEl, { opacity: 0 }, { opacity: 1, duration: DUR.ui, ease: 'power2.out' })
+    gsap.fromTo(sheetEl, { yPercent: 100 }, { yPercent: 0, duration: DUR.panel, ease: 'expo.out' })
+    const body = sheetEl.querySelector('[data-sheet-body]')
+    if (body) gsap.fromTo(body, { y: 14 }, { y: 0, duration: DUR.panel + 0.08, ease: EASE.settle, delay: 0.04 })
   }, { dependencies: [sheetEl, shadeEl] })
 
   function close() {
     if (closing.current) return
     closing.current = true
     if (reducedMotion() || !sheetEl || !shadeEl) { setOpen(false); return }
-    gsap.to(shadeEl, { opacity: 0, duration: 0.2, ease: 'power2.in' })
-    gsap.to(sheetEl, { y: 0, yPercent: 100, duration: 0.24, ease: 'power3.in', onComplete: () => setOpen(false) })
+    // leaving is quicker than arriving: the person has already moved on
+    gsap.to(shadeEl, { opacity: 0, duration: DUR.exit, ease: EASE.in })
+    gsap.to(sheetEl, { y: 0, yPercent: 100, duration: DUR.ui, ease: 'power3.in', onComplete: () => setOpen(false) })
   }
 
   // the grab: follow the finger down, and let go past a short distance to close
@@ -67,7 +73,9 @@ export function Sheet({ trigger, label, triggerClassName, title, children, foote
     drag.current = null
     if (!d || !sheetEl) return
     if (d.dy > 80) close()
-    else gsap.to(sheetEl, { y: 0, duration: 0.2, ease: 'power2.out' })
+    // not far enough: it eases back up (no overshoot, which would lift the sheet off
+    // the bottom edge and show the page under it)
+    else gsap.to(sheetEl, { y: 0, duration: DUR.ui, ease: EASE.out })
   }
 
   return (
@@ -99,7 +107,7 @@ export function Sheet({ trigger, label, triggerClassName, title, children, foote
               </Dialog.Close>
             </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5">
+          <div data-sheet-body className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5">
             {/* close reads its refs only when called, from a control in here */}
             {/* eslint-disable-next-line react-hooks/refs */}
             {children(close)}
