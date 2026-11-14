@@ -15,6 +15,7 @@ import { cleanFace, type Face } from './faces'
 import { passwordProblem } from './password'
 import { cleanUsualWeek, type UsualWeek } from './usual-week'
 import { APP_NAME } from '@/lib/brand'
+import { localPath } from './local-path'
 
 export type AccountKind = 'person' | 'org'
 export type Account = {
@@ -195,7 +196,7 @@ export async function syncLegalAcceptance(): Promise<void> {
 // where the callback sends the browser once the session exists: home, or the page
 // that asked for the log-in (an invite, say), when that page is one of ours
 function callbackUrl(next?: string): string {
-  const safe = next && next.startsWith('/') && !next.startsWith('//') ? next : ''
+  const safe = localPath(next) ?? ''
   return `${window.location.origin}/auth/callback${safe ? `?next=${encodeURIComponent(safe)}` : ''}`
 }
 
