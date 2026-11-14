@@ -4,16 +4,21 @@
 // Runs on the server so the mail key never reaches a browser.
 
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { APP_NAME } from '@/lib/brand'
+import { serverDb, userFromRequest } from '@/lib/server/db'
+import { tooMany } from '@/lib/server/rate'
 
 export const runtime = 'nodejs'
 
-type Body = { kind?: string; message?: string; email?: string; page?: string; accountId?: string }
+type Body = { kind?: string; message?: string; email?: string; page?: string }
 
 const KINDS = new Set(['bug', 'idea', 'question'])
 
 export async function POST(req: Request) {
+  // a form for people, not a pipe for scripts: a few reports per address per window
+  if (tooMany('feedback', req, 5, 10 * 60_000)) {
+    return NextResponse.json({ ok: false, error: 'That is a lot of reports at once. Try again in a few minutes.' }, { status: 429 })
+  }
   let body: Body
   try { body = (await req.json()) as Body } catch { return NextResponse.json({ ok: false, error: 'Bad request' }, { status: 400 }) }
 
@@ -25,12 +30,12 @@ export async function POST(req: Request) {
   if (!message) return NextResponse.json({ ok: false, error: 'Say what happened first.' }, { status: 400 })
 
   // 1. keep it — Supabase, when configured
+  // the account, when there is one, comes from the session the browser sent
+  const accountId = (await userFromRequest(req))?.id ?? null
   let stored = false
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (url && anon) {
-    const db = createClient(url, anon)
-    const { error } = await db.from('feedback').insert({ kind, message, email, page, user_agent: userAgent, account_id: body.accountId || null })
+  const db = serverDb()
+  if (db) {
+    const { error } = await db.from('feedback').insert({ kind, message, email, page, user_agent: userAgent, account_id: accountId })
     stored = !error
     if (error) console.warn('feedback: store failed —', error.message)
   }
@@ -47,7 +52,7 @@ export async function POST(req: Request) {
       `— from: ${email ?? 'no email given'}`,
       `— page: ${page ?? 'unknown'}`,
       `— browser: ${userAgent ?? 'unknown'}`,
-      `— account: ${body.accountId ?? 'not included'}`,
+      `— account: ${accountId ?? 'not included'}`,
     ].join('\n')
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
