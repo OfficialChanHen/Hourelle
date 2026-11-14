@@ -20,6 +20,7 @@ import { markWelcomed } from '@/lib/plan'
 import { resetAppearance, resetHint, resetHints, setTourWanted } from '@/lib/prefs'
 import { ensurePracticeEvent } from '@/lib/practice'
 import { APP_NAME } from '@/lib/brand'
+import { localPath } from '@/lib/local-path'
 
 /* The steps after an account is made: the terms first, only when the account never
    accepted them (a Google or Microsoft account made through the log-in button), then
@@ -38,7 +39,7 @@ function Welcome() {
   const router = useRouter()
   const params = useSearchParams()
   const rawNext = params.get('next') ?? ''
-  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/home'
+  const next = localPath(rawNext) ?? '/home'
   const account = useAccount()
   const { theme, setTheme, resolvedTheme } = useTheme()
   type Step = 'terms' | 'settings' | 'plan' | 'tour'

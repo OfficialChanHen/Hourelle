@@ -18,6 +18,7 @@ import { PasswordRules } from '@/components/ui/PasswordRules'
 import { Wordmark } from '@/components/ui/Wordmark'
 import { APP_NAME } from '@/lib/brand'
 import { lastInvite } from '@/lib/nav'
+import { localPath } from '@/lib/local-path'
 
 /* ── log in, sign up, or ask for a new password ──
    Split like the sign-in pages people know: the form on the left, the pitch on the
@@ -83,7 +84,7 @@ function SignInForm() {
   // an invite page that found the email belongs to an account sends the person here
   // with the address typed and the way back; only our own paths are followed
   const rawNext = params.get('next') ?? ''
-  const askedNext = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null
+  const askedNext = localPath(rawNext)
   // a visitor who came from an invite lands back on it, whichever door they took
   const invite = useSyncExternalStore(noStore, lastInvite, () => null)
   const next = askedNext ?? invite ?? '/home'
