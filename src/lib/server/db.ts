@@ -1,6 +1,7 @@
 // Server-side Supabase access: who is asking, and a client that can do the
 // server's own work. Never imported by browser code.
 
+import { timingSafeEqual } from 'node:crypto'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -30,4 +31,13 @@ export async function userFromRequest(req: Request): Promise<{ id: string; email
   const { data, error } = await db.auth.getUser(token)
   if (error || !data.user) return null
   return { id: data.user.id, email: data.user.email ?? null, lastSignInAt: data.user.last_sign_in_at ?? null }
+}
+
+/** Does the request carry `Authorization: Bearer <secret>`? Compared in constant
+ *  time, so how long a wrong guess takes says nothing about how close it was. */
+export function bearerMatches(req: Request, secret: string | undefined): boolean {
+  if (!secret) return false
+  const given = Buffer.from(req.headers.get('authorization') ?? '')
+  const want = Buffer.from(`Bearer ${secret}`)
+  return given.length === want.length && timingSafeEqual(given, want)
 }

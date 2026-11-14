@@ -9,6 +9,7 @@ import { usePathname } from 'next/navigation'
 import { Bug, Check, HelpCircle, Lightbulb, Loader2 } from 'lucide-react'
 import { useAccount } from '@/hooks/useAccount'
 import { APP_NAME } from '@/lib/brand'
+import { backendOn, supabase } from '@/lib/db'
 
 type Kind = 'bug' | 'idea' | 'question'
 const KINDS: { key: Kind; label: string; icon: typeof Bug; ask: string }[] = [
@@ -38,10 +39,12 @@ export function FeedbackForm() {
     if (!message.trim() || busy) return
     setBusy(true); setState('idle')
     try {
+      // the account is proven by its session, never taken from the body
+      const token = identified && backendOn ? (await supabase!.auth.getSession()).data.session?.access_token : undefined
       const res = await fetch('/api/feedback', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind, message: message.trim(), email: from, page: pathname, accountId: identified ? account.id : undefined }),
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ kind, message: message.trim(), email: from, page: pathname }),
       })
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; emailed?: boolean; stored?: boolean }
       if (res.status === 503) setState('nowhere')
