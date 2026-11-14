@@ -39,7 +39,7 @@ function Picker({ me, onSave, onCancel }: { me: Participant; onSave: (face: Face
   const first = useRef(look)
   useGSAP(() => {
     if (look === first.current || reducedMotion() || !preview.current) return
-    gsap.fromTo(preview.current, { scale: 0.92 }, { scale: 1, duration: 0.45, ease: 'back.out(2.4)' })
+    gsap.fromTo(preview.current, { scale: 0.92 }, { scale: 1, duration: 0.26, ease: 'back.out(2.4)' })
   }, { dependencies: [look] })
 
   return (

@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { gsap } from 'gsap'
 import { ThemeProvider } from 'next-themes'
 import { PREFS_CHANGED, reducedMotion } from '@/lib/prefs'
+import { listenForPresses } from '@/lib/motion'
 
 /* Reduced motion for the animations that do not ask for themselves. The ones that
    matter (the tour, the landing demos, segmented pills) check reducedMotion() and skip;
@@ -18,6 +19,9 @@ function MotionPref() {
     mq.addEventListener('change', sync)
     return () => { window.removeEventListener(PREFS_CHANGED, sync); mq.removeEventListener('change', sync) }
   }, [])
+  // every pill squashes under a press and springs back (lib/motion.ts); none of it
+  // with less motion on
+  useEffect(() => listenForPresses(reducedMotion), [])
   return null
 }
 

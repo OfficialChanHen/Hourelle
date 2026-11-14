@@ -70,7 +70,7 @@ export function FacePicker({ account, draft }: { account: Account; draft: FaceDr
   useGSAP(() => {
     if (!mounted.current) { mounted.current = true; return }
     if (reducedMotion() || !preview.current) return
-    gsap.fromTo(preview.current, { scale: 0.94 }, { scale: 1, duration: 0.45, ease: 'back.out(2.4)' })
+    gsap.fromTo(preview.current, { scale: 0.94 }, { scale: 1, duration: 0.26, ease: 'back.out(2.4)' })
   }, { dependencies: [look] })
 
   return (

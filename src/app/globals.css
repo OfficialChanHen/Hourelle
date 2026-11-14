@@ -678,6 +678,22 @@ html[data-wm-intro] [data-wm-root] { opacity: 0; animation: wm-show 0s 3s forwar
   scroll-behavior: auto !important;
 }
 
+/* the press (listenForPresses in lib/motion.ts): GSAP tweens these two variables on
+   the pill being pressed. In the base layer so a scale utility on the element wins. */
+@layer base {
+  :where(button, a, summary, [role="button"], [role="tab"]).rounded-full { scale: var(--press-x, 1) var(--press-y, 1); }
+}
+
+/* a small control can be easier to hit than it looks: the clickable area reaches
+   past the drawn button (Fitts), to 44px on a touch screen, without moving anything */
+@utility hit-area {
+  position: relative;
+  &::before { content: ''; position: absolute; inset: -6px; border-radius: inherit; }
+  @media (pointer: coarse) {
+    &::before { inset: min(-6px, calc((100% - 44px) / 2)); }
+  }
+}
+
 /* links in running text are underlined, so they do not rely on colour alone. Links
    dressed as buttons, tabs or cards, the wordmark, and the header and tab bar carry their own
    shape and are left alone. */

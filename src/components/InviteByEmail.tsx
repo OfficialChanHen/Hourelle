@@ -101,7 +101,7 @@ export function InviteByEmail({ event, onAdded, label = 'Or send it by email' }:
             {list.map((e) => (
               <span key={e} className="flex h-[28px] max-w-full items-center gap-1 rounded-full border border-border bg-s1 pl-2.5 pr-1 text-[13px]">
                 <span className="truncate">{e}</span>
-                <button type="button" onClick={() => remove(e)} aria-label={`Remove ${e}`} className="grid h-5 w-5 place-items-center rounded-full text-faint hover:bg-s2 hover:text-brick-text"><X size={13} /></button>
+                <button type="button" onClick={() => remove(e)} aria-label={`Remove ${e}`} className="hit-area grid h-5 w-5 place-items-center rounded-full text-faint hover:bg-s2 hover:text-brick-text"><X size={13} /></button>
               </span>
             ))}
           </div>

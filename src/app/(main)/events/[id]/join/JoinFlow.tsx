@@ -161,7 +161,7 @@ export function JoinFlow({ id }: { id: string }) {
 
   useGSAP(
     () => {
-      if (event) gsap.fromTo(root.current, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' })
+      if (event) gsap.fromTo(root.current, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.28, ease: 'power3.out' })
     },
     { dependencies: [event === undefined] },
   )

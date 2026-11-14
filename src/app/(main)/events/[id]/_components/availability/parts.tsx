@@ -100,7 +100,7 @@ export function FilterModal({ participants, filter, onToggle, onClear, onSelectA
             <div className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint">Filter the grid</div>
             <div id={titleId} className="mt-0.5 text-[15.5px] font-semibold">Pick people</div>
           </div>
-          <button onClick={onClose} aria-label="Close" className="grid h-8 w-8 place-items-center rounded-full text-dim hover:bg-s2 hover:text-text">
+          <button onClick={onClose} aria-label="Close" className="hit-area grid h-8 w-8 place-items-center rounded-full text-dim hover:bg-s2 hover:text-text">
             <X size={16} />
           </button>
         </div>

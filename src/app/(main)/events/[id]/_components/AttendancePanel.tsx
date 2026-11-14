@@ -518,7 +518,7 @@ function SingleVenue({
           <label className="flex h-11 items-center gap-2 rounded-[10px] border border-border bg-s1 px-3 focus-within:border-accent sm:h-9 sm:max-w-[280px]">
             <Search size={14} className="flex-none text-faint" />
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name" aria-label="Find a person" className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-faint" />
-            {query && <button type="button" onClick={() => setQuery('')} aria-label="Clear" className="grid h-7 w-7 flex-none place-items-center rounded-[6px] text-faint hover:text-text"><X size={13} /></button>}
+            {query && <button type="button" onClick={() => setQuery('')} aria-label="Clear" className="hit-area grid h-7 w-7 flex-none place-items-center rounded-[6px] text-faint hover:text-text"><X size={13} /></button>}
           </label>
         )}
         {none && <p className="text-[13px] text-faint">Nobody here by that name.</p>}
