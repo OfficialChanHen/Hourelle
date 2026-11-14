@@ -670,7 +670,7 @@ function EditableTitle({ title, editable, onSave }: { title: string; editable: b
   return (
     <span className="flex items-center gap-2.5">
       <h1 className={`min-w-0 ${h1}`}>{title}</h1>
-      <button onClick={() => setEditing(true)} title="Rename this plan" aria-label="Rename this plan" className="grid h-8 w-8 flex-none place-items-center rounded-full text-faint hover:bg-s2 hover:text-dim">
+      <button onClick={() => setEditing(true)} title="Rename this plan" aria-label="Rename this plan" className="hit-area grid h-8 w-8 flex-none place-items-center rounded-full text-faint hover:bg-s2 hover:text-dim">
         <Pencil size={15} />
       </button>
     </span>
@@ -1140,7 +1140,7 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
         {slotWhen(c, dayOf, fmtMinute)}
         {!allDay && <TimezonePill tz={event.timezone} day={event.confirmed?.dayKey ?? event.startDate} />}
         {editable && (
-          <button onClick={() => setEditing(true)} title="Change the day or time" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
+          <button onClick={() => setEditing(true)} title="Change the day or time" className="hit-area grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
             <Pencil size={13} />
           </button>
         )}
@@ -1159,7 +1159,7 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
       <span className="flex flex-wrap items-center gap-1.5">
         {dow ? `${dow}, ` : ''}{dateRangeText(event)}
         {editable && (
-          <button onClick={() => setEditing(true)} title="Change the dates or length" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
+          <button onClick={() => setEditing(true)} title="Change the dates or length" className="hit-area grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
             <Pencil size={13} />
           </button>
         )}
@@ -1586,7 +1586,7 @@ function NameValue({ event, editable, onPatch }: { event: AppEvent; editable: bo
   return (
     <span className="flex items-start gap-2">
       <span className="min-w-0 flex-1">{event.title}</span>
-      <button onClick={() => setEditing(true)} title="Rename this plan" aria-label="Rename this plan" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
+      <button onClick={() => setEditing(true)} title="Rename this plan" aria-label="Rename this plan" className="hit-area grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
         <Pencil size={13} />
       </button>
     </span>
@@ -1626,7 +1626,7 @@ function DescriptionValue({ event, editable, onPatch }: { event: AppEvent; edita
   return (
     <span className="flex items-start gap-2">
       <span className="min-w-0 flex-1">{desc || <span className="text-faint">No description</span>}</span>
-      <button onClick={() => setEditing(true)} title="Edit description" aria-label="Edit description" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
+      <button onClick={() => setEditing(true)} title="Edit description" aria-label="Edit description" className="hit-area grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
         <Pencil size={13} />
       </button>
     </span>
@@ -1799,7 +1799,7 @@ function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boo
                 )}
                 <span className="w-[72px] flex-none text-right text-[13.5px] font-semibold">${x.amount.toLocaleString()}</span>
                 {isHost && (
-                  <button onClick={() => removeExpense(x.id)} title="Remove this expense" className="grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-brick-bg hover:text-brick-text">
+                  <button onClick={() => removeExpense(x.id)} title="Remove this expense" className="hit-area grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-brick-bg hover:text-brick-text">
                     <X size={13} />
                   </button>
                 )}

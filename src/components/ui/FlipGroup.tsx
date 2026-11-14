@@ -61,7 +61,7 @@ export function FlipGroup({ names, people, more = 0, className = '', style, over
     if (!turns?.length) return
     contextSafe(() => {
       if (reducedMotion()) gsap.set(turns, { rotateY: next ? 180 : 0 })
-      else gsap.to(turns, { rotateY: next ? 180 : 0, duration: 0.55, ease: 'back.out(1.7)', stagger: 0.07, overwrite: true })
+      else gsap.to(turns, { rotateY: next ? 180 : 0, duration: 0.3, ease: 'back.out(1.7)', stagger: 0.07, overwrite: true })
     })()
   }
   const label = names ? `Show initials for ${names}` : 'Show initials'

@@ -108,7 +108,7 @@ function SignInForm() {
   const backLabel = backHref.includes('/join') ? 'Back to the invite' : backHref.startsWith('/events/') ? 'Back to your plan' : 'Back to the app'
 
   useGSAP(() => {
-    gsap.fromTo(root.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' })
+    gsap.fromTo(root.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.28, ease: 'power3.out' })
   }, [])
 
   function go(next: Mode) {

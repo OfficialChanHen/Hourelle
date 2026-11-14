@@ -28,9 +28,9 @@ export function useFlipReorder(signature: string) {
     // transforms only (no `absolute`) so the container never collapses and neighbours stay put;
     // removed items just disappear (React already unmounted them) while the rest slide into place
     Flip.from(stateRef.current, {
-      duration: 0.4,
+      duration: 0.28,
       ease: 'power2.inOut',
-      onEnter: (els) => gsap.fromTo(els, { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: 0.3, ease: 'power2.out' }),
+      onEnter: (els) => gsap.fromTo(els, { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: 0.24, ease: 'back.out(1.6)' }),
     })
     stateRef.current = null
   }, { scope, dependencies: [signature] })

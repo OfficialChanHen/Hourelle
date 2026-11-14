@@ -137,7 +137,7 @@ function PeekingFaces({ people, plan }: { people: Participant[]; plan: string })
     const turns = root.current?.querySelectorAll('.face-flip')
     if (!turns?.length) return
     if (reducedMotion()) gsap.set(turns, { rotateY: next ? 180 : 0 })
-    else gsap.to(turns, { rotateY: next ? 180 : 0, duration: 0.55, ease: 'back.out(1.7)', stagger: 0.07, overwrite: true })
+    else gsap.to(turns, { rotateY: next ? 180 : 0, duration: 0.3, ease: 'back.out(1.7)', stagger: 0.07, overwrite: true })
   })
   return (
     <span ref={root}>

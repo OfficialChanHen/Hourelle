@@ -337,7 +337,7 @@ function CreateWizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useGSAP(() => { gsap.fromTo(panel.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out' }) }, [])
+  useGSAP(() => { gsap.fromTo(panel.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.28, ease: 'power3.out' }) }, [])
 
   /* More options starts closed, templates and duplicates included: what they set is
      already in the rows, and nobody needs to read it to create. A press opens it

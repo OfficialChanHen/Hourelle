@@ -51,11 +51,11 @@ export function usePeek({ restY, upY, restTilt, upTilt, band = false }: {
   // (translateY of half a face) as a percentage and then add y on top of it
   const riseTo = () => ({
     xPercent: 0, yPercent: 0, y: upY, rotate: (i: number) => (i % 2 ? upTilt : -upTilt),
-    duration: 0.5, ease: 'back.out(2.2)', stagger: 0.045,
+    duration: 0.3, ease: 'back.out(2.2)', stagger: 0.04,
   })
   const settleTo = () => ({
     xPercent: 0, yPercent: 0, y: restY, rotate: (i: number) => (i % 2 ? restTilt : -restTilt),
-    duration: 0.42, ease: 'back.out(1.6)', stagger: { each: 0.02, from: 'end' as const },
+    duration: 0.26, ease: 'back.out(1.6)', stagger: { each: 0.02, from: 'end' as const },
   })
   // plain handlers: the refs are read when the pointer moves, never during render,
   // and each tween is made inside the hook's context so it is cleaned up with it
