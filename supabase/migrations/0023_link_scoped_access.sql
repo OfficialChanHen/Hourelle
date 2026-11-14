@@ -1,4 +1,4 @@
--- Step 22: the link is the permission, and only the link.
+-- Step 23: the link is the permission, and only the link.
 --
 -- Until now the share-link tables said `using (true)`: the comment was "an event id
 -- is not guessable", and an id minted since 0003 is not. But `using (true)` never

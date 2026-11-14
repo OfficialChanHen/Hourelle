@@ -109,7 +109,7 @@ const docOf = (ev: AppEvent) => {
 
 /* ── naming the plans a query is about ──
    The database lets a row be read or written only when the request names its plan
-   (migration 0022): knowing the id is the permission, and nothing can be listed.
+   (migration 0023): knowing the id is the permission, and nothing can be listed.
    The ids go in a header the policies read, on every query that touches a plan.
    A signed-in account reaches its own plans without naming them. */
 const NAMED_HEADER = 'x-event-ids'
@@ -696,7 +696,7 @@ export function resyncOnReturn(): () => void {
 /* ── realtime: someone else's write lands in this browser's cache ──
    Each plan this browser holds has its own broadcast topic, `ev:<id>`, and the
    database pings it whenever the plan, its chat, its answers or its ballot change
-   (migration 0022). A ping says only which table moved: the change itself is read
+   (migration 0023). A ping says only which table moved: the change itself is read
    back through the same id-scoped queries as everything else, so nothing private
    travels over the socket and a forged ping can do no more than cause a re-read.
    Plans new to this browser (someone added you) arrive with the next pull.
