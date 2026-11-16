@@ -475,7 +475,7 @@ export default function HomePage() {
   if (!wide) looks.forEach((l) => { l.tilt = 0 })
 
   return (
-    <div data-sheet="dots" className="relative isolate mx-auto max-w-[1240px] px-6 pb-[92px] pt-7 sm:px-[26px] sm:pt-[34px]">
+    <div className="relative isolate mx-auto max-w-[1240px] px-6 pb-[92px] pt-7 sm:px-[26px] sm:pt-[34px]">
       <SoftShapes variant="home" />
 
       {/* greeting, then where the plan in front stands, as a sentence */}

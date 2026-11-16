@@ -99,7 +99,7 @@ export default function Landing() {
       </a>
       <VisitorHeader />
 
-      <main id="main" tabIndex={-1} data-sheet="crumpled" className="relative flex-1 overflow-x-clip">
+      <main id="main" tabIndex={-1} className="relative flex-1 overflow-x-clip">
         {/* the front door has its own layout, so a flash queued on the way here (a
             guest the host removed from an event) needs its own place to land */}
         <FlashToast />

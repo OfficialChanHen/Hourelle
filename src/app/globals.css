@@ -605,10 +605,10 @@ input[type="date"]::-webkit-date-and-time-value {
    paper colour under them (multiplied on light paper, screened on dark). Static,
    never animated. Cards, the grid, fields and buttons keep their clean surfaces.
 
-   A page picks its sheet by carrying data-sheet somewhere inside it:
-   none = neat plain paper (plans and every tool page), "dots" = polka-dot paper
-   (Home), "crumpled" = the same stock, crushed and smoothed out again (the shelves
-   and the landing page). High contrast keeps a flat page. */
+   Each appearance has its own sheet, the same on every page and in light and dark:
+   the house paper is crumpled (the stock crushed and smoothed out again), Studio is
+   graph paper, Daylight a lined notebook page, Breeze polka dots, and Ink and clay
+   the plain stock, neat. High contrast keeps a flat page. */
 :root {
   --paper-grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2  0 0 0 0 .17  0 0 0 0 .12  0 0 0 .26 -.09'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   --paper-fibre:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='500'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.006 .18' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .25  0 0 0 0 .2  0 0 0 0 .14  0 0 0 .8 -.52'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
@@ -621,6 +621,8 @@ input[type="date"]::-webkit-date-and-time-value {
   /* nothing: a stand-in for a sheet layer the page does not use */
   --paper-none:linear-gradient(transparent, transparent);
   --sheet-dot:color-mix(in oklab, var(--shape-b) 55%, var(--border2));
+  --sheet-line:color-mix(in oklab, var(--border2) 40%, transparent);
+  --sheet-rule:color-mix(in oklab, var(--accent) 22%, transparent);
 
   /* torn edges for paper scraps (SoftShapes): masks that tile along an edge, so a tear
      keeps its scale on a phone and across a wide desktop */
@@ -655,13 +657,27 @@ body {
   /* the creases are always shadows, multiplied in, on light and dark paper alike */
   background-blend-mode:var(--paper-blend), var(--paper-blend), var(--paper-blend), var(--paper-blend), var(--paper-blend), var(--paper-blend), multiply;
 }
-/* polka-dot paper: two offset rows of small dots, the soft pink shape ink */
-body:has([data-sheet="dots"]) {
+/* the house paper: crumpled */
+body { --sheet-c:var(--paper-wrinkle); }
+/* Studio: graph paper, a fine square grid in the faint rule ink */
+[data-palette="studio"] body {
+  --sheet-a:linear-gradient(90deg, var(--sheet-line) 1px, transparent 1px);
+  --sheet-b:linear-gradient(180deg, var(--sheet-line) 1px, transparent 1px);
+  --sheet-size:24px 24px; --sheet-c:var(--paper-none);
+}
+/* Daylight: a lined notebook page, rules in a wash of the accent blue */
+[data-palette="daylight"] body {
+  --sheet-a:repeating-linear-gradient(180deg, transparent 0 31px, var(--sheet-rule) 31px 32px);
+  --sheet-size:auto; --sheet-c:var(--paper-none);
+}
+/* Breeze: polka dots, two offset rows of small dots in the soft pink shape ink */
+[data-palette="breeze"] body {
   --sheet-a:radial-gradient(circle, var(--sheet-dot) 0 2px, transparent 2.6px);
   --sheet-b:radial-gradient(circle, var(--sheet-dot) 0 2px, transparent 2.6px);
-  --sheet-size:30px 30px; --sheet-offset:15px 15px;
+  --sheet-size:30px 30px; --sheet-offset:15px 15px; --sheet-c:var(--paper-none);
 }
-body:has([data-sheet="crumpled"]) { --sheet-c:var(--paper-wrinkle); }
+/* Ink and clay: the plain stock, neat, so the bold inks carry the page */
+[data-palette="clay"] body { --sheet-c:var(--paper-none); }
 [data-palette="contrast"] body { background-image:none; }
 
 /* a scrap of paper behind a page region (SoftShapes.tsx): a torn coloured piece over
