@@ -11,23 +11,31 @@
    serif, the hairlines and the spacing, so it survives the cooler ground and sits
    beside a work calendar without looking like a filter. */
 :root {
-  --bg:#F8F2E6; --s0:#FBF7EF; --s1:#FFFDF9; --s2:#F1E8D8; --s3:#E7DCC8;
-  --border:#E7DCC8; --border2:#D3C5AD;
+  --bg:#FAF6EF; --s0:#FCF9F4; --s1:#FFFDF9; --s2:#F3EDE3; --s3:#EAE2D5;
+  --border:#EAE2D5; --border2:#D6CCBC;
   --text:#1F1B16; --dim:#655D52; --faint:#6B6358;
   --accent:#2E6B4E; --accent-text:#23543D; --accent-bg:#E4F0E7; --accent-border:#C3DCCB; --on-accent:#FFFDF9;
-  --teal:#3F6B55; --teal-text:#31523F; --teal-bg:#E7EFE9; --teal-border:#C6DACC;
+  --teal:#2F6B78; --teal-text:#255761; --teal-bg:#E3EFF2; --teal-border:#C0DAE0;
   --ochre:#8F6A33; --ochre-text:#72521F; --ochre-bg:#F5ECDC; --ochre-border:#E6D6BA;
   --brick:#9C4A46; --brick-text:#823C39; --brick-bg:#F5E3E0; --brick-border:#E8CAC5;
-  /* watermelon: the moment role, the one surprise beside the sand and green. Things that ask for you now or celebrate: "Your turn",
-     the Up next eyebrow, the share-first card, a plan locking in. A role like ochre
-     and brick, never a button, link or selected state (those stay the accent). */
-  --moment:#D6416A; --moment-text:#AE2A4E; --moment-bg:#FCE6EC; --moment-border:#F4C3D0;
+  /* Every appearance is a trio. The primary (--accent) and a close secondary
+     (--second, a neighbour on the colour wheel: here moss beside the forest green)
+     read as one family; the highlight (--moment, orchid here) comes from across the
+     wheel and is kept to the one thing per screen that asks for you now, the "Your
+     turn" note and strips. It is a light, bright fill under its own dark ink
+     (--on-moment), never at the primary's darkness and never set against the
+     primary; its deep shade (--moment-text) is for words and pencil marks. Here the
+     Your turn notes stay a real canary Post-it on the warm paper, with the
+     highlight on their label and star (--sticky-kicker). No trio
+     colour sits within about 35 degrees of hue of going (--teal) or can't go
+     (--brick), so going here is a blue-teal, kept off the green. */
+  --moment:#F4A6D7; --moment-text:#A0256E; --moment-bg:#FBE4F2; --moment-border:#F2C2DF;
   --shadow:0 1px 2px rgba(60,40,20,.05), 0 12px 32px rgba(60,40,20,.07);
 
   /* the display face — a palette may swap it (see Studio) */
   --display:var(--font-lora), Georgia, serif;
   /* the italic accent word's ink (see Em.tsx) */
-  --em:var(--accent-text);
+  --em:var(--second-text);
   /* the Timeld wordmark's two inks, for the logo only: one green in two depths, a
      lighter time and a deeper meld settling under it. They stay the same in every
      palette but Ink and clay, which wears its own pair; a logo is not chrome. (Kept for
@@ -44,7 +52,7 @@
   --grid-edge:#A7A49D;
   --grid-dash:#A7A49D;
   /* best-day header fill — must be opaque: it's a sticky surface content scrolls under */
-  --best-head:#F1E7D6;
+  --best-head:#F3ECDF;
   /* the n/N count in a heat cell: the theme's own ink, so it holds up on the cell
      background and every heat band short of full; the saturated full band flips to cream */
   --heat-count:#1A1917; --heat-count-full:#F7F6F4;
@@ -83,27 +91,29 @@
   /* scrapbook + soft flow: only for moments (covers, Up next, It's on, empty
      states), never on a decision surface. Soft shapes are the organic colour behind
      a page region; text sits on them, so dim and faint clear 4.5:1 on each. */
-  --shape-a:#D5E8DA; --shape-b:#F8DEE1; --shape-c:#F0E2CA;
+  --shape-a:var(--second-bg); --shape-b:#E4F0E7; --shape-c:#F0E2CA;
   /* a translucent strip of tape holding a photo frame down */
   --tape:rgba(233,218,182,.9);
   /* a second tape tint, a pin head and a paper clip, for cards that should each look
      laid down by hand (Keepsake.tsx) */
-  --tape-2:rgba(196,222,204,.85); --pin:#B8894A; --clip:#9A958B;
+  --tape-2:rgba(207,221,180,.85); --pin:#B8894A; --clip:#9A958B;
   /* the highlighter swipe behind a phrase (Pencil.tsx): multiplied on light paper */
-  --highlight:rgba(242,205,110,.5); --highlight-blend:multiply;
+  --highlight:rgba(74,100,32,.16); --highlight-blend:multiply;
   /* the lighter pencil line under a hovered tab: graphite, each palette's own faint ink */
   --pencil-hover:var(--faint);
   /* the photo frame: a near-white card on paper, a lifted card on charcoal */
   --frame:#FFFDF9; --frame-shadow:0 1px 2px rgba(60,40,20,.06), 0 16px 32px rgba(60,40,20,.12);
   /* the sticky note for "Your turn": its own warm paper and inks, all 4.5:1 on it */
-  --sticky:#F7EBC9; --sticky-text:#1F1B16; --sticky-dim:#5C5140; --sticky-kicker:#AE2A4E;
+  --sticky:#FCE074; --sticky-text:#2B2200; --sticky-dim:#4E3F08; --sticky-kicker:#A0256E;
   --sticky-shadow:0 8px 18px rgba(60,40,20,.10);
   /* the post-it's glue band and the shadow under its lifted corner */
-  --sticky-band:rgba(120,90,30,.07); --sticky-curl:rgba(60,40,20,.30);
+  --sticky-band:rgba(120,80,0,.08); --sticky-curl:rgba(60,40,20,.30);
   /* album photo corners (Keepsake): dark paper pockets with a lighter fold */
   --mount:#3B342B; --mount-fold:#6E6457;
   /* a big sticker's lift off the page (your face on Home) */
   --sticker-lift:drop-shadow(0 1px 1px rgba(60,40,20,.18)) drop-shadow(0 6px 10px rgba(60,40,20,.14));
+  /* the trio: secondary beside the primary, the highlight from across the wheel */
+  --second:#4A6420; --second-text:#435C1C; --second-bg:#EBF1DE; --second-border:#CFDDB4; --on-moment:#3A0F2E;
 }
 
 /* Dark — warm charcoal, the same warmth held at the same distance */
@@ -113,10 +123,10 @@
   --text:#F1ECE4; --dim:#B0A99D; --faint:#938C80;
   --wm-time:#9FDCBC; --wm-meld:#4F9E78;
   --accent:#2F7A56; --accent-text:#9FDCBC; --accent-bg:rgba(111,196,152,.15); --accent-border:rgba(111,196,152,.38); --on-accent:#FFFDF9;
-  --teal:#5B9A7C; --teal-text:#9BD2B7; --teal-bg:rgba(111,181,151,.14); --teal-border:rgba(111,181,151,.36);
+  --teal:#5E9FAD; --teal-text:#9CD3DE; --teal-bg:rgba(94,159,173,.14); --teal-border:rgba(94,159,173,.36);
   --ochre:#BD9A5E; --ochre-text:#E1C48F; --ochre-bg:rgba(200,165,100,.15); --ochre-border:rgba(200,165,100,.38);
   --brick:#C57F78; --brick-text:#E5ACA6; --brick-bg:rgba(205,138,130,.14); --brick-border:rgba(205,138,130,.36);
-  --moment:#EE7A96; --moment-text:#F7B4C5; --moment-bg:rgba(238,122,150,.15); --moment-border:rgba(238,122,150,.40);
+  --moment:#F4A6D7; --moment-text:#F5B0DC; --moment-bg:rgba(244,166,215,.14); --moment-border:rgba(244,166,215,.38);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
 
   --heat-low:rgba(127,183,154,.14); --heat-mid:rgba(127,183,154,.30); --heat-high:rgba(127,183,154,.55); --heat-full:#5B9A7C;
@@ -155,16 +165,18 @@
   --person-amber-ink:#BFA978;  --person-pink-ink:#C39CA2; --person-green-ink:#A3B88A; --person-gray-ink:#A8A296;
   /* the sticker edge on charcoal: a warm light rim, quieter than paper white */
   --face-edge:#5A5247; --face-lift:drop-shadow(0 1px 1.5px rgba(0,0,0,.55));
-  --shape-a:#1C261E; --shape-b:#331F24; --shape-c:#29241A;
+  --shape-a:var(--second-bg); --shape-b:#1B231D; --shape-c:#29241A;
   --tape:rgba(236,224,196,.22);
-  --tape-2:rgba(160,200,175,.22); --pin:#C9A36A; --clip:#8A857B;
-  --highlight:rgba(214,182,96,.26); --highlight-blend:normal;
+  --tape-2:rgba(181,207,138,.22); --pin:#C9A36A; --clip:#8A857B;
+  --highlight:rgba(181,207,138,.2); --highlight-blend:normal;
   --frame:#25221D; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
-  --sticky:#3A3220; --sticky-text:#F5ECD2; --sticky-dim:#D6C9A6; --sticky-kicker:#F7B4C5;
+  --sticky:#FCE074; --sticky-text:#2B2200; --sticky-dim:#4E3F08; --sticky-kicker:#A0256E;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
-  --sticky-band:rgba(255,240,200,.05); --sticky-curl:rgba(0,0,0,.65);
+  --sticky-band:rgba(120,80,0,.08); --sticky-curl:rgba(0,0,0,.6);
   --mount:#0E0D0B; --mount-fold:#3A352E;
   --sticker-lift:drop-shadow(0 1px 1px rgba(0,0,0,.5)) drop-shadow(0 8px 14px rgba(0,0,0,.45));
+  /* the trio: secondary beside the primary, the highlight from across the wheel */
+  --second:#B5CF8A; --second-text:#B5CF8A; --second-bg:#20251A; --second-border:rgba(181,207,138,.34); --on-moment:#3A0F2E;
 }
 
 /* ── Appearances — optional palettes layered over the same tokens ──
@@ -172,113 +184,119 @@
    data-theme still picks light or dark inside it, so the sun/moon toggle keeps
    working everywhere. Each block redefines the full token set. */
 
-/* Studio — stone-blue greys and ink, Egyptian blue for interactive text and scarlet
-   for the moment, with danger moved to oxblood so it never meets the scarlet. Ink as the accent, and the display face drops to the
-   grotesk. The quiet register for anyone who wants no warmth at all. The heat ramp
-   stays green: "free" has to read as free whatever the chrome is doing. Ink fills
-   (buttons, the selected tab) with a restrained blue for interactive TEXT — a pure
-   monochrome would make every link look like body copy. */
+/* Studio — cool neutral, ink as the accent with slate blue beside it for interactive
+   text and the accent word, and amber for the highlight; the display face drops to
+   the grotesk. The quiet register for anyone who wants no warmth at all. The heat
+   ramp stays green: "free" has to read as free whatever the chrome is doing. */
 [data-palette="studio"] {
-  --bg:#F5F7F9; --s0:#FAFBFC; --s1:#FFFFFF; --s2:#EDF0F4; --s3:#E0E5EB;
-  --border:#E1E6EC; --border2:#C9D0D9;
-  --text:#161A20; --dim:#5A6270; --faint:#5F6774;
-  --accent:#161A20; --accent-text:#1034A6; --accent-bg:#E6ECFA; --accent-border:#BFCDF0; --on-accent:#FFFFFF;
+  --bg:#F7F7F8; --s0:#FBFBFC; --s1:#FFFFFF; --s2:#F0F0F2; --s3:#E4E4E8;
+  --border:#E6E6EA; --border2:#D2D2D8;
+  --text:#18181B; --dim:#63636B; --faint:#6D6D75;
+  --accent:#18181B; --accent-text:#34438A; --accent-bg:#EAECF3; --accent-border:#CCD2E5; --on-accent:#FFFFFF;
   --teal:#2F7A5A; --teal-text:#256448; --teal-bg:#E5F2EB; --teal-border:#C3DFD0;
   --ochre:#A16A1B; --ochre-text:#7F5314; --ochre-bg:#F6EEDD; --ochre-border:#E8D8B6;
-  --brick:#8E2F3C; --brick-text:#7A2734; --brick-bg:#F6E3E5; --brick-border:#E8C5CA;
-  --moment:#D92B1A; --moment-text:#B01F0E; --moment-bg:#FDEAE6; --moment-border:#F6C6BD;
+  --brick:#B2413B; --brick-text:#93342F; --brick-bg:#F8E5E3; --brick-border:#EBC8C5;
+  --moment:#FFC266; --moment-text:#8A4E00; --moment-bg:#FFF1DA; --moment-border:#F5D6A0;
   --shadow:0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
   --heat-low:#E7F1EB; --heat-mid:#C6E0D1; --heat-high:#8FBEA3; --heat-full:#2F7A5A;
   --you-only:#F6EEDD; --you-some:#EBDDBC; --you-many:#DCC894; --you-text:#625226;
   --grid-line:#7E8087; --grid-edge:#AAACB2; --grid-dash:#AAACB2;
   --best-head:#F6EEDD;
-  --heat-count:#161A20; --heat-count-full:#FFFFFF;
+  --heat-count:#18181B; --heat-count-full:#FFFFFF;
   --raised-shadow:0 1px 2px rgba(0,0,0,.10);
-  --em:var(--text);
+  --em:var(--second-text);
   --glass-tint:rgba(251,251,252,.26);
-  --shape-a:#E1E8F2; --shape-b:#F8E3E0; --shape-c:#E3E8EF;
-  --tape:rgba(208,216,228,.85);
-  --tape-2:rgba(200,210,225,.8); --pin:#D92B1A; --clip:#9A9AA3;
-  --highlight:rgba(190,200,225,.6); --highlight-blend:multiply;
+  --shape-a:var(--second-bg); --shape-b:#F2F2F5; --shape-c:#F2F2F5;
+  --tape:rgba(214,216,224,.85);
+  --tape-2:rgba(200,210,225,.8); --pin:#6D6D75; --clip:#9A9AA3;
+  --highlight:rgba(52,67,138,.14); --highlight-blend:multiply;
   --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(0,0,0,.05), 0 14px 30px rgba(0,0,0,.09);
-  --sticky:#F4F0E4; --sticky-text:#18181B; --sticky-dim:#56534A; --sticky-kicker:#B01F0E;
+  --sticky:#FFC266; --sticky-text:#2B1A00; --sticky-dim:#4F3708; --sticky-kicker:#2B1A00;
   --sticky-shadow:0 8px 18px rgba(0,0,0,.08);
+  /* the trio: secondary beside the primary, the highlight from across the wheel */
+  --second:#34438A; --second-text:#34438A; --second-bg:#EEF0F7; --second-border:#CCD2E5; --on-moment:#2B1A00; --sticky-band:rgba(80,50,0,.07);
 }
 [data-palette="studio"][data-theme="dark"] {
-  --bg:#0E1013; --s0:#13161A; --s1:#181B20; --s2:#1F2329; --s3:#292E36;
-  --border:rgba(225,232,242,.10); --border2:rgba(225,232,242,.18);
-  --text:#ECEEF2; --dim:#A0A7B3; --faint:#878E9A;
-  --accent:#ECEEF2; --accent-text:#A9BEF5; --accent-bg:rgba(120,150,240,.15); --accent-border:rgba(120,150,240,.38); --on-accent:#101317;
+  --bg:#0F0F10; --s0:#141416; --s1:#19191C; --s2:#202024; --s3:#2A2A30;
+  --border:rgba(236,236,240,.10); --border2:rgba(236,236,240,.18);
+  --text:#ECECEE; --dim:#A1A1A9; --faint:#888890;
+  --accent:#ECECEE; --accent-text:#A3B4EE; --accent-bg:rgba(163,180,238,.14); --accent-border:rgba(163,180,238,.36); --on-accent:#111113;
   --teal:#5FAF89; --teal-text:#9AD6B9; --teal-bg:rgba(95,175,137,.14); --teal-border:rgba(95,175,137,.36);
   --ochre:#C9A05A; --ochre-text:#E6C88E; --ochre-bg:rgba(201,160,90,.15); --ochre-border:rgba(201,160,90,.38);
-  --brick:#C77683; --brick-text:#E8A9B3; --brick-bg:rgba(199,118,131,.15); --brick-border:rgba(199,118,131,.38);
-  --moment:#FF5A44; --moment-text:#FFAA9C; --moment-bg:rgba(255,90,68,.15); --moment-border:rgba(255,90,68,.42);
+  --brick:#D2837C; --brick-text:#EBB0AA; --brick-bg:rgba(210,131,124,.14); --brick-border:rgba(210,131,124,.36);
+  --moment:#FFC266; --moment-text:#FFCB80; --moment-bg:rgba(255,194,102,.14); --moment-border:rgba(255,194,102,.38);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
   --heat-low:rgba(95,175,137,.14); --heat-mid:rgba(95,175,137,.30); --heat-high:rgba(95,175,137,.55); --heat-full:#5FAF89;
   --you-only:rgba(201,160,90,.18); --you-some:rgba(201,160,90,.34); --you-many:rgba(201,160,90,.5); --you-text:#EFD9AC;
   --grid-line:rgba(236,236,240,.36); --grid-edge:rgba(236,236,240,.2); --grid-dash:rgba(236,236,240,.36);
   --best-head:#2A2820;
-  --heat-count:#ECEEF2; --heat-count-full:#0E1013;
+  --heat-count:#ECECEE; --heat-count-full:#0F0F10;
   --glass-tint:rgba(16,16,17,.34);
-  --shape-a:#1E2632; --shape-b:#36201F; --shape-c:#20252D;
+  --shape-a:var(--second-bg); --shape-b:#19181C; --shape-c:#19181C;
   --tape:rgba(220,222,232,.18);
-  --tape-2:rgba(200,210,225,.16); --pin:#FF5A44; --clip:#6D6D75;
-  --highlight:rgba(169,190,245,.24); --highlight-blend:normal;
+  --tape-2:rgba(200,210,225,.16); --pin:#A1A1A9; --clip:#6D6D75;
+  --highlight:rgba(163,180,238,.22); --highlight-blend:normal;
   --frame:#222226; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
-  --sticky:#2B2921; --sticky-text:#EFEBDD; --sticky-dim:#C9C3B0; --sticky-kicker:#FFAA9C;
+  --sticky:#FFC266; --sticky-text:#2B1A00; --sticky-dim:#4F3708; --sticky-kicker:#2B1A00;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
+  /* the trio: secondary beside the primary, the highlight from across the wheel */
+  --second:#A3B4EE; --second-text:#A3B4EE; --second-bg:#181B26; --second-border:rgba(163,180,238,.34); --on-moment:#2B1A00; --sticky-band:rgba(80,50,0,.07); --sticky-curl:rgba(0,0,0,.6);
 }
 
-/* Daylight — bright white, Egyptian blue and stone-blue chrome, with flamingo pink for
-   the moment. The clear-blue look, without borrowing anyone's brand colours. */
+/* Daylight — bright white, a clear blue with ocean cyan beside it, and tangerine for
+   the highlight. Can't go is a cooler crimson so it never meets the tangerine. */
 [data-palette="daylight"] {
-  --bg:#F7F9FC; --s0:#FFFFFF; --s1:#FFFFFF; --s2:#EFF2F6; --s3:#E3E8EF;
-  --border:#DFE5EC; --border2:#C1CBD7;
-  --text:#131A27; --dim:#4C596C; --faint:#556175;
-  --accent:#1238B0; --accent-text:#1238B0; --accent-bg:#E7EDFB; --accent-border:#C0CEF1; --on-accent:#FFFFFF;
-  --teal:#2E7A55; --teal-text:#22613F; --teal-bg:#E4F2EA; --teal-border:#C2DFCE;
-  --ochre:#9A6A1E; --ochre-text:#7A5212; --ochre-bg:#FAF0DC; --ochre-border:#EDD9B0;
-  --brick:#B3261E; --brick-text:#A01F18; --brick-bg:#FCE8E6; --brick-border:#F5CBC6;
-  --moment:#CF3685; --moment-text:#A61C63; --moment-bg:#FCE6F1; --moment-border:#F3BFDA;
-  --shadow:0 1px 2px rgba(20,40,80,.08), 0 8px 24px rgba(20,40,80,.08);
-  --heat-low:#EAEFF8; --heat-mid:#C6D4F0; --heat-high:#8AA4E0; --heat-full:#1238B0;
+  --bg:#F8FAFD; --s0:#FFFFFF; --s1:#FFFFFF; --s2:#F1F3F4; --s3:#E8EAED;
+  --border:#E0E3E7; --border2:#C4C7C5;
+  --text:#1F1F1F; --dim:#5F6368; --faint:#6B6F74;
+  --accent:#0B57D0; --accent-text:#0B57D0; --accent-bg:#E8F0FE; --accent-border:#C6DAFC; --on-accent:#FFFFFF;
+  --teal:#188038; --teal-text:#137333; --teal-bg:#E6F4EA; --teal-border:#CEEAD6;
+  --ochre:#F29900; --ochre-text:#AA5C00; --ochre-bg:#FEF7E0; --ochre-border:#FEEFC3;
+  --brick:#C5153A; --brick-text:#A8102F; --brick-bg:#FCE8EC; --brick-border:#F8CCD5;
+  --moment:#FFB27A; --moment-text:#8A4F00; --moment-bg:#FFEDE0; --moment-border:#FBD0B0;
+  --shadow:0 1px 2px rgba(60,64,67,.12), 0 8px 24px rgba(60,64,67,.10);
+  --heat-low:#E8F0FE; --heat-mid:#AECBFA; --heat-high:#669DF6; --heat-full:#0B57D0;
   --you-only:#FEF7E0; --you-some:#FDE293; --you-many:#FDD663; --you-text:#7A5800; --you-need-edge:#624600;
-  --grid-line:#7B8593; --grid-edge:#A9B2BE; --grid-dash:#A9B2BE;
+  --grid-line:#80868B; --grid-edge:#AEB3B8; --grid-dash:#AEB3B8;
   --best-head:#FEF7E0;
-  --heat-count:#0A1F63; --heat-count-full:#FFFFFF;
-  --shape-a:#D8E3F8; --shape-b:#F8D6E9; --shape-c:#E4EAF3;
+  --heat-count:#0B316D; --heat-count-full:#FFFFFF;
+  --shape-a:var(--second-bg); --shape-b:#EEF4FE; --shape-c:#F1F4F9;
   --tape:rgba(253,226,147,.7);
-  --tape-2:rgba(245,185,215,.7); --pin:#CF3685; --clip:#8A95A3;
-  --highlight:rgba(253,214,99,.55); --highlight-blend:multiply;
-  --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(20,40,80,.10), 0 14px 30px rgba(20,40,80,.11);
-  --sticky:#FEF3CD; --sticky-text:#1F1F1F; --sticky-dim:#5A4F30; --sticky-kicker:#A61C63;
-  --sticky-shadow:0 8px 18px rgba(20,40,80,.10);
+  --tape-2:rgba(181,225,240,.75); --pin:#0B57D0; --clip:#9AA0A6;
+  --highlight:rgba(0,106,142,.14); --highlight-blend:multiply;
+  --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(60,64,67,.12), 0 14px 30px rgba(60,64,67,.12);
+  --sticky:#FFB27A; --sticky-text:#2E1300; --sticky-dim:#55290A; --sticky-kicker:#2E1300;
+  --sticky-shadow:0 8px 18px rgba(60,64,67,.12);
+  /* the trio: secondary beside the primary, the highlight from across the wheel */
+  --second:#006A8E; --second-text:#005F80; --second-bg:#E8F6FB; --second-border:#B5E1F0; --on-moment:#2E1300; --em:var(--second-text); --sticky-band:rgba(90,40,0,.07);
 }
 [data-palette="daylight"][data-theme="dark"] {
-  --bg:#10131A; --s0:#151922; --s1:#191E28; --s2:#212733; --s3:#2B3240;
-  --border:rgba(220,230,245,.11); --border2:rgba(220,230,245,.20);
-  --text:#E8ECF3; --dim:#A3ADBD; --faint:#8D97A8;
-  --accent:#A9BEF5; --accent-text:#A9BEF5; --accent-bg:rgba(169,190,245,.14); --accent-border:rgba(169,190,245,.38); --on-accent:#0A1F63;
-  --teal:#5FAF89; --teal-text:#9AD6B9; --teal-bg:rgba(95,175,137,.14); --teal-border:rgba(95,175,137,.36);
-  --ochre:#C9A05A; --ochre-text:#E6C88E; --ochre-bg:rgba(201,160,90,.15); --ochre-border:rgba(201,160,90,.38);
-  --brick:#F28B82; --brick-text:#F28B82; --brick-bg:rgba(242,139,130,.14); --brick-border:rgba(242,139,130,.36);
-  --moment:#F07CBA; --moment-text:#F9B8DA; --moment-bg:rgba(240,124,186,.15); --moment-border:rgba(240,124,186,.40);
+  --bg:#131314; --s0:#1A1A1C; --s1:#1E1F21; --s2:#28292C; --s3:#333539;
+  --border:rgba(232,234,237,.11); --border2:rgba(232,234,237,.20);
+  --text:#E8EAED; --dim:#9AA0A6; --faint:#8A9096;
+  --accent:#A8C7FA; --accent-text:#A8C7FA; --accent-bg:rgba(168,199,250,.14); --accent-border:rgba(168,199,250,.38); --on-accent:#062E6F;
+  --teal:#81C995; --teal-text:#81C995; --teal-bg:rgba(129,201,149,.14); --teal-border:rgba(129,201,149,.36);
+  --ochre:#FDD663; --ochre-text:#FDD663; --ochre-bg:rgba(253,214,99,.14); --ochre-border:rgba(253,214,99,.36);
+  --brick:#F28B9E; --brick-text:#F59AAB; --brick-bg:rgba(242,139,158,.14); --brick-border:rgba(242,139,158,.36);
+  --moment:#FFB27A; --moment-text:#FFC59C; --moment-bg:rgba(255,178,122,.14); --moment-border:rgba(255,178,122,.38);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
-  --heat-low:rgba(140,165,240,.14); --heat-mid:rgba(140,165,240,.30); --heat-high:rgba(140,165,240,.55); --heat-full:#8AA4F0;
+  --heat-low:rgba(138,180,248,.14); --heat-mid:rgba(138,180,248,.30); --heat-high:rgba(138,180,248,.55); --heat-full:#8AB4F8;
   --you-only:rgba(253,214,99,.12); --you-some:rgba(253,214,99,.22); --you-many:rgba(253,214,99,.34); --you-text:#FDD663; --you-need-edge:var(--you-text);
   --grid-line:rgba(232,234,237,.38); --grid-edge:rgba(232,234,237,.22); --grid-dash:rgba(232,234,237,.38);
   --best-head:#33301C;
-  --heat-count:#F3F7FE; --heat-count-full:#0A1A4F;
-  --shape-a:#1F2C45; --shape-b:#3A2034; --shape-c:#242B38;
+  --heat-count:#F3F7FE; --heat-count-full:#0A2A5C;
+  --shape-a:var(--second-bg); --shape-b:#172031; --shape-c:#1F2531;
   --tape:rgba(253,214,99,.2);
-  --tape-2:rgba(169,190,245,.2); --pin:#F07CBA; --clip:#7B8593;
-  --highlight:rgba(253,214,99,.2); --highlight-blend:normal;
-  --frame:#1F2430; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
-  --sticky:#3A3420; --sticky-text:#FDF0C8; --sticky-dim:#D9CC9F; --sticky-kicker:#F9B8DA;
+  --tape-2:rgba(127,211,240,.2); --pin:#A8C7FA; --clip:#80868B;
+  --highlight:rgba(127,211,240,.2); --highlight-blend:normal;
+  --frame:#26272A; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
+  --sticky:#FFB27A; --sticky-text:#2E1300; --sticky-dim:#55290A; --sticky-kicker:#2E1300;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
+  /* the trio: secondary beside the primary, the highlight from across the wheel */
+  --second:#7FD3F0; --second-text:#7FD3F0; --second-bg:#16232A; --second-border:rgba(127,211,240,.34); --on-moment:#2E1300; --sticky-band:rgba(90,40,0,.07); --sticky-curl:rgba(0,0,0,.6);
 }
 
-/* Breeze — sunny warm-white paper, a sea-teal accent, coral moments and sandy
+/* Breeze — sunny warm-white paper, a sea-teal accent with ocean blue beside it, sun yellow for the highlight and sandy
    shapes. The brighter, summery look for anyone who finds the house paper too
    muted. The heat ramp stays green: "free" has to read as free. Dark is a warm night
    with the same teal. */
@@ -290,42 +308,47 @@
   --teal:#2F7A5A; --teal-text:#256448; --teal-bg:#E5F2EB; --teal-border:#C3DFD0;
   --ochre:#9A6A1E; --ochre-text:#7A5212; --ochre-bg:#FBF0DA; --ochre-border:#EED9B0;
   --brick:#B2413B; --brick-text:#93342F; --brick-bg:#FBE6E3; --brick-border:#EFC7C3;
-  --moment:#E0623A; --moment-text:#B2401C; --moment-bg:#FFEBE2; --moment-border:#F9CDBB;
+  --moment:#FFD666; --moment-text:#7F5800; --moment-bg:#FFF6D6; --moment-border:#F3DD94;
   --shadow:0 1px 2px rgba(20,60,70,.06), 0 12px 32px rgba(20,60,70,.08);
-  --em:var(--accent-text);
-  --shape-a:#CDEBE9; --shape-b:#FFDED1; --shape-c:#F4E2C0;
+  --em:var(--second-text);
+  --shape-a:var(--second-bg); --shape-b:#E3F3F2; --shape-c:#F4E2C0;
   --tape:rgba(240,220,170,.85);
-  --tape-2:rgba(180,225,225,.85); --pin:#E0623A; --clip:#9A958B;
-  --highlight:rgba(255,205,120,.5); --highlight-blend:multiply;
+  --tape-2:rgba(188,215,236,.85); --pin:#0F6E78; --clip:#9A958B;
+  --highlight:rgba(29,95,140,.14); --highlight-blend:multiply;
   --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(20,60,70,.07), 0 16px 32px rgba(20,60,70,.12);
-  --sticky:#FFF1C2; --sticky-text:#1B2226; --sticky-dim:#5A4E2E; --sticky-kicker:#B2401C;
+  --sticky:#FFD666; --sticky-text:#2E2200; --sticky-dim:#574000; --sticky-kicker:#2E2200;
   --sticky-shadow:0 8px 18px rgba(20,60,70,.10);
   --tour-lit:var(--accent);
+  /* the trio: secondary beside the primary, the highlight from across the wheel */
+  --second:#1D5F8C; --second-text:#1D5F8C; --second-bg:#E3EFF8; --second-border:#BCD7EC; --on-moment:#2E2200; --sticky-band:rgba(90,60,0,.07);
 }
 [data-palette="breeze"][data-theme="dark"] {
   --bg:#181612; --s0:#1D1B16; --s1:#211E1A; --s2:#2A2721; --s3:#34302A;
   --border:rgba(245,236,220,.10); --border2:rgba(245,236,220,.19);
   --text:#F3EEE5; --dim:#B3AC9F; --faint:#958E82;
-  --accent:#1A8088; --accent-text:#8FDCDD; --accent-bg:rgba(95,196,200,.15); --accent-border:rgba(95,196,200,.38); --on-accent:#FFFFFF;
+  --accent:#1A8088; --accent-text:#8FD4E6; --accent-bg:rgba(95,196,200,.15); --accent-border:rgba(95,196,200,.38); --on-accent:#FFFFFF;
   --teal:#5B9A7C; --teal-text:#9BD2B7; --teal-bg:rgba(111,181,151,.14); --teal-border:rgba(111,181,151,.36);
   --ochre:#BD9A5E; --ochre-text:#E1C48F; --ochre-bg:rgba(200,165,100,.15); --ochre-border:rgba(200,165,100,.38);
   --brick:#C57F78; --brick-text:#E5ACA6; --brick-bg:rgba(205,138,130,.14); --brick-border:rgba(205,138,130,.36);
-  --moment:#F08A68; --moment-text:#FFBDA3; --moment-bg:rgba(240,138,104,.15); --moment-border:rgba(240,138,104,.40);
+  --moment:#FFD666; --moment-text:#FFDE85; --moment-bg:rgba(255,214,102,.14); --moment-border:rgba(255,214,102,.38);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
-  --shape-a:#1B2926; --shape-b:#32241C; --shape-c:#2C261B;
+  --shape-a:var(--second-bg); --shape-b:#16221F; --shape-c:#2C261B;
   --tape:rgba(240,220,170,.2);
-  --tape-2:rgba(143,220,221,.2); --pin:#F08A68; --clip:#8A857B;
-  --highlight:rgba(240,190,120,.24); --highlight-blend:normal;
+  --tape-2:rgba(149,198,238,.2); --pin:#8FD4E6; --clip:#8A857B;
+  --highlight:rgba(149,198,238,.2); --highlight-blend:normal;
   --frame:#25221D; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
-  --sticky:#3B3320; --sticky-text:#F7ECCB; --sticky-dim:#D9CBA3; --sticky-kicker:#FFBDA3;
+  --sticky:#FFD666; --sticky-text:#2E2200; --sticky-dim:#574000; --sticky-kicker:#2E2200;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
   --tour-lit:var(--accent-text);
+  /* the trio: secondary beside the primary, the highlight from across the wheel */
+  --second:#95C6EE; --second-text:#95C6EE; --second-bg:#172028; --second-border:rgba(149,198,238,.34); --on-moment:#2E2200; --sticky-band:rgba(90,60,0,.07); --sticky-curl:rgba(0,0,0,.6);
 }
 
 /* Ink and clay — rosy paper, black ink and clay: the logo's saved ink + clay pair
-   worn as a whole look. Ink fills the buttons and the selected tab, clay carries
-   interactive text and the accent word, and the moment turns electric blue, the one cool note in a warm room, so it never meets
-   the clay. The wordmark takes the same two inks here. The heat ramp stays green. */
+   worn as a whole look, with a peacock blue across the wheel for the highlight. Ink
+   fills the buttons and the selected tab, clay carries interactive text and the
+   accent word, and can't go turns crimson so it never reads as clay. The wordmark
+   takes the same two inks here. The heat ramp stays green. */
 [data-palette="clay"] {
   --bg:#FBF4F1; --s0:#FDF8F6; --s1:#FFFCFB; --s2:#F4E9E4; --s3:#EADBD4;
   --border:#EADBD4; --border2:#D7C3BA;
@@ -333,19 +356,21 @@
   --accent:#1F1B16; --accent-text:#9A4128; --accent-bg:#F7E6DF; --accent-border:#EBCBBE; --on-accent:#FFFCFB;
   --teal:#3F6B55; --teal-text:#31523F; --teal-bg:#E7EFE9; --teal-border:#C6DACC;
   --ochre:#8F6A33; --ochre-text:#72521F; --ochre-bg:#F5ECDC; --ochre-border:#E6D6BA;
-  --brick:#9C4A46; --brick-text:#823C39; --brick-bg:#F5E3E0; --brick-border:#E8CAC5;
-  --moment:#2456F0; --moment-text:#1A44C8; --moment-bg:#E6ECFF; --moment-border:#BCCDFF;
+  --brick:#A11F5A; --brick-text:#8A1A4C; --brick-bg:#F9E1EC; --brick-border:#EEC2D6;
+  --moment:#8ED8E8; --moment-text:#0B6478; --moment-bg:#E0F3F7; --moment-border:#B4E1EA;
   --shadow:0 1px 2px rgba(60,30,25,.05), 0 12px 32px rgba(60,30,25,.07);
-  --em:var(--accent-text);
+  --em:var(--second-text);
   --wm-time:#1F1B16; --wm-meld:#B4502F;
-  --shape-a:#F2D6CA; --shape-b:#D9E2FF; --shape-c:#EEDFD7;
+  --shape-a:var(--second-bg); --shape-b:#F7E6DF; --shape-c:#EEDFD7;
   --tape:rgba(236,214,200,.9);
-  --tape-2:rgba(190,205,255,.75); --pin:#B4502F; --clip:#9A8F8B;
-  --highlight:rgba(240,170,190,.45); --highlight-blend:multiply;
+  --tape-2:rgba(235,203,190,.85); --pin:#B4502F; --clip:#9A8F8B;
+  --highlight:rgba(154,65,40,.14); --highlight-blend:multiply;
   --frame:#FFFCFB; --frame-shadow:0 1px 2px rgba(60,30,25,.06), 0 16px 32px rgba(60,30,25,.12);
-  --sticky:#FADFE5; --sticky-text:#1F1B16; --sticky-dim:#5E4A4D; --sticky-kicker:#1A44C8;
+  --sticky:#8ED8E8; --sticky-text:#062A33; --sticky-dim:#14424E; --sticky-kicker:#062A33;
   --sticky-shadow:0 8px 18px rgba(60,30,25,.10);
   --face-edge:#FFFCFB;
+  /* the trio: secondary beside the primary, the highlight from across the wheel */
+  --second:#9A4128; --second-text:#8E3B23; --second-bg:#F7E6DF; --second-border:#EBCBBE; --on-moment:#062A33; --sticky-band:rgba(0,50,60,.07);
 }
 [data-palette="clay"][data-theme="dark"] {
   --bg:#171314; --s0:#1C1718; --s1:#211B1C; --s2:#2A2324; --s3:#342C2D;
@@ -354,19 +379,21 @@
   --accent:#F1ECE4; --accent-text:#EE9C7E; --accent-bg:rgba(232,145,111,.15); --accent-border:rgba(232,145,111,.38); --on-accent:#1A1516;
   --teal:#5B9A7C; --teal-text:#9BD2B7; --teal-bg:rgba(111,181,151,.14); --teal-border:rgba(111,181,151,.36);
   --ochre:#BD9A5E; --ochre-text:#E1C48F; --ochre-bg:rgba(200,165,100,.15); --ochre-border:rgba(200,165,100,.38);
-  --brick:#C57F78; --brick-text:#E5ACA6; --brick-bg:rgba(205,138,130,.14); --brick-border:rgba(205,138,130,.36);
-  --moment:#5B86FF; --moment-text:#AFC4FF; --moment-bg:rgba(91,134,255,.16); --moment-border:rgba(91,134,255,.42);
+  --brick:#E57D9A; --brick-text:#F0A3B8; --brick-bg:rgba(229,125,154,.14); --brick-border:rgba(229,125,154,.36);
+  --moment:#8ED8E8; --moment-text:#9FE0EE; --moment-bg:rgba(142,216,232,.14); --moment-border:rgba(142,216,232,.38);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
   --wm-time:#F1ECE4; --wm-meld:#E8916F;
-  --shape-a:#31211D; --shape-b:#1E233E; --shape-c:#2B2321;
+  --shape-a:var(--second-bg); --shape-b:#271C1A; --shape-c:#2B2321;
   --tape:rgba(240,205,195,.2);
-  --tape-2:rgba(150,175,255,.2); --pin:#E8916F; --clip:#8A7F7B;
-  --highlight:rgba(232,130,159,.24); --highlight-blend:normal;
+  --tape-2:rgba(238,156,126,.2); --pin:#E8916F; --clip:#8A7F7B;
+  --highlight:rgba(238,156,126,.2); --highlight-blend:normal;
   --frame:#272022; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
-  --sticky:#3A2429; --sticky-text:#F8E4E8; --sticky-dim:#D9BEC4; --sticky-kicker:#AFC4FF;
+  --sticky:#8ED8E8; --sticky-text:#062A33; --sticky-dim:#14424E; --sticky-kicker:#062A33;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
   --face-edge:#5A4C4D;
   --tour-lit:var(--accent-text);
+  /* the trio: secondary beside the primary, the highlight from across the wheel */
+  --second:#EE9C7E; --second-text:#EE9C7E; --second-bg:#2A1E1A; --second-border:rgba(238,156,126,.34); --on-moment:#062A33; --sticky-band:rgba(0,50,60,.07); --sticky-curl:rgba(0,0,0,.6);
 }
 
 /* High contrast — strong lines, saturated color, true black-and-white bases; built for
@@ -379,7 +406,7 @@
   --teal:#006B21; --teal-text:#005A1C; --teal-bg:#DDF5E2; --teal-border:#006B21;
   --ochre:#9A5B00; --ochre-text:#7A4800; --ochre-bg:#FFF0D0; --ochre-border:#9A5B00;
   --brick:#C40000; --brick-text:#A30000; --brick-bg:#FFE1E1; --brick-border:#C40000;
-  --moment:#B8400F; --moment-text:#8F2F08; --moment-bg:#FFE7DA; --moment-border:#B8400F;
+  --moment:#FFB000; --moment-text:#6E4F00; --moment-bg:#FFF0D0; --moment-border:#9A5B00;
   --shadow:0 1px 2px rgba(0,0,0,.25);
   --heat-low:#E4EBFF; --heat-mid:#A9BFFF; --heat-high:#5B7FF2; --heat-full:#0033CC;
   --you-only:#FFF3B8; --you-some:#FFE065; --you-many:#FFD02E; --you-text:#5C4A00; --you-need-edge:#433600;
@@ -403,8 +430,10 @@
   --tape-2:#D6D6D6; --pin:#000000; --clip:#333333;
   --highlight:#FFE065; --highlight-blend:normal;
   --frame:#FFFFFF; --frame-shadow:0 0 0 1px #111111;
-  --sticky:#FFF3B8; --sticky-text:#000000; --sticky-dim:#333333; --sticky-kicker:#8F2F08;
+  --sticky:#FFB000; --sticky-text:#000000; --sticky-dim:#2B1A00; --sticky-kicker:#000000;
   --sticky-shadow:0 0 0 1px #000000;
+  /* the trio: secondary beside the primary, the highlight from across the wheel */
+  --second:#5A1FB0; --second-text:#4A1696; --second-bg:#F1EAFF; --second-border:#5A1FB0; --on-moment:#000000; --em:var(--second-text);
 }
 [data-palette="contrast"][data-theme="dark"] {
   --bg:#000000; --s0:#0A0A0A; --s1:#101010; --s2:#1C1C1C; --s3:#2A2A2A;
@@ -414,7 +443,7 @@
   --teal:#4DDB77; --teal-text:#86EFA5; --teal-bg:rgba(77,219,119,.16); --teal-border:rgba(77,219,119,.55);
   --ochre:#FFC53D; --ochre-text:#FFDC85; --ochre-bg:rgba(255,197,61,.16); --ochre-border:rgba(255,197,61,.55);
   --brick:#FF6161; --brick-text:#FF9C9C; --brick-bg:rgba(255,97,97,.16); --brick-border:rgba(255,97,97,.55);
-  --moment:#FF8A5C; --moment-text:#FFB899; --moment-bg:rgba(255,138,92,.16); --moment-border:rgba(255,138,92,.55);
+  --moment:#FFB000; --moment-text:#FFC85C; --moment-bg:rgba(255,176,0,.16); --moment-border:rgba(255,176,0,.55);
   --shadow:0 1px 2px rgba(0,0,0,.8);
   --heat-low:rgba(125,169,255,.18); --heat-mid:rgba(125,169,255,.40); --heat-high:rgba(125,169,255,.65); --heat-full:#7DA9FF;
   --you-only:rgba(255,197,61,.16); --you-some:rgba(255,197,61,.28); --you-many:rgba(255,197,61,.43); --you-text:#FFDC85; --you-need-edge:var(--you-text);
@@ -439,8 +468,10 @@
   --tape-2:#8A8A8A; --pin:#FFFFFF; --clip:#D0D0D0;
   --highlight:#5C4A00; --highlight-blend:normal;
   --frame:#1C1C1C; --frame-shadow:0 0 0 1px rgba(255,255,255,.55);
-  --sticky:#2E2609; --sticky-text:#FFFFFF; --sticky-dim:#E0E0E0; --sticky-kicker:#FFB899;
+  --sticky:#FFB000; --sticky-text:#000000; --sticky-dim:#2B1A00; --sticky-kicker:#000000;
   --sticky-shadow:0 0 0 1px rgba(255,255,255,.55);
+  /* the trio: secondary beside the primary, the highlight from across the wheel */
+  --second:#C7A8FF; --second-text:#C7A8FF; --second-bg:rgba(199,168,255,.16); --second-border:rgba(199,168,255,.6); --on-moment:#000000;
 }
 
 /* ───────────────── Map semantic tokens → Tailwind utilities (switch per theme) ───────────────── */
@@ -452,7 +483,8 @@
   --color-teal:var(--teal); --color-teal-text:var(--teal-text); --color-teal-bg:var(--teal-bg); --color-teal-border:var(--teal-border);
   --color-ochre:var(--ochre); --color-ochre-text:var(--ochre-text); --color-ochre-bg:var(--ochre-bg); --color-ochre-border:var(--ochre-border);
   --color-brick:var(--brick); --color-brick-text:var(--brick-text); --color-brick-bg:var(--brick-bg); --color-brick-border:var(--brick-border);
-  --color-moment:var(--moment); --color-moment-text:var(--moment-text); --color-moment-bg:var(--moment-bg); --color-moment-border:var(--moment-border);
+  --color-moment:var(--moment); --color-moment-text:var(--moment-text); --color-moment-bg:var(--moment-bg); --color-moment-border:var(--moment-border); --color-on-moment:var(--on-moment);
+  --color-second:var(--second); --color-second-text:var(--second-text); --color-second-bg:var(--second-bg); --color-second-border:var(--second-border);
   /* grid slot lines — a real color token: border-[var(--grid-line)] is ambiguous to
      Tailwind and silently fell back to the global border-color */
   --color-grid-line:var(--grid-line);
