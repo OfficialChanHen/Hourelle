@@ -38,8 +38,8 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Announce } from '@/components/ui/Announce'
 import { TimezonePill, tzAbbr } from '@/components/ui/TimezonePill'
 import {
-  answeredIds, availIvOf, bestWindow, needOnlyIds, rsvpPool, byYouFirst, confirmedSlotText, dayLabel, gridStartMinOf, fmtMinute, fmtMinuteDay, leadingPlaceOf, patchEvent, setMyRsvp, stepOf,
-  type AppEvent, type AvailIntervals, type BestMode, type GridDay, type Iv, type Participant, type Rsvp,
+  answeredIds, availIvOf, bestWindow, needOnlyIds, rsvpPool, byYouFirst, confirmedSlotText, dayLabel, gridStartMinOf, fmtMinute, fmtMinuteDay, leadingPlaceOf, patchEvent, stepOf,
+  type AppEvent, type AvailIntervals, type BestMode, type GridDay, type Iv, type Participant,
 } from '@/lib/events'
 import { computeItinerary } from '@/lib/itinerary'
 import { isAllDay } from '@/lib/slot'
@@ -95,16 +95,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
     setParticipants(event.participants)
   }
 
-  // spot limit: going is first come, first served
-  const goingCount = participants.filter((p) => p.rsvp === 'attending').length
-  const full = event.capacity != null && goingCount >= event.capacity
-
   function persist(patch: Partial<AppEvent>) { if (!event.demo) patchEvent(event.id, patch) }
-  function changeRsvp(r: Rsvp) {
-    if (r === 'attending' && full) return // no sneaking past a disabled button
-    setParticipants((ps) => ps.map((p) => (p.you ? { ...p, rsvp: r, rsvpAuto: undefined } : p)))
-    if (!event.demo) setMyRsvp(event.id, r)
-  }
   function changeQuorum(q: number | null) {
     setQuorum(q)
     persist({ quorum: q ?? undefined })
@@ -206,11 +197,10 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
   return (
     <NeedOnly.Provider value={needOnly}>
     <div className="flex flex-col gap-4">
-      {/* "are you coming" is a locked-stage question; while planning, the ask is your
-          times, and the empty state below asks for them itself */}
-      {locked
-        ? me?.rsvp === 'pending' && <YourRsvpStrip onPick={changeRsvp} full={full} />
-        : mineMissing && !empty && <YourTimesStrip onGo={() => onGoToTab?.('availability')} />}
+      {/* once locked, "are you coming" is asked once, in the locked-in card above the
+          tabs; while planning, the ask is your times, and the empty state below asks
+          for them itself */}
+      {!locked && mineMissing && !empty && <YourTimesStrip onGo={() => onGoToTab?.('availability')} />}
 
       <TabHeading
         eyebrow={locked ? 'Who’s coming' : 'Who can come'}
@@ -313,27 +303,6 @@ function YourTimesStrip({ onGo }: { onGo: () => void }) {
       <button onClick={onGo} className="ml-auto h-8 rounded-full bg-accent px-3 text-[13px] font-semibold text-on-accent">
         Add your availability
       </button>
-    </div>
-  )
-}
-
-/* ── your own reply, right where the counts are ── */
-function YourRsvpStrip({ onPick, full }: { onPick: (r: Rsvp) => void; full: boolean }) {
-  return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-moment-border bg-moment-bg px-4 py-3">
-      <span className="text-[14px] font-semibold text-moment-text">Your turn to reply.</span>
-      <span className="text-[13px] text-dim">{full ? 'It is full, spots went to whoever replied first.' : 'Are you coming?'}</span>
-      <div className="ml-auto flex items-center gap-1.5">
-        <button
-          onClick={() => onPick('attending')} disabled={full}
-          title={full ? 'All spots are taken' : undefined}
-          className="h-11 rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent disabled:opacity-40 sm:h-8 sm:px-3"
-        >
-          Going
-        </button>
-        <button onClick={() => onPick('maybe')} className="h-11 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-semibold text-dim hover:bg-s2 sm:h-8 sm:px-3">Maybe</button>
-        <button onClick={() => onPick('not_going')} className="h-11 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-semibold text-dim hover:bg-s2 sm:h-8 sm:px-3">Can&apos;t go</button>
-      </div>
     </div>
   )
 }

@@ -176,8 +176,11 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <Eyebrow>Time</Eyebrow>
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-2xl border border-border bg-s1 px-5 py-4">
+      {/* related settings share one card, so the page reads as a few groups, not a
+          long run of one-row sections */}
+      <Eyebrow>Time and grid</Eyebrow>
+      <div className="overflow-hidden rounded-2xl border border-border bg-s1">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-4">
         <div className="min-w-0">
           <div className="text-[14px] font-medium">Clock style</div>
           <div className="mt-0.5 text-[12.5px] text-dim">How times read on grids and pickers. 12-hour shows 2:30 PM, 24-hour shows 14:30.</div>
@@ -192,9 +195,7 @@ export default function SettingsPage() {
           />
         )}
       </div>
-
-      <Eyebrow>Preferences</Eyebrow>
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-2xl border border-border bg-s1 px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border px-5 py-4">
         <div className="min-w-0">
           <div className="text-[14px] font-medium">Availability grid</div>
           <div className="mt-0.5 text-[12.5px] text-dim">A plan that starts midweek is squared off with days it never asked about.</div>
@@ -209,26 +210,53 @@ export default function SettingsPage() {
           />
         )}
       </div>
-
-      <Eyebrow>Sounds</Eyebrow>
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-2xl border border-border bg-s1 px-5 py-4">
-        <div className="min-w-0">
-          <div className="text-[14px] font-medium">Alert sounds</div>
-          <div className="mt-0.5 text-[12.5px] text-dim">A short tone for a new message, a different one for a notification.</div>
-        </div>
-        {!ready && <span className="h-6 w-11 animate-pulse rounded-full bg-s2" aria-hidden />}
-        {ready && <Switch on={sound} onChange={changeSound} label="Alert sounds" />}
       </div>
 
-      {/* only an account has a password to change or sessions to end */}
-      {account.signedIn && (
-        <>
-          <Eyebrow>Security</Eyebrow>
-          <SecurityCard account={account} />
-        </>
-      )}
+      <Eyebrow>Notifications</Eyebrow>
+      <div className="overflow-hidden rounded-2xl border border-border bg-s1">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-4">
+          <div className="min-w-0">
+            <div className="text-[14px] font-medium">Alert sounds</div>
+            <div className="mt-0.5 text-[12.5px] text-dim">A short tone for a new message, a different one for a notification.</div>
+          </div>
+          {!ready && <span className="h-6 w-11 animate-pulse rounded-full bg-s2" aria-hidden />}
+          {ready && <Switch on={sound} onChange={changeSound} label="Alert sounds" />}
+        </div>
+        {/* the channel first: reminders arrive by email, to the address on the account.
+            Off, the rows beneath stay as they are but nothing is sent. */}
+        <div className="flex items-center justify-between gap-4 border-t border-border px-5 py-4">
+          <div className="min-w-0">
+            <div className="text-[14px] font-medium">Email reminders</div>
+            <div className="mt-0.5 truncate text-[12.5px] text-dim">
+              {account.signedIn && account.email ? `Sent to ${account.email}` : 'Sent to the address on your account.'}
+            </div>
+          </div>
+          {!ready && <span className="h-6 w-11 animate-pulse rounded-full bg-s2" aria-hidden />}
+          {ready && <Switch on={notify.email} onChange={(v) => changeNotify({ email: v })} label="Email reminders" />}
+        </div>
+        {notifyRows.map((r) => (
+          <div key={r.key} className={`flex items-center justify-between gap-4 border-t border-border px-5 py-4 ${ready && !notify.email ? 'opacity-50' : ''}`}>
+            <div className="min-w-0">
+              <div className="text-[14px] font-medium">{r.label}</div>
+              <div className="mt-0.5 text-[12.5px] text-dim">{r.sub}</div>
+            </div>
+            {!ready && <span className="h-6 w-11 animate-pulse rounded-full bg-s2" aria-hidden />}
+            {ready && <Switch on={notify[r.key]} onChange={(v) => changeNotify({ [r.key]: v })} label={r.label} />}
+          </div>
+        ))}
+        {(!backendOn || !account.signedIn) && (
+          <p className="border-t border-border bg-s0 px-5 py-3 text-[12.5px] leading-[1.55] text-faint">
+            {!backendOn
+              ? 'Saved on this device. Emails go out once a backend is set up.'
+              : 'Log in and these choices follow your account. Reminders go out by email.'}
+          </p>
+        )}
+      </div>
 
-      <Eyebrow>Pricing</Eyebrow>
+      <Eyebrow>Account</Eyebrow>
+      <div className="flex flex-col gap-3">
+      {/* only an account has a password to change or sessions to end */}
+      {account.signedIn && <SecurityCard account={account} />}
       <div className="rounded-2xl border border-border bg-s1 px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
@@ -269,50 +297,17 @@ export default function SettingsPage() {
           </ul>
         )}
       </div>
-
-      <Eyebrow>Reminders</Eyebrow>
-      <div className="overflow-hidden rounded-2xl border border-border bg-s1">
-        {/* the channel first: reminders arrive by email, to the address on the account.
-            Off, the rows beneath stay as they are but nothing is sent. */}
-        <div className="flex items-center justify-between gap-4 px-5 py-4">
-          <div className="min-w-0">
-            <div className="text-[14px] font-medium">Email reminders</div>
-            <div className="mt-0.5 truncate text-[12.5px] text-dim">
-              {account.signedIn && account.email ? `Sent to ${account.email}` : 'Sent to the address on your account.'}
-            </div>
-          </div>
-          {!ready && <span className="h-6 w-11 animate-pulse rounded-full bg-s2" aria-hidden />}
-          {ready && <Switch on={notify.email} onChange={(v) => changeNotify({ email: v })} label="Email reminders" />}
-        </div>
-        {notifyRows.map((r) => (
-          <div key={r.key} className={`flex items-center justify-between gap-4 border-t border-border px-5 py-4 ${ready && !notify.email ? 'opacity-50' : ''}`}>
-            <div className="min-w-0">
-              <div className="text-[14px] font-medium">{r.label}</div>
-              <div className="mt-0.5 text-[12.5px] text-dim">{r.sub}</div>
-            </div>
-            {!ready && <span className="h-6 w-11 animate-pulse rounded-full bg-s2" aria-hidden />}
-            {ready && <Switch on={notify[r.key]} onChange={(v) => changeNotify({ [r.key]: v })} label={r.label} />}
-          </div>
-        ))}
-        {(!backendOn || !account.signedIn) && (
-          <p className="border-t border-border bg-s0 px-5 py-3 text-[12.5px] leading-[1.55] text-faint">
-            {!backendOn
-              ? 'Saved on this device. Emails go out once a backend is set up.'
-              : 'Log in and these choices follow your account. Reminders go out by email.'}
-          </p>
-        )}
       </div>
 
       {/* the tour and the hints moved to Help, where a guest can reach them too;
           this row is for anyone who still looks for them here */}
-      <Eyebrow>Learning the app</Eyebrow>
-      <Link href="/help#learn" className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-s1 px-5 py-4 hover:bg-s2">
+      <Eyebrow>More</Eyebrow>
+      <div className="overflow-hidden rounded-2xl border border-border bg-s1">
+      <Link href="/help#learn" className="flex items-center justify-between gap-4 px-5 py-4 hover:bg-s2">
         <span className="text-[14px] font-medium">The tour and hints</span>
         <span className="flex items-center gap-1 text-[13px] font-semibold text-accent-text">On the Help page <ChevronRight size={15} /></span>
       </Link>
-
-      <Eyebrow>Start over</Eyebrow>
-      <div className="rounded-2xl border border-border bg-s1 px-5 py-4">
+      <div className="border-t border-border px-5 py-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="text-[14px] font-medium">Restore defaults</div>
@@ -338,6 +333,7 @@ export default function SettingsPage() {
         )}
         {resetState === 'done' && <p className="mt-2 text-[12.5px] text-teal-text">Back to the defaults.</p>}
         {resetState === 'failed' && <p className="mt-2 text-[12.5px] text-brick-text">The device settings are back, but the account could not be reset{resetErr ? `: ${resetErr}` : '.'}</p>}
+      </div>
       </div>
     </div>
   )

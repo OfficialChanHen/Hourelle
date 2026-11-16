@@ -58,6 +58,7 @@ import { canEmail, sendInvites } from '@/lib/mail'
 import { InviteByEmail } from '@/components/InviteByEmail'
 import { DurationField } from '@/components/ui/DurationField'
 import { useAccount } from '@/hooks/useAccount'
+import { cleanEmail, isEmail, wholeAmount } from '@/lib/forgiving'
 import { OverflowText } from '@/components/ui/OverflowText'
 import { DaysPicker } from '@/components/ui/DaysPicker'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
@@ -619,7 +620,7 @@ function CreateWizard() {
                     <div className="flex items-center gap-2">
                       <div className="relative min-w-0 flex-1">
                         <span className="pointer-events-none absolute left-[13px] top-1/2 -translate-y-1/2 text-dim">$</span>
-                        <input id="ev-budget" inputMode="numeric" placeholder="0" value={form.budget} onChange={(e) => update({ budget: e.target.value.replace(/[^\d]/g, '') })} className={`${inputCls(false)} pl-7`} />
+                        <input id="ev-budget" inputMode="numeric" placeholder="0" value={form.budget} onChange={(e) => update({ budget: wholeAmount(e.target.value) })} className={`${inputCls(false)} pl-7`} />
                       </div>
                       <Segmented label="Budget type" value={form.budgetMode} onChange={(v) => update({ budgetMode: v as 'total' | 'person' })} options={[{ v: 'total', l: 'Total' }, { v: 'person', l: 'Per person' }]} />
                     </div>
@@ -1200,9 +1201,9 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
   // and colour come with them and they need no personal link; any other address
   // becomes an email invite with a link of its own
   async function addEmail() {
-    const e = draft.trim().toLowerCase()
+    const e = cleanEmail(draft)
     if (!e) return
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { setNote('That does not look like an email address.'); return }
+    if (!isEmail(e)) { setNote('That does not look like an email address.'); return }
     if (isOwnEmail(e)) { setNote('That is your own address. You are the host, so you are already in.'); return }
     setNote(null)
     setChecking(true)
