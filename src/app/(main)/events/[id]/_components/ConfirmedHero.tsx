@@ -25,6 +25,9 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
   const me = event.participants.find((p) => p.you)
   const myRsvp = me?.rsvp
   const [confirmReopen, setConfirmReopen] = useState(false)
+  // with every spot taken, Going stays open only to someone who already holds one
+  const goingCount = event.participants.filter((p) => p.rsvp === 'attending').length
+  const full = event.capacity != null && goingCount >= event.capacity && myRsvp !== 'attending'
   function answer(v: Rsvp) {
     setMyRsvp(event.id, v)
     onChanged()
@@ -114,14 +117,18 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
                 key={o.v}
                 onClick={() => answer(o.v)}
                 aria-pressed={on}
-                className={`flex h-11 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold sm:h-8 sm:px-3 ${on ? o.on : 'border-border2 bg-s1 text-dim hover:bg-s2 hover:text-text'}`}
+                disabled={full && o.v === 'attending'}
+                title={full && o.v === 'attending' ? 'All spots are taken' : undefined}
+                className={`flex h-11 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold sm:h-8 sm:px-3 disabled:opacity-40 ${on ? o.on : 'border-border2 bg-s1 text-dim hover:bg-s2 hover:text-text'}`}
               >
                 <Icon size={14} /> {o.label}
               </button>
             )
           })}
         </div>
-        {me?.rsvpAuto ? (
+        {full ? (
+          <span className="text-[12.5px] text-faint">It is full, spots went to whoever replied first.</span>
+        ) : me?.rsvpAuto ? (
           <span className="text-[12.5px] text-faint">
             {myRsvp === 'attending'
               ? 'Marked going from your times. Change it if that’s wrong.'

@@ -58,6 +58,7 @@ import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/
 import { Hint } from '@/components/ui/Hint'
 import { Tour, type TourContext } from '@/components/Tour'
 import { AskTour } from '@/components/AskTour'
+import { cleanEmail, isEmail, wholeAmount } from '@/lib/forgiving'
 import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, patchEventWith, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
@@ -779,12 +780,12 @@ function KeepThisPlan({ eventId, defaultEmail }: { eventId: string; defaultEmail
   const [email, setEmail] = useState(defaultEmail ?? '')
   const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle')
   const [error, setError] = useState<string | null>(null)
-  const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+  const ok = isEmail(cleanEmail(email))
   async function send(e: React.FormEvent) {
     e.preventDefault()
     if (!ok || state === 'sending') return
     setState('sending'); setError(null)
-    const err = await sendMagicLink(email.trim().toLowerCase(), `/events/${eventId}`)
+    const err = await sendMagicLink(cleanEmail(email), `/events/${eventId}`)
     if (err) { setError(err); setState('idle'); return }
     setState('sent')
   }
@@ -1675,7 +1676,7 @@ function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Pa
   const [mode, setMode] = useState<'total' | 'person'>(event.budgetMode ?? 'total')
 
   function changeBudget(v: string) {
-    const clean = v.replace(/[^\d]/g, '').slice(0, 7)
+    const clean = wholeAmount(v)
     setBudget(clean)
     onPatch({ budget: clean })
   }

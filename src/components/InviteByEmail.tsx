@@ -5,6 +5,7 @@ import { Check, Info, Loader2, Mail, Send, X } from 'lucide-react'
 import { getEvent, isOwnEmail, type AppEvent } from '@/lib/events'
 import { inviteByEmail } from '@/lib/invitees'
 import { sendInvites } from '@/lib/mail'
+import { pickEmails } from '@/lib/forgiving'
 
 function FieldError({ children }: { children: React.ReactNode }) {
   return <p className="mt-1.5 flex items-center gap-1 text-[12.5px] font-medium text-brick-text"><Info size={12} /> {children}</p>
@@ -12,11 +13,10 @@ function FieldError({ children }: { children: React.ReactNode }) {
 
 /* ── invite people by email ──
    Used on the "your event is live" screen and on the event page for people the
-   host has not invited yet. Addresses collect as chips; a paste of several, split on commas or spaces, lands
-   as several. Each address becomes a guest with a personal link and is emailed it
+   host has not invited yet. Addresses collect as chips; a paste of several, split on commas or spaces or
+   copied from a mail client as "Name <address>", lands as several. Each address becomes a guest with a personal link and is emailed it
    by the app. Only render it when the app can send (see canEmail): with email off,
    the copy button is the way to share, and nobody is added by hand. */
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 export function InviteByEmail({ event, onAdded, label = 'Or send it by email' }: { event: AppEvent; onAdded: (ev: AppEvent) => void; label?: string }) {
   const [draft, setDraft] = useState('')
   const [list, setList] = useState<string[]>([])
@@ -26,9 +26,8 @@ export function InviteByEmail({ event, onAdded, label = 'Or send it by email' }:
 
   // take whatever is in the box: one address, or a pasted handful
   function take(raw: string): boolean {
-    const parts = raw.split(/[\s,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean)
-    if (!parts.length) return false
-    const bad = parts.find((x) => !EMAIL_RE.test(x))
+    const { emails: parts, bad } = pickEmails(raw)
+    if (!parts.length && !bad) return false
     if (bad) { setNote(`${bad} does not look like an email address.`); return false }
     if (parts.some(isOwnEmail)) { setNote('That is your own address. You are already on the list as the host.'); return false }
     const dup = parts.find((x) => onRoster.has(x))
@@ -43,7 +42,7 @@ export function InviteByEmail({ event, onAdded, label = 'Or send it by email' }:
 
   async function send() {
     if (draft.trim() && !take(draft)) return
-    const emails = draft.trim() ? Array.from(new Set([...list, ...draft.split(/[\s,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean)])) : list
+    const emails = draft.trim() ? Array.from(new Set([...list, ...pickEmails(draft).emails])) : list
     if (!emails.length) return
     setDraft('')
     setState({ kind: 'sending' })
