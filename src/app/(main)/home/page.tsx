@@ -377,8 +377,8 @@ function NotesBoard({ turns, eventIds, wide, hasPlans }: { turns: { x: Item; t: 
               <StickyNote
                 tilt={i % 2 ? 1.2 : -1.5}
                 kicker={n.done
-                  ? <span className="flex items-center gap-1.5 text-sticky-text"><PencilTick ink="accent" size={16} /> Done</span>
-                  : <><PencilStar size={16} className="-mt-0.5 mr-1" />Your turn</>}
+                  ? <span className="flex items-center gap-1.5 text-sticky-text"><PencilTick ink="note" size={16} /> Done</span>
+                  : <><PencilStar ink="note" size={16} className="-mt-0.5 mr-1" />Your turn</>}
                 className="min-h-[172px]"
               >
                 <span className="font-serif text-[18px] leading-[1.15] [overflow-wrap:anywhere]">{n.title}</span>
@@ -388,7 +388,7 @@ function NotesBoard({ turns, eventIds, wide, hasPlans }: { turns: { x: Item; t: 
                   ? <span className="text-[13px] leading-[1.4] text-sticky-dim line-through decoration-1">{n.line}</span>
                   : n.due && <span className="text-[13px] leading-[1.4] text-sticky-dim">By {n.due}</span>}
                 {!n.done && n.href && (
-                  <Link href={n.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent sm:h-9">
+                  <Link href={n.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-sticky-text px-3.5 text-[13px] font-semibold text-sticky sm:h-9">
                     {noteLabel(n.cta)}
                   </Link>
                 )}
@@ -402,7 +402,7 @@ function NotesBoard({ turns, eventIds, wide, hasPlans }: { turns: { x: Item; t: 
             <StickyNote tilt={1.2} className="min-h-[172px]">
               <span className="font-serif text-[30px] leading-none">+{more}</span>
               <span className="text-[13px] leading-[1.4] text-sticky-dim">more waiting on you</span>
-              <span className="mt-auto flex h-11 items-center gap-1 self-start text-[13px] font-semibold text-accent-text sm:h-9">See them <ArrowRight size={14} aria-hidden /></span>
+              <span className="mt-auto flex h-11 items-center gap-1 self-start text-[13px] font-semibold text-sticky-text underline underline-offset-4 sm:h-9">See them <ArrowRight size={14} aria-hidden /></span>
             </StickyNote>
           </Link>
         )}

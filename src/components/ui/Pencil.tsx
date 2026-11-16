@@ -19,8 +19,8 @@ import { reducedMotion } from '@/lib/prefs'
    circle its box, an arrow is measured from its note to its target), never from a
    fixed decorative shape. */
 
-export type Ink = 'accent' | 'moment' | 'graphite'
-const STROKE: Record<Ink, string> = { accent: 'stroke-accent', moment: 'stroke-moment', graphite: 'stroke-dim' }
+export type Ink = 'accent' | 'moment' | 'graphite' | 'note'
+const STROKE: Record<Ink, string> = { accent: 'stroke-accent', moment: 'stroke-moment-text', graphite: 'stroke-dim', note: 'stroke-sticky-text' }
 export const PENCIL_FILTER = 'hourelle-pencil'
 
 /** The grain every mark shares. Mount once, near the top of the page. */

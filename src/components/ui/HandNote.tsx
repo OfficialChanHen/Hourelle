@@ -10,7 +10,7 @@ import type { Ink } from './Pencil'
    under 17px. It repeats something the card already says in plain type, so a
    screen reader skips it. */
 const caveat = Caveat({ subsets: ['latin'], weight: ['500', '600'], display: 'swap' })
-const INK: Record<Ink, string> = { accent: 'text-accent-text', moment: 'text-moment-text', graphite: 'text-dim' }
+const INK: Record<Ink, string> = { accent: 'text-accent-text', moment: 'text-moment-text', graphite: 'text-dim', note: 'text-sticky-text' }
 
 export const HandNote = forwardRef<HTMLSpanElement, { children: React.ReactNode; ink?: Ink; className?: string }>(
   function HandNote({ children, ink = 'moment', className = '' }, ref) {
