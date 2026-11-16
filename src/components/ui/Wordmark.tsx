@@ -15,8 +15,11 @@ import { Em } from '@/components/ui/Em'
 
    Once per browser session, on the first wordmark that mounts and only once its tab is in
    view, it plays the meld, so the name reads as the two words it is made of: time and meld
-   start apart, each in its own ink, drift together until they share their me, soften
-   where they overlap and settle into the marbled cut. A ripple then runs along the cut for
+   start apart along the cut's slant, time up and left, meld down and right, each in its
+   own ink. They slide in a line apart until their me's stand one over the other, like a
+   crossword, so no letter ever runs over a different one (on one line, time's e crossed
+   meld's m and read as "timmeld"); then they drop together, soften where the me's meet
+   and settle into the marbled cut. A ripple then runs along the cut for
    a few seconds and comes to rest; the logo stays still while people work. A mouse hover
    eases the words apart and brings them back. Reduced motion shows it still.
 
@@ -38,6 +41,9 @@ const STREAKS = [
   { time: true, off: 13, a: -30, b: 44, w: 8, amp: 6, k: 14, ph: 1.2 },
   { time: false, off: -16, a: -62, b: 14, w: 9, amp: 7, k: 12, ph: 2.4 },
 ]
+// the intro's two words: how far each stands off the baseline (time up, meld down; the
+// pair clears the me's x-height with a hair to spare) and how far apart they start sideways
+const LIFT = 29, SLIDE = 40
 const FACE = { fontFamily: 'var(--font-lora), Georgia, serif', fontWeight: 600, letterSpacing: '-0.025em' }
 
 // the intro plays once per browser session (the root layout flags the first visit on
@@ -125,9 +131,10 @@ function MeldWordmark({ className = '', still = false, anchor = 'centre' }: Word
     const reduce = reducedMotion()
     let w = FALLBACK
     let tl: gsap.core.Timeline | null = null, settle: gsap.core.Tween | null = null
-    // shift: how far apart the two words stand; pair/mo: the two-word layer and the
+    // shift: how far apart the two words stand side to side; lift: how far apart in lines
+    // (1 is a full line, time above and meld below); pair/mo: the two-word layer and the
     // marbled one, crossfading; soft/psoft: their blurs while the inks meld
-    const st = { ...REST, o: 1, shift: 0, pair: 0, mo: 1, soft: 0, psoft: 0 }
+    const st = { ...REST, o: 1, shift: 0, lift: 0, pair: 0, mo: 1, soft: 0, psoft: 0 }
 
     const filterIf = (g: Element, v: number, fe: Element, f: string) => {
       if (v > 0.05) { fe.setAttribute('stdDeviation', v.toFixed(2)); g.setAttribute('filter', `url(#${f})`) }
@@ -145,8 +152,10 @@ function MeldWordmark({ className = '', still = false, anchor = 'centre' }: Word
         pair.style.display = ''
         pair.setAttribute('opacity', st.pair.toFixed(3))
         const lead = anchor === 'time' ? 0 : st.shift / 2
-        pTime.setAttribute('transform', `translate(${f2(-lead)},0)`)
-        pMeld.setAttribute('transform', `translate(${f2(st.shift - lead)},0)`)
+        // a big logo above a headline sits its two lines higher, so meld clears the text below
+        const y = st.lift * LIFT, up = anchor === 'time' ? y * 0.6 : 0
+        pTime.setAttribute('transform', `translate(${f2(-lead)},${f2(-y - up)})`)
+        pMeld.setAttribute('transform', `translate(${f2(st.shift - lead)},${f2(y - up)})`)
         filterIf(pair, st.psoft, pblur, `${id}p`)
       } else pair.style.display = 'none'
     }
@@ -170,8 +179,6 @@ function MeldWordmark({ className = '', still = false, anchor = 'centre' }: Word
       clip.setAttribute('width', f2(60 + w.time))
       pMeld.setAttribute('x', f2(w.ti))
     }
-    // far enough apart that the two words stand clear of each other, with a word gap
-    const apart = () => w.time - w.ti + 26
 
     // after a meld the ripple runs along the cut for a few seconds and comes to rest
     function settleRipple() {
@@ -179,32 +186,35 @@ function MeldWordmark({ className = '', still = false, anchor = 'centre' }: Word
       settle = gsap.to(st, { phase: '+=2.4', rip: 0, duration: 3, ease: 'sine.inOut', onUpdate: render })
     }
 
-    // the words drift together, overlap in their me, soften there and settle into the cut
+    // the words slide in a line apart until their me's stand one over the other, hold
+    // there a beat so each reads whole, then drop together, the me landing on its twin,
+    // soften there and settle into the cut. at is when the drop starts.
     function together(t: gsap.core.Timeline, at: number) {
-      t.to(st, { shift: 0, duration: 1.25, ease: 'power2.inOut' }, at)
-        .to(st, { psoft: 1.1, duration: 0.45, ease: 'sine.in' }, at + 0.75)
-        .to(st, { pair: 0, mo: 1, duration: 0.6, ease: 'sine.inOut' }, at + 0.95)
-        .to(st, { soft: 0, amp: 1, duration: 0.9, ease: 'sine.inOut' }, at + 0.95)
-        .to(st, { sw: 1, duration: 0.8, ease: 'sine.out' }, at + 1.05)
+      t.to(st, { lift: 0, duration: 0.42, ease: 'power2.inOut' }, at)
+        .to(st, { psoft: 1.1, duration: 0.25, ease: 'sine.in' }, at + 0.2)
+        .to(st, { pair: 0, mo: 1, duration: 0.5, ease: 'sine.inOut' }, at + 0.32)
+        .to(st, { soft: 0, amp: 1, duration: 0.85, ease: 'sine.inOut' }, at + 0.32)
+        .to(st, { sw: 1, duration: 0.7, ease: 'sine.out' }, at + 0.42)
     }
     const melding = { amp: 0.3, sw: 0, rip: 1, phase: -0.6, soft: 4 }
 
     function intro() {
       tl?.kill(); settle?.kill()
-      Object.assign(st, melding, { o: 0, shift: apart(), pair: 1, mo: 0, psoft: 0 })
+      Object.assign(st, melding, { o: 0, shift: SLIDE, lift: 1, pair: 1, mo: 0, psoft: 0 })
       render()
       tl = gsap.timeline({ delay: 0.2, onUpdate: render, onComplete: settleRipple })
         .to(st, { o: 1, duration: 0.3, ease: 'sine.out' }, 0)
-      together(tl, 0)
+        .to(st, { shift: 0, duration: 0.7, ease: 'power2.out' }, 0)
+      together(tl, 0.95)
     }
-    // a hover first eases the words apart, then brings them back together
+    // a hover lifts the words onto their two lines, then brings them back together
     function replay() {
       tl?.kill(); settle?.kill()
       tl = gsap.timeline({ onUpdate: render, onComplete: settleRipple })
-        .to(st, { pair: 1, mo: 0, psoft: 0, duration: 0.25, ease: 'sine.out' }, 0)
-        .to(st, { shift: apart() * 0.55, duration: 0.45, ease: 'power2.out' }, 0)
-        .set(st, melding, 0.25)
-      together(tl, 0.45)
+        .to(st, { pair: 1, mo: 0, psoft: 0, duration: 0.2, ease: 'sine.out' }, 0)
+        .to(st, { lift: 1, duration: 0.35, ease: 'power2.out' }, 0)
+        .set(st, melding, 0.2)
+      together(tl, 0.6)
     }
 
     // the first wordmark of a session's first visit claims the intro and drops the flag
@@ -223,7 +233,7 @@ function MeldWordmark({ className = '', still = false, anchor = 'centre' }: Word
     const start = contextSafe(() => {
       if (!svg.isConnected) return
       fit()
-      if (!claim || reduce) { Object.assign(st, REST, { o: 1, shift: 0, pair: 0, mo: 1, soft: 0, psoft: 0 }); render(); return }
+      if (!claim || reduce) { Object.assign(st, REST, { o: 1, shift: 0, lift: 0, pair: 0, mo: 1, soft: 0, psoft: 0 }); render(); return }
       // a tab opened in the background waits until it is seen
       if (document.visibilityState === 'visible') intro()
       else document.addEventListener('visibilitychange', onShow)
