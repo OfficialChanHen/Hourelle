@@ -11,17 +11,17 @@
    serif, the hairlines and the spacing, so it survives the cooler ground and sits
    beside a work calendar without looking like a filter. */
 :root {
-  --bg:#FAF6EF; --s0:#FCF9F4; --s1:#FFFDF9; --s2:#F3EDE3; --s3:#EAE2D5;
-  --border:#EAE2D5; --border2:#D6CCBC;
+  --bg:#F8F2E6; --s0:#FBF7EF; --s1:#FFFDF9; --s2:#F1E8D8; --s3:#E7DCC8;
+  --border:#E7DCC8; --border2:#D3C5AD;
   --text:#1F1B16; --dim:#655D52; --faint:#6B6358;
   --accent:#2E6B4E; --accent-text:#23543D; --accent-bg:#E4F0E7; --accent-border:#C3DCCB; --on-accent:#FFFDF9;
   --teal:#3F6B55; --teal-text:#31523F; --teal-bg:#E7EFE9; --teal-border:#C6DACC;
   --ochre:#8F6A33; --ochre-text:#72521F; --ochre-bg:#F5ECDC; --ochre-border:#E6D6BA;
   --brick:#9C4A46; --brick-text:#823C39; --brick-bg:#F5E3E0; --brick-border:#E8CAC5;
-  /* coral: the moment role. Things that ask for you now or celebrate: "Your turn",
+  /* watermelon: the moment role, the one surprise beside the sand and green. Things that ask for you now or celebrate: "Your turn",
      the Up next eyebrow, the share-first card, a plan locking in. A role like ochre
      and brick, never a button, link or selected state (those stay the accent). */
-  --moment:#C4603F; --moment-text:#A0452A; --moment-bg:#FBE8DF; --moment-border:#F1C9B8;
+  --moment:#D6416A; --moment-text:#AE2A4E; --moment-bg:#FCE6EC; --moment-border:#F4C3D0;
   --shadow:0 1px 2px rgba(60,40,20,.05), 0 12px 32px rgba(60,40,20,.07);
 
   /* the display face — a palette may swap it (see Studio) */
@@ -44,7 +44,7 @@
   --grid-edge:#A7A49D;
   --grid-dash:#A7A49D;
   /* best-day header fill — must be opaque: it's a sticky surface content scrolls under */
-  --best-head:#F3ECDF;
+  --best-head:#F1E7D6;
   /* the n/N count in a heat cell: the theme's own ink, so it holds up on the cell
      background and every heat band short of full; the saturated full band flips to cream */
   --heat-count:#1A1917; --heat-count-full:#F7F6F4;
@@ -83,7 +83,7 @@
   /* scrapbook + soft flow: only for moments (covers, Up next, It's on, empty
      states), never on a decision surface. Soft shapes are the organic colour behind
      a page region; text sits on them, so dim and faint clear 4.5:1 on each. */
-  --shape-a:#E4F0E7; --shape-b:#FBE8DF; --shape-c:#F3EBDD;
+  --shape-a:#D5E8DA; --shape-b:#F8DEE1; --shape-c:#F0E2CA;
   /* a translucent strip of tape holding a photo frame down */
   --tape:rgba(233,218,182,.9);
   /* a second tape tint, a pin head and a paper clip, for cards that should each look
@@ -96,7 +96,7 @@
   /* the photo frame: a near-white card on paper, a lifted card on charcoal */
   --frame:#FFFDF9; --frame-shadow:0 1px 2px rgba(60,40,20,.06), 0 16px 32px rgba(60,40,20,.12);
   /* the sticky note for "Your turn": its own warm paper and inks, all 4.5:1 on it */
-  --sticky:#F7EBC9; --sticky-text:#1F1B16; --sticky-dim:#5C5140; --sticky-kicker:#A0452A;
+  --sticky:#F7EBC9; --sticky-text:#1F1B16; --sticky-dim:#5C5140; --sticky-kicker:#AE2A4E;
   --sticky-shadow:0 8px 18px rgba(60,40,20,.10);
   /* the post-it's glue band and the shadow under its lifted corner */
   --sticky-band:rgba(120,90,30,.07); --sticky-curl:rgba(60,40,20,.30);
@@ -116,7 +116,7 @@
   --teal:#5B9A7C; --teal-text:#9BD2B7; --teal-bg:rgba(111,181,151,.14); --teal-border:rgba(111,181,151,.36);
   --ochre:#BD9A5E; --ochre-text:#E1C48F; --ochre-bg:rgba(200,165,100,.15); --ochre-border:rgba(200,165,100,.38);
   --brick:#C57F78; --brick-text:#E5ACA6; --brick-bg:rgba(205,138,130,.14); --brick-border:rgba(205,138,130,.36);
-  --moment:#E08868; --moment-text:#F4B8A0; --moment-bg:rgba(224,136,104,.15); --moment-border:rgba(224,136,104,.40);
+  --moment:#EE7A96; --moment-text:#F7B4C5; --moment-bg:rgba(238,122,150,.15); --moment-border:rgba(238,122,150,.40);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
 
   --heat-low:rgba(127,183,154,.14); --heat-mid:rgba(127,183,154,.30); --heat-high:rgba(127,183,154,.55); --heat-full:#5B9A7C;
@@ -155,12 +155,12 @@
   --person-amber-ink:#BFA978;  --person-pink-ink:#C39CA2; --person-green-ink:#A3B88A; --person-gray-ink:#A8A296;
   /* the sticker edge on charcoal: a warm light rim, quieter than paper white */
   --face-edge:#5A5247; --face-lift:drop-shadow(0 1px 1.5px rgba(0,0,0,.55));
-  --shape-a:#1B231D; --shape-b:#261C17; --shape-c:#231F18;
+  --shape-a:#1C261E; --shape-b:#331F24; --shape-c:#29241A;
   --tape:rgba(236,224,196,.22);
   --tape-2:rgba(160,200,175,.22); --pin:#C9A36A; --clip:#8A857B;
   --highlight:rgba(214,182,96,.26); --highlight-blend:normal;
   --frame:#25221D; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
-  --sticky:#3A3220; --sticky-text:#F5ECD2; --sticky-dim:#D6C9A6; --sticky-kicker:#F4B8A0;
+  --sticky:#3A3220; --sticky-text:#F5ECD2; --sticky-dim:#D6C9A6; --sticky-kicker:#F7B4C5;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
   --sticky-band:rgba(255,240,200,.05); --sticky-curl:rgba(0,0,0,.65);
   --mount:#0E0D0B; --mount-fold:#3A352E;
@@ -172,108 +172,109 @@
    data-theme still picks light or dark inside it, so the sun/moon toggle keeps
    working everywhere. Each block redefines the full token set. */
 
-/* Studio — cool neutral, ink as the accent, and the display face drops to the
+/* Studio — stone-blue greys and ink, Egyptian blue for interactive text and scarlet
+   for the moment, with danger moved to oxblood so it never meets the scarlet. Ink as the accent, and the display face drops to the
    grotesk. The quiet register for anyone who wants no warmth at all. The heat ramp
    stays green: "free" has to read as free whatever the chrome is doing. Ink fills
    (buttons, the selected tab) with a restrained blue for interactive TEXT — a pure
    monochrome would make every link look like body copy. */
 [data-palette="studio"] {
-  --bg:#F7F7F8; --s0:#FBFBFC; --s1:#FFFFFF; --s2:#F0F0F2; --s3:#E4E4E8;
-  --border:#E6E6EA; --border2:#D2D2D8;
-  --text:#18181B; --dim:#63636B; --faint:#6D6D75;
-  --accent:#18181B; --accent-text:#34438A; --accent-bg:#EAECF3; --accent-border:#CCD2E5; --on-accent:#FFFFFF;
+  --bg:#F5F7F9; --s0:#FAFBFC; --s1:#FFFFFF; --s2:#EDF0F4; --s3:#E0E5EB;
+  --border:#E1E6EC; --border2:#C9D0D9;
+  --text:#161A20; --dim:#5A6270; --faint:#5F6774;
+  --accent:#161A20; --accent-text:#1034A6; --accent-bg:#E6ECFA; --accent-border:#BFCDF0; --on-accent:#FFFFFF;
   --teal:#2F7A5A; --teal-text:#256448; --teal-bg:#E5F2EB; --teal-border:#C3DFD0;
   --ochre:#A16A1B; --ochre-text:#7F5314; --ochre-bg:#F6EEDD; --ochre-border:#E8D8B6;
-  --brick:#B2413B; --brick-text:#93342F; --brick-bg:#F8E5E3; --brick-border:#EBC8C5;
-  --moment:#C0583A; --moment-text:#9A3F24; --moment-bg:#FAEAE3; --moment-border:#EDCBBE;
+  --brick:#8E2F3C; --brick-text:#7A2734; --brick-bg:#F6E3E5; --brick-border:#E8C5CA;
+  --moment:#D92B1A; --moment-text:#B01F0E; --moment-bg:#FDEAE6; --moment-border:#F6C6BD;
   --shadow:0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
   --heat-low:#E7F1EB; --heat-mid:#C6E0D1; --heat-high:#8FBEA3; --heat-full:#2F7A5A;
   --you-only:#F6EEDD; --you-some:#EBDDBC; --you-many:#DCC894; --you-text:#625226;
   --grid-line:#7E8087; --grid-edge:#AAACB2; --grid-dash:#AAACB2;
   --best-head:#F6EEDD;
-  --heat-count:#18181B; --heat-count-full:#FFFFFF;
+  --heat-count:#161A20; --heat-count-full:#FFFFFF;
   --raised-shadow:0 1px 2px rgba(0,0,0,.10);
   --em:var(--text);
   --glass-tint:rgba(251,251,252,.26);
-  --shape-a:#EFF1F6; --shape-b:#F7F1EE; --shape-c:#F2F2F5;
-  --tape:rgba(214,216,224,.85);
-  --tape-2:rgba(200,210,225,.8); --pin:#6D6D75; --clip:#9A9AA3;
+  --shape-a:#E1E8F2; --shape-b:#F8E3E0; --shape-c:#E3E8EF;
+  --tape:rgba(208,216,228,.85);
+  --tape-2:rgba(200,210,225,.8); --pin:#D92B1A; --clip:#9A9AA3;
   --highlight:rgba(190,200,225,.6); --highlight-blend:multiply;
   --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(0,0,0,.05), 0 14px 30px rgba(0,0,0,.09);
-  --sticky:#F4F0E4; --sticky-text:#18181B; --sticky-dim:#56534A; --sticky-kicker:#9A3F24;
+  --sticky:#F4F0E4; --sticky-text:#18181B; --sticky-dim:#56534A; --sticky-kicker:#B01F0E;
   --sticky-shadow:0 8px 18px rgba(0,0,0,.08);
 }
 [data-palette="studio"][data-theme="dark"] {
-  --bg:#0F0F10; --s0:#141416; --s1:#19191C; --s2:#202024; --s3:#2A2A30;
-  --border:rgba(236,236,240,.10); --border2:rgba(236,236,240,.18);
-  --text:#ECECEE; --dim:#A1A1A9; --faint:#888890;
-  --accent:#ECECEE; --accent-text:#A3B4EE; --accent-bg:rgba(163,180,238,.14); --accent-border:rgba(163,180,238,.36); --on-accent:#111113;
+  --bg:#0E1013; --s0:#13161A; --s1:#181B20; --s2:#1F2329; --s3:#292E36;
+  --border:rgba(225,232,242,.10); --border2:rgba(225,232,242,.18);
+  --text:#ECEEF2; --dim:#A0A7B3; --faint:#878E9A;
+  --accent:#ECEEF2; --accent-text:#A9BEF5; --accent-bg:rgba(120,150,240,.15); --accent-border:rgba(120,150,240,.38); --on-accent:#101317;
   --teal:#5FAF89; --teal-text:#9AD6B9; --teal-bg:rgba(95,175,137,.14); --teal-border:rgba(95,175,137,.36);
   --ochre:#C9A05A; --ochre-text:#E6C88E; --ochre-bg:rgba(201,160,90,.15); --ochre-border:rgba(201,160,90,.38);
-  --brick:#D2837C; --brick-text:#EBB0AA; --brick-bg:rgba(210,131,124,.14); --brick-border:rgba(210,131,124,.36);
-  --moment:#E08C6E; --moment-text:#F2BBA6; --moment-bg:rgba(224,140,110,.15); --moment-border:rgba(224,140,110,.40);
+  --brick:#C77683; --brick-text:#E8A9B3; --brick-bg:rgba(199,118,131,.15); --brick-border:rgba(199,118,131,.38);
+  --moment:#FF5A44; --moment-text:#FFAA9C; --moment-bg:rgba(255,90,68,.15); --moment-border:rgba(255,90,68,.42);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
   --heat-low:rgba(95,175,137,.14); --heat-mid:rgba(95,175,137,.30); --heat-high:rgba(95,175,137,.55); --heat-full:#5FAF89;
   --you-only:rgba(201,160,90,.18); --you-some:rgba(201,160,90,.34); --you-many:rgba(201,160,90,.5); --you-text:#EFD9AC;
   --grid-line:rgba(236,236,240,.36); --grid-edge:rgba(236,236,240,.2); --grid-dash:rgba(236,236,240,.36);
   --best-head:#2A2820;
-  --heat-count:#ECECEE; --heat-count-full:#0F0F10;
+  --heat-count:#ECEEF2; --heat-count-full:#0E1013;
   --glass-tint:rgba(16,16,17,.34);
-  --shape-a:#17181D; --shape-b:#1C1716; --shape-c:#19181C;
+  --shape-a:#1E2632; --shape-b:#36201F; --shape-c:#20252D;
   --tape:rgba(220,222,232,.18);
-  --tape-2:rgba(200,210,225,.16); --pin:#A1A1A9; --clip:#6D6D75;
-  --highlight:rgba(163,180,238,.24); --highlight-blend:normal;
+  --tape-2:rgba(200,210,225,.16); --pin:#FF5A44; --clip:#6D6D75;
+  --highlight:rgba(169,190,245,.24); --highlight-blend:normal;
   --frame:#222226; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
-  --sticky:#2B2921; --sticky-text:#EFEBDD; --sticky-dim:#C9C3B0; --sticky-kicker:#F2BBA6;
+  --sticky:#2B2921; --sticky-text:#EFEBDD; --sticky-dim:#C9C3B0; --sticky-kicker:#FFAA9C;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
 }
 
-/* Daylight — bright white and a clear blue. The most familiar of the set, and the one
-   to pick if your whole day already happens in a scheduling grid. */
+/* Daylight — bright white, Egyptian blue and stone-blue chrome, with flamingo pink for
+   the moment. The clear-blue look, without borrowing anyone's brand colours. */
 [data-palette="daylight"] {
-  --bg:#F8FAFD; --s0:#FFFFFF; --s1:#FFFFFF; --s2:#F1F3F4; --s3:#E8EAED;
-  --border:#E0E3E7; --border2:#C4C7C5;
-  --text:#1F1F1F; --dim:#5F6368; --faint:#6B6F74;
-  --accent:#0B57D0; --accent-text:#0B57D0; --accent-bg:#E8F0FE; --accent-border:#C6DAFC; --on-accent:#FFFFFF;
-  --teal:#188038; --teal-text:#137333; --teal-bg:#E6F4EA; --teal-border:#CEEAD6;
-  --ochre:#F29900; --ochre-text:#AA5C00; --ochre-bg:#FEF7E0; --ochre-border:#FEEFC3;
-  --brick:#D93025; --brick-text:#C5221F; --brick-bg:#FCE8E6; --brick-border:#FAD2CF;
-  --moment:#E0623A; --moment-text:#B2401C; --moment-bg:#FDECE4; --moment-border:#F9CDBB;
-  --shadow:0 1px 2px rgba(60,64,67,.12), 0 8px 24px rgba(60,64,67,.10);
-  --heat-low:#E8F0FE; --heat-mid:#AECBFA; --heat-high:#669DF6; --heat-full:#0B57D0;
+  --bg:#F7F9FC; --s0:#FFFFFF; --s1:#FFFFFF; --s2:#EFF2F6; --s3:#E3E8EF;
+  --border:#DFE5EC; --border2:#C1CBD7;
+  --text:#131A27; --dim:#4C596C; --faint:#556175;
+  --accent:#1238B0; --accent-text:#1238B0; --accent-bg:#E7EDFB; --accent-border:#C0CEF1; --on-accent:#FFFFFF;
+  --teal:#2E7A55; --teal-text:#22613F; --teal-bg:#E4F2EA; --teal-border:#C2DFCE;
+  --ochre:#9A6A1E; --ochre-text:#7A5212; --ochre-bg:#FAF0DC; --ochre-border:#EDD9B0;
+  --brick:#B3261E; --brick-text:#A01F18; --brick-bg:#FCE8E6; --brick-border:#F5CBC6;
+  --moment:#CF3685; --moment-text:#A61C63; --moment-bg:#FCE6F1; --moment-border:#F3BFDA;
+  --shadow:0 1px 2px rgba(20,40,80,.08), 0 8px 24px rgba(20,40,80,.08);
+  --heat-low:#EAEFF8; --heat-mid:#C6D4F0; --heat-high:#8AA4E0; --heat-full:#1238B0;
   --you-only:#FEF7E0; --you-some:#FDE293; --you-many:#FDD663; --you-text:#7A5800; --you-need-edge:#624600;
-  --grid-line:#80868B; --grid-edge:#AEB3B8; --grid-dash:#AEB3B8;
+  --grid-line:#7B8593; --grid-edge:#A9B2BE; --grid-dash:#A9B2BE;
   --best-head:#FEF7E0;
-  --heat-count:#0B316D; --heat-count-full:#FFFFFF;
-  --shape-a:#EEF4FE; --shape-b:#F4F6FA; --shape-c:#F1F4F9;
+  --heat-count:#0A1F63; --heat-count-full:#FFFFFF;
+  --shape-a:#D8E3F8; --shape-b:#F8D6E9; --shape-c:#E4EAF3;
   --tape:rgba(253,226,147,.7);
-  --tape-2:rgba(174,203,250,.7); --pin:#0B57D0; --clip:#9AA0A6;
+  --tape-2:rgba(245,185,215,.7); --pin:#CF3685; --clip:#8A95A3;
   --highlight:rgba(253,214,99,.55); --highlight-blend:multiply;
-  --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(60,64,67,.12), 0 14px 30px rgba(60,64,67,.12);
-  --sticky:#FEF3CD; --sticky-text:#1F1F1F; --sticky-dim:#5A4F30; --sticky-kicker:#B2401C;
-  --sticky-shadow:0 8px 18px rgba(60,64,67,.12);
+  --frame:#FFFFFF; --frame-shadow:0 1px 2px rgba(20,40,80,.10), 0 14px 30px rgba(20,40,80,.11);
+  --sticky:#FEF3CD; --sticky-text:#1F1F1F; --sticky-dim:#5A4F30; --sticky-kicker:#A61C63;
+  --sticky-shadow:0 8px 18px rgba(20,40,80,.10);
 }
 [data-palette="daylight"][data-theme="dark"] {
-  --bg:#131314; --s0:#1A1A1C; --s1:#1E1F21; --s2:#28292C; --s3:#333539;
-  --border:rgba(232,234,237,.11); --border2:rgba(232,234,237,.20);
-  --text:#E8EAED; --dim:#9AA0A6; --faint:#8A9096;
-  --accent:#A8C7FA; --accent-text:#A8C7FA; --accent-bg:rgba(168,199,250,.14); --accent-border:rgba(168,199,250,.38); --on-accent:#062E6F;
-  --teal:#81C995; --teal-text:#81C995; --teal-bg:rgba(129,201,149,.14); --teal-border:rgba(129,201,149,.36);
-  --ochre:#FDD663; --ochre-text:#FDD663; --ochre-bg:rgba(253,214,99,.14); --ochre-border:rgba(253,214,99,.36);
+  --bg:#10131A; --s0:#151922; --s1:#191E28; --s2:#212733; --s3:#2B3240;
+  --border:rgba(220,230,245,.11); --border2:rgba(220,230,245,.20);
+  --text:#E8ECF3; --dim:#A3ADBD; --faint:#8D97A8;
+  --accent:#A9BEF5; --accent-text:#A9BEF5; --accent-bg:rgba(169,190,245,.14); --accent-border:rgba(169,190,245,.38); --on-accent:#0A1F63;
+  --teal:#5FAF89; --teal-text:#9AD6B9; --teal-bg:rgba(95,175,137,.14); --teal-border:rgba(95,175,137,.36);
+  --ochre:#C9A05A; --ochre-text:#E6C88E; --ochre-bg:rgba(201,160,90,.15); --ochre-border:rgba(201,160,90,.38);
   --brick:#F28B82; --brick-text:#F28B82; --brick-bg:rgba(242,139,130,.14); --brick-border:rgba(242,139,130,.36);
-  --moment:#F59E7C; --moment-text:#F7AE92; --moment-bg:rgba(245,158,124,.14); --moment-border:rgba(245,158,124,.38);
+  --moment:#F07CBA; --moment-text:#F9B8DA; --moment-bg:rgba(240,124,186,.15); --moment-border:rgba(240,124,186,.40);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
-  --heat-low:rgba(138,180,248,.14); --heat-mid:rgba(138,180,248,.30); --heat-high:rgba(138,180,248,.55); --heat-full:#8AB4F8;
+  --heat-low:rgba(140,165,240,.14); --heat-mid:rgba(140,165,240,.30); --heat-high:rgba(140,165,240,.55); --heat-full:#8AA4F0;
   --you-only:rgba(253,214,99,.12); --you-some:rgba(253,214,99,.22); --you-many:rgba(253,214,99,.34); --you-text:#FDD663; --you-need-edge:var(--you-text);
   --grid-line:rgba(232,234,237,.38); --grid-edge:rgba(232,234,237,.22); --grid-dash:rgba(232,234,237,.38);
   --best-head:#33301C;
-  --heat-count:#F3F7FE; --heat-count-full:#0A2A5C;
-  --shape-a:#172031; --shape-b:#1E2026; --shape-c:#1A1F27;
+  --heat-count:#F3F7FE; --heat-count-full:#0A1A4F;
+  --shape-a:#1F2C45; --shape-b:#3A2034; --shape-c:#242B38;
   --tape:rgba(253,214,99,.2);
-  --tape-2:rgba(168,199,250,.2); --pin:#A8C7FA; --clip:#80868B;
+  --tape-2:rgba(169,190,245,.2); --pin:#F07CBA; --clip:#7B8593;
   --highlight:rgba(253,214,99,.2); --highlight-blend:normal;
-  --frame:#26272A; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
-  --sticky:#3A3420; --sticky-text:#FDF0C8; --sticky-dim:#D9CC9F; --sticky-kicker:#F7AE92;
+  --frame:#1F2430; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
+  --sticky:#3A3420; --sticky-text:#FDF0C8; --sticky-dim:#D9CC9F; --sticky-kicker:#F9B8DA;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
 }
 
@@ -292,7 +293,7 @@
   --moment:#E0623A; --moment-text:#B2401C; --moment-bg:#FFEBE2; --moment-border:#F9CDBB;
   --shadow:0 1px 2px rgba(20,60,70,.06), 0 12px 32px rgba(20,60,70,.08);
   --em:var(--accent-text);
-  --shape-a:#E3F3F2; --shape-b:#FFEDE5; --shape-c:#F7EEDD;
+  --shape-a:#CDEBE9; --shape-b:#FFDED1; --shape-c:#F4E2C0;
   --tape:rgba(240,220,170,.85);
   --tape-2:rgba(180,225,225,.85); --pin:#E0623A; --clip:#9A958B;
   --highlight:rgba(255,205,120,.5); --highlight-blend:multiply;
@@ -311,7 +312,7 @@
   --brick:#C57F78; --brick-text:#E5ACA6; --brick-bg:rgba(205,138,130,.14); --brick-border:rgba(205,138,130,.36);
   --moment:#F08A68; --moment-text:#FFBDA3; --moment-bg:rgba(240,138,104,.15); --moment-border:rgba(240,138,104,.40);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
-  --shape-a:#16221F; --shape-b:#2A1D17; --shape-c:#231F18;
+  --shape-a:#1B2926; --shape-b:#32241C; --shape-c:#2C261B;
   --tape:rgba(240,220,170,.2);
   --tape-2:rgba(143,220,221,.2); --pin:#F08A68; --clip:#8A857B;
   --highlight:rgba(240,190,120,.24); --highlight-blend:normal;
@@ -323,7 +324,7 @@
 
 /* Ink and clay — rosy paper, black ink and clay: the logo's saved ink + clay pair
    worn as a whole look. Ink fills the buttons and the selected tab, clay carries
-   interactive text and the accent word, and the moment turns rose so it never meets
+   interactive text and the accent word, and the moment turns electric blue, the one cool note in a warm room, so it never meets
    the clay. The wordmark takes the same two inks here. The heat ramp stays green. */
 [data-palette="clay"] {
   --bg:#FBF4F1; --s0:#FDF8F6; --s1:#FFFCFB; --s2:#F4E9E4; --s3:#EADBD4;
@@ -333,16 +334,16 @@
   --teal:#3F6B55; --teal-text:#31523F; --teal-bg:#E7EFE9; --teal-border:#C6DACC;
   --ochre:#8F6A33; --ochre-text:#72521F; --ochre-bg:#F5ECDC; --ochre-border:#E6D6BA;
   --brick:#9C4A46; --brick-text:#823C39; --brick-bg:#F5E3E0; --brick-border:#E8CAC5;
-  --moment:#C24B6E; --moment-text:#9E2F52; --moment-bg:#FBE4EB; --moment-border:#F2C4D2;
+  --moment:#2456F0; --moment-text:#1A44C8; --moment-bg:#E6ECFF; --moment-border:#BCCDFF;
   --shadow:0 1px 2px rgba(60,30,25,.05), 0 12px 32px rgba(60,30,25,.07);
   --em:var(--accent-text);
   --wm-time:#1F1B16; --wm-meld:#B4502F;
-  --shape-a:#F7E6DF; --shape-b:#F9E5EB; --shape-c:#F3ECE6;
+  --shape-a:#F2D6CA; --shape-b:#D9E2FF; --shape-c:#EEDFD7;
   --tape:rgba(236,214,200,.9);
-  --tape-2:rgba(240,200,212,.85); --pin:#B4502F; --clip:#9A8F8B;
+  --tape-2:rgba(190,205,255,.75); --pin:#B4502F; --clip:#9A8F8B;
   --highlight:rgba(240,170,190,.45); --highlight-blend:multiply;
   --frame:#FFFCFB; --frame-shadow:0 1px 2px rgba(60,30,25,.06), 0 16px 32px rgba(60,30,25,.12);
-  --sticky:#FADFE5; --sticky-text:#1F1B16; --sticky-dim:#5E4A4D; --sticky-kicker:#9E2F52;
+  --sticky:#FADFE5; --sticky-text:#1F1B16; --sticky-dim:#5E4A4D; --sticky-kicker:#1A44C8;
   --sticky-shadow:0 8px 18px rgba(60,30,25,.10);
   --face-edge:#FFFCFB;
 }
@@ -354,15 +355,15 @@
   --teal:#5B9A7C; --teal-text:#9BD2B7; --teal-bg:rgba(111,181,151,.14); --teal-border:rgba(111,181,151,.36);
   --ochre:#BD9A5E; --ochre-text:#E1C48F; --ochre-bg:rgba(200,165,100,.15); --ochre-border:rgba(200,165,100,.38);
   --brick:#C57F78; --brick-text:#E5ACA6; --brick-bg:rgba(205,138,130,.14); --brick-border:rgba(205,138,130,.36);
-  --moment:#E8829F; --moment-text:#F6B5C8; --moment-bg:rgba(232,130,159,.15); --moment-border:rgba(232,130,159,.40);
+  --moment:#5B86FF; --moment-text:#AFC4FF; --moment-bg:rgba(91,134,255,.16); --moment-border:rgba(91,134,255,.42);
   --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 36px rgba(0,0,0,.45);
   --wm-time:#F1ECE4; --wm-meld:#E8916F;
-  --shape-a:#271C1A; --shape-b:#2A1B21; --shape-c:#221D1C;
+  --shape-a:#31211D; --shape-b:#1E233E; --shape-c:#2B2321;
   --tape:rgba(240,205,195,.2);
-  --tape-2:rgba(246,181,200,.2); --pin:#E8916F; --clip:#8A7F7B;
+  --tape-2:rgba(150,175,255,.2); --pin:#E8916F; --clip:#8A7F7B;
   --highlight:rgba(232,130,159,.24); --highlight-blend:normal;
   --frame:#272022; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
-  --sticky:#3A2429; --sticky-text:#F8E4E8; --sticky-dim:#D9BEC4; --sticky-kicker:#F6B5C8;
+  --sticky:#3A2429; --sticky-text:#F8E4E8; --sticky-dim:#D9BEC4; --sticky-kicker:#AFC4FF;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
   --face-edge:#5A4C4D;
   --tour-lit:var(--accent-text);
@@ -596,6 +597,122 @@ input[type="date"]::-webkit-date-and-time-value {
 
 /* High contrast keeps the page plain: no soft shapes behind it (SoftShapes.tsx) */
 [data-palette="contrast"] .soft-shapes { display: none; }
+
+/* ── Paper ────────────────────────────────────────────────────────────────────
+   The page is a sheet of paper, so the scrapbook kit (tape, frames, notes, pencil)
+   sits on something it could stick to. Recycled stock: fine grain, long fibres, a
+   few specks and a slow mottle, all neutral ink tiles that take their hue from the
+   paper colour under them (multiplied on light paper, screened on dark). Static,
+   never animated. Cards, the grid, fields and buttons keep their clean surfaces.
+
+   Each appearance has its own sheet, the same on every page and in light and dark:
+   the house paper is crumpled (the stock crushed and smoothed out again), Studio is
+   graph paper, Daylight a lined notebook page, Breeze polka dots, and Ink and clay
+   the plain stock, neat. High contrast keeps a flat page. */
+:root {
+  --paper-grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2  0 0 0 0 .17  0 0 0 0 .12  0 0 0 .26 -.09'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --paper-fibre:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='500'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.006 .18' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .25  0 0 0 0 .2  0 0 0 0 .14  0 0 0 .8 -.52'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  --paper-speck:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='s' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.32' numOctaves='1' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .24  0 0 0 0 .2  0 0 0 0 .15  0 0 0 22 -16.7'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23s)'/%3E%3C/svg%3E");
+  --paper-mottle:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='m' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.005' numOctaves='3' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3  0 0 0 0 .25  0 0 0 0 .18  0 0 0 .16 -.04'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E");
+  /* crushed paper: creases lit from the top left, a flat sheet renders white so only
+     the crease shadows darken when it is multiplied in */
+  --paper-wrinkle:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='w' filterUnits='userSpaceOnUse' x='-40' y='-40' width='980' height='980'%3E%3CfeTurbulence x='0' y='0' width='900' height='900' type='turbulence' baseFrequency='.0055556' numOctaves='5' seed='5' stitchTiles='stitch'/%3E%3CfeTile/%3E%3CfeColorMatrix type='luminanceToAlpha'/%3E%3CfeDiffuseLighting surfaceScale='7' diffuseConstant='1.42' lighting-color='%23fff'%3E%3CfeDistantLight azimuth='225' elevation='50'/%3E%3C/feDiffuseLighting%3E%3CfeComponentTransfer%3E%3CfeFuncR type='gamma' exponent='1.25' amplitude='.85' offset='.15'/%3E%3CfeFuncG type='gamma' exponent='1.25' amplitude='.85' offset='.15'/%3E%3CfeFuncB type='gamma' exponent='1.25' amplitude='.85' offset='.15'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect x='-40' y='-40' width='980' height='980' filter='url(%23w)'/%3E%3C/svg%3E");
+  --paper-blend:multiply;
+  /* nothing: a stand-in for a sheet layer the page does not use */
+  --paper-none:linear-gradient(transparent, transparent);
+  --sheet-dot:color-mix(in oklab, var(--shape-b) 55%, var(--border2));
+  --sheet-line:color-mix(in oklab, var(--border2) 40%, transparent);
+  --sheet-rule:color-mix(in oklab, var(--accent) 22%, transparent);
+
+  /* torn edges for paper scraps (SoftShapes): masks that tile along an edge, so a tear
+     keeps its scale on a phone and across a wide desktop */
+  --tear-top:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='14'%3E%3Cpath d='M0 5L2 4.2L4.2 4.6L8.8 4.9L12.2 5.9L14.9 5.4L21.1 3.3L24.1 5.4L28.9 3.9L32.5 3L35.4 5.9L37.5 6.5L42.1 6L48.9 6.6L51 6.2L57.7 3.7L63.7 5.9L70.7 4.7L74 3.1L80.8 4.4L87.1 6.5L93.9 5.7L98.4 4.7L105.1 4.7L111.1 3.9L113.4 7.9L115.9 5.2L119.8 3.4L123.7 5.3L128.5 3.4L135.3 6.1L140.2 6.4L145.4 4.2L150.1 6.8L154.9 3.6L157.7 5.8L161.2 4.5L167.5 5L170.7 7.7L177.1 6L180.8 4.7L182.8 1L187.6 6.2L191.1 7L195.6 3.7L200.9 4L204.2 5.5L208.5 5L213 6.2L219.1 5.2L222.2 4.5L224.7 4.5L227.7 6.7L231.7 6.4L237.8 4L240 5L240 14L0 14Z'/%3E%3C/svg%3E");
+  --tear-bottom:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='14'%3E%3Cpath d='M0 9L2 9.8L4.2 9.4L8.8 9.1L12.2 8.1L14.9 8.6L21.1 10.7L24.1 8.6L28.9 10.1L32.5 11L35.4 8.1L37.5 7.5L42.1 8L48.9 7.4L51 7.8L57.7 10.3L63.7 8.1L70.7 9.3L74 10.9L80.8 9.6L87.1 7.5L93.9 8.3L98.4 9.3L105.1 9.3L111.1 10.1L113.4 6.1L115.9 8.8L119.8 10.6L123.7 8.7L128.5 10.6L135.3 7.9L140.2 7.6L145.4 9.8L150.1 7.2L154.9 10.4L157.7 8.2L161.2 9.5L167.5 9L170.7 6.3L177.1 8L180.8 9.3L182.8 13L187.6 7.8L191.1 7L195.6 10.3L200.9 10L204.2 8.5L208.5 9L213 7.8L219.1 8.8L222.2 9.5L224.7 9.5L227.7 7.3L231.7 7.6L237.8 10L240 9L240 0L0 0Z'/%3E%3C/svg%3E");
+  --tear-left:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='240'%3E%3Cpath d='M5 0L4.2 2L4.6 4.2L4.9 8.8L5.9 12.2L5.4 14.9L3.3 21.1L5.4 24.1L3.9 28.9L3 32.5L5.9 35.4L6.5 37.5L6 42.1L6.6 48.9L6.2 51L3.7 57.7L5.9 63.7L4.7 70.7L3.1 74L4.4 80.8L6.5 87.1L5.7 93.9L4.7 98.4L4.7 105.1L3.9 111.1L7.9 113.4L5.2 115.9L3.4 119.8L5.3 123.7L3.4 128.5L6.1 135.3L6.4 140.2L4.2 145.4L6.8 150.1L3.6 154.9L5.8 157.7L4.5 161.2L5 167.5L7.7 170.7L6 177.1L4.7 180.8L1 182.8L6.2 187.6L7 191.1L3.7 195.6L4 200.9L5.5 204.2L5 208.5L6.2 213L5.2 219.1L4.5 222.2L4.5 224.7L6.7 227.7L6.4 231.7L4 237.8L5 240L14 240L14 0Z'/%3E%3C/svg%3E");
+  --tear-right:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='240'%3E%3Cpath d='M9 0L9.8 2L9.4 4.2L9.1 8.8L8.1 12.2L8.6 14.9L10.7 21.1L8.6 24.1L10.1 28.9L11 32.5L8.1 35.4L7.5 37.5L8 42.1L7.4 48.9L7.8 51L10.3 57.7L8.1 63.7L9.3 70.7L10.9 74L9.6 80.8L7.5 87.1L8.3 93.9L9.3 98.4L9.3 105.1L10.1 111.1L6.1 113.4L8.8 115.9L10.6 119.8L8.7 123.7L10.6 128.5L7.9 135.3L7.6 140.2L9.8 145.4L7.2 150.1L10.4 154.9L8.2 157.7L9.5 161.2L9 167.5L6.3 170.7L8 177.1L9.3 180.8L13 182.8L7.8 187.6L7 191.1L10.3 195.6L10 200.9L8.5 204.2L9 208.5L7.8 213L8.8 219.1L9.5 222.2L9.5 224.7L7.3 227.7L7.6 231.7L10 237.8L9 240L0 240L0 0Z'/%3E%3C/svg%3E");
+  --tear2-top:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='14'%3E%3Cpath d='M0 5L2 6.7L5.5 4.4L9.3 5.8L11.9 3.3L14.3 5.5L18.2 3.9L20.7 3.4L27.3 9.3L32 5.7L38.8 3.5L42.8 6L46.7 5.1L50.5 6L55.4 5L62.2 6.6L64.8 5.6L71.3 3.9L77.6 6.9L81.7 3.4L83.8 6L87 6.9L90.3 4.3L95.8 4.9L98.5 3.6L100.7 4.5L105.1 4.8L107.5 3L112.7 6.9L115.6 4.4L117.7 6.1L123.6 3.7L130 5.1L136.7 6.2L139 5.3L142.6 4.8L147.5 6.8L152 5.8L157.5 8L160.1 5.5L162.9 6.1L168.1 3.3L170.2 5.3L173.2 4L176.3 6.6L180.1 3.8L183.3 4.1L185.4 3.5L190.9 4.2L195.5 3.5L199.4 3.7L203.7 5.6L209.7 4L215.1 3.1L218.5 6.3L222 6.3L224.7 3.5L229.1 6.2L234.5 5.8L240 5L240 14L0 14Z'/%3E%3C/svg%3E");
+  --tear2-bottom:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='14'%3E%3Cpath d='M0 9L2 7.3L5.5 9.6L9.3 8.2L11.9 10.7L14.3 8.5L18.2 10.1L20.7 10.6L27.3 4.699999999999999L32 8.3L38.8 10.5L42.8 8L46.7 8.9L50.5 8L55.4 9L62.2 7.4L64.8 8.4L71.3 10.1L77.6 7.1L81.7 10.6L83.8 8L87 7.1L90.3 9.7L95.8 9.1L98.5 10.4L100.7 9.5L105.1 9.2L107.5 11L112.7 7.1L115.6 9.6L117.7 7.9L123.6 10.3L130 8.9L136.7 7.8L139 8.7L142.6 9.2L147.5 7.2L152 8.2L157.5 6L160.1 8.5L162.9 7.9L168.1 10.7L170.2 8.7L173.2 10L176.3 7.4L180.1 10.2L183.3 9.9L185.4 10.5L190.9 9.8L195.5 10.5L199.4 10.3L203.7 8.4L209.7 10L215.1 10.9L218.5 7.7L222 7.7L224.7 10.5L229.1 7.8L234.5 8.2L240 9L240 0L0 0Z'/%3E%3C/svg%3E");
+  --tear2-left:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='240'%3E%3Cpath d='M5 0L6.7 2L4.4 5.5L5.8 9.3L3.3 11.9L5.5 14.3L3.9 18.2L3.4 20.7L9.3 27.3L5.7 32L3.5 38.8L6 42.8L5.1 46.7L6 50.5L5 55.4L6.6 62.2L5.6 64.8L3.9 71.3L6.9 77.6L3.4 81.7L6 83.8L6.9 87L4.3 90.3L4.9 95.8L3.6 98.5L4.5 100.7L4.8 105.1L3 107.5L6.9 112.7L4.4 115.6L6.1 117.7L3.7 123.6L5.1 130L6.2 136.7L5.3 139L4.8 142.6L6.8 147.5L5.8 152L8 157.5L5.5 160.1L6.1 162.9L3.3 168.1L5.3 170.2L4 173.2L6.6 176.3L3.8 180.1L4.1 183.3L3.5 185.4L4.2 190.9L3.5 195.5L3.7 199.4L5.6 203.7L4 209.7L3.1 215.1L6.3 218.5L6.3 222L3.5 224.7L6.2 229.1L5.8 234.5L5 240L14 240L14 0Z'/%3E%3C/svg%3E");
+  --tear2-right:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='240'%3E%3Cpath d='M9 0L7.3 2L9.6 5.5L8.2 9.3L10.7 11.9L8.5 14.3L10.1 18.2L10.6 20.7L4.699999999999999 27.3L8.3 32L10.5 38.8L8 42.8L8.9 46.7L8 50.5L9 55.4L7.4 62.2L8.4 64.8L10.1 71.3L7.1 77.6L10.6 81.7L8 83.8L7.1 87L9.7 90.3L9.1 95.8L10.4 98.5L9.5 100.7L9.2 105.1L11 107.5L7.1 112.7L9.6 115.6L7.9 117.7L10.3 123.6L8.9 130L7.8 136.7L8.7 139L9.2 142.6L7.2 147.5L8.2 152L6 157.5L8.5 160.1L7.9 162.9L10.7 168.1L8.7 170.2L10 173.2L7.4 176.3L10.2 180.1L9.9 183.3L10.5 185.4L9.8 190.9L10.5 195.5L10.3 199.4L8.4 203.7L10 209.7L10.9 215.1L7.7 218.5L7.7 222L10.5 224.7L7.8 229.1L8.2 234.5L9 240L0 240L0 0Z'/%3E%3C/svg%3E");
+}
+/* on dark paper the same tiles are light ink, screened, and fainter */
+[data-theme="dark"] {
+  --paper-grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .95  0 0 0 0 .9  0 0 0 0 .82  0 0 0 .12 -.04'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --paper-fibre:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='500'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.006 .18' numOctaves='2' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .95  0 0 0 0 .9  0 0 0 0 .82  0 0 0 .36 -.24'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  --paper-speck:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='s' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.32' numOctaves='1' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .95  0 0 0 0 .9  0 0 0 0 .82  0 0 0 10 -7.6'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23s)'/%3E%3C/svg%3E");
+  --paper-mottle:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='m' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.005' numOctaves='3' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .95  0 0 0 0 .9  0 0 0 0 .82  0 0 0 .07 -.02'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23m)'/%3E%3C/svg%3E");
+  /* the creases stay shadows on charcoal too (multiplied, softer): screened light
+     creases read as rock, not paper */
+  --paper-wrinkle:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cfilter id='w' filterUnits='userSpaceOnUse' x='-40' y='-40' width='980' height='980'%3E%3CfeTurbulence x='0' y='0' width='900' height='900' type='turbulence' baseFrequency='.0055556' numOctaves='5' seed='5' stitchTiles='stitch'/%3E%3CfeTile/%3E%3CfeColorMatrix type='luminanceToAlpha'/%3E%3CfeDiffuseLighting surfaceScale='7' diffuseConstant='1.42' lighting-color='%23fff'%3E%3CfeDistantLight azimuth='225' elevation='50'/%3E%3C/feDiffuseLighting%3E%3CfeComponentTransfer%3E%3CfeFuncR type='gamma' exponent='1.25' amplitude='.6' offset='.4'/%3E%3CfeFuncG type='gamma' exponent='1.25' amplitude='.6' offset='.4'/%3E%3CfeFuncB type='gamma' exponent='1.25' amplitude='.6' offset='.4'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect x='-40' y='-40' width='980' height='980' filter='url(%23w)'/%3E%3C/svg%3E");
+  --paper-blend:screen;
+  --sheet-dot:color-mix(in oklab, var(--shape-b) 60%, var(--text) 12%);
+}
+
+body {
+  --sheet-a:var(--paper-none); --sheet-b:var(--paper-none); --sheet-c:var(--paper-none);
+  background-color:var(--bg);
+  background-image:var(--sheet-a), var(--sheet-b), var(--paper-speck), var(--paper-fibre), var(--paper-grain), var(--paper-mottle), var(--sheet-c);
+  background-size:var(--sheet-size, auto), var(--sheet-size, auto), auto, auto, auto, auto, auto;
+  background-position:0 0, var(--sheet-offset, 0 0), 0 0, 0 0, 0 0, 0 0, 0 0;
+  /* the creases are always shadows, multiplied in, on light and dark paper alike */
+  background-blend-mode:var(--paper-blend), var(--paper-blend), var(--paper-blend), var(--paper-blend), var(--paper-blend), var(--paper-blend), multiply;
+}
+/* the house paper: crumpled */
+body { --sheet-c:var(--paper-wrinkle); }
+/* Studio: graph paper, a fine square grid in the faint rule ink */
+[data-palette="studio"] body {
+  --sheet-a:linear-gradient(90deg, var(--sheet-line) 1px, transparent 1px);
+  --sheet-b:linear-gradient(180deg, var(--sheet-line) 1px, transparent 1px);
+  --sheet-size:24px 24px; --sheet-c:var(--paper-none);
+}
+/* Daylight: a lined notebook page, rules in a wash of the accent blue */
+[data-palette="daylight"] body {
+  --sheet-a:repeating-linear-gradient(180deg, transparent 0 31px, var(--sheet-rule) 31px 32px);
+  --sheet-size:auto; --sheet-c:var(--paper-none);
+}
+/* Breeze: polka dots, two offset rows of small dots in the soft pink shape ink */
+[data-palette="breeze"] body {
+  --sheet-a:radial-gradient(circle, var(--sheet-dot) 0 2px, transparent 2.6px);
+  --sheet-b:radial-gradient(circle, var(--sheet-dot) 0 2px, transparent 2.6px);
+  --sheet-size:30px 30px; --sheet-offset:15px 15px; --sheet-c:var(--paper-none);
+}
+/* Ink and clay: the plain stock, neat, so the bold inks carry the page */
+[data-palette="clay"] body { --sheet-c:var(--paper-none); }
+[data-palette="contrast"] body { background-image:none; }
+
+/* a scrap of paper behind a page region (SoftShapes.tsx): a torn coloured piece over
+   a lighter rim, the paper's white core where it tore. Both carry the paper stock. */
+.scrap { position:absolute; filter:drop-shadow(0 1px 1px rgba(60,40,20,.07)); }
+[data-theme="dark"] .scrap { filter:drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
+.scrap > span { position:absolute; inset:0; }
+.scrap > .scrap-rim { background:var(--scrap-rim); inset:-3px -2px; }
+.scrap-face {
+  background-color:var(--scrap);
+  background-image:var(--scrap-pattern, var(--paper-none)), var(--paper-fibre), var(--paper-grain);
+  background-size:var(--scrap-pattern-size, auto), auto, auto;
+  background-blend-mode:var(--paper-blend);
+}
+:root { --scrap-rim:#FFFDF9; }
+[data-theme="dark"] { --scrap-rim:var(--s3); }
+/* which edges tore: a mask tile per torn edge, a solid middle for the rest */
+.scrap-tb > span { mask-image:var(--tear-top), linear-gradient(#000 0 0), var(--tear-bottom); mask-position:0 0, 0 50%, 0 100%; mask-size:240px 14px, 100% calc(100% - 26px), 240px 14px; mask-repeat:repeat-x, no-repeat, repeat-x; }
+.scrap-tb > .scrap-rim { mask-image:var(--tear2-top), linear-gradient(#000 0 0), var(--tear2-bottom); }
+.scrap-b > span { mask-image:linear-gradient(#000 0 0), var(--tear-bottom); mask-position:0 0, 0 100%; mask-size:100% calc(100% - 13px), 240px 14px; mask-repeat:no-repeat, repeat-x; }
+.scrap-b > .scrap-rim { mask-image:linear-gradient(#000 0 0), var(--tear2-bottom); }
+.scrap-all > span {
+  mask-image:var(--tear-top), var(--tear-left), linear-gradient(#000 0 0), var(--tear-right), var(--tear-bottom);
+  mask-position:0 0, 0 0, 50% 50%, 100% 0, 0 100%;
+  mask-size:240px 14px, 14px 240px, calc(100% - 26px) calc(100% - 26px), 14px 240px, 240px 14px;
+  mask-repeat:repeat-x, repeat-y, no-repeat, repeat-y, repeat-x;
+}
+.scrap-all > .scrap-rim { mask-image:var(--tear2-top), var(--tear2-left), linear-gradient(#000 0 0), var(--tear2-right), var(--tear2-bottom); }
+/* a torn-out page of a notebook: faint rules and a margin line */
+.scrap-lined { --scrap-pattern:linear-gradient(90deg, transparent 34px, var(--moment-border) 34px 35px, transparent 35px), repeating-linear-gradient(180deg, transparent 0 21px, var(--border2) 21px 22px); --scrap-pattern-size:100% 100%, 100% 100%; }
+/* a scrap of graph paper */
+.scrap-grid { --scrap-pattern:linear-gradient(90deg, var(--border) 1px, transparent 1px), linear-gradient(180deg, var(--border) 1px, transparent 1px); --scrap-pattern-size:18px 18px, 18px 18px; }
+/* a slight turn from 1024px up only; on a phone every scrap lies straight */
+@media (min-width:1024px) { .scrap { rotate:var(--scrap-turn, 0deg); } }
+[data-palette="contrast"] .scrap-face { background-image:none; }
 
 /* pencil marks (Pencil.tsx): High contrast draws them as plain solid lines */
 [data-palette="contrast"] .pencil { filter: none; }

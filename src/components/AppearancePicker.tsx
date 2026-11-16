@@ -15,11 +15,11 @@ export type Palette = 'hourelle' | 'studio' | 'daylight' | 'breeze' | 'clay' | '
 // 'hourelle' is the house key and always has been — it means no data-palette at all,
 // so it follows whatever the house look currently is.
 const PALETTES: { key: Palette; name: string; caption: string; swatches: string[] }[] = [
-  { key: 'hourelle', name: 'Warm neutral', caption: 'Soft paper and deep green. The house look.', swatches: ['#F7F6F4', '#2E4A3C', '#151513', '#8F6A33'] },
-  { key: 'studio', name: 'Studio', caption: 'Cool grays and ink, no serif. The quiet one.', swatches: ['#F7F7F8', '#18181B', '#0F0F10', '#2F7A5A'] },
-  { key: 'daylight', name: 'Daylight', caption: 'Bright white and a clear blue. The familiar one.', swatches: ['#FFFFFF', '#0B57D0', '#131314', '#8AB4F8'] },
+  { key: 'hourelle', name: 'Warm neutral', caption: 'Sand, deep green and a touch of watermelon. The house look.', swatches: ['#F8F2E6', '#2E6B4E', '#171512', '#D6416A'] },
+  { key: 'studio', name: 'Studio', caption: 'Stone blue and ink with a flash of scarlet, no serif. The quiet one.', swatches: ['#F5F7F9', '#161A20', '#1034A6', '#D92B1A'] },
+  { key: 'daylight', name: 'Daylight', caption: 'Bright white, Egyptian blue and flamingo pink. The clear one.', swatches: ['#FFFFFF', '#1238B0', '#10131A', '#CF3685'] },
   { key: 'breeze', name: 'Breeze', caption: 'Sunny white, sea teal and coral. A brighter, warmer look.', swatches: ['#FFFCF6', '#0F6E78', '#181612', '#E0623A'] },
-  { key: 'clay', name: 'Ink and clay', caption: 'Rosy paper, black ink and clay. The bold one.', swatches: ['#FBF4F1', '#1F1B16', '#171314', '#B4502F'] },
+  { key: 'clay', name: 'Ink and clay', caption: 'Rosy paper, black ink and clay, with electric blue. The bold one.', swatches: ['#FBF4F1', '#1F1B16', '#B4502F', '#2456F0'] },
   { key: 'contrast', name: 'High contrast', caption: 'Strong lines and bold color. Easy to read in glare or at a distance.', swatches: ['#FFFFFF', '#0033CC', '#000000', '#C40000'] },
 ]
 
