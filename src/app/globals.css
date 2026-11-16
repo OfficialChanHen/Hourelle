@@ -24,7 +24,9 @@
      wheel and is kept to the one thing per screen that asks for you now, the "Your
      turn" note and strips. It is a light, bright fill under its own dark ink
      (--on-moment), never at the primary's darkness and never set against the
-     primary; its deep shade (--moment-text) is for words and pencil marks. No trio
+     primary; its deep shade (--moment-text) is for words and pencil marks. Here the
+     Your turn notes stay a real canary Post-it on the warm paper, with the
+     highlight on their label and star (--sticky-kicker). No trio
      colour sits within about 35 degrees of hue of going (--teal) or can't go
      (--brick), so going here is a blue-teal, kept off the green. */
   --moment:#F4A6D7; --moment-text:#A0256E; --moment-bg:#FBE4F2; --moment-border:#F2C2DF;
@@ -102,10 +104,10 @@
   /* the photo frame: a near-white card on paper, a lifted card on charcoal */
   --frame:#FFFDF9; --frame-shadow:0 1px 2px rgba(60,40,20,.06), 0 16px 32px rgba(60,40,20,.12);
   /* the sticky note for "Your turn": its own warm paper and inks, all 4.5:1 on it */
-  --sticky:#F4A6D7; --sticky-text:#3A0F2E; --sticky-dim:#5A1F45; --sticky-kicker:#3A0F2E;
+  --sticky:#FCE074; --sticky-text:#2B2200; --sticky-dim:#4E3F08; --sticky-kicker:#A0256E;
   --sticky-shadow:0 8px 18px rgba(60,40,20,.10);
   /* the post-it's glue band and the shadow under its lifted corner */
-  --sticky-band:rgba(110,20,80,.07); --sticky-curl:rgba(60,40,20,.30);
+  --sticky-band:rgba(120,80,0,.08); --sticky-curl:rgba(60,40,20,.30);
   /* album photo corners (Keepsake): dark paper pockets with a lighter fold */
   --mount:#3B342B; --mount-fold:#6E6457;
   /* a big sticker's lift off the page (your face on Home) */
@@ -168,9 +170,9 @@
   --tape-2:rgba(181,207,138,.22); --pin:#C9A36A; --clip:#8A857B;
   --highlight:rgba(181,207,138,.2); --highlight-blend:normal;
   --frame:#25221D; --frame-shadow:0 1px 2px rgba(0,0,0,.5), 0 18px 36px rgba(0,0,0,.5);
-  --sticky:#F4A6D7; --sticky-text:#3A0F2E; --sticky-dim:#5A1F45; --sticky-kicker:#3A0F2E;
+  --sticky:#FCE074; --sticky-text:#2B2200; --sticky-dim:#4E3F08; --sticky-kicker:#A0256E;
   --sticky-shadow:0 8px 20px rgba(0,0,0,.45);
-  --sticky-band:rgba(110,20,80,.07); --sticky-curl:rgba(0,0,0,.6);
+  --sticky-band:rgba(120,80,0,.08); --sticky-curl:rgba(0,0,0,.6);
   --mount:#0E0D0B; --mount-fold:#3A352E;
   --sticker-lift:drop-shadow(0 1px 1px rgba(0,0,0,.5)) drop-shadow(0 8px 14px rgba(0,0,0,.45));
   /* the trio: secondary beside the primary, the highlight from across the wheel */

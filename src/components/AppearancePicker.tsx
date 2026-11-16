@@ -15,7 +15,7 @@ export type Palette = 'hourelle' | 'studio' | 'daylight' | 'breeze' | 'clay' | '
 // 'hourelle' is the house key and always has been — it means no data-palette at all,
 // so it follows whatever the house look currently is.
 const PALETTES: { key: Palette; name: string; caption: string; swatches: string[] }[] = [
-  { key: 'hourelle', name: 'Warm neutral', caption: 'Warm paper, forest green and moss, with orchid for your turn. The house look.', swatches: ['#FAF6EF', '#2E6B4E', '#4A6420', '#F4A6D7'] },
+  { key: 'hourelle', name: 'Warm neutral', caption: 'Warm paper, forest green and moss, with canary notes for your turn. The house look.', swatches: ['#FAF6EF', '#2E6B4E', '#4A6420', '#F4A6D7'] },
   { key: 'studio', name: 'Studio', caption: 'Cool grays, ink and slate blue, with amber for your turn. The quiet one.', swatches: ['#F7F7F8', '#18181B', '#34438A', '#FFC266'] },
   { key: 'daylight', name: 'Daylight', caption: 'Bright white, blue and ocean cyan, with tangerine for your turn. The familiar one.', swatches: ['#FFFFFF', '#0B57D0', '#006A8E', '#FFB27A'] },
   { key: 'breeze', name: 'Breeze', caption: 'Sunny white, sea teal and ocean blue, with sun yellow for your turn. A brighter look.', swatches: ['#FFFCF6', '#0F6E78', '#1D5F8C', '#FFD666'] },

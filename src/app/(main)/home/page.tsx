@@ -378,7 +378,7 @@ function NotesBoard({ turns, eventIds, wide, hasPlans }: { turns: { x: Item; t: 
                 tilt={i % 2 ? 1.2 : -1.5}
                 kicker={n.done
                   ? <span className="flex items-center gap-1.5 text-sticky-text"><PencilTick ink="note" size={16} /> Done</span>
-                  : <><PencilStar ink="note" size={16} className="-mt-0.5 mr-1" />Your turn</>}
+                  : <><PencilStar ink="kicker" size={18} className="-mt-0.5 mr-1" />Your turn</>}
                 className="min-h-[172px]"
               >
                 <span className="font-serif text-[18px] leading-[1.15] [overflow-wrap:anywhere]">{n.title}</span>
