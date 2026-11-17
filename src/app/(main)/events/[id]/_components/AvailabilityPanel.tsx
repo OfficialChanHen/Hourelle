@@ -71,6 +71,7 @@ import { googleBusyUtc, importSoon, lockedPlanBusyUtc, outlookBusyUtc, mockBusyU
 import { backendOn } from '@/lib/db'
 import { connectCalendar, providerToken, type OAuthProvider } from '@/lib/session'
 import { useHeatLine } from '@/hooks/useHeatLine'
+import { usePixelSnap } from '@/hooks/usePixelSnap'
 
 type Mode = 'view' | 'edit'
 type Edge = 'top' | 'bottom'
@@ -427,6 +428,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const selRef = useRef(sel); useEffect(() => { selRef.current = sel }, [sel])
   const dragRef = useRef<Drag | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
+  usePixelSnap(scroller) // the cells' face piles sit on whole pixels, so their edges stay sharp
   const gridEl = useRef<HTMLDivElement>(null) // the grid itself — column math for cross-day drags
   const weekDaysRef = useRef(cols); useEffect(() => { weekDaysRef.current = cols }, [cols])
   const colRef = useRef<HTMLDivElement>(null) // left column — cell popover anchors here, outside the scroller
@@ -2112,7 +2114,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                           const { shown, chip } = pileFit(n, avatarCap, colW, viewTotal)
                           if (!shown) return null
                           return (
-                            <div className="pointer-events-none absolute bottom-[3px] left-[4px] z-[1]">
+                            <div data-pixel-snap className="pointer-events-none absolute bottom-[3px] left-[4px] z-[1]">
                               <AvatarRow
                                 people={byRoster(peak.ids).slice(0, shown).map(avatarOf)}
                                 size={PILE_AV} overlap={PILE_OVER} font={PILE_FONT} max={shown}

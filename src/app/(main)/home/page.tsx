@@ -53,7 +53,7 @@ import { useGSAP } from '@gsap/react'
 import { reducedMotion } from '@/lib/prefs'
 import { HandNote } from '@/components/ui/HandNote'
 import { namesLabel } from '@/components/ui/AvatarRow'
-import { FaceSvg } from '@/components/ui/FaceSvg'
+import { FaceSvg, faceEdge } from '@/components/ui/FaceSvg'
 import { personVar } from '@/lib/colors'
 import { defaultFace } from '@/lib/faces'
 import { pushFlash } from '@/components/ui/FlashToast'
@@ -152,7 +152,7 @@ function PeekingFaces({ people, plan }: { people: Participant[]; plan: string })
                 </span>
                 <span
                   className="absolute grid place-items-center rounded-full text-[10px] font-semibold leading-none"
-                  style={{ inset: 28 / 22, boxShadow: `0 0 0 ${28 / 20}px var(--face-edge)`, filter: 'var(--face-lift)', background: c.bg, color: c.text, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                  style={{ inset: 28 / 22, boxShadow: `0 0 0 ${faceEdge(28)}px var(--face-edge)`, filter: 'var(--face-lift)', background: c.bg, color: c.text, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
                 >
                   {p.initials}
                 </span>

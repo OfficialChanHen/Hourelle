@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Avatar, NameTag } from './Avatar'
 import { FlipGroup } from './FlipGroup'
+import { faceEdge } from './FaceSvg'
 import { useNoHover } from '@/hooks/useNoHover'
 import type { Avatar as Person } from '@/lib/people'
 
@@ -72,7 +73,7 @@ export function AvatarRow({
   const chip = extra ? (
     <span
       // the same sticker as a face: a disc the size of the drawn face, with its edge
-      style={{ width: size * 40 / 44, height: size * 40 / 44, margin: size / 22, boxShadow: `0 0 0 ${size / 20}px var(--face-edge)`, filter: 'var(--face-lift)', fontSize: font ?? Math.round(size * 0.4 * 10) / 10 }}
+      style={{ width: size * 40 / 44, height: size * 40 / 44, margin: size / 22, boxShadow: `0 0 0 ${faceEdge(size)}px var(--face-edge)`, filter: 'var(--face-lift)', fontSize: font ?? Math.round(size * 0.4 * 10) / 10 }}
       className="group/face relative inline-flex flex-none items-center justify-center rounded-full bg-s3 font-semibold text-dim"
       aria-hidden
     >

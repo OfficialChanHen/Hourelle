@@ -12,10 +12,14 @@ import { ACCESSORIES, EYES, HAIR, LINE, MOUTHS, SHAPES, type Face, type FacePart
    2 units more on every side so the edge is never clipped.
 
    One line weight at every size: the strokes scale with the box and nothing thickens
-   for small faces, so a room of faces reads as one even hand. The box is always a
+   for small faces, so a room of faces reads as one even hand. The edge is the one
+   exception (faceEdge below). The box is always a
    whole number of pixels, since a fractional one smears every edge. */
-// the die-cut edge's stroke width in the 40 box; half of it shows outside the shape
-const EDGE = 4.4
+// how much of the die-cut edge shows outside the shape, in px: a twentieth of the
+// face, but never under 1.5px, since a 1px edge on a small face lands across two
+// pixel rows and blurs. Shared with the discs that stand in for a face (the initials
+// on its back, the +N chip) so their edges match.
+export const faceEdge = (size: number) => Math.max(size / 20, 1.5)
 
 export function FaceSvg({
   face,
@@ -42,7 +46,7 @@ export function FaceSvg({
       style={{ display: 'block', flex: 'none', overflow: 'visible', filter: 'var(--face-lift)' }}
     >
       {/* the edge: stroked under the fill, so only its outer half shows */}
-      <path d={shape} style={{ fill: c.bg, stroke: 'var(--face-edge)' }} strokeWidth={EDGE} strokeLinejoin="round" paintOrder="stroke" />
+      <path d={shape} style={{ fill: c.bg, stroke: 'var(--face-edge)' }} strokeWidth={(faceEdge(size) * 88) / size} strokeLinejoin="round" paintOrder="stroke" />
       {hair && <path d={hair} style={{ fill: c.ink }} />}
       <Part part={eyes} ink={c.ink} />
       <path d={mouth} style={{ stroke: c.ink }} strokeWidth={LINE} strokeLinecap="round" strokeLinejoin="round" fill="none" />
