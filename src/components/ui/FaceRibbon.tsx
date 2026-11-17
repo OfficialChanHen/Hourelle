@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Avatar, NameTag } from './Avatar'
 import { hiddenNames, namesLabel } from './AvatarRow'
 import { FlipGroup } from './FlipGroup'
-import { faceEdge } from './FaceSvg'
+import { faceEdge, faceInset } from './FaceSvg'
 import type { Avatar as Person } from '@/lib/people'
 import { useWide } from '@/hooks/useWide'
 import { useNoHover } from '@/hooks/useNoHover'
@@ -48,7 +48,7 @@ export function FaceRibbon({
     <span
       aria-hidden
       className="group/face relative grid flex-none place-items-center rounded-full bg-s3 font-semibold text-dim"
-      style={{ width: size * 40 / 44, height: size * 40 / 44, margin: size / 22, boxShadow: `0 0 0 ${faceEdge(size)}px var(--face-edge)`, filter: 'var(--face-lift)', fontSize: Math.max(12, Math.round(size * 0.34)) }}
+      style={{ width: size - 2 * faceInset(size), height: size - 2 * faceInset(size), margin: faceInset(size), boxShadow: `0 0 0 ${faceEdge(size)}px var(--face-edge)`, filter: 'var(--face-lift)', fontSize: Math.max(12, Math.round(size * 0.34)) }}
     >
       +{extra}
       {/* on hover, the people the "+N" stands for; a "+N" that opens them all needs no tag */}
