@@ -63,7 +63,7 @@ import { useGuestMode } from '@/hooks/useGuestMode'
 import { planUsualWeek, weekFits } from '@/lib/usual-week'
 import { canEmail, sendNudges } from '@/lib/mail'
 import {
-  addMeToEvent, listEvents, patchEvent, patchEventWith, availIvOf, freeIvOf, myTimesPatch, normalizeIv, bestBlock, bestOpenStart, bestWindow, byYouFirst, slotSessions, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
+  addMeToEvent, listEvents, patchEvent, patchEventWith, availIvOf, freeIvOf, myTimesPatch, normalizeIv, bestBlock, bestOpenStart, bestWindow, byYouFirst, runHours, slotSessions, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
 import { googleBusyUtc, importSoon, lockedPlanBusyUtc, outlookBusyUtc, mockBusyUtc, planImport, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport, type UtcBusy } from '@/lib/calendar-import'
@@ -1321,7 +1321,6 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     [lockedSlot, gridStartMin],
   )
   const frame = lockedFrames ? lockedFrames[0] : bw
-  const frameFor = (k: string) => (lockedFrames ? lockedFrames.find((f) => f.dayKey === k) : frame && frame.dayKey === k ? frame : undefined)
 
   // one footer answer, one length control: "1 day" is the best single slot (or the best
   // single day on a day poll), anything longer is the best run of consecutive days.
@@ -1334,14 +1333,25 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     () => bestBlock(viewCombinedByDay, event.days, blockLen, bestMode, viewNeedByDay),
     [viewCombinedByDay, viewNeedByDay, blockLen, bestMode], // eslint-disable-line react-hooks/exhaustive-deps
   )
+  // with the dial on a run of days, each day of the winning run is framed at the hours
+  // the most people share there, the same hours the lock-in offers, so the frames step
+  // up and down across the run as the days differ
+  const runFrames = useMemo(() => {
+    if (dayPoll || lockedFrames || !block || blockLen < 2) return null
+    const runDays = event.days.filter((d) => d.key >= block.startKey && d.key <= block.endKey)
+    if (!openSearch) return runHours(viewCombinedByDay, runDays, durationMin, viewNeedByDay)
+    return runDays.flatMap((d) => { const b = bestOpenStart(viewCombinedByDay, [d], viewNeedByDay); return b ? [{ dayKey: d.key, s: b.s, e: b.e }] : [] })
+  }, [dayPoll, lockedFrames, block, blockLen, viewCombinedByDay, viewNeedByDay, durationMin, openSearch]) // eslint-disable-line react-hooks/exhaustive-deps
+  const frames = lockedFrames ?? runFrames
+  const frameFor = (k: string) => (frames ? frames.find((f) => f.dayKey === k) : frame && frame.dayKey === k ? frame : undefined)
   const blockDayLabel = (k: string) => {
     const d = event.days.find((x) => x.key === k)
     return d ? `${d.dow}, ${d.date}` : k
   }
-  // the slot frame in the cells belongs to the "1 day" answer on a minute grid — a day
-  // poll's cells never carry it (the header indicator is the whole story there), and a
-  // longer dial hands the spotlight to the run of days
-  const showSlotFrame = !dayPoll && blockLen === 1
+  // the slot frame in the cells belongs to the minute grid's answer, one window or a
+  // frame on each day of the best run — a day poll's cells never carry it (the header
+  // indicator is the whole story there)
+  const showSlotFrame = !dayPoll && (blockLen === 1 || !!runFrames)
   // with the dial on a run of days, the grid is answering in days — Settings follows
   // (clock-flavored options step aside until the dial comes back to 1 day)
   const daysAnswer = dayPoll || blockLen >= 2
@@ -2068,18 +2078,36 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                           // start draws the top line halfway down the 10:00 cell
                           const bs = Math.max(fr!.s, w0), be = Math.min(fr!.e, w1)
                           const edge = '2.5px solid var(--ochre)'
+                          const pct = (m: number) => `${((m - w0) / step) * 100}%`
+                          // on a run the frames join into one outline that steps with each
+                          // day's hours: a side is drawn only where the next column's frame
+                          // does not carry on past it
+                          const sides = (side: 'left' | 'right') => {
+                            const nb = cols[side === 'left' ? di - 1 : di + 1]
+                            const o = nb && !nb.pad ? frameFor(nb.key) : undefined
+                            const segs = o ? [[bs, Math.min(be, o.s)], [Math.max(bs, o.e), be]] : [[bs, be]]
+                            return segs.filter(([a, b]) => b > a).map(([a, b]) => (
+                              <div
+                                key={`${side}${a}`}
+                                className="pointer-events-none absolute z-[2]"
+                                style={{ top: pct(a), height: `${((b - a) / step) * 100}%`, [side]: 0, [side === 'left' ? 'borderLeft' : 'borderRight']: edge }}
+                              />
+                            ))
+                          }
                           return (
-                            <div
-                              className="pointer-events-none absolute inset-x-0 z-[2]"
-                              style={{
-                                top: `${((bs - w0) / step) * 100}%`,
-                                height: `${((be - bs) / step) * 100}%`,
-                                borderLeft: edge,
-                                borderRight: edge,
-                                borderTop: bs === fr!.s ? edge : undefined,
-                                borderBottom: be === fr!.e ? edge : undefined,
-                              }}
-                            />
+                            <>
+                              <div
+                                className="pointer-events-none absolute inset-x-0 z-[2]"
+                                style={{
+                                  top: pct(bs),
+                                  height: `${((be - bs) / step) * 100}%`,
+                                  borderTop: bs === fr!.s ? edge : undefined,
+                                  borderBottom: be === fr!.e ? edge : undefined,
+                                }}
+                              />
+                              {sides('left')}
+                              {sides('right')}
+                            </>
                           )
                         })()}
                         {/* everyone's best window rides along as a dashed frame while a filter

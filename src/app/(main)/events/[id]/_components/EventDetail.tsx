@@ -499,7 +499,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
               </div>
             )}
             {/* where it stands, as a sentence */}
-            <div className="mt-4 max-w-[720px]"><StageSummary event={event} phase={phase} onGoToAvailability={goToBestWindow} /></div>
+            <div className="mt-4 max-w-[720px]"><StageSummary event={event} phase={phase} onGoToAvailability={goToBestWindow} runLen={runLen ?? undefined} /></div>
           </div>
         </div>
 

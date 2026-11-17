@@ -14,8 +14,8 @@ import { useAccount } from '@/hooks/useAccount'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { getEvent } from '@/lib/events'
 import {
-  confirmedSlotText, confirmEvent, fmtMinute, gridStartMinOf, openBest, patchEvent, answeredCount, slotFromRows, stayLine, stepOf,
-  type AppEvent, type ConfirmedSlot, type DayRow,
+  confirmedSlotText, confirmEvent, fmtMinute, gridStartMinOf, openBest, patchEvent, answeredCount, planRunHours, slotFromRows, stayLine, stepOf,
+  type AppEvent, type ConfirmedSlot, type DayRow, type GridDay,
 } from '@/lib/events'
 import { DayHoursRows } from './DayHoursRows'
 
@@ -235,9 +235,13 @@ function ConfirmForm({ event, close, onChanged, onGoToLocation, prefill, runLen 
   const setHours = runMode && !dayPoll && hoursMode === 'hours'
   const [rowEdits, setRowEdits] = useState<Record<string, Partial<Omit<DayRow, 'dayKey'>>>>({})
   const runKeys = runMode ? runFrom(dayKey).filter((k) => k <= lastDay) : []
+  // each day's hours are the stretch the most people share that day (the same frames
+  // the grid draws over the run); a day nobody marked borrows the next marked day's,
+  // else the one before
+  const runDays = runKeys.map((k) => event.days.find((d) => d.key === k)).filter((d): d is GridDay => !!d)
+  const shared = planRunHours(event, runDays)
   const rows: DayRow[] = runKeys.map((k) => {
-    const day = event.days.find((d) => d.key === k)
-    const b = day ? openBest(event, [day]) : null
+    const b = shared.find((x) => x.dayKey === k) ?? shared.find((x) => x.dayKey > k) ?? shared.findLast((x) => x.dayKey < k) ?? null
     const start = b ? gridStart + b.s : startMin
     const end = openLen ? softEnd(k, start) : b ? gridStart + b.e : Math.min(start + duration, 24 * 60 - 5)
     return { dayKey: k, startMin: start, endMin: end, skip: false, ...rowEdits[k] }

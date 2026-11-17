@@ -719,6 +719,50 @@ export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: nu
   return best
 }
 
+/* ── the hours on each day of a run ──
+   A run of days locked with its own hours each day asks each day for the stretch the
+   most people share there: the whole of it, not a window cut to the plan's length,
+   so a group free 10 to 4 on Saturday gets 10 to 4. Among stretches with the same
+   crowd, one at least `minLen` long, then fewer on if need be, then the longer, then
+   the earlier. A day nobody marked has no hours and is left out. Grid minutes. */
+export type RunDay = { dayKey: string; s: number; e: number; count: number; ids: string[] }
+export function runHours(availIv: AvailIntervals, days: GridDay[], minLen = 0, needIv?: AvailIntervals): RunDay[] {
+  const out: RunDay[] = []
+  for (const d of days) {
+    const byPid = availIv[d.key] ?? {}
+    const needByPid = needIv?.[d.key] ?? {}
+    const cuts = new Set<number>()
+    for (const ivs of Object.values(byPid)) for (const iv of ivs) { cuts.add(iv.s); cuts.add(iv.e) }
+    const xs = [...cuts].sort((a, b) => a - b)
+    let best: (RunDay & { need: number }) | null = null
+    for (let i = 0; i < xs.length - 1; i++) {
+      // the people free across this piece, and the stretch they all share around it
+      let s = -Infinity, e = Infinity
+      const ids: string[] = []
+      for (const [id, ivs] of Object.entries(byPid)) {
+        const hit = ivs.find((iv) => iv.s <= xs[i] && iv.e >= xs[i + 1])
+        if (!hit) continue
+        ids.push(id)
+        s = Math.max(s, hit.s)
+        e = Math.min(e, hit.e)
+      }
+      if (!ids.length) continue
+      const need = ids.filter((id) => (needByPid[id] ?? []).some((iv) => iv.s < e && iv.e > s)).length
+      const better = (b: NonNullable<typeof best>) => {
+        const fits = e - s >= minLen, bFits = b.e - b.s >= minLen
+        if (fits !== bFits) return fits
+        if (ids.length !== b.count) return ids.length > b.count
+        if (need !== b.need) return need < b.need
+        if (e - s !== b.e - b.s) return e - s > b.e - b.s
+        return s < b.s
+      }
+      if (!best || better(best)) best = { dayKey: d.key, s, e, count: ids.length, ids, need }
+    }
+    if (best) out.push({ dayKey: best.dayKey, s: best.s, e: best.e, count: best.count, ids: best.ids })
+  }
+  return out
+}
+
 
 /* ── the best open start: length unknown ──
    With no set length the question is when to start: the start the most people can
@@ -780,6 +824,14 @@ export function openBest(ev: AppEvent, days: GridDay[] = ev.days) {
   const iv = availIvOf(ev)
   if (ev.openLength && ev.granularity !== 'day') return bestOpenStart(iv, days, ev.needIv)
   return bestWindow(iv, days, ev.durationMin ?? 60, ev.bestMode, ev.needIv)
+}
+
+/** Each day's hours on a run of days, as the plan asks for them: the stretch the most
+ *  people share (see runHours), or with the length unknown each day's best open start
+ *  and how long the group holds it. Grid minutes; a day nobody marked is left out. */
+export function planRunHours(ev: AppEvent, days: GridDay[]): { dayKey: string; s: number; e: number }[] {
+  if (!ev.openLength) return runHours(availIvOf(ev), days, ev.durationMin ?? 60, ev.needIv)
+  return days.flatMap((d) => { const b = bestOpenStart(availIvOf(ev), [d], ev.needIv); return b ? [{ dayKey: d.key, s: b.s, e: b.e }] : [] })
 }
 
 /** How late people can stay from a locked open start, read from their marks now:
