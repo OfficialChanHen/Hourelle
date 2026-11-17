@@ -34,6 +34,8 @@ import { CoverEditor, styleSummary } from '@/components/ui/CoverEditor'
 import { Keepsake, lookOf, withDetail } from '@/components/ui/Keepsake'
 import { pushFlash } from '@/components/ui/FlashToast'
 import { lastListPage } from '@/lib/nav'
+import { confirmLeave } from '@/lib/leave-guard'
+import { useLeaveGuard } from '@/hooks/useLeaveGuard'
 import { useEventRoom } from '@/hooks/useEventRoom'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { DaysPicker } from '@/components/ui/DaysPicker'
@@ -110,12 +112,18 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   // switching tabs writes ?tab= into the address bar, so a reload (or a copied URL)
   // comes back to the tab you were on. replaceState rather than router.replace:
   // it keeps the URL honest without a navigation or a re-render of the page.
-  const goTab = (next: TabKey) => {
-    setTab(next)
-    if (typeof window === 'undefined') return
-    const url = new URL(window.location.href)
-    url.searchParams.set('tab', next)
-    window.history.replaceState(null, '', url)
+  // Another tab unmounts this one, so a draft left open here (your times in Edit
+  // mine, an editor on Details) is asked about first, the way leaving the page is.
+  const goTab = (next: TabKey, then?: () => void) => {
+    void confirmLeave().then((ok) => {
+      if (!ok) return
+      setTab(next)
+      then?.()
+      if (typeof window === 'undefined') return
+      const url = new URL(window.location.href)
+      url.searchParams.set('tab', next)
+      window.history.replaceState(null, '', url)
+    })
   }
   // arrow keys walk the tabs and open each one on arrival; Home and End jump to the ends
   const onTabKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -129,8 +137,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     if (to < 0) return
     e.preventDefault()
     const next = tabs[to].key
-    goTab(next)
-    document.getElementById(`tab-${next}`)?.focus()
+    goTab(next, () => document.getElementById(`tab-${next}`)?.focus())
   }
   const [event, setEvent] = useState<AppEvent | null | undefined>(undefined)
   // every plan has its Attendance tab, while it is being decided too: the RSVP
@@ -1226,6 +1233,9 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
     : selKeys.length > dayCap
       ? `That's ${selKeys.length} days to poll. Keep it to ${dayCap} or fewer by turning off the days that don't apply.`
       : ''
+  const [initialExcluded] = useState(() => JSON.stringify(deriveExclusions(event)))
+  const dirty = start !== event.startDate || end !== event.endDate || dur !== (event.durationMin ?? 60) || JSON.stringify(excluded) !== initialExcluded
+  useLeaveGuard(dirty, () => { if (selErr) return false; save() })
 
   function save() {
     if (selErr) return
@@ -1294,6 +1304,7 @@ function FixedWhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch:
   const s0 = allDay ? 0 : startMin, e0 = allDay ? 24 * 60 : endMin
   const changed = day !== c.dayKey || (run ? endDay : undefined) !== c.endDayKey || s0 !== c.startMin || e0 !== c.endMin
   const valid = !!day && (allDay || run || endMin > startMin)
+  useLeaveGuard(changed, () => { if (!valid) return false; save() })
 
   function changeDay(v: string) {
     const d = fromDay(v, today)
@@ -1421,8 +1432,11 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
   const [copied, setCopied] = useState(false)
   const [editingOnline, setEditingOnline] = useState(false)
   const linkRef = useRef<HTMLInputElement>(null)
+  // a link typed but not saved yet
+  const [linkDraft, setLinkDraft] = useState<string | null>(null)
   const loc = event.location
   const link = loc.meetingLink.trim()
+  useLeaveGuard(editingOnline && linkDraft !== null && linkDraft.trim() !== link, saveOnline)
   const copyLink = () => {
     navigator.clipboard?.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
@@ -1498,9 +1512,10 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
 
   const hybridOn = !!loc.hybrid && !!link
   function saveOnline() {
-    const v = (linkRef.current?.value ?? '').trim()
+    const v = (linkRef.current?.value ?? linkDraft ?? '').trim()
     onPatch({ location: { ...loc, hybrid: !!v, meetingLink: v || loc.meetingLink } })
     setEditingOnline(false)
+    setLinkDraft(null)
   }
   return (
     <div className="flex flex-col gap-1.5">
@@ -1521,11 +1536,12 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
           <span className="flex flex-wrap items-center gap-2">
             <input
               ref={linkRef} defaultValue={link} autoFocus placeholder="Paste a meeting link" aria-label="Meeting link"
+              onChange={(e) => setLinkDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') saveOnline() }}
               className="h-8 w-[240px] max-w-full rounded-[8px] border border-border bg-s0 px-2.5 font-mono text-[12.5px] outline-none focus:border-accent"
             />
             <button onClick={saveOnline} className="h-8 rounded-full bg-accent px-2.5 text-[12.5px] font-semibold text-on-accent">Save</button>
-            <button onClick={() => setEditingOnline(false)} className="h-8 rounded-full border border-border2 bg-s1 px-2.5 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
+            <button onClick={() => { setEditingOnline(false); setLinkDraft(null) }} className="h-8 rounded-full border border-border2 bg-s1 px-2.5 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
           </span>
         ) : (
           <button onClick={() => setEditingOnline(true)} className="text-left text-[12.5px] font-medium text-accent-text hover:underline">
@@ -1599,13 +1615,16 @@ function DescriptionValue({ event, editable, onPatch }: { event: AppEvent; edita
   const [desc, setDesc] = useState(event.description)
   const [editing, setEditing] = useState(false)
   const ref = useRef<HTMLTextAreaElement>(null)
+  const [draft, setDraft] = useState<string | null>(null)
 
   function save() {
-    const v = (ref.current?.value ?? '').trim()
+    const v = (ref.current?.value ?? draft ?? desc).trim()
     setDesc(v)
     setEditing(false)
+    setDraft(null)
     onPatch({ description: v })
   }
+  useLeaveGuard(editing && draft !== null && draft.trim() !== desc, save)
 
   if (!editable) return <>{desc || <span className="text-faint">No description</span>}</>
   if (editing) {
@@ -1613,13 +1632,14 @@ function DescriptionValue({ event, editable, onPatch }: { event: AppEvent; edita
       <div className="flex flex-col gap-2">
         <textarea
           ref={ref} defaultValue={desc} rows={3} autoFocus maxLength={500}
+          onChange={(e) => setDraft(e.target.value)}
           aria-label="Description"
           placeholder="Dinner, then drinks nearby"
           className="w-full resize-y rounded-[9px] border border-border bg-s0 px-3 py-2 text-[13.5px] leading-[1.5] outline-none focus:border-accent"
         />
         <div className="flex items-center gap-2">
           <button onClick={save} className="h-8 rounded-full bg-accent px-3 text-[12.5px] font-semibold text-on-accent">Save</button>
-          <button onClick={() => setEditing(false)} className="h-8 rounded-full border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
+          <button onClick={() => { setEditing(false); setDraft(null) }} className="h-8 rounded-full border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
         </div>
       </div>
     )

@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { AlertSounds } from "@/components/AlertSounds";
 import { BackendSync } from "@/components/BackendSync";
+import { LeaveGuard } from "@/components/LeaveGuard";
 import { NoticeRail } from "@/components/NoticeRail";
 import { RouteTrail } from "@/components/RouteTrail";
 import { PencilDefs } from "@/components/ui/Pencil";
@@ -63,6 +64,7 @@ export default function RootLayout({
           <AlertSounds />
           <NoticeRail />
           <RouteTrail />
+          <LeaveGuard />
           {children}
         </Providers>
         <SiteAnalytics />

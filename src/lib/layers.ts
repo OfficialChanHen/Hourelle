@@ -10,7 +10,8 @@
    tab bar (data-chrome) just over those, anywhere else under them. Inside another
    floating panel (data-layer) it takes that panel's layer and lands on top of it.
 
-   Header and tab bar: z-40. Modals: z-50 and z-70. Tour: z-42. */
+   Header and tab bar: z-40. Modals: z-50 and z-70. Tour: z-42. The unsaved-changes
+   question (LeaveGuard) can open from inside any modal, so it sits over them at z-80. */
 
 export type Layer = 'page' | 'chrome' | 'modal'
 
