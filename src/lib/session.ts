@@ -266,6 +266,30 @@ export async function signUpWithEmail(email: string, password: string, name: str
   return null
 }
 
+/* The code in the sign-up email, the only way to confirm one: the mail's link opens
+   /auth/verify, where the code is typed (supabase/templates/confirm-signup.html).
+   Checking it signs the new account in, so the page can go straight on to the
+   welcome steps. Supabase limits
+   how often codes are checked and sent, so there is no throttling of our own. */
+export async function verifySignupCode(email: string, code: string): Promise<string | null> {
+  if (!backendOn) return 'Codes need a backend. Add your Supabase keys to .env.local.'
+  const { error } = await supabase!.auth.verifyOtp({ email: email.trim().toLowerCase(), token: code, type: 'signup' })
+  if (!error) return null
+  if (/expired|invalid/i.test(error.message)) return 'That code is wrong or has expired. Check it, or send a new one.'
+  return error.message
+}
+
+export async function resendSignupCode(email: string): Promise<string | null> {
+  if (!backendOn) return 'Codes need a backend. Add your Supabase keys to .env.local.'
+  const { error } = await supabase!.auth.resend({
+    type: 'signup',
+    email: email.trim().toLowerCase(),
+    options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+  })
+  if (error && /rate|seconds|security purposes/i.test(error.message)) return 'A code was sent a moment ago. Wait a minute, then try again.'
+  return error?.message ?? null
+}
+
 export async function signInWithEmail(email: string, password: string): Promise<string | null> {
   if (!backendOn) return 'Sign-in needs a backend. Add your Supabase keys to .env.local.'
   const { error } = await supabase!.auth.signInWithPassword({ email, password })

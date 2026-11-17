@@ -9,11 +9,12 @@ import { LEGAL, LEGAL_EFFECTIVE, readingMinutes, type LegalKey } from '@/content
 import { LegalDocument } from './ui/LegalDocument'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 
-/* The sign-up gate: one box per document. A box stays locked until its document has
-   been read to the end, so nobody agrees to something they never saw, and both boxes
-   have to be ticked before an account can be made. The document opens in a sheet
-   over the form, with the same text the /privacy and /terms pages show, so nothing
-   typed so far is lost to a page change; the sheet's Done waits for the last line. */
+/* The sign-up gate: one box per document. A box can only be ticked once its document
+   has been read to the end, so nobody agrees to something they never saw, and both
+   boxes have to be ticked before an account can be made. Tapping a box that is not
+   ready yet opens its document rather than doing nothing (people tried the boxes
+   first and were stuck), and the sheet's "I agree" at the end ticks it. The document
+   opens over the form, with the same text the /privacy and /terms pages show. */
 const ORDER: LegalKey[] = ['privacy', 'terms']
 const NONE: Record<LegalKey, boolean> = { privacy: false, terms: false }
 
@@ -29,7 +30,8 @@ export function LegalGate({ onChange }: { onChange: (accepted: boolean) => void 
   }
 
   return (
-    <div className="mt-2 flex flex-col gap-2">
+    <div className="mt-2 flex flex-col gap-2.5">
+      <p className="text-[12.5px] leading-[1.5] text-dim">Open each one and read to the end. Its box ticks when you agree.</p>
       {ORDER.map((k) => {
         const doc = LEGAL[k]
         const can = read[k]
@@ -37,34 +39,46 @@ export function LegalGate({ onChange }: { onChange: (accepted: boolean) => void 
         return (
           <div key={k} className="flex items-start gap-2.5">
             <input
-              id={id} type="checkbox" checked={ticked[k]} disabled={!can}
+              id={id} type="checkbox" checked={ticked[k]}
+              // not disabled: a box that is not ready opens its document instead
+              onClick={(e) => { if (!can) { e.preventDefault(); setOpen(k) } }}
               onChange={(e) => tick(k, e.target.checked)}
-              className={`mt-[3px] h-4 w-4 flex-none ${can ? 'cursor-pointer' : 'cursor-not-allowed opacity-40'}`}
+              className="mt-[3px] h-4 w-4 flex-none cursor-pointer"
               style={{ accentColor: 'var(--accent)' }}
-              title={can ? undefined : `Read the ${doc.title} to the end first`}
               aria-label={`I have read and agree to the ${doc.title}`}
+              aria-describedby={can ? undefined : `${id}-why`}
             />
             {/* the sentence stays quiet; the name of the document is the one live thing in it */}
-            <p className={`text-[13px] leading-[1.5] ${can ? 'text-dim' : 'text-faint'}`}>
-              <label htmlFor={id} className={can ? 'cursor-pointer' : 'cursor-not-allowed'}>I have read and agree to the </label>
+            <p className="text-[13px] leading-[1.5] text-dim">
+              <label htmlFor={id} className="cursor-pointer">I have read and agree to the </label>
               <button type="button" onClick={() => setOpen(k)} className="font-semibold text-accent-text underline underline-offset-2 hover:text-accent">
                 {doc.title}
               </button>
-              <label htmlFor={id} className={can ? 'cursor-pointer' : 'cursor-not-allowed'}>.</label>
+              <label htmlFor={id} className="cursor-pointer">.</label>
+              {!can && <span id={`${id}-why`} className="sr-only"> Opens the {doc.title} to read first.</span>}
             </p>
           </div>
         )
       })}
-      {open && <LegalSheet k={open} read={read[open]} onRead={() => setRead((r) => (r[open] ? r : { ...r, [open]: true }))} onClose={() => setOpen(null)} />}
+      {open && (
+        <LegalSheet
+          k={open}
+          read={read[open]}
+          onRead={() => setRead((r) => (r[open] ? r : { ...r, [open]: true }))}
+          onAgree={() => tick(open, true)}
+          onClose={() => setOpen(null)}
+        />
+      )}
     </div>
   )
 }
 
 /** One legal document in a sheet over the page, with a bar that shows how much of
- *  it has gone by. With `onRead`, Done waits until the last line has been on screen
- *  and reports it once; without it (the "By continuing" line on the log-in form)
+ *  it has gone by. With `onRead`, the button waits until the last line has been on
+ *  screen and reports it once; with `onAgree` too it reads "I agree" and ticks the
+ *  box as it closes. Without either (the "By continuing" line on the log-in form)
  *  the sheet is only for reading and Done is always there. */
-export function LegalSheet({ k, read = true, onRead, onClose }: { k: LegalKey; read?: boolean; onRead?: () => void; onClose: () => void }) {
+export function LegalSheet({ k, read = true, onRead, onAgree, onClose }: { k: LegalKey; read?: boolean; onRead?: () => void; onAgree?: () => void; onClose: () => void }) {
   const root = useRef<HTMLDivElement>(null)
   const bar = useRef<HTMLDivElement>(null)
   const text = useRef<HTMLDivElement | null>(null)
@@ -126,10 +140,10 @@ export function LegalSheet({ k, read = true, onRead, onClose }: { k: LegalKey; r
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">
           <span className="text-[12.5px] text-dim">{onRead && !atEnd ? 'Scroll to the end to continue.' : ''}</span>
           <button
-            type="button" onClick={onClose} disabled={!atEnd}
+            type="button" onClick={() => { onAgree?.(); onClose() }} disabled={!atEnd}
             className="flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[13.5px] font-semibold text-on-accent disabled:opacity-40"
           >
-            <Check size={15} /> Done
+            <Check size={15} /> {onAgree ? 'I agree' : 'Done'}
           </button>
         </div>
       </div>
