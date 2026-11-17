@@ -370,7 +370,7 @@ export function patchEvent(id: string, patch: Partial<AppEvent>): void {
   // people answering at the same moment never overwrite each other. Everything else
   // is the document. Both are background sync; no-ops without a backend.
   pushAnswers(before, list[i])
-  pushEvent(list[i])
+  pushEvent(list[i], before)
 }
 
 /* A change worked out from the event as this device holds it right now, not as some

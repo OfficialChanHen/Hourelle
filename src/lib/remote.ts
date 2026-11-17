@@ -12,6 +12,7 @@ import { currentAccount } from './session'
 import { byDay, byParticipant, fullAvailIvOf, intervalsToGrid, unionIv, stepOf, type PersonAnswer } from './availability'
 import type { AppEvent, ChatMessage } from './events'
 import { removedLineTest } from './removed'
+import { mergeRemovedIds, mergeRoster, mergeSave, sameRoster } from './roster-merge'
 
 // fired on window whenever the cloud changed the local cache, so any open page
 // can re-read if it wants live updates (roadmap step 7 wires the listeners)
@@ -121,21 +122,56 @@ function naming<Q extends { setHeader(name: string, value: string): Q }>(q: Q, i
 /* An existing event is UPDATED, never upserted. An upsert is an insert first, and
    the insert policy only admits the host — so a guest marking availability on
    someone else's event would be refused before the update policy ever saw it. */
-export function pushEvent(ev: AppEvent): void {
+/* The roster is not sent as this device last saw it. The document goes up whole, and
+   a copy that is behind (a laptop that slept through someone joining) wrote its older
+   list back and took the newcomer off the plan, answers and all. So each save reads
+   the list the database holds now and lays only its own change over it (mergeSave),
+   and the saves of one event go out one at a time, so the next one reads what this
+   one wrote. `before` is this device's copy before the change; without it the save
+   goes out as it is. */
+const docQueue = new Map<string, Promise<void>>()
+export function pushEvent(ev: AppEvent, before?: AppEvent): void {
   if (!backendOn) return
   docBusy.set(ev.id, (docBusy.get(ev.id) ?? 0) + 1)
   // an update that overtakes the insert matches no rows and is lost in silence
-  void afterCreate(ev.id).then(() =>
-    naming(supabase!
+  const next = (docQueue.get(ev.id) ?? afterCreate(ev.id)).then(async () => {
+    let doc = ev
+    if (before) {
+      const { data, error } = await naming(supabase!
+        .from('events')
+        .select('participants:data->participants, removedIds:data->removedIds')
+        .eq('id', ev.id), ev.id).maybeSingle()
+      if (error) { rejected('save', error.message); return } // sending the stale list blind is what lost people
+      if (data) doc = mergeSave(data as Pick<AppEvent, 'participants' | 'removedIds'>, before, ev)
+    }
+    const { error } = await naming(supabase!
       .from('events')
-      .update({ data: docOf(ev), host_id: hostIdOf(ev) })
+      .update({ data: docOf(doc), host_id: hostIdOf(doc) })
       .eq('id', ev.id), ev.id)
-      .then(({ error }) => { if (error) rejected('save', error.message) }),
-  ).finally(() => {
+    if (error) { rejected('save', error.message); return }
+    if (doc !== ev) takeUpRoster(ev, doc)
+  }).catch(() => {}).finally(() => {
     const left = (docBusy.get(ev.id) ?? 1) - 1
     if (left > 0) docBusy.set(ev.id, left)
-    else docBusy.delete(ev.id)
+    else { docBusy.delete(ev.id); docQueue.delete(ev.id) }
   })
+  docQueue.set(ev.id, next)
+}
+
+/* The people a save kept that this device had not heard of come into its copy too,
+   so the page shows them. Anything changed here since the save was made is laid over
+   the merged list the same way, so a newer local edit is not taken back. */
+function takeUpRoster(sent: AppEvent, saved: AppEvent): void {
+  const list = readCache()
+  const i = list.findIndex((e) => e.id === sent.id)
+  if (i < 0) return
+  const cur = list[i]
+  const removedIds = mergeRemovedIds(saved.removedIds, cur.removedIds)
+  // the server's entries carry their writer's `you` markers; localize puts back ours
+  const next = localize({ ...cur, participants: mergeRoster(saved.participants, sent.participants, cur.participants), removedIds }, cur)
+  if (sameRoster(next.participants, cur.participants) && (removedIds?.length ?? 0) === (cur.removedIds?.length ?? 0)) return
+  list[i] = { ...next, messages: cur.messages }
+  writeCache(list, true)
 }
 // saves of each event's document still on the way, so a re-read never puts the
 // server's older copy over an edit this device has not finished sending
