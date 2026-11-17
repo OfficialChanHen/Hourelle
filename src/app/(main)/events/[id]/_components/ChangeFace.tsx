@@ -16,6 +16,7 @@ import { FaceParts } from '@/components/ui/FaceParts'
 import { defaultFace, sameFace, shuffleFace, type Face } from '@/lib/faces'
 import { reducedMotion } from '@/lib/prefs'
 import type { Participant } from '@/lib/events'
+import { useLeaveGuard } from '@/hooks/useLeaveGuard'
 
 const BTN = 'flex h-11 flex-none items-center rounded-lg border border-border2 px-2.5 text-[12.5px] font-semibold text-dim hover:bg-s2 hover:text-text sm:h-7'
 
@@ -32,6 +33,7 @@ function Picker({ me, onSave, onCancel }: { me: Participant; onSave: (face: Face
   const current = me.face ?? defaultFace(me.initials, me.color)
   const [face, setFace] = useState<Face>(current)
   const dirty = !sameFace(face, current)
+  useLeaveGuard(dirty, () => onSave(face))
 
   // the same small pop the profile preview gives, so a tap reads as a change
   const preview = useRef<HTMLDivElement>(null)

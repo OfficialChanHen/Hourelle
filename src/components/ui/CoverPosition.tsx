@@ -7,6 +7,7 @@ import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { useViewportWidth } from '@/hooks/useViewportWidth'
 import { coverShapes } from '@/lib/cover-shapes'
 import { CoverCrops } from './CoverCrops'
+import { useLeaveGuard } from '@/hooks/useLeaveGuard'
 
 /* ── choosing which part of a photo survives the crop ──
    A cover is never shown at one shape. Home's cards and the Plans shelf are short and
@@ -43,6 +44,7 @@ export function CoverPosition({ src, value, onChange, onClose }: {
   onClose: () => void
 }) {
   const [pos, setPos] = useState<Pos>(value)
+  useLeaveGuard(pos.x !== value.x || pos.y !== value.y, () => { onChange(pos); onClose() })
   const root = useRef<HTMLDivElement>(null)
   const frame = useRef<HTMLDivElement>(null)
   const img = useRef<HTMLImageElement>(null)

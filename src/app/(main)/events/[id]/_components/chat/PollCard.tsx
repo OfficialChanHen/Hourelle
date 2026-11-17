@@ -10,6 +10,7 @@ import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { daysUntil, fromDay, todayKey } from '@/lib/events'
 import { canDeletePoll, canEditOption, canEditQuestion, optionKey, pollClosed, pollKey, votesPerPerson, POLL_OPTION_LIMIT, POLL_OPTION_MAX_LEN, POLL_QUESTION_MAX_LEN, type PollSettings, type PollState } from '@/lib/polls'
 import type { Avatar as Person } from '@/lib/people'
+import { useLeaveGuard } from '@/hooks/useLeaveGuard'
 
 /* A poll as it sits in the chat, run like the place ballot on the Location tab but
    pared down to what a quick vote needs: the question, then one compact row per
@@ -268,6 +269,10 @@ function PollEditForm({ poll, votes, me, host, onSave }: {
   const changedO = poll.o.filter((o) => mayO(o) && tidy(opts[o.id] ?? '') !== o.t)
   const problem = blankQ ? 'The question can’t be empty' : blankIds.size ? 'An option can’t be empty' : dupIds.size ? 'Two options say the same thing' : null
   const ready = !problem && (changedQ || changedO.length > 0)
+  useLeaveGuard(changedQ || changedO.length > 0, () => {
+    if (!ready) return false
+    submit({ preventDefault() {} } as React.FormEvent)
+  })
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
