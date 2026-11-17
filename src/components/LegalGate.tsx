@@ -11,9 +11,9 @@ import { useFocusTrap } from '@/hooks/useFocusTrap'
 
 /* The sign-up gate: one box per document. A box can only be ticked once its document
    has been read to the end, so nobody agrees to something they never saw, and both
-   boxes have to be ticked before an account can be made. Tapping a box that is not
-   ready yet opens its document rather than doing nothing (people tried the boxes
-   first and were stuck), and the sheet's "I agree" at the end ticks it. The document
+   boxes have to be ticked before an account can be made. Tapping an empty box opens
+   its document rather than doing nothing (people tried the boxes first and were
+   stuck), and only the sheet's "I agree" at the end ticks it. The document
    opens over the form, with the same text the /privacy and /terms pages show. */
 const ORDER: LegalKey[] = ['privacy', 'terms']
 const NONE: Record<LegalKey, boolean> = { privacy: false, terms: false }
@@ -40,13 +40,14 @@ export function LegalGate({ onChange }: { onChange: (accepted: boolean) => void 
           <div key={k} className="flex items-start gap-2.5">
             <input
               id={id} type="checkbox" checked={ticked[k]}
-              // not disabled: a box that is not ready opens its document instead
-              onClick={(e) => { if (!can) { e.preventDefault(); setOpen(k) } }}
-              onChange={(e) => tick(k, e.target.checked)}
+              // React fires onChange from the click itself, so a preventDefault there
+              // still ticked the box: an empty box only opens its document, and only
+              // the sheet's "I agree" ticks it (the box stays controlled, so it snaps back)
+              onChange={() => (ticked[k] ? tick(k, false) : setOpen(k))}
               className="mt-[3px] h-4 w-4 flex-none cursor-pointer"
               style={{ accentColor: 'var(--accent)' }}
               aria-label={`I have read and agree to the ${doc.title}`}
-              aria-describedby={can ? undefined : `${id}-why`}
+              aria-describedby={ticked[k] ? undefined : `${id}-why`}
             />
             {/* the sentence stays quiet; the name of the document is the one live thing in it */}
             <p className="text-[13px] leading-[1.5] text-dim">
@@ -55,7 +56,7 @@ export function LegalGate({ onChange }: { onChange: (accepted: boolean) => void 
                 {doc.title}
               </button>
               <label htmlFor={id} className="cursor-pointer">.</label>
-              {!can && <span id={`${id}-why`} className="sr-only"> Opens the {doc.title} to read first.</span>}
+              {!ticked[k] && <span id={`${id}-why`} className="sr-only"> Opens the {doc.title}{can ? ' to agree' : ' to read first'}.</span>}
             </p>
           </div>
         )
