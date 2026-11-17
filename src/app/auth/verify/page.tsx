@@ -2,8 +2,8 @@
 
 // Where a new account proves its email. Sign-up sends people here with the address
 // filled in, and the confirmation email links here too, so someone who closed the tab
-// or opened the mail on another device can still type the code. The same mail also
-// carries Supabase's own link, which skips this page and lands on /auth/callback.
+// or opened the mail on another device can still type the code. The code is the
+// only way to confirm; the mail carries no link that confirms on its own.
 
 import { Suspense, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'

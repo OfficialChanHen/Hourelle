@@ -266,10 +266,10 @@ export async function signUpWithEmail(email: string, password: string, name: str
   return null
 }
 
-/* The code in the sign-up email. The same mail still carries Supabase's own link,
-   which lands on /auth/callback; the code is for people who read mail on another
-   device or whose mail app opens links somewhere else. Checking it signs the new
-   account in, so the page can go straight on to the welcome steps. Supabase limits
+/* The code in the sign-up email, the only way to confirm one: the mail's link opens
+   /auth/verify, where the code is typed (supabase/templates/confirm-signup.html).
+   Checking it signs the new account in, so the page can go straight on to the
+   welcome steps. Supabase limits
    how often codes are checked and sent, so there is no throttling of our own. */
 export async function verifySignupCode(email: string, code: string): Promise<string | null> {
   if (!backendOn) return 'Codes need a backend. Add your Supabase keys to .env.local.'
