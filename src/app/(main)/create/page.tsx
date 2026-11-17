@@ -65,6 +65,7 @@ import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Em } from '@/components/ui/Em'
+import { PLATFORMS } from '@/lib/platforms'
 
 const TZ = [
   { v: 'America/Los_Angeles', l: 'Pacific Time (PT)' },
@@ -1177,14 +1178,6 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
     </div>
   )
 }
-
-const PLATFORMS: { name: string; img?: string }[] = [
-  { name: 'Google Meet', img: '/logos/meet.png' },
-  { name: 'Zoom', img: '/logos/zoom.png' },
-  { name: 'Teams', img: '/logos/teams.png' },
-  { name: 'Discord', img: '/logos/discord.png' },
-  { name: 'Other' },
-]
 
 /* ── Step 3: Invite ── */
 function StepInvite({ form, update }: { form: Form; update: Update }) {

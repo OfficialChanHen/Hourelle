@@ -38,6 +38,7 @@ import { centroidOf, coordsOf, searchPlaces, type LatLng } from '@/lib/geo'
 import { useRoute } from '@/hooks/useRoute'
 import { useFollow } from '@/hooks/useFollow'
 import { isPollKey, pollVotes } from '@/lib/polls'
+import { PLATFORMS } from '@/lib/platforms'
 import type { MapPin as MapPinData, PanRequest } from '@/components/EventMap'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
 import { useNoHover } from '@/hooks/useNoHover'
@@ -106,6 +107,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // to Remote and back never demotes a set venue into a ballot
   const inPerson = useRef<'vote' | 'set'>(loc.mode === 'set' ? 'set' : 'vote')
   const [meetingLink, setMeetingLink] = useState(loc.meetingLink)
+  const [platform, setPlatform] = useState(loc.platform)
   // optional voting deadline — voting (and ballot changes) freeze once it passes
   const [voteDeadline, setVoteDeadline] = useState(event.voteDeadline ?? '')
   const deadlineDu = voteDeadline ? daysUntil(voteDeadline) : null
@@ -187,10 +189,11 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // one place to persist the location object, so switching mode never clobbers the other
   // fields — pass the changed field in `over`; unchanged fields come from current state
   function persistLoc(over: Partial<AppEvent['location']> = {}) {
-    persist({ location: { ...loc, mode, places, guestsCanSuggest, meetingLink, ...over } })
+    persist({ location: { ...loc, mode, places, guestsCanSuggest, meetingLink, platform, ...over } })
   }
   function changeMode(m: AppEvent['location']['mode']) { setMode(m); persistLoc({ mode: m }) }
   function changeLink(v: string) { setMeetingLink(v); persistLoc({ meetingLink: v }) }
+  function changePlatform(v: string) { setPlatform(v); persistLoc({ platform: v }) }
   function addPlace(p: EventPlace) {
     if (!YOU || places.some((x) => x.id === p.id)) return
     // a set venue is singular — picking another swaps it out (same as the wizard);
@@ -460,7 +463,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // the one ask this tab makes of you: a vote, while voting is open and you have none
   const owesVote = mode === 'vote' && sub === 'vote' && !locked && !votingClosed && !!YOU && places.length > 1 && myVoteCount === 0
   const headTitle = mode === 'remote'
-    ? `Online${loc.platform ? `, on ${loc.platform}` : ''}.`
+    ? `Online${platform ? `, on ${platform}` : ''}.`
     : sub === 'itin'
       ? stops.length ? `${stops.length} ${stops.length === 1 ? 'stop' : 'stops'}, ${fmtMinute(itinStartMin)} to ${fmtMinuteDay(endMin)}.` : 'No route yet.'
       : !leadPlace ? 'No votes yet.'
@@ -586,7 +589,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
 
       {mode === 'remote' ? (
         <RemoteCall
-          platform={loc.platform} link={meetingLink} host={canManage(event) && !locked} onLink={changeLink}
+          // the call can still move after lock-in (a new link, another platform), so the
+          // host keeps these open once the time is set
+          platform={platform} link={meetingLink} host={canManage(event)} onLink={changeLink} onPlatform={changePlatform}
           people={event.participants.filter((p) => p.rsvp !== 'not_going')}
         />
       ) : !noPlaceYet && (
@@ -1333,10 +1338,10 @@ function RouteSet({ title, sub, stops, going }: {
 /* Online: the tab's moment is the call itself. A framed screen holds everyone's faces
    in tiles, the way a call looks once people join (six at most, then "+N"), with a
    little call bar under them. A picture, so nothing in it is a control. Beside it the
-   platform, how many are joining, and the way in: the host pastes and copies the link,
-   everyone else joins with one tap. */
-function RemoteCall({ platform, link, host, onLink, people }: {
-  platform: string; link: string; host: boolean; onLink: (v: string) => void
+   platform, how many are joining, and the way in: the host picks the platform, pastes
+   and copies the link, everyone else joins with one tap. */
+function RemoteCall({ platform, link, host, onLink, onPlatform, people }: {
+  platform: string; link: string; host: boolean; onLink: (v: string) => void; onPlatform: (v: string) => void
   people: Participant[]
 }) {
   const [copied, setCopied] = useState(false)
@@ -1375,7 +1380,22 @@ function RemoteCall({ platform, link, host, onLink, people }: {
         <h2 className="mt-2 font-serif text-[32px] font-normal leading-[1.12] tracking-[-0.01em] sm:text-[40px]">On {where}</h2>
         <p className="mt-2 text-[15px] text-dim">{people.length} {people.length === 1 ? 'person' : 'people'} joining. The link goes out in every reminder.</p>
         {host ? (
-          <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
+          <>
+          <div role="group" aria-label="Platform" className="mt-5 flex flex-wrap gap-2">
+            {PLATFORMS.map((p) => {
+              const on = platform === p.name
+              return (
+                <button key={p.name} type="button" aria-pressed={on} onClick={() => onPlatform(p.name)} className={`flex h-11 items-center gap-1.5 rounded-full px-3 text-[13.5px] font-semibold sm:h-[34px] ${on ? 'border-[1.5px] border-accent-border bg-accent-bg text-accent-text' : 'border border-border bg-s2 text-dim hover:text-text'}`}>
+                  {p.img && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.img} alt="" width={16} height={16} className="rounded-[3px]" />
+                  )}
+                  {p.name}
+                </button>
+              )
+            })}
+          </div>
+          <div className="mt-3 flex flex-col gap-2.5 sm:flex-row">
             <label className="flex h-11 min-w-0 items-center gap-2 rounded-[10px] border border-border2 bg-s1 px-3 focus-within:border-accent sm:h-10 sm:flex-1">
               <Link2 size={16} className="flex-none text-accent-text" aria-hidden />
               <input value={link} onChange={(e) => onLink(e.target.value)} aria-label="Meeting link" placeholder={`https://${(platform || 'zoom').toLowerCase().replace(/\s+/g, '')}.us/j/123`} className="min-w-0 flex-1 bg-transparent font-mono text-[13px] outline-none placeholder:text-faint" />
@@ -1386,6 +1406,7 @@ function RemoteCall({ platform, link, host, onLink, people }: {
               </button>
             )}
           </div>
+          </>
         ) : link ? (
           <a href={link} target="_blank" rel="noopener noreferrer" className="mt-6 inline-flex h-11 items-center gap-1.5 rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent sm:h-10">
             <Video size={16} aria-hidden /> Join on {where}
