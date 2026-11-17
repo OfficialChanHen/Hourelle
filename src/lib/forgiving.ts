@@ -37,3 +37,52 @@ export function wholeAmount(raw: string, maxDigits = 7): string {
   const dollars = raw.replace(/[^\d.]/g, '').split('.')[0]
   return dollars.replace(/^0+(?=\d)/, '').slice(0, maxDigits)
 }
+
+// a link somewhere in pasted text, and a bare one typed without its https
+const LINK_IN_TEXT = /https?:\/\/[^\s<>"']+/i
+const BARE_LINK = /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i
+
+/* a meeting link as pasted: the link out of an invite line like "Join Zoom Meeting
+   <https://…>", with https added when it was typed without. Empty when nothing in it
+   is an http link, so it is always safe as an href. */
+export function meetingHref(raw: string): string {
+  const s = raw.trim()
+  const found = s.match(LINK_IN_TEXT)?.[0] ?? (BARE_LINK.test(s) ? `https://${s}` : '')
+  if (!found) return ''
+  try {
+    const url = new URL(found.replace(/[.,;:)\]]+$/, ''))
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : ''
+  } catch { return '' }
+}
+
+// the big call platforms by the host their links live on; a subdomain counts
+// (us02web.zoom.us, acme.webex.com), a lookalike (zoom.us.evil.com) does not
+const MEETING_HOSTS: [host: string, name: string][] = [
+  ['zoom.us', 'Zoom'], ['zoom.com', 'Zoom'], ['zoomgov.com', 'Zoom'],
+  ['meet.google.com', 'Google Meet'],
+  ['teams.microsoft.com', 'Teams'], ['teams.live.com', 'Teams'],
+  ['discord.gg', 'Discord'], ['discord.com', 'Discord'], ['discordapp.com', 'Discord'],
+  ['webex.com', 'Webex'],
+  ['meet.jit.si', 'Jitsi'],
+  ['whereby.com', 'Whereby'],
+  ['facetime.apple.com', 'FaceTime'],
+  ['slack.com', 'Slack'],
+  ['whatsapp.com', 'WhatsApp'],
+  ['skype.com', 'Skype'],
+  ['gotomeeting.com', 'GoTo Meeting'], ['goto.com', 'GoTo Meeting'],
+]
+
+/* where an online plan meets, read off its link: "Zoom", "Google Meet" and so on,
+   or "Custom" when the link is empty or not one of the big platforms */
+export function meetingSource(raw: string): string {
+  const href = meetingHref(raw)
+  if (!href) return 'Custom'
+  const host = new URL(href).hostname.replace(/^www\./, '')
+  return MEETING_HOSTS.find(([h]) => host === h || host.endsWith(`.${h}`))?.[1] ?? 'Custom'
+}
+
+/* the same, to follow "on" in a sentence: "on Zoom", "on a custom link" */
+export function onMeeting(raw: string): string {
+  const source = meetingSource(raw)
+  return source === 'Custom' ? 'a custom link' : source
+}

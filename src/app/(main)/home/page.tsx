@@ -76,6 +76,7 @@ import { overText } from '@/lib/overText'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { useAccount } from '@/hooks/useAccount'
 import { DateField } from '@/components/ui/DateField'
+import { onMeeting } from '@/lib/forgiving'
 
 // what part of the day it is, by the reader's clock
 function greetingFor(hour: number): string {
@@ -704,7 +705,7 @@ function UpNext({ e, phase, sameDay, size, look, lead = false }: { e: AppEvent; 
             {d.you && !(lead && turn) && <Row icon={UserRound}><span className={turn ? 'font-semibold text-moment-text' : ''}>{d.you}</span></Row>}
             {/* then where */}
             {small ? null : e.location.mode === 'remote' ? (
-              <Row icon={Video}>Online{e.location.platform ? ` on ${e.location.platform}` : ''}</Row>
+              <Row icon={Video}>Online on {onMeeting(e.location.meetingLink)}</Row>
             ) : d.lead?.confirmed ? (
               <Row icon={MapPin}>{d.lead.place.name}{d.lead.place.place && <span className="text-dim">, {d.lead.place.place}</span>}</Row>
             ) : d.lead ? (

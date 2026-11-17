@@ -9,6 +9,7 @@ import { dateRangeText, daysUntil, daysUntilLabel, fmtMinute, reopenEvent, setMy
 import { AddToCalendar } from './AddToCalendar'
 import { JustLocked } from './JustLocked'
 import { slotWhen } from '@/lib/slot'
+import { onMeeting } from '@/lib/forgiving'
 
 // your answer to the locked-in plan — strict role colors: teal going, ochre maybe, brick out
 const RSVP_OPTIONS: { v: Rsvp; label: string; icon: typeof Check; on: string }[] = [
@@ -74,7 +75,7 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-[13.5px] text-dim">
             {event.location.mode === 'remote' ? (
-              <><Video size={15} className="flex-none text-accent-text" /> Online on {event.location.platform}</>
+              <><Video size={15} className="flex-none text-accent-text" /> Online on {onMeeting(event.location.meetingLink)}</>
             ) : itinLocked ? (
               <><Route size={15} className="flex-none text-accent-text" /> {itin.length}-stop itinerary, on the Location tab</>
             ) : placeNames.length > 1 ? (

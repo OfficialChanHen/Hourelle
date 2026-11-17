@@ -48,6 +48,7 @@ import { useRoute } from '@/hooks/useRoute'
 import { useFollow } from '@/hooks/useFollow'
 import { useNoHover } from '@/hooks/useNoHover'
 import { ALL_MODES, type TravelMode } from '@/lib/travel'
+import { meetingSource, onMeeting } from '@/lib/forgiving'
 
 type GoTab = (t: 'availability' | 'location') => void
 // the window this tab reads attendance against: the confirmed time once locked, else the best free window
@@ -323,7 +324,7 @@ function summaryOf(event: AppEvent, win: Win | null, locked: boolean, gridStart:
   const lines: string[] = []
   const lead = leadingPlaceOf(event)
   const where = event.location.mode === 'remote'
-    ? `Online${event.location.platform ? `, on ${event.location.platform}` : ''}`
+    ? `Online, on ${onMeeting(event.location.meetingLink)}`
     : lead ? `${lead.place.name}${lead.place.place ? `, ${lead.place.place}` : ''}` : ''
 
   if (locked && event.confirmed) {
@@ -723,7 +724,7 @@ function LeadingPlace({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab
         <span className="grid h-9 w-9 flex-none place-items-center rounded-lg border border-border bg-s2 text-dim"><Video size={16} /></span>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[14.5px] font-semibold">Online</div>
-          <div className="text-[12.5px] text-dim">{event.location.platform || 'Meeting link on the Details tab'}</div>
+          <div className="text-[12.5px] text-dim">{meetingSource(event.location.meetingLink)}</div>
         </div>
       </div>
     )

@@ -8,6 +8,7 @@ import { icsFileName, icsFor } from '@/lib/ics'
 import { isAllDay, slotWhen } from '@/lib/slot'
 import { serverDb } from './db'
 import { APP_NAME } from '@/lib/brand'
+import { onMeeting } from '../forgiving'
 
 /* ── where links point ── */
 // API routes know the caller's origin; the cron job does not, so it needs a setting
@@ -195,7 +196,7 @@ export function placeText(ev: AppEvent): string {
   const ids = ev.confirmed?.placeIds ?? []
   const names = ids.map((id) => ev.location.places.find((p) => p.id === id)?.name).filter((n): n is string => !!n)
   if (names.length) return names.join(', ')
-  if (ev.location.mode === 'remote') return `Online${ev.location.platform ? ` on ${ev.location.platform}` : ''}`
+  if (ev.location.mode === 'remote') return `Online on ${onMeeting(ev.location.meetingLink)}`
   if (ev.location.mode === 'set' && ev.location.places[0]) return ev.location.places[0].name
   return ''
 }

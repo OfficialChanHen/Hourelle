@@ -60,7 +60,7 @@ import { Popover, PopoverItem, PopoverSep, PopoverTitle } from '@/components/ui/
 import { Hint } from '@/components/ui/Hint'
 import { Tour, type TourContext } from '@/components/Tour'
 import { AskTour } from '@/components/AskTour'
-import { cleanEmail, isEmail, wholeAmount } from '@/lib/forgiving'
+import { cleanEmail, isEmail, meetingHref, onMeeting, wholeAmount } from '@/lib/forgiving'
 import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, patchEventWith, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
@@ -1444,7 +1444,7 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
   // the host sees the address with a Copy beside it. Everyone else gets a way into the
   // call and nothing to pass on.
   const linkRow = !canManage(event) ? (
-    <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex h-11 w-fit items-center gap-1.5 rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent sm:h-8">
+    <a href={meetingHref(link)} target="_blank" rel="noopener noreferrer" className="inline-flex h-11 w-fit items-center gap-1.5 rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent sm:h-8">
       <Video size={14} /> Join the call
     </a>
   ) : (
@@ -1460,7 +1460,7 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
   if (loc.mode === 'remote') {
     return (
       <div className="flex flex-col gap-1.5">
-        <span>Online on {loc.platform || 'a platform to be decided'}</span>
+        <span>Online on {onMeeting(link)}</span>
         {link ? linkRow : canManage(event) ? (
           <button onClick={onGoToLocation} className="text-left text-[12.5px] font-medium text-accent-text hover:underline">
             Add a meeting link on the Location tab so it lands in every reminder
