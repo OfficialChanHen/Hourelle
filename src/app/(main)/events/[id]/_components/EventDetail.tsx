@@ -36,6 +36,8 @@ import { pushFlash } from '@/components/ui/FlashToast'
 import { lastListPage } from '@/lib/nav'
 import { confirmLeave } from '@/lib/leave-guard'
 import { useLeaveGuard } from '@/hooks/useLeaveGuard'
+import { useAutosave } from '@/hooks/useAutosave'
+import { SaveStatus } from '@/components/ui/SaveStatus'
 import { useEventRoom } from '@/hooks/useEventRoom'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { DaysPicker } from '@/components/ui/DaysPicker'
@@ -652,35 +654,57 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   )
 }
 
-/* the event name is the host's to change — click the pencil, type, Enter or blur saves */
-function EditableTitle({ title, editable, onSave }: { title: string; editable: boolean; onSave: (t: string) => void }) {
+/* Renaming a plan, shared by the header and the Details row. The name saves itself
+   once typing pauses (lib/autosave), and at once on Enter or blur; Escape puts back the
+   name it had when editing began. An empty name is not a name, so it is never saved. */
+function useNameEdit(title: string, onSave: (t: string) => void) {
   const [editing, setEditing] = useState(false)
-  const ref = useRef<HTMLInputElement>(null)
+  const before = useRef(title)
+  const auto = useAutosave<string>(onSave)
+  return {
+    editing,
+    status: auto.status,
+    begin() { before.current = title; setEditing(true) },
+    input: {
+      defaultValue: title, autoFocus: true, maxLength: 80, 'aria-label': 'Plan name',
+      onChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const v = e.target.value.trim()
+        if (v && v !== title) auto.change(v)
+        else auto.cancel()
+      },
+      onBlur() { auto.flush(); setEditing(false) },
+      onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+        if (e.key === 'Enter') { auto.flush(); setEditing(false) }
+        if (e.key === 'Escape') {
+          auto.cancel()
+          if (title !== before.current) onSave(before.current)
+          setEditing(false)
+        }
+      },
+    },
+  }
+}
+
+/* the event name is the host's to change: click the pencil and type */
+function EditableTitle({ title, editable, onSave }: { title: string; editable: boolean; onSave: (t: string) => void }) {
+  const name = useNameEdit(title, onSave)
   // wraps anywhere: one long word in a title must never widen the page past a phone screen
   const h1 = 'font-serif font-normal text-[34px] leading-[1.02] tracking-[-0.01em] [overflow-wrap:anywhere] sm:text-[48px]'
 
   if (!editable) return <h1 className={h1}>{title}</h1>
-  if (editing) {
-    const save = () => {
-      const v = ref.current?.value.trim()
-      if (v && v !== title) onSave(v)
-      setEditing(false)
-    }
-    return (
-      <input
-        ref={ref} defaultValue={title} autoFocus maxLength={80} aria-label="Plan name"
-        onBlur={save}
-        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
-        className={`w-full max-w-[560px] rounded-[10px] border border-border bg-s0 px-3 py-0.5 outline-none focus:border-accent ${h1}`}
-      />
-    )
-  }
   return (
-    <span className="flex items-center gap-2.5">
-      <h1 className={`min-w-0 ${h1}`}>{title}</h1>
-      <button onClick={() => setEditing(true)} title="Rename this plan" aria-label="Rename this plan" className="hit-area grid h-8 w-8 flex-none place-items-center rounded-full text-faint hover:bg-s2 hover:text-dim">
-        <Pencil size={15} />
-      </button>
+    <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+      {name.editing ? (
+        <input {...name.input} className={`w-full max-w-[560px] rounded-[10px] border border-border bg-s0 px-3 py-0.5 outline-none focus:border-accent ${h1}`} />
+      ) : (
+        <>
+          <h1 className={`min-w-0 ${h1}`}>{title}</h1>
+          <button onClick={name.begin} title="Rename this plan" aria-label="Rename this plan" className="hit-area grid h-8 w-8 flex-none place-items-center rounded-full text-faint hover:bg-s2 hover:text-dim">
+            <Pencil size={15} />
+          </button>
+        </>
+      )}
+      <SaveStatus status={name.status} />
     </span>
   )
 }
@@ -1406,6 +1430,7 @@ function DeadlineValue({ label, value, editable, onChange, hint, max }: {
 /* Spots: the host caps the guest list; everyone sees the number, only the host edits it */
 function CapacityValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
   const [v, setV] = useState(event.capacity?.toString() ?? '')
+  const auto = useAutosave<number | undefined>((capacity) => onPatch({ capacity }))
   const going = event.participants.filter((p) => p.rsvp === 'attending').length
   if (!editable) {
     if (event.capacity == null) return <span className="text-faint">No limit</span>
@@ -1415,13 +1440,18 @@ function CapacityValue({ event, editable, onPatch }: { event: AppEvent; editable
     const clean = raw.replace(/[^\d]/g, '').slice(0, 4)
     setV(clean)
     const n = Number(clean)
-    onPatch({ capacity: clean && n >= 1 ? n : undefined })
+    const capacity = clean && n >= 1 ? n : undefined
+    if (capacity === event.capacity) auto.cancel()
+    else auto.change(capacity)
   }
   return (
-    <input
-      value={v} onChange={(e) => change(e.target.value)} inputMode="numeric" placeholder="No limit" aria-label="Spots"
-      className="h-8 w-[110px] rounded-[8px] border border-border bg-s0 px-2.5 text-[13.5px] font-medium outline-none focus-within:border-accent"
-    />
+    <span className="flex flex-wrap items-center gap-2.5">
+      <input
+        value={v} onChange={(e) => change(e.target.value)} onBlur={auto.flush} inputMode="numeric" placeholder="No limit" aria-label="Spots"
+        className="h-8 w-[110px] rounded-[8px] border border-border bg-s0 px-2.5 text-[13.5px] font-medium outline-none focus-within:border-accent"
+      />
+      <SaveStatus status={auto.status} />
+    </span>
   )
 }
 
@@ -1579,33 +1609,23 @@ function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Par
   )
 }
 
-/* Name: the same rename the header offers, here where the rest of the event is edited.
-   Enter or blur saves, Escape leaves it as it was; an empty name is not a name. */
+/* Name: the same rename the header offers, here where the rest of the event is edited */
 function NameValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
-  const [editing, setEditing] = useState(false)
-  const ref = useRef<HTMLInputElement>(null)
+  const name = useNameEdit(event.title, (title) => onPatch({ title }))
   if (!editable) return <>{event.title}</>
-  if (editing) {
-    const save = () => {
-      const v = ref.current?.value.trim()
-      if (v && v !== event.title) onPatch({ title: v })
-      setEditing(false)
-    }
-    return (
-      <input
-        ref={ref} defaultValue={event.title} autoFocus maxLength={80} aria-label="Plan name"
-        onBlur={save}
-        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
-        className="h-9 w-full max-w-[420px] rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-accent"
-      />
-    )
-  }
   return (
-    <span className="flex items-start gap-2">
-      <span className="min-w-0 flex-1">{event.title}</span>
-      <button onClick={() => setEditing(true)} title="Rename this plan" aria-label="Rename this plan" className="hit-area grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
-        <Pencil size={13} />
-      </button>
+    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+      {name.editing ? (
+        <input {...name.input} className="h-9 w-full max-w-[420px] rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-accent" />
+      ) : (
+        <>
+          <span className="min-w-0 flex-1">{event.title}</span>
+          <button onClick={name.begin} title="Rename this plan" aria-label="Rename this plan" className="hit-area grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
+            <Pencil size={13} />
+          </button>
+        </>
+      )}
+      <SaveStatus status={name.status} />
     </span>
   )
 }
@@ -1694,11 +1714,13 @@ function BudgetReadOnly({ event }: { event: AppEvent }) {
 function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
   const [budget, setBudget] = useState(event.budget)
   const [mode, setMode] = useState<'total' | 'person'>(event.budgetMode ?? 'total')
+  const auto = useAutosave<string>((b) => onPatch({ budget: b }))
 
   function changeBudget(v: string) {
     const clean = wholeAmount(v)
     setBudget(clean)
-    onPatch({ budget: clean })
+    if (clean === event.budget) auto.cancel()
+    else auto.change(clean)
   }
   function changeMode(m: 'total' | 'person') {
     setMode(m)
@@ -1714,7 +1736,7 @@ function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Pa
         <label className="flex h-8 w-[110px] items-center rounded-[8px] border border-border bg-s0 px-2.5 focus-within:border-accent">
           <span className="text-[13px] text-dim">$</span>
           <input
-            value={budget} onChange={(e) => changeBudget(e.target.value)}
+            value={budget} onChange={(e) => changeBudget(e.target.value)} onBlur={auto.flush}
             inputMode="numeric" placeholder="0" aria-label="Budget"
             className="w-full min-w-0 bg-transparent px-1 text-[13.5px] font-medium outline-none"
           />
@@ -1731,6 +1753,7 @@ function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Pa
             </button>
           ))}
         </div>
+        <SaveStatus status={auto.status} />
       </div>
       <BudgetConverse amount={amount} mode={mode} responded={responded} />
       {amount > 0 && responded === 0 && (
