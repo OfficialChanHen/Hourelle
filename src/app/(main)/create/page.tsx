@@ -58,7 +58,7 @@ import { canEmail, sendInvites } from '@/lib/mail'
 import { InviteByEmail } from '@/components/InviteByEmail'
 import { DurationField } from '@/components/ui/DurationField'
 import { useAccount } from '@/hooks/useAccount'
-import { cleanEmail, isEmail, wholeAmount } from '@/lib/forgiving'
+import { cleanEmail, isEmail, onMeeting, wholeAmount } from '@/lib/forgiving'
 import { OverflowText } from '@/components/ui/OverflowText'
 import { DaysPicker } from '@/components/ui/DaysPicker'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
@@ -513,7 +513,7 @@ function CreateWizard() {
   // one-line summaries so each closed drawer still says where it stands
   const inviteTotal = form.emails.length + form.accounts.length
   const placeSummary = form.locMode === 'remote'
-    ? `Online on ${form.platform}`
+    ? `Online on ${onMeeting(form.meetingLink)}`
     : form.locMode === 'later'
       ? 'Decide later'
       : form.locSettled
@@ -1135,27 +1135,10 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
 
       {form.locMode === 'remote' && (
         <div className="flex flex-col gap-3">
-          <div>
-            <Label>Platform</Label>
-            <div className="flex flex-wrap gap-2">
-              {PLATFORMS.map((p) => {
-                const on = form.platform === p.name
-                return (
-                  <button key={p.name} type="button" aria-pressed={on} onClick={() => update({ platform: p.name })} className={`flex h-[34px] items-center gap-1.5 rounded-full px-3 text-[13.5px] font-semibold ${on ? 'border-[1.5px] border-accent-border bg-accent-bg text-accent-text' : 'border border-border bg-s2 text-dim'}`}>
-                    {p.img && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.img} alt="" width={16} height={16} className="rounded-[3px]" />
-                    )}
-                    {p.name}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
           <Field label="Meeting link (optional)" id="ev-link">
             <div className="flex h-10 items-center gap-2 rounded-[10px] border border-border bg-s2 px-[13px] focus-within:border-accent">
               <Link2 size={17} className="text-accent-text" />
-              <input id="ev-link" value={form.meetingLink} onChange={(e) => update({ meetingLink: e.target.value })} placeholder={`Paste a ${form.platform} link, or add it later`} className="flex-1 bg-transparent font-mono text-[14px] outline-none placeholder:text-faint" />
+              <input id="ev-link" value={form.meetingLink} onChange={(e) => update({ meetingLink: e.target.value })} placeholder="https://zoom.us/j/123" className="flex-1 bg-transparent font-mono text-[14px] outline-none placeholder:text-faint" />
             </div>
           </Field>
           <div className="flex items-start gap-2 rounded-[10px] border border-border bg-s2 px-[13px] py-[11px]">
@@ -1177,14 +1160,6 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
     </div>
   )
 }
-
-const PLATFORMS: { name: string; img?: string }[] = [
-  { name: 'Google Meet', img: '/logos/meet.png' },
-  { name: 'Zoom', img: '/logos/zoom.png' },
-  { name: 'Teams', img: '/logos/teams.png' },
-  { name: 'Discord', img: '/logos/discord.png' },
-  { name: 'Other' },
-]
 
 /* ── Step 3: Invite ── */
 function StepInvite({ form, update }: { form: Form; update: Update }) {

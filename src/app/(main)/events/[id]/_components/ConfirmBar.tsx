@@ -13,6 +13,7 @@ import { canEmail, sendLockedMail } from '@/lib/mail'
 import { useAccount } from '@/hooks/useAccount'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { getEvent } from '@/lib/events'
+import { onMeeting } from '@/lib/forgiving'
 import {
   availIvOf, bestWindow, confirmedSlotText, confirmEvent, fmtMinute, gridStartMinOf, patchEvent, answeredCount,
   type AppEvent, type ConfirmedSlot,
@@ -293,7 +294,7 @@ function ConfirmForm({ event, close, onChanged, onGoToDetails, onGoToLocation, p
         <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.12em] text-faint">Place</div>
         {loc.mode === 'remote' ? (
           <div className="flex items-center gap-2 rounded-[9px] border border-border bg-s2 px-3 py-2 text-[13px] text-dim">
-            <Video size={15} className="flex-none text-accent-text" /> Online on {loc.platform}
+            <Video size={15} className="flex-none text-accent-text" /> Online on {onMeeting(loc.meetingLink)}
           </div>
         ) : settled ? (
           <div className="flex items-center gap-2 rounded-[9px] border border-border bg-s2 px-3 py-2 text-[13px] text-dim">

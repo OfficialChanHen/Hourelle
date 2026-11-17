@@ -6,6 +6,7 @@ import { RotateCcw } from 'lucide-react'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Highlight } from '@/components/ui/Pencil'
 import { placeVotes } from '@/lib/polls'
+import { onMeeting } from '@/lib/forgiving'
 import {
   availIvOf, bestBlock, bestWindow, confirmedSlotText, dateRangeText, fmtMinute, gridStartMinOf,
   longestRun, answeredIds, rsvpPool, type AppEvent, type Phase,
@@ -85,7 +86,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
   const where = settledPlace ? (
     <> It&apos;s at <strong className="font-semibold">{settledPlace.name}</strong>.</>
   ) : event.location.mode === 'remote' ? (
-    <> It&apos;s online, on {event.location.platform || 'a call'}.</>
+    <> It&apos;s online, on {onMeeting(event.location.meetingLink)}.</>
   ) : leading ? (
     <> <strong className="font-semibold">{leading.name}</strong> leads the place vote.</>
   ) : null

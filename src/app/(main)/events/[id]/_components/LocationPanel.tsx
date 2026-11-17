@@ -54,6 +54,7 @@ import { TimezonePill } from '@/components/ui/TimezonePill'
 import { TabHeading } from './TabHeading'
 import { SettingsMenu } from '@/components/ui/Settings'
 import { VoteRules } from './VoteRules'
+import { meetingHref, meetingSource, onMeeting } from '@/lib/forgiving'
 
 // Leaflet reads `window` when it loads, so the map only ever renders in the browser
 const EventMap = dynamic(() => import('@/components/EventMap').then((m) => m.EventMap), { ssr: false, loading: () => <div className="absolute inset-0 animate-pulse bg-s2" /> })
@@ -460,7 +461,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // the one ask this tab makes of you: a vote, while voting is open and you have none
   const owesVote = mode === 'vote' && sub === 'vote' && !locked && !votingClosed && !!YOU && places.length > 1 && myVoteCount === 0
   const headTitle = mode === 'remote'
-    ? `Online${loc.platform ? `, on ${loc.platform}` : ''}.`
+    ? `Online, on ${onMeeting(meetingLink)}.`
     : sub === 'itin'
       ? stops.length ? `${stops.length} ${stops.length === 1 ? 'stop' : 'stops'}, ${fmtMinute(itinStartMin)} to ${fmtMinuteDay(endMin)}.` : 'No route yet.'
       : !leadPlace ? 'No votes yet.'
@@ -586,7 +587,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
 
       {mode === 'remote' ? (
         <RemoteCall
-          platform={loc.platform} link={meetingLink} host={canManage(event) && !locked} onLink={changeLink}
+          link={meetingLink} host={canManage(event) && !locked} onLink={changeLink}
           people={event.participants.filter((p) => p.rsvp !== 'not_going')}
         />
       ) : !noPlaceYet && (
@@ -1335,16 +1336,18 @@ function RouteSet({ title, sub, stops, going }: {
    little call bar under them. A picture, so nothing in it is a control. Beside it the
    platform, how many are joining, and the way in: the host pastes and copies the link,
    everyone else joins with one tap. */
-function RemoteCall({ platform, link, host, onLink, people }: {
-  platform: string; link: string; host: boolean; onLink: (v: string) => void
+function RemoteCall({ link, host, onLink, people }: {
+  link: string; host: boolean; onLink: (v: string) => void
   people: Participant[]
 }) {
   const [copied, setCopied] = useState(false)
   const tiles = people.slice(0, people.length > 6 ? 5 : 6)
   const extra = people.length - tiles.length
-  const where = platform || 'the call'
+  // the platform is read off the link itself; an empty or unknown one is custom
+  const source = meetingSource(link)
+  const href = meetingHref(link)
   function copy() {
-    navigator.clipboard?.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
+    navigator.clipboard?.writeText(href || link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
   return (
     <div className="relative isolate flex flex-col gap-8 py-4 md:flex-row md:items-center md:gap-14">
@@ -1372,13 +1375,13 @@ function RemoteCall({ platform, link, host, onLink, people }: {
 
       <div className="max-w-[460px] flex-1">
         <p className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Online</p>
-        <h2 className="mt-2 font-serif text-[32px] font-normal leading-[1.12] tracking-[-0.01em] sm:text-[40px]">On {where}</h2>
+        <h2 className="mt-2 font-serif text-[32px] font-normal leading-[1.12] tracking-[-0.01em] sm:text-[40px]">On {onMeeting(link)}</h2>
         <p className="mt-2 text-[15px] text-dim">{people.length} {people.length === 1 ? 'person' : 'people'} joining. The link goes out in every reminder.</p>
         {host ? (
           <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
             <label className="flex h-11 min-w-0 items-center gap-2 rounded-[10px] border border-border2 bg-s1 px-3 focus-within:border-accent sm:h-10 sm:flex-1">
               <Link2 size={16} className="flex-none text-accent-text" aria-hidden />
-              <input value={link} onChange={(e) => onLink(e.target.value)} aria-label="Meeting link" placeholder={`https://${(platform || 'zoom').toLowerCase().replace(/\s+/g, '')}.us/j/123`} className="min-w-0 flex-1 bg-transparent font-mono text-[13px] outline-none placeholder:text-faint" />
+              <input value={link} onChange={(e) => onLink(e.target.value)} aria-label="Meeting link" placeholder="https://zoom.us/j/123" className="min-w-0 flex-1 bg-transparent font-mono text-[13px] outline-none placeholder:text-faint" />
             </label>
             {link && (
               <button type="button" onClick={copy} className={`flex h-11 flex-none items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[14px] font-semibold sm:h-10 ${copied ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'}`}>
@@ -1386,9 +1389,9 @@ function RemoteCall({ platform, link, host, onLink, people }: {
               </button>
             )}
           </div>
-        ) : link ? (
-          <a href={link} target="_blank" rel="noopener noreferrer" className="mt-6 inline-flex h-11 items-center gap-1.5 rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent sm:h-10">
-            <Video size={16} aria-hidden /> Join on {where}
+        ) : href ? (
+          <a href={href} target="_blank" rel="noopener noreferrer" className="mt-6 inline-flex h-11 items-center gap-1.5 rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent sm:h-10">
+            <Video size={16} aria-hidden /> {source === 'Custom' ? 'Join the call' : `Join on ${source}`}
           </a>
         ) : (
           <p className="mt-5 flex items-center gap-2 text-[14px] text-dim"><Link2 size={15} className="text-faint" aria-hidden /> The link is on its way from the host.</p>

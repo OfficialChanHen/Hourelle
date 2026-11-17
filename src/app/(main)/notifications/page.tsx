@@ -12,6 +12,7 @@ import { dateRangeText, fmtMinute, listEvents, answeredCount, type AppEvent } fr
 import { deriveNotifications, markAllNotificationsSeen, seenNotificationKeys, type NotificationItem } from '@/lib/notifications'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { reducedMotion } from '@/lib/prefs'
+import { onMeeting } from '@/lib/forgiving'
 
 type Bucket = { title: string; items: NotificationItem[] }
 
@@ -177,7 +178,7 @@ export default function NotificationsPage() {
                 const day = e.days.find((d) => d.key === c.dayKey)
                 const remote = e.location.mode === 'remote'
                 const place = remote
-                  ? `Online on ${e.location.platform}`
+                  ? `Online on ${onMeeting(e.location.meetingLink)}`
                   : c.placeIds.map((id) => e.location.places.find((p) => p.id === id)?.name).filter(Boolean).join(', ') || 'Place still open'
                 return (
                   <Link key={key} href={`/events/${e.id}?tab=details`} className={cardCls}>
