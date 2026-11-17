@@ -587,7 +587,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
 
       {mode === 'remote' ? (
         <RemoteCall
-          link={meetingLink} host={canManage(event) && !locked} onLink={changeLink}
+          // the call can still move after lock-in (a new room, another platform), so the
+          // host keeps the link open once the time is set; the platform follows the link
+          link={meetingLink} host={canManage(event)} onLink={changeLink}
           people={event.participants.filter((p) => p.rsvp !== 'not_going')}
         />
       ) : !noPlaceYet && (
