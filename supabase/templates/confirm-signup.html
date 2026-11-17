@@ -1,0 +1,22 @@
+<!--
+  Supabase → Authentication → Emails → Templates → Confirm signup.
+  Subject: Your code is {{ .Token }}
+  Paste this file as the body. Go template: {{ .Token }} is the one-time code,
+  {{ .SiteURL }} must be the live site (Authentication → URL Configuration).
+  The page /auth/verify takes the code; the plain link at the bottom still works
+  for anyone who would rather click. No product name: prod and previews differ.
+  Colours are the house light palette; every text pair clears WCAG AA.
+-->
+<div style="margin:0;padding:32px 16px;background:#FAF6EF;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1F1B16;">
+  <div style="max-width:440px;margin:0 auto;background:#FFFDF9;border:1px solid #EAE2D5;border-radius:20px;padding:28px 28px 24px;">
+    <h1 style="margin:0 0 8px;font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:26px;line-height:1.15;">Confirm your email</h1>
+    <p style="margin:0 0 20px;font-size:14px;line-height:1.55;color:#655D52;">Type this code on the sign-up page to finish making your account.</p>
+
+    <div style="margin:0 0 20px;padding:16px;background:#F3EDE3;border-radius:14px;text-align:center;font-family:'SFMono-Regular',Menlo,Consolas,monospace;font-size:30px;letter-spacing:8px;font-weight:600;color:#1F1B16;">{{ .Token }}</div>
+
+    <a href="{{ .SiteURL }}/auth/verify?email={{ .Email | urlquery }}" style="display:block;margin:0 0 20px;padding:12px 18px;background:#2E6B4E;border-radius:999px;color:#FFFDF9;font-size:14px;font-weight:600;text-align:center;text-decoration:none;">Enter the code</a>
+
+    <p style="margin:0 0 8px;font-size:13px;line-height:1.55;color:#655D52;">The code works once and expires in an hour. If you did not sign up, ignore this email and no account will be made.</p>
+    <p style="margin:0;font-size:13px;line-height:1.55;color:#655D52;">Or confirm with this link instead: <a href="{{ .ConfirmationURL }}" style="color:#23543D;font-weight:600;">confirm my email</a>.</p>
+  </div>
+</div>
