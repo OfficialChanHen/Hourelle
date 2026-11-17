@@ -237,8 +237,19 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   // hooks must run on every render.
   const [lockAsk, setLockAsk] = useState<{ dayKey: string; endDayKey?: string; nonce: number } | null>(null)
   // the grid dial's days-in-a-row, reported by the availability panel so the lock-in
-  // modal offers a time (1) or a first-to-last run (2+). Null until the grid reports.
-  const [runLen, setRunLen] = useState<number | null>(null)
+  // modal offers a time (1) or a first-to-last run (2+). Held here, and for the rest of
+  // the browser session, so a tab switch or a reload keeps the run you were looking at.
+  // Null until the grid reports.
+  const runKey = `hourelle.run.${id}`
+  const [runLen, setRunLenState] = useState<number | null>(() => {
+    if (typeof window === 'undefined') return null
+    const n = Number(sessionStorage.getItem(runKey))
+    return n >= 1 ? n : null
+  })
+  const setRunLen = (n: number) => {
+    setRunLenState(n)
+    try { sessionStorage.setItem(runKey, String(n)) } catch { /* private mode: it lasts the visit */ }
+  }
 
   function handleDelete() {
     const title = event?.title
@@ -596,8 +607,10 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           onLockDays={event.hostedByYou && phase === 'planning'
             ? (startKey, endKey) => setLockAsk((p) => ({ dayKey: startKey, endDayKey: endKey !== startKey ? endKey : undefined, nonce: (p?.nonce ?? 0) + 1 }))
             : undefined}
+          runLen={runLen}
           onRunChange={setRunLen}
           onPatch={patchLive}
+          onSaved={refresh}
         />
         </div>
       )}

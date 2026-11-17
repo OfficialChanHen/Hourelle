@@ -119,7 +119,7 @@ function subscribeCoarse(cb: () => void) {
 }
 const OVERSCAN = 6 // rows rendered beyond the viewport each side, so scrolling doesn't flash blank
 
-export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0, onLockDays, onRunChange, onPatch, pattern }: {
+export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0, onLockDays, runLen, onRunChange, onPatch, onSaved, pattern }: {
   event: AppEvent; locked?: boolean; initialFilter?: string[] | string | null; focusBest?: number
   // the profile's usual week: the same grid and the same painting on a week with no
   // dates and only you on it. Every write goes to `onChange` instead of a plan, and
@@ -127,9 +127,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   pattern?: { onChange: (times: Record<string, Iv[]>) => void }
   // lets a change made here (adding yourself to the list) reach the always-mounted surfaces
   onPatch?: (patch: Partial<AppEvent>) => void
+  // after a write of this panel's own lands in storage (your times, the plan's length
+  // or best mode), so the surfaces outside the grid (the lock-in, the header) read it
+  onSaved?: () => void
   // host-only shortcut on day polls: hand the footer's winning run straight to the confirm modal
   onLockDays?: (startKey: string, endKey: string) => void
-  // reports the days-in-a-row dial, so the lock-in modal matches what's being answered
+  // the days-in-a-row dial, held by the page so it outlives a tab switch; the panel
+  // keeps its own when nobody passes one. Reported back so the lock-in matches it
+  runLen?: number | null
   onRunChange?: (n: number) => void
 }) {
   const heatLine = useHeatLine() // "the darker the green" on light, "the brighter" on dark
@@ -522,6 +527,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     // screen that had not caught up yet wrote back its older picture of other people:
     // someone's times, marked a moment before, were saved over as empty.
     patchEventWith(event.id, (cur) => ({ ...myTimesPatch(cur, meId, event.days, m, rows, step, cleanNeed), ...extra }))
+    onSaved?.()
   }
   // your explicit empty reply: none of these days work — cleared by marking any time
   function toggleNoneWork() {
@@ -536,18 +542,19 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       const rest = (cur.unavailableIds ?? []).filter((id) => id !== meId)
       return { unavailableIds: on ? [...rest, meId] : rest }
     })
+    if (!event.demo) onSaved?.()
   }
   function changeDuration(v: number) {
     setDurationMin(v)
-    if (!event.demo) patchEvent(event.id, { durationMin: v })
+    if (!event.demo) { patchEvent(event.id, { durationMin: v }); onSaved?.() }
   }
   function changeOpenLength(v: boolean) {
     setOpenLength(v)
-    if (!event.demo) patchEvent(event.id, { openLength: v || undefined })
+    if (!event.demo) { patchEvent(event.id, { openLength: v || undefined }); onSaved?.() }
   }
   function changeBestMode(v: BestMode) {
     setBestMode(v)
-    if (!event.demo) patchEvent(event.id, { bestMode: v })
+    if (!event.demo) { patchEvent(event.id, { bestMode: v }); onSaved?.() }
   }
   // quick-fill: add a clock-time block to every visible day at once
   function fillPreset(startClock: number, endClock: number) {
@@ -1326,7 +1333,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // single day on a day poll), anything longer is the best run of consecutive days.
   // The longest pickable run is the longest stretch of touching calendar days in the poll.
   const maxRun = useMemo(() => longestRun(event.days), [event.days])
-  const [blockLen, setBlockLen] = useState(() => (dayPoll && maxRun >= 2 ? 2 : 1))
+  const [ownLen, setOwnLen] = useState(() => (dayPoll && maxRun >= 2 ? 2 : 1))
+  // never more days than the poll has in a row (its days can change under the dial)
+  const blockLen = Math.max(1, Math.min(runLen ?? ownLen, maxRun))
+  const setBlockLen = (n: number) => { setOwnLen(n); onRunChange?.(n) }
   // keep the lock-in modal in step with the dial
   useEffect(() => { onRunChange?.(blockLen) }, [blockLen]) // eslint-disable-line react-hooks/exhaustive-deps
   const block = useMemo(
@@ -1498,15 +1508,17 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // a best-window link elsewhere (hero, attendance) jumps here: right week, view
   // mode so the frame shows, grid scrolled so the window sits mid-viewport
   useEffect(() => {
-    if (!focusBest || !frame) return
+    // with the dial on a run of days the jump lands on the run's first day, and the
+    // dial stays where it was set
+    const to = runFrames?.[0] ?? frame
+    if (!focusBest || !to) return
     const el = scroller.current
     if (!el) return
-    const idx = paddedDays.findIndex((d) => d.key === frame.dayKey)
+    const idx = paddedDays.findIndex((d) => d.key === to.dayKey)
     if (idx >= 0) setPage(Math.floor(idx / WEEK))
     setMode('view')
-    setBlockLen(1) // the jump targets the best single slot — keep the footer on the same answer
     if (!dayPoll) {
-      const target = Math.max(0, ((frame.s + frame.e) / 2) * pxPerMin - el.clientHeight / 2)
+      const target = Math.max(0, ((to.s + to.e) / 2) * pxPerMin - el.clientHeight / 2)
       el.scrollTop = target
       setScrollTop(target)
     }
