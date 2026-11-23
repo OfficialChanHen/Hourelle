@@ -94,10 +94,10 @@ export function WeekStrip({ weeks, total, value, onChange, idBase, panelId, ask 
               aria-controls={panelId}
               tabIndex={on ? 0 : -1}
               onClick={() => onChange(i)}
-              // the open tab wears the grid header's paper and the accent along its
-              // top; the rest sit behind, their bottoms on the grid's border
+              // the open tab wears the grid header's paper, joined to it
+              // below; the rest sit behind, their bottoms on the grid's border
               className={`flex min-h-11 snap-start flex-col justify-center gap-0.5 rounded-t-[10px] border border-b-0 px-3 pb-1.5 pt-2 text-left leading-tight focus-visible:-outline-offset-2 sm:min-h-0 ${on
-                ? 'border-border bg-s0 text-text shadow-[inset_0_2px_0_var(--accent)]'
+                ? 'border-border bg-s0 text-text'
                 : 'mb-px border-border bg-s2 text-dim hover:text-text'}`}
             >
               <span className="whitespace-nowrap text-[13px] font-semibold tabular-nums sm:text-[12.5px]">{w.label}</span>
