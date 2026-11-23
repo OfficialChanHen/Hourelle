@@ -28,6 +28,25 @@ export type Autosave<T> = {
 // a commit that returns nothing has nobody further to ask, so it counts as saved
 export type Commit<T> = (value: T) => Promise<SaveResult> | SaveResult | void
 
+const NOT_SENT = 'The change could not be saved.'
+/** What became of one write, however it answered: a result, nothing (saved), a
+ *  throw or a rejection (not saved). Shared by autosave and the Save buttons. */
+export function answerOf(write: () => ReturnType<Commit<unknown>>): Promise<SaveResult> {
+  let sent: ReturnType<Commit<unknown>>
+  try { sent = write() } catch { return Promise.resolve({ ok: false, message: NOT_SENT }) }
+  return Promise.resolve(sent).then((r): SaveResult => r ?? { ok: true }, (): SaveResult => ({ ok: false, message: NOT_SENT }))
+}
+
+/* The field trigger raises sentences meant to be read; a bare policy refusal does
+   not, so it gets one. "Violates" alone was too wide a net: a foreign key that is
+   not there yet also violates something, and a change that arrived a moment early
+   was being reported to the person as a change they were not allowed to make. */
+export function saveErrorText(message: string): string {
+  if (/row-level security|policy/i.test(message)) return 'You do not have permission to make that change.'
+  if (/foreign key|is not present in table/i.test(message)) return 'That change arrived before the plan did. It is still on this device; reload to send it again.'
+  return message
+}
+
 export function createAutosave<T>(opts: {
   commit: Commit<T>
   onStatus: (status: SaveStatus) => void
@@ -54,10 +73,7 @@ export function createAutosave<T>(opts: {
     opts.onStatus('saving')
     // committed right away, not on a later tick: a flush from pagehide has to write
     // before the page goes
-    let sent: ReturnType<Commit<T>>
-    try { sent = opts.commit(value) } catch { sent = { ok: false, message: 'The change could not be saved.' } }
-    const answer = Promise.resolve(sent)
-      .then((r): SaveResult => r ?? { ok: true }, (): SaveResult => ({ ok: false, message: 'The change could not be saved.' }))
+    const answer = answerOf(() => opts.commit(value))
     void Promise.all([answer, later(saving)]).then(([r]) => {
       if (mine !== round) return
       if (!r.ok) { failed = { value }; opts.onStatus('failed'); return }

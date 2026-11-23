@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createAutosave, SAVED_MS, SAVING_MS, SETTLE_MS, type SaveStatus } from '../autosave'
+import { answerOf, createAutosave, saveErrorText, SAVED_MS, SAVING_MS, SETTLE_MS, type SaveStatus } from '../autosave'
 import type { SaveResult } from '../remote'
 
 /* A commit whose database answer the test hands back when it chooses. */
@@ -156,5 +156,24 @@ describe('createAutosave', () => {
     expect(last()).toBe('idle')
     await vi.advanceTimersByTimeAsync(SETTLE_MS * 2)
     expect(commit).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('answerOf', () => {
+  it('reads every way a write can answer', async () => {
+    expect(await answerOf(() => undefined)).toEqual({ ok: true })
+    expect(await answerOf(() => Promise.resolve(OK))).toEqual(OK)
+    expect(await answerOf(() => Promise.resolve(NO))).toEqual(NO)
+    expect((await answerOf(() => Promise.reject(new Error('offline')))).ok).toBe(false)
+    expect((await answerOf(() => { throw new Error('boom') })).ok).toBe(false)
+  })
+})
+
+describe('saveErrorText', () => {
+  it('says a policy refusal in words', () => {
+    expect(saveErrorText(NO.ok ? '' : NO.message)).toBe('You do not have permission to make that change.')
+  })
+  it('leaves a sentence already meant to be read alone', () => {
+    expect(saveErrorText('The server did not keep that change.')).toBe('The server did not keep that change.')
   })
 })

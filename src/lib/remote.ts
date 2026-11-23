@@ -32,6 +32,12 @@ function writeCache(list: AppEvent[], announce: boolean) {
 // fired when the database refuses a write, so the UI can say so instead of leaving
 // a local change that silently never reached anyone else
 export const PUSH_REJECTED = 'hourelle:push-rejected'
+// fired by a field or editor that has said Not saved itself, right where the person
+// is looking: the notice for the same refusal would only repeat it
+export const PUSH_HANDLED = 'hourelle:push-handled'
+export function refusalShownInline(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(PUSH_HANDLED))
+}
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // the host as a column, read off the document: the participant flagged `host`, but
@@ -519,17 +525,23 @@ export function purgeRemoved(eventId: string, participantIds: string[]): void {
   )
 }
 
-export function pushMessage(eventId: string, m: ChatMessage): void {
-  if (!backendOn) return
-  void afterCreate(eventId).then(() =>
+/* Resolves once the database has the line (or has said no). An insert the row
+   policies refuse is an error, so no row count is needed here. */
+export function pushMessage(eventId: string, m: ChatMessage): Promise<SaveResult> {
+  if (!backendOn) return Promise.resolve({ ok: true })
+  return afterCreate(eventId).then(() =>
     supabase!
     .from('messages')
     // a message id is minted once and never changes, so a second push of the same
     // line (a re-sync, a retry) is a no-op rather than a duplicate-key refusal
     .upsert({ id: m.mid, event_id: eventId, participant_id: m.id, name: m.name, body: m.text, system: !!m.system, at: m.at ?? Date.now() }, { onConflict: 'id', ignoreDuplicates: true })
     .setHeader(NAMED_HEADER, eventId)
-    .then(({ error }) => { if (error) rejected('message', error.message) }),
-  )
+    .then(({ error }): SaveResult => {
+      if (!error) return { ok: true }
+      rejected('message', error.message)
+      return { ok: false, message: error.message }
+    }),
+  ).catch((): SaveResult => { rejected('message', NOT_REACHED); return { ok: false, message: NOT_REACHED } })
 }
 
 /* Lines from people taken off the event stay out of every copy. The server deletes
@@ -702,7 +714,7 @@ export async function syncFromCloud(): Promise<void> {
   for (const e of local) if (!cloud.has(e.id) && isMine(e)) {
     if (!hosted(e)) continue // gone, and forgotten below; or not known to be, and kept
     void naming(supabase!.from('events').upsert({ id: e.id, data: docOf(e), host_id: hostIdOf(e) }), e.id).then(({ error }) => { if (error) rejected('save', error.message) })
-    for (const m of e.messages) pushMessage(e.id, { ...m, mid: m.mid ?? crypto.randomUUID() })
+    for (const m of e.messages) void pushMessage(e.id, { ...m, mid: m.mid ?? crypto.randomUUID() })
     // an event that has only ever lived here has answers only in its document
     pushAnswers({ ...e, availIv: {}, votes: {}, unavailableIds: [] }, e)
   }

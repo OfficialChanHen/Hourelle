@@ -1378,15 +1378,17 @@ export function addInvitees(id: string, people: { email: string; account?: Accou
    and the message goes to the cloud as its own row, so two people chatting at once
    append instead of overwriting each other. Demo events keep it local. */
 export function appendMessage(eventId: string, msg: ChatMessage): ChatMessage {
+  return postMessage(eventId, msg).message
+}
+/** appendMessage, and whether the database took the line (a poll edit waits on it). */
+export function postMessage(eventId: string, msg: ChatMessage): { message: ChatMessage; saved: Promise<SaveResult> } {
   const full: ChatMessage = { ...msg, mid: msg.mid ?? crypto.randomUUID(), at: msg.at ?? Date.now() }
   const list = readAll()
   const i = list.findIndex((e) => e.id === eventId)
-  if (i >= 0) {
-    list[i] = { ...list[i], messages: [...list[i].messages, full] }
-    writeAll(list)
-    pushMessage(eventId, full)
-  }
-  return full
+  if (i < 0) return { message: full, saved: Promise.resolve({ ok: true }) } // a demo keeps it on the page
+  list[i] = { ...list[i], messages: [...list[i].messages, full] }
+  writeAll(list)
+  return { message: full, saved: pushMessage(eventId, full) }
 }
 
 /* ── identity continuity: one participant becomes another id ──

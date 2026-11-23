@@ -6,28 +6,32 @@
 
 import { useEffect, useState } from 'react'
 import { TriangleAlert } from 'lucide-react'
-import { PUSH_REJECTED } from '@/lib/remote'
+import { PUSH_HANDLED, PUSH_REJECTED } from '@/lib/remote'
+import { saveErrorText as humanize, SAVING_MS } from '@/lib/autosave'
 
-/* The field trigger raises sentences meant to be read; a bare policy refusal does
-   not, so it gets one. "Violates" alone was too wide a net: a foreign key that is
-   not there yet also violates something, and a change that arrived a moment early
-   was being reported to the person as a change they were not allowed to make. */
-function humanize(message: string): string {
-  if (/row-level security|policy/i.test(message)) return 'You do not have permission to make that change.'
-  if (/foreign key|is not present in table/i.test(message)) return 'That change arrived before the plan did. It is still on this device; reload to send it again.'
-  return message
-}
+const CLAIM_MS = SAVING_MS + 300
 
 export function SyncNotice() {
   const [notice, setNotice] = useState<string | null>(null)
 
   useEffect(() => {
+    // a field or editor that answers for its own save says Not saved beside itself; it
+    // gets a moment to claim the refusal (autosave holds Saving for SAVING_MS) before
+    // this says it again in the corner
+    let wait: ReturnType<typeof setTimeout> | undefined
     const onRejected = (e: Event) => {
       const detail = (e as CustomEvent<{ action: string; message: string }>).detail
-      setNotice(humanize(detail?.message ?? 'That change did not reach the server.'))
+      clearTimeout(wait)
+      wait = setTimeout(() => setNotice(humanize(detail?.message ?? 'That change did not reach the server.')), CLAIM_MS)
     }
+    const onHandled = () => { clearTimeout(wait); setNotice(null) }
     window.addEventListener(PUSH_REJECTED, onRejected)
-    return () => window.removeEventListener(PUSH_REJECTED, onRejected)
+    window.addEventListener(PUSH_HANDLED, onHandled)
+    return () => {
+      window.removeEventListener(PUSH_REJECTED, onRejected)
+      window.removeEventListener(PUSH_HANDLED, onHandled)
+      clearTimeout(wait)
+    }
   }, [])
 
   if (!notice) return null
