@@ -8,8 +8,8 @@ import { Highlight } from '@/components/ui/Pencil'
 import { placeVotes } from '@/lib/polls'
 import { onMeeting } from '@/lib/forgiving'
 import {
-  availIvOf, bestBlock, bestWindow, confirmedSlotText, dateRangeText, fmtMinute, gridStartMinOf,
-  longestRun, answeredIds, rsvpPool, type AppEvent, type Phase,
+  planBestBlock, openBest, confirmedSlotText, dateRangeText, fmtMinute, gridStartMinOf,
+  longestRun, answeredIds, planRunHours, rsvpPool, type AppEvent, type Phase,
 } from '@/lib/events'
 
 /* ── where the plan stands, said as a sentence ──
@@ -21,6 +21,9 @@ import {
    and how many are going. */
 
 const P = 'text-[15px] leading-[1.6] text-text sm:text-[16px]'
+// a run of days this long or shorter names each day's hours in the sentence; a longer
+// one is said as its span and length, and the grid shows the hours
+const SPELL_DAYS = 3
 
 // the best time so far, as a link to it on the grid. Inline, with an invisible
 // layer that reaches a finger's height without moving the lines around it.
@@ -33,7 +36,11 @@ function BestLink({ children, onClick }: { children: React.ReactNode; onClick?: 
   )
 }
 
-export function StageSummary({ event, phase, onGoToAvailability }: { event: AppEvent; phase: Phase; onGoToAvailability?: () => void }) {
+export function StageSummary({ event, phase, onGoToAvailability, runLen }: {
+  event: AppEvent; phase: Phase; onGoToAvailability?: () => void
+  // the grid's days-in-a-row dial: 2 or more answers with the best run of days
+  runLen?: number
+}) {
   if (phase === 'past') {
     const went = event.participants.filter((p) => p.rsvp === 'attending').length
     return (
@@ -54,13 +61,22 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
 
   const answeredSet = answeredIds(event)
   const responded = answeredSet.size
-  // a day poll answers in days, not clock times: its "best so far" is the leading run
-  // of days (or single day), matching the grid dial's default
+  // the sentence answers the way the grid's dial does: a day poll in days (its default
+  // a run of two), a time poll in one window until the dial asks for a run of days
   const dayPoll = event.granularity === 'day'
-  const best = dayPoll ? null : bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode, event.needIv)
-  const bestDays = dayPoll
-    ? bestBlock(availIvOf(event), event.days, Math.min(2, longestRun(event.days)) || 1, event.bestMode, event.needIv)
-    : null
+  const maxRun = longestRun(event.days)
+  const run = Math.min(runLen ?? (dayPoll ? 2 : 1), maxRun) || 1
+  const inDays = dayPoll || run >= 2
+  const best = inDays ? null : openBest(event)
+  const bestDays = inDays ? planBestBlock(event, run) : null
+  // a time poll's run carries its own hours each day, named when the run is short
+  const runDays = bestDays && !dayPoll ? event.days.filter((d) => d.key >= bestDays.startKey && d.key <= bestDays.endKey) : []
+  const hours = runDays.length && runDays.length <= SPELL_DAYS ? planRunHours(event, runDays) : []
+  const hoursText = hours.map((h, i) => {
+    const d = runDays.find((x) => x.key === h.dayKey)
+    const at = event.openLength ? `from ${fmtMinute(gridStartMinOf(event) + h.s)}` : `${fmtMinute(gridStartMinOf(event) + h.s)} to ${fmtMinute(gridStartMinOf(event) + h.e)}`
+    return `${i && i === hours.length - 1 ? 'and ' : ''}${d?.dow ?? h.dayKey} ${at}`
+  }).join(hours.length > 2 ? ', ' : ' ')
   const dayLabelOf = (k: string) => {
     const d = event.days.find((x) => x.key === k)
     return d ? `${d.dow}, ${d.date}` : k
@@ -110,7 +126,7 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
       {answeredLine(responded, total)}.
       {best && (
         <>
-          {' '}<BestLink onClick={onGoToAvailability}><Highlight>{best.dayLabel}, {fmtMinute(gridStart + best.s)} to {fmtMinute(gridStart + best.e)}</Highlight></BestLink>{' '}
+          {' '}<BestLink onClick={onGoToAvailability}><Highlight>{best.dayLabel}, {fmtMinute(gridStart + best.s)}{event.openLength ? ', open end' : <> to {fmtMinute(gridStart + best.e)}</>}</Highlight></BestLink>{' '}
           <TimezonePill tz={event.timezone} day={best.dayKey} /> works for the most people so far{needClause(best.needIds.length)}.
         </>
       )}
@@ -118,7 +134,10 @@ export function StageSummary({ event, phase, onGoToAvailability }: { event: AppE
         <>
           {' '}<BestLink onClick={onGoToAvailability}>
             <Highlight>{bestDays.startKey === bestDays.endKey ? dayLabelOf(bestDays.startKey) : `${dayLabelOf(bestDays.startKey)} to ${dayLabelOf(bestDays.endKey)}`}</Highlight>
-          </BestLink>{' '}works for the most people so far{needClause(bestDays.needIds.length)}.
+          </BestLink>
+          {runDays.length > SPELL_DAYS && ` (${runDays.length} days)`}
+          {' '}works for the most people so far{needClause(bestDays.needIds.length)}
+          {hoursText && <>, {hoursText} <TimezonePill tz={event.timezone} day={bestDays.startKey} /></>}.
         </>
       )}
       {missingNames && <> Waiting on {missingNames.length === 1 ? missingNames[0] : `${missingNames.slice(0, -1).join(', ')} and ${missingNames[missingNames.length - 1]}`}.</>}

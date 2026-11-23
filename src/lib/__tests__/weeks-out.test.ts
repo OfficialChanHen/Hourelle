@@ -44,6 +44,11 @@ describe('a week you cannot make', () => {
     confirmEvent('plan-1', { dayKey: '2026-10-21', startMin: 540, endMin: 600, placeIds: [] })
     expect(getEvent('plan-1')!.participants.find((p) => p.id === 'OUT1')).toMatchObject({ rsvp: 'not_going', rsvpAuto: true })
   })
+  it('leaves a locked run that only partly falls in it at no reply', () => {
+    saved(twoWeeks())
+    confirmEvent('plan-1', { dayKey: '2026-10-21', endDayKey: '2026-10-27', startMin: 540, endMin: 600, placeIds: [] })
+    expect(getEvent('plan-1')!.participants.find((p) => p.id === 'OUT1')).toMatchObject({ rsvp: 'pending' })
+  })
   it('goes with the person when they are removed or merged', () => {
     const ev = twoWeeks()
     expect(removeParticipantPatch(ev, 'OUT1').unavailableWeeks).toEqual({ STALE: ['2026-09-06'] })

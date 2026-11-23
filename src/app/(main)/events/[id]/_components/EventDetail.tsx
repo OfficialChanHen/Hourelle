@@ -45,7 +45,8 @@ import { TimeSelect } from '@/components/ui/TimeSelect'
 import { DateField } from '@/components/ui/DateField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Announce } from '@/components/ui/Announce'
-import { isAllDay, slotWhen } from '@/lib/slot'
+import { isAllDay, slotLines, slotWhen } from '@/lib/slot'
+import { StayNote } from './StayNote'
 import { Avatar } from '@/components/ui/Avatar'
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { FaceChipsMore } from '@/components/ui/FaceChips'
@@ -63,7 +64,7 @@ import { Hint } from '@/components/ui/Hint'
 import { Tour, type TourContext } from '@/components/Tour'
 import { AskTour } from '@/components/AskTour'
 import { cleanEmail, isEmail, meetingHref, onMeeting, wholeAmount } from '@/lib/forgiving'
-import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, patchEventWith, postMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp, type SaveResult } from '@/lib/events'
+import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, patchEventWith, postMessage, claimEvent, availIvOf, openBest, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp, type SaveResult } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -247,8 +248,19 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   // hooks must run on every render.
   const [lockAsk, setLockAsk] = useState<{ dayKey: string; endDayKey?: string; nonce: number } | null>(null)
   // the grid dial's days-in-a-row, reported by the availability panel so the lock-in
-  // modal offers a time (1) or a first-to-last run (2+). Null until the grid reports.
-  const [runLen, setRunLen] = useState<number | null>(null)
+  // modal offers a time (1) or a first-to-last run (2+). Held here, and for the rest of
+  // the browser session, so a tab switch or a reload keeps the run you were looking at.
+  // Null until the grid reports.
+  const runKey = `hourelle.run.${id}`
+  const [runLen, setRunLenState] = useState<number | null>(() => {
+    if (typeof window === 'undefined') return null
+    const n = Number(sessionStorage.getItem(runKey))
+    return n >= 1 ? n : null
+  })
+  const setRunLen = (n: number) => {
+    setRunLenState(n)
+    try { sessionStorage.setItem(runKey, String(n)) } catch { /* private mode: it lasts the visit */ }
+  }
 
   function handleDelete() {
     const title = event?.title
@@ -513,7 +525,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
               </div>
             )}
             {/* where it stands, as a sentence */}
-            <div className="mt-4 max-w-[720px]"><StageSummary event={event} phase={phase} onGoToAvailability={goToBestWindow} /></div>
+            <div className="mt-4 max-w-[720px]"><StageSummary event={event} phase={phase} onGoToAvailability={goToBestWindow} runLen={runLen ?? undefined} /></div>
           </div>
         </div>
 
@@ -523,7 +535,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           {/* ml-auto keeps the actions hugging the right edge when the row wraps; on a
               phone the host's lock-in takes the row's full width instead of floating */}
           <div className={`${canManage(event) && phase === 'planning' ? 'flex w-full sm:w-auto' : 'hidden sm:flex'} min-w-0 items-center gap-2 sm:ml-auto`}>
-            {canManage(event) && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToDetails={() => goTab('details')} onGoToLocation={() => goTab('location')} prefill={lockAsk} openNonce={lockAsk?.nonce} runLen={runLen ?? undefined} />}
+            {canManage(event) && phase === 'planning' && <ConfirmBar event={event} onChanged={refresh} onGoToLocation={() => goTab('location')} prefill={lockAsk} openNonce={lockAsk?.nonce} runLen={runLen ?? undefined} />}
             {/* discussion lives in the floating bubble alone. Sharing closes when the
                 plan does: a link handed out afterwards only brings somebody to a plan
                 they have already missed. The invite link is the host's, for now */}
@@ -610,8 +622,10 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
           onLockDays={canManage(event) && phase === 'planning'
             ? (startKey, endKey) => setLockAsk((p) => ({ dayKey: startKey, endDayKey: endKey !== startKey ? endKey : undefined, nonce: (p?.nonce ?? 0) + 1 }))
             : undefined}
+          runLen={runLen}
           onRunChange={setRunLen}
           onPatch={patchLive}
+          onSaved={refresh}
         />
         </div>
       )}
@@ -780,7 +794,7 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
         <div className="mt-1 flex flex-wrap items-center gap-2 border-t border-border pt-3.5">
           <AddToCalendar
             event={event}
-            slot={event.confirmed ? { dayKey: event.confirmed.dayKey, endDayKey: event.confirmed.endDayKey, startMin: event.confirmed.startMin, endMin: event.confirmed.endMin } : null}
+            slot={event.confirmed ?? null}
             align="start"
           />
           {canDuplicate && (
@@ -1175,12 +1189,29 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
       const label = x ? `${x.dow}, ${x.date}` : k
       return k === lastKey ? `${label}, ${k.slice(0, 4)}` : label
     }
+    // a run with its own hours each day reads one day a line; the editor here only
+    // knows one span, so that shape is changed by reopening and locking in again
+    if (c.sessions && c.sessions.length > 1) {
+      return (
+        <span className="flex flex-col gap-0.5">
+          {slotLines(c, dayOf, fmtMinute).map((line, i) => (
+            <span key={line} className="flex flex-wrap items-center gap-1.5">
+              {line}
+              {i === 0 && <TimezonePill tz={event.timezone} day={c.dayKey} />}
+            </span>
+          ))}
+        </span>
+      )
+    }
     return (
+      <span className="flex flex-col gap-1">
       <span className="flex flex-wrap items-center gap-1.5">
         {slotWhen(c, dayOf, fmtMinute)}
         {!allDay && <TimezonePill tz={event.timezone} day={event.confirmed?.dayKey ?? event.startDate} />}
-        {editable && <EditPencil label="Change the day or time" onClick={() => setEditing(true)} />}
+        {editable && !c.openEnd && <EditPencil label="Change the day or time" onClick={() => setEditing(true)} />}
         <SaveStatus status={saver.status} />
+      </span>
+      {c.openEnd && <StayNote event={event} session={c} />}
       </span>
     )
   }
@@ -1189,7 +1220,7 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
   const oneDay = event.startDate === event.endDate
   const dow = oneDay ? event.days[0]?.dow : null
   const dayPoll = event.granularity === 'day'
-  const best = dayPoll ? null : bestWindow(availIvOf(event), event.days, event.durationMin ?? 60, event.bestMode, event.needIv)
+  const best = dayPoll ? null : openBest(event)
   const gridStart = gridStartMinOf(event)
   return (
     <div className="flex flex-col gap-1">
@@ -1203,7 +1234,7 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
           <>
             Best time so far
             <button onClick={onGoToBestWindow} title="See it on the Availability tab" className="font-medium text-accent-text hover:underline">
-              {best.dayLabel}, {fmtMinute(gridStart + best.s)} – {fmtMinute(gridStart + best.e)}
+              {best.dayLabel}, {fmtMinute(gridStart + best.s)}{event.openLength ? ', open end' : ` – ${fmtMinute(gridStart + best.e)}`}
             </button>
           </>
         ) : (
