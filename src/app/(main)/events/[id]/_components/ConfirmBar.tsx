@@ -474,6 +474,12 @@ function ConfirmForm({ event, close, onChanged, onGoToLocation, prefill, runLen 
   return (
     <>
       <div className="scroll-slim min-h-0 flex-1 overflow-auto px-5 py-4">
+        {/* a guess is said first, before anything it decides */}
+        {(noReplies || noFit) && (
+          <p className="mb-4 rounded-xl border border-ochre-border bg-ochre-bg px-3.5 py-2.5 text-[13px] font-medium leading-[1.5] text-ochre-text">
+            {noReplies ? 'No one has marked their times yet, so this is a guess.' : noFit}
+          </p>
+        )}
         <div className="divide-y divide-border">
           <Row
             label="When"
@@ -519,11 +525,7 @@ function ConfirmForm({ event, close, onChanged, onGoToLocation, prefill, runLen 
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border px-5 py-3.5">
-        {blockedReason
-          ? <p className="text-[12.5px] font-medium text-brick-text" role="status">{blockedReason}</p>
-          : noReplies
-            ? <p className="text-[12.5px] font-medium text-ochre-text">No one has marked their times yet, so this is a guess.</p>
-            : noFit && <p className="text-[12.5px] font-medium text-ochre-text">{noFit}</p>}
+        {blockedReason && <p className="text-[12.5px] font-medium text-brick-text" role="status">{blockedReason}</p>}
         <div className="flex flex-wrap items-center justify-end gap-2.5">
           <button type="button" onClick={close} className="flex h-11 items-center rounded-full border border-border2 bg-s1 px-4 text-[14px] font-medium hover:bg-s2 sm:h-9">
             Cancel
