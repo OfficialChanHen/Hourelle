@@ -5,6 +5,7 @@ import { Check } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { reducedMotion } from '@/lib/prefs'
+import { DUR, EASE, arcTo, squashLand } from '@/lib/motion'
 import { Tape } from '@/components/ui/Tape'
 
 // how long after the lock-in the card still celebrates it: long enough for the host
@@ -26,15 +27,33 @@ export function JustLocked({ confirmedAt }: { confirmedAt?: number }) {
   useGSAP(() => {
     if (!fresh || reducedMotion()) return
     const q = gsap.utils.selector(root)
+    const check = q('[data-check]')
+    // one thing at a time, so the eye follows: the card swings forward off the page
+    // (it has depth: hinged at its tape, tipped back), then the check gathers itself,
+    // jumps and lands, the sparks fly off it on curves and fall a little, and only
+    // then the words come in, the second line trailing the first
     const tl = gsap.timeline()
-    tl.fromTo(root.current, { y: 6, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: 'power2.out' })
-      .fromTo(q('[data-check]'), { scale: 0.4, rotate: -20 }, { scale: 1, rotate: 0, duration: 0.55, ease: 'back.out(2.4)' }, '-=0.1')
+    tl.fromTo(root.current, { opacity: 0, y: 10, rotateX: -38, transformPerspective: 700, transformOrigin: '50% 0%' },
+      { opacity: 1, y: 0, rotateX: 0, duration: 0.45, ease: EASE.settle })
+      .set(q('[data-line]'), { opacity: 0 }, 0)
+      .set(check, { scale: 0.6, rotate: -20 }, 0)
+      // the wind-up: a squat before the jump
+      .to(check, { y: 2, scaleX: 0.62, scaleY: 0.45, duration: DUR.windUp, ease: 'power1.out' }, '-=0.2')
+      // the jump: stretched tall as it rises, round again at the top
+      .to(check, { y: -12, scaleX: 0.92, scaleY: 1.25, rotate: 0, duration: 0.16, ease: 'power2.out' })
+      .to(check, { y: 0, scaleX: 1, scaleY: 1, duration: 0.15, ease: 'power2.in' })
+      .addLabel('land')
+    squashLand(tl, check, 'land', 1.2)
     q('[data-spark]').forEach((el, i) => {
-      const s = SPARKS[i]
-      const r = s.big ? 24 : 20
-      tl.fromTo(el, { x: 0, y: 0, scale: 0.4, opacity: 1 },
-        { x: Math.cos(s.a) * r, y: Math.sin(s.a) * r, scale: 1, opacity: 0, duration: 0.7, ease: 'power2.out' }, '<0.01')
+      const sp = SPARKS[i]
+      // pushed past real: they fly further than a dot this size would
+      const r = sp.big ? 32 : 26
+      tl.set(el, { x: 0, y: 0, scale: 0.4, opacity: 1 }, 'land')
+      arcTo(tl, el, { x: Math.cos(sp.a) * r, y: Math.sin(sp.a) * r + 8, lift: 10, duration: 0.65, at: 'land' })
+      tl.to(el, { scale: 1, duration: 0.2, ease: 'power2.out' }, 'land')
+        .to(el, { opacity: 0, duration: 0.3, ease: 'power1.in' }, 'land+=0.35')
     })
+    tl.fromTo(q('[data-line]'), { opacity: 0, x: -10 }, { opacity: 1, x: 0, duration: 0.32, ease: EASE.settle, stagger: 0.08 }, 'land+=0.08')
   }, { scope: root, dependencies: [fresh] })
 
   if (!fresh) return null
@@ -53,8 +72,8 @@ export function JustLocked({ confirmedAt }: { confirmedAt?: number }) {
         </span>
       </span>
       <div className="min-w-0">
-        <p className="font-serif text-[20px] leading-tight text-teal-text">It&apos;s on</p>
-        <p className="font-serif text-[14px] italic text-teal-text">Locked in just now.</p>
+        <p data-line className="font-serif text-[20px] leading-tight text-teal-text">It&apos;s on</p>
+        <p data-line className="font-serif text-[14px] italic text-teal-text">Locked in just now.</p>
       </div>
     </div>
   )

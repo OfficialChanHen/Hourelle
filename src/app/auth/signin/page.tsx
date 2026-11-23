@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useRef, useState } from 'react'
+import { Suspense, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { gsap } from 'gsap'
@@ -9,7 +9,8 @@ import { ArrowLeft, CalendarRange, Check, Loader2, MailCheck, TriangleAlert } fr
 import { useGuestMode } from '@/hooks/useGuestMode'
 import { backendOn, supabase } from '@/lib/db'
 import { needsWelcome } from '@/lib/plan'
-import { EMAIL_TAKEN, hasSession, recordLegalAcceptance, sendPasswordReset, signInWithEmail, signInWithGoogle, signInWithMicrosoft, signUpWithEmail } from '@/lib/session'
+import { EMAIL_TAKEN, hasSession, recordLegalAcceptance, resendSignupCode, sendPasswordReset, signInWithEmail, signInWithGoogle, signInWithMicrosoft, signUpWithEmail } from '@/lib/session'
+import { verifyHref } from '@/lib/verify-code'
 import { LegalGate, LegalSheet } from '@/components/LegalGate'
 import { LEGAL_VERSION, type LegalKey } from '@/content/legal'
 import { passwordOk } from '@/lib/password'
@@ -17,12 +18,17 @@ import { PasswordField } from '@/components/ui/PasswordField'
 import { PasswordRules } from '@/components/ui/PasswordRules'
 import { Wordmark } from '@/components/ui/Wordmark'
 import { APP_NAME } from '@/lib/brand'
+import { lastInvite } from '@/lib/nav'
+import { localPath } from '@/lib/local-path'
 
 /* ── log in, sign up, or ask for a new password ──
    Split like the sign-in pages people know: the form on the left, the pitch on the
    right in the signature green. The Timeld account leads because it finishes without
    leaving the page; Google sits under the divider. Guests never need this screen at
    all, an invite link works without an account. */
+
+// sessionStorage has no change event within a tab; read once is enough here
+const noStore = () => () => {}
 
 const BENEFITS = [
   'Host plans and watch replies come in',
@@ -79,10 +85,15 @@ function SignInForm() {
   // an invite page that found the email belongs to an account sends the person here
   // with the address typed and the way back; only our own paths are followed
   const rawNext = params.get('next') ?? ''
-  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/home'
+  const askedNext = localPath(rawNext)
+  // a visitor who came from an invite lands back on it, whichever door they took
+  const invite = useSyncExternalStore(noStore, lastInvite, () => null)
+  const next = askedNext ?? invite ?? '/home'
   const [mode, setMode] = useState<Mode>(wanted === 'up' ? 'up' : 'in')
-  // sign-up only: both documents read to the end and the box ticked
+  // sign-up only: both documents read to the end and both boxes ticked, then
+  // Continue; the rest of the form waits behind that step
   const [legalOk, setLegalOk] = useState(false)
+  const [agreed, setAgreed] = useState(false)
   // a document opened from the "By continuing" line, over the form
   const [reading, setReading] = useState<LegalKey | null>(null)
   const [name, setName] = useState('')
@@ -93,11 +104,15 @@ function SignInForm() {
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null) // check your mail, in both senses
   const guestEventId = useGuestMode()
-  // a guest's way back is their event; everyone else came from the front door
-  const backHref = guestEventId ? `/events/${guestEventId}` : '/'
+  // the way back: where they were sent from, a guest's own plan, the invite they
+  // were looking at, or else the front door
+  const backHref = askedNext?.startsWith('/events/') ? askedNext
+    : guestEventId ? `/events/${guestEventId}`
+    : invite ?? '/'
+  const backLabel = backHref.includes('/join') ? 'Back to the invite' : backHref.startsWith('/events/') ? 'Back to your plan' : 'Back to the app'
 
   useGSAP(() => {
-    gsap.fromTo(root.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' })
+    gsap.fromTo(root.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.28, ease: 'power3.out' })
   }, [])
 
   function go(next: Mode) {
@@ -140,12 +155,19 @@ function SignInForm() {
       // with email confirmation on, sign-up returns no session and the account is
       // only real once the link is clicked; with it off, we are already signed in
       // a fresh account goes through the welcome steps first, then on to wherever it was headed
+      // with it on, the code in the mail is typed on the next page
       if (await hasSession()) router.replace(`/welcome?next=${encodeURIComponent(next)}`)
-      else { setNote(`Check ${email.trim()} for a confirmation link. Your account is ready once you open it.`); setBusy(null) }
+      else router.push(`${verifyHref(email.trim(), next)}&sent=1`)
       return
     }
 
     const err = await signInWithEmail(email.trim(), password)
+    // an account that never finished confirming gets a fresh code and the page to type it
+    if (err && /not confirmed/i.test(err)) {
+      const again = await resendSignupCode(email.trim())
+      router.push(`${verifyHref(email.trim(), next)}${again ? '' : '&sent=1'}`)
+      return
+    }
     if (err) { setError(err); setBusy(null); return }
     // an account confirmed by email and signed into here for the first time has not
     // been through the welcome steps yet; the link it was confirmed with may have been
@@ -163,6 +185,8 @@ function SignInForm() {
         : !!email.trim() && !!name.trim() && strong && confirm === password && legalOk
 
   const copy = COPY[mode]
+  // sign-up opens on the two documents alone, so the boxes come before anything else
+  const terms = mode === 'up' && !agreed
 
   return (
     <div className="grid min-h-dvh place-items-center px-5 py-10">
@@ -180,6 +204,17 @@ function SignInForm() {
             <h1 className="mt-7 font-serif font-normal text-[31px] leading-[1.05] tracking-[-0.01em]">{copy.title}</h1>
             <p className="mt-1.5 text-[13.5px] leading-[1.55] text-dim">{copy.sub}</p>
 
+            {terms ? (
+              <div className="mt-6 flex flex-col gap-2">
+                <LegalGate onChange={setLegalOk} />
+                <button
+                  type="button" onClick={() => setAgreed(true)} disabled={!legalOk}
+                  className="mt-3 flex h-11 items-center justify-center rounded-[10px] bg-accent text-[14px] font-semibold text-on-accent disabled:opacity-40"
+                >
+                  Continue
+                </button>
+              </div>
+            ) : (
             <form onSubmit={submit} className="mt-6 flex flex-col gap-2">
               {mode === 'up' && (
                 <>
@@ -228,8 +263,6 @@ function SignInForm() {
                 />
               )}
 
-              {mode === 'up' && <LegalGate onChange={setLegalOk} />}
-
               <button
                 type="submit" disabled={!canSubmit || busy !== null}
                 className="mt-2 flex h-11 items-center justify-center gap-2 rounded-[10px] bg-accent text-[14px] font-semibold text-on-accent disabled:opacity-40"
@@ -238,6 +271,7 @@ function SignInForm() {
                 {copy.action}
               </button>
             </form>
+            )}
 
             <p className="mt-3.5 text-[13px] text-dim">
               {mode === 'forgot' ? (
@@ -249,14 +283,13 @@ function SignInForm() {
               )}
             </p>
 
-            {mode !== 'forgot' && (
+            {mode !== 'forgot' && !terms && (
               <>
                 <div className="my-5 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">
                   <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
                 </div>
 
-                {/* a new account through Google or Microsoft accepts the same terms first */}
-                {mode === 'up' && !legalOk && <p className="mb-2.5 text-[12.5px] text-faint">Tick both boxes above to sign up with Google or Microsoft.</p>}
+                {/* a new account through Google or Microsoft has accepted the same terms on the step before */}
                 <button
                   type="button"
                   onClick={google}
@@ -324,7 +357,7 @@ function SignInForm() {
             {reading && <LegalSheet k={reading} onClose={() => setReading(null)} />}
 
             <Link href={backHref} className="mt-6 flex w-fit items-center gap-1.5 text-[13px] font-semibold text-accent-text hover:underline">
-              <ArrowLeft size={14} /> {guestEventId ? 'Back to your plan' : 'Back to the app'}
+              <ArrowLeft size={14} /> {backLabel}
             </Link>
           </div>
 
@@ -354,7 +387,11 @@ function SignInForm() {
 
         {/* the guest path never comes through here, say so where phones can see it too */}
         <p className="mt-4 text-center text-[12.5px] leading-[1.55] text-dim md:hidden">
-          Here from an invite link? You don&apos;t need an account. Open the link again and just add your name.
+          {invite ? (
+            <>You don&apos;t need an account for an invite. <Link href={invite} className="font-semibold text-accent-text hover:underline">Go back and add your name</Link>.</>
+          ) : (
+            <>Here from an invite link? You don&apos;t need an account. Open the link again and just add your name.</>
+          )}
         </p>
       </div>
     </div>

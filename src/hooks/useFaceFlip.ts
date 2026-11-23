@@ -19,7 +19,7 @@ export function useFaceFlip() {
     if (!el) return
     contextSafe(() => {
       if (reducedMotion()) gsap.set(el, { rotateY: next ? 180 : 0 })
-      else gsap.to(el, { rotateY: next ? 180 : 0, duration: 0.55, ease: 'back.out(1.7)', overwrite: true })
+      else gsap.to(el, { rotateY: next ? 180 : 0, duration: 0.3, ease: 'back.out(1.7)', overwrite: true })
     })()
   }
   return { scope, flipped, toggle }

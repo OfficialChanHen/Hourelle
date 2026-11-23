@@ -15,12 +15,12 @@ export type Palette = 'hourelle' | 'studio' | 'daylight' | 'breeze' | 'clay' | '
 // 'hourelle' is the house key and always has been — it means no data-palette at all,
 // so it follows whatever the house look currently is.
 const PALETTES: { key: Palette; name: string; caption: string; swatches: string[] }[] = [
-  { key: 'hourelle', name: 'Warm neutral', caption: 'Soft paper and deep green. The house look.', swatches: ['#F7F6F4', '#2E4A3C', '#151513', '#8F6A33'] },
-  { key: 'studio', name: 'Studio', caption: 'Cool grays and ink, no serif. The quiet one.', swatches: ['#F7F7F8', '#18181B', '#0F0F10', '#2F7A5A'] },
-  { key: 'daylight', name: 'Daylight', caption: 'Bright white and a clear blue. The familiar one.', swatches: ['#FFFFFF', '#0B57D0', '#131314', '#8AB4F8'] },
-  { key: 'breeze', name: 'Breeze', caption: 'Sunny white, sea teal and coral. A brighter, warmer look.', swatches: ['#FFFCF6', '#0F6E78', '#181612', '#E0623A'] },
-  { key: 'clay', name: 'Ink and clay', caption: 'Rosy paper, black ink and clay. The bold one.', swatches: ['#FBF4F1', '#1F1B16', '#171314', '#B4502F'] },
-  { key: 'contrast', name: 'High contrast', caption: 'Strong lines and bold color. Easy to read in glare or at a distance.', swatches: ['#FFFFFF', '#0033CC', '#000000', '#C40000'] },
+  { key: 'hourelle', name: 'Warm neutral', caption: 'Warm paper, forest green and moss, with canary notes for your turn. The house look.', swatches: ['#FAF6EF', '#2E6B4E', '#4A6420', '#F4A6D7'] },
+  { key: 'studio', name: 'Studio', caption: 'Cool grays, ink and slate blue, with amber for your turn. The quiet one.', swatches: ['#F7F7F8', '#18181B', '#34438A', '#FFC266'] },
+  { key: 'daylight', name: 'Daylight', caption: 'Bright white, blue and ocean cyan, with tangerine for your turn. The familiar one.', swatches: ['#FFFFFF', '#0B57D0', '#006A8E', '#FFB27A'] },
+  { key: 'breeze', name: 'Breeze', caption: 'Sunny white, sea teal and ocean blue, with sun yellow for your turn. A brighter look.', swatches: ['#FFFCF6', '#0F6E78', '#1D5F8C', '#FFD666'] },
+  { key: 'clay', name: 'Ink and clay', caption: 'Rosy paper, black ink and clay, with peacock blue for your turn. The bold one.', swatches: ['#FBF4F1', '#1F1B16', '#9A4128', '#8ED8E8'] },
+  { key: 'contrast', name: 'High contrast', caption: 'Strong lines and bold color. Easy to read in glare or at a distance.', swatches: ['#FFFFFF', '#0033CC', '#5A1FB0', '#FFB000'] },
 ]
 
 const KNOWN: Palette[] = ['studio', 'daylight', 'breeze', 'clay', 'contrast']

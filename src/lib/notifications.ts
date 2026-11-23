@@ -1,3 +1,4 @@
+import { canManage } from './cohosts'
 import { daysUntil, listEvents, phaseOf, youReplied, type AppEvent } from './events'
 
 /* ── notifications: derived, never stored ──
@@ -27,7 +28,7 @@ export function deriveNotifications(events: AppEvent[]): NotificationItem[] {
           if (rdu !== null && rdu >= 0 && rdu <= 1) out.push({ e, du: rdu, kind: 'rsvp-deadline', key: `${e.id}:rsvp:${e.rsvpDeadline}:${band(rdu)}` })
           // the soft close gets its moment: once the deadline passes, the host hears
           // how the round ended (answers stay open — this is a tally, not a lock)
-          if (rdu !== null && rdu < 0 && e.hostedByYou) out.push({ e, du, kind: 'rsvp-closed', key: `${e.id}:rsvp-closed:${e.rsvpDeadline}` })
+          if (rdu !== null && rdu < 0 && canManage(e)) out.push({ e, du, kind: 'rsvp-closed', key: `${e.id}:rsvp-closed:${e.rsvpDeadline}` })
         }
         return out
       }

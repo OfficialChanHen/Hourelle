@@ -18,6 +18,7 @@ import { localTimeZone } from '@/lib/calendar-import'
 import { updateUsualWeek, type Account } from '@/lib/session'
 import { emptyWeek, hasHours, hasWholeDays, moveWeekToZone, weekHasTime, type UsualWeek } from '@/lib/usual-week'
 import { initialsOf, type AppEvent, type Iv } from '@/lib/events'
+import { useLeaveGuard } from '@/hooks/useLeaveGuard'
 
 const COLS = [1, 2, 3, 4, 5, 6, 0] // Monday first; the numbers are Date.getDay()
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -71,14 +72,17 @@ export function UsualWeekEditor({ account, onDone }: { account: Account; onDone:
 
   const toKeep = weekHasTime(week) ? week : null
   const dirty = JSON.stringify(toKeep) !== JSON.stringify(account.usualWeek ?? null)
-  async function save() {
-    if (!dirty || saving) return
+  async function save(): Promise<boolean> {
+    if (!dirty) return true
+    if (saving) return false
     setSaving(true); setErr(null)
     const e = await updateUsualWeek(toKeep)
     setSaving(false)
-    if (e) { setErr(e); return }
+    if (e) { setErr(e); return false }
     onDone(true)
+    return true
   }
+  useLeaveGuard(dirty, save)
   useEffect(() => {
     if (!cleared) return
     const t = setTimeout(() => setCleared(null), 6000)

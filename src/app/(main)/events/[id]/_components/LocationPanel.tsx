@@ -23,13 +23,14 @@
    to local state first (so the demos work in memory) and are persisted for real
    events through `persist`. */
 
+import { canManage } from '@/lib/cohosts'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { gsap } from 'gsap'
 import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, Info, ExternalLink } from 'lucide-react'
 import { Avatar, NameTag } from '@/components/ui/Avatar'
 import { hiddenNames, namesLabel } from '@/components/ui/AvatarRow'
-import { confirmedSlotText, fromDay, todayKey, getEvent, patchEvent, fmtMinute, fmtMinuteDay, openBest, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
+import { confirmedSlotText, fromDay, todayKey, getEvent, patchEvent, fmtMinute, fmtMinuteDay, openBest, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant, type SaveResult } from '@/lib/events'
 import { hintDismissed as isHintDismissed, dismissHint as markHintDismissed } from '@/lib/prefs'
 import { fmtDuration, MODE_LABEL, ALL_MODES, type TravelMode, type ModeEstimate } from '@/lib/travel'
 import { computeItinerary, legKm } from '@/lib/itinerary'
@@ -53,6 +54,10 @@ import { TimezonePill } from '@/components/ui/TimezonePill'
 import { TabHeading } from './TabHeading'
 import { SettingsMenu } from '@/components/ui/Settings'
 import { VoteRules } from './VoteRules'
+import { meetingHref, meetingSource, onMeeting } from '@/lib/forgiving'
+import { useAutosave } from '@/hooks/useAutosave'
+import { SaveStatus } from '@/components/ui/SaveStatus'
+import type { SaveStatus as SaveStatusValue } from '@/lib/autosave'
 
 // Leaflet reads `window` when it loads, so the map only ever renders in the browser
 const EventMap = dynamic(() => import('@/components/EventMap').then((m) => m.EventMap), { ssr: false, loading: () => <div className="absolute inset-0 animate-pulse bg-s2" /> })
@@ -74,7 +79,7 @@ function osmUrl(p: EventPlace): string {
   return `https://www.openstreetmap.org/search?query=${encodeURIComponent(q)}`
 }
 
-export function LocationPanel({ event, locked = false, confirmed, onPatch }: { event: AppEvent; locked?: boolean; confirmed?: ConfirmedSlot; onPatch?: (patch: Partial<AppEvent>) => void }) {
+export function LocationPanel({ event, locked = false, confirmed, onPatch }: { event: AppEvent; locked?: boolean; confirmed?: ConfirmedSlot; onPatch?: (patch: Partial<AppEvent>) => Promise<SaveResult> | void }) {
   // who votes and suggests: the `you` participant — the guest when this browser
   // joined via the share link, the stubbed account otherwise
   // empty when nobody here is you (signed in, not on this event's list) — voting and
@@ -111,10 +116,10 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   const votingClosed = deadlineDu !== null && deadlineDu < 0
   // a set venue is a fact the host stated — no voting, no guest suggestions
   const settled = mode === 'set'
-  const canAddPlaces = !locked && !votingClosed && !!YOU && (event.hostedByYou || (guestsCanSuggest && !settled))
+  const canAddPlaces = !locked && !votingClosed && !!YOU && (canManage(event) || (guestsCanSuggest && !settled))
   // the itinerary is the host's to build: its stops, their order, how long each one
   // takes and when the day starts. Everyone else reads it.
-  const canEditItin = event.hostedByYou && !locked
+  const canEditItin = canManage(event) && !locked
   const pById = new Map(event.participants.map((p) => [p.id, p]))
   const avatarOf = (id: string) => {
     const p = pById.get(id)
@@ -179,17 +184,19 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // the ballot as this device holds it right now, which can be newer than the one this
   // screen last drew (see patchEventWith)
   const latestVotes = () => (event.demo ? votes : getEvent(event.id)?.votes ?? votes)
-  function persist(patch: Partial<AppEvent>) {
-    if (onPatch) onPatch(patch)
-    else if (!event.demo) patchEvent(event.id, patch)
+  function persist(patch: Partial<AppEvent>): Promise<SaveResult> | void {
+    if (onPatch) return onPatch(patch)
+    if (!event.demo) return patchEvent(event.id, patch)
   }
   // one place to persist the location object, so switching mode never clobbers the other
   // fields — pass the changed field in `over`; unchanged fields come from current state
   function persistLoc(over: Partial<AppEvent['location']> = {}) {
-    persist({ location: { ...loc, mode, places, guestsCanSuggest, meetingLink, ...over } })
+    return persist({ location: { ...loc, mode, places, guestsCanSuggest, meetingLink, ...over } })
   }
   function changeMode(m: AppEvent['location']['mode']) { setMode(m); persistLoc({ mode: m }) }
-  function changeLink(v: string) { setMeetingLink(v); persistLoc({ meetingLink: v }) }
+  // the link saves itself once typing pauses, so a half-pasted address never goes out
+  const linkSave = useAutosave<string>((v) => persistLoc({ meetingLink: v }))
+  function changeLink(v: string) { setMeetingLink(v); linkSave.change(v) }
   function addPlace(p: EventPlace) {
     if (!YOU || places.some((x) => x.id === p.id)) return
     // a set venue is singular — picking another swaps it out (same as the wizard);
@@ -459,7 +466,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // the one ask this tab makes of you: a vote, while voting is open and you have none
   const owesVote = mode === 'vote' && sub === 'vote' && !locked && !votingClosed && !!YOU && places.length > 1 && myVoteCount === 0
   const headTitle = mode === 'remote'
-    ? `Online${loc.platform ? `, on ${loc.platform}` : ''}.`
+    ? `Online, on ${onMeeting(meetingLink)}.`
     : sub === 'itin'
       ? stops.length ? `${stops.length} ${stops.length === 1 ? 'stop' : 'stops'}, ${fmtMinute(itinStartMin)} to ${fmtMinuteDay(endMin)}.` : 'No route yet.'
       : !leadPlace ? 'No votes yet.'
@@ -467,7 +474,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
       : `${leadPlace.name} leads with ${nVotes(votesOf(leadingId!).length)}.`
   const closesLine = voteDeadline ? (votingClosed ? 'Voting is closed.' : `Voting closes ${deadlineText(voteDeadline)}.`) : ''
   const headSub = mode === 'remote'
-    ? (meetingLink ? 'The link is below and in every reminder.' : event.hostedByYou ? 'Paste the meeting link below.' : 'The host is adding the link.')
+    ? (meetingLink ? 'The link is below and in every reminder.' : canManage(event) ? 'Paste the meeting link below.' : 'The host is adding the link.')
     : sub === 'itin'
       ? stops.length && legs.length ? `${fmtDuration(routeMinutes)} of travel in all.` : undefined
       : [`${voterCount} of ${people} ${voterCount === 1 && people === 1 ? 'has' : 'have'} voted.`, closesLine].filter(Boolean).join(' ')
@@ -544,9 +551,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
     <div className="flex flex-col gap-3.5">
       {noPlaceYet ? (
         <NoPlaceYet
-          canAdd={canAddPlaces} host={event.hostedByYou} near={near} onAdd={addPlace}
+          canAdd={canAddPlaces} host={canManage(event)} near={near} onAdd={addPlace}
           onOnline={() => changeMode('remote')}
-          letVote={event.hostedByYou && !guestsCanSuggest ? toggleGuestsCanSuggest : undefined}
+          letVote={canManage(event) && !guestsCanSuggest ? toggleGuestsCanSuggest : undefined}
         />
       ) : mode === 'remote' ? null : locked && sub === 'itin' && schedule.length > 0 ? (
         <RouteSet
@@ -569,7 +576,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
       )}
 
       {/* venue-type switch (host) — switching keeps each mode's data */}
-      {event.hostedByYou && !locked && !noPlaceYet && (
+      {canManage(event) && !locked && !noPlaceYet && (
         <div className="flex items-center gap-2">
           <SegmentedControl label="Meeting type"
             size="sm"
@@ -585,7 +592,9 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
 
       {mode === 'remote' ? (
         <RemoteCall
-          platform={loc.platform} link={meetingLink} host={event.hostedByYou && !locked} onLink={changeLink}
+          // the call can still move after lock-in (a new room, another platform), so the
+          // host keeps the link open once the time is set; the platform follows the link
+          link={meetingLink} host={canManage(event)} onLink={changeLink} onLinkDone={linkSave.flush} linkStatus={linkSave.status} onLinkRetry={linkSave.retry}
           people={event.participants.filter((p) => p.rsvp !== 'not_going')}
         />
       ) : !noPlaceYet && (
@@ -661,7 +670,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
             {/* whether the place is a ballot or a route is the host's decision, the
                 same as in person or remote above it. Everyone else is shown the one
                 that was chosen, and moves with it when the host changes their mind. */}
-            {event.hostedByYou ? (
+            {canManage(event) ? (
               <SegmentedControl label="Vote or route"
                 size="sm"
                 stretch
@@ -690,7 +699,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 {() => <AddStopList near={near} places={places} stops={stops} canAdd={canAddPlaces} onExisting={addStop} onNew={addNewPlaceAsStop} />}
               </Popover>
             )}
-            {sub === 'vote' && event.hostedByYou && !locked && !settled && (
+            {sub === 'vote' && canManage(event) && !locked && !settled && (
               <SettingsMenu title="Voting settings" label="Voting settings" iconOnly className="flex-none">
                 {() => (
                   <VoteRules
@@ -738,7 +747,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                       ? <span className="rounded-[5px] border border-brick-border bg-brick-bg px-[6px] py-px text-[10.5px] font-semibold text-brick-text">Voting closed</span>
                       : <span className={`rounded-[5px] border px-[6px] py-px text-[10.5px] font-semibold ${(deadlineDu ?? 9) <= 2 ? 'border-ochre-border bg-ochre-bg text-ochre-text' : 'border-border bg-s2 text-dim'}`}>Closes {deadlineText(voteDeadline)}</span>
                   )}
-                  {event.hostedByYou && (
+                  {canManage(event) && (
                     <button ref={clearPlacesBtn} onClick={() => setConfirmClear('places')} className="ml-auto flex items-center gap-1 text-[12px] font-medium text-faint hover:text-brick-text">
                       <Trash2 size={13} /> Remove all
                     </button>
@@ -806,7 +815,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                           >
                             {you ? <Check size={18} /> : <ArrowUp size={18} />}
                           </button>}
-                          {event.hostedByYou && (
+                          {canManage(event) && (
                             <button data-remove-trigger onClick={() => attemptRemovePlace(p.id)} title="Remove this place" aria-label={`Remove ${p.name}`} className="grid h-[34px] w-7 place-items-center rounded-[9px] text-faint hover:text-brick-text">
                               <Trash2 size={16} />
                             </button>
@@ -878,7 +887,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
                 </div>
               ) : (
                 <>
-                  {!locked && event.hostedByYou && (
+                  {!locked && canManage(event) && (
                     confirmClear === 'stops' ? (
                       <div className="flex flex-none flex-wrap items-center gap-2 rounded-[10px] border border-brick-border bg-brick-bg px-2.5 py-2">
                         <TriangleAlert size={17} className="flex-none text-brick-text" />
@@ -1334,16 +1343,18 @@ function RouteSet({ title, sub, stops, going }: {
    little call bar under them. A picture, so nothing in it is a control. Beside it the
    platform, how many are joining, and the way in: the host pastes and copies the link,
    everyone else joins with one tap. */
-function RemoteCall({ platform, link, host, onLink, people }: {
-  platform: string; link: string; host: boolean; onLink: (v: string) => void
+function RemoteCall({ link, host, onLink, onLinkDone, linkStatus, onLinkRetry, people }: {
+  link: string; host: boolean; onLink: (v: string) => void; onLinkDone: () => void; linkStatus: SaveStatusValue; onLinkRetry: () => void
   people: Participant[]
 }) {
   const [copied, setCopied] = useState(false)
   const tiles = people.slice(0, people.length > 6 ? 5 : 6)
   const extra = people.length - tiles.length
-  const where = platform || 'the call'
+  // the platform is read off the link itself; an empty or unknown one is custom
+  const source = meetingSource(link)
+  const href = meetingHref(link)
   function copy() {
-    navigator.clipboard?.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
+    navigator.clipboard?.writeText(href || link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
   return (
     <div className="relative isolate flex flex-col gap-8 py-4 md:flex-row md:items-center md:gap-14">
@@ -1371,13 +1382,14 @@ function RemoteCall({ platform, link, host, onLink, people }: {
 
       <div className="max-w-[460px] flex-1">
         <p className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint sm:text-[11px]">Online</p>
-        <h2 className="mt-2 font-serif text-[32px] font-normal leading-[1.12] tracking-[-0.01em] sm:text-[40px]">On {where}</h2>
+        <h2 className="mt-2 font-serif text-[32px] font-normal leading-[1.12] tracking-[-0.01em] sm:text-[40px]">On {onMeeting(link)}</h2>
         <p className="mt-2 text-[15px] text-dim">{people.length} {people.length === 1 ? 'person' : 'people'} joining. The link goes out in every reminder.</p>
         {host ? (
           <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
             <label className="flex h-11 min-w-0 items-center gap-2 rounded-[10px] border border-border2 bg-s1 px-3 focus-within:border-accent sm:h-10 sm:flex-1">
               <Link2 size={16} className="flex-none text-accent-text" aria-hidden />
-              <input value={link} onChange={(e) => onLink(e.target.value)} aria-label="Meeting link" placeholder={`https://${(platform || 'zoom').toLowerCase().replace(/\s+/g, '')}.us/j/123`} className="min-w-0 flex-1 bg-transparent font-mono text-[13px] outline-none placeholder:text-faint" />
+              <input value={link} onChange={(e) => onLink(e.target.value)} onBlur={onLinkDone} aria-label="Meeting link" placeholder="https://zoom.us/j/123" className="min-w-0 flex-1 bg-transparent font-mono text-[13px] outline-none placeholder:text-faint" />
+              <SaveStatus status={linkStatus} onRetry={onLinkRetry} />
             </label>
             {link && (
               <button type="button" onClick={copy} className={`flex h-11 flex-none items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[14px] font-semibold sm:h-10 ${copied ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'}`}>
@@ -1385,9 +1397,9 @@ function RemoteCall({ platform, link, host, onLink, people }: {
               </button>
             )}
           </div>
-        ) : link ? (
-          <a href={link} target="_blank" rel="noopener noreferrer" className="mt-6 inline-flex h-11 items-center gap-1.5 rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent sm:h-10">
-            <Video size={16} aria-hidden /> Join on {where}
+        ) : href ? (
+          <a href={href} target="_blank" rel="noopener noreferrer" className="mt-6 inline-flex h-11 items-center gap-1.5 rounded-full bg-accent px-5 text-[14px] font-semibold text-on-accent sm:h-10">
+            <Video size={16} aria-hidden /> {source === 'Custom' ? 'Join the call' : `Join on ${source}`}
           </a>
         ) : (
           <p className="mt-5 flex items-center gap-2 text-[14px] text-dim"><Link2 size={15} className="text-faint" aria-hidden /> The link is on its way from the host.</p>

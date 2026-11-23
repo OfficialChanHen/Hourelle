@@ -31,3 +31,12 @@ export const supabase: SupabaseClient | null = url && anon
 
 // the one question the rest of the app asks: is a backend wired up?
 export const backendOn = supabase !== null
+
+/* An update or delete the row policies filter out, or that finds no row, comes back
+   with no error and changes nothing. Ask for the ids back (.select('id')) and pass
+   the answer here: no rows means not saved. */
+export const NOT_KEPT = 'The server did not keep that change.'
+export function keptError(r: { data: unknown[] | null; error: { message: string } | null }): string | null {
+  if (r.error) return r.error.message
+  return r.data?.length ? null : NOT_KEPT
+}

@@ -1,5 +1,7 @@
 'use client'
 
+import type { SaveResult } from '@/lib/remote'
+import { isCohost } from '@/lib/cohosts'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDown, ListChecks, Plus, Send, X } from 'lucide-react'
 import { gsap } from 'gsap'
@@ -59,7 +61,7 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onVote, onClos
   event: AppEvent
   messages: ChatMessage[]
   unreadFrom?: number // index of the first message that arrived since the drawer was last open
-  onSend: (text: string) => void
+  onSend: (text: string) => Promise<SaveResult> | void // resolves once the database has the line
   onVote?: (poll: PollState, optionId: string) => void // a tap on a poll option: casts, moves or takes back a vote
   onClose: () => void
   readOnly?: boolean // a demo, or nobody here is you: the room can be read, not written
@@ -127,7 +129,7 @@ export function ChatDrawer({ event, messages, unreadFrom, onSend, onVote, onClos
   // lines after it, which are never drawn themselves. Picks live in event.votes, which
   // the page reads live, so the counts move as other people vote. Once the plan is
   // locked the polls are a record.
-  const hostKey = event.participants.filter((p) => p.host).map((p) => p.id).join('|')
+  const hostKey = event.participants.filter((p) => p.host || isCohost(p)).map((p) => p.id).join('|')
   const hostIds = useMemo(() => new Set(hostKey ? hostKey.split('|') : []), [hostKey])
   const states = useMemo(() => reducePolls(all, hostIds), [all, hostIds])
   const shown = useMemo(() => chatLines(all), [all])
@@ -191,7 +193,7 @@ type PollsProps = {
   onVote?: (poll: PollState, optionId: string) => void
   onAdd: (pollId: string, text: string) => void
   onSettings: (pollId: string, s: PollSettings) => void
-  onEdit: (pollId: string, edit: { q?: string; o?: { id: string; t: string }[] }) => void
+  onEdit: (pollId: string, edit: { q?: string; o?: { id: string; t: string }[] }) => Promise<SaveResult> | void
   onDelete: (pollId: string) => void
 }
 

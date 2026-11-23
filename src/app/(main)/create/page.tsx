@@ -28,7 +28,7 @@
 import { Suspense, useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { pushFlash } from '@/components/ui/FlashToast'
-import { fetchEvent } from '@/lib/remote'
+import { fetchEvent, whenCreated } from '@/lib/remote'
 import { CoverEditor, styleSummary, type ImageFit } from '@/components/ui/CoverEditor'
 import type { CardDetail } from '@/components/ui/Keepsake'
 import { coverPresetOf } from '@/components/ui/Cover'
@@ -45,7 +45,7 @@ import {
   Info, Vote, ArrowRight, Mail, Route, GripVertical,
   Loader2, Link2, Copy, UserPlus, Users, PartyPopper, AlignLeft, Wallet, ImagePlus,
   Map, Presentation, Repeat, Utensils, Dices, CookingPot, CalendarDays, LayoutGrid, Timer, Globe,
-  CalendarCheck, type LucideIcon,
+  CalendarCheck, ShieldCheck, type LucideIcon,
 } from 'lucide-react'
 import { personVar, type PersonColor } from '@/lib/colors'
 import { gsap } from 'gsap'
@@ -59,6 +59,7 @@ import { InviteByEmail } from '@/components/InviteByEmail'
 import { DurationField } from '@/components/ui/DurationField'
 import { Switch } from '@/components/ui/Switch'
 import { useAccount } from '@/hooks/useAccount'
+import { cleanEmail, isEmail, onMeeting, wholeAmount } from '@/lib/forgiving'
 import { OverflowText } from '@/components/ui/OverflowText'
 import { DaysPicker } from '@/components/ui/DaysPicker'
 import { useFlipReorder } from '@/hooks/useFlipReorder'
@@ -341,7 +342,7 @@ function CreateWizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useGSAP(() => { gsap.fromTo(panel.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out' }) }, [])
+  useGSAP(() => { gsap.fromTo(panel.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.28, ease: 'power3.out' }) }, [])
 
   /* More options starts closed, templates and duplicates included: what they set is
      already in the rows, and nobody needs to read it to create. A press opens it
@@ -511,14 +512,16 @@ function CreateWizard() {
         pushFlash(`The invites could not be emailed. ${r.ok ? r.data.reason ?? '' : r.error} Personal links are on the plan page.`.replace('  ', ' '), 'brick')
       })
     }
-    pushFlash(sending ? `Your plan is live. Emailing ${emailed} ${emailed === 1 ? 'invite' : 'invites'}.` : 'Your plan is live. Share the link so people can join.')
+    // live only once the database has it; a refusal raises the Not saved notice instead
+    const live = sending ? `Your plan is live. Emailing ${emailed} ${emailed === 1 ? 'invite' : 'invites'}.` : 'Your plan is live. Share the link so people can join.'
+    void whenCreated(ev.id).then((r) => { if (r.ok) pushFlash(live) })
     router.push(`/events/${ev.id}`)
   }
 
   // one-line summaries so each closed drawer still says where it stands
   const inviteTotal = form.emails.length + form.accounts.length
   const placeSummary = form.locMode === 'remote'
-    ? `Online on ${form.platform}`
+    ? `Online on ${onMeeting(form.meetingLink)}`
     : form.locMode === 'later'
       ? 'Decide later'
       : form.locSettled
@@ -527,7 +530,7 @@ function CreateWizard() {
           ? form.picked.length ? `${form.picked.length} ${form.picked.length === 1 ? 'stop' : 'stops'} planned` : 'Plan a route'
           : form.picked.length ? `${form.picked.length} on the ballot` : 'Guests vote'
   const peopleSummary = inviteTotal
-    ? `${inviteTotal} ${inviteTotal === 1 ? 'person' : 'people'} added`
+    ? `${inviteTotal} ${inviteTotal === 1 ? 'person' : 'people'} added${form.accounts.some((a) => a.cohost) ? `, ${form.accounts.filter((a) => a.cohost).length} as co-host` : ''}`
     : 'Invite now, or just share the link after'
   const moneySummary = [
     form.budget ? `$${Number(form.budget).toLocaleString()} ${form.budgetMode === 'person' ? 'per person' : 'total'}` : '',
@@ -625,7 +628,7 @@ function CreateWizard() {
                     <div className="flex items-center gap-2">
                       <div className="relative min-w-0 flex-1">
                         <span className="pointer-events-none absolute left-[13px] top-1/2 -translate-y-1/2 text-dim">$</span>
-                        <input id="ev-budget" inputMode="numeric" placeholder="0" value={form.budget} onChange={(e) => update({ budget: e.target.value.replace(/[^\d]/g, '') })} className={`${inputCls(false)} pl-7`} />
+                        <input id="ev-budget" inputMode="numeric" placeholder="0" value={form.budget} onChange={(e) => update({ budget: wholeAmount(e.target.value) })} className={`${inputCls(false)} pl-7`} />
                       </div>
                       <Segmented label="Budget type" value={form.budgetMode} onChange={(v) => update({ budgetMode: v as 'total' | 'person' })} options={[{ v: 'total', l: 'Total' }, { v: 'person', l: 'Per person' }]} />
                     </div>
@@ -1162,27 +1165,10 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
 
       {form.locMode === 'remote' && (
         <div className="flex flex-col gap-3">
-          <div>
-            <Label>Platform</Label>
-            <div className="flex flex-wrap gap-2">
-              {PLATFORMS.map((p) => {
-                const on = form.platform === p.name
-                return (
-                  <button key={p.name} type="button" aria-pressed={on} onClick={() => update({ platform: p.name })} className={`flex h-[34px] items-center gap-1.5 rounded-full px-3 text-[13.5px] font-semibold ${on ? 'border-[1.5px] border-accent-border bg-accent-bg text-accent-text' : 'border border-border bg-s2 text-dim'}`}>
-                    {p.img && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.img} alt="" width={16} height={16} className="rounded-[3px]" />
-                    )}
-                    {p.name}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
           <Field label="Meeting link (optional)" id="ev-link">
             <div className="flex h-10 items-center gap-2 rounded-[10px] border border-border bg-s2 px-[13px] focus-within:border-accent">
               <Link2 size={17} className="text-accent-text" />
-              <input id="ev-link" value={form.meetingLink} onChange={(e) => update({ meetingLink: e.target.value })} placeholder={`Paste a ${form.platform} link, or add it later`} className="flex-1 bg-transparent font-mono text-[14px] outline-none placeholder:text-faint" />
+              <input id="ev-link" value={form.meetingLink} onChange={(e) => update({ meetingLink: e.target.value })} placeholder="https://zoom.us/j/123" className="flex-1 bg-transparent font-mono text-[14px] outline-none placeholder:text-faint" />
             </div>
           </Field>
           <div className="flex items-start gap-2 rounded-[10px] border border-border bg-s2 px-[13px] py-[11px]">
@@ -1205,14 +1191,6 @@ function StepLocation({ form, update, stopUid }: { form: Form; update: Update; s
   )
 }
 
-const PLATFORMS: { name: string; img?: string }[] = [
-  { name: 'Google Meet', img: '/logos/meet.png' },
-  { name: 'Zoom', img: '/logos/zoom.png' },
-  { name: 'Teams', img: '/logos/teams.png' },
-  { name: 'Discord', img: '/logos/discord.png' },
-  { name: 'Other' },
-]
-
 /* ── Step 3: Invite ── */
 function StepInvite({ form, update }: { form: Form; update: Update }) {
   const [draft, setDraft] = useState('')
@@ -1228,9 +1206,9 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
   // and colour come with them and they need no personal link; any other address
   // becomes an email invite with a link of its own
   async function addEmail() {
-    const e = draft.trim().toLowerCase()
+    const e = cleanEmail(draft)
     if (!e) return
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { setNote('That does not look like an email address.'); return }
+    if (!isEmail(e)) { setNote('That does not look like an email address.'); return }
     if (isOwnEmail(e)) { setNote('That is your own address. You are the host, so you are already in.'); return }
     setNote(null)
     setChecking(true)
@@ -1246,6 +1224,7 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
   }
   const isOn = (r: Invitee) => (r.account ? hasAccount(r.id) : !!r.email && hasEmail(r.email))
   const total = form.emails.length + form.accounts.length
+  const cohosts = form.accounts.filter((a) => a.cohost).length
 
   return (
     <div className="flex flex-col gap-5">
@@ -1262,6 +1241,17 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
             {form.accounts.map((a) => (
               <span key={a.id} className="flex h-[30px] items-center gap-1.5 rounded-full border border-accent-border bg-accent-bg py-0 pl-1.5 pr-2 text-[13.5px]" title={a.email ? `${a.email} (has an account)` : 'Has an account'}>
                 <Avatar initials={initialsOf(a.name)} color={a.color} size={20} font={8.5} /> {a.name}
+                {/* someone with an account can run the plan with you from the start */}
+                <button
+                  type="button"
+                  aria-pressed={!!a.cohost}
+                  aria-label={`${a.name} as co-host`}
+                  title={a.cohost ? 'Co-host: can run the plan with you' : 'Make co-host'}
+                  onClick={() => update((f) => ({ accounts: f.accounts.map((x) => (x.id === a.id ? { ...x, cohost: !x.cohost || undefined } : x)) }))}
+                  className={`relative flex h-[22px] items-center gap-1 rounded-full px-2 text-[12px] font-semibold before:absolute before:-inset-y-[11px] before:inset-x-0 before:content-[''] sm:before:hidden ${a.cohost ? 'bg-accent text-on-accent' : 'border border-accent-border bg-s1 text-accent-text hover:bg-s2'}`}
+                >
+                  {a.cohost ? <Check size={13} /> : <ShieldCheck size={13} />} Co-host
+                </button>
                 <button type="button" onClick={() => update((f) => ({ accounts: f.accounts.filter((x) => x.id !== a.id) }))} aria-label="Remove"><X size={15} className="text-faint hover:text-brick-text" /></button>
               </span>
             ))}
@@ -1309,7 +1299,7 @@ function StepInvite({ form, update }: { form: Form; update: Update }) {
 
       <div className="flex items-center gap-1.5 text-[13px] text-dim">
         <Users size={15} />
-        {total === 0 ? 'No one added yet. You can also invite people after the plan is started.' : `${total} ${total === 1 ? 'person' : 'people'} will be invited when you start the plan.`}
+        {total === 0 ? 'No one added yet. You can also invite people after the plan is started.' : `${total} ${total === 1 ? 'person' : 'people'} will be invited when you start the plan${cohosts ? `, ${cohosts} as ${cohosts === 1 ? 'a co-host' : 'co-hosts'}` : ''}.`}
       </div>
     </div>
   )

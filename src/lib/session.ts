@@ -7,7 +7,7 @@
 // With no backend configured, or nobody signed in, the cache holds STUB — the
 // demo identity the app has always used — so every screen keeps working.
 
-import { supabase, backendOn } from './db'
+import { supabase, backendOn, keptError } from './db'
 import { resetAppearance, resetHints, setTourWanted } from './prefs'
 import { forgetPlan } from './plan'
 import type { PersonColor } from './colors'
@@ -15,6 +15,7 @@ import { cleanFace, type Face } from './faces'
 import { passwordProblem } from './password'
 import { cleanUsualWeek, type UsualWeek } from './usual-week'
 import { APP_NAME } from '@/lib/brand'
+import { localPath } from './local-path'
 
 export type AccountKind = 'person' | 'org'
 export type Account = {
@@ -184,8 +185,9 @@ export async function syncLegalAcceptance(): Promise<void> {
   if (!note || note.synced) return
   const { data } = await supabase!.auth.getSession()
   if (!data.session) return
-  const { error } = await supabase!.from('profiles').update({ terms_version: note.version, terms_accepted_at: new Date(note.at).toISOString() }).eq('id', data.session.user.id)
-  if (error) return
+  // kept for the next try unless the row really took it
+  const r = await supabase!.from('profiles').update({ terms_version: note.version, terms_accepted_at: new Date(note.at).toISOString() }).eq('id', data.session.user.id).select('id')
+  if (keptError(r)) return
   try { localStorage.removeItem(LEGAL_KEY) } catch { /* private mode */ }
 }
 
@@ -195,7 +197,7 @@ export async function syncLegalAcceptance(): Promise<void> {
 // where the callback sends the browser once the session exists: home, or the page
 // that asked for the log-in (an invite, say), when that page is one of ours
 function callbackUrl(next?: string): string {
-  const safe = next && next.startsWith('/') && !next.startsWith('//') ? next : ''
+  const safe = localPath(next) ?? ''
   return `${window.location.origin}/auth/callback${safe ? `?next=${encodeURIComponent(safe)}` : ''}`
 }
 
@@ -263,6 +265,30 @@ export async function signUpWithEmail(email: string, password: string, name: str
   // the pretend success: a user with no identities is how Supabase says "taken"
   if (data.user && data.user.identities?.length === 0) return EMAIL_TAKEN
   return null
+}
+
+/* The code in the sign-up email, the only way to confirm one: the mail's link opens
+   /auth/verify, where the code is typed (supabase/templates/confirm-signup.html).
+   Checking it signs the new account in, so the page can go straight on to the
+   welcome steps. Supabase limits
+   how often codes are checked and sent, so there is no throttling of our own. */
+export async function verifySignupCode(email: string, code: string): Promise<string | null> {
+  if (!backendOn) return 'Codes need a backend. Add your Supabase keys to .env.local.'
+  const { error } = await supabase!.auth.verifyOtp({ email: email.trim().toLowerCase(), token: code, type: 'signup' })
+  if (!error) return null
+  if (/expired|invalid/i.test(error.message)) return 'That code is wrong or has expired. Check it, or send a new one.'
+  return error.message
+}
+
+export async function resendSignupCode(email: string): Promise<string | null> {
+  if (!backendOn) return 'Codes need a backend. Add your Supabase keys to .env.local.'
+  const { error } = await supabase!.auth.resend({
+    type: 'signup',
+    email: email.trim().toLowerCase(),
+    options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+  })
+  if (error && /rate|seconds|security purposes/i.test(error.message)) return 'A code was sent a moment ago. Wait a minute, then try again.'
+  return error?.message ?? null
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<string | null> {
@@ -344,8 +370,9 @@ export async function updateProfile(patch: { name?: string; color?: PersonColor 
   const name = patch.name?.trim()
   if (patch.name !== undefined && (!name || name.length < 2)) return 'A name needs at least two characters.'
   if (backendOn) {
-    const { error } = await supabase!.from('profiles').update({ ...(name ? { name } : {}), ...(patch.color ? { color: patch.color } : {}) }).eq('id', acc.id)
-    if (error) return error.message
+    // "Saved" only if the row came back: a filtered-out update reports no error
+    const err = keptError(await supabase!.from('profiles').update({ ...(name ? { name } : {}), ...(patch.color ? { color: patch.color } : {}) }).eq('id', acc.id).select('id'))
+    if (err) return err
     // a picked colour is remembered as picked. Its own write, and a refusal is
     // swallowed: a database still on the migration before color_set keeps working
     if (patch.color) await supabase!.from('profiles').update({ color_set: true }).eq('id', acc.id)
@@ -406,8 +433,8 @@ export async function resetProfile(): Promise<{ name: string } | { error: string
     const { data } = await supabase!.auth.getUser()
     const meta = (data.user?.user_metadata ?? {}) as { name?: string; full_name?: string }
     name = meta.name?.trim() || meta.full_name?.trim() || name
-    const { error } = await supabase!.from('profiles').update({ name, color_set: false }).eq('id', acc.id)
-    if (error) return { error: error.message }
+    const err = keptError(await supabase!.from('profiles').update({ name, color_set: false }).eq('id', acc.id).select('id'))
+    if (err) return { error: err }
   }
   writeCache({ ...acc, name, colorChosen: false })
   return { name }

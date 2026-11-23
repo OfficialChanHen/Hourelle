@@ -1,5 +1,6 @@
 'use client'
 
+import { canManage } from '@/lib/cohosts'
 import { useState } from 'react'
 import { Check, HelpCircle, MapPin, Route, Undo2, Video, X } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
@@ -9,6 +10,7 @@ import { AddToCalendar } from './AddToCalendar'
 import { JustLocked } from './JustLocked'
 import { StayNote } from './StayNote'
 import { slotWhen } from '@/lib/slot'
+import { onMeeting } from '@/lib/forgiving'
 
 // your answer to the locked-in plan — strict role colors: teal going, ochre maybe, brick out
 const RSVP_OPTIONS: { v: Rsvp; label: string; icon: typeof Check; on: string }[] = [
@@ -25,6 +27,9 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
   const me = event.participants.find((p) => p.you)
   const myRsvp = me?.rsvp
   const [confirmReopen, setConfirmReopen] = useState(false)
+  // with every spot taken, Going stays open only to someone who already holds one
+  const goingCount = event.participants.filter((p) => p.rsvp === 'attending').length
+  const full = event.capacity != null && goingCount >= event.capacity && myRsvp !== 'attending'
   function answer(v: Rsvp) {
     setMyRsvp(event.id, v)
     onChanged()
@@ -78,7 +83,7 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
           {c.openEnd && !c.sessions && <StayNote event={event} session={c} className="mt-1.5" />}
           <div className="mt-2 flex items-center gap-1.5 text-[13.5px] text-dim">
             {event.location.mode === 'remote' ? (
-              <><Video size={15} className="flex-none text-accent-text" /> Online on {event.location.platform}</>
+              <><Video size={15} className="flex-none text-accent-text" /> Online on {onMeeting(event.location.meetingLink)}</>
             ) : itinLocked ? (
               <><Route size={15} className="flex-none text-accent-text" /> {itin.length}-stop itinerary, on the Location tab</>
             ) : placeNames.length > 1 ? (
@@ -94,12 +99,12 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
         <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
           <AddToCalendar event={event} slot={c} />
           {/* reopening is consequential — everyone's RSVPs reset — so it asks once */}
-          {event.hostedByYou && !confirmReopen && (
+          {canManage(event) && !confirmReopen && (
             <button onClick={() => setConfirmReopen(true)} className="flex h-11 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-medium text-dim hover:bg-s2 hover:text-text sm:h-8">
               <Undo2 size={14} /> Reopen planning
             </button>
           )}
-          {event.hostedByYou && confirmReopen && (
+          {canManage(event) && confirmReopen && (
             <span className="flex flex-wrap items-center gap-2 rounded-xl border border-ochre-border bg-ochre-bg px-2.5 py-1.5">
               <span className="text-[12.5px] font-medium text-ochre-text">Unlocks it for everyone and clears the RSVPs.</span>
               <button onClick={reopen} className="h-7 rounded-full px-2.5 text-[12.5px] font-semibold text-white" style={{ background: 'var(--ochre)' }}>Reopen</button>
@@ -121,14 +126,18 @@ export function ConfirmedHero({ event, onChanged }: { event: AppEvent; onChanged
                 key={o.v}
                 onClick={() => answer(o.v)}
                 aria-pressed={on}
-                className={`flex h-11 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold sm:h-8 sm:px-3 ${on ? o.on : 'border-border2 bg-s1 text-dim hover:bg-s2 hover:text-text'}`}
+                disabled={full && o.v === 'attending'}
+                title={full && o.v === 'attending' ? 'All spots are taken' : undefined}
+                className={`flex h-11 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold sm:h-8 sm:px-3 disabled:opacity-40 ${on ? o.on : 'border-border2 bg-s1 text-dim hover:bg-s2 hover:text-text'}`}
               >
                 <Icon size={14} /> {o.label}
               </button>
             )
           })}
         </div>
-        {me?.rsvpAuto ? (
+        {full ? (
+          <span className="text-[12.5px] text-faint">It is full, spots went to whoever replied first.</span>
+        ) : me?.rsvpAuto ? (
           <span className="text-[12.5px] text-faint">
             {myRsvp === 'attending'
               ? 'Marked going from your times. Change it if that’s wrong.'

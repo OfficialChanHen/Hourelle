@@ -6,6 +6,7 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Check, Trash2 } from 'lucide-react'
 import { reducedMotion } from '@/lib/prefs'
+import { DUR, EASE, squashLand, windUp } from '@/lib/motion'
 
 /* One-shot toast that survives a redirect: the page that acts writes the message,
    the page that lands reads it once and drops it in from the top (same motion as
@@ -31,6 +32,9 @@ export function FlashToast() {
   const [flash, setFlash] = useState<(Flash & { n: number }) | null>(null)
   const seq = useRef(0)
   const box = useRef<HTMLDivElement>(null)
+  // the pill itself moves (the box keeps its centring translate) and its icon pops
+  const pill = useRef<HTMLDivElement>(null)
+  const icon = useRef<HTMLSpanElement>(null)
   // mounted once in the layout, which client-side navigation never remounts — so
   // the queue is checked again on every route change, not just on page load
   const pathname = usePathname()
@@ -60,9 +64,18 @@ export function FlashToast() {
       const t = window.setTimeout(() => setFlash(null), READ_MS)
       return () => window.clearTimeout(t)
     }
+    // it drops in on a slight curve, stretched a little as it falls, lands with a soft
+    // squash, and the check pops a beat later to say what happened; before it goes it
+    // dips, so the leaving is seen coming
     const tl = gsap.timeline({ delay: 0.2 })
-    tl.fromTo(box.current, { y: -24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power3.out' })
-      .to(box.current, { y: -24, opacity: 0, duration: 0.4, ease: 'power3.in', delay: 4 })
+    tl.set(box.current, { opacity: 1 })
+      .fromTo(pill.current, { x: -14, y: -30, rotate: -2, scaleX: 0.96, scaleY: 1.06, opacity: 0, transformOrigin: '50% 0%' },
+        { x: 0, rotate: 0, opacity: 1, duration: DUR.panel, ease: 'power2.out' })
+      .fromTo(pill.current, { y: -30 }, { y: 0, duration: DUR.panel, ease: 'power3.in' }, '<')
+    squashLand(tl, pill.current, '>', 0.45)
+    tl.fromTo(icon.current, { scale: 0, rotate: -40 }, { scale: 1, rotate: 0, duration: 0.3, ease: EASE.pop }, '<-0.05')
+    windUp(tl, pill.current, { y: 3, scale: 1, at: '+=4' })
+    tl.to(pill.current, { y: -30, opacity: 0, duration: DUR.exit, ease: EASE.in })
   }, { dependencies: [flash] })
 
   const brick = flash?.tone === 'brick'
@@ -74,8 +87,8 @@ export function FlashToast() {
     <div role="status" aria-live="polite" className="pointer-events-none sticky top-[62px] z-[45] h-0">
     {flash && (
     <div key={flash.n} ref={box} className="absolute left-1/2 top-0 w-max max-w-[calc(100vw-24px)] -translate-x-1/2 opacity-0">
-      <div className="flex items-center gap-2.5 rounded-xl border border-border2 bg-s1 px-4 py-3 shadow-soft">
-        <span className={`grid h-7 w-7 place-items-center rounded-full ${brick ? 'bg-brick-bg text-brick-text' : 'bg-accent-bg text-accent-text'}`}>
+      <div ref={pill} className="flex items-center gap-2.5 rounded-xl border border-border2 bg-s1 px-4 py-3 shadow-soft">
+        <span ref={icon} className={`grid h-7 w-7 place-items-center rounded-full ${brick ? 'bg-brick-bg text-brick-text' : 'bg-accent-bg text-accent-text'}`}>
           {brick ? <Trash2 size={15} /> : <Check size={16} />}
         </span>
         <span className="text-[14px] font-semibold">{flash.text}</span>

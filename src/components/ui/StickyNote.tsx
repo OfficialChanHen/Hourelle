@@ -30,7 +30,7 @@ export function StickyNote({
         {/* the glue band along the top; the writing starts below it */}
         <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[22px] bg-sticky-band" />
         {kicker && (
-          <span className="relative flex items-center gap-1.5 whitespace-nowrap text-[11.5px] font-bold uppercase tracking-[.08em] text-sticky-kicker">
+          <span className="relative flex items-center gap-1.5 whitespace-nowrap text-[12.5px] font-bold uppercase tracking-[.07em] text-sticky-kicker">
             {kicker}
           </span>
         )}

@@ -397,7 +397,7 @@ export function DayCalendar({
                     const { shown, chip } = pileFit(n, avatarCap, cellW, total)
                     if (!shown) return null
                     return (
-                      <span className="pointer-events-none absolute bottom-[3px] left-[4px] z-[2]">
+                      <span data-pixel-snap className="pointer-events-none absolute bottom-[3px] left-[4px] z-[2]">
                         <AvatarRow
                           people={byRoster(ids).slice(0, shown).map(avatarOf)}
                           size={PILE_AV} overlap={PILE_OVER} font={PILE_FONT} max={shown}

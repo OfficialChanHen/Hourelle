@@ -10,6 +10,7 @@
 import { fmtMinute, slotSessions, stayLine, type AppEvent } from './events'
 import { zonedToUtc } from './tz'
 import { APP_NAME } from '@/lib/brand'
+import { meetingHref } from './forgiving'
 
 const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n')
 // long lines fold at 75 octets with a leading space on the continuation. Byte
@@ -41,7 +42,7 @@ export function icsLocation(ev: AppEvent): string {
   const ids = ev.confirmed?.placeIds ?? []
   const names = ids.map((id) => ev.location.places.find((p) => p.id === id)?.name).filter((n): n is string => !!n)
   if (names.length) return names.join(', ')
-  if (ev.location.mode === 'remote') return ev.location.meetingLink || (ev.location.platform ? `Online on ${ev.location.platform}` : 'Online')
+  if (ev.location.mode === 'remote') return meetingHref(ev.location.meetingLink) || 'Online'
   if (ev.location.mode === 'set' && ev.location.places[0]) return ev.location.places[0].name
   return ''
 }

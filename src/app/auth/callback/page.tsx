@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import { supabase, backendOn } from '@/lib/db'
 import { needsWelcome } from '@/lib/plan'
 import { legalAccepted } from '@/lib/session'
+import { localPath } from '@/lib/local-path'
 
 export default function AuthCallbackPage() {
   const router = useRouter()
@@ -19,7 +20,7 @@ export default function AuthCallbackPage() {
     // a magic link from an invite carries ?next=/events/<id>/join so the join page
     // can finish what the email started; everything else lands on home
     const raw = new URLSearchParams(window.location.search).get('next') ?? ''
-    const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/home'
+    const next = localPath(raw) ?? '/home'
     if (!backendOn) { router.replace(next); return }
     let done = false
     // the browser client is configured to detect the code in the URL and exchange

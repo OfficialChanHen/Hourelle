@@ -15,7 +15,7 @@
 
 import { NextResponse } from 'next/server'
 import type { AppEvent } from '@/lib/events'
-import { hasServiceKey } from '@/lib/server/db'
+import { bearerMatches, hasServiceKey } from '@/lib/server/db'
 import { emailsFor, lastMailRefusal, mailConfigured, prefsFor, reminderMail, sendOnce, serverDb, siteUrl } from '@/lib/server/mail'
 import { dueFor } from '@/lib/server/reminders'
 
@@ -25,9 +25,7 @@ export const dynamic = 'force-dynamic'
 type Row = { id: string; data: AppEvent; host_id: string | null }
 
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET
-  const auth = req.headers.get('authorization') ?? ''
-  if (!secret || auth !== `Bearer ${secret}`) return NextResponse.json({ error: 'Not allowed' }, { status: 401 })
+  if (!bearerMatches(req, process.env.CRON_SECRET)) return NextResponse.json({ error: 'Not allowed' }, { status: 401 })
   const dry = new URL(req.url).searchParams.get('dry') === '1'
   if (!mailConfigured && !dry) return NextResponse.json({ ran: false, reason: 'RESEND_API_KEY is not set' })
   if (!hasServiceKey && !dry) return NextResponse.json({ ran: false, reason: 'SUPABASE_SERVICE_ROLE_KEY is not set' })

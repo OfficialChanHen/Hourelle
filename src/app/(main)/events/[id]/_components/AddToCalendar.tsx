@@ -5,6 +5,7 @@ import { Popover, PopoverItem, PopoverTitle } from '@/components/ui/Popover'
 import { fmtMinute, type AppEvent } from '@/lib/events'
 import { icsFileName, icsFor } from '@/lib/ics'
 import { zonedToUtc } from '@/lib/tz'
+import { meetingHref } from '@/lib/forgiving'
 
 /* ── add-to-calendar export (Google / Outlook compose links) ──
    Shown once a time is locked in: adds the confirmed slot as a timed entry.
@@ -28,7 +29,7 @@ export function AddToCalendar({ event, slot, align = 'end' }: { event: AppEvent;
   const slotAllDay = !!timed && timed.startMin === 0 && timed.endMin === 24 * 60
   const canExport = !!timed || /^\d{4}-\d{2}-\d{2}$/.test(event.startDate)
   const location = event.location.mode === 'remote'
-    ? (event.location.meetingLink || event.location.platform)
+    ? (meetingHref(event.location.meetingLink) || 'Online')
     : event.location.places.map((p) => p.name).join(', ')
 
   function links(): { google: string; outlook: string } {

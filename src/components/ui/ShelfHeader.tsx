@@ -1,7 +1,7 @@
 import { SoftShapes } from './SoftShapes'
 
 /* The heading of a shelf page (Plans, Templates, Demos): the serif title and what
-   follows it, over the sand cap and its pebble. The paint is a fixed size and the
+   follows it, over the torn sand cap and its square of graph paper. The paint is a fixed size and the
    heading a fixed minimum height, so the band and the circle sit exactly the same on
    all three pages however much the heading holds. `before` is anything above the
    title (the way back to an event, on Demos). */

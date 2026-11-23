@@ -1,5 +1,6 @@
 'use client'
 
+import { canManage } from '@/lib/cohosts'
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -52,7 +53,7 @@ export function StoredEventCard({ e, sameDay, look: given, faded = false }: { e:
   const slot = confirmedSlotText(e)
   const lead = leadingPlaceOf(e)
   const [from, to] = coverFor(e.id)
-  const canShare = e.hostedByYou && phase !== 'past'
+  const canShare = canManage(e) && phase !== 'past'
   const canDelete = e.hostedByYou && !e.demo
   // someone else's event on your lists (joined via a link): removable on your side
   // only — the same shortcut route, landing on the leave zone instead of delete
@@ -60,10 +61,10 @@ export function StoredEventCard({ e, sameDay, look: given, faded = false }: { e:
   // the three glance cues that call for action: your missing reply, how many the
   // host is still waiting on, and a voting deadline that hasn't passed
   const youPending = phase !== 'past' && e.participants.some((p) => p.you && p.rsvp === 'pending')
-  const replied = e.hostedByYou && phase === 'planning' ? answeredCount(e) : null
+  const replied = canManage(e) && phase === 'planning' ? answeredCount(e) : null
   const voteDays = phase === 'planning' && e.voteDeadline ? daysUntil(e.voteDeadline) : null
   // the locked-stage mirror of `replied`: RSVPs the host is still waiting on
-  const rsvpWaiting = e.hostedByYou && phase !== 'planning' && phase !== 'past'
+  const rsvpWaiting = canManage(e) && phase !== 'planning' && phase !== 'past'
     ? e.participants.filter((p) => p.rsvp === 'pending').length
     : 0
 
@@ -94,7 +95,7 @@ export function StoredEventCard({ e, sameDay, look: given, faded = false }: { e:
         <Keepsake look={look} />
         <HostTag e={e} />
         {/* the cover's top corner is the one open spot on the card: the host's way to the details tab */}
-        {e.hostedByYou && !e.demo && (
+        {canManage(e) && (
           <span
             role="button" tabIndex={0} onClick={goEdit} onKeyDown={goEdit}
             title="Edit the plan" aria-label="Edit the plan"

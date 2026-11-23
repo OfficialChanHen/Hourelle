@@ -4,12 +4,15 @@
 // after each local write, and a realtime subscription for other people's writes.
 // When `backendOn` is false every function here is a silent no-op.
 
-import { supabase, backendOn } from './db'
+import { canManage } from './cohosts'
+import type { RealtimeChannel } from '@supabase/supabase-js'
+import { supabase, backendOn, NOT_KEPT } from './db'
 import { writeLocal } from './local'
 import { currentAccount } from './session'
 import { byDay, byParticipant, fullAvailIvOf, intervalsToGrid, unionIv, stepOf, type PersonAnswer } from './availability'
 import type { AppEvent, ChatMessage } from './events'
 import { removedLineTest } from './removed'
+import { mergeRemovedIds, mergeRoster, mergeSave, sameRoster } from './roster-merge'
 
 // fired on window whenever the cloud changed the local cache, so any open page
 // can re-read if it wants live updates (roadmap step 7 wires the listeners)
@@ -29,6 +32,12 @@ function writeCache(list: AppEvent[], announce: boolean) {
 // fired when the database refuses a write, so the UI can say so instead of leaving
 // a local change that silently never reached anyone else
 export const PUSH_REJECTED = 'hourelle:push-rejected'
+// fired by a field or editor that has said Not saved itself, right where the person
+// is looking: the notice for the same refusal would only repeat it
+export const PUSH_HANDLED = 'hourelle:push-handled'
+export function refusalShownInline(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(PUSH_HANDLED))
+}
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // the host as a column, read off the document: the participant flagged `host`, but
@@ -67,7 +76,7 @@ function localize(doc: AppEvent, prior?: AppEvent): AppEvent {
   }
 }
 
-function rejected(action: string, message: string) {
+export function rejected(action: string, message: string) {
   console.warn(`hourelle: ${action} refused by the database — ${message}`)
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(PUSH_REJECTED, { detail: { action, message } }))
@@ -105,20 +114,85 @@ const docOf = (ev: AppEvent) => {
   return doc
 }
 
+/* ── naming the plans a query is about ──
+   The database lets a row be read or written only when the request names its plan
+   (migration 0023): knowing the id is the permission, and nothing can be listed.
+   The ids go in a header the policies read, on every query that touches a plan.
+   A signed-in account reaches its own plans without naming them. */
+const NAMED_HEADER = 'x-event-ids'
+function naming<Q extends { setHeader(name: string, value: string): Q }>(q: Q, ids: string | string[]): Q {
+  const list = typeof ids === 'string' ? [ids] : ids
+  return list.length ? q.setHeader(NAMED_HEADER, list.join(',')) : q
+}
+
 /* An existing event is UPDATED, never upserted. An upsert is an insert first, and
    the insert policy only admits the host — so a guest marking availability on
    someone else's event would be refused before the update policy ever saw it. */
-export function pushEvent(ev: AppEvent): void {
-  if (!backendOn) return
+/* The roster is not sent as this device last saw it. The document goes up whole, and
+   a copy that is behind (a laptop that slept through someone joining) wrote its older
+   list back and took the newcomer off the plan, answers and all. So each save reads
+   the list the database holds now and lays only its own change over it (mergeSave),
+   and the saves of one event go out one at a time, so the next one reads what this
+   one wrote. `before` is this device's copy before the change; without it the save
+   goes out as it is. */
+const docQueue = new Map<string, Promise<void>>()
+/* What became of one save, for a field that says so (lib/autosave). Without a backend
+   this device is the only copy, so a save there is saved. */
+export type SaveResult = { ok: true } | { ok: false; message: string }
+const NOT_REACHED = 'The change did not reach the server.'
+export function pushEvent(ev: AppEvent, before?: AppEvent): Promise<SaveResult> {
+  if (!backendOn) return Promise.resolve({ ok: true })
+  let result: SaveResult = { ok: false, message: NOT_REACHED } // stays so if the request throws
+  docBusy.set(ev.id, (docBusy.get(ev.id) ?? 0) + 1)
   // an update that overtakes the insert matches no rows and is lost in silence
-  void afterCreate(ev.id).then(() =>
-    supabase!
+  const next = (docQueue.get(ev.id) ?? afterCreate(ev.id)).then(async () => {
+    let doc = ev
+    if (before) {
+      const { data, error } = await naming(supabase!
+        .from('events')
+        .select('participants:data->participants, removedIds:data->removedIds')
+        .eq('id', ev.id), ev.id).maybeSingle()
+      if (error) { rejected('save', error.message); result = { ok: false, message: error.message }; return } // sending the stale list blind is what lost people
+      if (data) doc = mergeSave(data as Pick<AppEvent, 'participants' | 'removedIds'>, before, ev)
+    }
+    // the row comes back only if it was written: an update the row policies filter
+    // out matches nothing and reports no error, which is not the same as saved
+    const { data: wrote, error } = await naming(supabase!
       .from('events')
-      .update({ data: docOf(ev), host_id: hostIdOf(ev) })
+      .update({ data: docOf(doc), host_id: hostIdOf(doc) })
       .eq('id', ev.id)
-      .then(({ error }) => { if (error) rejected('save', error.message) }),
-  )
+      .select('id'), ev.id)
+    if (error) { rejected('save', error.message); result = { ok: false, message: error.message }; return }
+    if (!wrote?.length) { rejected('save', NOT_KEPT); result = { ok: false, message: NOT_KEPT }; return }
+    result = { ok: true }
+    if (doc !== ev) takeUpRoster(ev, doc)
+  }).catch(() => {}).finally(() => {
+    const left = (docBusy.get(ev.id) ?? 1) - 1
+    if (left > 0) docBusy.set(ev.id, left)
+    else { docBusy.delete(ev.id); docQueue.delete(ev.id) }
+  })
+  docQueue.set(ev.id, next)
+  return next.then(() => result)
 }
+
+/* The people a save kept that this device had not heard of come into its copy too,
+   so the page shows them. Anything changed here since the save was made is laid over
+   the merged list the same way, so a newer local edit is not taken back. */
+function takeUpRoster(sent: AppEvent, saved: AppEvent): void {
+  const list = readCache()
+  const i = list.findIndex((e) => e.id === sent.id)
+  if (i < 0) return
+  const cur = list[i]
+  const removedIds = mergeRemovedIds(saved.removedIds, cur.removedIds)
+  // the server's entries carry their writer's `you` markers; localize puts back ours
+  const next = localize({ ...cur, participants: mergeRoster(saved.participants, sent.participants, cur.participants), removedIds }, cur)
+  if (sameRoster(next.participants, cur.participants) && (removedIds?.length ?? 0) === (cur.removedIds?.length ?? 0)) return
+  list[i] = { ...next, messages: cur.messages }
+  writeCache(list, true)
+}
+// saves of each event's document still on the way, so a re-read never puts the
+// server's older copy over an edit this device has not finished sending
+const docBusy = new Map<string, number>()
 
 /* ── one event's row, on its way up ──
    Everything else about an event points at that row: the answers, the votes and
@@ -137,31 +211,46 @@ function afterCreate(id: string): Promise<void> {
   return creating.get(id) ?? Promise.resolve()
 }
 
-/* A brand-new event is inserted: the one path the insert policy is for. */
+/* A brand-new event is inserted: the one path the insert policy is for. What became
+   of it is kept until asked for once (whenCreated), so the page that made the event
+   can say it is live only after the database has it. */
+const createResults = new Map<string, Promise<SaveResult>>()
 export function pushNewEvent(ev: AppEvent): void {
   if (!backendOn) return
+  let result: SaveResult = { ok: false, message: NOT_REACHED } // stays so if the request throws
   const done = Promise.resolve(
-    supabase!
+    naming(supabase!
       .from('events')
-      .insert({ id: ev.id, data: docOf(ev), host_id: hostIdOf(ev) })
-      .then(({ error }) => { if (error) rejected('create', error.message) }),
-  ).then(() => { creating.delete(ev.id) })
+      .insert({ id: ev.id, data: docOf(ev), host_id: hostIdOf(ev) }), ev.id)
+      .then(({ error }) => {
+        if (error) { rejected('create', error.message); result = { ok: false, message: error.message }; return }
+        result = { ok: true }
+      }),
+  ).catch(() => { rejected('create', NOT_REACHED) }).then(() => { creating.delete(ev.id) })
   creating.set(ev.id, done)
+  createResults.set(ev.id, done.then(() => result))
+}
+/** Resolves once the database has a new event's row (or has said no). Without a
+ *  backend this device is the only copy, so the event is saved as soon as it exists. */
+export function whenCreated(id: string): Promise<SaveResult> {
+  const r = createResults.get(id)
+  createResults.delete(id)
+  return r ?? Promise.resolve({ ok: true })
 }
 
 /* ── one event, by id, for whoever holds its link ──
    The identity-scoped pull deliberately asks for nothing on behalf of a visitor —
-   but an invite is a visitor holding a link, and reads are open at the database
-   for exactly that reason. Fetches the event and its chat into the cache. */
+   but an invite is a visitor holding a link, and naming the id is what the
+   database asks for. Fetches the event and its chat into the cache. */
 export async function fetchEvent(id: string): Promise<boolean> {
   if (!backendOn) return false
-  const { data, error } = await supabase!.from('events').select('id, data').eq('id', id).maybeSingle()
+  const { data, error } = await naming(supabase!.from('events').select('id, data').eq('id', id), id).maybeSingle()
   if (error || !data) return false
   const ev = data.data as AppEvent
   const list = readCache()
   const i = list.findIndex((e) => e.id === id)
   let merged = i >= 0 ? list.map((e, k) => (k === i ? { ...localize(ev, e), messages: withoutRemoved(e.messages, ev) } : e)) : [...list, { ...localize(ev), messages: [] }]
-  const { data: rows } = await supabase!.from('messages').select('*').eq('event_id', id).order('at', { ascending: true })
+  const { data: rows } = await naming(supabase!.from('messages').select('*').eq('event_id', id).order('at', { ascending: true }), id)
   if (rows) merged = mergeMessages(merged, rows as MessageRow[])
   merged = mergeAnswers(merged, await loadAnswers([id]), new Set([id]))
   writeCache(merged, true)
@@ -209,10 +298,10 @@ function noteMissing(message: string | undefined): boolean {
 /** Every answer row for a set of events, or null when the tables are not there. */
 async function loadAnswers(ids: string[]): Promise<{ avail: AvailRow[]; votes: VoteRow[] } | null> {
   if (!backendOn || rowsMissing || !ids.length) return null
-  const avail = () => supabase!.from('availability').select(answerSelect(needColumn())).in('event_id', ids)
+  const avail = () => naming(supabase!.from('availability').select(answerSelect(needColumn())).in('event_id', ids), ids)
   let [a, v] = await Promise.all([
     avail(),
-    supabase!.from('votes').select('event_id, place_id, participant_id').in('event_id', ids),
+    naming(supabase!.from('votes').select('event_id, place_id, participant_id').in('event_id', ids), ids),
   ])
   // the column is not there yet: ask again without it, and stop asking for it
   if (a.error && missingNeedColumn(a.error.message)) { needColumnMissing = true; a = await avail() }
@@ -318,13 +407,13 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
      was built from a screen that had not caught up, other people's answers show up
      in it as changed: sent, they overwrite a newer answer with an older one, or
      someone's first times with nothing. That is how a guest's marks came back empty
-     after a reload. The host is the exception, because the host changes other
+     after a reload. The host (and a co-host) is the exception, because they change other
      people's answers on purpose: taking someone off the list, or changing the poll
      in a way that clears it. When an entry changes hands (an account taking over the
      guest entry it came in as), the old id leaving the list is that same person. */
   const wasMe = before.participants.find((p) => p.you)?.id
   const rekeyed = !!me && !before.participants.some((p) => p.id === me)
-  const mayWrite = (pid: string) => !!after.hostedByYou || pid === me || pid === wasMe || (rekeyed && !onList.has(pid))
+  const mayWrite = (pid: string) => canManage(after) || pid === me || pid === wasMe || (rekeyed && !onList.has(pid))
   let heldBack = false
   const allowed = (pid: string) => { if (mayWrite(pid)) return true; heldBack = true; return false }
 
@@ -334,7 +423,7 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
     if (!onList.has(pid)) {
       if (!allowed(pid)) continue
       if (before.participants.some((p) => p.id === pid)) {
-        inOrder(after.id, () => supabase!.from('availability').delete().match({ event_id: after.id, participant_id: pid }).then(fail('clear their times')))
+        inOrder(after.id, () => naming(supabase!.from('availability').delete().match({ event_id: after.id, participant_id: pid }), after.id).then(fail('clear their times')))
       }
       continue
     }
@@ -346,7 +435,7 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
     // want to hear about it
     const answer = pid === me && !after.hostedByYou && (aUn.has(pid) || Object.values(to).some((iv) => iv.length > 0) || Object.values(toNeed).some((iv) => iv.length > 0))
     const plain = { event_id: after.id, participant_id: pid, intervals: to, unavailable: aUn.has(pid), updated_at: new Date().toISOString() }
-    const upsert = (row: typeof plain & { if_need_be?: PersonAnswer }) => supabase!.from('availability').upsert(row, { onConflict: 'event_id,participant_id' })
+    const upsert = (row: typeof plain & { if_need_be?: PersonAnswer }) => naming(supabase!.from('availability').upsert(row, { onConflict: 'event_id,participant_id' }), after.id)
     inOrder(after.id, () =>
       upsert(withNeed ? { ...plain, if_need_be: toNeed } : plain)
         // the column is not there yet: keep the answer, saved without it
@@ -364,9 +453,9 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
     const has = new Set(now[placeId] ?? [])
     for (const participant_id of (was[placeId] ?? []).filter((p) => !has.has(p) && allowed(p))) {
       inOrder(after.id, () =>
-        supabase!
+        naming(supabase!
           .from('votes').delete()
-          .match({ event_id: after.id, place_id: placeId, participant_id })
+          .match({ event_id: after.id, place_id: placeId, participant_id }), after.id)
           .then(fail('take back your vote')),
       )
     }
@@ -377,9 +466,9 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
     if (!added.length) continue
     const rows = added.map((participant_id) => ({ event_id: after.id, place_id: placeId, participant_id }))
     inOrder(after.id, () =>
-      supabase!
+      naming(supabase!
         .from('votes')
-        .upsert(rows, { onConflict: 'event_id,place_id,participant_id' })
+        .upsert(rows, { onConflict: 'event_id,place_id,participant_id' }), after.id)
         .then(fail('vote')),
     )
   }
@@ -436,16 +525,23 @@ export function purgeRemoved(eventId: string, participantIds: string[]): void {
   )
 }
 
-export function pushMessage(eventId: string, m: ChatMessage): void {
-  if (!backendOn) return
-  void afterCreate(eventId).then(() =>
+/* Resolves once the database has the line (or has said no). An insert the row
+   policies refuse is an error, so no row count is needed here. */
+export function pushMessage(eventId: string, m: ChatMessage): Promise<SaveResult> {
+  if (!backendOn) return Promise.resolve({ ok: true })
+  return afterCreate(eventId).then(() =>
     supabase!
     .from('messages')
     // a message id is minted once and never changes, so a second push of the same
     // line (a re-sync, a retry) is a no-op rather than a duplicate-key refusal
     .upsert({ id: m.mid, event_id: eventId, participant_id: m.id, name: m.name, body: m.text, system: !!m.system, at: m.at ?? Date.now() }, { onConflict: 'id', ignoreDuplicates: true })
-    .then(({ error }) => { if (error) rejected('message', error.message) }),
-  )
+    .setHeader(NAMED_HEADER, eventId)
+    .then(({ error }): SaveResult => {
+      if (!error) return { ok: true }
+      rejected('message', error.message)
+      return { ok: false, message: error.message }
+    }),
+  ).catch((): SaveResult => { rejected('message', NOT_REACHED); return { ok: false, message: NOT_REACHED } })
 }
 
 /* Lines from people taken off the event stay out of every copy. The server deletes
@@ -484,14 +580,15 @@ export function pushDelete(id: string): void {
     .from('events')
     .delete()
     .eq('id', id)
+    .setHeader(NAMED_HEADER, id)
     .then(({ error }) => { if (error) rejected('delete', error.message) }),
   )
 }
 
 /* ── whose events are these ──
-   Reads are open at the database (the link is the permission), so scoping has to
-   happen here: only events this identity is part of are pulled, listed, or accepted
-   from realtime. "Part of" means: host, a participant by account id, a participant
+   The database admits any plan a request names (the link is the permission), so
+   scoping what this browser keeps happens here: only events this identity is part
+   of are pulled and listed. "Part of" means: host, a participant by account id, a participant
    by the email the account signed up with (a guest entry made before the account
    existed — this is how those events follow you in), or an event this browser
    holds a guest session for. Without a backend the browser owns everything in it. */
@@ -548,7 +645,7 @@ export async function syncFromCloud(): Promise<void> {
     asks.push(events().filter('data->participants', 'cs', JSON.stringify([{ id: acc.id }])))
     if (acc.email) asks.push(events().filter('data->participants', 'cs', JSON.stringify([{ email: acc.email.toLowerCase() }])))
   }
-  if (guestIds.length) asks.push(events().in('id', guestIds))
+  if (guestIds.length) asks.push(naming(events().in('id', guestIds), guestIds))
   const results = await Promise.all(asks)
   // the identity may have changed while the network was out — a sign-out mid-pull
   // must not land the old account's events in the new cache
@@ -580,7 +677,7 @@ export async function syncFromCloud(): Promise<void> {
   const unseen = local.filter((e) => !cloud.has(e.id) && isMine(e) && !hosted(e)).map((e) => e.id)
   const gone: string[] = []
   if (unseen.length) {
-    const { data, error } = await supabase!.from('events').select('id, data').in('id', unseen)
+    const { data, error } = await naming(supabase!.from('events').select('id, data').in('id', unseen), unseen)
     if (currentAccount().id !== acc.id) return
     if (!error) {
       for (const row of (data ?? []) as Row[]) cloud.set(row.id, row.data)
@@ -593,7 +690,7 @@ export async function syncFromCloud(): Promise<void> {
   for (const [id, ev] of cloud) if (!local.some((e) => e.id === id)) merged.push({ ...localize(ev), messages: [] })
   const ids = merged.map((e) => e.id)
   if (ids.length) {
-    const { data: rows } = await supabase!.from('messages').select('*').in('event_id', ids).order('at', { ascending: true })
+    const { data: rows } = await naming(supabase!.from('messages').select('*').in('event_id', ids).order('at', { ascending: true }), ids)
     if (rows) merged = mergeMessages(merged, rows as MessageRow[])
     // availability and the ballot are rows of their own now; the events they belong
     // to are already here, so this is one more query, not one per event
@@ -616,8 +713,8 @@ export async function syncFromCloud(): Promise<void> {
   // forgotten here, guest session and all.
   for (const e of local) if (!cloud.has(e.id) && isMine(e)) {
     if (!hosted(e)) continue // gone, and forgotten below; or not known to be, and kept
-    void supabase!.from('events').upsert({ id: e.id, data: docOf(e), host_id: hostIdOf(e) }).then(({ error }) => { if (error) rejected('save', error.message) })
-    for (const m of e.messages) pushMessage(e.id, { ...m, mid: m.mid ?? crypto.randomUUID() })
+    void naming(supabase!.from('events').upsert({ id: e.id, data: docOf(e), host_id: hostIdOf(e) }), e.id).then(({ error }) => { if (error) rejected('save', error.message) })
+    for (const m of e.messages) void pushMessage(e.id, { ...m, mid: m.mid ?? crypto.randomUUID() })
     // an event that has only ever lived here has answers only in its document
     pushAnswers({ ...e, availIv: {}, votes: {}, unavailableIds: [] }, e)
   }
@@ -671,78 +768,111 @@ export function resyncOnReturn(): () => void {
 }
 
 /* ── realtime: someone else's write lands in this browser's cache ──
-   One channel on the events table; every insert/update/delete rewrites the
-   matching cache row and announces EVENTS_SYNCED. Returns an unsubscribe. */
-export function startRealtime(): () => void {
-  if (!backendOn) return () => {}
-  const channel = supabase!
-    .channel('events-sync')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, (payload) => {
+   Each plan this browser holds has its own broadcast topic, `ev:<id>`, and the
+   database pings it whenever the plan, its chat, its answers or its ballot change
+   (migration 0023). A ping says only which table moved: the change itself is read
+   back through the same id-scoped queries as everything else, so nothing private
+   travels over the socket and a forged ping can do no more than cause a re-read.
+   Plans new to this browser (someone added you) arrive with the next pull.
+   Returns an unsubscribe. */
+type Ping = { t?: string; op?: string }
+// a socket carries at most 100 channels; the plans still to come are watched first
+const MAX_WATCHED = 60
+
+function watchedIds(): string[] {
+  const today = new Date().toISOString().slice(0, 10)
+  const live = readCache().filter((e) => !e.demo)
+  const ahead = (e: AppEvent) => (e.endDate || e.startDate || '') >= today
+  return [...live.filter(ahead), ...live.filter((e) => !ahead(e))].slice(0, MAX_WATCHED).map((e) => e.id)
+}
+
+/* The plan's document changed (or went): read it again once the burst settles. */
+const docRefresh = new Map<string, ReturnType<typeof setTimeout>>()
+function refreshEvent(eventId: string): void {
+  const pending = docRefresh.get(eventId)
+  if (pending) clearTimeout(pending)
+  docRefresh.set(eventId, setTimeout(() => {
+    docRefresh.delete(eventId)
+    // this device's own save is still on the way, and its ping will come after it
+    if (docBusy.get(eventId)) return
+    void naming(supabase!.from('events').select('id, data').eq('id', eventId), eventId).maybeSingle().then(({ data, error }) => {
+      if (error || docBusy.get(eventId)) return
       const list = readCache()
-      if (payload.eventType === 'DELETE') {
-        const gone = (payload.old as { id?: string }).id
-        writeCache(list.filter((e) => e.id !== gone), true)
-        return
-      }
-      const ev = (payload.new as { data: AppEvent }).data
-      const i = list.findIndex((e) => e.id === ev.id)
+      const i = list.findIndex((e) => e.id === eventId)
+      if (i < 0) return // not a room this browser is in
+      if (!data) { writeCache(list.filter((e) => e.id !== eventId), true); return } // deleted
+      const ev = data.data as AppEvent
       /* The document arrives without the things that no longer live in it, and a
-         document echo must not take them away from the cache. Chat has always been
-         one; since 0008 so are availability, the ballot and the explicit empty reply,
-         which were folded in from their own rows and are nowhere in this payload.
-         Dropping them sent availability back to the per-cell `avail`, which is
-         whole-slot only — a time marked to 8:20 snapped back out to the whole 8:00
-         slot the moment this echo of your own write arrived. Keep what the cache has
-         unless the document actually carries a copy (a database without the rows).
-         Reads are open, so the channel carries everyone's events — only the ones
-         already here, or that belong to this identity, are allowed into the cache. */
-      if (i >= 0) {
-        const had = list[i]
-        list[i] = {
-          ...localize(ev, had),
-          messages: withoutRemoved(had.messages, ev),
-          availIv: ev.availIv ?? had.availIv,
-          votes: ev.votes ?? had.votes,
-          unavailableIds: ev.unavailableIds ?? had.unavailableIds,
-        }
-      } else if (isMine(ev)) {
-        list.push({ ...localize(ev), messages: [] })
-        refreshAnswers(ev.id) // an event new to this browser has its answers in rows
-      } else return
+         re-read must not take them away from the cache. Chat has always been one;
+         since 0008 so are availability, the ballot and the explicit empty reply,
+         which come from their own rows. Dropping them sent availability back to the
+         per-cell `avail`, which is whole-slot only, so a time marked to 8:20 snapped
+         back out to the whole 8:00 slot. Keep what the cache has unless the
+         document actually carries a copy (a database without the rows). */
+      const had = list[i]
+      list[i] = {
+        ...localize(ev, had),
+        messages: withoutRemoved(had.messages, ev),
+        availIv: ev.availIv ?? had.availIv,
+        votes: ev.votes ?? had.votes,
+        unavailableIds: ev.unavailableIds ?? had.unavailableIds,
+      }
       writeCache(list, true)
     })
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-      const row = payload.new as MessageRow
+  }, 250))
+}
+
+/* New lines in a plan's chat: read its rows again and merge the ones not here. */
+const chatRefresh = new Map<string, ReturnType<typeof setTimeout>>()
+function refreshChat(eventId: string): void {
+  const pending = chatRefresh.get(eventId)
+  if (pending) clearTimeout(pending)
+  chatRefresh.set(eventId, setTimeout(() => {
+    chatRefresh.delete(eventId)
+    void naming(supabase!.from('messages').select('*').eq('event_id', eventId).order('at', { ascending: true }), eventId).then(({ data }) => {
+      if (!data) return
       const list = readCache()
-      if (!list.some((e) => e.id === row.event_id)) return // not a room this browser is in
-      writeCache(mergeMessages(list, [row]), true)
+      if (!list.some((e) => e.id === eventId)) return
+      writeCache(mergeMessages(list, data as MessageRow[]), true)
     })
-    // a line taken out of the chat (its writer was removed from the event) leaves every
-    // open copy too; matched by the message's own id, which a merge never rewrites
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (payload) => {
-      const mid = (payload.old as { id?: string }).id
-      if (!mid) return
-      const list = readCache()
-      if (!list.some((e) => e.messages.some((m) => m.mid === mid))) return
-      writeCache(list.map((e) => (e.messages.some((m) => m.mid === mid) ? { ...e, messages: e.messages.filter((m) => m.mid !== mid) } : e)), true)
-    })
-    // someone marked their times or moved a vote. Both tables are published whole, so
-    // a delete still names its event; the refresh itself is debounced.
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'availability' }, (payload) => {
-      const id = (payload.new as { event_id?: string }).event_id ?? (payload.old as { event_id?: string }).event_id
-      if (id) refreshAnswers(id)
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'votes' }, (payload) => {
-      const id = (payload.new as { event_id?: string }).event_id ?? (payload.old as { event_id?: string }).event_id
-      if (id) refreshAnswers(id)
-    })
+  }, 150))
+}
+
+function onPing(eventId: string, ping: Ping): void {
+  if (ping.t === 'availability' || ping.t === 'votes') refreshAnswers(eventId)
+  else if (ping.t === 'messages') {
+    // a line taken out of the chat goes with its writer, whom the plan's own
+    // removedIds hides (withoutRemoved), so a removal re-reads the plan
+    if (ping.op === 'DELETE') refreshEvent(eventId)
+    else refreshChat(eventId)
+  } else if (ping.t === 'events') refreshEvent(eventId)
+}
+
+export function startRealtime(): () => void {
+  if (!backendOn) return () => {}
+  const channels = new Map<string, RealtimeChannel>()
+  const listen = (id: string) => supabase!
+    .channel(`ev:${id}`)
+    .on('broadcast', { event: 'change' }, ({ payload }) => onPing(id, (payload ?? {}) as Ping))
     // the socket coming back is the moment the cache may have fallen behind
     .subscribe((status) => {
       if (status === 'SUBSCRIBED') {
         if (socketDown) { socketDown = false; pullAgain(0) }
-      } else socketDown = true // TIMED_OUT, CHANNEL_ERROR or CLOSED: the next join catches up
+      } else if (status !== 'CLOSED') socketDown = true // TIMED_OUT or CHANNEL_ERROR: the next join catches up
     })
-  return () => { void supabase!.removeChannel(channel) }
+  // follow the cache: a plan that arrives is listened to, one that leaves is let go
+  const reconcile = () => {
+    const want = new Set(watchedIds())
+    for (const [id, ch] of channels) if (!want.has(id)) { void supabase!.removeChannel(ch); channels.delete(id) }
+    for (const id of want) if (!channels.has(id)) channels.set(id, listen(id))
+  }
+  reconcile()
+  window.addEventListener(EVENTS_SYNCED, reconcile)
+  return () => {
+    window.removeEventListener(EVENTS_SYNCED, reconcile)
+    for (const ch of channels.values()) void supabase!.removeChannel(ch)
+    channels.clear()
+  }
 }
 
 /* ── reply activity ──

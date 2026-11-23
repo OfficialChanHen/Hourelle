@@ -5,7 +5,7 @@ import { personVar, type PersonColor } from '@/lib/colors'
 import { defaultFace, ringGap, type Face } from '@/lib/faces'
 import { useFaceFlip } from '@/hooks/useFaceFlip'
 import { useInFlipGroup } from './FlipGroup'
-import { FaceSvg } from './FaceSvg'
+import { FaceSvg, faceEdge, faceInset } from './FaceSvg'
 
 /* Somebody's face in their own colour. The colour and the face are decorative
    identity only: they say "this is the same person as that other face", never
@@ -130,7 +130,7 @@ function FlipFace({ initials, color, face, size, font, name, turn, tag = true }:
           className="absolute grid place-items-center rounded-full font-semibold leading-none"
           style={{
             // the back is the same sticker: a disc the size of the drawn face, with its edge
-            inset: size / 22, boxShadow: `0 0 0 ${size / 20}px var(--face-edge)`, filter: 'var(--face-lift)',
+            inset: faceInset(size), boxShadow: `0 0 0 ${faceEdge(size)}px var(--face-edge)`, filter: 'var(--face-lift)',
             background: c.bg, color: c.text,
             fontSize: font ?? Math.round(size * 0.36 * 10) / 10,
             backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)',
@@ -163,7 +163,7 @@ function TurnFace({ initials, color, face, size, font, turn, title }: {
         <span
           className="absolute grid place-items-center rounded-full font-semibold leading-none"
           style={{
-            inset: size / 22, boxShadow: `0 0 0 ${size / 20}px var(--face-edge)`, filter: 'var(--face-lift)',
+            inset: faceInset(size), boxShadow: `0 0 0 ${faceEdge(size)}px var(--face-edge)`, filter: 'var(--face-lift)',
             background: c.bg, color: c.text,
             fontSize: font ?? Math.round(size * 0.36 * 10) / 10,
             backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)',

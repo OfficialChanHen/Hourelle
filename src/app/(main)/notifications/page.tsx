@@ -1,5 +1,6 @@
 'use client'
 
+import { canManage } from '@/lib/cohosts'
 import { answeredLine } from '@/lib/answers'
 import { useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
@@ -11,6 +12,7 @@ import { confirmedSlotText, dateRangeText, fmtMinute, listEvents, answeredCount,
 import { deriveNotifications, markAllNotificationsSeen, seenNotificationKeys, type NotificationItem } from '@/lib/notifications'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { reducedMotion } from '@/lib/prefs'
+import { onMeeting } from '@/lib/forgiving'
 
 type Bucket = { title: string; items: NotificationItem[] }
 
@@ -82,7 +84,7 @@ export default function NotificationsPage() {
                       </span>
                       <div className="min-w-0 flex-1">
                         {titleOf(e.title, key)}
-                        <div className="mt-0.5 text-[12.5px] text-dim">Planning wraps up {du <= 0 ? 'today' : 'tomorrow'}{e.hostedByYou ? ', time to lock it in' : ''}</div>
+                        <div className="mt-0.5 text-[12.5px] text-dim">Planning wraps up {du <= 0 ? 'today' : 'tomorrow'}{canManage(e) ? ', time to lock it in' : ''}</div>
                       </div>
                       <ChevronRight size={17} className="flex-none text-faint" />
                     </Link>
@@ -176,7 +178,7 @@ export default function NotificationsPage() {
                 const day = e.days.find((d) => d.key === c.dayKey)
                 const remote = e.location.mode === 'remote'
                 const place = remote
-                  ? `Online on ${e.location.platform}`
+                  ? `Online on ${onMeeting(e.location.meetingLink)}`
                   : c.placeIds.map((id) => e.location.places.find((p) => p.id === id)?.name).filter(Boolean).join(', ') || 'Place still open'
                 return (
                   <Link key={key} href={`/events/${e.id}?tab=details`} className={cardCls}>

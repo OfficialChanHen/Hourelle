@@ -35,11 +35,12 @@
    per cell, and the avatars in a cell cap hard (none at all on a phone, where the
    count carries it). Nothing here is allowed to cost cells x people. */
 
+import { canManage } from '@/lib/cohosts'
 import { answeredLine, needClause } from '@/lib/answers'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, CalendarCheck } from 'lucide-react'
+import { ChevronDown, ChevronRight, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, CalendarCheck } from 'lucide-react'
 
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { FaceChipsMore } from '@/components/ui/FaceChips'
@@ -59,6 +60,8 @@ import { prefH24, prefWholeWeek } from '@/lib/prefs'
 import { paintRanges, withoutOverlap, type Brush } from '@/lib/availability'
 import { useAccount } from '@/hooks/useAccount'
 import { useFollow } from '@/hooks/useFollow'
+import { useLeaveGuard } from '@/hooks/useLeaveGuard'
+import { confirmLeave } from '@/lib/leave-guard'
 import { useGuestMode } from '@/hooks/useGuestMode'
 import { planUsualWeek, weekFits } from '@/lib/usual-week'
 import { canEmail, sendNudges } from '@/lib/mail'
@@ -70,6 +73,7 @@ import { googleBusyUtc, importSoon, lockedPlanBusyUtc, outlookBusyUtc, mockBusyU
 import { backendOn } from '@/lib/db'
 import { connectCalendar, providerToken, type OAuthProvider } from '@/lib/session'
 import { useHeatLine } from '@/hooks/useHeatLine'
+import { usePixelSnap } from '@/hooks/usePixelSnap'
 
 type Mode = 'view' | 'edit'
 type Edge = 'top' | 'bottom'
@@ -228,12 +232,24 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // remembered signature that never aged out would make a later correcting update — one
   // that happens to match something written before — invisible forever.
   const wroteRef = useRef<{ sig: string; at: number }[]>([])
+  /* Edit mine is a draft: every mark lands on screen and here, and reaches the plan
+     only on Save (or Save in the question asked on the way out, lib/leave-guard).
+     Closing the tab drops it. `none` is a "none of these days work" said or taken
+     back in the draft; undefined leaves the saved answer as it is. While a draft is
+     open the grid holds it: a change to your row from elsewhere waits for Save or
+     Don't save instead of painting over what is on screen. */
+  const draftRef = useRef<{ m: Record<string, Iv[]>; need: Record<string, Iv[]>; extra: Partial<AppEvent>; none?: boolean } | null>(null)
+  const [unsaved, setUnsavedState] = useState(false)
+  const unsavedRef = useRef(false)
+  // a short "Saved" where the button was, gone at the next change
+  const [savedFlash, setSavedFlash] = useState(false)
+  const setUnsaved = (v: boolean) => { unsavedRef.current = v; setUnsavedState(v); if (v) setSavedFlash(false) }
 
   const youAny = event.days.some((d) => (mine[d.key]?.length ?? 0) > 0 || (need[d.key]?.length ?? 0) > 0)
   // declared "none of these days work" — an explicit empty reply, held locally so the
   // demo works in memory and persisted for real events
   const [unavail, setUnavail] = useState<Set<string>>(() => new Set(event.unavailableIds ?? []))
-  useFollow(event.unavailableIds ?? [], (ids) => setUnavail(new Set(ids)))
+  useFollow(event.unavailableIds ?? [], (ids) => { if (!unsavedRef.current) setUnavail(new Set(ids)) })
   const otherIds = new Set<string>()
   for (const d of event.days) for (const [id, ivs] of Object.entries(others[d.key] ?? {})) if (ivs.length) otherIds.add(id)
   // the same count as everywhere else (lib/events answeredIds), read off this panel's
@@ -265,7 +281,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const [nudged, setNudged] = useState<Set<string>>(new Set())
   // nudges are emails from the host: only the host, logged in, with a backend
   const account = useAccount()
-  const canNudge = !!event.hostedByYou && canEmail(account.signedIn)
+  const canNudge = canManage(event) && canEmail(account.signedIn)
   // your usual week belongs to an account (or to this browser with no backend), so a
   // guest and a sample plan never see it; 'empty' points at the profile to paint one
   const guestMode = useGuestMode()
@@ -275,7 +291,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // what the best window should favour are the host's answers, and they change the
   // event for everybody. Everything else in there is about this screen or your own
   // times, so it is everybody's.
-  const isHost = !!event.hostedByYou
+  const isHost = canManage(event)
   const [nudgeNote, setNudgeNote] = useState<string | null>(null)
   const [sel, setSel] = useState<Sel | null>(null)
   const [nudgeStep, setNudgeStep] = useState(5) // minutes the − / + buttons move an edge
@@ -292,11 +308,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   useFollow(remoteMine, (rm) => {
     const sig = JSON.stringify(rm)
     const own = wroteRef.current.some((w) => w.sig === sig && Date.now() - w.at < ECHO_MS)
-    if (drag || own || sig === JSON.stringify(mine)) return
+    if (drag || own || unsavedRef.current || sig === JSON.stringify(mine)) return
     setMine(rm)
   })
   useFollow(remoteNeed, (rn) => {
-    if (drag || JSON.stringify(rn) === JSON.stringify(needRef.current)) return
+    if (drag || unsavedRef.current || JSON.stringify(rn) === JSON.stringify(needRef.current)) return
     setNeed(rn)
   })
   const [page, setPage] = useState(0)
@@ -326,8 +342,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
      to be in plain sight, with how many people have answered each. It is the only
      way between weeks (the grid is its tab panel), so it replaces the old arrows and
      the range label they framed. Built once per render from the per-day data,
-     O(people × days), never per chip or per cell. Your own entry reads from `mine`,
-     so a chip counts you the moment you paint. */
+     O(people × days), never per chip or per cell. Your own entry reads from `mine`
+     and `need`, so a tab counts you the moment you paint either kind. */
   const weekChips = useMemo(() => {
     if (pageCount < 2) return []
     return Array.from({ length: pageCount }, (_, w) => {
@@ -336,7 +352,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       let you = false
       for (const d of real) {
         for (const [id, ivs] of Object.entries(others[d.key] ?? {})) if (ivs.length) ids.add(id)
-        if ((mine[d.key]?.length ?? 0) > 0) you = true
+        if ((mine[d.key]?.length ?? 0) > 0 || (need[d.key]?.length ?? 0) > 0) you = true
       }
       if (you && meId) ids.add(meId)
       const a = real[0]?.date ?? '', b = real[real.length - 1]?.date ?? ''
@@ -344,7 +360,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       const label = real.length < 2 ? a : am === bm ? `${a} – ${bd}` : `${a} – ${b}`
       return { label, count: ids.size, you }
     })
-  }, [paddedDays, pageCount, others, mine, meId])
+  }, [paddedDays, pageCount, others, mine, need, meId])
   const weekStrip = !dayPoll && weekChips.length > 1
   const weekTabId = useId(), gridPanelId = useId()
 
@@ -439,6 +455,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const selRef = useRef(sel); useEffect(() => { selRef.current = sel }, [sel])
   const dragRef = useRef<Drag | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
+  usePixelSnap(scroller) // the cells' face piles sit on whole pixels, so their edges stay sharp
   const gridEl = useRef<HTMLDivElement>(null) // the grid itself — column math for cross-day drags
   const weekDaysRef = useRef(cols); useEffect(() => { weekDaysRef.current = cols }, [cols])
   const colRef = useRef<HTMLDivElement>(null) // left column — cell popover anchors here, outside the scroller
@@ -507,29 +524,56 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   }
   useEffect(() => () => { if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current) }, [])
 
-  /* Every write of your times goes through here, your if-need-be marks with them (`n`,
+  /* Every change to your times goes through here, your if-need-be marks with them (`n`,
      or as they stand). Free wins any minute the two share, so a free block moved,
-     stretched or quick-filled over if-need-be time takes that time. */
+     stretched or quick-filled over if-need-be time takes that time. It changes the
+     draft; `saveTimes` writes it. */
   function persist(m: Record<string, Iv[]>, extra: Partial<AppEvent> = {}, n?: Record<string, Iv[]>) {
     if (pattern) { pattern.onChange(m); return }
     const cleanNeed = Object.fromEntries(Object.entries(n ?? needRef.current).map(([k, ivs]) => [k, withoutOverlap(m[k] ?? [], ivs)]))
     if (JSON.stringify(cleanNeed) !== JSON.stringify(needRef.current)) setNeed(cleanNeed)
     // marking any time takes back an earlier "none of these days work"
-    if ((Object.values(m).some((ivs) => ivs.length) || Object.values(cleanNeed).some((ivs) => ivs.length)) && unavail.has(meId)) {
-      setUnavail((prev) => { const next = new Set(prev); next.delete(meId); return next })
-      if (!event.demo) patchEventWith(event.id, (cur) => ({ unavailableIds: (cur.unavailableIds ?? []).filter((id) => id !== meId) }))
-    }
+    const marked = Object.values(m).some((ivs) => ivs.length) || Object.values(cleanNeed).some((ivs) => ivs.length)
+    const takeBack = marked && unavail.has(meId)
+    if (takeBack) setUnavail((prev) => { const next = new Set(prev); next.delete(meId); return next })
     if (event.demo) return
-    const now = Date.now()
-    wroteRef.current = [...wroteRef.current.filter((w) => now - w.at < ECHO_MS).slice(-19), { sig: JSON.stringify(m), at: now }]
-    // only your own row changes, laid over everyone else's as this device holds them
-    // now. It used to rebuild the whole map from what this screen last drew, so a
-    // screen that had not caught up yet wrote back its older picture of other people:
-    // someone's times, marked a moment before, were saved over as empty.
-    patchEventWith(event.id, (cur) => ({ ...myTimesPatch(cur, meId, event.days, m, rows, step, cleanNeed), ...extra }))
-    onSaved?.()
+    const prev = draftRef.current
+    draftRef.current = { m, need: cleanNeed, extra: { ...prev?.extra, ...extra }, none: takeBack ? false : prev?.none }
+    setUnsaved(true)
   }
-  // your explicit empty reply: none of these days work — cleared by marking any time
+  // the draft, written as one change to your own row. Only your row changes, laid
+  // over everyone else's as this device holds them now: rebuilding the whole map from
+  // what this screen last drew would write back its older picture of other people.
+  function saveTimes(): boolean {
+    const d = draftRef.current
+    if (!d) return true
+    draftRef.current = null
+    setUnsaved(false)
+    const now = Date.now()
+    wroteRef.current = [...wroteRef.current.filter((w) => now - w.at < ECHO_MS).slice(-19), { sig: JSON.stringify(d.m), at: now }]
+    patchEventWith(event.id, (cur) => {
+      const rest = (cur.unavailableIds ?? []).filter((id) => id !== meId)
+      const none = d.none === undefined ? {} : { unavailableIds: d.none ? [...rest, meId] : rest }
+      return { ...myTimesPatch(cur, meId, event.days, d.m, rows, step, d.need), ...d.extra, ...none }
+    })
+    setSavedFlash(true)
+    return true
+  }
+  // Don't save: back to your times as the plan has them
+  function discardTimes() {
+    draftRef.current = null
+    setUnsaved(false)
+    setMine(remoteMine); setNeed(remoteNeed); setUnavail(new Set(event.unavailableIds ?? []))
+    setSel(null)
+  }
+  useLeaveGuard(unsaved, saveTimes, discardTimes)
+  useEffect(() => {
+    if (!savedFlash) return
+    const t = setTimeout(() => setSavedFlash(false), 1800)
+    return () => clearTimeout(t)
+  }, [savedFlash])
+  // your explicit empty reply: none of these days work — cleared by marking any time.
+  // Part of the draft like a mark: the group hears it on Save
   function toggleNoneWork() {
     const on = !unavail.has(meId)
     setUnavail((prev) => {
@@ -538,11 +582,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       else next.delete(meId)
       return next
     })
-    if (!event.demo) patchEventWith(event.id, (cur) => {
-      const rest = (cur.unavailableIds ?? []).filter((id) => id !== meId)
-      return { unavailableIds: on ? [...rest, meId] : rest }
-    })
-    if (!event.demo) onSaved?.()
+    if (event.demo) return
+    const d = draftRef.current
+    draftRef.current = { m: d?.m ?? mineRef.current, need: d?.need ?? needRef.current, extra: d?.extra ?? {}, none: on }
+    setUnsaved(true)
   }
   function changeDuration(v: number) {
     setDurationMin(v)
@@ -1049,7 +1092,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // of a scary confirm — the old times sit in state until the toast expires.
   // times: null makes it a plain notice with no Undo button
   type Times = { free: Record<string, Iv[]>; need: Record<string, Iv[]> }
-  const [undo, setUndo] = useState<{ times: Times | null; label: string; importedIv?: AvailIntervals } | null>(null)
+  // `go`: a week to open instead of an Undo (the catch after Save, below)
+  const [undo, setUndo] = useState<{ times: Times | null; label: string; importedIv?: AvailIntervals; go?: { label: string; week: number } } | null>(null)
   const toastRef = useRef<HTMLDivElement>(null)
   useGSAP(() => {
     if (!undo || !toastRef.current) return
@@ -1057,8 +1101,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   }, { dependencies: [undo] })
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (undoTimer.current) clearTimeout(undoTimer.current) }, [])
-  function stashUndo(times: Times | null, label: string, importedIv?: AvailIntervals) {
-    setUndo({ times, label, importedIv })
+  function stashUndo(times: Times | null, label: string, importedIv?: AvailIntervals, go?: { label: string; week: number }) {
+    setUndo({ times, label, importedIv, go })
     if (undoTimer.current) clearTimeout(undoTimer.current)
     undoTimer.current = setTimeout(() => setUndo(null), 8000)
   }
@@ -1079,6 +1123,23 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     setMine(next); setNeed(nextNeed); persist(next, {}, nextNeed)
     setSel(null)
     stashUndo(snapshot, 'Your times this week were cleared')
+  }
+  // the catch after Save: a poll over several weeks shows one at a time, and people
+  // marked the week on screen and left. Saving with some weeks marked and others
+  // blank says how many are left and opens the next blank one. Only from the Save
+  // button: the save asked on the way out is leaving, so there is nothing to open
+  function askNextWeek() {
+    if (!weekStrip || unavail.has(meId)) return
+    const blank = weekChips.flatMap((w, i) => (w.you ? [] : [i]))
+    if (!blank.length || blank.length === weekChips.length) return
+    const week = blank.find((i) => i > page) ?? blank[0]
+    stashUndo(null, `${blank.length} ${blank.length === 1 ? 'week still needs' : 'weeks still need'} your times.`,
+    undefined, { week, label: week === page + 1 ? 'Next week' : weekChips[week].label })
+  }
+  function openAskedWeek(week: number) {
+    goToWeek(week)
+    setUndo(null)
+    if (undoTimer.current) clearTimeout(undoTimer.current)
   }
   // an undone import takes its marker back too, the same way it was set
   function markImportedUndo(iv: AvailIntervals) { if (event.demo) return; if (onPatch) onPatch({ importedIv: iv }); else patchEvent(event.id, { importedIv: iv }) }
@@ -1107,7 +1168,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     let busy: UtcBusy[]
     if (remote && backendOn) {
       const back = `/events/${event.id}?tab=availability&import=${remote === 'google' ? 'google' : 'outlook'}`
-      const trip = async () => { const err = await connectCalendar(remote, back); if (err) stashUndo(null, err) }
+      // a trip to the provider leaves the page, so an unsaved draft is asked about first
+      const trip = async () => { if (!(await confirmLeave())) return; const err = await connectCalendar(remote, back); if (err) stashUndo(null, err) }
       const token = await providerToken()
       if (!token) { await trip(); return }
       const r = remote === 'google'
@@ -1542,6 +1604,16 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           {editable && !pattern && (
             <div className="mb-2.5 flex items-center justify-between gap-[9px]">
               <SegmentedControl label="Mode" size="sm" value={mode} onChange={(v) => { setMode(v as Mode); if (v === 'edit') setBrush('free'); setSel(null); setDetail(null) }} options={[{ v: 'view', l: 'View' }, { v: 'edit', l: 'Edit mine' }]} />
+              {/* your times wait here until saved; the button shows only while they differ */}
+              <span className="ml-auto flex items-center">
+                {unsaved ? (
+                  <button onClick={() => { saveTimes(); askNextWeek() }} className="flex h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent sm:h-8 sm:px-3.5 sm:text-[13px]">
+                    <Check size={15} /> Save
+                  </button>
+                ) : savedFlash ? (
+                  <span role="status" className="flex items-center gap-1 text-[13px] font-medium text-teal-text"><Check size={14} /> Saved</span>
+                ) : null}
+              </span>
               <SettingsMenu title="Grid settings">
                 {(close) => (
                   <>
@@ -1845,10 +1917,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           </Hint>
         )}
 
-        {/* one segment per week, so a poll that runs over several weeks keeps every
-            week in plain sight. The grid below is what it switches */}
+        {/* one tab per week, on the grid's top edge, so a poll that runs over several
+            weeks keeps every week in plain sight. The grid below is what it switches */}
         {weekStrip && (
-          <WeekStrip weeks={weekChips} total={total} value={page} onChange={goToWeek} idBase={weekTabId} panelId={gridPanelId} />
+          <WeekStrip weeks={weekChips} total={total} value={page} onChange={goToWeek} idBase={weekTabId} panelId={gridPanelId} ask={editable && !pattern && !unavail.has(meId)} />
         )}
 
         {/* grid — a day poll gets the calendar, everything else the timetable */}
@@ -2180,7 +2252,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                           const { shown, chip } = pileFit(n, avatarCap, colW, viewTotal)
                           if (!shown) return null
                           return (
-                            <div className="pointer-events-none absolute bottom-[3px] left-[4px] z-[1]">
+                            <div data-pixel-snap className="pointer-events-none absolute bottom-[3px] left-[4px] z-[1]">
                               <AvatarRow
                                 people={byRoster(peak.ids).slice(0, shown).map(avatarOf)}
                                 size={PILE_AV} overlap={PILE_OVER} font={PILE_FONT} max={shown}
@@ -2465,8 +2537,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       <Announce text={undo?.label ?? ''} />
       {undo && (
         <div ref={toastRef} className="pointer-events-none fixed inset-x-0 top-[72px] z-50 flex justify-center px-4 md:top-[68px]">
-          <div className={`pointer-events-auto flex items-center gap-2.5 rounded-full border border-border bg-s1 py-1.5 pl-4 text-[13px] shadow-soft ${undo.times ? 'pr-1.5' : 'pr-4'}`}>
+          <div className={`pointer-events-auto flex items-center gap-2.5 rounded-full border border-border bg-s1 py-1.5 pl-4 text-[13px] shadow-soft ${undo.times || undo.go ? 'pr-1.5' : 'pr-4'}`}>
             {undo.label}
+            {undo.go && (
+              <button type="button" onClick={() => openAskedWeek(undo.go!.week)} className="flex h-8 flex-none items-center gap-1 whitespace-nowrap rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent">
+                {undo.go.label} <ChevronRight size={14} aria-hidden />
+              </button>
+            )}
             {undo.times && (
               <button type="button" onClick={undoRestore} className="flex h-8 items-center rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent">
                 Undo

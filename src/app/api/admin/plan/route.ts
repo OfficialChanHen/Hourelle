@@ -9,15 +9,14 @@
 // by a subscription event. `plan: "free"` takes the gift back.
 
 import { NextResponse } from 'next/server'
-import { hasServiceKey, serverDb } from '@/lib/server/db'
+import { bearerMatches, hasServiceKey, serverDb } from '@/lib/server/db'
 
 export const runtime = 'nodejs'
 
 type Body = { email?: string; userId?: string; plan?: 'free' | 'plus'; until?: string }
 
 export async function POST(req: Request) {
-  const secret = process.env.ADMIN_SECRET
-  if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) {
+  if (!bearerMatches(req, process.env.ADMIN_SECRET)) {
     return NextResponse.json({ error: 'Not allowed' }, { status: 401 })
   }
   if (!hasServiceKey) return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY is not set.' }, { status: 503 })

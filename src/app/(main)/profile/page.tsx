@@ -16,6 +16,7 @@ import { useHashOpen } from '@/hooks/useHashOpen'
 import { UsualWeekCard } from './_components/UsualWeekCard'
 import { reducedMotion } from '@/lib/prefs'
 import { APP_NAME } from '@/lib/brand'
+import { useLeaveGuard } from '@/hooks/useLeaveGuard'
 
 // eyebrow labels give the page the sectioned shape settings pages are expected to
 // have — account first, the rest of the account surface after, the exit at the end
@@ -73,22 +74,26 @@ export default function ProfilePage() {
     wasEditing.current = editing
   }, [editing])
 
-  async function save() {
-    if (!dirty || nameBad || saving) return
+  // true once everything is kept, so leaving the page can wait on it (lib/leave-guard)
+  async function save(): Promise<boolean> {
+    if (!dirty) return true
+    if (nameBad || saving) return false
     setSaving(true); setSaveErr(null)
     if (nameDirty) {
       const err = await updateProfile({ name: clean })
-      if (err) { setSaving(false); setSaveErr(err); return }
+      if (err) { setSaving(false); setSaveErr(err); return false }
       // every event this account sits on shows the new name
       restampMe({ name: clean })
     }
     if (faceDraft.dirty) {
       const err = await faceDraft.save()
-      if (err) { setSaving(false); setSaveErr(err); return }
+      if (err) { setSaving(false); setSaveErr(err); return false }
     }
     setSaving(false)
     setEditing(false); setSaved(true); setTimeout(() => setSaved(false), 1800)
+    return true
   }
+  useLeaveGuard(editing && dirty, save)
   function cancel() { setEditing(false); setName(account.name); faceDraft.reset(); setSaveErr(null) }
 
   // the end of the account: a second step spells out what goes with it and asks

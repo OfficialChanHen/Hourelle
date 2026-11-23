@@ -28,6 +28,7 @@
    disagrees with a visitor in another timezone. `useLiveEvents` re-reads the list
    whenever the cloud changes something. */
 
+import { canManage } from '@/lib/cohosts'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -52,7 +53,7 @@ import { useGSAP } from '@gsap/react'
 import { reducedMotion } from '@/lib/prefs'
 import { HandNote } from '@/components/ui/HandNote'
 import { namesLabel } from '@/components/ui/AvatarRow'
-import { FaceSvg } from '@/components/ui/FaceSvg'
+import { FaceSvg, faceEdge, faceInset } from '@/components/ui/FaceSvg'
 import { personVar } from '@/lib/colors'
 import { defaultFace } from '@/lib/faces'
 import { pushFlash } from '@/components/ui/FlashToast'
@@ -69,12 +70,13 @@ import { fromDay,
   type AppEvent, type Participant, type Phase, type SameDayInfo,
   answeredIds, rsvpPool,
 } from '@/lib/events'
-import { cloudSettled } from '@/lib/remote'
+import { cloudSettled, whenCreated } from '@/lib/remote'
 import { answeredLine, goingLine } from '@/lib/answers'
 import { overText } from '@/lib/overText'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
 import { useAccount } from '@/hooks/useAccount'
 import { DateField } from '@/components/ui/DateField'
+import { onMeeting } from '@/lib/forgiving'
 
 // what part of the day it is, by the reader's clock
 function greetingFor(hour: number): string {
@@ -136,7 +138,7 @@ function PeekingFaces({ people, plan }: { people: Participant[]; plan: string })
     const turns = root.current?.querySelectorAll('.face-flip')
     if (!turns?.length) return
     if (reducedMotion()) gsap.set(turns, { rotateY: next ? 180 : 0 })
-    else gsap.to(turns, { rotateY: next ? 180 : 0, duration: 0.55, ease: 'back.out(1.7)', stagger: 0.07, overwrite: true })
+    else gsap.to(turns, { rotateY: next ? 180 : 0, duration: 0.3, ease: 'back.out(1.7)', stagger: 0.07, overwrite: true })
   })
   return (
     <span ref={root}>
@@ -151,7 +153,7 @@ function PeekingFaces({ people, plan }: { people: Participant[]; plan: string })
                 </span>
                 <span
                   className="absolute grid place-items-center rounded-full text-[10px] font-semibold leading-none"
-                  style={{ inset: 28 / 22, boxShadow: `0 0 0 ${28 / 20}px var(--face-edge)`, filter: 'var(--face-lift)', background: c.bg, color: c.text, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                  style={{ inset: faceInset(28), boxShadow: `0 0 0 ${faceEdge(28)}px var(--face-edge)`, filter: 'var(--face-lift)', background: c.bg, color: c.text, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
                 >
                   {p.initials}
                 </span>
@@ -240,14 +242,14 @@ function PlanMenu({ e, phase, className = '' }: { e: AppEvent; phase: Phase; cla
           <Cover src={e.image} fit={e.imageFit} pos={e.imagePos} from={from} to={to} className="h-10 w-11 flex-none" rounded="rounded-md" />
           <span className="min-w-0">
             <span className="block truncate font-serif text-[17px] font-normal">{e.title}</span>
-            <span className="block text-[12.5px] font-normal text-dim">{e.hostedByYou ? 'You’re hosting' : `From ${(e.participants.find((p) => p.host)?.name || e.hostName || 'the host').split(' ')[0]}`}</span>
+            <span className="block text-[12.5px] font-normal text-dim">{e.hostedByYou ? 'You’re hosting' : canManage(e) ? 'You’re co-hosting' : `From ${(e.participants.find((p) => p.host)?.name || e.hostName || 'the host').split(' ')[0]}`}</span>
           </span>
         </span>
       )}
     >
       {(close) => (
         <>
-          {e.hostedByYou && phase !== 'past' && <PopoverItem icon={<Link2 size={16} />} onClick={() => copyLink(close)}>Copy invite link</PopoverItem>}
+          {canManage(e) && phase !== 'past' && <PopoverItem icon={<Link2 size={16} />} onClick={() => copyLink(close)}>Copy invite link</PopoverItem>}
           {account.signedIn && <PopoverItem icon={<CopyPlus size={16} />} href={`/create?from=${e.id}`} onClick={close}>{e.hostedByYou ? 'Duplicate' : 'Duplicate as my own plan'}</PopoverItem>}
           <PopoverItem tone="brick" icon={e.hostedByYou ? <Trash2 size={16} /> : <UserRoundX size={16} />} href={`/events/${e.id}?tab=details&focus=delete`} onClick={close}>
             {e.hostedByYou ? 'Delete plan' : 'Leave plan'}
@@ -376,8 +378,8 @@ function NotesBoard({ turns, eventIds, wide, hasPlans }: { turns: { x: Item; t: 
               <StickyNote
                 tilt={i % 2 ? 1.2 : -1.5}
                 kicker={n.done
-                  ? <span className="flex items-center gap-1.5 text-sticky-text"><PencilTick ink="accent" size={16} /> Done</span>
-                  : <><PencilStar size={16} className="-mt-0.5 mr-1" />Your turn</>}
+                  ? <span className="flex items-center gap-1.5 text-sticky-text"><PencilTick ink="note" size={16} /> Done</span>
+                  : <><PencilStar ink="kicker" size={18} className="-mt-0.5 mr-1" />Your turn</>}
                 className="min-h-[172px]"
               >
                 <span className="font-serif text-[18px] leading-[1.15] [overflow-wrap:anywhere]">{n.title}</span>
@@ -387,7 +389,7 @@ function NotesBoard({ turns, eventIds, wide, hasPlans }: { turns: { x: Item; t: 
                   ? <span className="text-[13px] leading-[1.4] text-sticky-dim line-through decoration-1">{n.line}</span>
                   : n.due && <span className="text-[13px] leading-[1.4] text-sticky-dim">By {n.due}</span>}
                 {!n.done && n.href && (
-                  <Link href={n.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent sm:h-9">
+                  <Link href={n.href} className="mt-auto flex h-11 items-center self-start rounded-full bg-sticky-text px-3.5 text-[13px] font-semibold text-sticky sm:h-9">
                     {noteLabel(n.cta)}
                   </Link>
                 )}
@@ -401,7 +403,7 @@ function NotesBoard({ turns, eventIds, wide, hasPlans }: { turns: { x: Item; t: 
             <StickyNote tilt={1.2} className="min-h-[172px]">
               <span className="font-serif text-[30px] leading-none">+{more}</span>
               <span className="text-[13px] leading-[1.4] text-sticky-dim">more waiting on you</span>
-              <span className="mt-auto flex h-11 items-center gap-1 self-start text-[13px] font-semibold text-accent-text sm:h-9">See them <ArrowRight size={14} aria-hidden /></span>
+              <span className="mt-auto flex h-11 items-center gap-1 self-start text-[13px] font-semibold text-sticky-text underline underline-offset-4 sm:h-9">See them <ArrowRight size={14} aria-hidden /></span>
             </StickyNote>
           </Link>
         )}
@@ -703,7 +705,7 @@ function UpNext({ e, phase, sameDay, size, look, lead = false }: { e: AppEvent; 
             {d.you && !(lead && turn) && <Row icon={UserRound}><span className={turn ? 'font-semibold text-moment-text' : ''}>{d.you}</span></Row>}
             {/* then where */}
             {small ? null : e.location.mode === 'remote' ? (
-              <Row icon={Video}>Online{e.location.platform ? ` on ${e.location.platform}` : ''}</Row>
+              <Row icon={Video}>Online on {onMeeting(e.location.meetingLink)}</Row>
             ) : d.lead?.confirmed ? (
               <Row icon={MapPin}>{d.lead.place.name}{d.lead.place.place && <span className="text-dim">, {d.lead.place.place}</span>}</Row>
             ) : d.lead ? (
@@ -779,7 +781,7 @@ function PlanActions({ e, phase }: { e: AppEvent; phase: Phase }) {
   const round = 'grid h-11 w-11 place-items-center rounded-full border sm:h-9 sm:w-9'
   return (
     <span className="flex items-center gap-2">
-      {e.hostedByYou && phase !== 'past' && (
+      {canManage(e) && phase !== 'past' && (
         <button
           type="button" onClick={copyLink} aria-label={copied ? `Link to ${e.title} copied` : `Copy link to ${e.title}`} title={copied ? 'Link copied' : 'Copy the invite link'}
           className={`${round} ${copied ? 'border-accent-border bg-accent-bg text-accent-text' : 'border-border2 bg-s1 text-text hover:bg-s2'}`}
@@ -847,7 +849,8 @@ function QuickCreate() {
       emails: [], accounts: [],
     })
     // quick means quick: straight to the plan, where the share link waits in the header
-    pushFlash('Your plan is live. Share the link so people can join.')
+    // live only once the database has it; a refusal raises the Not saved notice instead
+    void whenCreated(ev.id).then((r) => { if (r.ok) pushFlash('Your plan is live. Share the link so people can join.') })
     router.push(`/events/${ev.id}`)
   }
   const dateCls = 'h-12 w-full'

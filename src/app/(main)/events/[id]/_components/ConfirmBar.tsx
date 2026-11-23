@@ -13,6 +13,7 @@ import { canEmail, sendLockedMail } from '@/lib/mail'
 import { useAccount } from '@/hooks/useAccount'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { getEvent } from '@/lib/events'
+import { onMeeting } from '@/lib/forgiving'
 import {
   confirmedSlotText, confirmEvent, fmtMinute, gridStartMinOf, lockStart, openBest, openSoftEnd, patchEvent, answeredCount, runRows, slotFromRows, stayLine,
   type AppEvent, type ConfirmedSlot, type DayRow,
@@ -98,7 +99,7 @@ function ConfirmModal(props: FormProps) {
             <div className="text-[12px] font-semibold uppercase tracking-[.13em] text-faint">{event.confirmed ? 'Lock in the place' : 'Lock it in'}</div>
             <div id={titleId} className="mt-0.5 truncate text-[15.5px] font-semibold">{event.title}</div>
           </div>
-          <button onClick={close} aria-label="Close" className="grid h-11 w-11 flex-none place-items-center rounded-full text-dim hover:bg-s2 hover:text-text sm:h-8 sm:w-8">
+          <button onClick={close} aria-label="Close" className="hit-area grid h-8 w-8 place-items-center rounded-full text-dim hover:bg-s2 hover:text-text">
             <X size={16} />
           </button>
         </div>
@@ -412,7 +413,7 @@ function ConfirmForm({ event, close, onChanged, onGoToLocation, prefill, runLen 
   /* ── Where ── */
   const picked = ranked.filter((p) => placeIds.includes(p.id))
   const whereValue: ReactNode = loc.mode === 'remote'
-    ? `Online on ${loc.platform}`
+    ? `Online on ${onMeeting(loc.meetingLink)}`
     : settled
       ? loc.places.map((p) => p.name).join(', ')
       : !hasBallot

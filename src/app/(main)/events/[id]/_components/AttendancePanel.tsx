@@ -20,6 +20,7 @@
    Only the RSVP, the quorum and the itinerary's own settings are editable, and as
    on the other tabs those go to local state first so the demos work in memory. */
 
+import { canManage } from '@/lib/cohosts'
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CalendarRange, Check, ChevronRight, Clock, Copy, Info, MapPin, Search, TriangleAlert, Video, X } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
@@ -48,6 +49,7 @@ import { useRoute } from '@/hooks/useRoute'
 import { useFollow } from '@/hooks/useFollow'
 import { useNoHover } from '@/hooks/useNoHover'
 import { ALL_MODES, type TravelMode } from '@/lib/travel'
+import { meetingSource, onMeeting } from '@/lib/forgiving'
 
 type GoTab = (t: 'availability' | 'location') => void
 // the window this tab reads attendance against: the confirmed time once locked, else the best free window
@@ -95,16 +97,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
     setParticipants(event.participants)
   }
 
-  // spot limit: going is first come, first served
-  const goingCount = participants.filter((p) => p.rsvp === 'attending').length
-  const full = event.capacity != null && goingCount >= event.capacity
-
   function persist(patch: Partial<AppEvent>) { if (!event.demo) patchEvent(event.id, patch) }
-  function changeRsvp(r: Rsvp) {
-    if (r === 'attending' && full) return // no sneaking past a disabled button
-    setParticipants((ps) => ps.map((p) => (p.you ? { ...p, rsvp: r, rsvpAuto: undefined } : p)))
-    if (!event.demo) setMyRsvp(event.id, r)
-  }
   function changeQuorum(q: number | null) {
     setQuorum(q)
     persist({ quorum: q ?? undefined })
@@ -224,11 +217,10 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
   return (
     <NeedOnly.Provider value={needOnly}>
     <div className="flex flex-col gap-4">
-      {/* "are you coming" is a locked-stage question; while planning, the ask is your
-          times, and the empty state below asks for them itself */}
-      {locked
-        ? me?.rsvp === 'pending' && <YourRsvpStrip onPick={changeRsvp} full={full} />
-        : mineMissing && !empty && <YourTimesStrip onGo={() => onGoToTab?.('availability')} />}
+      {/* once locked, "are you coming" is asked once, in the locked-in card above the
+          tabs; while planning, the ask is your times, and the empty state below asks
+          for them itself */}
+      {!locked && mineMissing && !empty && <YourTimesStrip onGo={() => onGoToTab?.('availability')} />}
 
       <TabHeading
         eyebrow={locked ? 'Who’s coming' : 'Who can come'}
@@ -261,7 +253,7 @@ export function AttendancePanel({ event, onGoToTab, onViewAvailability, onViewAv
         <SingleVenue
           event={liveEvent} attendees={attendees} win={win} locked={locked} dayIv={dayIv}
           gridStart={gridStart} step={step} rows={rows}
-          quorum={quorum} onQuorum={event.hostedByYou ? changeQuorum : undefined}
+          quorum={quorum} onQuorum={canManage(event) ? changeQuorum : undefined}
           onGoToTab={onGoToTab} onPerson={onViewAvailability} onViewGroup={onViewAvailabilityGroup} markedIds={markedIds} unavailSet={unavailSet}
         />
       )}
@@ -341,27 +333,6 @@ function YourTimesStrip({ onGo }: { onGo: () => void }) {
   )
 }
 
-/* ── your own reply, right where the counts are ── */
-function YourRsvpStrip({ onPick, full }: { onPick: (r: Rsvp) => void; full: boolean }) {
-  return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-moment-border bg-moment-bg px-4 py-3">
-      <span className="text-[14px] font-semibold text-moment-text">Your turn to reply.</span>
-      <span className="text-[13px] text-dim">{full ? 'It is full, spots went to whoever replied first.' : 'Are you coming?'}</span>
-      <div className="ml-auto flex items-center gap-1.5">
-        <button
-          onClick={() => onPick('attending')} disabled={full}
-          title={full ? 'All spots are taken' : undefined}
-          className="h-11 rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent disabled:opacity-40 sm:h-8 sm:px-3"
-        >
-          Going
-        </button>
-        <button onClick={() => onPick('maybe')} className="h-11 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-semibold text-dim hover:bg-s2 sm:h-8 sm:px-3">Maybe</button>
-        <button onClick={() => onPick('not_going')} className="h-11 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-semibold text-dim hover:bg-s2 sm:h-8 sm:px-3">Can&apos;t go</button>
-      </div>
-    </div>
-  )
-}
-
 /* one tap, and the group chat has the plan. Written the way a good organiser would
    write it by hand: what and when on their own lines, the count as a sentence, the
    place, who is still missing by name, and the link that lets them fix that. A line
@@ -378,7 +349,7 @@ function summaryOf(event: AppEvent, win: Win | null, locked: boolean, gridStart:
   const lines: string[] = []
   const lead = leadingPlaceOf(event)
   const where = event.location.mode === 'remote'
-    ? `Online${event.location.platform ? `, on ${event.location.platform}` : ''}`
+    ? `Online, on ${onMeeting(event.location.meetingLink)}`
     : lead ? `${lead.place.name}${lead.place.place ? `, ${lead.place.place}` : ''}` : ''
 
   if (locked && event.confirmed) {
@@ -392,7 +363,7 @@ function summaryOf(event: AppEvent, win: Win | null, locked: boolean, gridStart:
     const waiting = ps.filter((p) => p.rsvp === 'pending').sort(byYouFirst)
     if (waiting.length) lines.push(`Still to reply: ${firstNames(waiting)}.`)
     // the link is the invitation, and inviting is the host's for now
-    if (event.hostedByYou) lines.push('', `Details and RSVP: ${link}`)
+    if (canManage(event)) lines.push('', `Details and RSVP: ${link}`)
   } else {
     lines.push(event.title)
     if (win) lines.push(`Best time so far: ${win.dayLabel}, ${fmtMinute(gridStart + win.s)} – ${fmtMinute(gridStart + win.e)} ${tzAbbr(event.timezone, win.dayKey)}`)
@@ -405,7 +376,7 @@ function summaryOf(event: AppEvent, win: Win | null, locked: boolean, gridStart:
     }
     const silent = open.filter((p) => !markedIds.has(p.id)).sort(byYouFirst)
     if (silent.length) lines.push(`Still need times from ${firstNames(silent)}.`)
-    if (event.hostedByYou) lines.push('', `Add yours: ${link}`)
+    if (canManage(event)) lines.push('', `Add yours: ${link}`)
   }
   return lines.join('\n')
 }
@@ -543,7 +514,7 @@ function SingleVenue({
           <label className="flex h-11 items-center gap-2 rounded-[10px] border border-border bg-s1 px-3 focus-within:border-accent sm:h-9 sm:max-w-[280px]">
             <Search size={14} className="flex-none text-faint" />
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name" aria-label="Find a person" className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-faint" />
-            {query && <button type="button" onClick={() => setQuery('')} aria-label="Clear" className="grid h-7 w-7 flex-none place-items-center rounded-[6px] text-faint hover:text-text"><X size={13} /></button>}
+            {query && <button type="button" onClick={() => setQuery('')} aria-label="Clear" className="hit-area grid h-7 w-7 flex-none place-items-center rounded-[6px] text-faint hover:text-text"><X size={13} /></button>}
           </label>
         )}
         {none && <p className="text-[13px] text-faint">Nobody here by that name.</p>}
@@ -578,7 +549,7 @@ function SingleVenue({
             {silent.length > 0 && (
               <GroupCard
                 label={locked ? 'No reply yet' : 'No answer yet'} tone="faint" count={silent.length}
-                action={event.hostedByYou ? <CopyReminder event={event} /> : undefined}
+                action={canManage(event) ? <CopyReminder event={event} /> : undefined}
               >
                 <FaceGroup people={silent.filter(hit)} size={34} cap={6} onPerson={onPerson} />
               </GroupCard>
@@ -779,7 +750,7 @@ function LeadingPlace({ event, onGoToTab }: { event: AppEvent; onGoToTab?: GoTab
         <span className="grid h-9 w-9 flex-none place-items-center rounded-lg border border-border bg-s2 text-dim"><Video size={16} /></span>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[14.5px] font-semibold">Online</div>
-          <div className="text-[12.5px] text-dim">{event.location.platform || 'Meeting link on the Details tab'}</div>
+          <div className="text-[12.5px] text-dim">{meetingSource(event.location.meetingLink)}</div>
         </div>
       </div>
     )
@@ -1271,7 +1242,7 @@ function WaitingOnGroup({ event, me, mineMissing, locked, onGoToTab }: {
               Mark my times
             </button>
           )}
-          {event.hostedByYou && !event.demo && (
+          {canManage(event) && !event.demo && (
             <button type="button" onClick={copy} className={`flex h-11 items-center justify-center gap-1.5 rounded-full border px-4 text-[14px] font-semibold sm:h-10 ${copied ? 'border-teal-border bg-teal-bg text-teal-text' : 'border-border2 bg-s1 hover:bg-s2'}`}>
               {copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy invite link</>}
             </button>
