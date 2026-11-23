@@ -23,10 +23,7 @@ import { canBeCohost, canManage, isCohost, setCohostPatch } from '@/lib/cohosts'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import {
-  Building2, Link2, Copy, Merge, MessageCircle, Pencil, EllipsisVertical, CopyPlus,
-  Check, Trash2, TriangleAlert, Receipt, Plus, X, Video, UserRoundX, Mail, Search, ShieldCheck,
-} from 'lucide-react'
+import { Building2, Link2, Copy, Merge, MessageCircle, EllipsisVertical, CopyPlus, Check, Trash2, TriangleAlert, Receipt, Plus, X, Video, UserRoundX, Mail, Search, ShieldCheck } from 'lucide-react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Cover } from '@/components/ui/Cover'
@@ -36,6 +33,11 @@ import { pushFlash } from '@/components/ui/FlashToast'
 import { lastListPage } from '@/lib/nav'
 import { confirmLeave } from '@/lib/leave-guard'
 import { useLeaveGuard } from '@/hooks/useLeaveGuard'
+import { useAutosave } from '@/hooks/useAutosave'
+import { SaveStatus } from '@/components/ui/SaveStatus'
+import { EditPencil } from '@/components/ui/EditPencil'
+import { EditorActions } from '@/components/ui/EditorActions'
+import { useConfirmedSave } from '@/hooks/useConfirmedSave'
 import { useEventRoom } from '@/hooks/useEventRoom'
 import { TimezonePill } from '@/components/ui/TimezonePill'
 import { DaysPicker } from '@/components/ui/DaysPicker'
@@ -61,7 +63,7 @@ import { Hint } from '@/components/ui/Hint'
 import { Tour, type TourContext } from '@/components/Tour'
 import { AskTour } from '@/components/AskTour'
 import { cleanEmail, isEmail, meetingHref, onMeeting, wholeAmount } from '@/lib/forgiving'
-import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, patchEventWith, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
+import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, patchEventWith, postMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp, type SaveResult } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -347,10 +349,12 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   }
   // persist a field and update the in-memory event in one move, so everything reading
   // `event` (the header, an open lock-in dropdown) reflects the edit immediately
-  function patchLive(patch: Partial<AppEvent>) {
-    if (!event) return
-    if (!event.demo) patchEvent(event.id, patch)
+  // resolves once the database has the change (a field's "Saved" waits on it)
+  function patchLive(patch: Partial<AppEvent>): Promise<SaveResult> {
+    if (!event) return Promise.resolve({ ok: true })
+    const saved = event.demo ? Promise.resolve<SaveResult>({ ok: true }) : patchEvent(event.id, patch)
     setEvent((ev) => (ev ? { ...ev, ...patch } : ev))
+    return saved
   }
   // your own face on this event, from Change face on the participant list. Only
   // your entry is touched, worked out from the copy saved on this device right now
@@ -374,15 +378,17 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
     setBestFocus((n) => n + 1)
     goTab('availability')
   }
-  function sendMessage(text: string) {
+  // resolves once the database has the line, for the poll edit that waits on it
+  function sendMessage(text: string): Promise<SaveResult> | void {
     if (!event) return
     const sender = event.participants.find((p) => p.you)
     if (!sender) return // nobody here is you — the grid's "Add me" is the way in
     const msg = { id: sender.id, name: sender.name, time: 'now', at: Date.now(), text, you: true }
     // stored `you` means the stubbed account; a guest's line carries only their id and
     // viewOf remaps it. Messages go out as their own rows, so nobody's chat is overwritten.
-    const saved = event.demo ? msg : appendMessage(event.id, { ...msg, you: !sender.guest })
-    setEvent({ ...event, messages: [...event.messages, { ...saved, you: true }] })
+    const posted = event.demo ? { message: msg, saved: Promise.resolve<SaveResult>({ ok: true }) } : postMessage(event.id, { ...msg, you: !sender.guest })
+    setEvent({ ...event, messages: [...event.messages, { ...posted.message, you: true }] })
+    return posted.saved
   }
   // a tap on a chat poll. The pick is yours alone, under that poll's keys in the votes
   // map, worked out from the copy saved on this device right now (never from this
@@ -652,45 +658,69 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   )
 }
 
-/* the event name is the host's to change — click the pencil, type, Enter or blur saves */
-function EditableTitle({ title, editable, onSave }: { title: string; editable: boolean; onSave: (t: string) => void }) {
+/* Renaming a plan, shared by the header and the Details row. The name saves itself
+   once typing pauses (lib/autosave), and at once on Enter or blur; Escape puts back the
+   name it had when editing began. An empty name is not a name, so it is never saved. */
+function useNameEdit(title: string, onSave: (t: string) => Promise<SaveResult> | void) {
   const [editing, setEditing] = useState(false)
-  const ref = useRef<HTMLInputElement>(null)
+  const before = useRef(title)
+  const auto = useAutosave<string>(onSave)
+  return {
+    editing,
+    status: auto.status,
+    retry: auto.retry,
+    begin() { before.current = title; setEditing(true) },
+    input: {
+      defaultValue: title, autoFocus: true, maxLength: 80, 'aria-label': 'Plan name',
+      onChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const v = e.target.value.trim()
+        if (v && v !== title) auto.change(v)
+        else auto.cancel()
+      },
+      onBlur() { auto.flush(); setEditing(false) },
+      onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+        if (e.key === 'Enter') { auto.flush(); setEditing(false) }
+        if (e.key === 'Escape') {
+          auto.cancel()
+          if (title !== before.current) onSave(before.current)
+          setEditing(false)
+        }
+      },
+    },
+  }
+}
+
+/* the event name is the host's to change: click the pencil and type */
+function EditableTitle({ title, editable, onSave }: { title: string; editable: boolean; onSave: (t: string) => Promise<SaveResult> | void }) {
+  const name = useNameEdit(title, onSave)
   // wraps anywhere: one long word in a title must never widen the page past a phone screen
   const h1 = 'font-serif font-normal text-[34px] leading-[1.02] tracking-[-0.01em] [overflow-wrap:anywhere] sm:text-[48px]'
 
   if (!editable) return <h1 className={h1}>{title}</h1>
-  if (editing) {
-    const save = () => {
-      const v = ref.current?.value.trim()
-      if (v && v !== title) onSave(v)
-      setEditing(false)
-    }
-    return (
-      <input
-        ref={ref} defaultValue={title} autoFocus maxLength={80} aria-label="Plan name"
-        onBlur={save}
-        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
-        className={`w-full max-w-[560px] rounded-[10px] border border-border bg-s0 px-3 py-0.5 outline-none focus:border-accent ${h1}`}
-      />
-    )
-  }
   return (
-    <span className="flex items-center gap-2.5">
-      <h1 className={`min-w-0 ${h1}`}>{title}</h1>
-      <button onClick={() => setEditing(true)} title="Rename this plan" aria-label="Rename this plan" className="hit-area grid h-8 w-8 flex-none place-items-center rounded-full text-faint hover:bg-s2 hover:text-dim">
-        <Pencil size={15} />
-      </button>
+    <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+      {name.editing ? (
+        <input {...name.input} className={`w-full max-w-[560px] rounded-[10px] border border-border bg-s0 px-3 py-0.5 outline-none focus:border-accent ${h1}`} />
+      ) : (
+        <>
+          <h1 className={`min-w-0 ${h1}`}>{title}</h1>
+          <EditPencil size="lg" label="Rename this plan" onClick={name.begin} />
+        </>
+      )}
+      <SaveStatus status={name.status} onRetry={name.retry} />
     </span>
   )
 }
+
+// a change to the plan, resolving once the database has it
+type PatchEvent = (patch: Partial<AppEvent>) => Promise<SaveResult> | void
 
 type DetailsGoTab = (t: 'availability' | 'location') => void
 
 /* ── Details tab ── */
 function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onPatch, onSetMyFace, onViewAvailability, spotlightDelete = false, openInvite = 0 }: {
   event: AppEvent; onDelete: () => void; onLeave: () => void; onGoToTab: DetailsGoTab; onGoToBestWindow: () => void
-  onPatch: (patch: Partial<AppEvent>) => void; onSetMyFace: (face: Face) => void; onViewAvailability: (pid: string) => void; spotlightDelete?: boolean
+  onPatch: PatchEvent; onSetMyFace: (face: Face) => void; onViewAvailability: (pid: string) => void; spotlightDelete?: boolean
   openInvite?: number
 }) {
   // host or co-host: they run the plan. The budget and deleting stay the host's
@@ -831,7 +861,7 @@ const PLAN_GROUP: Record<PlanGroup, { label: string; color: string; bg: string }
   none: { label: 'No reply', color: 'var(--faint)', bg: 'var(--s2)' },
 }
 function ParticipantsCard({ event, isHost, onPatch, onSetMyFace, onViewAvailability, openInvite = 0 }: {
-  event: AppEvent; isHost: boolean; onPatch: (patch: Partial<AppEvent>) => void; onSetMyFace: (face: Face) => void; onViewAvailability: (pid: string) => void
+  event: AppEvent; isHost: boolean; onPatch: PatchEvent; onSetMyFace: (face: Face) => void; onViewAvailability: (pid: string) => void
   openInvite?: number
 }) {
   const locked = event.status === 'confirmed' && !!event.confirmed
@@ -928,7 +958,7 @@ function ParticipantsCard({ event, isHost, onPatch, onSetMyFace, onViewAvailabil
 
 /* the host can keep inviting by email after the event exists: a row that opens into
    the same chip box the created screen has. Only when the app can send. */
-function InviteMore({ event, onPatch, openNonce = 0 }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void; openNonce?: number }) {
+function InviteMore({ event, onPatch, openNonce = 0 }: { event: AppEvent; onPatch: PatchEvent; openNonce?: number }) {
   const account = useAccount()
   // asked open from elsewhere (the share card): open on arrival, and again on a repeat ask
   const [open, setOpen] = useState(openNonce > 0)
@@ -971,7 +1001,7 @@ function InviteMore({ event, onPatch, openNonce = 0 }: { event: AppEvent; onPatc
 }
 
 /* host actions per person: mark their reply for them, share the link, or remove them */
-function ParticipantMenu({ p, event, onPatch }: { p: AppEvent['participants'][number]; event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
+function ParticipantMenu({ p, event, onPatch }: { p: AppEvent['participants'][number]; event: AppEvent; onPatch: PatchEvent }) {
   return (
     <Popover width={216} align="end" className="flex-none" label={`Options for ${p.name}`} trigger={() => (
       <span className="grid h-7 w-7 place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim"><EllipsisVertical size={14} /></span>
@@ -982,7 +1012,7 @@ function ParticipantMenu({ p, event, onPatch }: { p: AppEvent['participants'][nu
 }
 
 function ParticipantMenuBody({ p, event, onPatch, close }: {
-  p: AppEvent['participants'][number]; event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void; close: () => void
+  p: AppEvent['participants'][number]; event: AppEvent; onPatch: PatchEvent; close: () => void
 }) {
   const [confirmRemove, setConfirmRemove] = useState(false)
   const first = p.name.split(' ')[0]
@@ -1129,12 +1159,14 @@ function CopyInviteLink({ id }: { id: string }) {
    polled with the leading time so far beneath it. */
 function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPatch }: {
   event: AppEvent; editable: boolean
-  onGoToAvailability: () => void; onGoToBestWindow: () => void; onPatch: (patch: Partial<AppEvent>) => void
+  onGoToAvailability: () => void; onGoToBestWindow: () => void; onPatch: PatchEvent
 }) {
   const [editing, setEditing] = useState(false)
+  const saver = useConfirmedSave()
+  const close = () => { if (saver.status === 'failed') saver.reset(); setEditing(false) }
   if (event.confirmed) {
     const c = event.confirmed
-    if (editing && editable) return <FixedWhenEditor event={event} onPatch={onPatch} onDone={() => setEditing(false)} />
+    if (editing && editable) return <FixedWhenEditor event={event} onPatch={onPatch} saver={saver} onDone={close} />
     const allDay = isAllDay(c)
     // the year rides on the last day named: "Fri, Aug 14, 6:00 PM – Sun, Aug 16, 2026, 12:00 PM"
     const lastKey = c.endDayKey ?? c.dayKey
@@ -1147,15 +1179,12 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
       <span className="flex flex-wrap items-center gap-1.5">
         {slotWhen(c, dayOf, fmtMinute)}
         {!allDay && <TimezonePill tz={event.timezone} day={event.confirmed?.dayKey ?? event.startDate} />}
-        {editable && (
-          <button onClick={() => setEditing(true)} title="Change the day or time" className="hit-area grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
-            <Pencil size={13} />
-          </button>
-        )}
+        {editable && <EditPencil label="Change the day or time" onClick={() => setEditing(true)} />}
+        <SaveStatus status={saver.status} />
       </span>
     )
   }
-  if (editing) return <WhenEditor event={event} onPatch={onPatch} onDone={() => setEditing(false)} />
+  if (editing) return <WhenEditor event={event} onPatch={onPatch} saver={saver} onDone={close} />
 
   const oneDay = event.startDate === event.endDate
   const dow = oneDay ? event.days[0]?.dow : null
@@ -1166,11 +1195,8 @@ function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPa
     <div className="flex flex-col gap-1">
       <span className="flex flex-wrap items-center gap-1.5">
         {dow ? `${dow}, ` : ''}{dateRangeText(event)}
-        {editable && (
-          <button onClick={() => setEditing(true)} title="Change the dates or length" className="hit-area grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
-            <Pencil size={13} />
-          </button>
-        )}
+        {editable && <EditPencil label="Change the dates or length" onClick={() => setEditing(true)} />}
+        <SaveStatus status={saver.status} />
       </span>
       <span className="flex flex-wrap items-center gap-1.5 text-[12.5px] text-dim">
         {best ? (
@@ -1213,7 +1239,9 @@ function deriveExclusions(ev: AppEvent): { dows: number[]; days: string[] } {
   return { dows, days: missing.filter((k) => !dowSet.has(dowOf(k))) }
 }
 
-function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void; onDone: () => void }) {
+type Saver = ReturnType<typeof useConfirmedSave>
+
+function WhenEditor({ event, onPatch, saver, onDone }: { event: AppEvent; onPatch: PatchEvent; saver: Saver; onDone: () => void }) {
   const [start, setStart] = useState(event.startDate)
   const [end, setEnd] = useState(event.endDate)
   const [dur, setDur] = useState(event.durationMin ?? 60)
@@ -1235,10 +1263,11 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
       : ''
   const [initialExcluded] = useState(() => JSON.stringify(deriveExclusions(event)))
   const dirty = start !== event.startDate || end !== event.endDate || dur !== (event.durationMin ?? 60) || JSON.stringify(excluded) !== initialExcluded
-  useLeaveGuard(dirty, () => { if (selErr) return false; save() })
+  useLeaveGuard(dirty, () => { if (selErr) return false; return save() })
 
-  function save() {
-    if (selErr) return
+  // closes only once the database has the change; otherwise the draft stays open
+  async function save(): Promise<boolean> {
+    if (selErr || saver.saving) return false
     const days = excluded.dows.length || excluded.days.length ? buildDaysFrom(selKeys, dayCap) : buildDays(start, endEff, dayCap)
     // keep every existing day's replies (even out-of-range ones stay dormant); new days start empty
     // everyone's replies as saved now, not as this screen drew them, so a reply that
@@ -1250,8 +1279,9 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
     // would shadow legacy grid replies the moment availIv gets written
     const availIv = { ...fullAvailIvOf(cur) }
     for (const d of days) if (!availIv[d.key]) availIv[d.key] = {}
-    onPatch({ startDate: days[0].key, endDate: days[days.length - 1].key, days, avail, availIv, durationMin: dur })
-    onDone()
+    const ok = await saver.run(() => onPatch({ startDate: days[0].key, endDate: days[days.length - 1].key, days, avail, availIv, durationMin: dur }))
+    if (ok) onDone()
+    return ok
   }
 
   return (
@@ -1278,10 +1308,7 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
       <p className="max-w-[420px] text-[12px] leading-[1.5] text-faint">
         Replies are saved per day. If you drop a day and bring it back later, the replies for it come back too.
       </p>
-      <div className="flex items-center gap-2">
-        <button onClick={save} disabled={!!selErr} className="h-8 rounded-full bg-accent px-3 text-[12.5px] font-semibold text-on-accent disabled:opacity-40">Save</button>
-        <button onClick={onDone} className="h-8 rounded-full border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
-      </div>
+      <EditorActions onSave={() => void save()} onCancel={onDone} saving={saver.saving} disabled={!!selErr} error={saver.error} />
     </div>
   )
 }
@@ -1292,7 +1319,7 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
    unless it is all day. Moving it rebuilds the grid around the new slot (a timed day's
    hours, or a run's days) and clears the can-you-come replies: they answered a slot
    that no longer exists. */
-function FixedWhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void; onDone: () => void }) {
+function FixedWhenEditor({ event, onPatch, saver, onDone }: { event: AppEvent; onPatch: PatchEvent; saver: Saver; onDone: () => void }) {
   const c = event.confirmed!
   const [day, setDay] = useState(c.dayKey)
   const [endDay, setEndDay] = useState(c.endDayKey ?? c.dayKey)
@@ -1304,7 +1331,7 @@ function FixedWhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch:
   const s0 = allDay ? 0 : startMin, e0 = allDay ? 24 * 60 : endMin
   const changed = day !== c.dayKey || (run ? endDay : undefined) !== c.endDayKey || s0 !== c.startMin || e0 !== c.endMin
   const valid = !!day && (allDay || run || endMin > startMin)
-  useLeaveGuard(changed, () => { if (!valid) return false; save() })
+  useLeaveGuard(changed, () => { if (!valid) return false; return save() })
 
   function changeDay(v: string) {
     const d = fromDay(v, today)
@@ -1315,34 +1342,40 @@ function FixedWhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch:
     setStartMin(v)
     if (!run) setEndMin((e) => (e <= v ? Math.min(v + Math.max(15, c.endMin - c.startMin), 24 * 60 - 5) : e))
   }
-  function save() {
-    if (!changed) { onDone(); return }
-    if (!valid) return
+  // closes only once the database has the change; otherwise the draft stays open
+  async function save(): Promise<boolean> {
+    // after a refusal this device already holds the new slot, so it reads as unchanged:
+    // Save sends it again rather than closing as if it had been kept
+    if (!changed && saver.status !== 'failed') { onDone(); return true }
+    if (!valid || saver.saving) return false
     const reset = { unavailableIds: [] as string[] }
+    let patch: Partial<AppEvent>
     if (allDay || run) {
       // a run of days, or a whole day: a day grid over exactly those days
       const days = buildDays(day, endDay, maxPollDays('day', day))
       const times = buildTimes('day')
-      onPatch({
+      patch = {
         confirmed: { ...c, dayKey: day, endDayKey: run ? endDay : undefined, startMin: s0, endMin: e0 },
         startDate: day, endDate: days[days.length - 1].key, granularity: 'day', days, times, durationMin: 24 * 60,
         avail: Object.fromEntries(days.map((d) => [d.key, times.map(() => [])])),
         availIv: Object.fromEntries(days.map((d) => [d.key, {}])),
         ...reset,
-      })
+      }
     } else {
       const gran = event.granularity === 'day' ? '30' : event.granularity
       const st = stepOf(gran)
       const times = buildTimes(gran, Math.floor(startMin / st) * st, Math.min(24 * 60, Math.ceil(endMin / st) * st))
-      onPatch({
+      patch = {
         confirmed: { ...c, dayKey: day, endDayKey: undefined, startMin, endMin },
         startDate: day, endDate: day, granularity: gran, days: buildDays(day, day), times, durationMin: endMin - startMin,
         avail: { [day]: times.map(() => []) },
         availIv: { [day]: {} },
         ...reset,
-      })
+      }
     }
-    onDone()
+    const ok = await saver.run(() => onPatch(patch))
+    if (ok) onDone()
+    return ok
   }
 
   return (
@@ -1368,10 +1401,7 @@ function FixedWhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch:
           Moving the time clears everyone&apos;s can-you-come replies, so they answer for the new slot.
         </p>
       )}
-      <div className="flex items-center gap-2">
-        <button onClick={save} disabled={!valid} className="h-8 rounded-full bg-accent px-3 text-[12.5px] font-semibold text-on-accent disabled:opacity-40">Save</button>
-        <button onClick={onDone} className="h-8 rounded-full border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
-      </div>
+      <EditorActions onSave={() => void save()} onCancel={onDone} saving={saver.saving} disabled={!valid} error={saver.error} />
     </div>
   )
 }
@@ -1404,8 +1434,9 @@ function DeadlineValue({ label, value, editable, onChange, hint, max }: {
 /* Where: the confirmed venue once locked; before that, the vote leader for a single venue,
    or a pointer to the itinerary on the Location tab. */
 /* Spots: the host caps the guest list; everyone sees the number, only the host edits it */
-function CapacityValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
+function CapacityValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: PatchEvent }) {
   const [v, setV] = useState(event.capacity?.toString() ?? '')
+  const auto = useAutosave<number | undefined>((capacity) => onPatch({ capacity }))
   const going = event.participants.filter((p) => p.rsvp === 'attending').length
   if (!editable) {
     if (event.capacity == null) return <span className="text-faint">No limit</span>
@@ -1415,28 +1446,34 @@ function CapacityValue({ event, editable, onPatch }: { event: AppEvent; editable
     const clean = raw.replace(/[^\d]/g, '').slice(0, 4)
     setV(clean)
     const n = Number(clean)
-    onPatch({ capacity: clean && n >= 1 ? n : undefined })
+    const capacity = clean && n >= 1 ? n : undefined
+    if (capacity === event.capacity) auto.cancel()
+    else auto.change(capacity)
   }
   return (
-    <input
-      value={v} onChange={(e) => change(e.target.value)} inputMode="numeric" placeholder="No limit" aria-label="Spots"
-      className="h-8 w-[110px] rounded-[8px] border border-border bg-s0 px-2.5 text-[13.5px] font-medium outline-none focus-within:border-accent"
-    />
+    <span className="flex flex-wrap items-center gap-2.5">
+      <input
+        value={v} onChange={(e) => change(e.target.value)} onBlur={auto.flush} inputMode="numeric" placeholder="No limit" aria-label="Spots"
+        className="h-8 w-[110px] rounded-[8px] border border-border bg-s0 px-2.5 text-[13.5px] font-medium outline-none focus-within:border-accent"
+      />
+      <SaveStatus status={auto.status} onRetry={auto.retry} />
+    </span>
   )
 }
 
 function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
   event: AppEvent; locked: boolean; onGoToLocation: () => void
-  editable: boolean; onPatch: (patch: Partial<AppEvent>) => void
+  editable: boolean; onPatch: PatchEvent
 }) {
   const [copied, setCopied] = useState(false)
   const [editingOnline, setEditingOnline] = useState(false)
   const linkRef = useRef<HTMLInputElement>(null)
   // a link typed but not saved yet
   const [linkDraft, setLinkDraft] = useState<string | null>(null)
+  const saver = useConfirmedSave()
   const loc = event.location
   const link = loc.meetingLink.trim()
-  useLeaveGuard(editingOnline && linkDraft !== null && linkDraft.trim() !== link, saveOnline)
+  useLeaveGuard(editingOnline && linkDraft !== null && linkDraft.trim() !== link, () => saveOnline())
   const copyLink = () => {
     navigator.clipboard?.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1600) }).catch(() => {})
   }
@@ -1511,19 +1548,25 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
   else if (loc.places.length === 1) main = placeLink(loc.places[0].name)
 
   const hybridOn = !!loc.hybrid && !!link
-  function saveOnline() {
+  // closes only once the database has the link; otherwise it stays in the field
+  async function saveOnline(): Promise<boolean> {
+    if (saver.saving) return false
     const v = (linkRef.current?.value ?? linkDraft ?? '').trim()
-    onPatch({ location: { ...loc, hybrid: !!v, meetingLink: v || loc.meetingLink } })
-    setEditingOnline(false)
-    setLinkDraft(null)
+    const ok = await saver.run(() => onPatch({ location: { ...loc, hybrid: !!v, meetingLink: v || loc.meetingLink } }))
+    if (ok) { setEditingOnline(false); setLinkDraft(null) }
+    return ok
   }
+  function cancelOnline() { if (saver.status === 'failed') saver.reset(); setEditingOnline(false); setLinkDraft(null) }
   return (
     <div className="flex flex-col gap-1.5">
       {main}
-      {hybridOn && (
+      {/* an open editor stays put while it waits: the local copy turns hybrid at once,
+          and the editor has to be there to say whether the database kept it */}
+      {hybridOn && !editingOnline && (
         <>
           <span className="flex items-center gap-1.5 text-[12.5px] text-dim">
             <Video size={13} /> Also joinable online
+            <SaveStatus status={saver.status} />
             {editable && (
               <button onClick={() => onPatch({ location: { ...loc, hybrid: false } })} className="font-semibold text-brick-text hover:underline">Remove</button>
             )}
@@ -1531,17 +1574,16 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
           {linkRow}
         </>
       )}
-      {!hybridOn && editable && (
+      {editable && (editingOnline || !hybridOn) && (
         editingOnline ? (
-          <span className="flex flex-wrap items-center gap-2">
+          <span className="flex flex-col gap-2">
             <input
-              ref={linkRef} defaultValue={link} autoFocus placeholder="Paste a meeting link" aria-label="Meeting link"
+              ref={linkRef} defaultValue={link} autoFocus placeholder="https://meet.google.com/abc-defg-hij" aria-label="Meeting link"
               onChange={(e) => setLinkDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') saveOnline() }}
-              className="h-8 w-[240px] max-w-full rounded-[8px] border border-border bg-s0 px-2.5 font-mono text-[12.5px] outline-none focus:border-accent"
+              onKeyDown={(e) => { if (e.key === 'Enter') void saveOnline() }}
+              className="h-11 w-[300px] max-w-full rounded-[8px] border border-border bg-s0 px-2.5 font-mono text-[12.5px] outline-none focus:border-accent sm:h-8"
             />
-            <button onClick={saveOnline} className="h-8 rounded-full bg-accent px-2.5 text-[12.5px] font-semibold text-on-accent">Save</button>
-            <button onClick={() => { setEditingOnline(false); setLinkDraft(null) }} className="h-8 rounded-full border border-border2 bg-s1 px-2.5 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
+            <EditorActions onSave={() => void saveOnline()} onCancel={cancelOnline} saving={saver.saving} error={saver.error} />
           </span>
         ) : (
           <button onClick={() => setEditingOnline(true)} className="text-left text-[12.5px] font-medium text-accent-text hover:underline">
@@ -1556,16 +1598,14 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
 /* Style: collapsed to the current cover, a line naming it and the card's detail, and
    a "Change" link; the shared editor, with its preview, the fill/fit choice and the
    detail tiles, opens only when asked for */
-function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
+function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: PatchEvent }) {
   const [editing, setEditing] = useState(false)
   if (!editing) {
     return (
-      <div className="flex items-center gap-2.5">
-        <span className="text-[13px] leading-snug text-dim">{styleSummary(event.image, event.imageFit, event.keepsake)}</span>
-        <button onClick={() => setEditing(true)} className="text-[13px] font-semibold leading-none text-accent-text hover:underline">
-          Change
-        </button>
-      </div>
+      <span className="flex flex-wrap items-center gap-1.5">
+        <span className="text-dim">{styleSummary(event.image, event.imageFit, event.keepsake)}</span>
+        <EditPencil label="Change the cover and detail" onClick={() => setEditing(true)} />
+      </span>
     )
   }
   return (
@@ -1579,51 +1619,42 @@ function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Par
   )
 }
 
-/* Name: the same rename the header offers, here where the rest of the event is edited.
-   Enter or blur saves, Escape leaves it as it was; an empty name is not a name. */
-function NameValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
-  const [editing, setEditing] = useState(false)
-  const ref = useRef<HTMLInputElement>(null)
+/* Name: the same rename the header offers, here where the rest of the event is edited */
+function NameValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: PatchEvent }) {
+  const name = useNameEdit(event.title, (title) => onPatch({ title }))
   if (!editable) return <>{event.title}</>
-  if (editing) {
-    const save = () => {
-      const v = ref.current?.value.trim()
-      if (v && v !== event.title) onPatch({ title: v })
-      setEditing(false)
-    }
-    return (
-      <input
-        ref={ref} defaultValue={event.title} autoFocus maxLength={80} aria-label="Plan name"
-        onBlur={save}
-        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }}
-        className="h-9 w-full max-w-[420px] rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-accent"
-      />
-    )
-  }
   return (
-    <span className="flex items-start gap-2">
-      <span className="min-w-0 flex-1">{event.title}</span>
-      <button onClick={() => setEditing(true)} title="Rename this plan" aria-label="Rename this plan" className="hit-area grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
-        <Pencil size={13} />
-      </button>
+    <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+      {name.editing ? (
+        <input {...name.input} className="h-9 w-full max-w-[420px] rounded-[9px] border border-border bg-s0 px-3 text-[13.5px] font-medium outline-none focus:border-accent" />
+      ) : (
+        <>
+          <span className="min-w-0">{event.title}</span>
+          <EditPencil label="Rename this plan" onClick={name.begin} />
+        </>
+      )}
+      <SaveStatus status={name.status} onRetry={name.retry} />
     </span>
   )
 }
 
 /* Description: hosts edit it in place; everyone else just reads it */
-function DescriptionValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
+function DescriptionValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: PatchEvent }) {
   const [desc, setDesc] = useState(event.description)
   const [editing, setEditing] = useState(false)
   const ref = useRef<HTMLTextAreaElement>(null)
   const [draft, setDraft] = useState<string | null>(null)
+  const saver = useConfirmedSave()
 
-  function save() {
+  // closes only once the database has it; otherwise the words stay in the box
+  async function save(): Promise<boolean> {
+    if (saver.saving) return false
     const v = (ref.current?.value ?? draft ?? desc).trim()
-    setDesc(v)
-    setEditing(false)
-    setDraft(null)
-    onPatch({ description: v })
+    const ok = await saver.run(() => onPatch({ description: v }))
+    if (ok) { setDesc(v); setEditing(false); setDraft(null) }
+    return ok
   }
+  function cancel() { if (saver.status === 'failed') saver.reset(); setEditing(false); setDraft(null) }
   useLeaveGuard(editing && draft !== null && draft.trim() !== desc, save)
 
   if (!editable) return <>{desc || <span className="text-faint">No description</span>}</>
@@ -1637,19 +1668,16 @@ function DescriptionValue({ event, editable, onPatch }: { event: AppEvent; edita
           placeholder="Dinner, then drinks nearby"
           className="w-full resize-y rounded-[9px] border border-border bg-s0 px-3 py-2 text-[13.5px] leading-[1.5] outline-none focus:border-accent"
         />
-        <div className="flex items-center gap-2">
-          <button onClick={save} className="h-8 rounded-full bg-accent px-3 text-[12.5px] font-semibold text-on-accent">Save</button>
-          <button onClick={() => { setEditing(false); setDraft(null) }} className="h-8 rounded-full border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-dim hover:bg-s2">Cancel</button>
-        </div>
+        <EditorActions onSave={() => void save()} onCancel={cancel} saving={saver.saving} error={saver.error} />
       </div>
     )
   }
   return (
-    <span className="flex items-start gap-2">
-      <span className="min-w-0 flex-1">{desc || <span className="text-faint">No description</span>}</span>
-      <button onClick={() => setEditing(true)} title="Edit description" aria-label="Edit description" className="hit-area grid h-7 w-7 flex-none place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim">
-        <Pencil size={13} />
-      </button>
+    // the pencil follows the last word, so a long description wraps around it
+    <span>
+      {desc || <span className="text-faint">No description</span>}
+      <EditPencil label="Edit description" onClick={() => setEditing(true)} />
+      <SaveStatus status={saver.status} className="ml-1.5 align-middle" />
     </span>
   )
 }
@@ -1691,14 +1719,16 @@ function BudgetReadOnly({ event }: { event: AppEvent }) {
 
 /* Budget: hosts adjust the amount and flip between per-person and total; the caption
    works out the other side of the math from whoever has marked availability so far */
-function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
+function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: PatchEvent }) {
   const [budget, setBudget] = useState(event.budget)
   const [mode, setMode] = useState<'total' | 'person'>(event.budgetMode ?? 'total')
+  const auto = useAutosave<string>((b) => onPatch({ budget: b }))
 
   function changeBudget(v: string) {
     const clean = wholeAmount(v)
     setBudget(clean)
-    onPatch({ budget: clean })
+    if (clean === event.budget) auto.cancel()
+    else auto.change(clean)
   }
   function changeMode(m: 'total' | 'person') {
     setMode(m)
@@ -1714,7 +1744,7 @@ function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Pa
         <label className="flex h-8 w-[110px] items-center rounded-[8px] border border-border bg-s0 px-2.5 focus-within:border-accent">
           <span className="text-[13px] text-dim">$</span>
           <input
-            value={budget} onChange={(e) => changeBudget(e.target.value)}
+            value={budget} onChange={(e) => changeBudget(e.target.value)} onBlur={auto.flush}
             inputMode="numeric" placeholder="0" aria-label="Budget"
             className="w-full min-w-0 bg-transparent px-1 text-[13.5px] font-medium outline-none"
           />
@@ -1731,6 +1761,7 @@ function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Pa
             </button>
           ))}
         </div>
+        <SaveStatus status={auto.status} onRetry={auto.retry} />
       </div>
       <BudgetConverse amount={amount} mode={mode} responded={responded} />
       {amount > 0 && responded === 0 && (
@@ -1741,7 +1772,7 @@ function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Pa
 }
 
 /* ── Expenses: actual spend against the plan, split across whoever has replied ── */
-function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
+function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boolean; onPatch: PatchEvent }) {
   const [label, setLabel] = useState('')
   const [amt, setAmt] = useState('')
   const [needLabel, setNeedLabel] = useState(false)

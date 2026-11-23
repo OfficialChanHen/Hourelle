@@ -2,7 +2,8 @@ import type { PersonColor } from './colors'
 import { isCohost } from './cohosts'
 import { defaultFace, pickFace, sameFace, type Face } from './faces'
 import { av } from './people'
-import { isMine, purgeRemoved, pushAnswers, pushDelete, pushEvent, pushMessage, pushNewEvent } from './remote'
+import { isMine, purgeRemoved, pushAnswers, pushDelete, pushEvent, pushMessage, pushNewEvent, type SaveResult } from './remote'
+export type { SaveResult } from './remote'
 import { currentAccount } from './session'
 import { writeLocal } from './local'
 import { isControlMessage, placeVotes } from './polls'
@@ -359,10 +360,11 @@ export function leaveEvent(id: string): void {
   writeAll(readAll().filter((e) => e.id !== id))
   leaveGuestSession(id)
 }
-export function patchEvent(id: string, patch: Partial<AppEvent>): void {
+/* Resolves once the database has the change (or has said no); see SaveResult. */
+export function patchEvent(id: string, patch: Partial<AppEvent>): Promise<SaveResult> {
   const list = readAll()
   const i = list.findIndex((e) => e.id === id)
-  if (i < 0) return // demo / unknown events are not persisted
+  if (i < 0) return Promise.resolve({ ok: true }) // demo / unknown events are not persisted
   const before = list[i]
   list[i] = { ...before, ...patch }
   writeAll(list)
@@ -370,7 +372,7 @@ export function patchEvent(id: string, patch: Partial<AppEvent>): void {
   // people answering at the same moment never overwrite each other. Everything else
   // is the document. Both are background sync; no-ops without a backend.
   pushAnswers(before, list[i])
-  pushEvent(list[i], before)
+  return pushEvent(list[i], before)
 }
 
 /* A change worked out from the event as this device holds it right now, not as some
@@ -1376,15 +1378,17 @@ export function addInvitees(id: string, people: { email: string; account?: Accou
    and the message goes to the cloud as its own row, so two people chatting at once
    append instead of overwriting each other. Demo events keep it local. */
 export function appendMessage(eventId: string, msg: ChatMessage): ChatMessage {
+  return postMessage(eventId, msg).message
+}
+/** appendMessage, and whether the database took the line (a poll edit waits on it). */
+export function postMessage(eventId: string, msg: ChatMessage): { message: ChatMessage; saved: Promise<SaveResult> } {
   const full: ChatMessage = { ...msg, mid: msg.mid ?? crypto.randomUUID(), at: msg.at ?? Date.now() }
   const list = readAll()
   const i = list.findIndex((e) => e.id === eventId)
-  if (i >= 0) {
-    list[i] = { ...list[i], messages: [...list[i].messages, full] }
-    writeAll(list)
-    pushMessage(eventId, full)
-  }
-  return full
+  if (i < 0) return { message: full, saved: Promise.resolve({ ok: true }) } // a demo keeps it on the page
+  list[i] = { ...list[i], messages: [...list[i].messages, full] }
+  writeAll(list)
+  return { message: full, saved: pushMessage(eventId, full) }
 }
 
 /* ── identity continuity: one participant becomes another id ──

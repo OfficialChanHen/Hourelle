@@ -30,7 +30,7 @@ import { gsap } from 'gsap'
 import { MapPin, MapPinOff, Video, Link2, ArrowUp, Route, X, ChevronUp, ChevronDown, Vote, Check, Copy, RefreshCw, Search, Plus, Loader2, Footprints, Car, Bus, TrainFront, Plane, GripVertical, Trash2, TriangleAlert, Clock, Minus, Info, ExternalLink } from 'lucide-react'
 import { Avatar, NameTag } from '@/components/ui/Avatar'
 import { hiddenNames, namesLabel } from '@/components/ui/AvatarRow'
-import { confirmedSlotText, fromDay, todayKey, getEvent, patchEvent, fmtMinute, fmtMinuteDay, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant } from '@/lib/events'
+import { confirmedSlotText, fromDay, todayKey, getEvent, patchEvent, fmtMinute, fmtMinuteDay, bestWindow, availIvOf, gridStartMinOf, daysUntil, dayLabel, type AppEvent, type ConfirmedSlot, type EventPlace, type Participant, type SaveResult } from '@/lib/events'
 import { hintDismissed as isHintDismissed, dismissHint as markHintDismissed } from '@/lib/prefs'
 import { fmtDuration, MODE_LABEL, ALL_MODES, type TravelMode, type ModeEstimate } from '@/lib/travel'
 import { computeItinerary, legKm } from '@/lib/itinerary'
@@ -55,6 +55,9 @@ import { TabHeading } from './TabHeading'
 import { SettingsMenu } from '@/components/ui/Settings'
 import { VoteRules } from './VoteRules'
 import { meetingHref, meetingSource, onMeeting } from '@/lib/forgiving'
+import { useAutosave } from '@/hooks/useAutosave'
+import { SaveStatus } from '@/components/ui/SaveStatus'
+import type { SaveStatus as SaveStatusValue } from '@/lib/autosave'
 
 // Leaflet reads `window` when it loads, so the map only ever renders in the browser
 const EventMap = dynamic(() => import('@/components/EventMap').then((m) => m.EventMap), { ssr: false, loading: () => <div className="absolute inset-0 animate-pulse bg-s2" /> })
@@ -76,7 +79,7 @@ function osmUrl(p: EventPlace): string {
   return `https://www.openstreetmap.org/search?query=${encodeURIComponent(q)}`
 }
 
-export function LocationPanel({ event, locked = false, confirmed, onPatch }: { event: AppEvent; locked?: boolean; confirmed?: ConfirmedSlot; onPatch?: (patch: Partial<AppEvent>) => void }) {
+export function LocationPanel({ event, locked = false, confirmed, onPatch }: { event: AppEvent; locked?: boolean; confirmed?: ConfirmedSlot; onPatch?: (patch: Partial<AppEvent>) => Promise<SaveResult> | void }) {
   // who votes and suggests: the `you` participant — the guest when this browser
   // joined via the share link, the stubbed account otherwise
   // empty when nobody here is you (signed in, not on this event's list) — voting and
@@ -181,17 +184,19 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
   // the ballot as this device holds it right now, which can be newer than the one this
   // screen last drew (see patchEventWith)
   const latestVotes = () => (event.demo ? votes : getEvent(event.id)?.votes ?? votes)
-  function persist(patch: Partial<AppEvent>) {
-    if (onPatch) onPatch(patch)
-    else if (!event.demo) patchEvent(event.id, patch)
+  function persist(patch: Partial<AppEvent>): Promise<SaveResult> | void {
+    if (onPatch) return onPatch(patch)
+    if (!event.demo) return patchEvent(event.id, patch)
   }
   // one place to persist the location object, so switching mode never clobbers the other
   // fields — pass the changed field in `over`; unchanged fields come from current state
   function persistLoc(over: Partial<AppEvent['location']> = {}) {
-    persist({ location: { ...loc, mode, places, guestsCanSuggest, meetingLink, ...over } })
+    return persist({ location: { ...loc, mode, places, guestsCanSuggest, meetingLink, ...over } })
   }
   function changeMode(m: AppEvent['location']['mode']) { setMode(m); persistLoc({ mode: m }) }
-  function changeLink(v: string) { setMeetingLink(v); persistLoc({ meetingLink: v }) }
+  // the link saves itself once typing pauses, so a half-pasted address never goes out
+  const linkSave = useAutosave<string>((v) => persistLoc({ meetingLink: v }))
+  function changeLink(v: string) { setMeetingLink(v); linkSave.change(v) }
   function addPlace(p: EventPlace) {
     if (!YOU || places.some((x) => x.id === p.id)) return
     // a set venue is singular — picking another swaps it out (same as the wizard);
@@ -589,7 +594,7 @@ export function LocationPanel({ event, locked = false, confirmed, onPatch }: { e
         <RemoteCall
           // the call can still move after lock-in (a new room, another platform), so the
           // host keeps the link open once the time is set; the platform follows the link
-          link={meetingLink} host={canManage(event)} onLink={changeLink}
+          link={meetingLink} host={canManage(event)} onLink={changeLink} onLinkDone={linkSave.flush} linkStatus={linkSave.status} onLinkRetry={linkSave.retry}
           people={event.participants.filter((p) => p.rsvp !== 'not_going')}
         />
       ) : !noPlaceYet && (
@@ -1338,8 +1343,8 @@ function RouteSet({ title, sub, stops, going }: {
    little call bar under them. A picture, so nothing in it is a control. Beside it the
    platform, how many are joining, and the way in: the host pastes and copies the link,
    everyone else joins with one tap. */
-function RemoteCall({ link, host, onLink, people }: {
-  link: string; host: boolean; onLink: (v: string) => void
+function RemoteCall({ link, host, onLink, onLinkDone, linkStatus, onLinkRetry, people }: {
+  link: string; host: boolean; onLink: (v: string) => void; onLinkDone: () => void; linkStatus: SaveStatusValue; onLinkRetry: () => void
   people: Participant[]
 }) {
   const [copied, setCopied] = useState(false)
@@ -1383,7 +1388,8 @@ function RemoteCall({ link, host, onLink, people }: {
           <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
             <label className="flex h-11 min-w-0 items-center gap-2 rounded-[10px] border border-border2 bg-s1 px-3 focus-within:border-accent sm:h-10 sm:flex-1">
               <Link2 size={16} className="flex-none text-accent-text" aria-hidden />
-              <input value={link} onChange={(e) => onLink(e.target.value)} aria-label="Meeting link" placeholder="https://zoom.us/j/123" className="min-w-0 flex-1 bg-transparent font-mono text-[13px] outline-none placeholder:text-faint" />
+              <input value={link} onChange={(e) => onLink(e.target.value)} onBlur={onLinkDone} aria-label="Meeting link" placeholder="https://zoom.us/j/123" className="min-w-0 flex-1 bg-transparent font-mono text-[13px] outline-none placeholder:text-faint" />
+              <SaveStatus status={linkStatus} onRetry={onLinkRetry} />
             </label>
             {link && (
               <button type="button" onClick={copy} className={`flex h-11 flex-none items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[14px] font-semibold sm:h-10 ${copied ? 'border border-teal-border bg-teal-bg text-teal-text' : 'bg-accent text-on-accent'}`}>

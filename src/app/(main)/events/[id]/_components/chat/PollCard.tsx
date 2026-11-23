@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Check, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Check, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { SettingsMenu, SmallIcon } from '@/components/ui/Settings'
 import { PopoverItem, PopoverNote } from '@/components/ui/Popover'
@@ -11,6 +11,9 @@ import { daysUntil, fromDay, todayKey } from '@/lib/events'
 import { canDeletePoll, canEditOption, canEditQuestion, optionKey, pollClosed, pollKey, votesPerPerson, POLL_OPTION_LIMIT, POLL_OPTION_MAX_LEN, POLL_QUESTION_MAX_LEN, type PollSettings, type PollState } from '@/lib/polls'
 import type { Avatar as Person } from '@/lib/people'
 import { useLeaveGuard } from '@/hooks/useLeaveGuard'
+import { useConfirmedSave } from '@/hooks/useConfirmedSave'
+import { SaveStatus } from '@/components/ui/SaveStatus'
+import type { SaveResult } from '@/lib/remote'
 
 /* A poll as it sits in the chat, run like the place ballot on the Location tab but
    pared down to what a quick vote needs: the question, then one compact row per
@@ -52,11 +55,24 @@ export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPi
   onPick: (optionId: string) => void
   onAdd: (text: string) => void
   onSettings: (s: PollSettings) => void
-  onEdit: (edit: { q?: string; o?: { id: string; t: string }[] }) => void
+  onEdit: (edit: { q?: string; o?: { id: string; t: string }[] }) => Promise<SaveResult> | void
   onDelete: () => void
   avatarOf: (id: string) => Person
 }) {
   const [editing, setEditing] = useState(false)
+  // the form closes only once the database has the new wording
+  const saver = useConfirmedSave()
+  // the wording that did not save: this device already shows it, so the form sees no
+  // change, and Save sends this again
+  const unsaved = useRef<PollEdit | null>(null)
+  async function saveEdit(edit: PollEdit | null): Promise<boolean> {
+    if (!edit) { if (saver.status === 'failed') saver.reset(); unsaved.current = null; setEditing(false); return true }
+    unsaved.current = edit
+    const ok = await saver.run(() => onEdit(edit))
+    if (ok) unsaved.current = null
+    if (ok) setEditing(false)
+    return ok
+  }
   const s = poll.s
   const past = pollClosed(s)
   const closed = locked || past
@@ -128,6 +144,7 @@ export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPi
             <SmallIcon><Pencil size={14} /></SmallIcon>
           </button>
         )}
+        {!editing && saver.status === 'saved' && <SaveStatus status={saver.status} className="self-center" />}
         {((host && !locked) || (mayDelete && !editing)) && (
           <SettingsMenu title="Poll settings" label="Poll settings" small dense className="-my-0.5 flex-none">
             {(close) => (
@@ -162,7 +179,7 @@ export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPi
       )}
 
       {editing ? (
-        <PollEditForm poll={poll} votes={ballot} me={me} host={host} onSave={(edit) => { if (edit) onEdit(edit); setEditing(false) }} />
+        <PollEditForm poll={poll} votes={ballot} me={me} host={host} saving={saver.saving} error={saver.error} onSave={saveEdit} onRetry={() => saveEdit(unsaved.current)} />
       ) : (
       <div
         ref={flipScope}
@@ -243,12 +260,17 @@ export function PollCard({ poll, votes, me, canVote, locked, host, canEdit, onPi
    plain text, so the form still reads as the whole poll. Save sends one line with only
    what changed; a blank or a repeat of another option keeps Save off and says why.
    Escape (or Cancel) leaves it as it was. */
-function PollEditForm({ poll, votes, me, host, onSave }: {
+type PollEdit = { q?: string; o?: { id: string; t: string }[] }
+
+function PollEditForm({ poll, votes, me, host, saving, error, onSave, onRetry }: {
   poll: PollState
   votes: Record<string, string[]>
   me: string | null
   host: boolean
-  onSave: (edit: { q?: string; o?: { id: string; t: string }[] } | null) => void
+  saving: boolean
+  error: string | null
+  onSave: (edit: PollEdit | null) => Promise<boolean>
+  onRetry: () => Promise<boolean>
 }) {
   // what you may change right now: a vote that lands while the form is open turns its
   // field back into plain text, and Save leaves it out
@@ -269,19 +291,25 @@ function PollEditForm({ poll, votes, me, host, onSave }: {
   const changedO = poll.o.filter((o) => mayO(o) && tidy(opts[o.id] ?? '') !== o.t)
   const problem = blankQ ? 'The question can’t be empty' : blankIds.size ? 'An option can’t be empty' : dupIds.size ? 'Two options say the same thing' : null
   const ready = !problem && (changedQ || changedO.length > 0)
-  useLeaveGuard(changedQ || changedO.length > 0, () => {
-    if (!ready) return false
-    submit({ preventDefault() {} } as React.FormEvent)
-  })
-
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!ready) return
-    onSave({
+    void send()
+  }
+  // after a refusal the form matches this device's copy, so Save sends the same edit again
+  const retry = !!error && !problem && !(changedQ || changedO.length > 0)
+  function send(): Promise<boolean> {
+    if (saving) return Promise.resolve(false)
+    if (retry) return onRetry()
+    if (!ready) return Promise.resolve(false)
+    return onSave({
       ...(changedQ ? { q: tidy(q) } : {}),
       ...(changedO.length ? { o: changedO.map((o) => ({ id: o.id, t: tidy(opts[o.id]) })) } : {}),
     })
   }
+  useLeaveGuard(changedQ || changedO.length > 0, () => {
+    if (!ready) return false
+    return send()
+  })
   const field = 'h-11 w-full min-w-0 rounded-[10px] border bg-s0 px-3 text-[13.5px] outline-none focus:border-accent sm:h-9'
   // the kit's field label, so it is clear which box is the question and which the options
   const label = 'px-0.5 text-[12.5px] font-semibold text-dim'
@@ -291,7 +319,7 @@ function PollEditForm({ poll, votes, me, host, onSave }: {
   return (
     <form
       onSubmit={submit}
-      onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onSave(null) } }}
+      onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (!saving) void onSave(null) } }}
       className="mt-2.5 flex flex-col gap-1.5"
       aria-label="Edit poll"
     >
@@ -336,9 +364,13 @@ function PollEditForm({ poll, votes, me, host, onSave }: {
       })}
       {problem && <p id={errId} className="px-0.5 text-[12px] text-brick-text">{problem}</p>}
       <div className="mt-1 flex items-center justify-end gap-2">
-        <button type="button" onClick={() => onSave(null)} className="h-11 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-medium hover:bg-s2 sm:h-8">Cancel</button>
-        <button type="submit" disabled={!ready} className="h-11 rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent disabled:opacity-40 sm:h-8">Save</button>
+        <button type="button" onClick={() => void onSave(null)} disabled={saving} className="h-11 rounded-full border border-border2 bg-s1 px-3.5 text-[13px] font-medium hover:bg-s2 disabled:opacity-40 sm:h-8">Cancel</button>
+        <button type="submit" disabled={!(ready || retry) || saving} aria-busy={saving || undefined} className={`flex h-11 items-center gap-1.5 rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent sm:h-8 ${saving ? 'disabled:opacity-70' : 'disabled:opacity-40'}`}>
+          {saving && <Loader2 size={13} className="animate-spin" aria-hidden />}
+          {saving ? 'Saving…' : 'Save'}
+        </button>
       </div>
+      {error && <p role="alert" className="px-0.5 text-right text-[12px] font-medium text-brick-text"><span className="font-semibold">Not saved.</span> {error}</p>}
     </form>
   )
 }

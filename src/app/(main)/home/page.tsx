@@ -70,7 +70,7 @@ import { fromDay,
   type AppEvent, type Participant, type Phase, type SameDayInfo,
   answeredIds, rsvpPool,
 } from '@/lib/events'
-import { cloudSettled } from '@/lib/remote'
+import { cloudSettled, whenCreated } from '@/lib/remote'
 import { answeredLine, goingLine } from '@/lib/answers'
 import { overText } from '@/lib/overText'
 import { useLiveEvents } from '@/hooks/useLiveEvents'
@@ -849,7 +849,8 @@ function QuickCreate() {
       emails: [], accounts: [],
     })
     // quick means quick: straight to the plan, where the share link waits in the header
-    pushFlash('Your plan is live. Share the link so people can join.')
+    // live only once the database has it; a refusal raises the Not saved notice instead
+    void whenCreated(ev.id).then((r) => { if (r.ok) pushFlash('Your plan is live. Share the link so people can join.') })
     router.push(`/events/${ev.id}`)
   }
   const dateCls = 'h-12 w-full'

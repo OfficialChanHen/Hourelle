@@ -6,7 +6,7 @@
 
 import { canManage } from './cohosts'
 import type { RealtimeChannel } from '@supabase/supabase-js'
-import { supabase, backendOn } from './db'
+import { supabase, backendOn, NOT_KEPT } from './db'
 import { writeLocal } from './local'
 import { currentAccount } from './session'
 import { byDay, byParticipant, fullAvailIvOf, intervalsToGrid, unionIv, stepOf, type PersonAnswer } from './availability'
@@ -32,6 +32,12 @@ function writeCache(list: AppEvent[], announce: boolean) {
 // fired when the database refuses a write, so the UI can say so instead of leaving
 // a local change that silently never reached anyone else
 export const PUSH_REJECTED = 'hourelle:push-rejected'
+// fired by a field or editor that has said Not saved itself, right where the person
+// is looking: the notice for the same refusal would only repeat it
+export const PUSH_HANDLED = 'hourelle:push-handled'
+export function refusalShownInline(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(PUSH_HANDLED))
+}
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // the host as a column, read off the document: the participant flagged `host`, but
@@ -70,7 +76,7 @@ function localize(doc: AppEvent, prior?: AppEvent): AppEvent {
   }
 }
 
-function rejected(action: string, message: string) {
+export function rejected(action: string, message: string) {
   console.warn(`hourelle: ${action} refused by the database — ${message}`)
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(PUSH_REJECTED, { detail: { action, message } }))
@@ -130,8 +136,13 @@ function naming<Q extends { setHeader(name: string, value: string): Q }>(q: Q, i
    one wrote. `before` is this device's copy before the change; without it the save
    goes out as it is. */
 const docQueue = new Map<string, Promise<void>>()
-export function pushEvent(ev: AppEvent, before?: AppEvent): void {
-  if (!backendOn) return
+/* What became of one save, for a field that says so (lib/autosave). Without a backend
+   this device is the only copy, so a save there is saved. */
+export type SaveResult = { ok: true } | { ok: false; message: string }
+const NOT_REACHED = 'The change did not reach the server.'
+export function pushEvent(ev: AppEvent, before?: AppEvent): Promise<SaveResult> {
+  if (!backendOn) return Promise.resolve({ ok: true })
+  let result: SaveResult = { ok: false, message: NOT_REACHED } // stays so if the request throws
   docBusy.set(ev.id, (docBusy.get(ev.id) ?? 0) + 1)
   // an update that overtakes the insert matches no rows and is lost in silence
   const next = (docQueue.get(ev.id) ?? afterCreate(ev.id)).then(async () => {
@@ -141,14 +152,19 @@ export function pushEvent(ev: AppEvent, before?: AppEvent): void {
         .from('events')
         .select('participants:data->participants, removedIds:data->removedIds')
         .eq('id', ev.id), ev.id).maybeSingle()
-      if (error) { rejected('save', error.message); return } // sending the stale list blind is what lost people
+      if (error) { rejected('save', error.message); result = { ok: false, message: error.message }; return } // sending the stale list blind is what lost people
       if (data) doc = mergeSave(data as Pick<AppEvent, 'participants' | 'removedIds'>, before, ev)
     }
-    const { error } = await naming(supabase!
+    // the row comes back only if it was written: an update the row policies filter
+    // out matches nothing and reports no error, which is not the same as saved
+    const { data: wrote, error } = await naming(supabase!
       .from('events')
       .update({ data: docOf(doc), host_id: hostIdOf(doc) })
-      .eq('id', ev.id), ev.id)
-    if (error) { rejected('save', error.message); return }
+      .eq('id', ev.id)
+      .select('id'), ev.id)
+    if (error) { rejected('save', error.message); result = { ok: false, message: error.message }; return }
+    if (!wrote?.length) { rejected('save', NOT_KEPT); result = { ok: false, message: NOT_KEPT }; return }
+    result = { ok: true }
     if (doc !== ev) takeUpRoster(ev, doc)
   }).catch(() => {}).finally(() => {
     const left = (docBusy.get(ev.id) ?? 1) - 1
@@ -156,6 +172,7 @@ export function pushEvent(ev: AppEvent, before?: AppEvent): void {
     else { docBusy.delete(ev.id); docQueue.delete(ev.id) }
   })
   docQueue.set(ev.id, next)
+  return next.then(() => result)
 }
 
 /* The people a save kept that this device had not heard of come into its copy too,
@@ -194,16 +211,31 @@ function afterCreate(id: string): Promise<void> {
   return creating.get(id) ?? Promise.resolve()
 }
 
-/* A brand-new event is inserted: the one path the insert policy is for. */
+/* A brand-new event is inserted: the one path the insert policy is for. What became
+   of it is kept until asked for once (whenCreated), so the page that made the event
+   can say it is live only after the database has it. */
+const createResults = new Map<string, Promise<SaveResult>>()
 export function pushNewEvent(ev: AppEvent): void {
   if (!backendOn) return
+  let result: SaveResult = { ok: false, message: NOT_REACHED } // stays so if the request throws
   const done = Promise.resolve(
     naming(supabase!
       .from('events')
       .insert({ id: ev.id, data: docOf(ev), host_id: hostIdOf(ev) }), ev.id)
-      .then(({ error }) => { if (error) rejected('create', error.message) }),
-  ).then(() => { creating.delete(ev.id) })
+      .then(({ error }) => {
+        if (error) { rejected('create', error.message); result = { ok: false, message: error.message }; return }
+        result = { ok: true }
+      }),
+  ).catch(() => { rejected('create', NOT_REACHED) }).then(() => { creating.delete(ev.id) })
   creating.set(ev.id, done)
+  createResults.set(ev.id, done.then(() => result))
+}
+/** Resolves once the database has a new event's row (or has said no). Without a
+ *  backend this device is the only copy, so the event is saved as soon as it exists. */
+export function whenCreated(id: string): Promise<SaveResult> {
+  const r = createResults.get(id)
+  createResults.delete(id)
+  return r ?? Promise.resolve({ ok: true })
 }
 
 /* ── one event, by id, for whoever holds its link ──
@@ -493,17 +525,23 @@ export function purgeRemoved(eventId: string, participantIds: string[]): void {
   )
 }
 
-export function pushMessage(eventId: string, m: ChatMessage): void {
-  if (!backendOn) return
-  void afterCreate(eventId).then(() =>
+/* Resolves once the database has the line (or has said no). An insert the row
+   policies refuse is an error, so no row count is needed here. */
+export function pushMessage(eventId: string, m: ChatMessage): Promise<SaveResult> {
+  if (!backendOn) return Promise.resolve({ ok: true })
+  return afterCreate(eventId).then(() =>
     supabase!
     .from('messages')
     // a message id is minted once and never changes, so a second push of the same
     // line (a re-sync, a retry) is a no-op rather than a duplicate-key refusal
     .upsert({ id: m.mid, event_id: eventId, participant_id: m.id, name: m.name, body: m.text, system: !!m.system, at: m.at ?? Date.now() }, { onConflict: 'id', ignoreDuplicates: true })
     .setHeader(NAMED_HEADER, eventId)
-    .then(({ error }) => { if (error) rejected('message', error.message) }),
-  )
+    .then(({ error }): SaveResult => {
+      if (!error) return { ok: true }
+      rejected('message', error.message)
+      return { ok: false, message: error.message }
+    }),
+  ).catch((): SaveResult => { rejected('message', NOT_REACHED); return { ok: false, message: NOT_REACHED } })
 }
 
 /* Lines from people taken off the event stay out of every copy. The server deletes
@@ -676,7 +714,7 @@ export async function syncFromCloud(): Promise<void> {
   for (const e of local) if (!cloud.has(e.id) && isMine(e)) {
     if (!hosted(e)) continue // gone, and forgotten below; or not known to be, and kept
     void naming(supabase!.from('events').upsert({ id: e.id, data: docOf(e), host_id: hostIdOf(e) }), e.id).then(({ error }) => { if (error) rejected('save', error.message) })
-    for (const m of e.messages) pushMessage(e.id, { ...m, mid: m.mid ?? crypto.randomUUID() })
+    for (const m of e.messages) void pushMessage(e.id, { ...m, mid: m.mid ?? crypto.randomUUID() })
     // an event that has only ever lived here has answers only in its document
     pushAnswers({ ...e, availIv: {}, votes: {}, unavailableIds: [] }, e)
   }
