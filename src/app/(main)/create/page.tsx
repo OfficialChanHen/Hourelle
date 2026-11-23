@@ -57,6 +57,7 @@ import { centroidOf, searchPlaces } from '@/lib/geo'
 import { canEmail, sendInvites } from '@/lib/mail'
 import { InviteByEmail } from '@/components/InviteByEmail'
 import { DurationField } from '@/components/ui/DurationField'
+import { Switch } from '@/components/ui/Switch'
 import { useAccount } from '@/hooks/useAccount'
 import { cleanEmail, isEmail, onMeeting, wholeAmount } from '@/lib/forgiving'
 import { OverflowText } from '@/components/ui/OverflowText'
@@ -117,6 +118,7 @@ type Form = {
   fixedDay: string
   fixedEndDay: string // the last day of a set run; the same as fixedDay for one day
   fixedAllDay: boolean
+  fixedOpenEnd: boolean // one timed day with a start and no agreed end
   fixedStart: string
   fixedEnd: string
   rsvpBy: string // optional RSVP deadline — set-date events open the RSVP round at birth
@@ -129,6 +131,7 @@ type Form = {
   windowStart: string
   windowEnd: string
   durationMin: number
+  openLength: boolean
   timezone: string
   budget: string
   budgetMode: 'total' | 'person'
@@ -149,8 +152,8 @@ type Form = {
 
 const initialForm: Form = {
   title: '', description: '',
-  scheduleMode: 'find', fixedDay: '', fixedEndDay: '', fixedAllDay: false, fixedStart: '18:00', fixedEnd: '21:00', rsvpBy: '',
-  startDate: '', endDate: '', excludedDows: [], excludedDays: [], granularity: '30', windowPreset: 'any', windowStart: '', windowEnd: '', durationMin: 60,
+  scheduleMode: 'find', fixedDay: '', fixedEndDay: '', fixedAllDay: false, fixedOpenEnd: false, fixedStart: '18:00', fixedEnd: '21:00', rsvpBy: '',
+  startDate: '', endDate: '', excludedDows: [], excludedDays: [], granularity: '30', windowPreset: 'any', windowStart: '', windowEnd: '', durationMin: 60, openLength: false,
   timezone: '', budget: '', budgetMode: 'total', capacity: '', // timezone deliberately unset: picking it is a required, conscious step
   locMode: 'vote', planMode: 'vote', locSettled: false, picked: [], platform: 'Google Meet', meetingLink: '',
   emails: [], accounts: [],
@@ -282,6 +285,7 @@ function CreateWizard() {
       timezone: d.timezone ?? f.timezone,
       granularity: d.granularity ?? f.granularity,
       durationMin: d.durationMin ?? f.durationMin,
+      openLength: d.openLength ?? f.openLength,
       budget: d.budget ?? f.budget,
       budgetMode: d.budgetMode ?? f.budgetMode,
       capacity: d.capacity ?? f.capacity,
@@ -295,7 +299,7 @@ function CreateWizard() {
       windowStart: d.windowStart ?? '',
       windowEnd: d.windowEnd ?? '',
       scheduleMode: d.fixed ? 'set' : (d.granularity ?? f.granularity) === 'day' ? 'days' : 'find',
-      ...(d.fixed ? { fixedDay: d.fixed.day, fixedEndDay: d.fixed.endDay ?? d.fixed.day, fixedAllDay: !!d.fixed.allDay, fixedStart: d.fixed.start, fixedEnd: d.fixed.end } : {}),
+      ...(d.fixed ? { fixedDay: d.fixed.day, fixedEndDay: d.fixed.endDay ?? d.fixed.day, fixedAllDay: !!d.fixed.allDay, fixedOpenEnd: !!d.fixed.openEnd, fixedStart: d.fixed.start, fixedEnd: d.fixed.end } : {}),
       // 'set' comes back as the In person mode with the chosen-place flag on
       locMode: d.locMode ? (d.locMode === 'set' ? 'vote' : d.locMode) : f.locMode,
       locSettled: d.locMode ? d.locMode === 'set' : f.locSettled,
@@ -391,6 +395,8 @@ function CreateWizard() {
   const fxEnd = form.fixedEndDay && form.fixedEndDay > form.fixedDay ? form.fixedEndDay : form.fixedDay
   const fxRun = !!form.fixedDay && fxEnd !== form.fixedDay
   const fxWhole = form.fixedAllDay
+  // an open end is one timed day: a run or an all-day date has its ends already
+  const fxOpen = form.fixedOpenEnd && !fxRun && !fxWhole
   const fxRunLen = fxRun ? selectedDayKeys(form.fixedDay, fxEnd, [], []).length : 1
   const startErr = !polling ? '' : !form.startDate ? 'Pick the earliest day.' : zToday && form.startDate < zToday ? `The earliest day has already passed in ${zoneName}.` : ''
   const endErr = !polling ? '' : !form.endDate ? 'Pick the latest day.' : form.startDate && form.endDate < form.startDate ? 'The latest day can’t be before the earliest day.' : zToday && form.endDate < zToday ? `The latest day has already passed in ${zoneName}.` : ''
@@ -430,9 +436,9 @@ function CreateWizard() {
             ? `That's ${fxRunLen} days. Keep it to ${maxPollDays('day', form.fixedDay)} or fewer.`
           : fxWhole
             ? ''
-          : parseHM(form.fixedStart) === null || parseHM(form.fixedEnd) === null
-            ? 'Pick both times.'
-            : !fxRun && (parseHM(form.fixedEnd) as number) <= (parseHM(form.fixedStart) as number)
+          : parseHM(form.fixedStart) === null || (!fxOpen && parseHM(form.fixedEnd) === null)
+            ? fxOpen ? 'Pick a start time.' : 'Pick both times.'
+            : !fxRun && !fxOpen && (parseHM(form.fixedEnd) as number) <= (parseHM(form.fixedStart) as number)
               ? 'It has to end after it starts.'
               : clock && form.fixedDay === zToday && (parseHM(form.fixedStart) as number) <= clock.minute
                 ? `${fmtMinute(parseHM(form.fixedStart) as number)} has already passed today in ${zoneName}.`
@@ -474,7 +480,7 @@ function CreateWizard() {
       // the form tracks "already chosen" as a flag under In person; the event model
       // speaks one enum, where a chosen place is its own mode
       locMode: form.locMode === 'vote' && form.locSettled ? 'set' : form.locMode,
-      fixed: form.scheduleMode === 'set' ? { day: form.fixedDay, endDay: fxEnd, start: form.fixedStart, end: form.fixedEnd, allDay: fxWhole } : undefined,
+      fixed: form.scheduleMode === 'set' ? { day: form.fixedDay, endDay: fxEnd, start: form.fixedStart, end: form.fixedEnd, allDay: fxWhole, openEnd: fxOpen } : undefined,
       // only a deadline that still makes sense travels: between today and the event day
       rsvpDeadline: form.scheduleMode === 'set' && form.rsvpBy && (!today || form.rsvpBy >= today) && form.rsvpBy <= form.fixedDay
         ? form.rsvpBy
@@ -779,7 +785,15 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
               it names each end on its own day rather than pretending to be a band. */}
           <div className="mt-3 flex flex-wrap items-center gap-2.5">
             <span className="flex items-center gap-1.5 text-[13px] text-dim"><Clock size={15} /> {fxRun ? 'Times' : 'Hours'}</span>
-            <Segmented label={fxRun ? 'Times' : 'Hours'} value={form.fixedAllDay ? 'all' : 'hours'} onChange={(v) => update({ fixedAllDay: v === 'all' })} options={[{ v: 'hours', l: fxRun ? 'Set times' : 'Set hours' }, { v: 'all', l: 'All day' }]} />
+            {/* one day can also start at a set time and run as long as it runs */}
+            <Segmented
+              label={fxRun ? 'Times' : 'Hours'}
+              value={form.fixedAllDay ? 'all' : form.fixedOpenEnd && !fxRun ? 'open' : 'hours'}
+              onChange={(v) => update({ fixedAllDay: v === 'all', fixedOpenEnd: v === 'open' })}
+              options={fxRun
+                ? [{ v: 'hours', l: 'Set times' }, { v: 'all', l: 'All day' }]
+                : [{ v: 'hours', l: 'Set hours' }, { v: 'open', l: 'Open end' }, { v: 'all', l: 'All day' }]}
+            />
           </div>
           {fxRun && !form.fixedAllDay && (
             <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
@@ -791,7 +805,13 @@ function StepBasics({ form, update, today, attempted, errs }: { form: Form; upda
               ))}
             </div>
           )}
-          {!fxRun && !form.fixedAllDay && (
+          {!fxRun && !form.fixedAllDay && form.fixedOpenEnd && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              <TimeSelect value={parseHM(form.fixedStart) ?? 18 * 60} onChange={(m) => update({ fixedStart: hhmmOf(m) })} step={15} title="Start time" />
+              <span className="text-[13px] text-dim">open end</span>
+            </div>
+          )}
+          {!fxRun && !form.fixedAllDay && !form.fixedOpenEnd && (
             <TimeRange
               start={form.fixedStart}
               end={form.fixedEnd}
@@ -919,8 +939,16 @@ function WhenOptions({ form, update, today, attempted, errs, zoneName }: { form:
         {/* how long the event needs, which drives the best-time search on the grid.
             The same control the grid's own settings use, and it cannot be stepped
             or typed past the daily window this event is allowed to happen in. */}
-        <Collapse icon={Timer} title="How long it lasts" summary={fmtDur(form.durationMin)}>
-          <DurationField value={form.durationMin} max={winLen} onChange={(m) => update({ durationMin: m })} />
+        <Collapse icon={Timer} title="How long it lasts" summary={form.openLength && form.granularity !== 'day' ? 'Unknown' : fmtDur(form.durationMin)}>
+          {form.granularity !== 'day' && (
+            <div className="mb-3 flex min-h-11 items-center justify-between gap-3 sm:min-h-0">
+              <span className="text-[13.5px] font-semibold text-text">Length unknown</span>
+              <Switch on={form.openLength} onChange={(v) => update({ openLength: v })} label="Length unknown" />
+            </div>
+          )}
+          {form.openLength && form.granularity !== 'day'
+            ? <p className="text-[12.5px] leading-[1.5] text-faint">The best time is when the most people can start and stay longest.</p>
+            : <DurationField value={form.durationMin} max={winLen} onChange={(m) => update({ durationMin: m })} />}
         </Collapse>
       </>)}
 

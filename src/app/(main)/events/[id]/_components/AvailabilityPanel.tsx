@@ -66,7 +66,7 @@ import { useGuestMode } from '@/hooks/useGuestMode'
 import { planUsualWeek, weekFits } from '@/lib/usual-week'
 import { canEmail, sendNudges } from '@/lib/mail'
 import {
-  addMeToEvent, listEvents, patchEvent, patchEventWith, availIvOf, freeIvOf, myTimesPatch, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
+  addMeToEvent, listEvents, patchEvent, patchEventWith, availIvOf, freeIvOf, myTimesPatch, normalizeIv, bestBlock, bestOpenStart, bestWindow, byYouFirst, runHours, slotSessions, fmtMinute, gridStartMinOf, longestRun, MIN_STAY, stepOf, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
 import { googleBusyUtc, importSoon, lockedPlanBusyUtc, outlookBusyUtc, mockBusyUtc, planImport, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport, type UtcBusy } from '@/lib/calendar-import'
@@ -123,7 +123,7 @@ function subscribeCoarse(cb: () => void) {
 }
 const OVERSCAN = 6 // rows rendered beyond the viewport each side, so scrolling doesn't flash blank
 
-export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0, onLockDays, onRunChange, onPatch, pattern }: {
+export function AvailabilityPanel({ event, locked = false, initialFilter = null, focusBest = 0, onLockDays, runLen, onRunChange, onPatch, onSaved, pattern }: {
   event: AppEvent; locked?: boolean; initialFilter?: string[] | string | null; focusBest?: number
   // the profile's usual week: the same grid and the same painting on a week with no
   // dates and only you on it. Every write goes to `onChange` instead of a plan, and
@@ -131,9 +131,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   pattern?: { onChange: (times: Record<string, Iv[]>) => void }
   // lets a change made here (adding yourself to the list) reach the always-mounted surfaces
   onPatch?: (patch: Partial<AppEvent>) => void
+  // after a write of this panel's own lands in storage (your times, the plan's length
+  // or best mode), so the surfaces outside the grid (the lock-in, the header) read it
+  onSaved?: () => void
   // host-only shortcut on day polls: hand the footer's winning run straight to the confirm modal
   onLockDays?: (startKey: string, endKey: string) => void
-  // reports the days-in-a-row dial, so the lock-in modal matches what's being answered
+  // the days-in-a-row dial, held by the page so it outlives a tab switch; the panel
+  // keeps its own when nobody passes one. Reported back so the lock-in matches it
+  runLen?: number | null
   onRunChange?: (n: number) => void
 }) {
   const heatLine = useHeatLine() // "the darker the green" on light, "the brighter" on dark
@@ -270,6 +275,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const [myTime, setMyTime] = useState(false) // show times in the viewer's local zone
   const [durationMin, setDurationMin] = useState(event.durationMin ?? 60)
   const [bestMode, setBestMode] = useState<BestMode>(event.bestMode ?? 'full')
+  const [openLength, setOpenLength] = useState(!!event.openLength)
   const [detail, setDetail] = useState<{ day: string; ti: number; cx: number; cyTop: number; cyBottom: number; below: boolean } | null>(null) // view-mode cell breakdown
   const [showMissing, setShowMissing] = useState(false)
   const [nudged, setNudged] = useState<Set<string>>(new Set())
@@ -431,6 +437,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const past = localDayOffset(gridStartMin + w.e - 1, shift) > off
     return `${on.dow}, ${on.date}, ${fmt(gridStartMin + w.s)} – ${fmt(gridStartMin + w.e)}${past ? ' next day' : ''}`
   }
+  // an open start says only when it starts: its end is how long the group holds, said beside it
+  const dayStart = (w: { dayKey: string; dayLabel: string; s: number }) => {
+    const day = shift && ISO_DAY.test(w.dayKey) ? event.days.find((d) => d.key === w.dayKey) : undefined
+    if (!day) return `${w.dayLabel}, ${fmt(gridStartMin + w.s)}`
+    const on = shiftDay(day, localDayOffset(gridStartMin + w.s, shift))
+    return `${on.dow}, ${on.date}, ${fmt(gridStartMin + w.s)}`
+  }
   // a plan that asks for set hours, read from a zone far enough away that they move a
   // good part of the day: say where they land, so nobody hunts for an evening it never had
   const farHours = !dayPoll && canConvert && gridMax < 24 * 60 && Math.abs(rawShift) >= 3 * 60
@@ -576,11 +589,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   }
   function changeDuration(v: number) {
     setDurationMin(v)
-    if (!event.demo) patchEvent(event.id, { durationMin: v })
+    if (!event.demo) { patchEvent(event.id, { durationMin: v }); onSaved?.() }
+  }
+  function changeOpenLength(v: boolean) {
+    setOpenLength(v)
+    if (!event.demo) { patchEvent(event.id, { openLength: v || undefined }); onSaved?.() }
   }
   function changeBestMode(v: BestMode) {
     setBestMode(v)
-    if (!event.demo) patchEvent(event.id, { bestMode: v })
+    if (!event.demo) { patchEvent(event.id, { bestMode: v }); onSaved?.() }
   }
   // quick-fill: add a clock-time block to every visible day at once
   function fillPreset(startClock: number, endClock: number) {
@@ -1353,38 +1370,61 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   )
 
   // best window (live interval sweep — most people simultaneously free, longest such stretch)
-  const bw = useMemo(() => bestWindow(viewCombinedByDay, event.days, durationMin, bestMode, viewNeedByDay), [viewCombinedByDay, viewNeedByDay, durationMin, bestMode]) // eslint-disable-line react-hooks/exhaustive-deps
+  // with the length unknown, the best start the most people can make and hold longest
+  const openSearch = openLength && !dayPoll
+  const bestOf = (iv: AvailIntervals, need: AvailIntervals | undefined) => (openSearch ? bestOpenStart(iv, event.days, need) : bestWindow(iv, event.days, durationMin, bestMode, need))
+  const bw = useMemo(() => bestOf(viewCombinedByDay, viewNeedByDay), [viewCombinedByDay, viewNeedByDay, durationMin, bestMode, openSearch]) // eslint-disable-line react-hooks/exhaustive-deps
   // while a person filter is on, the whole group's best window stays on the board
   // (dashed) so the selection's best time can be compared against everyone's
   const bwAll = useMemo(
-    () => (filterOn ? bestWindow(combinedByDay, event.days, durationMin, bestMode, needCombinedByDay) : null),
-    [filterOn, combinedByDay, needCombinedByDay, durationMin, bestMode], // eslint-disable-line react-hooks/exhaustive-deps
+    () => (filterOn ? bestOf(combinedByDay, needCombinedByDay) : null),
+    [filterOn, combinedByDay, needCombinedByDay, durationMin, bestMode, openSearch], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const bwAllShown = bwAll && (!bw || bwAll.dayKey !== bw.dayKey || bwAll.s !== bw.s || bwAll.e !== bw.e) ? bwAll : null
   // once a time is locked in, the frame and the day's header mark that time at its real
   // length, not the best window, which no longer decides anything
-  const lockedSlot = locked && event.confirmed && !event.confirmed.endDayKey && !dayPoll ? event.confirmed : null
-  const frame = lockedSlot ? { dayKey: lockedSlot.dayKey, s: lockedSlot.startMin - gridStartMin, e: lockedSlot.endMin - gridStartMin } : bw
+  // A run with its own hours frames each of its days.
+  const lockedSlot = locked && event.confirmed && (!event.confirmed.endDayKey || event.confirmed.sessions) && !dayPoll ? event.confirmed : null
+  const lockedFrames = useMemo(
+    () => (lockedSlot ? slotSessions(lockedSlot).map((x) => ({ dayKey: x.dayKey, s: x.startMin - gridStartMin, e: x.endMin - gridStartMin })) : null),
+    [lockedSlot, gridStartMin],
+  )
+  const frame = lockedFrames ? lockedFrames[0] : bw
 
   // one footer answer, one length control: "1 day" is the best single slot (or the best
   // single day on a day poll), anything longer is the best run of consecutive days.
   // The longest pickable run is the longest stretch of touching calendar days in the poll.
   const maxRun = useMemo(() => longestRun(event.days), [event.days])
-  const [blockLen, setBlockLen] = useState(() => (dayPoll && maxRun >= 2 ? 2 : 1))
+  const [ownLen, setOwnLen] = useState(() => (dayPoll && maxRun >= 2 ? 2 : 1))
+  // never more days than the poll has in a row (its days can change under the dial)
+  const blockLen = Math.max(1, Math.min(runLen ?? ownLen, maxRun))
+  const setBlockLen = (n: number) => { setOwnLen(n); onRunChange?.(n) }
   // keep the lock-in modal in step with the dial
   useEffect(() => { onRunChange?.(blockLen) }, [blockLen]) // eslint-disable-line react-hooks/exhaustive-deps
   const block = useMemo(
-    () => bestBlock(viewCombinedByDay, event.days, blockLen, bestMode, viewNeedByDay),
-    [viewCombinedByDay, viewNeedByDay, blockLen, bestMode], // eslint-disable-line react-hooks/exhaustive-deps
+    // a time poll's run needs the plan's length on every day of it (see bestBlock)
+    () => bestBlock(viewCombinedByDay, event.days, blockLen, bestMode, viewNeedByDay, dayPoll ? 0 : openSearch ? MIN_STAY : durationMin),
+    [viewCombinedByDay, viewNeedByDay, blockLen, bestMode, dayPoll, openSearch, durationMin], // eslint-disable-line react-hooks/exhaustive-deps
   )
+  // with the dial on a run of days, each day of the winning run is framed at its own
+  // best window of the plan's length, the same hours the lock-in offers, so the frames
+  // follow the length control and step up and down across the run as the days differ
+  const runFrames = useMemo(() => {
+    if (dayPoll || lockedFrames || !block || blockLen < 2) return null
+    const runDays = event.days.filter((d) => d.key >= block.startKey && d.key <= block.endKey)
+    if (!openSearch) return runHours(viewCombinedByDay, runDays, durationMin, viewNeedByDay, bestMode)
+    return runDays.flatMap((d) => { const b = bestOpenStart(viewCombinedByDay, [d], viewNeedByDay); return b ? [{ dayKey: d.key, s: b.s, e: b.e }] : [] })
+  }, [dayPoll, lockedFrames, block, blockLen, viewCombinedByDay, viewNeedByDay, durationMin, bestMode, openSearch]) // eslint-disable-line react-hooks/exhaustive-deps
+  const frames = lockedFrames ?? runFrames
+  const frameFor = (k: string) => (frames ? frames.find((f) => f.dayKey === k) : frame && frame.dayKey === k ? frame : undefined)
   const blockDayLabel = (k: string) => {
     const d = event.days.find((x) => x.key === k)
     return d ? `${d.dow}, ${d.date}` : k
   }
-  // the slot frame in the cells belongs to the "1 day" answer on a minute grid — a day
-  // poll's cells never carry it (the header indicator is the whole story there), and a
-  // longer dial hands the spotlight to the run of days
-  const showSlotFrame = !dayPoll && blockLen === 1
+  // the slot frame in the cells belongs to the minute grid's answer, one window or a
+  // frame on each day of the best run — a day poll's cells never carry it (the header
+  // indicator is the whole story there)
+  const showSlotFrame = !dayPoll && (blockLen === 1 || !!runFrames)
   // with the dial on a run of days, the grid is answering in days — Settings follows
   // (clock-flavored options step aside until the dial comes back to 1 day)
   const daysAnswer = dayPoll || blockLen >= 2
@@ -1531,15 +1571,17 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // a best-window link elsewhere (hero, attendance) jumps here: right week, view
   // mode so the frame shows, grid scrolled so the window sits mid-viewport
   useEffect(() => {
-    if (!focusBest || !frame) return
+    // with the dial on a run of days the jump lands on the run's first day, and the
+    // dial stays where it was set
+    const to = runFrames?.[0] ?? frame
+    if (!focusBest || !to) return
     const el = scroller.current
     if (!el) return
-    const idx = paddedDays.findIndex((d) => d.key === frame.dayKey)
+    const idx = paddedDays.findIndex((d) => d.key === to.dayKey)
     if (idx >= 0) setPage(Math.floor(idx / WEEK))
     setMode('view')
-    setBlockLen(1) // the jump targets the best single slot — keep the footer on the same answer
     if (!dayPoll) {
-      const target = Math.max(0, ((frame.s + frame.e) / 2) * pxPerMin - el.clientHeight / 2)
+      const target = Math.max(0, ((to.s + to.e) / 2) * pxPerMin - el.clientHeight / 2)
       el.scrollTop = target
       setScrollTop(target)
     }
@@ -1575,17 +1617,23 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               <SettingsMenu title="Grid settings">
                 {(close) => (
                   <>
-                    {isHost && !daysAnswer && (
+                    {isHost && !dayPoll && (
+                      <SettingToggle label="Length unknown" on={openLength} onChange={changeOpenLength} hint={openLength ? 'The best time is when the most people can start and stay longest.' : undefined} />
+                    )}
+                    {/* a run of days on a timed poll still has a length: each day is framed
+                        at its best window this long */}
+                    {isHost && !dayPoll && !openLength && (
                       <div className="px-2.5 py-3">
                         <DurationField
                           value={durationMin} max={Math.max(step, event.times.length * step)} onChange={changeDuration}
                           title={<span className="flex-1 text-[13px] font-semibold text-text">How long it lasts</span>}
                         />
-                        <p className="mt-1.5 text-[12px] leading-[1.5] text-faint">The best time is a stretch this long.</p>
+                        <p className="mt-1.5 text-[12px] leading-[1.5] text-faint">{daysAnswer ? 'Each day’s best hours are a stretch this long.' : 'The best time is a stretch this long.'}</p>
                       </div>
                     )}
-                    {/* one question with a default: off favors everyone staying, on the biggest crowd */}
-                    {isHost && (
+                    {/* one question with a default: off favors everyone staying, on the biggest crowd.
+                        An open length has no window to stay in, so it is not asked then */}
+                    {isHost && (daysAnswer || !openLength) && (
                       <SettingToggle
                         label={daysAnswer ? 'Count people who make only some days' : 'Count people who come and go'}
                         on={bestMode === 'crowd'}
@@ -1599,7 +1647,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                             : 'Picks the time the most people can stay start to finish.'}
                       />
                     )}
-                    {!daysAnswer && (
+                    {!dayPoll && (
                       <SettingToggle label="24-hour time" on={h24} onChange={setH24} />
                     )}
                     {/* the days that only square the week off. Out of the toolbar and
@@ -1956,8 +2004,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               // winning run of days (a hairline across its headers ties the run together)
               const inBlock = mode === 'view' && !!blockKeys?.has(d.key)
               const blockFirst = inBlock && block?.startKey === d.key
-              const singleBestKey = dayPoll ? (blockLen === 1 ? block?.startKey : undefined) : frame?.dayKey
-              const isBestDay = !blockKeys && (d.best || (mode === 'view' && singleBestKey === d.key))
+              const singleBestKey = dayPoll ? (blockLen === 1 ? block?.startKey : undefined) : blockLen === 1 ? frame?.dayKey : undefined
+              const isBestDay = !blockKeys && (d.best || (mode === 'view' && (lockedFrames ? !!frameFor(d.key) : singleBestKey === d.key)))
               return (
                 <button
                   key={d.key}
@@ -2088,9 +2136,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
 
                     // the heat must change color exactly at the best-window frame lines, so its
                     // edges are protected from the sliver merge in the cells they run through
+                    const fr = frameFor(d.key)
                     const protect = showSlotFrame
                       ? [
-                          ...(frame && d.key === frame.dayKey ? [frame.s, frame.e] : []),
+                          ...(fr ? [fr.s, fr.e] : []),
                           ...(bwAllShown && d.key === bwAllShown.dayKey ? [bwAllShown.s, bwAllShown.e] : []),
                         ]
                       : []
@@ -2102,7 +2151,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     const open = detail?.day === d.key && detail?.ti === ti
                     // the best window is one continuous ochre frame over its cells — a color the
                     // grid never uses for lines or heat, so it can't be mistaken for either
-                    const inBest = showSlotFrame && !!frame && d.key === frame.dayKey && w0 < frame.e && w1 > frame.s
+                    const inBest = showSlotFrame && !!fr && w0 < fr.e && w1 > fr.s
                     return (
                       <div
                         key={d.key}
@@ -2114,20 +2163,38 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                         {inBest && (() => {
                           // frame hugs the window's true minutes, not the cell edges — a 10:30
                           // start draws the top line halfway down the 10:00 cell
-                          const bs = Math.max(frame!.s, w0), be = Math.min(frame!.e, w1)
+                          const bs = Math.max(fr!.s, w0), be = Math.min(fr!.e, w1)
                           const edge = '2.5px solid var(--ochre)'
+                          const pct = (m: number) => `${((m - w0) / step) * 100}%`
+                          // on a run the frames join into one outline that steps with each
+                          // day's hours: a side is drawn only where the next column's frame
+                          // does not carry on past it
+                          const sides = (side: 'left' | 'right') => {
+                            const nb = cols[side === 'left' ? di - 1 : di + 1]
+                            const o = nb && !nb.pad ? frameFor(nb.key) : undefined
+                            const segs = o ? [[bs, Math.min(be, o.s)], [Math.max(bs, o.e), be]] : [[bs, be]]
+                            return segs.filter(([a, b]) => b > a).map(([a, b]) => (
+                              <div
+                                key={`${side}${a}`}
+                                className="pointer-events-none absolute z-[2]"
+                                style={{ top: pct(a), height: `${((b - a) / step) * 100}%`, [side]: 0, [side === 'left' ? 'borderLeft' : 'borderRight']: edge }}
+                              />
+                            ))
+                          }
                           return (
-                            <div
-                              className="pointer-events-none absolute inset-x-0 z-[2]"
-                              style={{
-                                top: `${((bs - w0) / step) * 100}%`,
-                                height: `${((be - bs) / step) * 100}%`,
-                                borderLeft: edge,
-                                borderRight: edge,
-                                borderTop: bs === frame!.s ? edge : undefined,
-                                borderBottom: be === frame!.e ? edge : undefined,
-                              }}
-                            />
+                            <>
+                              <div
+                                className="pointer-events-none absolute inset-x-0 z-[2]"
+                                style={{
+                                  top: pct(bs),
+                                  height: `${((be - bs) / step) * 100}%`,
+                                  borderTop: bs === fr!.s ? edge : undefined,
+                                  borderBottom: be === fr!.e ? edge : undefined,
+                                }}
+                              />
+                              {sides('left')}
+                              {sides('right')}
+                            </>
                           )
                         })()}
                         {/* everyone's best window rides along as a dashed frame while a filter
@@ -2388,25 +2455,27 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   {blockLen >= 2 && <span className="text-[12.5px] text-dim">in a row</span>}
                 </>
               ) : (
-                <span className="text-[12.5px] text-dim">{dayPoll ? 'Best day' : `Best ${fmtDur(durationMin)} slot`}</span>
+                <span className="text-[12.5px] text-dim">{dayPoll ? 'Best day' : openSearch ? 'Best start' : `Best ${fmtDur(durationMin)} slot`}</span>
               )}
               {filterOn && <span className="text-[12.5px] text-dim">for your selection</span>}
               {blockLen === 1 && !dayPoll ? (
                 bw ? (
                   <>
-                    <span className="text-[14px] font-semibold text-ochre">{dayTime(bw)}</span>
+                    <span className="text-[14px] font-semibold text-ochre">{openSearch ? dayStart(bw) : dayTime(bw)}</span>
                     <TimezonePill tz={myTime && canConvert ? localTz : event.timezone} day={bw.dayKey} />
                     {/* the faces and the count are one thing: who is free, and how many.
                         Apart, the faces wrapped onto a line of their own on a phone and
                         hung at the far edge, with nothing saying what they were */}
                     <span className="flex min-w-0 items-center gap-2 sm:ml-auto">
                       {(() => {
-                        const free = byRoster(bestMode === 'crowd' ? bw.anyIds : bw.ids).map((id) => ({ id, ...avatarOf(id) }))
+                        const free = byRoster(bestMode === 'crowd' && !openSearch ? bw.anyIds : bw.ids).map((id) => ({ id, ...avatarOf(id) }))
                         // a tap turns the faces over and, on a touch screen, shows everyone's
                         // names in a strip; with a mouse "+N" opens everyone free then as a list
                         return <AvatarRow people={free} size={32} max={6} overlap={8} flippable renderMore={(chip) => <FaceChipsMore chip={chip} people={free} title="Free then" />} />
                       })()}
-                      {bestMode === 'crowd'
+                      {openSearch
+                        ? <span className="text-[12.5px] font-semibold text-teal-text">{bw.count} of {viewTotal} free{needClause(bw.needIds.length)}<span className="font-normal text-dim">, most until {fmt(gridStartMin + bw.e)}</span></span>
+                        : bestMode === 'crowd'
                         // never round a partial attendee away: below one person on average,
                         // count everyone who shows up at all instead
                         ? Math.round(bw.avg) >= 1
@@ -2417,12 +2486,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     {bwAllShown && (
                       <span className="flex w-full items-center gap-1.5 text-[12.5px] text-dim">
                         <span className="inline-block h-0 w-[18px] border-t-2 border-dashed border-ochre" aria-hidden />
-                        Everyone&apos;s best stays marked for comparison: <span className="font-semibold text-text">{dayTime(bwAllShown)}</span>
+                        Everyone&apos;s best stays marked for comparison: <span className="font-semibold text-text">{openSearch ? dayStart(bwAllShown) : dayTime(bwAllShown)}</span>
                       </span>
                     )}
                   </>
                 ) : (
-                  <span className="text-[12.5px] text-dim">No block long enough for a <span className="font-semibold text-text">{fmtDur(durationMin)}</span> plan yet. Try a shorter length, or wait for more responses.</span>
+                  openSearch
+                    ? <span className="text-[12.5px] text-dim">No one is free for an hour yet.</span>
+                    : <span className="text-[12.5px] text-dim">No block long enough for a <span className="font-semibold text-text">{fmtDur(durationMin)}</span> plan yet. Try a shorter length, or wait for more responses.</span>
                 )
               ) : block ? (
                 <>
@@ -2450,7 +2521,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   )}
                 </>
               ) : (
-                <span className="text-[12.5px] text-dim">No {blockLen} days in a row with replies yet.</span>
+                dayPoll
+                  ? <span className="text-[12.5px] text-dim">No {blockLen} days in a row with replies yet.</span>
+                  : openSearch
+                    ? <span className="text-[12.5px] text-dim">No {blockLen} days in a row where someone is free for an hour each day yet.</span>
+                    : <span className="text-[12.5px] text-dim">No {blockLen} days in a row with a block long enough for a <span className="font-semibold text-text">{fmtDur(durationMin)}</span> plan each day yet. Try a shorter length, or wait for more responses.</span>
               )}
             </>
           )}

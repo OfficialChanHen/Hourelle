@@ -7,7 +7,7 @@ export type { SaveResult } from './remote'
 import { currentAccount } from './session'
 import { writeLocal } from './local'
 import { isControlMessage, placeVotes } from './polls'
-import { slotOver, slotWhen } from './slot'
+import { sessionsOf, slotLines, slotOver, slotWhen, type Session } from './slot'
 import type { AccountKind } from './session'
 import {
   avail as demoAvail,
@@ -20,13 +20,18 @@ import {
 import type { CardDetail } from '@/components/ui/Keepsake'
 
 export type { ChatMessage }
+export type { Session }
 
 export type Rsvp = 'attending' | 'maybe' | 'not_going' | 'pending'
 export type EventStatus = 'planning' | 'confirmed'
 // the host's locked-in plan: a day, a clock-minute window, and the chosen place(s).
 // endDayKey (a day poll, or a date set as a run of days) makes it a run of days — absent means one day.
 // On a run, startMin is on the first day and endMin on the last; 0 to 24:00 is whole days.
-export type ConfirmedSlot = { dayKey: string; endDayKey?: string; startMin: number; endMin: number; placeIds: string[] }
+// A run locked with its own hours each day carries them as `sessions` (one per day kept,
+// a skipped day has none); dayKey/endDayKey are then the first and last session's day,
+// startMin the first one's start and endMin the last one's end, so the span still reads
+// right. `openEnd`: a start and no agreed end; endMin is only how late most could stay.
+export type ConfirmedSlot = { dayKey: string; endDayKey?: string; startMin: number; endMin: number; placeIds: string[]; sessions?: Session[]; openEnd?: boolean }
 export type Participant = {
   id: string; initials: string; name: string; color: PersonColor; rsvp: Rsvp
   // the drawn face: the account's own when it chose one, otherwise dealt at join by
@@ -111,6 +116,7 @@ export type AppEvent = {
   itinStartMin?: number               // clock minutes the itinerary begins
   travelModes?: string[]              // allowed transport modes for route timing (default all)
   durationMin?: number                // how long the event needs — drives the best-window search
+  openLength?: boolean                // length unknown: the best time is the start the most people can make and hold longest
   bestMode?: BestMode                 // what the best-window search favors (default 'full')
   quorum?: number                     // host-set smallest headcount that works; attendance warns below it
   capacity?: number                   // host-set spot limit; going is first come, first served
@@ -153,6 +159,7 @@ export type CreateInput = {
   windowStart?: string // 'HH:MM' — optional daily time window; empty = the whole day
   windowEnd?: string
   durationMin?: number // optional; drives the best-window search (default 60)
+  openLength?: boolean // optional; length unknown, see AppEvent
   bestMode?: BestMode  // optional; carried over when reusing an event's shape
   budgetMode?: 'total' | 'person'
   locMode: 'vote' | 'set' | 'remote' | 'later' // 'set': in person with the place already chosen — guests see it as fact
@@ -161,7 +168,7 @@ export type CreateInput = {
   // is only born confirmed if the place is also answered — a live ballot keeps it planning.
   // an endDay past day makes it a run of days, the shape a locked day poll has; its
   // start is on the first day and its end on the last. allDay drops the times.
-  fixed?: { day: string; endDay?: string; start: string; end: string; allDay?: boolean }
+  fixed?: { day: string; endDay?: string; start: string; end: string; allDay?: boolean; openEnd?: boolean }
   rsvpDeadline?: string // optional, fixed-date events only: the RSVP round opens at birth
   image?: string        // the cover, chosen in the wizard or carried over by a duplicate
   imageFit?: 'fill' | 'fit'
@@ -668,8 +675,11 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
 // With `needIv`, a day a person marked only if need be still counts for them, and ties
 // go to the block with fewer such person-days. `needIds` are the people in `ids` who
 // lean on if need be for at least one day of it.
+// With `minLen` (a time poll's run, each day needing that long) a person counts for a
+// day only when one stretch of theirs there is at least that long, and a block counts
+// only when every day of it has someone who can; no such block, no answer.
 export type BestBlock = { startKey: string; endKey: string; count: number; ids: string[]; anyIds: string[]; needIds: string[]; avgPerDay: number }
-export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: number, bestMode: BestMode = 'full', needIv?: AvailIntervals): BestBlock | null {
+export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: number, bestMode: BestMode = 'full', needIv?: AvailIntervals, minLen = 0): BestBlock | null {
   if (blockLen < 1 || days.length < blockLen) return null
   const keys = days.map((d) => d.key)
   const nextDay = (k: string) => {
@@ -696,7 +706,8 @@ export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: nu
   for (let i = 0; i + blockLen <= keys.length; i++) {
     const block = keys.slice(i, i + blockLen)
     if (block.some((k, j) => j > 0 && block[j - 1] !== '' && k !== nextDay(block[j - 1]))) continue
-    const perDay = block.map((k) => new Set(Object.entries(availIv[k] ?? {}).filter(([, ivs]) => ivs.length > 0).map(([id]) => id)))
+    const perDay = block.map((k) => new Set(Object.entries(availIv[k] ?? {}).filter(([, ivs]) => (minLen > 0 ? ivs.some((iv) => iv.e - iv.s >= minLen) : ivs.length > 0)).map(([id]) => id)))
+    if (minLen > 0 && perDay.some((s) => s.size === 0)) continue
     const anySet = new Set<string>()
     for (const s of perDay) for (const id of s) anySet.add(id)
     const ids = [...anySet].filter((id) => perDay.every((s) => s.has(id)))
@@ -719,6 +730,114 @@ export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: nu
   return best
 }
 
+/* ── the hours on each day of a run ──
+   A run of days locked with its own hours each day asks each day for the best
+   window of the plan's length there, found the way the one-day best time is (see
+   bestWindow), so the frames follow the length as it changes. A day with no such
+   window is left out. Grid minutes. */
+export type RunDay = { dayKey: string; s: number; e: number; count: number; ids: string[] }
+export function runHours(availIv: AvailIntervals, days: GridDay[], minLen = 0, needIv?: AvailIntervals, bestMode: BestMode = 'full'): RunDay[] {
+  return days.flatMap((d) => {
+    const b = bestWindow(availIv, [d], minLen, bestMode, needIv)
+    return b ? [{ dayKey: d.key, s: b.s, e: b.e, count: b.count, ids: b.ids }] : []
+  })
+}
+
+
+/* ── the best open start: length unknown ──
+   With no set length the question is when to start: the start the most people can
+   make for at least MIN_STAY, and among those the one the group holds longest, where
+   "holds" means until it drops below half its starting size. Each person stays until
+   the end of their own stretch that holds the start. Then fewer on if need be, the
+   earlier day, the earlier start. `e` is that held-until point, so readers that draw
+   or say a best window can take this in its place; `stay` is each person's own. */
+export type OpenBest = {
+  dayKey: string; s: number; e: number; count: number; ids: string[]; anyIds: string[]; needIds: string[]
+  stay: Record<string, number>; avg: number; dayLabel: string
+}
+// each person's stay from `s`: the end of their stretch covering [s, s + MIN_STAY)
+function staysFrom(byPid: Record<string, Iv[]>, s: number): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const [id, ivs] of Object.entries(byPid)) {
+    const hit = ivs.find((iv) => iv.s <= s && iv.e >= s + MIN_STAY)
+    if (hit) out[id] = hit.e
+  }
+  return out
+}
+const heldUntil = (stays: number[]) => [...stays].sort((a, b) => b - a)[Math.ceil(stays.length / 2) - 1]
+export function bestOpenStart(availIv: AvailIntervals, days: GridDay[], needIv?: AvailIntervals): OpenBest | null {
+  let best: Omit<OpenBest, 'dayLabel'> | null = null
+  let bestDay = -1
+  for (const [di, d] of days.entries()) {
+    const byPid = availIv[d.key] ?? {}
+    const needByPid = needIv?.[d.key] ?? {}
+    const starts = new Set<number>()
+    for (const ivs of Object.values(byPid)) for (const iv of ivs) starts.add(iv.s)
+    for (const s of [...starts].sort((a, b) => a - b)) {
+      const stay = staysFrom(byPid, s)
+      const ids = Object.keys(stay)
+      if (!ids.length) continue
+      const e = heldUntil(Object.values(stay))
+      const needIds = ids.filter((id) => (needByPid[id] ?? []).some((iv) => iv.s < s + MIN_STAY && iv.e > s))
+      const better = (b: NonNullable<typeof best>) => {
+        if (ids.length !== b.count) return ids.length > b.count
+        if (needIds.length !== b.needIds.length) return needIds.length < b.needIds.length
+        if (e - s !== b.e - b.s) return e - s > b.e - b.s
+        if (di !== bestDay) return di < bestDay
+        return s < b.s
+      }
+      if (best && !better(best)) continue
+      const anyIds = Object.keys(byPid).filter((id) => byPid[id].some((iv) => iv.s < e && iv.e > s))
+      best = { dayKey: d.key, s, e, count: ids.length, ids, anyIds, needIds, stay, avg: ids.length }
+      bestDay = di
+    }
+  }
+  if (!best) return null
+  const day = days[bestDay]
+  return { ...best, dayLabel: `${day.dow}, ${day.date}` }
+}
+
+/** The best time so far, as the plan asks for it: a window of its length, or with
+ *  the length unknown the best open start. `days` narrows it (one day's row in the
+ *  lock-in window). */
+export function openBest(ev: AppEvent, days: GridDay[] = ev.days) {
+  const iv = availIvOf(ev)
+  if (ev.openLength && ev.granularity !== 'day') return bestOpenStart(iv, days, ev.needIv)
+  return bestWindow(iv, days, ev.durationMin ?? 60, ev.bestMode, ev.needIv)
+}
+
+/** The best run of `runLen` days, as the plan asks for it: on a time poll each day of
+ *  it needs a stretch of the plan's length (with the length unknown, MIN_STAY). */
+export function planBestBlock(ev: AppEvent, runLen: number, days: GridDay[] = ev.days): BestBlock | null {
+  const minLen = ev.granularity === 'day' ? 0 : ev.openLength ? MIN_STAY : ev.durationMin ?? 60
+  return bestBlock(availIvOf(ev), days, runLen, ev.bestMode, ev.needIv, minLen)
+}
+
+/** Each day's hours on a run of days, as the plan asks for them: the best window of
+ *  the plan's length (see runHours), or with the length unknown each day's best open start
+ *  and how long the group holds it. Grid minutes; a day nobody marked is left out. */
+export function planRunHours(ev: AppEvent, days: GridDay[]): { dayKey: string; s: number; e: number }[] {
+  if (!ev.openLength) return runHours(availIvOf(ev), days, ev.durationMin ?? 60, ev.needIv, ev.bestMode)
+  return days.flatMap((d) => { const b = bestOpenStart(availIvOf(ev), [d], ev.needIv); return b ? [{ dayKey: d.key, s: b.s, e: b.e }] : [] })
+}
+
+/** How late people can stay from a locked open start, read from their marks now:
+ *  "most" is when the group drops below half, `last` the one person who stays later
+ *  than that, by first name ("you" for you). `*IsEnd` when it is the end of the day's hours, which is
+ *  as far as a mark can reach. Clock minutes; null when nobody can make the start. */
+export function stayLine(ev: AppEvent, session: Session): { most: number; mostIsEnd: boolean; last?: { name: string; until: number; isEnd: boolean } } | null {
+  const g = gridStartMinOf(ev)
+  const end = g + ev.times.length * stepOf(ev.granularity)
+  const stay = staysFrom(availIvOf(ev)[session.dayKey] ?? {}, session.startMin - g)
+  const ids = Object.keys(stay)
+  if (!ids.length) return null
+  const most = g + heldUntil(Object.values(stay))
+  const latest = ids.reduce((a, b) => (stay[b] > stay[a] ? b : a))
+  const until = g + stay[latest]
+  const who = ev.participants.find((p) => p.id === latest)
+  const last = until > most && who ? { name: who.you ? 'you' : who.name.split(' ')[0], until, isEnd: until >= end } : undefined
+  return { most, mostIsEnd: most >= end, ...(last ? { last } : {}) }
+}
 
 export function daysUntil(startDate: string): number | null {
   const s = parseLocal(startDate)
@@ -815,8 +934,23 @@ export function daysUntilLabel(du: number | null): string {
 // "Fri, Aug 14, 6:00 PM – Sun, Aug 16, 12:00 PM" for a timed one (see lib/slot)
 export function confirmedSlotText(ev: Pick<AppEvent, 'confirmed'>): string | null {
   if (!ev.confirmed || !parseLocal(ev.confirmed.dayKey)) return null
-  return slotWhen(ev.confirmed, (k) => { const d = parseLocal(k); return d ? `${DOW[d.getDay()]}, ${dayLabel(d)}` : k }, fmtMinute)
+  return slotWhen(ev.confirmed, slotDay, fmtMinute)
 }
+
+const slotDay = (k: string) => { const d = parseLocal(k); return d ? `${DOW[d.getDay()]}, ${dayLabel(d)}` : k }
+// one line per day where there is room (the locked card, Details, the share text)
+export function confirmedSlotLines(ev: Pick<AppEvent, 'confirmed'>): string[] | null {
+  if (!ev.confirmed || !parseLocal(ev.confirmed.dayKey)) return null
+  return slotLines(ev.confirmed, slotDay, fmtMinute)
+}
+export function nextDayKey(k: string): string {
+  const d = parseLocal(k)
+  if (!d) return k
+  d.setDate(d.getDate() + 1)
+  return isoOf(d)
+}
+// the slot as one session per day, whatever shape it was stored in
+export const slotSessions = (slot: ConfirmedSlot): Session[] => sessionsOf(slot, nextDayKey)
 
 // the longest stretch of touching calendar days in a poll — the ceiling for any
 // "days in a row" answer, shared by the grid dial and the planning summary
@@ -841,14 +975,7 @@ export function longestRun(days: Pick<GridDay, 'key'>[]): number {
 export type SameDayInfo = { label: string; all?: string }
 export function sameDayLabelFor(events: AppEvent[]): (e: AppEvent) => SameDayInfo | undefined {
   const daysOf = (e: AppEvent): string[] => {
-    if (e.confirmed) {
-      const out: string[] = []
-      const cur = parseLocal(e.confirmed.dayKey)
-      const end = parseLocal(e.confirmed.endDayKey ?? e.confirmed.dayKey)
-      if (!cur || !end) return []
-      for (let i = 0; i < 90 && cur <= end; i++) { out.push(isoOf(cur)); cur.setDate(cur.getDate() + 1) }
-      return out
-    }
+    if (e.confirmed) return parseLocal(e.confirmed.dayKey) ? slotSessions(e.confirmed).map((x) => x.dayKey) : []
     return e.startDate === e.endDate ? [e.startDate] : []
   }
   const byDay = new Map<string, AppEvent[]>()
@@ -916,36 +1043,21 @@ export function byYouFirst(a: Pick<Participant, 'name' | 'you'>, b: Pick<Partici
 // → no reply), then first name, then last name
 export function sortByAttendance(ev: AppEvent): Participant[] {
   const availIv = availIvOf(ev)
-  const gridStart = gridStartMinOf(ev)
   const locked = ev.status === 'confirmed' && !!ev.confirmed
-  // a run of days is read by day coverage below, so its window is the whole first day
-  const win = locked
-    ? ev.confirmed!.endDayKey
-      ? { dayKey: ev.confirmed!.dayKey, s: 0, e: 24 * 60 - gridStart }
-      : { dayKey: ev.confirmed!.dayKey, s: ev.confirmed!.startMin - gridStart, e: ev.confirmed!.endMin - gridStart }
-    : bestWindow(availIv, ev.days, ev.durationMin ?? 60, ev.bestMode, ev.needIv)
+  // a locked slot ranks by its own windows (every day of a run, the first hour of an
+  // open end); an open plan by the best time so far
+  const wins = locked ? windowsOf(ev, ev.confirmed!) : null
+  const win = locked ? null : openBest(ev)
   const dayIv = win ? availIv[win.dayKey] ?? {} : {}
   const marked = new Set<string>()
   for (const day of Object.values(availIv)) for (const [id, ivs] of Object.entries(day)) if (ivs.length) marked.add(id)
-  // a locked run of days ranks by day coverage: every day → 0, some days → 1
-  const blockKeys: string[] | null = locked && ev.confirmed!.endDayKey
-    ? (() => {
-        const out: string[] = []
-        const cur = parseLocal(ev.confirmed!.dayKey)
-        const end = parseLocal(ev.confirmed!.endDayKey!)
-        if (!cur || !end) return null
-        for (let i = 0; i < 90 && cur <= end; i++) { out.push(isoOf(cur)); cur.setDate(cur.getDate() + 1) }
-        return out
-      })()
-    : null
   const rank = (p: Participant): number => {
     if (p.rsvp === 'pending') return 6
     if (p.rsvp === 'not_going') return 5
     if (p.rsvp === 'maybe') return 4
-    if (blockKeys) {
-      const covered = blockKeys.filter((k) => (availIv[k]?.[p.id] ?? []).length > 0).length
-      if (covered === blockKeys.length) return 0
-      if (covered > 0) return 1
+    if (wins) {
+      if (fitsIn(availIv, wins, p.id)) return 0
+      if (touchesIn(availIv, wins, p.id)) return 1
       return marked.has(p.id) ? 2 : 3
     }
     const ivs = win ? dayIv[p.id] : undefined
@@ -1036,24 +1148,31 @@ export function setMyRsvp(id: string, rsvp: Rsvp): void {
   patchEvent(id, { participants: ev.participants.map((p) => (p.id === meId ? { ...p, rsvp, rsvpAuto: undefined } : p)) })
 }
 
-// does this person's availability cover the locked slot in full? A run of days needs
-// a mark on every day; a timed slot needs one interval spanning the whole window.
+/* ── who the locked slot fits ──
+   Each day of the slot is a window to cover: a run with its own hours has one per
+   day kept, a single day has one. An older run of days with no hours of its own asks
+   only for a mark on each day, as it always has. An open end asks only for the first
+   MIN_STAY minutes: leaving before a soft end nobody agreed to is still coming. */
+export const MIN_STAY = 60
+type SlotWindow = { dayKey: string; s: number; e: number; whole: boolean }
+function windowsOf(ev: Pick<AppEvent, 'times'>, slot: ConfirmedSlot): SlotWindow[] {
+  const g = gridStartMinOf(ev)
+  const wholeRun = !slot.sessions?.length && !!slot.endDayKey
+  return slotSessions(slot).map((x) => ({
+    dayKey: x.dayKey,
+    s: x.startMin - g,
+    e: (slot.openEnd ? Math.min(x.startMin + MIN_STAY, x.endMin) : x.endMin) - g,
+    whole: wholeRun,
+  }))
+}
+const coversWin = (ivs: Iv[], w: SlotWindow) => (w.whole ? ivs.length > 0 : ivs.some((iv) => iv.s <= w.s && iv.e >= w.e))
+const touchesWin = (ivs: Iv[], w: SlotWindow) => (w.whole ? ivs.length > 0 : ivs.some((iv) => iv.s < w.e && iv.e > w.s))
+const fitsIn = (iv: AvailIntervals, wins: SlotWindow[], pid: string) => wins.length > 0 && wins.every((w) => coversWin(iv[w.dayKey]?.[pid] ?? [], w))
+const touchesIn = (iv: AvailIntervals, wins: SlotWindow[], pid: string) => wins.some((w) => touchesWin(iv[w.dayKey]?.[pid] ?? [], w))
+
+// does this person's availability cover the locked slot in full: every day of it
 export function slotFits(ev: AppEvent, slot: ConfirmedSlot, pid: string, freeOnly = false): boolean {
-  const availIv = freeOnly ? freeIvOf(ev) : availIvOf(ev)
-  if (slot.endDayKey) {
-    const cur = parseLocal(slot.dayKey)
-    const end = parseLocal(slot.endDayKey)
-    if (!cur || !end) return false
-    for (let i = 0; i < 90 && cur <= end; i++) {
-      if (!(availIv[isoOf(cur)]?.[pid] ?? []).length) return false
-      cur.setDate(cur.getDate() + 1)
-    }
-    return true
-  }
-  const gridStart = gridStartMinOf(ev)
-  const s = slot.startMin - gridStart
-  const e = slot.endMin - gridStart
-  return (availIv[slot.dayKey]?.[pid] ?? []).some((iv) => iv.s <= s && iv.e >= e)
+  return fitsIn(freeOnly ? freeIvOf(ev) : availIvOf(ev), windowsOf(ev, slot), pid)
 }
 
 // who leans on an if-need-be mark for this slot: someone whose if-need-be marks reach
@@ -1061,42 +1180,69 @@ export function slotFits(ev: AppEvent, slot: ConfirmedSlot, pid: string, freeOnl
 export function needOnlyIds(ev: AppEvent, slot: ConfirmedSlot): Set<string> {
   const out = new Set<string>()
   if (!ev.needIv) return out
-  const touches = (ivs: Iv[], s: number, e: number) => ivs.some((iv) => iv.s < e && iv.e > s)
+  const free = freeIvOf(ev)
+  const wins = windowsOf(ev, slot)
   for (const p of ev.participants) {
-    if (slotFits(ev, slot, p.id, true)) continue
-    if (slot.endDayKey) {
-      const cur = parseLocal(slot.dayKey), end = parseLocal(slot.endDayKey)
-      for (let i = 0; cur && end && i < 90 && cur <= end; i++) {
-        if ((ev.needIv[isoOf(cur)]?.[p.id] ?? []).length) { out.add(p.id); break }
-        cur.setDate(cur.getDate() + 1)
-      }
-      continue
-    }
-    const g = gridStartMinOf(ev)
-    if (touches(ev.needIv[slot.dayKey]?.[p.id] ?? [], slot.startMin - g, slot.endMin - g)) out.add(p.id)
+    if (fitsIn(free, wins, p.id)) continue
+    if (touchesIn(ev.needIv, wins, p.id)) out.add(p.id)
   }
   return out
 }
 
 // does any of this person's availability touch the locked slot at all? Someone who can
-// make part of it (arrives late, leaves early) touches it; someone whose times all fall
-// elsewhere does not.
+// make part of it (arrives late, leaves early, comes one day of three) touches it;
+// someone whose times all fall elsewhere does not.
 export function slotTouches(ev: AppEvent, slot: ConfirmedSlot, pid: string): boolean {
-  const availIv = availIvOf(ev)
-  if (slot.endDayKey) {
-    const cur = parseLocal(slot.dayKey)
-    const end = parseLocal(slot.endDayKey)
-    if (!cur || !end) return false
-    for (let i = 0; i < 90 && cur <= end; i++) {
-      if ((availIv[isoOf(cur)]?.[pid] ?? []).length) return true
-      cur.setDate(cur.getDate() + 1)
-    }
-    return false
+  return touchesIn(availIvOf(ev), windowsOf(ev, slot), pid)
+}
+
+/** The rows of the lock-in window's "Set hours" as a slot: null with every day
+ *  skipped, a plain slot with one day kept, its own hours per day with more. */
+export type DayRow = { dayKey: string; startMin: number; endMin: number; skip: boolean }
+export function slotFromRows(rows: DayRow[], placeIds: string[], openEnd: boolean): ConfirmedSlot | null {
+  const kept = rows.filter((r) => !r.skip).map(({ dayKey, startMin, endMin }) => ({ dayKey, startMin, endMin }))
+  if (!kept.length) return null
+  const flag = openEnd ? { openEnd: true } : {}
+  if (kept.length === 1) return { ...kept[0], placeIds, ...flag }
+  const first = kept[0], last = kept[kept.length - 1]
+  return { dayKey: first.dayKey, endDayKey: last.dayKey, startMin: first.startMin, endMin: last.endMin, placeIds, sessions: kept, ...flag }
+}
+
+/** Where the lock-in opens: on the grid's best run of `runLen` days (the run the
+ *  dial frames), or with one day on the best time so far. Null with no marks. */
+export function lockStart(ev: AppEvent, runLen: number): { dayKey: string; endDayKey: string } | null {
+  if (runLen >= 2) {
+    const b = planBestBlock(ev, runLen)
+    return b ? { dayKey: b.startKey, endDayKey: b.endKey } : null
   }
-  const gridStart = gridStartMinOf(ev)
-  const s = slot.startMin - gridStart
-  const e = slot.endMin - gridStart
-  return (availIv[slot.dayKey]?.[pid] ?? []).some((iv) => iv.s < e && iv.e > s)
+  const b = openBest(ev)
+  return b ? { dayKey: b.dayKey, endDayKey: b.dayKey } : null
+}
+
+/** An open end's soft end from a start: how late most of the group can stay, from
+ *  their marks, else two hours; never past the grid or midnight. Clock minutes. */
+export function openSoftEnd(ev: AppEvent, dayKey: string, startMin: number): number {
+  const gridEnd = gridStartMinOf(ev) + ev.times.length * stepOf(ev.granularity)
+  const stay = stayLine(ev, { dayKey, startMin, endMin: startMin })
+  return Math.min(stay ? stay.most : startMin + 120, gridEnd, 24 * 60)
+}
+
+/** The rows of a run's own hours before the host changes any: each day the hours
+ *  its own marks give (see planRunHours). A day nobody marked has no hours of its
+ *  own, so it starts skipped, holding the nearest marked day's hours for when it is
+ *  added back; with no marks on any day of the run every day is kept at 6 PM. */
+export function runRows(ev: AppEvent, keys: string[]): DayRow[] {
+  const g = gridStartMinOf(ev)
+  const days = keys.map((k) => ev.days.find((d) => d.key === k)).filter((d): d is GridDay => !!d)
+  const shared = planRunHours(ev, days)
+  const len = ev.durationMin ?? 60
+  return keys.map((k) => {
+    const own = shared.find((x) => x.dayKey === k)
+    const b = own ?? shared.find((x) => x.dayKey > k) ?? shared.findLast((x) => x.dayKey < k)
+    const startMin = b ? g + b.s : 18 * 60
+    const endMin = ev.openLength ? openSoftEnd(ev, k, startMin) : b ? g + b.e : Math.min(startMin + len, 24 * 60 - 5)
+    return { dayKey: k, startMin, endMin, skip: !own && shared.length > 0 }
+  })
 }
 
 // did this person mark any time at all on the plan's days
@@ -1196,7 +1342,7 @@ export function draftFromEvent(id: string): EventDraft | null {
   const bornWhole = !!c && ev.granularity === 'day' && (cAllDay || !!c.endDayKey)
     && ev.startDate === c.dayKey && ev.endDate === runEnd && ev.days.length === selectedDayKeys(c.dayKey, runEnd!, [], []).length
   const runSpan = (() => { const x = parseLocal(c?.dayKey ?? ''), y = parseLocal(runEnd ?? ''); return x && y ? Math.round((y.getTime() - x.getTime()) / 86400000) : 0 })()
-  const fixed = bornFixed && c ? { day: nextSameDow(c.dayKey), start: hm(c.startMin), end: hm(c.endMin) }
+  const fixed = bornFixed && c ? { day: nextSameDow(c.dayKey), start: hm(c.startMin), end: hm(c.endMin), ...(c.openEnd ? { openEnd: true } : {}) }
     : bornWhole && c ? { day: nextSameDow(c.dayKey), endDay: shift(nextSameDow(c.dayKey), runSpan), start: cAllDay ? '18:00' : hm(c.startMin), end: cAllDay ? '21:00' : hm(c.endMin), allDay: cAllDay }
     : undefined
   return {
@@ -1206,6 +1352,7 @@ export function draftFromEvent(id: string): EventDraft | null {
     granularity: ev.granularity,
     durationMin: ev.durationMin,
     bestMode: ev.bestMode,
+    openLength: ev.openLength,
     budget: ev.budget,
     budgetMode: ev.budgetMode,
     capacity: ev.capacity?.toString(),
@@ -1713,7 +1860,9 @@ export function createEvent(input: CreateInput): AppEvent {
   const fxRun = !!input.fixed && fxEnd !== input.fixed.day
   const fxAllDay = !!input.fixed?.allDay
   const fxS = input.fixed ? (fxAllDay ? 0 : parseHM(input.fixed.start)) : null
-  const fxE = input.fixed ? (fxAllDay ? 24 * 60 : parseHM(input.fixed.end)) : null
+  // an open end (one timed day): a start and no agreed end, held two hours for the grid
+  const fxOpen = !!input.fixed?.openEnd && !fxRun && !fxAllDay
+  const fxE = input.fixed ? (fxAllDay ? 24 * 60 : fxOpen && fxS !== null ? Math.min(fxS + 120, 24 * 60) : parseHM(input.fixed.end)) : null
   // on one day the end has to come after the start; across days it always does
   const fixed = input.fixed && fxS !== null && fxE !== null && (fxRun || fxE > fxS)
     ? { day: input.fixed.day, endDay: fxEnd ?? input.fixed.day, s: fxS, e: fxE, whole: fxAllDay || fxRun }
@@ -1789,6 +1938,8 @@ export function createEvent(input: CreateInput): AppEvent {
     itinStartMin: hasWin ? (winS as number) : fixed && !fxAllDay ? fixed.s : 9 * 60,
     durationMin: fixed?.whole ? 24 * 60 : fixed ? fixed.e - fixed.s : input.durationMin && input.durationMin >= 1 ? Math.min(24 * 60, input.durationMin) : 60,
     bestMode: input.bestMode,
+    // a poll can leave its length open, and so can a set day with an open end
+    ...((input.openLength && !fixed && input.granularity !== 'day') || (fixed && fxOpen) ? { openLength: true } : {}),
     capacity: input.capacity && Number(input.capacity) >= 1 ? Number(input.capacity) : undefined,
     ...(input.image ? { image: input.image, imageFit: input.imageFit, imagePos: input.imagePos } : {}),
     ...(input.keepsake ? { keepsake: input.keepsake } : {}),
@@ -1796,7 +1947,7 @@ export function createEvent(input: CreateInput): AppEvent {
     createdAt: Date.now(),
     status: fixed && !placeOpen ? 'confirmed' : 'planning',
     ...(fixed ? {
-      confirmed: { dayKey: fixed.day, ...(fixed.endDay !== fixed.day ? { endDayKey: fixed.endDay } : {}), startMin: fixed.s, endMin: fixed.e, placeIds: fixedPlaceIds },
+      confirmed: { dayKey: fixed.day, ...(fixed.endDay !== fixed.day ? { endDayKey: fixed.endDay } : {}), startMin: fixed.s, endMin: fixed.e, placeIds: fixedPlaceIds, ...(fxOpen ? { openEnd: true } : {}) },
       ...(placeOpen ? {} : { confirmedAt: Date.now() }),
       // the deadline rides along even while a ballot keeps the event planning — it
       // starts mattering the moment the place locks
