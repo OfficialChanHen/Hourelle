@@ -248,6 +248,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
 ## Data model (Supabase)
 
+**Migrations.** Several agents work at once on separate branches, so never pick the next number by hand. Make a migration with `npm run migration:new <slug>`: it names the file for the UTC second (`supabase/migrations/20261123184502_slug.sql`, the Supabase CLI format) and claims that second in the shared `.git/migration-claims/`, so two worktrees never get the same one. `0001` to `0024` keep their numbers (they were run by hand and sort first). Before merging, run `npm run migration:check`: it fails on a duplicate version, a new numbered name, or a `create or replace function` that another local branch also rewrites. Rewriting a function replaces it whole, so whichever copy runs last drops the other branch's change. Merge that branch first and build on its version.
+
 ```sql
 events (
   id          uuid primary key default gen_random_uuid(),

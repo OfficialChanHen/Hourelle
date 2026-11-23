@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "migration:new": "node scripts/migrations/migrations.mjs new",
+    "migration:check": "node scripts/migrations/migrations.mjs check"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
