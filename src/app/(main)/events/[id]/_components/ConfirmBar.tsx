@@ -18,6 +18,7 @@ import {
   type AppEvent, type ConfirmedSlot, type DayRow,
 } from '@/lib/events'
 import { DayHoursRows } from './DayHoursRows'
+import { fmtDur } from './availability/grid-lib'
 
 /* ── the host's one clear action while planning: lock in whatever is still open ──
    Usually that's a time and a place; when the date was fixed at creation the time
@@ -273,6 +274,16 @@ function ConfirmForm({ event, close, onChanged, onGoToLocation, prefill, runLen 
   // not a blocker, but worth a pause: locking with zero replies means the "best" day
   // is a guess
   const noReplies = answeredCount(event) === 0
+  // replies, but no day or run of days fits the plan's length: nothing is the best,
+  // so the day it opens on is a guess too
+  const noFit = timeSet || noReplies || dayPoll || (runMode ? start : bw) ? null
+    : runMode
+      ? openLen
+        ? `No ${wantRun} days in a row have someone free for an hour each day, so these days are a guess.`
+        : `No ${wantRun} days in a row have a ${fmtDur(duration)} stretch each day, so these days are a guess.`
+      : openLen
+        ? 'No one is free for an hour on any day, so this is a guess.'
+        : `No day has a ${fmtDur(duration)} stretch, so this is a guess.`
 
   // locking in opens the RSVP round, so the deadline for it is asked here — optional,
   // and soft: it nudges and shifts emphasis, late answers still count
@@ -510,7 +521,9 @@ function ConfirmForm({ event, close, onChanged, onGoToLocation, prefill, runLen 
       <div className="flex flex-col gap-2 border-t border-border px-5 py-3.5">
         {blockedReason
           ? <p className="text-[12.5px] font-medium text-brick-text" role="status">{blockedReason}</p>
-          : noReplies && <p className="text-[12.5px] font-medium text-ochre-text">No one has marked their times yet, so this is a guess.</p>}
+          : noReplies
+            ? <p className="text-[12.5px] font-medium text-ochre-text">No one has marked their times yet, so this is a guess.</p>
+            : noFit && <p className="text-[12.5px] font-medium text-ochre-text">{noFit}</p>}
         <div className="flex flex-wrap items-center justify-end gap-2.5">
           <button type="button" onClick={close} className="flex h-11 items-center rounded-full border border-border2 bg-s1 px-4 text-[14px] font-medium hover:bg-s2 sm:h-9">
             Cancel
