@@ -54,8 +54,10 @@ describe('the rows of a run before the host changes any', () => {
   it('uses the plan’s length on a run of days when the length is set', () => {
     const rows = runRows({ ...ev, openLength: undefined }, keys(0, 3))
     expect(rows.map((r) => [r.startMin, r.endMin])).toEqual([
-      [at(17, 30), at(19, 30)], [at(17), at(20, 30)], [at(19), at(21)],
+      [at(17, 30), at(19, 30)], [at(17), at(19)], [at(19), at(21)],
     ])
+    const longer = runRows({ ...ev, openLength: undefined, durationMin: 150 }, keys(1, 1))
+    expect(longer.map((r) => [r.startMin, r.endMin])).toEqual([[at(17), at(19, 30)]])
   })
 })
 

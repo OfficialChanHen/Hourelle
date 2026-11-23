@@ -1344,15 +1344,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     () => bestBlock(viewCombinedByDay, event.days, blockLen, bestMode, viewNeedByDay, dayPoll ? 0 : openSearch ? MIN_STAY : durationMin),
     [viewCombinedByDay, viewNeedByDay, blockLen, bestMode, dayPoll, openSearch, durationMin], // eslint-disable-line react-hooks/exhaustive-deps
   )
-  // with the dial on a run of days, each day of the winning run is framed at the hours
-  // the most people share there, the same hours the lock-in offers, so the frames step
-  // up and down across the run as the days differ
+  // with the dial on a run of days, each day of the winning run is framed at its own
+  // best window of the plan's length, the same hours the lock-in offers, so the frames
+  // follow the length control and step up and down across the run as the days differ
   const runFrames = useMemo(() => {
     if (dayPoll || lockedFrames || !block || blockLen < 2) return null
     const runDays = event.days.filter((d) => d.key >= block.startKey && d.key <= block.endKey)
-    if (!openSearch) return runHours(viewCombinedByDay, runDays, durationMin, viewNeedByDay)
+    if (!openSearch) return runHours(viewCombinedByDay, runDays, durationMin, viewNeedByDay, bestMode)
     return runDays.flatMap((d) => { const b = bestOpenStart(viewCombinedByDay, [d], viewNeedByDay); return b ? [{ dayKey: d.key, s: b.s, e: b.e }] : [] })
-  }, [dayPoll, lockedFrames, block, blockLen, viewCombinedByDay, viewNeedByDay, durationMin, openSearch]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dayPoll, lockedFrames, block, blockLen, viewCombinedByDay, viewNeedByDay, durationMin, bestMode, openSearch]) // eslint-disable-line react-hooks/exhaustive-deps
   const frames = lockedFrames ?? runFrames
   const frameFor = (k: string) => (frames ? frames.find((f) => f.dayKey === k) : frame && frame.dayKey === k ? frame : undefined)
   const blockDayLabel = (k: string) => {
@@ -1548,15 +1548,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     {isHost && !dayPoll && (
                       <SettingToggle label="Length unknown" on={openLength} onChange={changeOpenLength} hint={openLength ? 'The best time is when the most people can start and stay longest.' : undefined} />
                     )}
-                    {/* a run of days on a timed poll still has a length: each day's hours
-                        hold at least this long where the marks allow */}
+                    {/* a run of days on a timed poll still has a length: each day is framed
+                        at its best window this long */}
                     {isHost && !dayPoll && !openLength && (
                       <div className="px-2.5 py-3">
                         <DurationField
                           value={durationMin} max={Math.max(step, event.times.length * step)} onChange={changeDuration}
                           title={<span className="flex-1 text-[13px] font-semibold text-text">How long it lasts</span>}
                         />
-                        <p className="mt-1.5 text-[12px] leading-[1.5] text-faint">{daysAnswer ? 'Each day’s best hours run at least this long.' : 'The best time is a stretch this long.'}</p>
+                        <p className="mt-1.5 text-[12px] leading-[1.5] text-faint">{daysAnswer ? 'Each day’s best hours are a stretch this long.' : 'The best time is a stretch this long.'}</p>
                       </div>
                     )}
                     {/* one question with a default: off favors everyone staying, on the biggest crowd.
