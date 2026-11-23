@@ -3,8 +3,9 @@
 // The browser's side of email: ask the server to send, carrying the session token
 // that proves who is asking. Nothing here holds a mail key; the routes do the work.
 
-import { supabase, backendOn } from './db'
+import { supabase, backendOn, keptError } from './db'
 import type { NotifyPrefs } from './prefs'
+import { rejected } from './remote'
 
 async function authHeaders(): Promise<Record<string, string> | null> {
   if (!backendOn) return null
@@ -66,9 +67,14 @@ export async function loadReminderPrefs(userId: string): Promise<NotifyPrefs | n
   const { data } = await supabase!.from('profiles').select('reminders').eq('id', userId).maybeSingle()
   return (data?.reminders as NotifyPrefs | undefined) ?? null
 }
-export async function saveReminderPrefs(userId: string, prefs: NotifyPrefs): Promise<void> {
-  if (!backendOn) return
-  await supabase!.from('profiles').update({ reminders: prefs }).eq('id', userId)
+/** Null once the account has them; otherwise why not. A switch flips at once, so a
+ *  save that did not land raises the Not saved notice rather than failing quietly. */
+export async function saveReminderPrefs(userId: string, prefs: NotifyPrefs): Promise<string | null> {
+  if (!backendOn) return null
+  let err: string | null
+  try { err = keptError(await supabase!.from('profiles').update({ reminders: prefs }).eq('id', userId).select('id')) } catch { err = 'The change did not reach the server.' }
+  if (err) rejected('save your reminders', err)
+  return err
 }
 
 /** Can this browser send email on the host's behalf: a backend, a real login, and

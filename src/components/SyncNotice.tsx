@@ -2,7 +2,7 @@
 
 // When the database refuses a write, the local copy has already changed and the UI
 // has already moved on — so without this the change would look saved to you and be
-// invisible to everyone else. This says so plainly and reloads to the real state.
+// invisible to everyone else. This says Not saved, why, and reloads to the real state.
 
 import { useEffect, useState } from 'react'
 import { TriangleAlert } from 'lucide-react'
@@ -24,7 +24,7 @@ export function SyncNotice() {
   useEffect(() => {
     const onRejected = (e: Event) => {
       const detail = (e as CustomEvent<{ action: string; message: string }>).detail
-      setNotice(humanize(detail?.message ?? 'That change could not be saved.'))
+      setNotice(humanize(detail?.message ?? 'That change did not reach the server.'))
     }
     window.addEventListener(PUSH_REJECTED, onRejected)
     return () => window.removeEventListener(PUSH_REJECTED, onRejected)
@@ -39,12 +39,12 @@ export function SyncNotice() {
       <div className="flex items-start gap-2.5 rounded-2xl border border-brick-border bg-brick-bg px-4 py-3">
         <TriangleAlert size={15} className="mt-0.5 flex-none text-brick-text" />
         <div className="min-w-0">
-          <p className="text-[13px] leading-[1.5] text-brick-text">{notice}</p>
+          <p className="text-[13px] leading-[1.5] text-brick-text"><span className="font-semibold">Not saved.</span> {notice}</p>
           <button
             onClick={() => window.location.reload()}
             className="mt-1 text-[12.5px] font-semibold text-brick-text underline underline-offset-2"
           >
-            Reload to see what everyone else sees
+            Reload to see what is saved
           </button>
         </div>
       </div>

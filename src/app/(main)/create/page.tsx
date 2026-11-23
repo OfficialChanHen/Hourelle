@@ -28,7 +28,7 @@
 import { Suspense, useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { pushFlash } from '@/components/ui/FlashToast'
-import { fetchEvent } from '@/lib/remote'
+import { fetchEvent, whenCreated } from '@/lib/remote'
 import { CoverEditor, styleSummary, type ImageFit } from '@/components/ui/CoverEditor'
 import type { CardDetail } from '@/components/ui/Keepsake'
 import { coverPresetOf } from '@/components/ui/Cover'
@@ -506,7 +506,9 @@ function CreateWizard() {
         pushFlash(`The invites could not be emailed. ${r.ok ? r.data.reason ?? '' : r.error} Personal links are on the plan page.`.replace('  ', ' '), 'brick')
       })
     }
-    pushFlash(sending ? `Your plan is live. Emailing ${emailed} ${emailed === 1 ? 'invite' : 'invites'}.` : 'Your plan is live. Share the link so people can join.')
+    // live only once the database has it; a refusal raises the Not saved notice instead
+    const live = sending ? `Your plan is live. Emailing ${emailed} ${emailed === 1 ? 'invite' : 'invites'}.` : 'Your plan is live. Share the link so people can join.'
+    void whenCreated(ev.id).then((r) => { if (r.ok) pushFlash(live) })
     router.push(`/events/${ev.id}`)
   }
 

@@ -7,7 +7,7 @@
 // With no backend configured, or nobody signed in, the cache holds STUB — the
 // demo identity the app has always used — so every screen keeps working.
 
-import { supabase, backendOn } from './db'
+import { supabase, backendOn, keptError } from './db'
 import { resetAppearance, resetHints, setTourWanted } from './prefs'
 import { forgetPlan } from './plan'
 import type { PersonColor } from './colors'
@@ -185,8 +185,9 @@ export async function syncLegalAcceptance(): Promise<void> {
   if (!note || note.synced) return
   const { data } = await supabase!.auth.getSession()
   if (!data.session) return
-  const { error } = await supabase!.from('profiles').update({ terms_version: note.version, terms_accepted_at: new Date(note.at).toISOString() }).eq('id', data.session.user.id)
-  if (error) return
+  // kept for the next try unless the row really took it
+  const r = await supabase!.from('profiles').update({ terms_version: note.version, terms_accepted_at: new Date(note.at).toISOString() }).eq('id', data.session.user.id).select('id')
+  if (keptError(r)) return
   try { localStorage.removeItem(LEGAL_KEY) } catch { /* private mode */ }
 }
 
@@ -369,8 +370,9 @@ export async function updateProfile(patch: { name?: string; color?: PersonColor 
   const name = patch.name?.trim()
   if (patch.name !== undefined && (!name || name.length < 2)) return 'A name needs at least two characters.'
   if (backendOn) {
-    const { error } = await supabase!.from('profiles').update({ ...(name ? { name } : {}), ...(patch.color ? { color: patch.color } : {}) }).eq('id', acc.id)
-    if (error) return error.message
+    // "Saved" only if the row came back: a filtered-out update reports no error
+    const err = keptError(await supabase!.from('profiles').update({ ...(name ? { name } : {}), ...(patch.color ? { color: patch.color } : {}) }).eq('id', acc.id).select('id'))
+    if (err) return err
     // a picked colour is remembered as picked. Its own write, and a refusal is
     // swallowed: a database still on the migration before color_set keeps working
     if (patch.color) await supabase!.from('profiles').update({ color_set: true }).eq('id', acc.id)
@@ -431,8 +433,8 @@ export async function resetProfile(): Promise<{ name: string } | { error: string
     const { data } = await supabase!.auth.getUser()
     const meta = (data.user?.user_metadata ?? {}) as { name?: string; full_name?: string }
     name = meta.name?.trim() || meta.full_name?.trim() || name
-    const { error } = await supabase!.from('profiles').update({ name, color_set: false }).eq('id', acc.id)
-    if (error) return { error: error.message }
+    const err = keptError(await supabase!.from('profiles').update({ name, color_set: false }).eq('id', acc.id).select('id'))
+    if (err) return { error: err }
   }
   writeCache({ ...acc, name, colorChosen: false })
   return { name }

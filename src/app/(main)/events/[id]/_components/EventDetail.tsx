@@ -63,7 +63,7 @@ import { Hint } from '@/components/ui/Hint'
 import { Tour, type TourContext } from '@/components/Tour'
 import { AskTour } from '@/components/AskTour'
 import { cleanEmail, isEmail, meetingHref, onMeeting, wholeAmount } from '@/lib/forgiving'
-import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, patchEventWith, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp } from '@/lib/events'
+import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, patchEventWith, appendMessage, claimEvent, availIvOf, bestWindow, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp, type SaveResult } from '@/lib/events'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -349,10 +349,12 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
   }
   // persist a field and update the in-memory event in one move, so everything reading
   // `event` (the header, an open lock-in dropdown) reflects the edit immediately
-  function patchLive(patch: Partial<AppEvent>) {
-    if (!event) return
-    if (!event.demo) patchEvent(event.id, patch)
+  // resolves once the database has the change (a field's "Saved" waits on it)
+  function patchLive(patch: Partial<AppEvent>): Promise<SaveResult> {
+    if (!event) return Promise.resolve({ ok: true })
+    const saved = event.demo ? Promise.resolve<SaveResult>({ ok: true }) : patchEvent(event.id, patch)
     setEvent((ev) => (ev ? { ...ev, ...patch } : ev))
+    return saved
   }
   // your own face on this event, from Change face on the participant list. Only
   // your entry is touched, worked out from the copy saved on this device right now
@@ -657,13 +659,14 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
 /* Renaming a plan, shared by the header and the Details row. The name saves itself
    once typing pauses (lib/autosave), and at once on Enter or blur; Escape puts back the
    name it had when editing began. An empty name is not a name, so it is never saved. */
-function useNameEdit(title: string, onSave: (t: string) => void) {
+function useNameEdit(title: string, onSave: (t: string) => Promise<SaveResult> | void) {
   const [editing, setEditing] = useState(false)
   const before = useRef(title)
   const auto = useAutosave<string>(onSave)
   return {
     editing,
     status: auto.status,
+    retry: auto.retry,
     begin() { before.current = title; setEditing(true) },
     input: {
       defaultValue: title, autoFocus: true, maxLength: 80, 'aria-label': 'Plan name',
@@ -686,7 +689,7 @@ function useNameEdit(title: string, onSave: (t: string) => void) {
 }
 
 /* the event name is the host's to change: click the pencil and type */
-function EditableTitle({ title, editable, onSave }: { title: string; editable: boolean; onSave: (t: string) => void }) {
+function EditableTitle({ title, editable, onSave }: { title: string; editable: boolean; onSave: (t: string) => Promise<SaveResult> | void }) {
   const name = useNameEdit(title, onSave)
   // wraps anywhere: one long word in a title must never widen the page past a phone screen
   const h1 = 'font-serif font-normal text-[34px] leading-[1.02] tracking-[-0.01em] [overflow-wrap:anywhere] sm:text-[48px]'
@@ -704,17 +707,20 @@ function EditableTitle({ title, editable, onSave }: { title: string; editable: b
           </button>
         </>
       )}
-      <SaveStatus status={name.status} />
+      <SaveStatus status={name.status} onRetry={name.retry} />
     </span>
   )
 }
+
+// a change to the plan, resolving once the database has it
+type PatchEvent = (patch: Partial<AppEvent>) => Promise<SaveResult> | void
 
 type DetailsGoTab = (t: 'availability' | 'location') => void
 
 /* ── Details tab ── */
 function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onPatch, onSetMyFace, onViewAvailability, spotlightDelete = false, openInvite = 0 }: {
   event: AppEvent; onDelete: () => void; onLeave: () => void; onGoToTab: DetailsGoTab; onGoToBestWindow: () => void
-  onPatch: (patch: Partial<AppEvent>) => void; onSetMyFace: (face: Face) => void; onViewAvailability: (pid: string) => void; spotlightDelete?: boolean
+  onPatch: PatchEvent; onSetMyFace: (face: Face) => void; onViewAvailability: (pid: string) => void; spotlightDelete?: boolean
   openInvite?: number
 }) {
   // host or co-host: they run the plan. The budget and deleting stay the host's
@@ -855,7 +861,7 @@ const PLAN_GROUP: Record<PlanGroup, { label: string; color: string; bg: string }
   none: { label: 'No reply', color: 'var(--faint)', bg: 'var(--s2)' },
 }
 function ParticipantsCard({ event, isHost, onPatch, onSetMyFace, onViewAvailability, openInvite = 0 }: {
-  event: AppEvent; isHost: boolean; onPatch: (patch: Partial<AppEvent>) => void; onSetMyFace: (face: Face) => void; onViewAvailability: (pid: string) => void
+  event: AppEvent; isHost: boolean; onPatch: PatchEvent; onSetMyFace: (face: Face) => void; onViewAvailability: (pid: string) => void
   openInvite?: number
 }) {
   const locked = event.status === 'confirmed' && !!event.confirmed
@@ -952,7 +958,7 @@ function ParticipantsCard({ event, isHost, onPatch, onSetMyFace, onViewAvailabil
 
 /* the host can keep inviting by email after the event exists: a row that opens into
    the same chip box the created screen has. Only when the app can send. */
-function InviteMore({ event, onPatch, openNonce = 0 }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void; openNonce?: number }) {
+function InviteMore({ event, onPatch, openNonce = 0 }: { event: AppEvent; onPatch: PatchEvent; openNonce?: number }) {
   const account = useAccount()
   // asked open from elsewhere (the share card): open on arrival, and again on a repeat ask
   const [open, setOpen] = useState(openNonce > 0)
@@ -995,7 +1001,7 @@ function InviteMore({ event, onPatch, openNonce = 0 }: { event: AppEvent; onPatc
 }
 
 /* host actions per person: mark their reply for them, share the link, or remove them */
-function ParticipantMenu({ p, event, onPatch }: { p: AppEvent['participants'][number]; event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
+function ParticipantMenu({ p, event, onPatch }: { p: AppEvent['participants'][number]; event: AppEvent; onPatch: PatchEvent }) {
   return (
     <Popover width={216} align="end" className="flex-none" label={`Options for ${p.name}`} trigger={() => (
       <span className="grid h-7 w-7 place-items-center rounded-[7px] text-faint hover:bg-s2 hover:text-dim"><EllipsisVertical size={14} /></span>
@@ -1006,7 +1012,7 @@ function ParticipantMenu({ p, event, onPatch }: { p: AppEvent['participants'][nu
 }
 
 function ParticipantMenuBody({ p, event, onPatch, close }: {
-  p: AppEvent['participants'][number]; event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void; close: () => void
+  p: AppEvent['participants'][number]; event: AppEvent; onPatch: PatchEvent; close: () => void
 }) {
   const [confirmRemove, setConfirmRemove] = useState(false)
   const first = p.name.split(' ')[0]
@@ -1153,7 +1159,7 @@ function CopyInviteLink({ id }: { id: string }) {
    polled with the leading time so far beneath it. */
 function WhenValue({ event, editable, onGoToAvailability, onGoToBestWindow, onPatch }: {
   event: AppEvent; editable: boolean
-  onGoToAvailability: () => void; onGoToBestWindow: () => void; onPatch: (patch: Partial<AppEvent>) => void
+  onGoToAvailability: () => void; onGoToBestWindow: () => void; onPatch: PatchEvent
 }) {
   const [editing, setEditing] = useState(false)
   if (event.confirmed) {
@@ -1237,7 +1243,7 @@ function deriveExclusions(ev: AppEvent): { dows: number[]; days: string[] } {
   return { dows, days: missing.filter((k) => !dowSet.has(dowOf(k))) }
 }
 
-function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void; onDone: () => void }) {
+function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: PatchEvent; onDone: () => void }) {
   const [start, setStart] = useState(event.startDate)
   const [end, setEnd] = useState(event.endDate)
   const [dur, setDur] = useState(event.durationMin ?? 60)
@@ -1316,7 +1322,7 @@ function WhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (pat
    unless it is all day. Moving it rebuilds the grid around the new slot (a timed day's
    hours, or a run's days) and clears the can-you-come replies: they answered a slot
    that no longer exists. */
-function FixedWhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void; onDone: () => void }) {
+function FixedWhenEditor({ event, onPatch, onDone }: { event: AppEvent; onPatch: PatchEvent; onDone: () => void }) {
   const c = event.confirmed!
   const [day, setDay] = useState(c.dayKey)
   const [endDay, setEndDay] = useState(c.endDayKey ?? c.dayKey)
@@ -1428,7 +1434,7 @@ function DeadlineValue({ label, value, editable, onChange, hint, max }: {
 /* Where: the confirmed venue once locked; before that, the vote leader for a single venue,
    or a pointer to the itinerary on the Location tab. */
 /* Spots: the host caps the guest list; everyone sees the number, only the host edits it */
-function CapacityValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
+function CapacityValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: PatchEvent }) {
   const [v, setV] = useState(event.capacity?.toString() ?? '')
   const auto = useAutosave<number | undefined>((capacity) => onPatch({ capacity }))
   const going = event.participants.filter((p) => p.rsvp === 'attending').length
@@ -1450,14 +1456,14 @@ function CapacityValue({ event, editable, onPatch }: { event: AppEvent; editable
         value={v} onChange={(e) => change(e.target.value)} onBlur={auto.flush} inputMode="numeric" placeholder="No limit" aria-label="Spots"
         className="h-8 w-[110px] rounded-[8px] border border-border bg-s0 px-2.5 text-[13.5px] font-medium outline-none focus-within:border-accent"
       />
-      <SaveStatus status={auto.status} />
+      <SaveStatus status={auto.status} onRetry={auto.retry} />
     </span>
   )
 }
 
 function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
   event: AppEvent; locked: boolean; onGoToLocation: () => void
-  editable: boolean; onPatch: (patch: Partial<AppEvent>) => void
+  editable: boolean; onPatch: PatchEvent
 }) {
   const [copied, setCopied] = useState(false)
   const [editingOnline, setEditingOnline] = useState(false)
@@ -1586,7 +1592,7 @@ function WhereValue({ event, locked, onGoToLocation, editable, onPatch }: {
 /* Style: collapsed to the current cover, a line naming it and the card's detail, and
    a "Change" link; the shared editor, with its preview, the fill/fit choice and the
    detail tiles, opens only when asked for */
-function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
+function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: PatchEvent }) {
   const [editing, setEditing] = useState(false)
   if (!editing) {
     return (
@@ -1610,7 +1616,7 @@ function CoverPicker({ event, onPatch }: { event: AppEvent; onPatch: (patch: Par
 }
 
 /* Name: the same rename the header offers, here where the rest of the event is edited */
-function NameValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
+function NameValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: PatchEvent }) {
   const name = useNameEdit(event.title, (title) => onPatch({ title }))
   if (!editable) return <>{event.title}</>
   return (
@@ -1625,13 +1631,13 @@ function NameValue({ event, editable, onPatch }: { event: AppEvent; editable: bo
           </button>
         </>
       )}
-      <SaveStatus status={name.status} />
+      <SaveStatus status={name.status} onRetry={name.retry} />
     </span>
   )
 }
 
 /* Description: hosts edit it in place; everyone else just reads it */
-function DescriptionValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
+function DescriptionValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: PatchEvent }) {
   const [desc, setDesc] = useState(event.description)
   const [editing, setEditing] = useState(false)
   const ref = useRef<HTMLTextAreaElement>(null)
@@ -1711,7 +1717,7 @@ function BudgetReadOnly({ event }: { event: AppEvent }) {
 
 /* Budget: hosts adjust the amount and flip between per-person and total; the caption
    works out the other side of the math from whoever has marked availability so far */
-function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Partial<AppEvent>) => void }) {
+function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: PatchEvent }) {
   const [budget, setBudget] = useState(event.budget)
   const [mode, setMode] = useState<'total' | 'person'>(event.budgetMode ?? 'total')
   const auto = useAutosave<string>((b) => onPatch({ budget: b }))
@@ -1753,7 +1759,7 @@ function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Pa
             </button>
           ))}
         </div>
-        <SaveStatus status={auto.status} />
+        <SaveStatus status={auto.status} onRetry={auto.retry} />
       </div>
       <BudgetConverse amount={amount} mode={mode} responded={responded} />
       {amount > 0 && responded === 0 && (
@@ -1764,7 +1770,7 @@ function BudgetEditor({ event, onPatch }: { event: AppEvent; onPatch: (patch: Pa
 }
 
 /* ── Expenses: actual spend against the plan, split across whoever has replied ── */
-function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boolean; onPatch: (patch: Partial<AppEvent>) => void }) {
+function ExpensesCard({ event, isHost, onPatch }: { event: AppEvent; isHost: boolean; onPatch: PatchEvent }) {
   const [label, setLabel] = useState('')
   const [amt, setAmt] = useState('')
   const [needLabel, setNeedLabel] = useState(false)

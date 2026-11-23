@@ -1,13 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createAutosave, type Autosave, type SaveStatus } from '@/lib/autosave'
+import { createAutosave, type Autosave, type Commit, type SaveStatus } from '@/lib/autosave'
 
 /* lib/autosave for a component: the status to show beside the field, and change /
-   flush / cancel. `commit` is read when the write happens, so it always sees the
+   flush / cancel / retry. `commit` is read when the write happens, so it always sees the
    latest props. A change still waiting is written when the field unmounts or the
    page is hidden (tab closed, app switched on a phone). */
-export function useAutosave<T>(commit: (value: T) => void): Omit<Autosave<T>, 'dispose'> & { status: SaveStatus } {
+export function useAutosave<T>(commit: Commit<T>): Omit<Autosave<T>, 'dispose'> & { status: SaveStatus } {
   const [status, setStatus] = useState<SaveStatus>('idle')
   const commitRef = useRef(commit)
   useEffect(() => { commitRef.current = commit })
@@ -31,5 +31,6 @@ export function useAutosave<T>(commit: (value: T) => void): Omit<Autosave<T>, 'd
   const change = useCallback((value: T) => get().change(value), [get])
   const flush = useCallback(() => autoRef.current?.flush(), [])
   const cancel = useCallback(() => get().cancel(), [get])
-  return { change, flush, cancel, status }
+  const retry = useCallback(() => autoRef.current?.retry(), [])
+  return { change, flush, cancel, retry, status }
 }
