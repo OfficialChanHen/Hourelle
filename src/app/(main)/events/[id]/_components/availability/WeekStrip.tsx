@@ -5,7 +5,7 @@ import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { reducedMotion } from '@/lib/prefs'
 
-export type WeekChip = { label: string; count: number; you: boolean }
+export type WeekChip = { label: string; count: number; you: boolean; out?: boolean } // out: you said you can't make it
 
 /* ── the week strip ──
    One segment per week of a poll that runs over several, on a single track like the
@@ -132,6 +132,12 @@ export function WeekStrip({ weeks, total, value, onChange, idBase, panelId }: {
                 <span className="whitespace-nowrap text-[12px] tabular-nums sm:text-[11.5px]">
                   <span className="sr-only">, </span>{n} of {whole}<span className="sr-only"> answered</span>
                 </span>
+                {w.out && (
+                  <>
+                    <span aria-hidden className="h-[7px] w-[7px] flex-none rounded-full border border-brick bg-brick-bg" />
+                    <span className="sr-only">, you can&rsquo;t make it</span>
+                  </>
+                )}
                 {w.you && (
                   <>
                     <span aria-hidden className="h-[7px] w-[7px] flex-none rounded-full" style={{ background: 'var(--you-many)', boxShadow: 'inset 0 0 0 1px var(--you-text)' }} />

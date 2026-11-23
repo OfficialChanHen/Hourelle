@@ -6,7 +6,7 @@
 // reads its own days out of the answer in its own timezone through the same
 // `planImport` the plan page uses. One trip to Google or Microsoft whatever the count.
 
-import { freeIvOf, getEvent, gridStartMinOf, listEvents, myTimesPatch, nowIn, patchEventWith, phaseOf, stepOf, youReplied, type AppEvent, type AvailIntervals, type Iv } from './events'
+import { freeIvOf, getEvent, gridStartMinOf, listEvents, myTimesPatch, nowIn, outOnDay, patchEventWith, phaseOf, stepOf, youReplied, type AppEvent, type AvailIntervals, type Iv } from './events'
 import { planUsualWeek, type UsualWeek } from './usual-week'
 import { gridSpanUtc, ISO_DAY, lockedPlanBusyUtc, mockBusyUtc, planImport, googleBusyRange, outlookBusyRange, type UtcBusy } from './calendar-import'
 
@@ -64,7 +64,9 @@ export function applyFill(ids: string[], source: UtcBusy[] | { week: UsualWeek }
   const fill = (ev: AppEvent, meId: string, mine: Record<string, Iv[]>) => {
     // your if-need-be marks are never painted over as free
     const need = myRows(ev.needIv, meId, ev.days)
-    return Array.isArray(source) ? planImport(ev, meId, mine, busy, need) : planUsualWeek(ev, meId, mine, source.week, need, busy)
+    // a week you said you can't make stays that way: its days are not filled
+    const open = { ...ev, days: ev.days.filter((d) => !outOnDay(ev, meId, d.key)) }
+    return Array.isArray(source) ? planImport(open, meId, mine, busy, need) : planUsualWeek(open, meId, mine, source.week, need, busy)
   }
   const results: FillResult[] = []
   const undo: Before[] = []

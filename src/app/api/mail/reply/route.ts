@@ -12,7 +12,7 @@ import { emailsFor, eventRow, lastMailRefusal, mailConfigured, prefsFor, replyMa
 export const runtime = 'nodejs'
 
 type Body = { eventId?: string; participantId?: string }
-type AnswerRow = { participant_id: string; unavailable: boolean | null; intervals: Record<string, unknown[]> | null }
+type AnswerRow = { participant_id: string; unavailable: boolean | null; unavailable_weeks?: string[] | null; intervals: Record<string, unknown[]> | null }
 
 export async function POST(req: Request) {
   let body: Body
@@ -38,8 +38,9 @@ export async function POST(req: Request) {
   if (!pref || pref.email === false || pref.replies !== true) return NextResponse.json({ sent: false, reason: 'not wanted' })
 
   // an answer has to exist before anyone is told about it
-  const { data: rows } = await db.from('availability').select('participant_id, unavailable, intervals').eq('event_id', ev.id)
-  const answered = ((rows ?? []) as AnswerRow[]).filter((r) => r.participant_id !== host.id && (r.unavailable || Object.values(r.intervals ?? {}).some((v) => v.length > 0)))
+  // every column, so a database without the weeks out (migration 0024) still answers
+  const { data: rows } = await db.from('availability').select('*').eq('event_id', ev.id)
+  const answered = ((rows ?? []) as AnswerRow[]).filter((r) => r.participant_id !== host.id && (r.unavailable || !!r.unavailable_weeks?.length || Object.values(r.intervals ?? {}).some((v) => v.length > 0)))
   if (!answered.some((r) => r.participant_id === p.id)) return NextResponse.json({ sent: false, reason: 'no answer yet' })
 
   const to = (await emailsFor(db, [host])).get(host.id)

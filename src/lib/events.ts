@@ -116,6 +116,7 @@ export type AppEvent = {
   capacity?: number                   // host-set spot limit; going is first come, first served
   expenses?: EventExpense[]           // actual spend logged against the budget
   unavailableIds?: string[]           // declared "none of these days work" — an explicit empty reply, not silence
+  unavailableWeeks?: Record<string, string[]> // pid → the weeks they said they can't make, each named by its Sunday (weekKeyOf)
   image?: string                      // cover: 'preset:<id>' or a downscaled data URL the host uploaded
   imageFit?: 'fill' | 'fit'           // a photo cropped to the frame, or shown whole on its most common colour
   // which part of a cropped photo to keep, as percentages, the way object-position
@@ -527,6 +528,7 @@ export {
   intervalsToGrid, availIvOf, freeIvOf, unionIv, applyBrush, fullAvailIvOf, myTimesPatch, byParticipant, byDay, type PersonAnswer, type Brush,
 } from './availability'
 import { ALL_DAY, stepOf, normalizeIv, intervalsToGrid, availIvOf, freeIvOf, unionIv, applyBrush, gridStartMinOf } from './availability'
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/ // a day named by its date (a day poll on weekdays is not)
 export function buildTimes(gran: string, fromMin = 0, toMin = 24 * 60): string[] {
   if (gran === 'day') return [ALL_DAY]
   const step = gran === '15' ? 15 : gran === '60' ? 60 : 30
@@ -996,6 +998,7 @@ export function mergeParticipantsPatch(ev: AppEvent, fromId: string, intoId: str
       .map((p) => (p.id === intoId && p.rsvp === 'pending' && from && from.rsvp !== 'pending' ? { ...p, rsvp: from.rsvp, rsvpAuto: from.rsvpAuto } : p)),
     availIv, needIv, avail, votes,
     unavailableIds: ev.unavailableIds ? dedupe(ev.unavailableIds) : ev.unavailableIds,
+    unavailableWeeks: mergeWeeks(ev.unavailableWeeks, fromId, intoId),
     messages: ev.messages.map((m) => (m.id === fromId ? { ...m, id: intoId } : m)),
     location: { ...ev.location, places: ev.location.places.map((pl) => (pl.addedBy === fromId ? { ...pl, addedBy: intoId } : pl)) },
   }
@@ -1014,6 +1017,7 @@ export function removeParticipantPatch(ev: AppEvent, pid: string): Partial<AppEv
     participants: ev.participants.filter((p) => p.id !== pid),
     removedIds: [...new Set([...(ev.removedIds ?? []), pid])],
     unavailableIds: ev.unavailableIds?.filter((id) => id !== pid),
+    unavailableWeeks: withoutWeeks(ev.unavailableWeeks, pid),
     importedIv: drop(ev.importedIv),
     messages: ev.messages.filter((m) => m.id !== pid),
     avail: Object.fromEntries(Object.entries(ev.avail).map(([k, rows]) => [k, rows.map((ids) => ids.filter((id) => id !== pid))])),
@@ -1109,7 +1113,8 @@ export function confirmEvent(id: string, slot: ConfirmedSlot): void {
   // locking in opens the RSVP round with an assumption instead of a blank, each marked
   // so the person can undo it:
   // - availability covering the whole slot starts as going
-  // - a declared "no days work", or times that all fall outside the slot, start as can't go
+  // - a declared "no days work" or "can't make this week" for the slot's week, or
+  //   times that all fall outside the slot, start as can't go
   // - times that cover part of it (late, early) and no times at all start at no reply
   const ev = getEvent(id)
   const participants = ev?.participants.map((p): Participant => {
@@ -1117,7 +1122,7 @@ export function confirmEvent(id: string, slot: ConfirmedSlot): void {
     if (slotFits(ev, slot, p.id, true)) return { ...p, rsvp: 'attending', rsvpAuto: true }
     // covered, but only with an if-need-be mark's help
     if (slotFits(ev, slot, p.id)) return { ...p, rsvp: 'maybe', rsvpAuto: true }
-    if (ev.unavailableIds?.includes(p.id)) return { ...p, rsvp: 'not_going', rsvpAuto: true }
+    if (ev.unavailableIds?.includes(p.id) || outOnDay(ev, p.id, slot.dayKey)) return { ...p, rsvp: 'not_going', rsvpAuto: true }
     if (markedAny(ev, p.id) && !slotTouches(ev, slot, p.id)) return { ...p, rsvp: 'not_going', rsvpAuto: true }
     return { ...p, rsvp: 'pending', rsvpAuto: undefined }
   })
@@ -1234,7 +1239,7 @@ export function draftFromEvent(id: string): EventDraft | null {
 // have you answered this poll at all — marked a time, or declared no days work
 export function youReplied(ev: AppEvent): boolean {
   const my = myIdIn(ev)
-  if (ev.unavailableIds?.includes(my)) return true
+  if (ev.unavailableIds?.includes(my) || weeksOutOf(ev, my).length) return true
   if (ev.needIv && Object.values(ev.needIv).some((day) => (day[my] ?? []).length > 0)) return true
   if (ev.availIv) return Object.values(ev.availIv).some((day) => (day[my] ?? []).length > 0)
   return Object.values(ev.avail).some((rows) => rows.some((cell) => cell.includes(my)))
@@ -1260,14 +1265,48 @@ export function eventTabFor(ev: AppEvent): string {
   return base
 }
 
+/* ── a week you can't make ──
+   On a poll that runs over several weeks, a person can say one week is out and still
+   mark the others. A week is named by its Sunday's ISO day, the same weeks the grid
+   pages by (padToWeeks), so the name holds when the poll's days change. Weeks the
+   plan no longer covers are kept but ignored. */
+export function weekKeyOf(dayKey: string): string {
+  const [y, m, d] = dayKey.split('-').map(Number)
+  const x = new Date(y, m - 1, d)
+  x.setDate(x.getDate() - x.getDay())
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
+}
+/** The weeks this person said they can't make that still hold one of the plan's days. */
+export function weeksOutOf(ev: Pick<AppEvent, 'days' | 'unavailableWeeks'>, pid: string): string[] {
+  const said = ev.unavailableWeeks?.[pid]
+  if (!said?.length) return []
+  const live = new Set(ev.days.filter((d) => ISO_DAY.test(d.key)).map((d) => weekKeyOf(d.key)))
+  return said.filter((w) => live.has(w))
+}
+export function outOnDay(ev: Pick<AppEvent, 'unavailableWeeks'>, pid: string, dayKey: string): boolean {
+  return ISO_DAY.test(dayKey) && !!ev.unavailableWeeks?.[pid]?.includes(weekKeyOf(dayKey))
+}
+function withoutWeeks(weeks: AppEvent['unavailableWeeks'], pid: string): AppEvent['unavailableWeeks'] {
+  if (!weeks) return weeks
+  const { [pid]: _gone, ...rest } = weeks // eslint-disable-line @typescript-eslint/no-unused-vars
+  return rest
+}
+// one person's weeks folded into another's
+function mergeWeeks(weeks: AppEvent['unavailableWeeks'], fromId: string, intoId: string): AppEvent['unavailableWeeks'] {
+  if (!weeks?.[fromId]) return weeks
+  const both = [...new Set([...(weeks[intoId] ?? []), ...weeks[fromId]])]
+  return { ...withoutWeeks(weeks, fromId), [intoId]: both }
+}
+
 /* ── the two counts every screen shows, worked out one way ──
    Deciding: who on the plan has answered, out of everyone invited. An answer is a
-   time marked on one of the plan's current days, or "none of these days work".
-   Marks left on days the plan no longer covers, or by someone since removed, are not
+   time marked on one of the plan's current days, "none of these days work", or "can't
+   make this week" for a week that still holds one of them. Marks left on days the plan no longer covers, or by someone since removed, are not
    answers. */
-export function answeredIds(ev: Pick<AppEvent, 'participants' | 'days' | 'avail' | 'availIv' | 'granularity' | 'unavailableIds'>): Set<string> {
+export function answeredIds(ev: Pick<AppEvent, 'participants' | 'days' | 'avail' | 'availIv' | 'granularity' | 'unavailableIds' | 'unavailableWeeks'>): Set<string> {
   const onPlan = new Set(ev.participants.map((p) => p.id))
   const out = new Set((ev.unavailableIds ?? []).filter((id) => onPlan.has(id)))
+  for (const id of onPlan) if (weeksOutOf(ev, id).length) out.add(id)
   const iv = availIvOf(ev)
   for (const d of ev.days) for (const [id, list] of Object.entries(iv[d.key] ?? {})) if (list.length && onPlan.has(id)) out.add(id)
   return out
@@ -1281,7 +1320,9 @@ export const answeredCount = (ev: Parameters<typeof answeredIds>[0]) => answered
    `byTimes` says which of the two it is, so the sentence can say so. */
 export function rsvpPool(ev: AppEvent): { people: Participant[]; byTimes: boolean } {
   const slot = ev.confirmed
-  const marked = [...answeredIds(ev)].some((id) => !ev.unavailableIds?.includes(id))
+  // someone on the plan marked a time; a "can't make this week" alone asked for none
+  const iv = availIvOf(ev)
+  const marked = [...answeredIds(ev)].some((id) => ev.days.some((d) => (iv[d.key]?.[id]?.length ?? 0) > 0))
   if (!slot || !marked) return { people: ev.participants, byTimes: false }
   return { people: ev.participants.filter((p) => p.rsvp === 'attending' || p.rsvp === 'maybe' || slotFits(ev, slot, p.id)), byTimes: true }
 }
@@ -1412,6 +1453,7 @@ export function adoptParticipant(eventId: string, fromId: string, toId: string, 
     participants: ev.participants.map((p) => (p.id === fromId ? { ...p, ...as, id: toId, you: true, guest: undefined } : { ...p, you: undefined })),
     availIv, needIv, avail, votes,
     unavailableIds: ev.unavailableIds?.map(swap),
+    unavailableWeeks: mergeWeeks(ev.unavailableWeeks, fromId, toId),
     messages: ev.messages.map((m) => (m.id === fromId ? { ...m, id: toId } : m)),
     location: { ...ev.location, places: ev.location.places.map((pl) => (pl.addedBy === fromId ? { ...pl, addedBy: toId } : pl)) },
   })
@@ -1547,7 +1589,7 @@ export function arrivalOf(ev: AppEvent, p: Participant): number {
   if ((ev.removedIds ?? []).includes(p.id)) return Date.now()
   // a line in the chat, not a poll's option or settings change, which says nothing aloud
   const spoke = ev.messages.some((m) => m.id === p.id && !isControlMessage(m))
-  const answered = Object.values(availIvOf(ev)).some((byPid) => (byPid[p.id] ?? []).length > 0) || (ev.unavailableIds ?? []).includes(p.id)
+  const answered = Object.values(availIvOf(ev)).some((byPid) => (byPid[p.id] ?? []).length > 0) || (ev.unavailableIds ?? []).includes(p.id) || !!ev.unavailableWeeks?.[p.id]?.length
   return spoke || answered ? 0 : Date.now()
 }
 

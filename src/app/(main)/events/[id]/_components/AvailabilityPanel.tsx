@@ -40,7 +40,7 @@ import { answeredLine, needClause } from '@/lib/answers'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, CalendarCheck } from 'lucide-react'
+import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, CalendarCheck, CalendarX } from 'lucide-react'
 
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { FaceChipsMore } from '@/components/ui/FaceChips'
@@ -66,7 +66,7 @@ import { useGuestMode } from '@/hooks/useGuestMode'
 import { planUsualWeek, weekFits } from '@/lib/usual-week'
 import { canEmail, sendNudges } from '@/lib/mail'
 import {
-  addMeToEvent, listEvents, patchEvent, patchEventWith, availIvOf, freeIvOf, myTimesPatch, normalizeIv, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
+  addMeToEvent, listEvents, patchEvent, patchEventWith, availIvOf, freeIvOf, myTimesPatch, normalizeIv, weekKeyOf, bestBlock, bestWindow, byYouFirst, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
 import { googleBusyUtc, importSoon, lockedPlanBusyUtc, outlookBusyUtc, mockBusyUtc, planImport, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport, type UtcBusy } from '@/lib/calendar-import'
@@ -233,7 +233,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
      back in the draft; undefined leaves the saved answer as it is. While a draft is
      open the grid holds it: a change to your row from elsewhere waits for Save or
      Don't save instead of painting over what is on screen. */
-  const draftRef = useRef<{ m: Record<string, Iv[]>; need: Record<string, Iv[]>; extra: Partial<AppEvent>; none?: boolean } | null>(null)
+  const draftRef = useRef<{ m: Record<string, Iv[]>; need: Record<string, Iv[]>; extra: Partial<AppEvent>; none?: boolean; weeks?: string[] } | null>(null)
   const [unsaved, setUnsavedState] = useState(false)
   const unsavedRef = useRef(false)
   // a short "Saved" where the button was, gone at the next change
@@ -245,6 +245,20 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // demo works in memory and persisted for real events
   const [unavail, setUnavail] = useState<Set<string>>(() => new Set(event.unavailableIds ?? []))
   useFollow(event.unavailableIds ?? [], (ids) => { if (!unsavedRef.current) setUnavail(new Set(ids)) })
+  // the weeks you said you can't make (each by its Sunday), held the same way
+  const savedOut = event.unavailableWeeks?.[meId] ?? []
+  const [outWeeks, setOutWeeks] = useState<string[]>(savedOut)
+  useFollow(savedOut, (w) => { if (!unsavedRef.current) setOutWeeks(w) })
+  // everyone else's weeks out, by week, for the week strip's counts
+  const othersOut = useMemo(() => {
+    const out = new Map<string, Set<string>>()
+    const onPlan = new Set(event.participants.map((p) => p.id))
+    for (const [pid, weeks] of Object.entries(event.unavailableWeeks ?? {})) {
+      if (pid === meId || !onPlan.has(pid)) continue
+      for (const w of weeks) { const set = out.get(w) ?? new Set<string>(); set.add(pid); out.set(w, set) }
+    }
+    return out
+  }, [event.unavailableWeeks, meId, event.participants])
   const otherIds = new Set<string>()
   for (const d of event.days) for (const [id, ivs] of Object.entries(others[d.key] ?? {})) if (ivs.length) otherIds.add(id)
   // the same count as everywhere else (lib/events answeredIds), read off this panel's
@@ -252,6 +266,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   const respondedIdSet = new Set([...otherIds].filter((id) => pById.has(id)))
   if (youAny && pById.has(meId)) respondedIdSet.add(meId)
   for (const id of unavail) if (pById.has(id)) respondedIdSet.add(id) // an explicit "none work" is a reply
+  // so is a week said out, while the plan still covers that week
+  const liveWeeks = new Set(event.days.filter((d) => ISO_DAY.test(d.key)).map((d) => weekKeyOf(d.key)))
+  for (const [w, ids] of othersOut) if (liveWeeks.has(w)) for (const id of ids) respondedIdSet.add(id)
+  if (pById.has(meId) && outWeeks.some((w) => liveWeeks.has(w))) respondedIdSet.add(meId)
   const responded = respondedIdSet.size
 
   // once the plan is locked the grid is reference only; otherwise open in edit
@@ -348,13 +366,17 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         for (const [id, ivs] of Object.entries(others[d.key] ?? {})) if (ivs.length) ids.add(id)
         if ((mine[d.key]?.length ?? 0) > 0) you = true
       }
-      if (you && meId) ids.add(meId)
+      // a week said out is an answer for that week
+      const key = real[0] && ISO_DAY.test(real[0].key) ? weekKeyOf(real[0].key) : ''
+      for (const id of othersOut.get(key) ?? []) ids.add(id)
+      const out = outWeeks.includes(key)
+      if ((you || out) && meId) ids.add(meId)
       const a = real[0]?.date ?? '', b = real[real.length - 1]?.date ?? ''
       const [am] = a.split(' '), [bm, bd] = b.split(' ')
       const label = real.length < 2 ? a : am === bm ? `${a} – ${bd}` : `${a} – ${b}`
-      return { label, count: ids.size, you }
+      return { label, count: ids.size, you, out }
     })
-  }, [paddedDays, pageCount, others, mine, meId])
+  }, [paddedDays, pageCount, others, mine, meId, othersOut, outWeeks])
   const weekStrip = !dayPoll && weekChips.length > 1
   const weekTabId = useId(), gridPanelId = useId()
 
@@ -523,9 +545,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     const marked = Object.values(m).some((ivs) => ivs.length) || Object.values(cleanNeed).some((ivs) => ivs.length)
     const takeBack = marked && unavail.has(meId)
     if (takeBack) setUnavail((prev) => { const next = new Set(prev); next.delete(meId); return next })
+    // and a time marked in a week you said you can't make takes that week back
+    const markedIn = (k: string) => (m[k]?.length ?? 0) > 0 || (cleanNeed[k]?.length ?? 0) > 0
+    const keptOut = outWeeks.filter((w) => !event.days.some((d) => ISO_DAY.test(d.key) && weekKeyOf(d.key) === w && markedIn(d.key)))
+    const weeksBack = keptOut.length !== outWeeks.length
+    if (weeksBack) setOutWeeks(keptOut)
     if (event.demo) return
     const prev = draftRef.current
-    draftRef.current = { m, need: cleanNeed, extra: { ...prev?.extra, ...extra }, none: takeBack ? false : prev?.none }
+    draftRef.current = { m, need: cleanNeed, extra: { ...prev?.extra, ...extra }, none: takeBack ? false : prev?.none, weeks: weeksBack ? keptOut : prev?.weeks }
     setUnsaved(true)
   }
   // the draft, written as one change to your own row. Only your row changes, laid
@@ -541,7 +568,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     patchEventWith(event.id, (cur) => {
       const rest = (cur.unavailableIds ?? []).filter((id) => id !== meId)
       const none = d.none === undefined ? {} : { unavailableIds: d.none ? [...rest, meId] : rest }
-      return { ...myTimesPatch(cur, meId, event.days, d.m, rows, step, d.need), ...d.extra, ...none }
+      const { [meId]: _was, ...otherWeeks } = cur.unavailableWeeks ?? {} // eslint-disable-line @typescript-eslint/no-unused-vars
+      const weeks = d.weeks === undefined ? {} : { unavailableWeeks: d.weeks.length ? { ...otherWeeks, [meId]: d.weeks } : otherWeeks }
+      return { ...myTimesPatch(cur, meId, event.days, d.m, rows, step, d.need), ...d.extra, ...none, ...weeks }
     })
     setSavedFlash(true)
     return true
@@ -550,7 +579,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   function discardTimes() {
     draftRef.current = null
     setUnsaved(false)
-    setMine(remoteMine); setNeed(remoteNeed); setUnavail(new Set(event.unavailableIds ?? []))
+    setMine(remoteMine); setNeed(remoteNeed); setUnavail(new Set(event.unavailableIds ?? [])); setOutWeeks(savedOut)
     setSel(null)
   }
   useLeaveGuard(unsaved, saveTimes, discardTimes)
@@ -572,6 +601,23 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     if (event.demo) return
     const d = draftRef.current
     draftRef.current = { m: d?.m ?? mineRef.current, need: d?.need ?? needRef.current, extra: d?.extra ?? {}, none: on }
+    setUnsaved(true)
+  }
+  // the week on screen, said out or taken back. Saying it clears your times in that
+  // week (Undo brings them back, and the week with them); marking one there later
+  // takes it back. Part of the draft like a mark
+  function toggleWeekOut() {
+    const first = weekDays.find((d) => !d.pad)
+    if (!first || !ISO_DAY.test(first.key)) return
+    const w = weekKeyOf(first.key)
+    const on = !outWeeks.includes(w)
+    const next = on ? [...outWeeks, w] : outWeeks.filter((x) => x !== w)
+    const hadTimes = weekDays.some((d) => !d.pad && ((mine[d.key]?.length ?? 0) > 0 || (need[d.key]?.length ?? 0) > 0))
+    if (on && hadTimes) clearWeekMine()
+    setOutWeeks(next)
+    if (event.demo) return
+    const d = draftRef.current
+    draftRef.current = { m: d?.m ?? mineRef.current, need: d?.need ?? needRef.current, extra: d?.extra ?? {}, none: d?.none, weeks: next }
     setUnsaved(true)
   }
   function changeDuration(v: number) {
@@ -1855,6 +1901,28 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
             week in plain sight. The grid below is what it switches */}
         {weekStrip && (
           <WeekStrip weeks={weekChips} total={total} value={page} onChange={goToWeek} idBase={weekTabId} panelId={gridPanelId} />
+        )}
+        {/* a week you can't make, said in one tap while the other weeks stay open.
+            "None of these days work" already covers every week at once */}
+        {weekStrip && mode === 'edit' && editable && !pattern && !unavail.has(meId) && (
+          weekChips[page]?.out ? (
+            <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-brick-border bg-brick-bg px-3 py-2 text-[13px] text-brick-text">
+              <CalendarX size={14} aria-hidden className="flex-none" />
+              <span className="min-w-0 flex-1">You can&rsquo;t make {weekChips[page].label}. Marking a time here takes that back.</span>
+              <button type="button" onClick={toggleWeekOut} className="flex h-11 items-center rounded-full border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-text hover:bg-s2 sm:h-8">Take it back</button>
+            </div>
+          ) : (
+            <div className="mb-2 flex">
+              <button
+                type="button"
+                onClick={toggleWeekOut}
+                className="flex h-11 items-center gap-1.5 rounded-full border border-border bg-s1 px-3 text-[12.5px] font-medium text-dim hover:border-border2 hover:text-text sm:h-8"
+              >
+                <CalendarX size={14} aria-hidden />
+                Can&rsquo;t make this week
+              </button>
+            </div>
+          )
         )}
 
         {/* grid — a day poll gets the calendar, everything else the timetable */}
