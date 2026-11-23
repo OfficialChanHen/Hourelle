@@ -85,6 +85,19 @@ export function replacedFunctions(sql) {
 }
 
 /**
+ * The migrations a file says it already folds in, from lines like
+ * `-- includes: 0020_repeating_plans.sql, 0021_cohosts.sql`. A rewrite that carries
+ * another branch's change over is not a clash with it.
+ */
+export function includedFiles(sql) {
+  const files = new Set()
+  for (const m of sql.matchAll(/^--\s*includes:\s*(.+)$/gim)) {
+    for (const f of m[1].split(/[\s,]+/)) if (f) files.add(f)
+  }
+  return files
+}
+
+/**
  * Functions this branch rewrites that another branch also rewrites in a migration
  * this branch does not have. `mine` and `theirs` map file name to SQL; `theirs`
  * carries the branch name: `{ file, branch, sql }[]`.
@@ -93,9 +106,10 @@ export function functionClashes(mine, theirs) {
   const clashes = []
   const mineFiles = new Set(Object.keys(mine))
   for (const [file, sql] of Object.entries(mine)) {
+    const included = includedFiles(sql)
     for (const fn of replacedFunctions(sql)) {
       for (const other of theirs) {
-        if (mineFiles.has(other.file)) continue
+        if (mineFiles.has(other.file) || included.has(other.file)) continue
         if (replacedFunctions(other.sql).has(fn)) {
           clashes.push({ fn, file, otherFile: other.file, branch: other.branch })
         }

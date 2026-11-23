@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error plain ESM script, no type declarations
-import { parseName, toSlug, versionAt, nextVersion, nameProblems, replacedFunctions, functionClashes } from './names.mjs'
+import { parseName, toSlug, versionAt, nextVersion, nameProblems, replacedFunctions, functionClashes, includedFiles } from './names.mjs'
 
 describe('migration names', () => {
   it('reads both the numbered and the stamped format', () => {
@@ -46,6 +46,12 @@ describe('functions rewritten on two branches', () => {
       ],
     )
     expect(clashes).toEqual([{ fn: 'public.enforce_event_rules', file: '20261123184502_weeks.sql', otherFile: '0022_open_length.sql', branch: 'feature/day-hours' }])
+  })
+
+  it('skips a migration the file says it folds in', () => {
+    const sql = `-- includes: 0020_repeating_plans.sql, 0021_cohosts.sql\n${rules}`
+    expect([...includedFiles(sql)]).toEqual(['0020_repeating_plans.sql', '0021_cohosts.sql'])
+    expect(functionClashes({ 'b.sql': sql }, [{ file: '0020_repeating_plans.sql', branch: 'feature/repeating-plans', sql: rules }])).toEqual([])
   })
 
   it('ignores a migration this branch already has', () => {

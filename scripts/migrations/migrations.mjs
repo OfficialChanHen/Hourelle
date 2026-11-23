@@ -95,7 +95,7 @@ function check() {
   for (const c of functionClashes(mine, theirs)) {
     problems.push(
       `${c.file}: rewrites ${c.fn}, which ${c.otherFile} on ${c.branch} also rewrites. ` +
-      'Whichever runs last drops the other change; merge that branch first and fold its version in.',
+      'Whichever runs last drops the other change: build on its version and say so with `-- includes: ' + c.otherFile + '`.',
     )
   }
 
