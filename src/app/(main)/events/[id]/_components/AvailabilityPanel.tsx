@@ -1547,13 +1547,15 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                     {isHost && !dayPoll && (
                       <SettingToggle label="Length unknown" on={openLength} onChange={changeOpenLength} hint={openLength ? 'The best time is when the most people can start and stay longest.' : undefined} />
                     )}
-                    {isHost && !daysAnswer && !openLength && (
+                    {/* a run of days on a timed poll still has a length: each day's hours
+                        hold at least this long where the marks allow */}
+                    {isHost && !dayPoll && !openLength && (
                       <div className="px-2.5 py-3">
                         <DurationField
                           value={durationMin} max={Math.max(step, event.times.length * step)} onChange={changeDuration}
                           title={<span className="flex-1 text-[13px] font-semibold text-text">How long it lasts</span>}
                         />
-                        <p className="mt-1.5 text-[12px] leading-[1.5] text-faint">The best time is a stretch this long.</p>
+                        <p className="mt-1.5 text-[12px] leading-[1.5] text-faint">{daysAnswer ? 'Each day’s best hours run at least this long.' : 'The best time is a stretch this long.'}</p>
                       </div>
                     )}
                     {/* one question with a default: off favors everyone staying, on the biggest crowd.
@@ -1572,7 +1574,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                             : 'Picks the time the most people can stay start to finish.'}
                       />
                     )}
-                    {!daysAnswer && (
+                    {!dayPoll && (
                       <SettingToggle label="24-hour time" on={h24} onChange={setH24} />
                     )}
                     {/* the days that only square the week off. Out of the toolbar and

@@ -163,7 +163,7 @@ export type CreateInput = {
   // is only born confirmed if the place is also answered — a live ballot keeps it planning.
   // an endDay past day makes it a run of days, the shape a locked day poll has; its
   // start is on the first day and its end on the last. allDay drops the times.
-  fixed?: { day: string; endDay?: string; start: string; end: string; allDay?: boolean }
+  fixed?: { day: string; endDay?: string; start: string; end: string; allDay?: boolean; openEnd?: boolean }
   rsvpDeadline?: string // optional, fixed-date events only: the RSVP round opens at birth
   image?: string        // the cover, chosen in the wizard or carried over by a duplicate
   imageFit?: 'fill' | 'fit'
@@ -1221,6 +1221,43 @@ export function slotFromRows(rows: DayRow[], placeIds: string[], openEnd: boolea
   return { dayKey: first.dayKey, endDayKey: last.dayKey, startMin: first.startMin, endMin: last.endMin, placeIds, sessions: kept, ...flag }
 }
 
+/** Where the lock-in opens: on the grid's best run of `runLen` days (the run the
+ *  dial frames), or with one day on the best time so far. Null with no marks. */
+export function lockStart(ev: AppEvent, runLen: number): { dayKey: string; endDayKey: string } | null {
+  if (runLen >= 2) {
+    const b = bestBlock(availIvOf(ev), ev.days, runLen, ev.bestMode, ev.needIv)
+    return b ? { dayKey: b.startKey, endDayKey: b.endKey } : null
+  }
+  const b = openBest(ev)
+  return b ? { dayKey: b.dayKey, endDayKey: b.dayKey } : null
+}
+
+/** An open end's soft end from a start: how late most of the group can stay, from
+ *  their marks, else two hours; never past the grid or midnight. Clock minutes. */
+export function openSoftEnd(ev: AppEvent, dayKey: string, startMin: number): number {
+  const gridEnd = gridStartMinOf(ev) + ev.times.length * stepOf(ev.granularity)
+  const stay = stayLine(ev, { dayKey, startMin, endMin: startMin })
+  return Math.min(stay ? stay.most : startMin + 120, gridEnd, 24 * 60)
+}
+
+/** The rows of a run's own hours before the host changes any: each day the hours
+ *  its own marks give (see planRunHours). A day nobody marked has no hours of its
+ *  own, so it starts skipped, holding the nearest marked day's hours for when it is
+ *  added back; with no marks on any day of the run every day is kept at 6 PM. */
+export function runRows(ev: AppEvent, keys: string[]): DayRow[] {
+  const g = gridStartMinOf(ev)
+  const days = keys.map((k) => ev.days.find((d) => d.key === k)).filter((d): d is GridDay => !!d)
+  const shared = planRunHours(ev, days)
+  const len = ev.durationMin ?? 60
+  return keys.map((k) => {
+    const own = shared.find((x) => x.dayKey === k)
+    const b = own ?? shared.find((x) => x.dayKey > k) ?? shared.findLast((x) => x.dayKey < k)
+    const startMin = b ? g + b.s : 18 * 60
+    const endMin = ev.openLength ? openSoftEnd(ev, k, startMin) : b ? g + b.e : Math.min(startMin + len, 24 * 60 - 5)
+    return { dayKey: k, startMin, endMin, skip: !own && shared.length > 0 }
+  })
+}
+
 // did this person mark any time at all on the plan's days
 function markedAny(ev: AppEvent, pid: string): boolean {
   const availIv = availIvOf(ev)
@@ -1318,7 +1355,7 @@ export function draftFromEvent(id: string): EventDraft | null {
   const bornWhole = !!c && ev.granularity === 'day' && (cAllDay || !!c.endDayKey)
     && ev.startDate === c.dayKey && ev.endDate === runEnd && ev.days.length === selectedDayKeys(c.dayKey, runEnd!, [], []).length
   const runSpan = (() => { const x = parseLocal(c?.dayKey ?? ''), y = parseLocal(runEnd ?? ''); return x && y ? Math.round((y.getTime() - x.getTime()) / 86400000) : 0 })()
-  const fixed = bornFixed && c ? { day: nextSameDow(c.dayKey), start: hm(c.startMin), end: hm(c.endMin) }
+  const fixed = bornFixed && c ? { day: nextSameDow(c.dayKey), start: hm(c.startMin), end: hm(c.endMin), ...(c.openEnd ? { openEnd: true } : {}) }
     : bornWhole && c ? { day: nextSameDow(c.dayKey), endDay: shift(nextSameDow(c.dayKey), runSpan), start: cAllDay ? '18:00' : hm(c.startMin), end: cAllDay ? '21:00' : hm(c.endMin), allDay: cAllDay }
     : undefined
   return {
@@ -1834,7 +1871,9 @@ export function createEvent(input: CreateInput): AppEvent {
   const fxRun = !!input.fixed && fxEnd !== input.fixed.day
   const fxAllDay = !!input.fixed?.allDay
   const fxS = input.fixed ? (fxAllDay ? 0 : parseHM(input.fixed.start)) : null
-  const fxE = input.fixed ? (fxAllDay ? 24 * 60 : parseHM(input.fixed.end)) : null
+  // an open end (one timed day): a start and no agreed end, held two hours for the grid
+  const fxOpen = !!input.fixed?.openEnd && !fxRun && !fxAllDay
+  const fxE = input.fixed ? (fxAllDay ? 24 * 60 : fxOpen && fxS !== null ? Math.min(fxS + 120, 24 * 60) : parseHM(input.fixed.end)) : null
   // on one day the end has to come after the start; across days it always does
   const fixed = input.fixed && fxS !== null && fxE !== null && (fxRun || fxE > fxS)
     ? { day: input.fixed.day, endDay: fxEnd ?? input.fixed.day, s: fxS, e: fxE, whole: fxAllDay || fxRun }
@@ -1910,8 +1949,8 @@ export function createEvent(input: CreateInput): AppEvent {
     itinStartMin: hasWin ? (winS as number) : fixed && !fxAllDay ? fixed.s : 9 * 60,
     durationMin: fixed?.whole ? 24 * 60 : fixed ? fixed.e - fixed.s : input.durationMin && input.durationMin >= 1 ? Math.min(24 * 60, input.durationMin) : 60,
     bestMode: input.bestMode,
-    // a date set at creation has its length already; only a poll can leave it open
-    ...(input.openLength && !fixed && input.granularity !== 'day' ? { openLength: true } : {}),
+    // a poll can leave its length open, and so can a set day with an open end
+    ...((input.openLength && !fixed && input.granularity !== 'day') || (fixed && fxOpen) ? { openLength: true } : {}),
     capacity: input.capacity && Number(input.capacity) >= 1 ? Number(input.capacity) : undefined,
     ...(input.image ? { image: input.image, imageFit: input.imageFit, imagePos: input.imagePos } : {}),
     ...(input.keepsake ? { keepsake: input.keepsake } : {}),
@@ -1919,7 +1958,7 @@ export function createEvent(input: CreateInput): AppEvent {
     createdAt: Date.now(),
     status: fixed && !placeOpen ? 'confirmed' : 'planning',
     ...(fixed ? {
-      confirmed: { dayKey: fixed.day, ...(fixed.endDay !== fixed.day ? { endDayKey: fixed.endDay } : {}), startMin: fixed.s, endMin: fixed.e, placeIds: fixedPlaceIds },
+      confirmed: { dayKey: fixed.day, ...(fixed.endDay !== fixed.day ? { endDayKey: fixed.endDay } : {}), startMin: fixed.s, endMin: fixed.e, placeIds: fixedPlaceIds, ...(fxOpen ? { openEnd: true } : {}) },
       ...(placeOpen ? {} : { confirmedAt: Date.now() }),
       // the deadline rides along even while a ballot keeps the event planning — it
       // starts mattering the moment the place locks

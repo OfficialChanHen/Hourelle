@@ -1,0 +1,219 @@
+{
+ "id": "game-night",
+ "days": [
+  {
+   "dow": "Tue",
+   "key": "2026-11-17",
+   "date": "Nov 17"
+  },
+  {
+   "dow": "Wed",
+   "key": "2026-11-18",
+   "date": "Nov 18"
+  },
+  {
+   "dow": "Thu",
+   "key": "2026-11-19",
+   "date": "Nov 19"
+  },
+  {
+   "dow": "Fri",
+   "key": "2026-11-20",
+   "date": "Nov 20"
+  },
+  {
+   "dow": "Sat",
+   "key": "2026-11-21",
+   "date": "Nov 21"
+  },
+  {
+   "dow": "Sun",
+   "key": "2026-11-22",
+   "date": "Nov 22"
+  },
+  {
+   "dow": "Mon",
+   "key": "2026-11-23",
+   "date": "Nov 23"
+  }
+ ],
+ "avail": {
+  "2026-11-17": [
+   [],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [],
+   [],
+   []
+  ],
+  "2026-11-18": [
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   []
+  ],
+  "2026-11-19": [
+   [],
+   [],
+   [],
+   [],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ]
+  ],
+  "2026-11-20": [
+   [],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [],
+   [],
+   []
+  ],
+  "2026-11-21": [
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ],
+   [
+    "A"
+   ]
+  ],
+  "2026-11-22": [
+   [],
+   [],
+   [],
+   [],
+   [],
+   [],
+   [],
+   []
+  ],
+  "2026-11-23": [
+   [],
+   [],
+   [],
+   [],
+   [],
+   [],
+   [],
+   []
+  ]
+ },
+ "times": [
+  "5 PM",
+  "5:30 PM",
+  "6 PM",
+  "6:30 PM",
+  "7 PM",
+  "7:30 PM",
+  "8 PM",
+  "8:30 PM"
+ ],
+ "title": "Game Night",
+ "budget": "",
+ "needIv": {
+  "2026-11-17": {},
+  "2026-11-18": {},
+  "2026-11-19": {},
+  "2026-11-20": {},
+  "2026-11-21": {},
+  "2026-11-22": {},
+  "2026-11-23": {}
+ },
+ "status": "planning",
+ "endDate": "2026-11-23",
+ "hostKind": "person",
+ "itinRank": [],
+ "maxVotes": 1,
+ "timezone": "America/Chicago",
+ "itinDwell": [],
+ "itinStops": [],
+ "startDate": "2026-11-17",
+ "budgetMode": "total",
+ "openLength": true,
+ "durationMin": 120,
+ "granularity": "30",
+ "hostedByYou": true,
+ "itinStartMin": 1020,
+ "participants": [
+  {
+   "id": "A",
+   "initials": "AA",
+   "name": "Alex",
+   "color": "pink",
+   "rsvp": "attending",
+   "you": true,
+   "host": true
+  }
+ ],
+ "location": {
+  "mode": "remote",
+  "places": [],
+  "planMode": "vote",
+  "platform": "Google Meet"
+ }
+}

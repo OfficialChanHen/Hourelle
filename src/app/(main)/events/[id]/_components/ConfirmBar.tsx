@@ -14,8 +14,8 @@ import { useAccount } from '@/hooks/useAccount'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { getEvent } from '@/lib/events'
 import {
-  confirmedSlotText, confirmEvent, fmtMinute, gridStartMinOf, openBest, patchEvent, answeredCount, planRunHours, slotFromRows, stayLine, stepOf,
-  type AppEvent, type ConfirmedSlot, type DayRow, type GridDay,
+  confirmedSlotText, confirmEvent, fmtMinute, gridStartMinOf, lockStart, openBest, openSoftEnd, patchEvent, answeredCount, runRows, slotFromRows, stayLine,
+  type AppEvent, type ConfirmedSlot, type DayRow,
 } from '@/lib/events'
 import { DayHoursRows } from './DayHoursRows'
 
@@ -168,8 +168,6 @@ function ConfirmForm({ event, close, onChanged, onGoToLocation, prefill, runLen 
   const gridStart = gridStartMinOf(event)
   const duration = event.durationMin ?? 60
   const bw = openBest(event)
-  // the last minute anyone can mark: an open end's soft end never runs past it
-  const gridEnd = gridStart + event.times.length * stepOf(event.granularity)
 
   // a date fixed at creation is a fact, not a choice — the form only asks for the place
   const timeSet = event.confirmed ?? null
@@ -194,18 +192,16 @@ function ConfirmForm({ event, close, onChanged, onGoToLocation, prefill, runLen 
   const runMode = wantRun >= 2
   // length unknown: a start and an open end, never a set end
   const openLen = !!event.openLength && !dayPoll
-  // how late most of the group can stay from a start, the open end's soft end: from
-  // their marks, else two hours, never past the grid
-  const softEnd = (k: string, start: number) => {
-    const stay = stayLine(event, { dayKey: k, startMin: start, endMin: start })
-    return Math.min(stay ? stay.most : start + 120, gridEnd, 24 * 60)
-  }
+  // how late most of the group can stay from a start, the open end's soft end
+  const softEnd = (k: string, start: number) => openSoftEnd(event, k, start)
 
-  // best window for everyone, cut to the event length; a handed-in prefill (the grid's
-  // "Lock these days" shortcut) beats the computed default
-  const [dayKey, setDayKey] = useState(() => prefill?.dayKey ?? timeSet?.dayKey ?? bw?.dayKey ?? event.days[0]?.key ?? event.startDate)
+  // opens on what the grid shows: the best run of the dialed length (the run it
+  // frames), or with one day the best time. A handed-in prefill (the grid's "Lock
+  // these days" shortcut) beats the computed default
+  const start = lockStart(event, wantRun)
+  const [dayKey, setDayKey] = useState(() => prefill?.dayKey ?? timeSet?.dayKey ?? start?.dayKey ?? event.days[0]?.key ?? event.startDate)
   // a run defaults to the full wanted length; the guard below never offers more
-  const [lastDay, setLastDay] = useState(() => prefill?.endDayKey ?? (runMode ? runFrom(prefill?.dayKey ?? dayKey).slice(0, wantRun).at(-1)! : (prefill?.dayKey ?? dayKey)))
+  const [lastDay, setLastDay] = useState(() => prefill?.endDayKey ?? (!runMode ? dayKey : !prefill && !timeSet && start ? start.endDayKey : runFrom(dayKey).slice(0, wantRun).at(-1)!))
   // the guard: last-day choices stop at the dialed N days in a row (and at any gap)
   const lastOptions = runMode ? runFrom(dayKey).slice(0, wantRun) : []
   function changeDay(v: string) {
@@ -235,17 +231,11 @@ function ConfirmForm({ event, close, onChanged, onGoToLocation, prefill, runLen 
   const setHours = runMode && !dayPoll && hoursMode === 'hours'
   const [rowEdits, setRowEdits] = useState<Record<string, Partial<Omit<DayRow, 'dayKey'>>>>({})
   const runKeys = runMode ? runFrom(dayKey).filter((k) => k <= lastDay) : []
-  // each day's hours are the stretch the most people share that day (the same frames
-  // the grid draws over the run); a day nobody marked borrows the next marked day's,
-  // else the one before
-  const runDays = runKeys.map((k) => event.days.find((d) => d.key === k)).filter((d): d is GridDay => !!d)
-  const shared = planRunHours(event, runDays)
-  const rows: DayRow[] = runKeys.map((k) => {
-    const b = shared.find((x) => x.dayKey === k) ?? shared.find((x) => x.dayKey > k) ?? shared.findLast((x) => x.dayKey < k) ?? null
-    const start = b ? gridStart + b.s : startMin
-    const end = openLen ? softEnd(k, start) : b ? gridStart + b.e : Math.min(start + duration, 24 * 60 - 5)
-    return { dayKey: k, startMin: start, endMin: end, skip: false, ...rowEdits[k] }
-  }).map((r) => (openLen && rowEdits[r.dayKey]?.startMin !== undefined ? { ...r, endMin: softEnd(r.dayKey, r.startMin) } : r))
+  // each day's hours come from that day's own marks (the same frames the grid draws
+  // over the run); a day nobody marked starts skipped (see runRows)
+  const rows: DayRow[] = runRows(event, runKeys)
+    .map((r) => ({ ...r, ...rowEdits[r.dayKey] }))
+    .map((r) => (openLen && rowEdits[r.dayKey]?.startMin !== undefined ? { ...r, endMin: softEnd(r.dayKey, r.startMin) } : r))
   const keptCount = rows.filter((r) => !r.skip).length
   const dayLabelOf = (k: string) => { const d = event.days.find((x) => x.key === k); return d ? `${d.dow}, ${d.date}` : k }
 
@@ -362,7 +352,7 @@ function ConfirmForm({ event, close, onChanged, onGoToLocation, prefill, runLen 
       <div className="flex flex-col gap-3 sm:flex-row">
         <Select label={runMode ? 'First day' : 'Day'} value={dayKey} onChange={changeDay}>
           {event.days.map((d) => (
-            <option key={d.key} value={d.key}>{d.dow}, {d.date}{bw?.dayKey === d.key ? ' (best)' : ''}</option>
+            <option key={d.key} value={d.key}>{d.dow}, {d.date}{start?.dayKey === d.key ? ' (best)' : ''}</option>
           ))}
         </Select>
         {runMode && lastOptions.length > 1 && (
