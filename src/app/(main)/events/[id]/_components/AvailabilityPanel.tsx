@@ -40,7 +40,7 @@ import { answeredLine, needClause } from '@/lib/answers'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { ChevronDown, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, CalendarCheck } from 'lucide-react'
+import { ChevronDown, ChevronRight, ChevronsLeftRight, ChevronsRightLeft, X, Check, Bell, Info, Trash2, CalendarCheck } from 'lucide-react'
 
 import { AvatarRow } from '@/components/ui/AvatarRow'
 import { FaceChipsMore } from '@/components/ui/FaceChips'
@@ -336,8 +336,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
      to be in plain sight, with how many people have answered each. It is the only
      way between weeks (the grid is its tab panel), so it replaces the old arrows and
      the range label they framed. Built once per render from the per-day data,
-     O(people × days), never per chip or per cell. Your own entry reads from `mine`,
-     so a chip counts you the moment you paint. */
+     O(people × days), never per chip or per cell. Your own entry reads from `mine`
+     and `need`, so a tab counts you the moment you paint either kind. */
   const weekChips = useMemo(() => {
     if (pageCount < 2) return []
     return Array.from({ length: pageCount }, (_, w) => {
@@ -346,7 +346,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       let you = false
       for (const d of real) {
         for (const [id, ivs] of Object.entries(others[d.key] ?? {})) if (ivs.length) ids.add(id)
-        if ((mine[d.key]?.length ?? 0) > 0) you = true
+        if ((mine[d.key]?.length ?? 0) > 0 || (need[d.key]?.length ?? 0) > 0) you = true
       }
       if (you && meId) ids.add(meId)
       const a = real[0]?.date ?? '', b = real[real.length - 1]?.date ?? ''
@@ -354,7 +354,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       const label = real.length < 2 ? a : am === bm ? `${a} – ${bd}` : `${a} – ${b}`
       return { label, count: ids.size, you }
     })
-  }, [paddedDays, pageCount, others, mine, meId])
+  }, [paddedDays, pageCount, others, mine, need, meId])
   const weekStrip = !dayPoll && weekChips.length > 1
   const weekTabId = useId(), gridPanelId = useId()
 
@@ -1075,7 +1075,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // of a scary confirm — the old times sit in state until the toast expires.
   // times: null makes it a plain notice with no Undo button
   type Times = { free: Record<string, Iv[]>; need: Record<string, Iv[]> }
-  const [undo, setUndo] = useState<{ times: Times | null; label: string; importedIv?: AvailIntervals } | null>(null)
+  // `go`: a week to open instead of an Undo (the catch after Save, below)
+  const [undo, setUndo] = useState<{ times: Times | null; label: string; importedIv?: AvailIntervals; go?: { label: string; week: number } } | null>(null)
   const toastRef = useRef<HTMLDivElement>(null)
   useGSAP(() => {
     if (!undo || !toastRef.current) return
@@ -1083,8 +1084,8 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   }, { dependencies: [undo] })
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (undoTimer.current) clearTimeout(undoTimer.current) }, [])
-  function stashUndo(times: Times | null, label: string, importedIv?: AvailIntervals) {
-    setUndo({ times, label, importedIv })
+  function stashUndo(times: Times | null, label: string, importedIv?: AvailIntervals, go?: { label: string; week: number }) {
+    setUndo({ times, label, importedIv, go })
     if (undoTimer.current) clearTimeout(undoTimer.current)
     undoTimer.current = setTimeout(() => setUndo(null), 8000)
   }
@@ -1105,6 +1106,23 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     setMine(next); setNeed(nextNeed); persist(next, {}, nextNeed)
     setSel(null)
     stashUndo(snapshot, 'Your times this week were cleared')
+  }
+  // the catch after Save: a poll over several weeks shows one at a time, and people
+  // marked the week on screen and left. Saving with some weeks marked and others
+  // blank says how many are left and opens the next blank one. Only from the Save
+  // button: the save asked on the way out is leaving, so there is nothing to open
+  function askNextWeek() {
+    if (!weekStrip || unavail.has(meId)) return
+    const blank = weekChips.flatMap((w, i) => (w.you ? [] : [i]))
+    if (!blank.length || blank.length === weekChips.length) return
+    const week = blank.find((i) => i > page) ?? blank[0]
+    stashUndo(null, `${blank.length} ${blank.length === 1 ? 'week still needs' : 'weeks still need'} your times.`,
+    undefined, { week, label: week === page + 1 ? 'Next week' : weekChips[week].label })
+  }
+  function openAskedWeek(week: number) {
+    goToWeek(week)
+    setUndo(null)
+    if (undoTimer.current) clearTimeout(undoTimer.current)
   }
   // an undone import takes its marker back too, the same way it was set
   function markImportedUndo(iv: AvailIntervals) { if (event.demo) return; if (onPatch) onPatch({ importedIv: iv }); else patchEvent(event.id, { importedIv: iv }) }
@@ -1547,7 +1565,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               {/* your times wait here until saved; the button shows only while they differ */}
               <span className="ml-auto flex items-center">
                 {unsaved ? (
-                  <button onClick={() => saveTimes()} className="flex h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent sm:h-8 sm:px-3.5 sm:text-[13px]">
+                  <button onClick={() => { saveTimes(); askNextWeek() }} className="flex h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-semibold text-on-accent sm:h-8 sm:px-3.5 sm:text-[13px]">
                     <Check size={15} /> Save
                   </button>
                 ) : savedFlash ? (
@@ -1851,10 +1869,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           </Hint>
         )}
 
-        {/* one segment per week, so a poll that runs over several weeks keeps every
-            week in plain sight. The grid below is what it switches */}
+        {/* one tab per week, on the grid's top edge, so a poll that runs over several
+            weeks keeps every week in plain sight. The grid below is what it switches */}
         {weekStrip && (
-          <WeekStrip weeks={weekChips} total={total} value={page} onChange={goToWeek} idBase={weekTabId} panelId={gridPanelId} />
+          <WeekStrip weeks={weekChips} total={total} value={page} onChange={goToWeek} idBase={weekTabId} panelId={gridPanelId} ask={editable && !pattern && !unavail.has(meId)} />
         )}
 
         {/* grid — a day poll gets the calendar, everything else the timetable */}
@@ -2444,8 +2462,13 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       <Announce text={undo?.label ?? ''} />
       {undo && (
         <div ref={toastRef} className="pointer-events-none fixed inset-x-0 top-[72px] z-50 flex justify-center px-4 md:top-[68px]">
-          <div className={`pointer-events-auto flex items-center gap-2.5 rounded-full border border-border bg-s1 py-1.5 pl-4 text-[13px] shadow-soft ${undo.times ? 'pr-1.5' : 'pr-4'}`}>
+          <div className={`pointer-events-auto flex items-center gap-2.5 rounded-full border border-border bg-s1 py-1.5 pl-4 text-[13px] shadow-soft ${undo.times || undo.go ? 'pr-1.5' : 'pr-4'}`}>
             {undo.label}
+            {undo.go && (
+              <button type="button" onClick={() => openAskedWeek(undo.go!.week)} className="flex h-8 flex-none items-center gap-1 whitespace-nowrap rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent">
+                {undo.go.label} <ChevronRight size={14} aria-hidden />
+              </button>
+            )}
             {undo.times && (
               <button type="button" onClick={undoRestore} className="flex h-8 items-center rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent">
                 Undo
