@@ -668,8 +668,11 @@ export function bestWindow(availIv: AvailIntervals, days: GridDay[], minLen = 0,
 // With `needIv`, a day a person marked only if need be still counts for them, and ties
 // go to the block with fewer such person-days. `needIds` are the people in `ids` who
 // lean on if need be for at least one day of it.
+// With `minLen` (a time poll's run, each day needing that long) a person counts for a
+// day only when one stretch of theirs there is at least that long, and a block counts
+// only when every day of it has someone who can; no such block, no answer.
 export type BestBlock = { startKey: string; endKey: string; count: number; ids: string[]; anyIds: string[]; needIds: string[]; avgPerDay: number }
-export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: number, bestMode: BestMode = 'full', needIv?: AvailIntervals): BestBlock | null {
+export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: number, bestMode: BestMode = 'full', needIv?: AvailIntervals, minLen = 0): BestBlock | null {
   if (blockLen < 1 || days.length < blockLen) return null
   const keys = days.map((d) => d.key)
   const nextDay = (k: string) => {
@@ -696,7 +699,8 @@ export function bestBlock(availIv: AvailIntervals, days: GridDay[], blockLen: nu
   for (let i = 0; i + blockLen <= keys.length; i++) {
     const block = keys.slice(i, i + blockLen)
     if (block.some((k, j) => j > 0 && block[j - 1] !== '' && k !== nextDay(block[j - 1]))) continue
-    const perDay = block.map((k) => new Set(Object.entries(availIv[k] ?? {}).filter(([, ivs]) => ivs.length > 0).map(([id]) => id)))
+    const perDay = block.map((k) => new Set(Object.entries(availIv[k] ?? {}).filter(([, ivs]) => (minLen > 0 ? ivs.some((iv) => iv.e - iv.s >= minLen) : ivs.length > 0)).map(([id]) => id)))
+    if (minLen > 0 && perDay.some((s) => s.size === 0)) continue
     const anySet = new Set<string>()
     for (const s of perDay) for (const id of s) anySet.add(id)
     const ids = [...anySet].filter((id) => perDay.every((s) => s.has(id)))
@@ -824,6 +828,13 @@ export function openBest(ev: AppEvent, days: GridDay[] = ev.days) {
   const iv = availIvOf(ev)
   if (ev.openLength && ev.granularity !== 'day') return bestOpenStart(iv, days, ev.needIv)
   return bestWindow(iv, days, ev.durationMin ?? 60, ev.bestMode, ev.needIv)
+}
+
+/** The best run of `runLen` days, as the plan asks for it: on a time poll each day of
+ *  it needs a stretch of the plan's length (with the length unknown, MIN_STAY). */
+export function planBestBlock(ev: AppEvent, runLen: number, days: GridDay[] = ev.days): BestBlock | null {
+  const minLen = ev.granularity === 'day' ? 0 : ev.openLength ? MIN_STAY : ev.durationMin ?? 60
+  return bestBlock(availIvOf(ev), days, runLen, ev.bestMode, ev.needIv, minLen)
 }
 
 /** Each day's hours on a run of days, as the plan asks for them: the stretch the most
@@ -1225,7 +1236,7 @@ export function slotFromRows(rows: DayRow[], placeIds: string[], openEnd: boolea
  *  dial frames), or with one day on the best time so far. Null with no marks. */
 export function lockStart(ev: AppEvent, runLen: number): { dayKey: string; endDayKey: string } | null {
   if (runLen >= 2) {
-    const b = bestBlock(availIvOf(ev), ev.days, runLen, ev.bestMode, ev.needIv)
+    const b = planBestBlock(ev, runLen)
     return b ? { dayKey: b.startKey, endDayKey: b.endKey } : null
   }
   const b = openBest(ev)

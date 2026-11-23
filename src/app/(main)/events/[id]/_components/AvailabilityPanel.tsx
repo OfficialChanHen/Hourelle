@@ -63,7 +63,7 @@ import { useGuestMode } from '@/hooks/useGuestMode'
 import { planUsualWeek, weekFits } from '@/lib/usual-week'
 import { canEmail, sendNudges } from '@/lib/mail'
 import {
-  addMeToEvent, listEvents, patchEvent, patchEventWith, availIvOf, freeIvOf, myTimesPatch, normalizeIv, bestBlock, bestOpenStart, bestWindow, byYouFirst, runHours, slotSessions, fmtMinute, gridStartMinOf, longestRun, stepOf, sortByAttendance, type BestMode,
+  addMeToEvent, listEvents, patchEvent, patchEventWith, availIvOf, freeIvOf, myTimesPatch, normalizeIv, bestBlock, bestOpenStart, bestWindow, byYouFirst, runHours, slotSessions, fmtMinute, gridStartMinOf, longestRun, MIN_STAY, stepOf, sortByAttendance, type BestMode,
   type AppEvent, type Participant, type Iv, type AvailIntervals, type GridDay,
 } from '@/lib/events'
 import { googleBusyUtc, importSoon, lockedPlanBusyUtc, outlookBusyUtc, mockBusyUtc, planImport, ISO_DAY, localZoneShiftMin, localTimeZone, type DayImport, type UtcBusy } from '@/lib/calendar-import'
@@ -1340,8 +1340,9 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
   // keep the lock-in modal in step with the dial
   useEffect(() => { onRunChange?.(blockLen) }, [blockLen]) // eslint-disable-line react-hooks/exhaustive-deps
   const block = useMemo(
-    () => bestBlock(viewCombinedByDay, event.days, blockLen, bestMode, viewNeedByDay),
-    [viewCombinedByDay, viewNeedByDay, blockLen, bestMode], // eslint-disable-line react-hooks/exhaustive-deps
+    // a time poll's run needs the plan's length on every day of it (see bestBlock)
+    () => bestBlock(viewCombinedByDay, event.days, blockLen, bestMode, viewNeedByDay, dayPoll ? 0 : openSearch ? MIN_STAY : durationMin),
+    [viewCombinedByDay, viewNeedByDay, blockLen, bestMode, dayPoll, openSearch, durationMin], // eslint-disable-line react-hooks/exhaustive-deps
   )
   // with the dial on a run of days, each day of the winning run is framed at the hours
   // the most people share there, the same hours the lock-in offers, so the frames step
@@ -1931,7 +1932,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
               // winning run of days (a hairline across its headers ties the run together)
               const inBlock = mode === 'view' && !!blockKeys?.has(d.key)
               const blockFirst = inBlock && block?.startKey === d.key
-              const singleBestKey = dayPoll ? (blockLen === 1 ? block?.startKey : undefined) : frame?.dayKey
+              const singleBestKey = dayPoll ? (blockLen === 1 ? block?.startKey : undefined) : blockLen === 1 ? frame?.dayKey : undefined
               const isBestDay = !blockKeys && (d.best || (mode === 'view' && (lockedFrames ? !!frameFor(d.key) : singleBestKey === d.key)))
               return (
                 <button
@@ -2448,7 +2449,11 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
                   )}
                 </>
               ) : (
-                <span className="text-[12.5px] text-dim">No {blockLen} days in a row with replies yet.</span>
+                dayPoll
+                  ? <span className="text-[12.5px] text-dim">No {blockLen} days in a row with replies yet.</span>
+                  : openSearch
+                    ? <span className="text-[12.5px] text-dim">No {blockLen} days in a row where someone is free for an hour each day yet.</span>
+                    : <span className="text-[12.5px] text-dim">No {blockLen} days in a row with a block long enough for a <span className="font-semibold text-text">{fmtDur(durationMin)}</span> plan each day yet. Try a shorter length, or wait for more responses.</span>
               )}
             </>
           )}

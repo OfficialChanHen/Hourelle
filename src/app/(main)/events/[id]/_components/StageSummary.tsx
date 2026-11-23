@@ -7,7 +7,7 @@ import { TimezonePill } from '@/components/ui/TimezonePill'
 import { Highlight } from '@/components/ui/Pencil'
 import { placeVotes } from '@/lib/polls'
 import {
-  availIvOf, bestBlock, openBest, confirmedSlotText, dateRangeText, fmtMinute, gridStartMinOf,
+  planBestBlock, openBest, confirmedSlotText, dateRangeText, fmtMinute, gridStartMinOf,
   longestRun, answeredIds, planRunHours, rsvpPool, type AppEvent, type Phase,
 } from '@/lib/events'
 
@@ -67,7 +67,7 @@ export function StageSummary({ event, phase, onGoToAvailability, runLen }: {
   const run = Math.min(runLen ?? (dayPoll ? 2 : 1), maxRun) || 1
   const inDays = dayPoll || run >= 2
   const best = inDays ? null : openBest(event)
-  const bestDays = inDays ? bestBlock(availIvOf(event), event.days, run, event.bestMode, event.needIv) : null
+  const bestDays = inDays ? planBestBlock(event, run) : null
   // a time poll's run carries its own hours each day, named when the run is short
   const runDays = bestDays && !dayPoll ? event.days.filter((d) => d.key >= bestDays.startKey && d.key <= bestDays.endKey) : []
   const hours = runDays.length && runDays.length <= SPELL_DAYS ? planRunHours(event, runDays) : []

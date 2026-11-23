@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createEvent, lockStart, runRows, type AppEvent } from '@/lib/events'
+import { bestBlock, createEvent, lockStart, planBestBlock, runRows, type AppEvent } from '@/lib/events'
 import gameNight from '../../../test/game-night.json'
 
 // game night: 5 PM to 9 PM, one person, open length. Marked Tue 5:30–7:30, Wed 5–8:30,
@@ -15,6 +15,22 @@ describe('where the lock-in opens', () => {
   })
   it('opens one day on the best time', () => {
     expect(lockStart(ev, 1)).toEqual({ dayKey: '2026-11-21', endDayKey: '2026-11-21' })
+  })
+})
+
+describe('the best run when the plan has a length', () => {
+  const timed = (min: number) => ({ ...ev, openLength: undefined, durationMin: min })
+  it('picks a run only where every day has a stretch of the plan’s length', () => {
+    expect(planBestBlock(timed(120), 2)).toMatchObject({ startKey: '2026-11-17', endKey: '2026-11-18' })
+    // only Wed and Sat have three hours, and they are not next to each other
+    expect(planBestBlock(timed(180), 2)).toBeNull()
+    expect(lockStart(timed(180), 2)).toBeNull()
+  })
+  it('does not count a day for someone whose stretches there are all too short', () => {
+    const iv = { '2026-11-17': { A: [{ s: 0, e: 60 }] }, '2026-11-18': { A: [{ s: 0, e: 240 }] } }
+    const days = ev.days.slice(0, 2)
+    expect(bestBlock(iv, days, 2, 'full', undefined, 180)).toBeNull()
+    expect(bestBlock(iv, days, 2, 'full', undefined, 60)).toMatchObject({ count: 1 })
   })
 })
 
