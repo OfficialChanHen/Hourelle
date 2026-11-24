@@ -65,6 +65,9 @@ import { Tour, type TourContext } from '@/components/Tour'
 import { AskTour } from '@/components/AskTour'
 import { cleanEmail, isEmail, meetingHref, onMeeting, wholeAmount } from '@/lib/forgiving'
 import { forgetRemovedEvent, markArrived, removedFromEvent, fromDay, todayKey, getEvent, deleteEvent, leaveEvent, patchEvent, patchEventWith, postMessage, claimEvent, availIvOf, openBest, buildDays, buildDaysFrom, buildTimes, byYouFirst, dateRangeText, fmtMinute, fullAvailIvOf, gridStartMinOf, leadingPlaceOf, markMessagesSeen, maxPollDays, phaseOf, mergeParticipantsPatch, removeParticipantPatch, respondedCount, seenMessageCount, selectedDayKeys, stepOf, viewOf, type AppEvent, type Rsvp, type SaveResult } from '@/lib/events'
+import { RepeatSelect } from '@/components/ui/RepeatSelect'
+import { RepeatTag } from '@/components/ui/RepeatTag'
+import { repeatLabel } from '@/lib/repeat'
 import { AddToCalendar } from './AddToCalendar'
 import { AvailabilityPanel } from './AvailabilityPanel'
 import { LocationPanel } from './LocationPanel'
@@ -458,7 +461,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
             {(close) => (
               // the same rule as the desktop button: nothing to hand out once it is over
               phase === 'past' ? (
-                <p className="px-3.5 py-3 text-[12.5px] leading-[1.5] text-dim">This plan is over, so its link is closed. Duplicate it to start the next one.</p>
+                <p className="px-3.5 py-3 text-[12.5px] leading-[1.5] text-dim">This plan is over, so its link is closed. {nextTimeNote(event)}</p>
               ) : (
               <>
                 <PopoverTitle>Send the link</PopoverTitle>
@@ -497,6 +500,7 @@ export function EventDetail({ id, initialTab, spotlightDelete = false }: { id: s
                 {(event.hostKind ?? (event.hostedByYou ? 'person' : 'org')) === 'org' && <Building2 size={15} className="flex-none" />}
                 Hosted by {event.hostName}
               </span>
+              <RepeatTag e={event} />
             </div>
             {(room.here.length > 0 || me?.guest) && (
               <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13.5px] text-dim">
@@ -784,6 +788,10 @@ function DetailsTab({ event, onDelete, onLeave, onGoToTab, onGoToBestWindow, onP
         {locked && (isHost || event.rsvpDeadline) && (
           <DetailRow k="RSVP by" v={<DeadlineValue label="RSVP by" value={event.rsvpDeadline} editable={isHost} onChange={(v) => onPatch({ rsvpDeadline: v })} hint="Everyone gets a reminder the day before and the day of. Late answers still count." max={event.confirmed?.dayKey} />} />
         )}
+        {/* a repeating plan: the host sets it at lock-in or here; everyone sees that it repeats */}
+        {!event.demo && (event.repeat || (isHost && locked)) && (
+          <DetailRow k="Repeats" v={<RepeatValue event={event} editable={isHost} onPatch={onPatch} />} />
+        )}
         <DetailRow k="Spots" v={<CapacityValue event={event} editable={isHost} onPatch={onPatch} />} />
         <DetailRow
           k="Budget"
@@ -991,7 +999,7 @@ function InviteMore({ event, onPatch, openNonce = 0 }: { event: AppEvent; onPatc
   // nobody is invited to something that already happened; the copy is where the
   // next one starts, and that one is open again from the moment it is made
   if (phaseOf(event) === 'past') {
-    return <p className="rounded-[9px] border border-border bg-s0 px-3.5 py-2.5 text-[12.5px] leading-[1.5] text-dim">This plan is over, so invitations are closed. Duplicate it to start the next one.</p>
+    return <p className="rounded-[9px] border border-border bg-s0 px-3.5 py-2.5 text-[12.5px] leading-[1.5] text-dim">This plan is over, so invitations are closed. {nextTimeNote(event)}</p>
   }
   return (
     <div ref={wrap}>
@@ -1465,6 +1473,35 @@ function DeadlineValue({ label, value, editable, onChange, hint, max }: {
 /* Where: the confirmed venue once locked; before that, the vote leader for a single venue,
    or a pointer to the itinerary on the Location tab. */
 /* Spots: the host caps the guest list; everyone sees the number, only the host edits it */
+// the closing words on a plan that is over: where the next one comes from
+function nextTimeNote(event: AppEvent): string {
+  if (event.repeat?.nextId) return 'The next one has its own link.'
+  if (event.repeat) return 'It opens again on its own for the next dates.'
+  return 'Duplicate it to start the next one.'
+}
+
+/* How often the plan comes back: once it is over, a copy opens on its own for the
+   next dates, with the same people and an empty grid (lib/repeat.ts). Once it has, this
+   row points at it instead, and the choice lives on the new plan. */
+function RepeatValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: PatchEvent }) {
+  const nextId = event.repeat?.nextId
+  const dayKey = event.confirmed?.dayKey ?? event.startDate
+  if (nextId) {
+    // only a plan you are on: the link is the permission, so it is never handed out here
+    const next = getEvent(nextId)
+    return next
+      ? <Link href={`/events/${next.id}`} className="font-semibold text-accent-text underline-offset-2 hover:underline">The next one is open</Link>
+      : <span>{event.repeat ? repeatLabel(event.repeat.every, dayKey) : ''}</span>
+  }
+  if (!editable) return <span>{event.repeat ? repeatLabel(event.repeat.every, dayKey) : 'Doesn\'t repeat'}</span>
+  return (
+    <span className="flex flex-col gap-1">
+      <RepeatSelect value={event.repeat?.every ?? ''} dayKey={dayKey} onChange={(v) => onPatch({ repeat: v ? { every: v } : undefined })} className="max-w-[280px]" />
+      {event.repeat && <span className="text-[12.5px] font-normal text-dim">Once this one is over, it opens again for the next dates.</span>}
+    </span>
+  )
+}
+
 function CapacityValue({ event, editable, onPatch }: { event: AppEvent; editable: boolean; onPatch: PatchEvent }) {
   const [v, setV] = useState(event.capacity?.toString() ?? '')
   const auto = useAutosave<number | undefined>((capacity) => onPatch({ capacity }))

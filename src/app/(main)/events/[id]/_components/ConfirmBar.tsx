@@ -9,6 +9,8 @@ import { TimeSelect } from '@/components/ui/TimeSelect'
 import { DateField } from '@/components/ui/DateField'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { TimezonePill } from '@/components/ui/TimezonePill'
+import { RepeatSelect } from '@/components/ui/RepeatSelect'
+import { repeatLabel, type Cadence } from '@/lib/repeat'
 import { canEmail, sendLockedMail } from '@/lib/mail'
 import { useAccount } from '@/hooks/useAccount'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
@@ -289,13 +291,17 @@ function ConfirmForm({ event, close, onChanged, onGoToLocation, prefill, runLen 
   // locking in opens the RSVP round, so the deadline for it is asked here — optional,
   // and soft: it nudges and shifts emphasis, late answers still count
   const [rsvpBy, setRsvpBy] = useState(event.rsvpDeadline ?? '')
+  // a regular group's plan opens again on its own once it is over (lib/repeat.ts)
+  const [repeatEvery, setRepeatEvery] = useState<Cadence | ''>(event.repeat?.every ?? '')
+  // monthly names its weekday from the plan's day
+  const repeatDay = timeSet?.dayKey ?? dayKey
   const d0 = new Date()
   const todayKey = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`
   const rsvpText = (k: string) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) }
 
   // which row has its controls open; one at a time keeps the dialog short
-  const [openRow, setOpenRow] = useState<'when' | 'where' | 'rsvp' | null>(null)
-  const toggle = (r: 'when' | 'where' | 'rsvp') => setOpenRow((o) => (o === r ? null : r))
+  const [openRow, setOpenRow] = useState<'when' | 'where' | 'rsvp' | 'repeat' | null>(null)
+  const toggle = (r: 'when' | 'where' | 'rsvp' | 'repeat') => setOpenRow((o) => (o === r ? null : r))
 
   function togglePlace(id: string) {
     setPlaceIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]))
@@ -327,6 +333,7 @@ function ConfirmForm({ event, close, onChanged, onGoToLocation, prefill, runLen 
     // clamp a stale pick (the chosen day may have moved under it) before storing
     const deadline = rsvpBy && rsvpBy >= todayKey && rsvpBy <= dayKey ? rsvpBy : undefined
     if (deadline !== event.rsvpDeadline) patchEvent(event.id, { rsvpDeadline: deadline })
+    if (repeatEvery !== (event.repeat?.every ?? '')) patchEvent(event.id, { repeat: repeatEvery ? { every: repeatEvery } : undefined })
     // everyone hears about it, calendar entry attached, in the background; the
     // server waits for the lock-in to land before it writes to anyone
     if (canEmail(account.signedIn) && !event.demo) void sendLockedMail(event.id, getEvent(event.id)?.confirmedAt)
@@ -520,6 +527,16 @@ function ConfirmForm({ event, close, onChanged, onGoToLocation, prefill, runLen 
                 </button>
               )}
             </div>
+          </Row>
+          <Row
+            label="Repeats"
+            value={repeatEvery ? repeatLabel(repeatEvery, repeatDay) : <span className="text-dim">Doesn&apos;t repeat</span>}
+            sub={repeatEvery ? 'Once this one is over, it opens again for the next dates.' : null}
+            action={repeatEvery ? 'Change' : 'Add'}
+            open={openRow === 'repeat'}
+            onToggle={() => toggle('repeat')}
+          >
+            <RepeatSelect value={repeatEvery} dayKey={repeatDay} onChange={setRepeatEvery} />
           </Row>
         </div>
         <p className="mt-4 text-[12.5px] leading-[1.5] text-faint">Everyone with the link sees this as final. You can reopen planning later.</p>

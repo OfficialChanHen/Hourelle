@@ -3,6 +3,7 @@ import { MobileTabBar } from '@/components/MobileTabBar'
 import { AccessBoundary } from '@/components/AccessBoundary'
 import { FlashToast } from '@/components/ui/FlashToast'
 import { SiteFooter } from '@/components/SiteFooter'
+import { RepeatOpener } from '@/components/RepeatOpener'
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   // flex-1 rather than min-h-full: the body is a flex column with a min-height, so a
@@ -22,6 +23,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           redirect (delete, leave, create) lands wherever the visitor does */}
       <main id="main" tabIndex={-1} className="relative flex-1 overflow-x-clip">
         <FlashToast />
+        <RepeatOpener />
         <AccessBoundary>{children}</AccessBoundary>
       </main>
       <SiteFooter />
