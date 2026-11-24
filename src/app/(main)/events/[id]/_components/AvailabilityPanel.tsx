@@ -372,17 +372,19 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         for (const [id, ivs] of Object.entries(others[d.key] ?? {})) if (ivs.length) ids.add(id)
         if ((mine[d.key]?.length ?? 0) > 0 || (need[d.key]?.length ?? 0) > 0) you = true
       }
-      // a week said out is an answer for that week
+      // a week said out is an answer for that week, and "none of these days work"
+      // says every week out at once, so its tabs read the same
       const key = real[0] && ISO_DAY.test(real[0].key) ? weekKeyOf(real[0].key) : ''
       for (const id of othersOut.get(key) ?? []) ids.add(id)
-      const out = outWeeks.includes(key)
+      for (const id of unavail) if (id !== meId && event.participants.some((p) => p.id === id)) ids.add(id)
+      const out = outWeeks.includes(key) || unavail.has(meId)
       if ((you || out) && meId) ids.add(meId)
       const a = real[0]?.date ?? '', b = real[real.length - 1]?.date ?? ''
       const [am] = a.split(' '), [bm, bd] = b.split(' ')
       const label = real.length < 2 ? a : am === bm ? `${a} – ${bd}` : `${a} – ${b}`
       return { label, count: ids.size, you, out }
     })
-  }, [paddedDays, pageCount, others, mine, need, meId, othersOut, outWeeks])
+  }, [paddedDays, pageCount, others, mine, need, meId, othersOut, outWeeks, unavail, event.participants])
   const weekStrip = !dayPoll && weekChips.length > 1
   const weekTabId = useId(), gridPanelId = useId()
 
@@ -585,12 +587,14 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
       const weeks = d.weeks === undefined ? {} : { unavailableWeeks: d.weeks.length ? { ...otherWeeks, [meId]: d.weeks } : otherWeeks }
       return { ...myTimesPatch(cur, meId, event.days, d.m, rows, step, d.need), ...d.extra, ...none, ...weeks }
     })
+    weekTimes.current = {}; setDraftOut([]) // saved: the group has the answer, so there is nothing to undo
     setSavedFlash(true)
     return true
   }
   // Don't save: back to your times as the plan has them
   function discardTimes() {
     draftRef.current = null
+    weekTimes.current = {}; setDraftOut([])
     setUnsaved(false)
     setMine(remoteMine); setNeed(remoteNeed); setUnavail(new Set(event.unavailableIds ?? [])); setOutWeeks(savedOut)
     setSel(null)
@@ -616,21 +620,44 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
     draftRef.current = { m: d?.m ?? mineRef.current, need: d?.need ?? needRef.current, extra: d?.extra ?? {}, none: on }
     setUnsaved(true)
   }
-  // the week on screen, said out or taken back. Saying it clears your times in that
-  // week (Undo brings them back, and the week with them); marking one there later
-  // takes it back. Part of the draft like a mark
+  // the week on screen, said out or undone. Saying it clears your times in that week
+  // and keeps them here, so the banner's Undo puts them back, the week with them;
+  // marking a time there later takes the week back too. Part of the draft like a mark,
+  // and Undo lasts only until Save: after that the group has the answer
+  const weekTimes = useRef<Record<string, Times>>({})
+  const [draftOut, setDraftOut] = useState<string[]>([]) // weeks said out since the last Save
+  const pageWeek = (() => { const f = weekDays.find((d) => !d.pad); return f && ISO_DAY.test(f.key) ? weekKeyOf(f.key) : '' })()
+  const weekOutUnsaved = !!pageWeek && outWeeks.includes(pageWeek) && draftOut.includes(pageWeek)
   function toggleWeekOut() {
     const first = weekDays.find((d) => !d.pad)
     if (!first || !ISO_DAY.test(first.key)) return
     const w = weekKeyOf(first.key)
     const on = !outWeeks.includes(w)
+    const real = weekDays.filter((d) => !d.pad)
+    const kept = weekTimes.current[w]
+    delete weekTimes.current[w]
+    setDraftOut((prev) => (on ? [...prev, w] : prev.filter((x) => x !== w)))
+    if (!on && kept) {
+      // the times go back, and persist takes the week back with them
+      const nextMine = { ...mine, ...kept.free }, nextNeed = { ...needRef.current, ...kept.need }
+      setMine(nextMine); setNeed(nextNeed); persist(nextMine, {}, nextNeed)
+      return
+    }
     const next = on ? [...outWeeks, w] : outWeeks.filter((x) => x !== w)
-    const hadTimes = weekDays.some((d) => !d.pad && ((mine[d.key]?.length ?? 0) > 0 || (need[d.key]?.length ?? 0) > 0))
-    if (on && hadTimes) clearWeekMine()
+    let m = mineRef.current, n = needRef.current
+    if (on && real.some((d) => (mine[d.key]?.length ?? 0) > 0 || (need[d.key]?.length ?? 0) > 0)) {
+      weekTimes.current[w] = {
+        free: Object.fromEntries(real.map((d) => [d.key, mine[d.key] ?? []])),
+        need: Object.fromEntries(real.map((d) => [d.key, needRef.current[d.key] ?? []])),
+      }
+      m = { ...mine }; n = { ...needRef.current }
+      for (const d of real) { m[d.key] = []; n[d.key] = [] }
+      setMine(m); setNeed(n); setSel(null)
+    }
     setOutWeeks(next)
     if (event.demo) return
     const d = draftRef.current
-    draftRef.current = { m: d?.m ?? mineRef.current, need: d?.need ?? needRef.current, extra: d?.extra ?? {}, none: d?.none, weeks: next }
+    draftRef.current = { m, need: n, extra: d?.extra ?? {}, none: d?.none, weeks: next }
     setUnsaved(true)
   }
   function changeDuration(v: number) {
@@ -1971,8 +1998,10 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
           weekChips[page]?.out ? (
             <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-brick-border bg-brick-bg px-3 py-2 text-[13px] text-brick-text">
               <CalendarX size={14} aria-hidden className="flex-none" />
-              <span className="min-w-0 flex-1">You can&rsquo;t make {weekChips[page].label}. Marking a time here takes that back.</span>
-              <button type="button" onClick={toggleWeekOut} className="flex h-11 items-center rounded-full border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-text hover:bg-s2 sm:h-8">Take it back</button>
+              <span className="min-w-0 flex-1">
+                You can&rsquo;t make {weekChips[page].label}. {weekOutUnsaved ? 'Marking a time here takes that back.' : 'Mark a time here if that changes.'}
+              </span>
+              {weekOutUnsaved && <button type="button" onClick={toggleWeekOut} className="flex h-11 items-center rounded-full border border-border2 bg-s1 px-3 text-[12.5px] font-semibold text-text hover:bg-s2 sm:h-8">Undo</button>}
             </div>
           ) : (
             <div className="mb-2 flex">
@@ -1990,7 +2019,7 @@ export function AvailabilityPanel({ event, locked = false, initialFilter = null,
         {/* one tab per week, on the grid's top edge, so a poll that runs over several
             weeks keeps every week in plain sight. The grid below is what it switches */}
         {weekStrip && (
-          <WeekStrip weeks={weekChips} total={total} value={page} onChange={goToWeek} idBase={weekTabId} panelId={gridPanelId} ask={editable && !pattern && !unavail.has(meId)} />
+          <WeekStrip weeks={weekChips} total={total} value={page} onChange={goToWeek} idBase={weekTabId} panelId={gridPanelId} ask={editable && !pattern} />
         )}
 
         {/* grid — a day poll gets the calendar, everything else the timetable */}
