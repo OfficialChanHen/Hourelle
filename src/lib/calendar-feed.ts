@@ -7,7 +7,7 @@
 import { supabase, backendOn } from './db'
 import { APP_NAME } from '@/lib/brand'
 
-// The feed needs migration 0017 and the service key on the server. With a backend it
+// The feed needs migration `calendar_feeds` and the service key on the server. With a backend it
 // says "Coming soon" until NEXT_PUBLIC_CALENDAR_FEED_ON=1 says both are in place;
 // without one there is no server to serve it, so it is coming soon there too.
 export const feedSoon = (backendOn: boolean) => !backendOn || process.env.NEXT_PUBLIC_CALENDAR_FEED_ON !== '1'

@@ -10,7 +10,7 @@
    So a photo goes to Supabase Storage and the document keeps a URL. The bucket is
    public to read, because a share link has to show the cover to someone with no
    account, and writable only by a signed-in account, because uploading is a host
-   action. Migration 0013 creates it.
+   action. Migration `covers` creates it.
 
    With no backend, or no session, or a bucket that has not been made yet, the data
    URL is still the fallback: the app has always worked with nothing configured and

@@ -4,7 +4,7 @@ import type { AppEvent, Participant } from './events'
    the host does day to day (edit the details, invite, remove people, lock it in or
    reopen it) but not the host's own calls: deleting the plan, the budget, and who
    else co-hosts. Only someone with an account can be one, because the database has
-   to know who is asking (migration 0021 holds the same line). Pure, so the server
+   to know who is asking (migration `cohosts` holds the same line). Pure, so the server
    routes and the tests read the same rules the screens do. */
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

@@ -2,7 +2,7 @@
 // and the two ways of slicing a whole event's answers.
 //
 // This lives apart from lib/events so the sync layer can use it too. Availability
-// now travels as one row per person (migration 0008), and remote.ts has to turn rows
+// now travels as one row per person (migration `availability_and_votes`), and remote.ts has to turn rows
 // into the document shape the app reads — without importing events.ts, which imports
 // remote.ts. Only types cross that line.
 

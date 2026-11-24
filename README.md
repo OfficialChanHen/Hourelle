@@ -245,23 +245,23 @@ Schema lives in `supabase/migrations`, applied in order in the Supabase SQL edit
 
 | | |
 |---|---|
-| `0001` | `events`, one `jsonb` document per event |
-| `0002` | `profiles`, mirroring `auth.users` with the name and avatar colour |
-| `0003` | Row-level security on events, plus a trigger guarding host-only fields |
-| `0004` | `messages`, one row per chat line |
-| `0005` | `feedback`, bug reports from the Help page |
-| `0006` | `email_log` and reminder preferences |
-| `0007` | A chosen avatar colour, as opposed to a dealt one |
-| `0008` | `availability` and `votes` leave the event document |
-| `0009` | Backfill for anything `0008` missed |
-| `0010` | Profiles for accounts that predate the trigger |
-| `0011` | When an account accepted the terms, and which version |
-| `0012` | Plan, and interest in Plus |
-| `0013` | A public `covers` bucket: a host's photo leaves the event document |
-| `0014` | Billing: where a plan came from and until when, guarded so only the server can grant it |
-| `0015` | The trigger learns the rest of the host-only fields (length, best-time mode, deadlines) |
-| `0016` | Profiles stop being readable by anyone; email lookups go through two narrow functions |
-| `0017` | `calendar_feeds`: one secret feed address per account, readable only by the server |
+| `20260802202309_events` | `events`, one `jsonb` document per event |
+| `20260909195009_profiles` | `profiles`, mirroring `auth.users` with the name and avatar colour |
+| `20260909201822_events_rls` | Row-level security on events, plus a trigger guarding host-only fields |
+| `20260910164853_messages` | `messages`, one row per chat line |
+| `20260910181506_feedback` | `feedback`, bug reports from the Help page |
+| `20260911215056_email` | `email_log` and reminder preferences |
+| `20260912170936_profile_color_set` | A chosen avatar colour, as opposed to a dealt one |
+| `20260912170937_availability_and_votes` | `availability` and `votes` leave the event document |
+| `20260915222009_answers_repair` | Backfill for anything `availability_and_votes` missed |
+| `20260916234432_profiles_backfill` | Profiles for accounts that predate the trigger |
+| `20260918202759_terms` | When an account accepted the terms, and which version |
+| `20260919001146_plan` | Plan, and interest in Plus |
+| `20260921152934_covers` | A public `covers` bucket: a host's photo leaves the event document |
+| `20260921202811_billing` | Billing: where a plan came from and until when, guarded so only the server can grant it |
+| `20260921233740_host_only_fields` | The trigger learns the rest of the host-only fields (length, best-time mode, deadlines) |
+| `20260922184209_profiles_privacy` | Profiles stop being readable by anyone; email lookups go through two narrow functions |
+| `20261007224709_calendar_feeds` | `calendar_feeds`: one secret feed address per account, readable only by the server |
 
 Every migration carries its own reasoning in a header comment: what moved, and what
 went wrong before it did.

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { parseName, toSlug, versionAt, nextVersion, nameProblems, replacedFunctions, functionClashes, includedFiles } from './names.mjs'
+import { parseName, toSlug, versionAt, nextVersion, nameProblems, replacedFunctions, functionClashes, includedFiles, isRenamedCopy } from './names.mjs'
 
 describe('migration names', () => {
-  it('reads both the numbered and the stamped format', () => {
-    expect(parseName('0023_link_scoped_access.sql')).toEqual({ version: '0023', slug: 'link_scoped_access', legacy: true })
-    expect(parseName('supabase/migrations/20261123184502_weeks.sql')).toEqual({ version: '20261123184502', slug: 'weeks', legacy: false })
+  it('reads the stamped format only', () => {
+    expect(parseName('supabase/migrations/20261123184502_weeks.sql')).toEqual({ version: '20261123184502', slug: 'weeks' })
+    expect(parseName('0023_link_scoped_access.sql')).toBeNull()
     expect(parseName('weeks.sql')).toBeNull()
   })
 
@@ -19,11 +19,11 @@ describe('migration names', () => {
     expect(nextVersion('20261231235959')).toBe('20270101000000')
   })
 
-  it('flags new numbers, odd names and shared versions', () => {
-    expect(nameProblems(['0023_a.sql', '20261123184502_b.sql'])).toEqual([])
-    expect(nameProblems(['0025_next.sql'])[0]).toMatch(/numbered names stop at 0024/)
+  it('flags numbered names, odd names and shared versions', () => {
+    expect(nameProblems(['20260802202309_a.sql', '20261123184502_b.sql'])).toEqual([])
+    expect(nameProblems(['0024_unavailable_weeks.sql'])[0]).toMatch(/numbered names are retired; run npm run migration:new unavailable_weeks/)
     expect(nameProblems(['notes.sql'])[0]).toMatch(/YYYYMMDDHHMMSS_slug/)
-    expect(nameProblems(['2026_11_23_weeks.sql'])[0]).toMatch(/numbered names stop/)
+    expect(nameProblems(['2026_11_23_weeks.sql'])[0]).toMatch(/numbered names are retired/)
     expect(nameProblems(['20261123184502_a.sql', '20261123184502_b.sql'])[0]).toMatch(/also used by 20261123184502_a\.sql/)
   })
 })
@@ -40,17 +40,24 @@ describe('functions rewritten on two branches', () => {
     const clashes = functionClashes(
       { '20261123184502_weeks.sql': rules },
       [
-        { file: '0022_open_length.sql', branch: 'feature/day-hours', sql: rules },
-        { file: '0013_covers.sql', branch: 'main', sql: 'create table covers ();' },
+        { file: '20261112235150_open_length.sql', branch: 'feature/day-hours', sql: rules },
+        { file: '20260921152934_covers.sql', branch: 'main', sql: 'create table covers ();' },
       ],
     )
-    expect(clashes).toEqual([{ fn: 'public.enforce_event_rules', file: '20261123184502_weeks.sql', otherFile: '0022_open_length.sql', branch: 'feature/day-hours' }])
+    expect(clashes).toEqual([{ fn: 'public.enforce_event_rules', file: '20261123184502_weeks.sql', otherFile: '20261112235150_open_length.sql', branch: 'feature/day-hours' }])
   })
 
   it('skips a migration the file says it folds in', () => {
-    const sql = `-- includes: 0020_repeating_plans.sql, 0021_cohosts.sql\n${rules}`
-    expect([...includedFiles(sql)]).toEqual(['0020_repeating_plans.sql', '0021_cohosts.sql'])
-    expect(functionClashes({ 'b.sql': sql }, [{ file: '0020_repeating_plans.sql', branch: 'feature/repeating-plans', sql: rules }])).toEqual([])
+    const sql = `-- includes: 20261102232202_repeating_plans.sql, 20261112233930_cohosts.sql\n${rules}`
+    expect([...includedFiles(sql)]).toEqual(['20261102232202_repeating_plans.sql', '20261112233930_cohosts.sql'])
+    expect(functionClashes({ 'b.sql': sql }, [{ file: '20261102232202_repeating_plans.sql', branch: 'feature/repeating-plans', sql: rules }])).toEqual([])
+  })
+
+  it('knows an old numbered name for a stamped file here', () => {
+    const here = ['20261112235150_open_length.sql']
+    expect(isRenamedCopy('0022_open_length.sql', here)).toBe(true)
+    expect(isRenamedCopy('0024_unavailable_weeks.sql', here)).toBe(false)
+    expect(isRenamedCopy('20261112235150_open_length.sql', here)).toBe(false)
   })
 
   it('ignores a migration this branch already has', () => {

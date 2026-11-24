@@ -45,7 +45,7 @@ export function recentInvitees(limit = 8): Invitee[] {
 
 /** An exact email that belongs to an account, or null. Exact only, and through
  *  `profile_by_email` rather than the table, which is closed to everyone but its
- *  owner (migrations 0016 and 0017). The function hands back a name and a colour and
+ *  owner (migrations `profiles_privacy` and `calendar_feeds`). The function hands back a name and a colour and
  *  nothing else, it answers signed-in callers only, and there is still no way to
  *  browse: you have to know the address already. */
 export async function lookupProfileByEmail(email: string): Promise<Invitee | null> {

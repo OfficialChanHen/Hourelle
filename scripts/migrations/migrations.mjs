@@ -11,7 +11,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, openSync, closeSync, writeFileSync, readFileSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import {
-  parseName, toSlug, versionAt, nextVersion, nameProblems, functionClashes,
+  parseName, toSlug, versionAt, nextVersion, nameProblems, functionClashes, isRenamedCopy,
 } from './names.mjs'
 
 const DIR = 'supabase/migrations'
@@ -87,7 +87,7 @@ function check() {
     for (const b of branches()) {
       if (b === current) continue
       for (const f of filesOn(b)) {
-        if (hereSet.has(f) || theirs.some((t) => t.file === f)) continue
+        if (hereSet.has(f) || isRenamedCopy(f, here) || theirs.some((t) => t.file === f)) continue
         theirs.push({ file: f, branch: b, sql: read(b, f) })
       }
     }

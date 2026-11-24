@@ -1,6 +1,6 @@
 -- The rest of the plan's host-only fields, checked at the database too.
 --
--- 0015 made the grid's settings host-only after a guest was found able to change them
+-- `host_only_fields` made the grid's settings host-only after a guest was found able to change them
 -- for everyone. The same gap was still open for everything else the app shows only to
 -- the host (and co-hosts): the screen hid the control, but a guest holding the anon
 -- key could write the field straight into the document. The one that mattered most
@@ -21,22 +21,22 @@
 -- and empty read the same way for the link and the switches, since the app writes
 -- them out in full.
 --
--- The server's own writes pass again. Every guard since 0003 let a caller through
+-- The server's own writes pass again. Every guard since `events_rls` let a caller through
 -- when `request.jwt.claims` was null, on the belief that the service key carries no
 -- JWT. It does: PostgREST sets the claims for every request, the service key's
 -- included (`"role": "service_role"`). So the server was judged like a guest:
 -- deleting an account that co-hosts someone's plan failed on the co-host check (it
--- takes their flag off that plan), and 0014's plan guard refused the Stripe webhook
+-- takes their flag off that plan), and `billing`'s plan guard refused the Stripe webhook
 -- and the comp route. `trusted_caller()` now says yes to direct SQL (claims unset,
 -- or empty on a pooled connection after an earlier request) and to the service
 -- role (by the role the request runs as, or its claims); both guards ask it. A browser's claims are signed and say anon or
 -- authenticated, so it cannot pass itself off as the server.
 --
--- 0022's function with these checks added, so it keeps every rule 0020 (repeating
--- plans), 0021 (co-hosts) and 0022 (length unknown) made. Run it after them; it
--- defines 0021's helper too. Safe to run more than once.
+-- `open_length`'s function with these checks added, so it keeps every rule `repeating_plans`,
+-- `cohosts` and `open_length` made. Run it after them; it
+-- defines `cohosts`'s helper too. Safe to run more than once.
 --
--- includes: 0020_repeating_plans.sql
+-- includes: 20261102232202_repeating_plans.sql
 
 -- direct SQL (the dashboard editor, migrations) or the server's service key
 create or replace function public.trusted_caller()
@@ -49,7 +49,7 @@ as $$
     or current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
 $$;
 
--- 0014's guard, asking the same question
+-- `billing`'s guard, asking the same question
 create or replace function public.guard_plan_columns()
 returns trigger
 language plpgsql
@@ -218,7 +218,7 @@ begin
     raise exception 'Only the host can change the itinerary';
   end if;
 
-  -- a repeating plan (0020): whether it repeats and which plan it came from are
+  -- a repeating plan (`repeating_plans`): whether it repeats and which plan it came from are
   -- written by the host's app alone
   if new.data->'repeat' is distinct from old.data->'repeat'
      or new.data->>'repeatOf' is distinct from old.data->>'repeatOf' then

@@ -150,7 +150,7 @@ export function startAuth(): () => void {
 /* ── the terms, accepted ──
    Sign-up records the moment and the version here, then writes it to the profile
    as soon as there is a session to write with. Best effort: a database without the
-   0011 columns refuses the write and the note simply stays on the device. */
+   `terms` columns refuses the write and the note simply stays on the device. */
 const LEGAL_KEY = 'hourelle.legal'
 type LegalNote = { version: string; at: number; synced: boolean }
 export function recordLegalAcceptance(version: string): void {
@@ -165,7 +165,7 @@ const NOTE_GOOD_FOR = 30 * 60_000
 
 /** Has the signed-in account accepted the terms? The profile is the record; a note
  *  made on this device moments ago, on its way to the profile, counts too. A database
- *  without the 0011 columns cannot say, and then the answer is yes rather than a
+ *  without the `terms` columns cannot say, and then the answer is yes rather than a
  *  locked door. */
 export async function legalAccepted(userId: string): Promise<boolean> {
   if (!backendOn) return true
@@ -234,7 +234,7 @@ export const EMAIL_TAKEN = 'That email already has an account.'
 /** Is there an account behind this address? profiles mirrors auth.users (the
  *  handle_new_user trigger copies the email), so the sign-up form can ask before
  *  anything is created. It asks through `email_has_account` rather than by reading
- *  the table, which is closed to everyone but its owner (migrations 0016 and 0017):
+ *  the table, which is closed to everyone but its owner (migrations `profiles_privacy` and `calendar_feeds`):
  *  the answer is a bare yes or no and no address ever comes back out. A failure
  *  reads as "no", so a database that has not been migrated yet leaves sign-up
  *  working and merely stops it noticing a duplicate early. */

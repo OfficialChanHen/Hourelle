@@ -1,20 +1,20 @@
--- Step 12: put back what the documents lost, and pick up anything 0008 missed.
+-- Step 12: put back what the documents lost, and pick up anything `availability_and_votes` missed.
 --
--- 0008 moved availability, the ballot and "none of these days work" out of the event
+-- The `availability_and_votes` migration moved availability, the ballot and "none of these days work" out of the event
 -- document and into rows. The client cut those three fields out of every document it
 -- wrote from the same release — but it cut them whether or not the rows existed, and
--- on a database where 0008 had not been applied by hand yet that meant writing them
+-- on a database where `availability_and_votes` had not been applied by hand yet that meant writing them
 -- nowhere. The ballot and the explicit empty reply went with it; availability survived
 -- only as `avail`, the per-cell view, where a block that ran to 8:20 reads as the whole
 -- 8:00 slot. That is why a carefully set partial time came back filling its box.
 --
 -- The client no longer cuts them until the database has actually confirmed the rows are
 -- there. This migration repairs what the earlier build wrote, and is safe to run whether
--- or not 0008 has been: every insert is idempotent and no existing row is overwritten.
+-- or not `availability_and_votes` has been: every insert is idempotent and no existing row is overwritten.
 
 -- ── 1. catch up on anything still sitting in a document ──
--- Same three passes as 0008. An event written since then may have picked the fields
--- back up, and on a database where 0008 never ran they are all still here.
+-- Same three passes as `availability_and_votes`. An event written since then may have picked the fields
+-- back up, and on a database where `availability_and_votes` never ran they are all still here.
 
 insert into public.availability (event_id, participant_id, intervals)
 select e.id, p.pid, jsonb_object_agg(d.day_key, p.ivs)

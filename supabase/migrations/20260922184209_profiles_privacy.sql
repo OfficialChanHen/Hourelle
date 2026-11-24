@@ -6,10 +6,10 @@
 -- already has it changes nothing except the one grant that was wrong.
 --
 -- ── what was open ──
--- `profiles` carried "readable by anyone" from 0002, written when the row held a
+-- `profiles` carried "readable by anyone" from the `profiles` migration, written when the row held a
 -- name and a colour and that was the whole of it. The row grew: the email address,
--- then the terms version (0011), the plan and the Plus waiting-list stamp (0012),
--- the Stripe customer (0014). The policy never grew with it. The anon key that
+-- then the terms version (`terms`), the plan and the Plus waiting-list stamp (`plan`),
+-- the Stripe customer (`billing`). The policy never grew with it. The anon key that
 -- unlocks the REST endpoint ships in every browser bundle, because that is what an
 -- anon key is for and row level security is meant to be the thing standing behind
 -- it, so `GET /rest/v1/profiles?select=email` answered with every address on the
@@ -77,7 +77,7 @@ grant execute on function public.profile_by_email(text) to authenticated;
 -- from the event's own JSON, not from here. Everything server side carries the
 -- service key, which row level security does not apply to, so the reminder mailer,
 -- the Stripe webhook, the admin plan endpoint and account deletion are unaffected.
--- The insert and update policies from 0002 were already scoped to the owner and are
+-- The insert and update policies from `profiles` were already scoped to the owner and are
 -- left alone.
 drop policy if exists "profiles are readable by anyone" on public.profiles;
 drop policy if exists "you may only read your own profile" on public.profiles;
