@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Route, Map, PartyPopper, Presentation, Repeat, Utensils, Dices, CookingPot, ArrowRight, type LucideIcon } from 'lucide-react'
-import { Cover } from '@/components/ui/Cover'
+import { Cover, CoverCredit, coverPresetOf, CREDIT_LINK } from '@/components/ui/Cover'
 import { PhotoFrame } from '@/components/ui/PhotoFrame'
 import { Keepsake, shelfLooks } from '@/components/ui/Keepsake'
 import { ShelfHeader } from '@/components/ui/ShelfHeader'
@@ -69,6 +69,20 @@ export default function TemplatesPage() {
           </Link>
         </PhotoFrame>
       </div>
+
+      {/* the covers are other people's photos, shared under CC BY: each is credited here */}
+      <section aria-labelledby="cover-photos" className="mt-12 max-w-[760px]">
+        <h2 id="cover-photos" className="mb-2 text-[11px] font-semibold uppercase tracking-[.13em] text-faint">Cover photos</h2>
+        <p className="mb-1.5 text-[12px] leading-[1.5] text-dim">
+          Shared on Flickr under <a href="https://creativecommons.org/licenses/by/2.0/" target="_blank" rel="noopener noreferrer license" className={CREDIT_LINK}>CC BY 2.0</a>, cropped and toned here.
+        </p>
+        <ul className="flex flex-col gap-1 text-[12px] leading-[1.5] text-dim">
+          {TEMPLATES.map((t) => {
+            const preset = coverPresetOf(t.src)
+            return preset && <li key={t.key}><CoverCredit preset={preset} lead={t.title} short /></li>
+          })}
+        </ul>
+      </section>
     </div>
   )
 }

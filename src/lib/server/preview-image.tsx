@@ -7,7 +7,6 @@
 // The colours are the light theme's values from globals.css: an image has no CSS
 // variables to read, and a chat app shows it on its own background, not ours.
 
-import { Children, Fragment, isValidElement, type ReactElement, type ReactNode } from 'react'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { ImageResponse } from 'next/og'
@@ -69,6 +68,16 @@ async function toJpeg(png: Buffer): Promise<Buffer | null> {
 // a host's photo, fetched here rather than by the renderer so a slow or missing
 // file falls back to the plan's plain cover instead of failing the whole picture
 async function photoOf(c: PreviewCover): Promise<string | null> {
+  // a preset is a photo that ships with the app, read straight off the disk
+  if (c.kind === 'preset') {
+    const preset = COVER_PRESETS.find((x) => x.id === c.id)
+    if (!preset) return null
+    try {
+      return `data:image/jpeg;base64,${(await readFile(join(process.cwd(), 'public', preset.photo))).toString('base64')}`
+    } catch {
+      return null
+    }
+  }
   if (c.kind !== 'photo') return null
   if (c.src.startsWith('data:')) return /^data:image\/(jpeg|png);/.test(c.src) ? c.src : null
   try {
@@ -81,37 +90,21 @@ async function photoOf(c: PreviewCover): Promise<string | null> {
   }
 }
 
-// the scenes are written with fragments, which the renderer's SVG writer cannot
-// read, so they are opened up into a plain list of shapes first
-function flat(node: ReactNode): ReactNode[] {
-  return Children.toArray(node).flatMap((n) => {
-    if (!isValidElement(n)) return [n]
-    const el = n as ReactElement<{ children?: ReactNode }>
-    if (el.type === Fragment) return flat(el.props.children)
-    return el.props.children === undefined ? [el] : [{ ...el, props: { ...el.props, children: flat(el.props.children) } }]
-  })
-}
-
 const COVER_W = 430
 const COVER_H = 470
-// the scenes are drawn on a 400x160 frame with the subject in the middle; the
-// renderer does not crop an SVG for us, so the middle slice of the frame that has
-// the cover's own shape is cut out here
-const SCENE_CROP = (() => { const w = (160 * COVER_W) / COVER_H; return `${(400 - w) / 2} 0 ${w} 160` })()
 
 function CoverArt({ p, photo }: { p: LinkPreview; photo: string | null }) {
   const [from, to] = coverFor(p.id)
   const preset = p.cover.kind === 'preset' ? COVER_PRESETS.find((x) => x.id === (p.cover as { id: string }).id) : null
   const bg = preset ? `linear-gradient(135deg, ${preset.from}, ${preset.to})` : `linear-gradient(135deg, ${from}, ${to})`
   const fit = p.cover.kind === 'photo' && p.cover.fit === 'fit'
-  const pos = p.cover.kind === 'photo' && p.cover.pos ? `${p.cover.pos.x}% ${p.cover.pos.y}%` : '50% 50%'
+  const at = p.cover.kind === 'photo' ? p.cover.pos : preset?.pos
+  const pos = at ? `${at.x}% ${at.y}%` : '50% 50%'
   return (
     <div style={{ display: 'flex', position: 'relative', width: COVER_W, height: COVER_H, borderRadius: 14, overflow: 'hidden', background: bg }}>
       {photo ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={photo} alt="" width={COVER_W} height={COVER_H} style={{ width: COVER_W, height: COVER_H, objectFit: fit ? 'contain' : 'cover', objectPosition: pos }} />
-      ) : preset ? (
-        <svg width={COVER_W} height={COVER_H} viewBox={SCENE_CROP}>{flat(preset.scene)}</svg>
       ) : (
         <>
           <div style={{ position: 'absolute', right: -40, top: -60, width: 260, height: 260, borderRadius: 999, background: 'rgba(255,255,255,.22)' }} />
