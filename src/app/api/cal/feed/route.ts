@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   let token: string | null = null
   if (!reset) {
     const { data, error } = await db.from('calendar_feeds').select('token').eq('user_id', user.id).maybeSingle()
-    // most likely migration 0017 has not run here yet
+    // most likely migration `calendar_feeds` has not run here yet
     if (error) return NextResponse.json({ error: 'Coming soon.' }, { status: 503 })
     token = data?.token ?? null
   }

@@ -11,7 +11,7 @@
 -- availability, votes and messages as anon through the share-link policies, so anon
 -- needs write grants on those, not only select.
 --
--- Every table made from now on grants in its own migration (see 0017).
+-- Every table made from now on grants in its own migration (see `calendar_feeds`).
 -- Safe to run more than once.
 
 grant select, insert, update, delete on

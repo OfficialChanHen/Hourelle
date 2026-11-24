@@ -90,7 +90,7 @@ export function rejected(action: string, message: string) {
 /* What of an event actually travels inside its document.
    Three things are cut out, each for the same reason: they are written by everyone at
    once, and a document write replaces the whole thing. Messages are their own rows
-   (pushMessage), and since migration 0008 so are availability and the ballot
+   (pushMessage), and since migration `availability_and_votes` so are availability and the ballot
    (pushAnswers). `avail` stays — it is derived from the intervals, it is the only copy
    of an answer on an event old enough to predate `availIv`, and every client recomputes
    it from the same rows, so a stale one costs nothing.
@@ -99,7 +99,7 @@ export function rejected(action: string, message: string) {
    to be missing" is not the same fact: `rowsMissing` starts false, so cutting on that
    alone throws the answers away on the very first write of the session, before the
    failure that would have told us the tables are absent has even come back. On a
-   database without migration 0008 the document IS the storage, and cutting them loses
+   database without migration `availability_and_votes` the document IS the storage, and cutting them loses
    real data — availability falls back to the per-cell `avail`, so every minute-precise
    answer snaps out to whole slots, and the ballot and the explicit "none of these days
    work" have nowhere left to live at all. */
@@ -116,7 +116,7 @@ const docOf = (ev: AppEvent) => {
 
 /* ── naming the plans a query is about ──
    The database lets a row be read or written only when the request names its plan
-   (migration 0023): knowing the id is the permission, and nothing can be listed.
+   (migration `link_scoped_access`): knowing the id is the permission, and nothing can be listed.
    The ids go in a header the policies read, on every query that touches a plan.
    A signed-in account reaches its own plans without naming them. */
 const NAMED_HEADER = 'x-event-ids'
@@ -264,7 +264,7 @@ export async function fetchEvent(id: string): Promise<boolean> {
    the app never learns this: rows are folded back into the document shape it already
    reads — `availIv`, `avail`, `votes`, `unavailableIds` — on the way in.
 
-   Both tables are additions to a database that may not have them yet: migration 0008
+   Both tables are additions to a database that may not have them yet: migration `availability_and_votes`
    is applied by hand. Until it is, every call here fails softly and the app keeps
    working exactly as it did, out of the document. */
 
@@ -274,7 +274,7 @@ type VoteRow = { event_id: string; place_id: string; participant_id: string }
 // flips true the first time either table answers "no such table", so a database
 // without the migration is asked once rather than on every write
 let rowsMissing = false
-// flips true when the `if_need_be` column (migration 0019) is not there yet. That is
+// flips true when the `if_need_be` column (migration `if_need_be`) is not there yet. That is
 // not a missing table: answers go on loading and saving without the column.
 let needColumnMissing = false
 const needColumn = () => !needColumnMissing
@@ -330,7 +330,7 @@ function withAnswers(doc: AppEvent, avail: AvailRow[], votes: VoteRow[]): AppEve
   const needIv = byDay(needPeople)
   // The ballot has no per-person floor to fall back on — it is one map for everyone —
   // so the document answers only while no row exists at all. That is the shape of the
-  // transition: before migration 0008 the votes are in the document and there are no
+  // transition: before migration `availability_and_votes` the votes are in the document and there are no
   // rows; after it there are rows and the document has none. The first vote on a
   // fresh event crosses the line in the right direction.
   const ballot: Record<string, string[]> = {}
@@ -394,7 +394,7 @@ export function pushAnswers(before: AppEvent, after: AppEvent): void {
   // empty row rather than deleted — a missing row means "has not answered", and the
   // document's legacy `avail` would otherwise bring the old times back. Both free and
   // if-need-be marks go into the row; they travel separately. Until the column is there
-  // (migration 0019), the row leaves `if_need_be` out.
+  // (migration `if_need_be`), the row leaves `if_need_be` out.
   const withNeed = needColumn()
   const b = byParticipant(fullAvailIvOf(before)), a = byParticipant(fullAvailIvOf(after))
   const bNeed = byParticipant(withNeed ? before.needIv ?? {} : {}), aNeed = byParticipant(withNeed ? after.needIv ?? {} : {})
@@ -770,7 +770,7 @@ export function resyncOnReturn(): () => void {
 /* ── realtime: someone else's write lands in this browser's cache ──
    Each plan this browser holds has its own broadcast topic, `ev:<id>`, and the
    database pings it whenever the plan, its chat, its answers or its ballot change
-   (migration 0023). A ping says only which table moved: the change itself is read
+   (migration `link_scoped_access`). A ping says only which table moved: the change itself is read
    back through the same id-scoped queries as everything else, so nothing private
    travels over the socket and a forged ping can do no more than cause a re-read.
    Plans new to this browser (someone added you) arrive with the next pull.
@@ -804,7 +804,7 @@ function refreshEvent(eventId: string): void {
       const ev = data.data as AppEvent
       /* The document arrives without the things that no longer live in it, and a
          re-read must not take them away from the cache. Chat has always been one;
-         since 0008 so are availability, the ballot and the explicit empty reply,
+         since `availability_and_votes` so are availability, the ballot and the explicit empty reply,
          which come from their own rows. Dropping them sent availability back to the
          per-cell `avail`, which is whole-slot only, so a time marked to 8:20 snapped
          back out to the whole 8:00 slot. Keep what the cache has unless the

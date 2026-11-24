@@ -1,7 +1,7 @@
 -- Step 23: the link is the permission, and only the link.
 --
 -- Until now the share-link tables said `using (true)`: the comment was "an event id
--- is not guessable", and an id minted since 0003 is not. But `using (true)` never
+-- is not guessable", and an id minted since `events_rls` is not. But `using (true)` never
 -- asked for the id. Anyone holding the public anon key (every browser has it) could
 -- ask PostgREST for `events?select=*` and get every plan, guest emails included, and
 -- the same for the chat, the answers and the ballot. The open update and delete

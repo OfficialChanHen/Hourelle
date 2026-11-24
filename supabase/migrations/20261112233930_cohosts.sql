@@ -1,24 +1,42 @@
--- Step 15: the host's answers are the host's alone, at the database too.
+-- Co-hosts: the host can hand day-to-day running of a plan to people they trust.
 --
--- 0003 taught the events trigger which parts of a document only a host may change:
--- the title, the dates, the budget, the lock-in. A few host decisions were never on
--- that list, and the grid's settings panel offered two of them to everybody: how
--- long the event needs, and what the "best" window should favour. A guest changing
--- either of those changed the plan for everyone, and nothing refused it.
+-- A co-host is a participant in the document flagged `cohost`, and only ever an
+-- account (a guest has no auth.uid() to check). A co-host may change what the host
+-- changes: the details, the dates, the setup, the lock-in. Three things stay the
+-- host's alone, here as on the screen:
+--   * deleting the plan (the delete policy from `events_rls` is untouched: host_id only)
+--   * the budget
+--   * who co-hosts, and who hosts
 --
--- The panel now shows them to the host only, and this makes that true rather than
--- merely displayed. Availability, votes, messages, participants and the itinerary
--- stay deliberately absent: that is the collaboration the app exists for.
+-- That last rule binds everyone who is not the host, not just co-hosts: the
+-- participants list is collaborative, so without it a guest with the anon key could
+-- flag themselves a co-host. The one change allowed is your own flag leaving with
+-- you, which is what leaving the plan does.
 --
 -- Safe to run more than once.
+
+-- the ids flagged `flag` in a document's participants, sorted, as one jsonb array
+create or replace function public.event_flagged_ids(doc jsonb, flag text)
+returns jsonb
+language sql
+immutable
+as $$
+  select coalesce(jsonb_agg(p->>'id' order by p->>'id'), '[]'::jsonb)
+  from jsonb_array_elements(coalesce(doc->'participants', '[]'::jsonb)) p
+  where p->>flag = 'true'
+$$;
 
 create or replace function public.enforce_event_rules()
 returns trigger
 language plpgsql
 as $$
 declare
+  me text := auth.uid()::text;
   is_host boolean := old.host_id is not null and auth.uid() = old.host_id;
   ownerless boolean := old.host_id is null;
+  is_cohost boolean := false;
+  old_co jsonb;
+  new_co jsonb;
 begin
   -- Direct SQL (the dashboard editor, migrations, a service-role key) carries no
   -- JWT, so there is no "who" to check. Those callers are trusted by definition and
@@ -37,12 +55,35 @@ begin
     return new;
   end if;
 
-  -- everyone else may only touch the collaborative parts of the document
+  -- who hosts and who co-hosts is the host's call. Your own co-host flag may leave
+  -- with you; nothing else on either list may change.
+  if public.event_flagged_ids(new.data, 'host') is distinct from public.event_flagged_ids(old.data, 'host') then
+    raise exception 'Only the host can change who hosts';
+  end if;
+  old_co := public.event_flagged_ids(old.data, 'cohost');
+  new_co := public.event_flagged_ids(new.data, 'cohost');
+  if new_co is distinct from old_co
+     and (new_co - coalesce(me, '')) is distinct from (old_co - coalesce(me, ''))
+     then
+    raise exception 'Only the host can choose co-hosts';
+  end if;
+  if me is not null and not (old_co ? me) and (new_co ? me) then
+    raise exception 'Only the host can choose co-hosts';
+  end if;
+
+  -- the budget is the host's alone, co-hosts included
   if new.data->>'budget' is distinct from old.data->>'budget'
      or new.data->>'budgetMode' is distinct from old.data->>'budgetMode' then
     raise exception 'Only the host can change the budget';
   end if;
 
+  is_cohost := me is not null and old_co ? me;
+  -- a co-host runs the rest of the plan the way the host does
+  if is_cohost then
+    return new;
+  end if;
+
+  -- everyone else may only touch the collaborative parts of the document
   if new.data->>'title' is distinct from old.data->>'title'
      or new.data->>'description' is distinct from old.data->>'description'
      or new.data->>'startDate' is distinct from old.data->>'startDate'

@@ -2,15 +2,17 @@
 --
 -- A plan can say its length is unknown (`openLength` in the event document): the
 -- best time is then the start the most people can make and hold longest. It sits
--- beside `durationMin` in the grid's settings, which 0015 made host-only at the
+-- beside `durationMin` in the grid's settings, which `host_only_fields` made host-only at the
 -- database; this adds `openLength` to the same list, so a guest cannot change how the
 -- best time is found for everyone. Co-hosts may change it, as they may the length.
 --
--- 0020 (repeating plans) and 0021 (co-hosts) each replace the same function. This is
--- 0021's version with 0020's repeat check and the `openLength` check added, so it
--- keeps everything both of them do. Run it after 0020 and 0021; if either is run
--- again later, run this one again after it. It also defines 0021's helper, so it
--- works on a database where 0021 has not run yet. Safe to run more than once.
+-- `repeating_plans` and `cohosts` each replace the same function. This is
+-- `cohosts`'s version with `repeating_plans`'s repeat check and the `openLength` check added, so it
+-- keeps everything both of them do. Run it after `repeating_plans` and `cohosts`; if either is run
+-- again later, run this one again after it. It also defines `cohosts`'s helper, so it
+-- works on a database where `cohosts` has not run yet. Safe to run more than once.
+--
+-- includes: 20261102232202_repeating_plans.sql
 
 -- the ids flagged `flag` in a document's participants, sorted, as one jsonb array
 create or replace function public.event_flagged_ids(doc jsonb, flag text)
@@ -111,7 +113,7 @@ begin
     raise exception 'Only the host can change how this event is set up';
   end if;
 
-  -- a repeating plan (0020): whether it repeats and which plan it came from are
+  -- a repeating plan (`repeating_plans`): whether it repeats and which plan it came from are
   -- written by the host's app alone
   if new.data->'repeat' is distinct from old.data->'repeat'
      or new.data->>'repeatOf' is distinct from old.data->>'repeatOf' then

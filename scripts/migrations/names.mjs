@@ -1,25 +1,28 @@
 // Pure rules for naming Supabase migrations, shared by the CLI (migrations.mjs) and its
 // tests. Several agents work at once on separate branches, and each used to take
-// "the last number plus one", so two branches could both write 0024. A new migration
-// is now named for the UTC second it was made (the Supabase CLI's own format,
+// "the last number plus one", so two branches could both write 0024. A migration is
+// now named for the UTC second it was made (the Supabase CLI's own format,
 // `20261123184502_unavailable_weeks.sql`), claimed through a file in the shared git
-// directory so no two worktrees get the same second.
+// directory so no two worktrees get the same second. The numbered ones, 0001 to 0024,
+// were renamed to the second each was first committed, so they keep their order.
 
-// 0001 to 0024 were run by hand in the SQL editor under these names, so they keep
-// them. They sort before every timestamp, so the order still holds.
-export const LEGACY_LAST = 24
-
-const LEGACY = /^(\d{4})_([a-z0-9_]+)\.sql$/
 const STAMPED = /^(\d{14})_([a-z0-9_]+)\.sql$/
+const NUMBERED = /^(\d{4})_([a-z0-9_]+)\.sql$/
 
-/** `{ version, slug, legacy }` for a migration file name, or null if it fits neither format. */
+/** `{ version, slug }` for a migration file name, or null if it is not stamped. */
 export function parseName(file) {
-  const base = file.split('/').pop()
-  const stamped = STAMPED.exec(base)
-  if (stamped) return { version: stamped[1], slug: stamped[2], legacy: false }
-  const legacy = LEGACY.exec(base)
-  if (legacy) return { version: legacy[1], slug: legacy[2], legacy: true }
-  return null
+  const stamped = STAMPED.exec(file.split('/').pop())
+  return stamped ? { version: stamped[1], slug: stamped[2] } : null
+}
+
+/**
+ * Whether `file` is an old numbered name for one of `here`, the stamped files on this
+ * branch: a branch that has not merged the rename still carries 0022_open_length.sql,
+ * which is the same migration as 20261112235150_open_length.sql here.
+ */
+export function isRenamedCopy(file, here) {
+  const numbered = NUMBERED.exec(file.split('/').pop())
+  return !!numbered && here.some((f) => parseName(f)?.slug === numbered[2])
 }
 
 /** Lower-case words joined by underscores; "Unavailable weeks!" becomes "unavailable_weeks". */
@@ -45,21 +48,18 @@ export function nextVersion(version) {
   return versionAt(new Date(d.getTime() + 1000))
 }
 
-/**
- * Problems with one branch's set of migration files: names in neither format, a
- * 4-digit number past the legacy range, and two files sharing a version.
- */
+/** Problems with one branch's set of migration files: unstamped names and two files sharing a version. */
 export function nameProblems(files) {
   const problems = []
   const seen = new Map()
   for (const file of files) {
     const parsed = parseName(file)
     if (!parsed) {
-      problems.push(`${file}: name it YYYYMMDDHHMMSS_slug.sql (run npm run migration:new <slug>)`)
+      const numbered = NUMBERED.exec(file.split('/').pop())
+      problems.push(numbered
+        ? `${file}: numbered names are retired; run npm run migration:new ${numbered[2]}`
+        : `${file}: name it YYYYMMDDHHMMSS_slug.sql (run npm run migration:new <slug>)`)
       continue
-    }
-    if (parsed.legacy && +parsed.version > LEGACY_LAST) {
-      problems.push(`${file}: numbered names stop at ${String(LEGACY_LAST).padStart(4, '0')}; run npm run migration:new ${parsed.slug}`)
     }
     const other = seen.get(parsed.version)
     if (other) problems.push(`${file}: version ${parsed.version} is also used by ${other}`)
@@ -86,7 +86,7 @@ export function replacedFunctions(sql) {
 
 /**
  * The migrations a file says it already folds in, from lines like
- * `-- includes: 0020_repeating_plans.sql, 0021_cohosts.sql`. A rewrite that carries
+ * `-- includes: 20261102232202_repeating_plans.sql, 20261112233930_cohosts.sql`. A rewrite that carries
  * another branch's change over is not a clash with it.
  */
 export function includedFiles(sql) {

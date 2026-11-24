@@ -40,7 +40,7 @@ export function cachedPlan(userId: string): PlanState {
 export async function loadPlan(userId: string): Promise<PlanState> {
   if (!backendOn || !userId) return FREE
   const { data, error } = await supabase!.from('profiles').select('plan, plan_source, plan_until').eq('id', userId).maybeSingle()
-  // a database without the 0014 columns answers with an error: everyone is Free,
+  // a database without the `billing` columns answers with an error: everyone is Free,
   // which is exactly what the app did before any of this existed
   if (error || !data) return FREE
   const row = data as { plan?: string; plan_source?: string; plan_until?: string | null }

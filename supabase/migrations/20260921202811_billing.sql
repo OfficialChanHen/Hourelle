@@ -1,6 +1,6 @@
 -- Step 14: Hourelle Plus becomes a real thing.
 --
--- 0012 added `plan` and `plan_interest_at` and nothing ever wrote to them. This
+-- The `plan` migration added `plan` and `plan_interest_at` and nothing ever wrote to them. This
 -- adds what a subscription needs: where the plan came from, who the account is at
 -- Stripe, and when the current period runs out. The app keeps working with none of
 -- it configured: with no Stripe keys every account reads as Free and no button to

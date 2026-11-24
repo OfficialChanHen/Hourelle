@@ -1,6 +1,6 @@
 -- Step 11: availability and the ballot leave the event document.
 --
--- Chat went first (0004) and the reasoning here is the same, only sharper. Until now
+-- Chat went first (`messages`) and the reasoning here is the same, only sharper. Until now
 -- a person marking their times rewrote events.data whole — their answer AND everyone
 -- else's — so two people answering in the same moment overwrote each other and the
 -- one who saved second won, silently. Live updates narrowed the window. A narrow

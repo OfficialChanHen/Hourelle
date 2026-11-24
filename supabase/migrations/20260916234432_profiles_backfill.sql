@@ -1,6 +1,6 @@
 -- Profiles for accounts that have none.
 --
--- 0002 mints a profile for every new auth.users row through a trigger. An account
+-- The `profiles` migration mints a profile for every new auth.users row through a trigger. An account
 -- that was created before that trigger existed on this database (or while it was
 -- missing) has no profile, so the app falls back to the part of the email before
 -- the @ for the name, sign-up cannot tell that the address is taken, and invite
