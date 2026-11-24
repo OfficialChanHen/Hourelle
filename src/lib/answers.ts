@@ -45,3 +45,13 @@ export function goingLine(pool: { people: { rsvp: Rsvp | string }[]; byTimes: bo
 export function needClause(leaning: number): string {
   return leaning > 0 ? `, ${leaning} of them if need be` : ''
 }
+
+/** What the best time so far does for the group, given who blocks it (blockersOf) and
+ *  how many can make it: "works for everyone so far", "works for everyone but Sam so
+ *  far" for one or two people, and "works for the most people so far" otherwise. */
+export function blockedClause(blockers: { name: string; you?: boolean }[], canMake: number): string {
+  if (canMake < 2 || blockers.length > 2) return 'works for the most people so far'
+  if (!blockers.length) return 'works for everyone so far'
+  const names = blockers.map((p) => (p.you ? 'you' : p.name.split(' ')[0]))
+  return `works for everyone but ${names.join(' and ')} so far`
+}
