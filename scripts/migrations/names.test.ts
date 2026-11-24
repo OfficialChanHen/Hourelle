@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-// @ts-expect-error plain ESM script, no type declarations
 import { parseName, toSlug, versionAt, nextVersion, nameProblems, replacedFunctions, functionClashes, includedFiles } from './names.mjs'
 
 describe('migration names', () => {
