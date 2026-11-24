@@ -18,7 +18,7 @@ import Link from 'next/link'
 import { PencilHover, PencilUnderline } from '@/components/ui/Pencil'
 import { usePathname } from 'next/navigation'
 import { useRouter } from 'next/navigation'
-import { Plus, Bell, UserRound, LogIn, LogOut, Settings, CircleHelp, Info, Smile } from 'lucide-react'
+import { Plus, Bell, UserRound, LogIn, LogOut, Settings, CircleHelp, Info } from 'lucide-react'
 import { ThemeToggle } from './ThemeToggle'
 import { VisitorHeader } from './VisitorHeader'
 import { Popover, PopoverItem, PopoverSep } from './ui/Popover'
@@ -31,6 +31,7 @@ import { FaceSvg } from '@/components/ui/FaceSvg'
 import { defaultFace, ringGap } from '@/lib/faces'
 import { Wordmark } from '@/components/ui/Wordmark'
 import { APP_NAME } from '@/lib/brand'
+import { noteMenuTrip } from '@/lib/nav'
 
 const TABS = [
   { href: '/home', label: 'Home' },
@@ -38,6 +39,11 @@ const TABS = [
   { href: '/templates', label: 'Templates' },
   { href: '/demos', label: 'Demos' },
 ]
+
+// a page the account menu opens leads back to where it was opened, not to Profile (lib/nav)
+function fromMenu(to: string, close: () => void) {
+  return () => { noteMenuTrip(window.location.pathname + window.location.search, to); close() }
+}
 
 export function Header() {
   const pathname = usePathname()
@@ -188,12 +194,11 @@ export function Header() {
                     {account.signedIn ? account.email : 'Not logged in'}
                   </div>
                 </div>
-                <PopoverItem href="/profile" onClick={close} icon={<UserRound size={15} />}>Profile</PopoverItem>
-                <PopoverItem href="/profile#face" onClick={close} icon={<Smile size={15} />}>Your face</PopoverItem>
-                <PopoverItem href="/settings" onClick={close} icon={<Settings size={15} />}>Settings</PopoverItem>
+                <PopoverItem href="/profile" onClick={fromMenu('/profile', close)} icon={<UserRound size={15} />}>Profile</PopoverItem>
+                <PopoverItem href="/settings" onClick={fromMenu('/settings', close)} icon={<Settings size={15} />}>Settings</PopoverItem>
                 <PopoverSep />
-                <PopoverItem href="/help" onClick={close} icon={<CircleHelp size={15} />}>Help &amp; contact</PopoverItem>
-                <PopoverItem href="/about" onClick={close} icon={<Info size={15} />}>About {APP_NAME}</PopoverItem>
+                <PopoverItem href="/help" onClick={fromMenu('/help', close)} icon={<CircleHelp size={15} />}>Help &amp; contact</PopoverItem>
+                <PopoverItem href="/about" onClick={fromMenu('/about', close)} icon={<Info size={15} />}>About {APP_NAME}</PopoverItem>
                 <PopoverSep />
                 {account.signedIn ? (
                   <PopoverItem

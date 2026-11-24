@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { BackLink } from '@/components/ui/BackLink'
 import { getEvent } from '@/lib/events'
+import { useMenuBack } from '@/components/AccountBack'
 
 /* ── the way back to the event you came from ──
    The footer is on every page, an event's included, and its pages (About, Help,
@@ -14,7 +15,8 @@ import { getEvent } from '@/lib/events'
    So a footer link followed from an event carries it (?from=<id>), and every footer
    page offers the way back to that event, by name, for anyone. Moving between footer
    pages keeps it, since the footer reads the arriving ?from= as well as the event in
-   the address. Pages that have their own way back keep it for everyone else.
+   the address. An account that opened the page from the avatar menu goes back to
+   where it was; anyone else gets the page's own way back.
 
    The address is read with useSearchParams under Suspense, because these pages are
    rendered ahead of time and their props know nothing of the query on a real visit. */
@@ -34,7 +36,9 @@ export function useFromEvent(): { id: string | null; title: string | null } {
 
 function Back({ fallback }: { fallback?: { href: string; label: string } }) {
   const { id, title } = useFromEvent()
+  const menuBack = useMenuBack()
   if (id) return <BackLink href={`/events/${id}`} label={title ?? 'Back to the plan'} />
+  if (menuBack) return <BackLink href={menuBack.href} label={menuBack.label} />
   return fallback ? <BackLink href={fallback.href} label={fallback.label} onlyWithAccount /> : null
 }
 

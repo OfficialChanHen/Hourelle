@@ -17,6 +17,7 @@ import { UsualWeekCard } from './_components/UsualWeekCard'
 import { reducedMotion } from '@/lib/prefs'
 import { APP_NAME } from '@/lib/brand'
 import { useLeaveGuard } from '@/hooks/useLeaveGuard'
+import { AccountBack } from '@/components/AccountBack'
 
 // eyebrow labels give the page the sectioned shape settings pages are expected to
 // have — account first, the rest of the account surface after, the exit at the end
@@ -36,7 +37,7 @@ export default function ProfilePage() {
   const account = useAccount()
   const router = useRouter()
 
-  // /profile#face (the account menu's Your face, an event's Change face) lands on
+  // /profile#face (an event's Change face) lands on
   // the face, and /profile#usual-week (a plan's Import menu) on the usual week. The section only renders once the account is known, which can be after
   // the router has already looked for it, so it is looked for again when it appears.
   const faceShown = account.signedIn || !backendOn
@@ -64,7 +65,7 @@ export default function ProfilePage() {
   const dirty = nameDirty || faceDraft.dirty
 
   function edit() { setName(account.name); faceDraft.reset(); setSaveErr(null); setSaved(false); setEditing(true) }
-  // the account menu's Your face and a plan's Change face land here to change it
+  // a plan's Change face lands here to change it
   useHashOpen(faceShown ? ['face'] : [], () => { if (!editing) edit() })
   // focus goes back to Edit once the editor folds away
   const editBtn = useRef<HTMLButtonElement>(null)
@@ -116,6 +117,7 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-[760px] px-4 pb-[92px] pt-[34px] sm:px-[26px]">
+      <AccountBack />
       <h1 className="font-serif font-normal text-[33.5px] leading-[1.04] tracking-[-0.01em]">Profile</h1>
 
       {/* who you are: name, email and the face everyone sees on your plans. The face
