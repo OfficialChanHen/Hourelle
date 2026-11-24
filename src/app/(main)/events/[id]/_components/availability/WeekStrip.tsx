@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Check } from 'lucide-react'
+import { CalendarX, Check } from 'lucide-react'
 import { reducedMotion } from '@/lib/prefs'
 
 // `you`: you have time (free or if need be) on one of this week's days
-export type WeekChip = { label: string; count: number; you: boolean }
+// `out`: you said you can't make this week
+export type WeekChip = { label: string; count: number; you: boolean; out?: boolean }
 
 /* ── the week tabs ──
    One tab per week of a poll that runs over several, fixed to the grid's top edge
@@ -13,7 +14,7 @@ export type WeekChip = { label: string; count: number; you: boolean }
    the others sit behind on the darker paper. Friends missed a strip above the grid
    (the grid holds the eye, as it should), so the weeks now hang off the grid itself,
    and each says whether you have marked it: a week still waiting on you reads "Not
-   marked" in the highlight's deep ink.
+   marked" in the highlight's deep ink, and a week you said you can't make says so.
 
    It is a tab list over the grid (the grid is the tab panel), so the keyboard gets
    one stop and Left/Right/Home/End walk the weeks. Selection follows focus: the
@@ -105,7 +106,10 @@ export function WeekStrip({ weeks, total, value, onChange, idBase, panelId, ask 
                 <span className="sr-only">, </span>
                 {ask && (w.you
                   ? <span className="flex items-center gap-1 font-medium text-teal-text"><Check size={12} aria-hidden />Marked</span>
-                  : <span className="font-semibold text-moment-text">Not marked</span>)}
+                  : w.out
+                    // answered too, so it no longer asks in the highlight
+                    ? <span className="flex items-center gap-1 font-medium text-brick-text"><CalendarX size={12} aria-hidden />Can&rsquo;t make</span>
+                    : <span className="font-semibold text-moment-text">Not marked</span>)}
                 <span className={`tabular-nums ${ask ? 'ml-auto text-faint' : ''}`}>
                   {ask && <span className="sr-only">, </span>}{n} of {whole}<span className="sr-only"> answered</span>
                 </span>

@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   if (hosted.error) return NextResponse.json({ error: hosted.error.message }, { status: 500 })
 
   // 2. their seat on other people's events is removed: the participant entry, their
-  //    marked times, their votes, and their "none of these days" reply
+  //    marked times, their votes, and their "none of these days" and "can't make this week" replies
   const { data: rows, error } = await db.from('events').select('id, data').filter('data->participants', 'cs', JSON.stringify([{ id: uid }]))
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   let left = 0
@@ -45,6 +45,7 @@ export async function POST(req: Request) {
       availIv: ev.availIv ? Object.fromEntries(Object.entries(ev.availIv).map(([day, byPid]) => [day, Object.fromEntries(Object.entries(byPid).filter(([pid]) => pid !== uid))])) : ev.availIv,
       votes: ev.votes ? Object.fromEntries(Object.entries(ev.votes).map(([place, ids]) => [place, ids.filter((id) => id !== uid)])) : ev.votes,
       unavailableIds: ev.unavailableIds?.filter((id) => id !== uid),
+      unavailableWeeks: ev.unavailableWeeks ? Object.fromEntries(Object.entries(ev.unavailableWeeks).filter(([pid]) => pid !== uid)) : ev.unavailableWeeks,
     }
     const { error: e2 } = await db.from('events').update({ data: { ...next, messages: [] } }).eq('id', row.id)
     if (!e2) left++
