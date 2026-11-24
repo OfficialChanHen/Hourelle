@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Crop, ImagePlus, Loader2 } from 'lucide-react'
-import { Cover, COVER_PRESETS } from './Cover'
+import { Cover, CoverCredit, COVER_PRESETS } from './Cover'
 import { Keepsake, DETAIL_CHOICES, lookOf, withDetail, type CardDetail } from './Keepsake'
 import { CoverPosition, type Pos } from './CoverPosition'
 import { CoverCrops } from './CoverCrops'
@@ -120,6 +120,7 @@ export function CoverEditor({ image, fit = 'fill', pos, keepsake, eventId, onCha
           )
         })}
       </div>
+      {preset && <p className="-mt-1 text-[12px] leading-[1.5] text-dim"><CoverCredit preset={preset} /></p>}
 
       {/* the detail on the card, the same way: small cards to pick from */}
       <div className="mt-1">
