@@ -6,7 +6,7 @@
 -- carries `repeatOf`. Both live in the event document, so no column is needed. This
 -- adds them to the fields only a host may change, so a guest cannot stop a series.
 --
--- The function is 0015's with that one check added. Safe to run more than once.
+-- The function is `host_only_fields`'s with that one check added. Safe to run more than once.
 
 create or replace function public.enforce_event_rules()
 returns trigger
