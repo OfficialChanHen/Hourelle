@@ -279,7 +279,7 @@ let rowsMissing = false
 // not a missing table: answers go on loading and saving without the column.
 let needColumnMissing = false
 const needColumn = () => !needColumnMissing
-// the same for `unavailable_weeks` (migration 0024). Until it is there, the weeks
+// the same for `unavailable_weeks` (its own migration). Until it is there, the weeks
 // someone can't make ride in the event document instead
 let weeksColumnMissing = false
 const weeksColumn = () => !weeksColumnMissing
